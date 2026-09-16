@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -141,6 +142,16 @@ class AuthNotifier extends ChangeNotifier {
     }
 
     _isLoading = false;
+    notifyListeners();
+  }
+
+  /// TEST ONLY: 백엔드 호출 없이 로컬 오프라인 유저로 즉시 로그인 처리한다.
+  /// 디버그 빌드에서 로그인 화면 UI 확인용으로만 쓰고, 배포 전 제거할 것.
+  void debugSkipLogin() {
+    if (!kDebugMode) return;
+    _currentUser = _createLocalFallbackUser(email: 'test@bpt.dev', name: 'Tester');
+    _isOfflineMode = true;
+    _error = null;
     notifyListeners();
   }
 

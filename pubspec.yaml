@@ -23,6 +23,7 @@ dependencies:
   cloud_firestore: ^6.3.0
   dio: ^5.4.3+1
   connectivity_plus: ^6.0.3
+  flutter_svg: ^2.0.10+1
 
 dev_dependencies:
   flutter_test:
@@ -38,6 +39,7 @@ flutter:
     - assets/images/
     - assets/images/character/
     - assets/images/decoration/
+    - assets/icons/nav/
   fonts:
     - family: Pretendard
       fonts:

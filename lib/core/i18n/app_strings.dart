@@ -18,8 +18,12 @@ class AppStrings {
 
   // ── Nav ──────────────────────────────────────────────────────────────────
   final String navHome;
+  final String navCalendar;
+  final String navWorkout;
   final String navReport;
   final String navProfile;
+  final String calendar;
+  final String calendarComingSoon;
 
   // ── Auth ─────────────────────────────────────────────────────────────────
   final String welcomeBack;
@@ -172,8 +176,12 @@ class AppStrings {
     required this.again,
     required this.back,
     required this.navHome,
+    required this.navCalendar,
+    required this.navWorkout,
     required this.navReport,
     required this.navProfile,
+    required this.calendar,
+    required this.calendarComingSoon,
     required this.welcomeBack,
     required this.createAccount,
     required this.signIn,
@@ -314,8 +322,12 @@ class AppStrings {
     again: 'Again',
     back: 'Back',
     navHome: 'Home',
+    navCalendar: 'Calendar',
+    navWorkout: 'Workout',
     navReport: 'Report',
     navProfile: 'Profile',
+    calendar: 'Calendar',
+    calendarComingSoon: 'Coming soon',
     welcomeBack: "Let's Get Moving!",
     createAccount: 'Create Account',
     signIn: 'Sign In',
@@ -456,8 +468,12 @@ class AppStrings {
     again: '다시',
     back: '뒤로',
     navHome: '홈',
+    navCalendar: '캘린더',
+    navWorkout: '운동',
     navReport: '리포트',
     navProfile: '내 정보',
+    calendar: '캘린더',
+    calendarComingSoon: '곧 만나볼 수 있어요',
     welcomeBack: '오늘도 열심히 해봐요!',
     createAccount: '계정 만들기',
     signIn: '로그인',

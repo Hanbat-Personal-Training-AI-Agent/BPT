@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -56,6 +57,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
   Future<void> _submit(s) async {
     final auth = ref.read(authNotifierProvider);
+    if (kDebugMode) {
+      // TEST ONLY: 백엔드 로그인 없이 네비게이션/화면 확인용 임시 우회. 배포 전 제거할 것.
+      auth.debugSkipLogin();
+      return;
+    }
     if (!(_loginFormKey.currentState?.validate() ?? false)) return;
     await auth.login(
       _loginEmailCtrl.text.trim(), // username → email
