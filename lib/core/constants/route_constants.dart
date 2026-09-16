@@ -11,6 +11,7 @@ class RouteConstants {
   static const String onboardingAnalyzing = '/onboarding/analyzing';
   static const String onboardingResult = '/onboarding/result';
   static const String home = '/home';
+  static const String calendar = '/calendar';
   static const String report = '/report';
   static const String profile = '/profile';
   static const String exerciseSelection = '/exercise-selection';

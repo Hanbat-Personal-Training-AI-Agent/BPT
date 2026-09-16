@@ -1,25 +1,20 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/route_constants.dart';
 import '../../../core/i18n/locale_provider.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../../data/mock_data.dart';
-import '../../../models/exercise_model.dart';
 import '../../../models/workout_record_model.dart';
 import '../providers/home_provider.dart';
-import '../../workout/widgets/camera_guide_modal.dart';
 
-// ── File-level state for home exercise picker ──────────────────────────────
-final _selectedExIdProvider =
-    StateProvider<String>((ref) => mockExercises.first.id);
-final _homeRepsProvider = StateProvider<int>((ref) =>
-    mockExercises.first.defaultReps == 0
-        ? mockExercises.first.defaultDurationSeconds
-        : mockExercises.first.defaultReps);
-final _homeSetsProvider =
-    StateProvider<int>((ref) => mockExercises.first.defaultSets);
+const _weekdayLabelsKo = ['월', '화', '수', '목', '금', '토', '일'];
+const _weekdayLabelsEn = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -31,48 +26,43 @@ class HomeScreen extends ConsumerWidget {
     final summary = ref.watch(todaySummaryProvider);
     final recent = ref.watch(recentRecordsProvider);
 
-    return Scaffold(
-      body: CustomScrollView(
-        slivers: [
-          _BPTAppBar(name: user.name, strings: s),
-          SliverPadding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 120),
-            sliver: SliverList(
-              delegate: SliverChildListDelegate([
-                if ((summary['streak'] as int) >= 1)
-                  _StreakBanner(streak: summary['streak'] as int, strings: s),
-                const SizedBox(height: 20),
-                _TodaySummaryCard(summary: summary, strings: s),
-                const SizedBox(height: 28),
-                _SectionHeader(title: s.myGoal),
-                const SizedBox(height: 12),
-                _WeeklyGoalCard(strings: s),
-                const SizedBox(height: 28),
-                _SectionHeader(
-                  title: s.recentWorkouts,
-                  trailing: recent.isEmpty ? null : s.seeAll,
-                  onTrailingTap: recent.isEmpty
-                      ? null
-                      : () => context.go(RouteConstants.report),
-                ),
-                const SizedBox(height: 12),
-                if (recent.isEmpty)
-                  _EmptyWorkoutState(strings: s)
-                else
+    return Theme(
+      data: AppTheme.darkTheme,
+      child: Scaffold(
+        backgroundColor: AppColors.black,
+        body: CustomScrollView(
+          slivers: [
+            _BPTAppBar(name: user.name, strings: s),
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
+              sliver: SliverList(
+                delegate: SliverChildListDelegate([
+                  _StartWorkoutCard(strings: s),
+                  const SizedBox(height: 16),
+                  _QuickStatsRow(summary: summary, strings: s),
+                  const SizedBox(height: 20),
+                  _WeeklyGoalCard(strings: s),
+                  const SizedBox(height: 16),
+                  _BodyCheckBanner(strings: s),
+                  const SizedBox(height: 28),
+                  _SectionHeader(
+                    title: s.recentWorkouts,
+                    trailing: recent.isEmpty ? null : s.seeAll,
+                    onTrailingTap: recent.isEmpty
+                        ? null
+                        : () => context.go(RouteConstants.report),
+                  ),
+                  const SizedBox(height: 12),
                   ...recent
-                      .map((r) => _RecentWorkoutTile(record: r, strings: s)),
-                const SizedBox(height: 28),
-                _SectionHeader(title: s.selectExercise),
-                const SizedBox(height: 12),
-                _ExercisePickerGrid(strings: s),
-                const SizedBox(height: 16),
-                _WorkoutConfigPanel(strings: s),
-              ]),
+                      .map((r) => _RecentRecordTile(record: r, strings: s)),
+                  if (recent.isNotEmpty) const SizedBox(height: 12),
+                  _KoriCommentCard(recent: recent, strings: s),
+                ]),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-      bottomSheet: _StartButton(strings: s),
     );
   }
 }
@@ -83,20 +73,37 @@ class _BPTAppBar extends StatelessWidget {
   final String name;
   final dynamic strings;
 
-  String _greeting(dynamic s) {
-    final h = DateTime.now().hour;
-    if (h < 12) return s.greetingMorning;
-    if (h < 17) return s.greetingAfternoon;
-    return s.greetingEvening;
+  static const _monthsEn = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
+
+  String _dateLabel(bool isKo) {
+    final now = DateTime.now();
+    if (isKo) {
+      final day = _weekdayLabelsKo[now.weekday - 1];
+      return '${now.month}월 ${now.day}일 $day요일';
+    }
+    return '${_monthsEn[now.month - 1]} ${now.day}';
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final isKo = strings.locale == 'ko';
     return SliverAppBar(
       floating: true,
       snap: true,
-      backgroundColor: theme.scaffoldBackgroundColor,
+      backgroundColor: AppColors.black,
       surfaceTintColor: Colors.transparent,
       elevation: 0,
       expandedHeight: 84,
@@ -112,16 +119,22 @@ class _BPTAppBar extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      _greeting(strings),
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color:
-                            theme.colorScheme.onSurface.withValues(alpha: 0.55),
+                      _dateLabel(isKo),
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.55),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
+                    const SizedBox(height: 2),
                     Text(
-                      name.split(' ').first,
-                      style: theme.textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.w800,
+                      isKo
+                          ? '어서 와, ${name.split(' ').first}!'
+                          : 'Welcome, ${name.split(' ').first}!',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 24,
+                        fontWeight: FontWeight.w900,
                       ),
                     ),
                   ],
@@ -130,12 +143,15 @@ class _BPTAppBar extends StatelessWidget {
                 Container(
                   width: 48,
                   height: 48,
+                  padding: const EdgeInsets.all(9),
                   decoration: const BoxDecoration(
-                    gradient: AppColors.primaryGradient,
+                    color: AppColors.purple,
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.fitness_center_rounded,
-                      color: Colors.white, size: 24),
+                  child: Image.asset(
+                    'assets/images/character/face.png',
+                    fit: BoxFit.contain,
+                  ),
                 ),
               ],
             ),
@@ -146,159 +162,298 @@ class _BPTAppBar extends StatelessWidget {
   }
 }
 
-// ── Today Summary Card ─────────────────────────────────────────────────────
-class _TodaySummaryCard extends StatelessWidget {
-  const _TodaySummaryCard({required this.summary, required this.strings});
+// ── Start Workout Card (green CTA) ──────────────────────────────────────────
+class _StartWorkoutCard extends StatelessWidget {
+  const _StartWorkoutCard({required this.strings});
+  final dynamic strings;
+
+  static const double _cardHeight = 108;
+  static const double _characterSize = 170;
+
+  @override
+  Widget build(BuildContext context) {
+    final isKo = strings.locale == 'ko';
+    return GestureDetector(
+      onTap: () => context.push(RouteConstants.exerciseSelection),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(26),
+        child: Container(
+          height: _cardHeight,
+          color: AppColors.green,
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Positioned(
+                left: 28,
+                top: 0,
+                bottom: 0,
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        isKo ? '오늘은 무슨 운동을 할래?' : 'What will you train today?',
+                        style: TextStyle(
+                          color: AppColors.black.withValues(alpha: 0.65),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        isKo ? '바로 시작해보자!' : "Let's start now!",
+                        style: const TextStyle(
+                          color: AppColors.black,
+                          fontSize: 24,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              Positioned(
+                right: 14,
+                top: 8,
+                child: Image.asset(
+                  'assets/images/character/workingout.png',
+                  width: _characterSize,
+                  height: _characterSize,
+                  fit: BoxFit.contain,
+                  alignment: Alignment.topCenter,
+                ),
+              ),
+              Positioned(
+                right: 35,
+                top: 19,
+                child: Image.asset(
+                  'assets/images/decoration/tilde_purple.png',
+                  width: 25,
+                  height: 25,
+                ),
+              ),
+              Positioned(
+                right: 17,
+                top: 8,
+                child: Transform.rotate(
+                  angle: -30 * math.pi / 180,
+                  child: Image.asset(
+                    'assets/images/decoration/note_purple.png',
+                    width: 24,
+                    height: 24,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Quick Stats Row (운동 시간 / 완료 세트 / 총 반복) ──────────────────────
+class _QuickStatsRow extends StatelessWidget {
+  const _QuickStatsRow({required this.summary, required this.strings});
   final Map<String, dynamic> summary;
   final dynamic strings;
 
   @override
   Widget build(BuildContext context) {
-    final s = strings;
-    return Container(
-      padding: const EdgeInsets.all(22),
-      decoration: BoxDecoration(
-        gradient: AppColors.primaryGradient,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.3),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            s.todaySummary,
-            style: const TextStyle(
-              color: Colors.white70,
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 18),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _StatItem(
-                value: '${summary['workoutsToday']}',
-                label: s.workouts,
-                icon: Icons.fitness_center_rounded,
-              ),
-              _StatItem(
-                value: '${summary['totalReps']}',
-                label: s.totalReps,
-                icon: Icons.loop_rounded,
-              ),
-              _StatItem(
-                value: '${summary['totalMinutes']}m',
-                label: s.activeTime,
-                icon: Icons.timer_outlined,
-              ),
-              _StatItem(
-                value: '${summary['avgPostureScore'].toStringAsFixed(0)}%',
-                label: s.avgScore,
-                icon: Icons.star_outline_rounded,
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _StatItem extends StatelessWidget {
-  const _StatItem({
-    required this.value,
-    required this.label,
-    required this.icon,
-  });
-  final String value;
-  final String label;
-  final IconData icon;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
+    final isKo = strings.locale == 'ko';
+    return Row(
       children: [
-        Icon(icon, color: Colors.white70, size: 24),
-        const SizedBox(height: 6),
-        Text(
-          value,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 22,
-            fontWeight: FontWeight.w800,
+        Expanded(
+          child: _StatBox(
+            label: isKo ? '운동 시간' : 'Active time',
+            value: '${summary['totalMinutes'] ?? 0}',
+            unit: isKo ? '분' : 'm',
           ),
         ),
-        const SizedBox(height: 2),
-        Text(label,
-            style: const TextStyle(
-                color: Colors.white60,
-                fontSize: 12,
-                fontWeight: FontWeight.w500)),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _StatBox(
+            label: isKo ? '완료 세트' : 'Sets done',
+            value: '${summary['completedSets'] ?? 0}',
+            unit: isKo ? '세트' : ' sets',
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _StatBox(
+            label: isKo ? '총 반복' : 'Total reps',
+            value: '${summary['totalReps'] ?? 0}',
+            unit: isKo ? '회' : ' reps',
+          ),
+        ),
       ],
     );
   }
 }
 
-// ── Streak Banner (streak >= 1일 때 표시) ─────────────────────────────────
-class _StreakBanner extends StatelessWidget {
-  const _StreakBanner({required this.streak, required this.strings});
-  final int streak;
-  final dynamic strings;
-
-  String _message(bool isKo) {
-    if (streak == 1) {
-      return isKo ? '오늘 첫 번째 운동! 열심히 해봅시다!' : 'First workout today! Let\'s go!';
-    }
-    if (streak <= 3) {
-      return isKo
-          ? '$streak일 연속! 좋은 시작이에요'
-          : '$streak-day streak! Great start!';
-    }
-    if (streak <= 6) {
-      return isKo ? '$streak일 연속! 잘 하고 있어요' : '$streak-day streak! Keep it up!';
-    }
-    if (streak < 14) {
-      return isKo ? '$streak일 연속! 대단해요!' : '$streak-day streak! Amazing!';
-    }
-    return isKo ? '$streak일 연속! 완전 최고예요!' : '$streak days straight! Legendary!';
-  }
+class _StatBox extends StatelessWidget {
+  const _StatBox({
+    required this.label,
+    required this.value,
+    required this.unit,
+  });
+  final String label;
+  final String value;
+  final String unit;
 
   @override
   Widget build(BuildContext context) {
-    final s = strings;
-    final isKo = s.locale == 'ko';
     return Container(
-      margin: const EdgeInsets.only(bottom: 4),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFFFF6B35), Color(0xFFFF9500)],
-        ),
-        borderRadius: BorderRadius.circular(14),
+        color: AppColors.grey,
+        borderRadius: BorderRadius.circular(22),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.local_fire_department_rounded,
-              color: Colors.white, size: 20),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              _message(isKo),
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w700,
-                fontSize: 14,
-              ),
+          Text(
+            label,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.5),
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 6),
+          RichText(
+            text: TextSpan(
+              children: [
+                TextSpan(
+                  text: value,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 21,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                TextSpan(
+                  text: unit,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.55),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ── Body Check Banner (체형 재측정 배너, 3가지 상태) ───────────────────────
+enum _BodyCheckState { fresh, dueSoon, overdue }
+
+class _BodyCheckBanner extends StatelessWidget {
+  const _BodyCheckBanner({required this.strings});
+  final dynamic strings;
+
+  static const int _cycleDays = 30;
+  // TODO: 실제 마지막 체형 측정일이 저장되면 그 값으로 교체할 것. 지금은 목데이터.
+  static const int _daysSinceLastCheck = 30;
+
+  @override
+  Widget build(BuildContext context) {
+    final isKo = strings.locale == 'ko';
+    final daysUntilNext =
+        (_cycleDays - _daysSinceLastCheck).clamp(0, _cycleDays);
+
+    final _BodyCheckState state;
+    if (_daysSinceLastCheck >= _cycleDays) {
+      state = _BodyCheckState.overdue;
+    } else if (daysUntilNext <= 3) {
+      state = _BodyCheckState.dueSoon;
+    } else {
+      state = _BodyCheckState.fresh;
+    }
+
+    late final Color bg;
+    late final Color fg;
+    late final String title;
+    late final String subtitle;
+
+    switch (state) {
+      case _BodyCheckState.fresh:
+        bg = AppColors.grey;
+        fg = AppColors.green;
+        title = isKo ? '체형 분석 완료!' : 'Body scan complete!';
+        subtitle = isKo
+            ? '다음 확인까지 $daysUntilNext일'
+            : '$daysUntilNext days until next check';
+      case _BodyCheckState.dueSoon:
+        bg = AppColors.purple.withValues(alpha: 0.18);
+        fg = AppColors.purple;
+        title = isKo ? '곧 체형을 다시 확인할 때야!' : 'Time to recheck your body soon!';
+        subtitle = isKo
+            ? '다음 측정까지 $daysUntilNext일'
+            : '$daysUntilNext days until next check';
+      case _BodyCheckState.overdue:
+        bg = AppColors.red;
+        fg = Colors.white;
+        title = isKo ? '체형을 다시 확인할 때야!' : 'Time to recheck your body!';
+        subtitle = isKo
+            ? '마지막 측정 후 $_daysSinceLastCheck일이 지났어'
+            : "It's been $_daysSinceLastCheck days since your last check";
+    }
+
+    return GestureDetector(
+      onTap: () => context.push(RouteConstants.onboardingCapture),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(22),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              alignment: Alignment.center,
+              child: SvgPicture.asset(
+                'assets/icons/home/alert.svg',
+                width: 24,
+                height: 24,
+                colorFilter: ColorFilter.mode(fg, BlendMode.srcIn),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      color: fg,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 14,
+                    ),
+                  ),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      color: fg.withValues(alpha: 0.75),
+                      fontWeight: FontWeight.w500,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right_rounded, color: fg.withValues(alpha: 0.6)),
+          ],
+        ),
       ),
     );
   }
@@ -311,119 +466,141 @@ class _WeeklyGoalCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final s = strings;
+    final isKo = strings.locale == 'ko';
     final goal = ref.watch(weeklyWorkoutGoalProvider);
     final current = ref.watch(weeklyWorkoutsProvider);
+    final allRecords = ref.watch(allRecordsProvider);
     final progress = (current / goal).clamp(0.0, 1.0);
 
-    final color = progress >= 1.0
-        ? AppColors.scoreExcellent
-        : progress >= 0.5
-            ? AppColors.scoreGood
-            : AppColors.primary;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final monday = today.subtract(Duration(days: today.weekday - 1));
+    final labels = isKo ? _weekdayLabelsKo : _weekdayLabelsEn;
+
+    bool hasWorkoutOn(DateTime day) => allRecords.any((r) {
+          final d = DateTime(r.date.year, r.date.month, r.date.day);
+          return d == day;
+        });
 
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: isDark ? AppColors.darkCard : AppColors.lightCard,
-        borderRadius: BorderRadius.circular(16),
+        color: AppColors.grey,
+        borderRadius: BorderRadius.circular(22),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(10),
+              Text(
+                isKo ? '이번 주 목표' : 'Weekly goal',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 15,
                 ),
-                child: Icon(Icons.flag_rounded, color: color, size: 20),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+              RichText(
+                text: TextSpan(
                   children: [
-                    Text(
-                      s.locale == 'ko' ? '주간 운동 목표' : 'Weekly Workout Goal',
-                      style: theme.textTheme.titleSmall
-                          ?.copyWith(fontWeight: FontWeight.w700),
+                    TextSpan(
+                      text: '$current',
+                      style: const TextStyle(
+                        color: AppColors.green,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 15,
+                      ),
                     ),
-                    Text(
-                      s.locale == 'ko'
-                          ? '이번 주 $current / $goal 회'
-                          : '$current / $goal this week',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color:
-                            theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                    TextSpan(
+                      text: isKo ? ' / $goal회' : ' / $goal',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.5),
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
                       ),
                     ),
                   ],
                 ),
               ),
-              Row(
-                children: [
-                  _CircleBtn(
-                    icon: Icons.remove,
-                    onTap: goal > 1
-                        ? () => ref
-                            .read(weeklyWorkoutGoalProvider.notifier)
-                            .state = goal - 1
-                        : null,
-                  ),
-                  const SizedBox(width: 10),
-                  SizedBox(
-                    width: 32,
-                    child: Text(
-                      '$goal',
-                      textAlign: TextAlign.center,
-                      style: theme.textTheme.titleMedium
-                          ?.copyWith(fontWeight: FontWeight.w800),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  _CircleBtn(
-                    icon: Icons.add,
-                    onTap: goal < 14
-                        ? () => ref
-                            .read(weeklyWorkoutGoalProvider.notifier)
-                            .state = goal + 1
-                        : null,
-                  ),
-                ],
-              ),
             ],
           ),
           const SizedBox(height: 14),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: LinearProgressIndicator(
+              value: progress,
+              backgroundColor: Colors.white.withValues(alpha: 0.08),
+              valueColor: const AlwaysStoppedAnimation<Color>(AppColors.green),
+              minHeight: 8,
+            ),
+          ),
+          const SizedBox(height: 14),
           Row(
-            children: [
-              Expanded(
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(6),
-                  child: LinearProgressIndicator(
-                    value: progress,
-                    backgroundColor: color.withValues(alpha: 0.12),
-                    valueColor: AlwaysStoppedAnimation<Color>(color),
-                    minHeight: 8,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Text(
-                '${(progress * 100).toInt()}%',
-                style: TextStyle(
-                  color: color,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 13,
-                ),
-              ),
-            ],
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: List.generate(7, (i) {
+              final date = monday.add(Duration(days: i));
+              final _DayState state;
+              if (date == today) {
+                state = _DayState.today;
+              } else if (date.isBefore(today) && hasWorkoutOn(date)) {
+                state = _DayState.past;
+              } else {
+                state = _DayState.inactive;
+              }
+              return _WeekdayPill(
+                  label: labels[i], state: state, isWeekday: i < 5);
+            }),
           ),
         ],
+      ),
+    );
+  }
+}
+
+enum _DayState { past, today, inactive }
+
+class _WeekdayPill extends StatelessWidget {
+  const _WeekdayPill({
+    required this.label,
+    required this.state,
+    required this.isWeekday,
+  });
+  final String label;
+  final _DayState state;
+  final bool isWeekday;
+
+  @override
+  Widget build(BuildContext context) {
+    final Color bg;
+    final Color fg;
+    switch (state) {
+      case _DayState.past:
+        bg = AppColors.green;
+        fg = AppColors.black;
+      case _DayState.today:
+        bg = AppColors.purple;
+        fg = Colors.white;
+      case _DayState.inactive:
+        bg = Colors.white.withValues(alpha: 0.06);
+        fg = Colors.white.withValues(alpha: 0.35);
+    }
+    return Container(
+      width: 42,
+      height: 30,
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        label,
+        style: TextStyle(
+          color: fg,
+          fontWeight: isWeekday ? FontWeight.w800 : FontWeight.w700,
+          fontSize: 12,
+        ),
       ),
     );
   }
@@ -449,7 +626,7 @@ class _SectionHeader extends StatelessWidget {
         Text(
           title,
           style: theme.textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.w700,
+            fontWeight: FontWeight.w900,
           ),
         ),
         if (trailing != null)
@@ -457,8 +634,8 @@ class _SectionHeader extends StatelessWidget {
             onTap: onTrailingTap,
             child: Text(
               trailing!,
-              style: const TextStyle(
-                color: AppColors.primary,
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.4),
                 fontWeight: FontWeight.w600,
                 fontSize: 14,
               ),
@@ -469,9 +646,9 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
-// ── Recent Workout Tile ────────────────────────────────────────────────────
-class _RecentWorkoutTile extends StatelessWidget {
-  const _RecentWorkoutTile({required this.record, required this.strings});
+// ── Recent Record Tile ─────────────────────────────────────────────────────
+class _RecentRecordTile extends StatelessWidget {
+  const _RecentRecordTile({required this.record, required this.strings});
   final WorkoutRecordModel record;
   final dynamic strings;
 
@@ -484,19 +661,8 @@ class _RecentWorkoutTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final score = record.postureScore;
     final s = strings;
-
-    final scoreColor = score >= 90
-        ? AppColors.scoreExcellent
-        : score >= 75
-            ? AppColors.scoreGood
-            : score >= 60
-                ? AppColors.scoreFair
-                : AppColors.scorePoor;
-
+    final isKo = s.locale == 'ko';
     final ex = findExercise(record.exerciseId);
 
     return GestureDetector(
@@ -519,23 +685,27 @@ class _RecentWorkoutTile extends StatelessWidget {
       ),
       child: Container(
         margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: isDark ? AppColors.darkCard : AppColors.lightCard,
-          borderRadius: BorderRadius.circular(14),
+          color: AppColors.grey,
+          borderRadius: BorderRadius.circular(20),
         ),
         child: Row(
           children: [
             Container(
-              width: 50,
-              height: 50,
+              width: 44,
+              height: 44,
               decoration: BoxDecoration(
-                color: ex.accentColor.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(12),
+                color: AppColors.green,
+                borderRadius: BorderRadius.circular(14),
               ),
-              child: Padding(
-                padding: const EdgeInsets.all(10),
-                child: Image.asset(ex.imagePath),
+              alignment: Alignment.center,
+              child: SvgPicture.asset(
+                'assets/icons/nav/workout.svg',
+                width: 20,
+                height: 20,
+                colorFilter:
+                    const ColorFilter.mode(AppColors.black, BlendMode.srcIn),
               ),
             ),
             const SizedBox(width: 14),
@@ -544,47 +714,34 @@ class _RecentWorkoutTile extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    s.locale == 'ko' ? ex.nameKr : record.exerciseName,
-                    style: theme.textTheme.bodyMedium
-                        ?.copyWith(fontWeight: FontWeight.w700),
+                    isKo ? ex.nameKr : record.exerciseName,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 15,
+                    ),
                   ),
                   const SizedBox(height: 3),
                   Text(
-                    record.totalReps > 0
-                        ? '${record.totalReps} ${s.reps}  •  ${record.durationFormatted}'
-                        : record.durationFormatted,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color:
-                          theme.colorScheme.onSurface.withValues(alpha: 0.55),
+                    isKo
+                        ? '${record.targetSets}세트 × ${record.totalReps}회 · 60kg'
+                        : '${record.targetSets} sets × ${record.totalReps} reps · 60kg',
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.5),
+                      fontSize: 13,
                     ),
                   ),
                 ],
               ),
             ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  '${score.toInt()}%',
-                  style: TextStyle(
-                    color: scoreColor,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 16,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  _timeAgo(record.date, s),
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.45),
-                  ),
-                ),
-              ],
+            Text(
+              _timeAgo(record.date, s),
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.4),
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
             ),
-            const SizedBox(width: 4),
-            Icon(Icons.chevron_right_rounded,
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.3),
-                size: 18),
           ],
         ),
       ),
@@ -592,345 +749,70 @@ class _RecentWorkoutTile extends StatelessWidget {
   }
 }
 
-// ── Empty Workout State ────────────────────────────────────────────────────
-class _EmptyWorkoutState extends StatelessWidget {
-  const _EmptyWorkoutState({required this.strings});
+// ── Kori's Comment Card (최근 기록/피드백 없으면 코리가 안내) ──────────────
+class _KoriCommentCard extends StatelessWidget {
+  const _KoriCommentCard({required this.recent, required this.strings});
+  final List<WorkoutRecordModel> recent;
   final dynamic strings;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
     final isKo = strings.locale == 'ko';
+    final String message;
+    if (recent.isEmpty) {
+      message = isKo
+          ? '아직 기록이 없어! 운동 시작 버튼을 클릭해 오늘 첫 기록을 남겨볼까?'
+          : "No recent records yet! Pick a workout below and log your first one.";
+    } else {
+      final latest = recent.first;
+      message = latest.feedbackNotes.isNotEmpty
+          ? latest.feedbackNotes.first
+          : (isKo
+              ? '오늘도 수고했어! 다음에도 좋은 자세로 만나자.'
+              : 'Nice work today! See you next time with great form.');
+    }
+
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 32),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isDark ? AppColors.darkCard : AppColors.lightCard,
-        borderRadius: BorderRadius.circular(14),
+        color: AppColors.grey,
+        borderRadius: BorderRadius.circular(22),
       ),
-      child: Column(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.fitness_center_rounded,
-              size: 36,
-              color: theme.colorScheme.onSurface.withValues(alpha: 0.2)),
-          const SizedBox(height: 12),
-          Text(
-            isKo ? '아직 운동 기록이 없어요' : 'No workouts yet',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              fontWeight: FontWeight.w600,
-              color: theme.colorScheme.onSurface.withValues(alpha: 0.45),
-            ),
+          Image.asset(
+            'assets/images/character/face2.png',
+            width: 62,
+            height: 62,
+            fit: BoxFit.contain,
           ),
-          const SizedBox(height: 4),
-          Text(
-            isKo ? '아래에서 운동을 선택하고 시작해봐요!' : 'Pick an exercise below and start!',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurface.withValues(alpha: 0.3),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Exercise Picker Grid ───────────────────────────────────────────────────
-class _ExercisePickerGrid extends ConsumerWidget {
-  const _ExercisePickerGrid({required this.strings});
-  final dynamic strings;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final s = strings;
-    final selectedId = ref.watch(_selectedExIdProvider);
-
-    return GridView.builder(
-      shrinkWrap: true,
-      padding: EdgeInsets.zero,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-        childAspectRatio: 1.35,
-      ),
-      itemCount: mockExercises.length,
-      itemBuilder: (context, i) {
-        final ex = mockExercises[i];
-        final isSelected = ex.id == selectedId;
-        final theme = Theme.of(context);
-        final isDark = theme.brightness == Brightness.dark;
-        final diffLabel = ex.difficultyLabel == 'Beginner'
-            ? s.beginner
-            : ex.difficultyLabel == 'Intermediate'
-                ? s.intermediate
-                : s.advanced;
-
-        return GestureDetector(
-          onTap: () {
-            ref.read(_selectedExIdProvider.notifier).state = ex.id;
-            ref.read(_homeRepsProvider.notifier).state = ex.defaultReps == 0
-                ? ex.defaultDurationSeconds
-                : ex.defaultReps;
-            ref.read(_homeSetsProvider.notifier).state = ex.defaultSets;
-          },
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: isSelected
-                  ? ex.accentColor.withValues(alpha: 0.12)
-                  : (isDark ? AppColors.darkCard : AppColors.lightCard),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: isSelected ? ex.accentColor : Colors.transparent,
-                width: 2,
-              ),
-              boxShadow: isSelected
-                  ? [
-                      BoxShadow(
-                        color: ex.accentColor.withValues(alpha: 0.2),
-                        blurRadius: 12,
-                        offset: const Offset(0, 4),
-                      )
-                    ]
-                  : null,
-            ),
+          const SizedBox(width: 12),
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    Image.asset(ex.imagePath, width: 30, height: 30),
-                    const Spacer(),
-                    if (isSelected)
-                      Icon(Icons.check_circle_rounded,
-                          color: ex.accentColor, size: 20),
-                  ],
-                ),
-                const Spacer(),
                 Text(
-                  s.locale == 'ko' ? ex.nameKr : ex.name,
-                  style: theme.textTheme.titleSmall
-                      ?.copyWith(fontWeight: FontWeight.w700),
+                  isKo ? '코리의 한마디' : "Kori's tip",
+                  style: const TextStyle(
+                    color: AppColors.green,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                  ),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 6),
                 Text(
-                  diffLabel,
+                  message,
                   style: TextStyle(
-                    color: ex.accentColor,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
+                    color: Colors.white.withValues(alpha: 0.85),
+                    fontSize: 14,
+                    height: 1.4,
                   ),
                 ),
               ],
             ),
           ),
-        );
-      },
-    );
-  }
-}
-
-// ── Workout Config Panel ───────────────────────────────────────────────────
-class _WorkoutConfigPanel extends ConsumerWidget {
-  const _WorkoutConfigPanel({required this.strings});
-  final dynamic strings;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final s = strings;
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final selectedId = ref.watch(_selectedExIdProvider);
-    final reps = ref.watch(_homeRepsProvider);
-    final sets = ref.watch(_homeSetsProvider);
-    final ex = mockExercises.firstWhere((e) => e.id == selectedId);
-
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.darkCard : AppColors.lightCard,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            s.configureWorkout,
-            style: theme.textTheme.titleSmall
-                ?.copyWith(fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: 18),
-          if (ex.type == ExerciseType.reps)
-            _StepControl(
-              label: s.repsPerSet,
-              value: reps,
-              min: 5,
-              max: 50,
-              step: 1,
-              onChanged: (v) => ref.read(_homeRepsProvider.notifier).state = v,
-            )
-          else
-            _StepControl(
-              label: s.durationSeconds,
-              value: reps,
-              min: 10,
-              max: 300,
-              step: 10,
-              onChanged: (v) => ref.read(_homeRepsProvider.notifier).state = v,
-            ),
-          const SizedBox(height: 14),
-          _StepControl(
-            label: s.sets,
-            value: sets,
-            min: 1,
-            max: 10,
-            step: 1,
-            onChanged: (v) => ref.read(_homeSetsProvider.notifier).state = v,
-          ),
         ],
-      ),
-    );
-  }
-}
-
-class _StepControl extends StatelessWidget {
-  const _StepControl({
-    required this.label,
-    required this.value,
-    required this.min,
-    required this.max,
-    required this.step,
-    required this.onChanged,
-  });
-  final String label;
-  final int value;
-  final int min;
-  final int max;
-  final int step;
-  final ValueChanged<int> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Row(
-      children: [
-        Expanded(child: Text(label, style: theme.textTheme.bodyMedium)),
-        Row(
-          children: [
-            _CircleBtn(
-              icon: Icons.remove,
-              onTap: value > min ? () => onChanged(value - step) : null,
-            ),
-            const SizedBox(width: 14),
-            SizedBox(
-              width: 40,
-              child: Text(
-                '$value',
-                textAlign: TextAlign.center,
-                style: theme.textTheme.titleMedium
-                    ?.copyWith(fontWeight: FontWeight.w800),
-              ),
-            ),
-            const SizedBox(width: 14),
-            _CircleBtn(
-              icon: Icons.add,
-              onTap: value < max ? () => onChanged(value + step) : null,
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-}
-
-class _CircleBtn extends StatelessWidget {
-  const _CircleBtn({required this.icon, required this.onTap});
-  final IconData icon;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final enabled = onTap != null;
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 36,
-        height: 36,
-        decoration: BoxDecoration(
-          color: enabled
-              ? AppColors.primary.withValues(alpha: 0.12)
-              : Colors.grey.withValues(alpha: 0.08),
-          shape: BoxShape.circle,
-        ),
-        child: Icon(
-          icon,
-          size: 18,
-          color: enabled ? AppColors.primary : Colors.grey,
-        ),
-      ),
-    );
-  }
-}
-
-// ── Start Button (bottom sheet) ────────────────────────────────────────────
-class _StartButton extends ConsumerWidget {
-  const _StartButton({required this.strings});
-  final dynamic strings;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final s = strings;
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final selectedId = ref.watch(_selectedExIdProvider);
-    final reps = ref.watch(_homeRepsProvider);
-    final sets = ref.watch(_homeSetsProvider);
-    final ex = mockExercises.firstWhere((e) => e.id == selectedId);
-    final exName = s.locale == 'ko' ? ex.nameKr : ex.name;
-    final startLabel = s.locale == 'ko'
-        ? '$exName $reps * $sets 시작'
-        : 'Start $exName $reps × $sets';
-
-    return Container(
-      padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
-        border: Border(
-          top: BorderSide(
-            color: isDark ? AppColors.darkDivider : AppColors.lightDivider,
-          ),
-        ),
-      ),
-      child: SafeArea(
-        top: false,
-        child: ElevatedButton(
-          onPressed: () async {
-            final isKo = s.locale == 'ko';
-            final confirmed = await showCameraGuideModal(
-              context: context,
-              exerciseId: selectedId,
-              exerciseName: exName,
-              isKo: isKo,
-            );
-            if (confirmed && context.mounted) {
-              context.push(
-                RouteConstants.nativePoseWorkout,
-                extra: {
-                  'exerciseId': selectedId,
-                  'targetReps': reps,
-                  'targetSets': sets,
-                },
-              );
-            }
-          },
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.primary,
-            minimumSize: const Size(double.infinity, 54),
-          ),
-          child: Text(startLabel),
-        ),
       ),
     );
   }

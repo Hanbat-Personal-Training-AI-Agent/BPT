@@ -13,6 +13,7 @@ import '../../features/onboarding/screens/onboarding_capture_screen.dart';
 import '../../features/onboarding/screens/onboarding_scan_screen.dart';
 import '../../features/onboarding/screens/onboarding_analyzing_screen.dart';
 import '../../features/onboarding/screens/onboarding_result_screen.dart';
+import '../../features/calendar/screens/calendar_screen.dart';
 import '../../features/home/screens/home_screen.dart';
 import '../../features/profile/screens/profile_screen.dart';
 import '../../features/report/screens/report_screen.dart';
@@ -128,6 +129,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: RouteConstants.home,
             pageBuilder: (context, state) =>
                 _fadePage(state, const HomeScreen()),
+          ),
+          GoRoute(
+            path: RouteConstants.calendar,
+            pageBuilder: (context, state) =>
+                _fadePage(state, const CalendarScreen()),
           ),
           GoRoute(
             path: RouteConstants.report,
