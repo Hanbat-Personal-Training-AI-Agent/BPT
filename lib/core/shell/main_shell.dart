@@ -170,36 +170,53 @@ class _NavIcon extends StatelessWidget {
 }
 
 /// 항상 초록색으로 떠 있는 운동 시작 버튼. 라우트 선택 상태와 무관하다.
-class _WorkoutFab extends StatelessWidget {
+class _WorkoutFab extends StatefulWidget {
   const _WorkoutFab({required this.size, required this.onTap});
 
   final double size;
   final VoidCallback onTap;
 
   @override
+  State<_WorkoutFab> createState() => _WorkoutFabState();
+}
+
+class _WorkoutFabState extends State<_WorkoutFab> {
+  bool _pressed = false;
+
+  void _setPressed(bool value) {
+    if (_pressed != value) setState(() => _pressed = value);
+  }
+
+  @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onTap,
+      onTap: widget.onTap,
+      onTapDown: (_) => _setPressed(true),
+      onTapUp: (_) => _setPressed(false),
+      onTapCancel: () => _setPressed(false),
       behavior: HitTestBehavior.opaque,
-      child: Container(
-        width: size,
-        height: size,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 120),
+        width: widget.size,
+        height: widget.size,
         alignment: Alignment.center,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           color: AppColors.green,
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.green.withValues(alpha: 0.55),
-              blurRadius: 20,
-              spreadRadius: 2,
-            ),
-            BoxShadow(
-              color: AppColors.green.withValues(alpha: 0.3),
-              blurRadius: 32,
-              spreadRadius: 4,
-            ),
-          ],
+          boxShadow: _pressed
+              ? [
+                  BoxShadow(
+                    color: AppColors.green.withValues(alpha: 0.55),
+                    blurRadius: 20,
+                    spreadRadius: 2,
+                  ),
+                  BoxShadow(
+                    color: AppColors.green.withValues(alpha: 0.3),
+                    blurRadius: 32,
+                    spreadRadius: 4,
+                  ),
+                ]
+              : null,
         ),
         child: SvgPicture.asset(
           'assets/icons/nav/workout.svg',
