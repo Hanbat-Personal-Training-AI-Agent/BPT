@@ -15,10 +15,11 @@ final currentUserProvider = Provider<UserModel>((ref) {
 // ── Weekly goal (user-adjustable, in-memory) ──────────────────────────────
 final weeklyWorkoutGoalProvider = StateProvider<int>((ref) => 5);
 
-// ── All records ───────────────────────────────────────────────────────────
+// ── All records (falls back to mock data while there's no real history) ───
 final allRecordsProvider = Provider<List<WorkoutRecordModel>>((ref) {
   final recordsAsync = ref.watch(workoutRecordsProvider);
-  return recordsAsync.value ?? [];
+  final records = recordsAsync.value ?? [];
+  return records.isEmpty ? mockWorkoutRecords : records;
 });
 
 // ── Recent 3 records ──────────────────────────────────────────────────────
@@ -74,8 +75,8 @@ final todaySummaryProvider = Provider<Map<String, dynamic>>((ref) {
   }).toList();
 
   final totalReps = todayRecords.fold(0, (sum, r) => sum + r.totalReps);
-  final totalSecs =
-      todayRecords.fold(0, (sum, r) => sum + r.durationSeconds);
+  final totalSecs = todayRecords.fold(0, (sum, r) => sum + r.durationSeconds);
+  final completedSets = todayRecords.fold(0, (sum, r) => sum + r.targetSets);
   final avgScore = todayRecords.isEmpty
       ? 0.0
       : todayRecords.fold(0.0, (sum, r) => sum + r.postureScore) /
@@ -85,6 +86,7 @@ final todaySummaryProvider = Provider<Map<String, dynamic>>((ref) {
     'workoutsToday': todayRecords.length,
     'totalReps': totalReps,
     'totalMinutes': totalSecs ~/ 60,
+    'completedSets': completedSets,
     'avgPostureScore': avgScore,
     'streak': streak,
   };

@@ -40,6 +40,7 @@ flutter:
     - assets/images/character/
     - assets/images/decoration/
     - assets/icons/nav/
+    - assets/icons/home/
   fonts:
     - family: Pretendard
       fonts:
