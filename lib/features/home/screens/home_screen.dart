@@ -30,37 +30,43 @@ class HomeScreen extends ConsumerWidget {
       data: AppTheme.darkTheme,
       child: Scaffold(
         backgroundColor: AppColors.black,
-        body: CustomScrollView(
-          slivers: [
-            _BPTAppBar(name: user.name, strings: s),
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
-              sliver: SliverList(
-                delegate: SliverChildListDelegate([
-                  _StartWorkoutCard(strings: s),
-                  const SizedBox(height: 16),
-                  _QuickStatsRow(summary: summary, strings: s),
-                  const SizedBox(height: 20),
-                  _WeeklyGoalCard(strings: s),
-                  const SizedBox(height: 16),
-                  _BodyCheckBanner(strings: s),
-                  const SizedBox(height: 28),
-                  _SectionHeader(
-                    title: s.recentWorkouts,
-                    trailing: recent.isEmpty ? null : s.seeAll,
-                    onTrailingTap: recent.isEmpty
-                        ? null
-                        : () => context.go(RouteConstants.report),
+        body: SafeArea(
+          bottom: false,
+          child: Column(
+            children: [
+              // 고정 영역: 헤더는 스크롤에 영향받지 않음
+              _BPTAppBar(name: user.name, strings: s),
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
+                  child: Column(
+                    children: [
+                      _StartWorkoutCard(strings: s),
+                      const SizedBox(height: 16),
+                      _QuickStatsRow(summary: summary, strings: s),
+                      const SizedBox(height: 20),
+                      _WeeklyGoalCard(strings: s),
+                      const SizedBox(height: 16),
+                      _BodyCheckBanner(strings: s),
+                      const SizedBox(height: 28),
+                      _SectionHeader(
+                        title: s.recentWorkouts,
+                        trailing: recent.isEmpty ? null : s.seeAll,
+                        onTrailingTap: recent.isEmpty
+                            ? null
+                            : () => context.go(RouteConstants.report),
+                      ),
+                      const SizedBox(height: 12),
+                      ...recent
+                          .map((r) => _RecentRecordTile(record: r, strings: s)),
+                      if (recent.isNotEmpty) const SizedBox(height: 12),
+                      _KoriCommentCard(recent: recent, strings: s),
+                    ],
                   ),
-                  const SizedBox(height: 12),
-                  ...recent
-                      .map((r) => _RecentRecordTile(record: r, strings: s)),
-                  if (recent.isNotEmpty) const SizedBox(height: 12),
-                  _KoriCommentCard(recent: recent, strings: s),
-                ]),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -100,63 +106,53 @@ class _BPTAppBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isKo = strings.locale == 'ko';
-    return SliverAppBar(
-      floating: true,
-      snap: true,
-      backgroundColor: AppColors.black,
-      surfaceTintColor: Colors.transparent,
-      elevation: 0,
-      expandedHeight: 84,
-      flexibleSpace: FlexibleSpaceBar(
-        background: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      _dateLabel(isKo),
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.55),
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      isKo
-                          ? '어서 와, ${name.split(' ').first}!'
-                          : 'Welcome, ${name.split(' ').first}!',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 24,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                  ],
+    return Container(
+      height: 84,
+      color: AppColors.black,
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                _dateLabel(isKo),
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.55),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
                 ),
-                const Spacer(),
-                Container(
-                  width: 48,
-                  height: 48,
-                  padding: const EdgeInsets.all(9),
-                  decoration: const BoxDecoration(
-                    color: AppColors.purple,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Image.asset(
-                    'assets/images/character/face.png',
-                    fit: BoxFit.contain,
-                  ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                isKo
+                    ? '어서 와, ${name.split(' ').first}!'
+                    : 'Welcome, ${name.split(' ').first}!',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 24,
+                  fontWeight: FontWeight.w900,
                 ),
-              ],
+              ),
+            ],
+          ),
+          const Spacer(),
+          Container(
+            width: 48,
+            height: 48,
+            padding: const EdgeInsets.all(9),
+            decoration: const BoxDecoration(
+              color: AppColors.purple,
+              shape: BoxShape.circle,
+            ),
+            child: Image.asset(
+              'assets/images/character/face.png',
+              fit: BoxFit.contain,
             ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -723,9 +719,15 @@ class _RecentRecordTile extends StatelessWidget {
                   ),
                   const SizedBox(height: 3),
                   Text(
-                    isKo
-                        ? '${record.targetSets}세트 × ${record.totalReps}회 · 60kg'
-                        : '${record.targetSets} sets × ${record.totalReps} reps · 60kg',
+                    () {
+                      final weight = mockWeightKgByExercise[record.exerciseId];
+                      final weightPart = (weight == null || weight == 0)
+                          ? ''
+                          : ' · ${weight}kg';
+                      return isKo
+                          ? '${record.targetSets}세트 × ${record.totalReps}회$weightPart'
+                          : '${record.targetSets} sets × ${record.totalReps} reps$weightPart';
+                    }(),
                     style: TextStyle(
                       color: Colors.white.withValues(alpha: 0.5),
                       fontSize: 13,
