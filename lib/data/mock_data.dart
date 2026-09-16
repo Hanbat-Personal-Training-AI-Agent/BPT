@@ -97,6 +97,15 @@ final mockExercises = <ExerciseModel>[
 ExerciseModel findExercise(String id) =>
     mockExercises.firstWhere((e) => e.id == id, orElse: () => mockExercises[0]);
 
+// 무게 트래킹 필드가 아직 모델/백엔드에 없어서, 화면 표시용 목데이터로만 사용.
+const mockWeightKgByExercise = <String, int>{
+  'squat': 60,
+  'benchpress': 45,
+  'deadlift': 80,
+  'barbell-row': 40,
+  'pushup': 0,
+};
+
 // ── Mock Workout Records ───────────────────────────────────────────────────
 final mockWorkoutRecords = <WorkoutRecordModel>[
   WorkoutRecordModel(
@@ -202,8 +211,20 @@ final mockWorkoutRecords = <WorkoutRecordModel>[
 // ── Chart Mock Data ────────────────────────────────────────────────────────
 final dailyPostureScores = [78.0, 82.0, 80.0, 85.0, 88.0, 84.0, 92.0];
 final weeklyReps = [45.0, 60.0, 38.0, 72.0, 55.0, 80.0, 68.0];
-final monthlyWorkoutMinutes = [120.0, 90.0, 150.0, 200.0, 175.0, 220.0, 190.0,
-  240.0, 210.0, 180.0, 230.0, 260.0];
+final monthlyWorkoutMinutes = [
+  120.0,
+  90.0,
+  150.0,
+  200.0,
+  175.0,
+  220.0,
+  190.0,
+  240.0,
+  210.0,
+  180.0,
+  230.0,
+  260.0
+];
 
 // Real-time feedback pool
 const workoutFeedbacks = [
