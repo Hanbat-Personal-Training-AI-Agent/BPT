@@ -17,6 +17,7 @@ class ExerciseModel {
   final List<String> targetMuscles;
   final DifficultyLevel difficulty;
   final Color accentColor;
+  final bool usesWeight;
 
   const ExerciseModel({
     required this.id,
@@ -31,6 +32,7 @@ class ExerciseModel {
     required this.targetMuscles,
     required this.difficulty,
     required this.accentColor,
+    this.usesWeight = true,
   });
 
   String get difficultyLabel {

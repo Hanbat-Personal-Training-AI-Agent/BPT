@@ -170,7 +170,7 @@ class _StartWorkoutCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isKo = strings.locale == 'ko';
     return GestureDetector(
-      onTap: () => context.push(RouteConstants.exerciseSelection),
+      onTap: () => context.go(RouteConstants.exerciseSelection),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(26),
         child: Container(

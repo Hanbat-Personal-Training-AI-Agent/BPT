@@ -159,7 +159,7 @@ class _WorkoutResultScreenState extends ConsumerState<WorkoutResultScreen>
             : [
                 TextButton(
                   onPressed: () =>
-                      context.push(RouteConstants.exerciseSelection),
+                      context.go(RouteConstants.exerciseSelection),
                   child: Text(s.againBtn),
                 ),
               ],
@@ -241,7 +241,7 @@ class _WorkoutResultScreenState extends ConsumerState<WorkoutResultScreen>
               ] else ...[
                 ElevatedButton.icon(
                   onPressed: () =>
-                      context.push(RouteConstants.exerciseSelection),
+                      context.go(RouteConstants.exerciseSelection),
                   icon: const Icon(Icons.replay_rounded),
                   label: Text(s.startNewWorkout),
                 ),

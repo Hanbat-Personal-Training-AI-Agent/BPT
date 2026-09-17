@@ -91,6 +91,21 @@ final mockExercises = <ExerciseModel>[
     targetMuscles: ['Chest', 'Shoulders', 'Triceps'],
     difficulty: DifficultyLevel.beginner,
     accentColor: Color(0xFFF59E0B),
+    usesWeight: false,
+  ),
+  const ExerciseModel(
+    id: 'lat-pulldown',
+    name: 'Lat Pulldown',
+    nameKr: '랫풀다운',
+    description: 'Back-focused pulling exercise using a cable machine.',
+    imagePath: 'assets/images/lat-pulldown.png',
+    type: ExerciseType.reps,
+    defaultReps: 12,
+    defaultSets: 3,
+    defaultDurationSeconds: 0,
+    targetMuscles: ['Back', 'Lats', 'Biceps'],
+    difficulty: DifficultyLevel.beginner,
+    accentColor: Color(0xFF8B5CF6),
   ),
 ];
 
