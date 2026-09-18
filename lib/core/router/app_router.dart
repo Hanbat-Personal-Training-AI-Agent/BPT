@@ -145,12 +145,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             pageBuilder: (context, state) =>
                 _fadePage(state, const ProfileScreen()),
           ),
+          GoRoute(
+            path: RouteConstants.exerciseSelection,
+            pageBuilder: (context, state) =>
+                _fadePage(state, const ExerciseSelectionScreen()),
+          ),
         ],
-      ),
-      GoRoute(
-        path: RouteConstants.exerciseSelection,
-        pageBuilder: (context, state) =>
-            _slidePage(state, const ExerciseSelectionScreen()),
       ),
       GoRoute(
         path: RouteConstants.workout,

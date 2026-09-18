@@ -17,20 +17,34 @@ class MainShell extends ConsumerWidget {
     RouteConstants.profile,
   ];
 
+  static const _workoutRoutes = [
+    RouteConstants.exerciseSelection,
+    RouteConstants.workout,
+    RouteConstants.nativePoseWorkout,
+  ];
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // 운동 탭도 go()로 이동해야 다른 4개 탭과 동일하게 GoRouterState가 즉시
+    // 갱신된다. (push()는 ShellRoute의 내부 Navigator 안에서만 쌓여서
+    // 네비바가 현재 위치 변화를 못 읽는 문제가 있었다.)
     final location = GoRouterState.of(context).matchedLocation;
-    final index = _tabs.indexWhere((t) => location.startsWith(t));
-    final currentIndex = index < 0 ? 0 : index;
+    final currentIndex = _tabs.indexWhere((t) => location.startsWith(t));
+    final workoutActive = _workoutRoutes.any((r) => location.startsWith(r));
 
     return Scaffold(
       backgroundColor: AppColors.black,
       extendBody: true,
+      // 각 탭 화면이 자기만의 Scaffold를 갖고 있어서(중첩 Scaffold), 여기서도
+      // 리사이즈하면 키보드가 뜰 때 인셋이 이중으로 적용돼 입력칸이 필요 이상으로
+      // 밀려 올라간다. 실제 키보드 인셋 대응은 각 화면의 안쪽 Scaffold가 맡는다.
+      resizeToAvoidBottomInset: false,
       body: child,
       bottomNavigationBar: _BPTNavBar(
         currentIndex: currentIndex,
+        workoutActive: workoutActive,
         onTabTap: (i) => context.go(_tabs[i]),
-        onWorkoutTap: () => context.push(RouteConstants.exerciseSelection),
+        onWorkoutTap: () => context.go(RouteConstants.exerciseSelection),
       ),
     );
   }
@@ -42,11 +56,13 @@ class MainShell extends ConsumerWidget {
 class _BPTNavBar extends StatelessWidget {
   const _BPTNavBar({
     required this.currentIndex,
+    required this.workoutActive,
     required this.onTabTap,
     required this.onWorkoutTap,
   });
 
   final int currentIndex;
+  final bool workoutActive;
   final ValueChanged<int> onTabTap;
   final VoidCallback onWorkoutTap;
 
@@ -59,7 +75,8 @@ class _BPTNavBar extends StatelessWidget {
     final bottomInset = MediaQuery.of(context).padding.bottom;
 
     return Padding(
-      padding: EdgeInsets.fromLTRB(0, 0, 0, bottomInset > 0 ? bottomInset - 8 : 16),
+      padding:
+          EdgeInsets.fromLTRB(0, 0, 0, bottomInset > 0 ? bottomInset - 8 : 16),
       child: Center(
         heightFactor: 1,
         child: SizedBox(
@@ -114,7 +131,11 @@ class _BPTNavBar extends StatelessWidget {
                   ],
                 ),
               ),
-              _WorkoutFab(size: _fabSize, onTap: onWorkoutTap),
+              _WorkoutFab(
+                size: _fabSize,
+                active: workoutActive,
+                onTap: onWorkoutTap,
+              ),
             ],
           ),
         ),
@@ -149,7 +170,9 @@ class _NavIcon extends StatelessWidget {
             height: 44,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: selected ? Colors.white.withValues(alpha: 0.08) : Colors.transparent,
+              color: selected
+                  ? Colors.white.withValues(alpha: 0.08)
+                  : Colors.transparent,
             ),
             child: Center(
               child: SvgPicture.asset(
@@ -157,7 +180,9 @@ class _NavIcon extends StatelessWidget {
                 width: iconSize,
                 height: iconSize,
                 colorFilter: ColorFilter.mode(
-                  selected ? AppColors.green : Colors.white.withValues(alpha: 0.35),
+                  selected
+                      ? AppColors.green
+                      : Colors.white.withValues(alpha: 0.35),
                   BlendMode.srcIn,
                 ),
               ),
@@ -169,11 +194,17 @@ class _NavIcon extends StatelessWidget {
   }
 }
 
-/// 항상 초록색으로 떠 있는 운동 시작 버튼. 라우트 선택 상태와 무관하다.
+/// 항상 초록색으로 떠 있는 운동 시작 버튼. 누르고 있거나 운동 관련 화면(운동
+/// 선택/진행)에 있을 때 글로우가 표시된다.
 class _WorkoutFab extends StatefulWidget {
-  const _WorkoutFab({required this.size, required this.onTap});
+  const _WorkoutFab({
+    required this.size,
+    required this.active,
+    required this.onTap,
+  });
 
   final double size;
+  final bool active;
   final VoidCallback onTap;
 
   @override
@@ -187,42 +218,55 @@ class _WorkoutFabState extends State<_WorkoutFab> {
     if (_pressed != value) setState(() => _pressed = value);
   }
 
+  static final Color _haloColor = HSLColor.fromColor(AppColors.green)
+      .withLightness(0.28)
+      .toColor()
+      .withValues(alpha: 0.45);
+
   @override
   Widget build(BuildContext context) {
+    final glowing = _pressed || widget.active;
+    final haloSize = widget.size + 11;
     return GestureDetector(
       onTap: widget.onTap,
       onTapDown: (_) => _setPressed(true),
       onTapUp: (_) => _setPressed(false),
       onTapCancel: () => _setPressed(false),
       behavior: HitTestBehavior.opaque,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 120),
-        width: widget.size,
-        height: widget.size,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: AppColors.green,
-          boxShadow: _pressed
-              ? [
-                  BoxShadow(
-                    color: AppColors.green.withValues(alpha: 0.55),
-                    blurRadius: 20,
-                    spreadRadius: 2,
-                  ),
-                  BoxShadow(
-                    color: AppColors.green.withValues(alpha: 0.3),
-                    blurRadius: 32,
-                    spreadRadius: 4,
-                  ),
-                ]
-              : null,
-        ),
-        child: SvgPicture.asset(
-          'assets/icons/nav/workout.svg',
-          width: 28,
-          height: 28,
-          colorFilter: const ColorFilter.mode(AppColors.black, BlendMode.srcIn),
+      child: SizedBox(
+        width: haloSize,
+        height: haloSize,
+        child: Stack(
+          alignment: Alignment.center,
+          clipBehavior: Clip.none,
+          children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 120),
+              width: glowing ? haloSize : widget.size,
+              height: glowing ? haloSize : widget.size,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: glowing ? _haloColor : Colors.transparent,
+              ),
+            ),
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 120),
+              width: widget.size,
+              height: widget.size,
+              alignment: Alignment.center,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                color: AppColors.green,
+              ),
+              child: SvgPicture.asset(
+                'assets/icons/nav/workout.svg',
+                width: 28,
+                height: 28,
+                colorFilter:
+                    const ColorFilter.mode(AppColors.black, BlendMode.srcIn),
+              ),
+            ),
+          ],
         ),
       ),
     );
