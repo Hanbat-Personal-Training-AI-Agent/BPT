@@ -47,6 +47,7 @@ class _NativePoseWorkoutScreenState
 
   Timer? _alignTimer;
   Timer? _countdownTimer;
+  Timer? _elapsedTimer;
   MethodChannel? _channel;
 
   _PrepPhase _phase = _PrepPhase.alignHint;
@@ -59,6 +60,15 @@ class _NativePoseWorkoutScreenState
   bool _setComplete = false;
   bool _workoutComplete = false;
   DateTime? _liveStartedAt;
+
+  // 상단 경과 시간 + "잠깐 쉬기" 일시정지 상태.
+  int _elapsedSeconds = 0;
+  bool _isPaused = false;
+
+  // 코리 피드백: 실제 자세 평가 연동 전까지 rep마다 good/more deep을 번갈아 보여준다.
+  // 첫 rep이 잡히기 전까지는 "준비되면 시작해보자!" 기본 멘트를 보여준다.
+  bool _feedbackGood = true;
+  bool _hasFeedbackStarted = false;
 
   bool get _isSupportedExercise =>
       NativePoseWorkoutScreen.supportedExerciseIds.contains(widget.exerciseId);
@@ -103,6 +113,10 @@ class _NativePoseWorkoutScreenState
           _phase = _PrepPhase.live;
           _liveStartedAt = DateTime.now();
         });
+        _elapsedTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+          if (!mounted) return;
+          if (!_isPaused) setState(() => _elapsedSeconds += 1);
+        });
       } else {
         setState(() => _count -= 1);
       }
@@ -124,12 +138,17 @@ class _NativePoseWorkoutScreenState
   }
 
   void _onNativeUpdate(int rep) {
-    if (!mounted) return;
+    if (!mounted || _isPaused) return;
     setState(() {
+      final repIncreased = rep > _latestNativeRep;
       _latestNativeRep = rep;
       // Don't advance set state while a set-complete / done prompt is showing;
       // reps performed during the rest period are discarded on "next set".
       if (_setComplete || _workoutComplete) return;
+      if (repIncreased) {
+        _feedbackGood = !_feedbackGood;
+        _hasFeedbackStarted = true;
+      }
       if (rep - _setStartRep >= widget.targetReps) {
         if (_currentSet < widget.targetSets) {
           _setComplete = true;
@@ -138,6 +157,10 @@ class _NativePoseWorkoutScreenState
         }
       }
     });
+  }
+
+  void _togglePause() {
+    setState(() => _isPaused = !_isPaused);
   }
 
   void _startNextSet() {
@@ -178,6 +201,7 @@ class _NativePoseWorkoutScreenState
   void dispose() {
     _alignTimer?.cancel();
     _countdownTimer?.cancel();
+    _elapsedTimer?.cancel();
     _channel?.setMethodCallHandler(null);
     super.dispose();
   }
@@ -189,33 +213,42 @@ class _NativePoseWorkoutScreenState
     final exercise = findExercise(widget.exerciseId);
     final exName = isKo ? exercise.nameKr : exercise.name;
 
+    // 실시간 트래킹 중에는 뒤로가기 대신 "끝내기" 버튼으로만 나가도록 숨긴다.
+    final isLiveTracking = _isSupportedExercise &&
+        _isIOS &&
+        _phase == _PrepPhase.live &&
+        !_setComplete &&
+        !_workoutComplete;
+
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          Positioned.fill(child: _buildBody(context, exName, isKo, s.set)),
-          Positioned.fill(
-            child: SafeArea(
-              child: Align(
-                alignment: Alignment.topLeft,
-                child: Padding(
-                  padding: const EdgeInsets.only(left: 8, top: 4),
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(24),
-                      onTap: () => Navigator.of(context).maybePop(),
-                      child: Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.45),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.arrow_back_ios_rounded,
-                          color: Colors.white,
-                          size: 20,
+          Positioned.fill(child: _buildBody(context, exName, isKo)),
+          if (!isLiveTracking)
+            Positioned.fill(
+              child: SafeArea(
+                child: Align(
+                  alignment: Alignment.topLeft,
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 8, top: 4),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(24),
+                        onTap: () => Navigator.of(context).maybePop(),
+                        child: Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.45),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.arrow_back_ios_rounded,
+                            color: Colors.white,
+                            size: 20,
+                          ),
                         ),
                       ),
                     ),
@@ -223,7 +256,6 @@ class _NativePoseWorkoutScreenState
                 ),
               ),
             ),
-          ),
         ],
       ),
     );
@@ -233,7 +265,6 @@ class _NativePoseWorkoutScreenState
     BuildContext context,
     String exerciseName,
     bool isKo,
-    String setLabel,
   ) {
     if (!_isSupportedExercise) {
       return _MessageState(
@@ -270,16 +301,23 @@ class _NativePoseWorkoutScreenState
           onPlatformViewCreated: _onPlatformViewCreated,
         ),
         if (!_setComplete && !_workoutComplete)
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: _BottomHud(
-              reps: _repsThisSet,
-              targetReps: widget.targetReps,
-              currentSet: _currentSet,
-              totalSets: widget.targetSets,
-              setLabel: setLabel,
+          Positioned.fill(
+            child: SafeArea(
+              child: _LiveHud(
+                isKo: isKo,
+                exerciseId: widget.exerciseId,
+                exerciseName: exerciseName,
+                elapsedSeconds: _elapsedSeconds,
+                reps: _repsThisSet,
+                targetReps: widget.targetReps,
+                currentSet: _currentSet,
+                totalSets: widget.targetSets,
+                feedbackIdle: !_hasFeedbackStarted,
+                feedbackGood: _feedbackGood,
+                isPaused: _isPaused,
+                onTogglePause: _togglePause,
+                onEnd: _finishWorkout,
+              ),
             ),
           ),
         if (_setComplete)
@@ -326,7 +364,7 @@ class _PrepOverlay extends StatelessWidget {
             Text(
               exerciseName,
               style: const TextStyle(
-                color: AppColors.primary,
+                color: AppColors.green,
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
               ),
@@ -334,7 +372,7 @@ class _PrepOverlay extends StatelessWidget {
             const SizedBox(height: 28),
             if (isCountdown) ...[
               const Text(
-                '준비하세요',
+                '자, 준비하자!',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 20,
@@ -348,8 +386,8 @@ class _PrepOverlay extends StatelessWidget {
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: AppColors.primary.withValues(alpha: 0.14),
-                  border: Border.all(color: AppColors.primary, width: 3),
+                  color: AppColors.green.withValues(alpha: 0.14),
+                  border: Border.all(color: AppColors.green, width: 3),
                 ),
                 child: Text(
                   '$count',
@@ -361,14 +399,14 @@ class _PrepOverlay extends StatelessWidget {
                 ),
               ),
             ] else ...[
-              const Icon(
-                Icons.accessibility_new_rounded,
-                color: AppColors.primary,
-                size: 56,
+              Image.asset(
+                'assets/images/character/advice.png',
+                width: 110,
+                height: 110,
               ),
               const SizedBox(height: 24),
               const Text(
-                '카메라를 몸 전체가 보이도록 맞춰주세요',
+                '몸 전체가 잘 보이게 카메라 맞춰줘!',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: Colors.white,
@@ -383,7 +421,7 @@ class _PrepOverlay extends StatelessWidget {
                 height: 26,
                 child: CircularProgressIndicator(
                   strokeWidth: 2.4,
-                  valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+                  valueColor: AlwaysStoppedAnimation<Color>(AppColors.green),
                 ),
               ),
             ],
@@ -394,95 +432,495 @@ class _PrepOverlay extends StatelessWidget {
   }
 }
 
-/// Bottom HUD over the live camera: current rep / target reps for this set.
-class _BottomHud extends StatelessWidget {
-  const _BottomHud({
+/// 실시간 트래킹 화면 HUD: 상단 바(운동명·경과시간) + REPS/SET 카드 +
+/// 코리 피드백 말풍선 + 세트 진행 바 + 하단 액션 버튼.
+class _LiveHud extends StatelessWidget {
+  const _LiveHud({
+    required this.isKo,
+    required this.exerciseId,
+    required this.exerciseName,
+    required this.elapsedSeconds,
     required this.reps,
     required this.targetReps,
     required this.currentSet,
     required this.totalSets,
-    required this.setLabel,
+    required this.feedbackIdle,
+    required this.feedbackGood,
+    required this.isPaused,
+    required this.onTogglePause,
+    required this.onEnd,
   });
 
+  final bool isKo;
+  final String exerciseId;
+  final String exerciseName;
+  final int elapsedSeconds;
   final int reps;
   final int targetReps;
   final int currentSet;
   final int totalSets;
-  final String setLabel;
+  final bool feedbackIdle;
+  final bool feedbackGood;
+  final bool isPaused;
+  final VoidCallback onTogglePause;
+  final VoidCallback onEnd;
+
+  String get _elapsedLabel {
+    final m = (elapsedSeconds ~/ 60).toString().padLeft(2, '0');
+    final sec = (elapsedSeconds % 60).toString().padLeft(2, '0');
+    return '$m:$sec';
+  }
 
   @override
   Widget build(BuildContext context) {
-    final progress =
-        targetReps == 0 ? 0.0 : (reps / targetReps).clamp(0.0, 1.0).toDouble();
-
-    return DecoratedBox(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.bottomCenter,
-          end: Alignment.topCenter,
-          colors: [Colors.black87, Colors.transparent],
-        ),
-      ),
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 28, 20, 20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Container(
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                 decoration: BoxDecoration(
-                  color: Colors.black54,
+                  color: AppColors.grey,
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child: Text(
-                  '$setLabel $currentSet / $totalSets',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: const BoxDecoration(
+                        color: AppColors.red,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      exerciseName,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      _elapsedLabel,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.45),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 12),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.baseline,
-                textBaseline: TextBaseline.alphabetic,
+              const _SoundToggleButton(),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _StatCard(
+                label: 'REPS',
+                value: '$reps',
+                suffix: isKo ? '/ $targetReps회' : '/ $targetReps',
+                filled: false,
+              ),
+              const Spacer(),
+              _StatCard(
+                label: 'SET',
+                value: '$currentSet',
+                suffix: isKo ? '/ $totalSets세트' : '/ $totalSets',
+                filled: true,
+              ),
+            ],
+          ),
+        ),
+        const Spacer(),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+          child: _KoriFeedbackRow(
+            isKo: isKo,
+            exerciseId: exerciseId,
+            idle: feedbackIdle,
+            good: feedbackGood,
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: _SetProgressBar(currentSet: currentSet, totalSets: totalSets),
+        ),
+        const SizedBox(height: 10),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+          child: Row(
+            children: [
+              Expanded(
+                child: _PauseButton(
+                  isKo: isKo,
+                  isPaused: isPaused,
+                  onTap: onTogglePause,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(child: _EndButton(isKo: isKo, onTap: onEnd)),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _StatCard extends StatelessWidget {
+  const _StatCard({
+    required this.label,
+    required this.value,
+    required this.suffix,
+    required this.filled,
+  });
+
+  final String label;
+  final String value;
+  final String suffix;
+  final bool filled;
+
+  @override
+  Widget build(BuildContext context) {
+    final fg = filled ? AppColors.black : Colors.white;
+    return Container(
+      width: 68,
+      height: 98,
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      decoration: BoxDecoration(
+        color: filled ? AppColors.green : AppColors.grey,
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              color: fg.withValues(alpha: filled ? 0.6 : 0.5),
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.5,
+            ),
+          ),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Stack(
+              children: [
+                // w900는 폰트가 지원하는 최대 굵기라, 안쪽을 살짝 두껍게
+                // 덧그려서(faux bold) 실제로 더 두꺼워 보이게 만든다.
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 40,
+                    fontWeight: FontWeight.w900,
+                    height: 1,
+                    foreground: Paint()
+                      ..style = PaintingStyle.stroke
+                      ..strokeWidth = 1.6
+                      ..color = fg,
+                  ),
+                ),
+                Text(
+                  value,
+                  style: TextStyle(
+                    color: fg,
+                    fontSize: 40,
+                    fontWeight: FontWeight.w900,
+                    height: 1,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Text(
+            suffix,
+            style: TextStyle(
+              color: fg.withValues(alpha: filled ? 0.65 : 0.45),
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 음소거 토글 버튼: 탭할 때마다 스피커 ↔ 음소거 아이콘으로 바뀐다.
+/// (아직 실제 음성 피드백 재생 로직은 없어서 시각적 토글만 담당)
+class _SoundToggleButton extends StatefulWidget {
+  const _SoundToggleButton();
+
+  @override
+  State<_SoundToggleButton> createState() => _SoundToggleButtonState();
+}
+
+class _SoundToggleButtonState extends State<_SoundToggleButton> {
+  bool _muted = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => setState(() => _muted = !_muted),
+      child: Container(
+        width: 44,
+        height: 44,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: AppColors.grey,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Icon(
+          _muted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
+          color: Colors.white,
+          size: 18,
+        ),
+      ),
+    );
+  }
+}
+
+/// 코리가 rep마다 보여주는 임시 피드백 말풍선 (실제 자세 평가 연동 전 placeholder).
+class _KoriFeedbackRow extends StatelessWidget {
+  // 첫 rep이 잡히기 전 기본 상태에서 운동별로 보여주는 한 줄 주의사항.
+  static const Map<String, String> _idleTipsKo = {
+    'squat': '무릎이 발끝 방향을 향하게 해줘',
+    'benchpress': '가슴까지 천천히 바를 내려줘',
+    'deadlift': '허리는 곧게 펴고 내려가',
+    'barbell-row': '허리 고정하고 팔꿈치로 당겨줘',
+    'pushup': '몸을 일자로 유지하면서 내려가',
+  };
+  static const Map<String, String> _idleTipsEn = {
+    'squat': 'Keep your knees pointed toward your toes',
+    'benchpress': 'Lower the bar slowly to your chest',
+    'deadlift': 'Keep your back straight as you go down',
+    'barbell-row': 'Brace your core and pull with your elbows',
+    'pushup': 'Keep your body in a straight line',
+  };
+
+  const _KoriFeedbackRow({
+    required this.isKo,
+    required this.exerciseId,
+    required this.idle,
+    required this.good,
+  });
+  final bool isKo;
+  final String exerciseId;
+  final bool idle;
+  final bool good;
+
+  @override
+  Widget build(BuildContext context) {
+    final String characterAsset;
+    final Color bubbleColor;
+    final Color textColor;
+    final String title;
+    final String subtitle;
+
+    if (idle) {
+      characterAsset = 'assets/images/character/considering.png';
+      bubbleColor = AppColors.purple;
+      textColor = AppColors.black;
+      title = isKo ? '준비되면 시작해보자!' : "Start whenever you're ready!";
+      subtitle = isKo
+          ? (_idleTipsKo[exerciseId] ?? _idleTipsKo['squat']!)
+          : (_idleTipsEn[exerciseId] ?? _idleTipsEn['squat']!);
+    } else if (good) {
+      characterAsset = 'assets/images/character/cheering.png';
+      bubbleColor = AppColors.green;
+      textColor = AppColors.black;
+      title = isKo ? '좋아! 자세 정확해' : 'Nice! Great form';
+      subtitle = isKo ? '지금처럼만 유지해' : 'Keep it up just like this';
+    } else {
+      characterAsset = 'assets/images/character/worrying.png';
+      bubbleColor = AppColors.pink;
+      textColor = AppColors.white;
+      title = isKo ? '잠깐! 무릎이 너무 안쪽으로 모였어' : 'Wait! Your knees caved in';
+      subtitle = isKo ? '발끝 방향으로 살짝 벌려줘' : 'Push them out toward your toes';
+    }
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        SizedBox(
+          width: 90 - 16,
+          height: 90,
+          child: OverflowBox(
+            minWidth: 90,
+            maxWidth: 90,
+            alignment: Alignment.centerRight,
+            child: Transform.translate(
+              offset: const Offset(0, 10),
+              child: Image.asset(
+                characterAsset,
+                width: 90,
+                height: 90,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Transform.translate(
+            offset: const Offset(0, -10),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+              decoration: BoxDecoration(
+                color: bubbleColor,
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(22),
+                  topRight: Radius.circular(22),
+                  bottomRight: Radius.circular(22),
+                  bottomLeft: Radius.circular(3),
+                ),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '$reps',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 72,
-                      fontWeight: FontWeight.w900,
-                      height: 1,
+                    title,
+                    style: TextStyle(
+                      color: textColor,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      height: 1.1,
                     ),
                   ),
-                  const SizedBox(width: 6),
+                  const SizedBox(height: 4),
                   Text(
-                    '/ $targetReps',
-                    style: const TextStyle(
-                      color: Colors.white54,
-                      fontSize: 24,
-                      fontWeight: FontWeight.w600,
+                    subtitle,
+                    style: TextStyle(
+                      color: textColor.withValues(alpha: 0.75),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      height: 1.1,
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 6),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(4),
-                child: LinearProgressIndicator(
-                  value: progress,
-                  backgroundColor: Colors.white12,
-                  valueColor: const AlwaysStoppedAnimation(AppColors.primary),
-                  minHeight: 6,
-                ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// 세트 진행 바: 완료(+진행중) 세트만큼 라임색으로 채워진다.
+class _SetProgressBar extends StatelessWidget {
+  const _SetProgressBar({required this.currentSet, required this.totalSets});
+  final int currentSet;
+  final int totalSets;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: List.generate(totalSets, (i) {
+        final filled = i < currentSet;
+        return Expanded(
+          child: Container(
+            margin: EdgeInsets.only(right: i == totalSets - 1 ? 0 : 8),
+            height: 5,
+            decoration: BoxDecoration(
+              color: filled
+                  ? AppColors.green
+                  : Colors.white.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(3),
+            ),
+          ),
+        );
+      }),
+    );
+  }
+}
+
+class _PauseButton extends StatelessWidget {
+  const _PauseButton({
+    required this.isKo,
+    required this.isPaused,
+    required this.onTap,
+  });
+  final bool isKo;
+  final bool isPaused;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: 52,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              isPaused ? Icons.play_arrow_rounded : Icons.pause_rounded,
+              color: Colors.white,
+              size: 18,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              isPaused
+                  ? (isKo ? '이어서 하기' : 'Resume')
+                  : (isKo ? '잠깐 쉬기' : 'Pause'),
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 14,
+                fontWeight: FontWeight.w900,
               ),
-            ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _EndButton extends StatelessWidget {
+  const _EndButton({required this.isKo, required this.onTap});
+  final bool isKo;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: 52,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: AppColors.pink,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Text(
+          isKo ? '끝내기' : 'End',
+          style: const TextStyle(
+            color: AppColors.black,
+            fontSize: 14,
+            fontWeight: FontWeight.w900,
           ),
         ),
       ),
