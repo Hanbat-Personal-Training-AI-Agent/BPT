@@ -9,6 +9,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../data/mock_data.dart';
 import '../../../models/exercise_model.dart';
+import '../widgets/camera_guide_modal.dart';
 
 enum _SetMode { same, rampUp, pyramid }
 
@@ -247,14 +248,24 @@ class _ExerciseSelectionScreenState
                       const SizedBox(height: 20),
                       _StartButton(
                         isKo: isKo,
-                        onStart: () => context.push(
-                          RouteConstants.cameraGuide,
-                          extra: {
-                            'exerciseId': ex.id,
-                            'targetReps': repsForStart,
-                            'targetSets': _setCount,
-                          },
-                        ),
+                        onStart: () async {
+                          final confirmed = await showCameraGuideModal(
+                            context: context,
+                            exerciseId: ex.id,
+                            exerciseName: isKo ? ex.nameKr : ex.name,
+                            isKo: isKo,
+                          );
+                          if (confirmed && context.mounted) {
+                            context.push(
+                              RouteConstants.nativePoseWorkout,
+                              extra: {
+                                'exerciseId': ex.id,
+                                'targetReps': repsForStart,
+                                'targetSets': _setCount,
+                              },
+                            );
+                          }
+                        },
                       ),
                     ],
                   ),
