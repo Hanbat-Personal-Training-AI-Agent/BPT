@@ -57,7 +57,7 @@ venv/
 AGENTS.md
 NATIVE_POSE_INTEGRATION_PLAN.md
 assets/images/row.png
-bpt/
+/bpt/
 ios/Flutter/Profile.xcconfig
 docs/project/BPT_캡스톤디자인Ⅰ_중간보고서.docx
 docs/project/캡스톤 디자인1 최종보고서(전준, 최한민, 서진정.hwp
