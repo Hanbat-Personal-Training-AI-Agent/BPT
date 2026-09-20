@@ -1,0 +1,41 @@
+server:
+  port: 8080
+  servlet:
+    context-path: /api/v1
+
+spring:
+  application:
+    name: bpt-backend
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/bpt_db}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      idle-timeout: 300000
+      connection-timeout: 20000
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        format_sql: true
+        show_sql: true
+        default_batch_fetch_size: 100
+    open-in-view: false
+  servlet:
+    multipart:
+      max-file-size: 15MB
+      max-request-size: 50MB
+
+jwt:
+  secret: ${JWT_SECRET:c2VjdXJlX2tleV9mb3JfYnB0X2tvcmVfc3ByaW5nX2Jvb3Rfc2VydmVyXzIwMjYxMjM0NTY3ODkwMTIzNDU2Nzg5MDEyMzQ1Ng==}
+  access-token-expiration-ms: 3600000 # 1 hour
+  refresh-token-expiration-ms: 1209600000 # 14 days
+
+logging:
+  level:
+    com.bpt.kori: DEBUG
+    org.hibernate.SQL: DEBUG
