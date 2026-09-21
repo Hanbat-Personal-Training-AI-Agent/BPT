@@ -230,6 +230,9 @@ class _NativePoseWorkoutScreenState
         ? 0
         : DateTime.now().difference(_liveStartedAt!).inSeconds;
 
+    final totalBad =
+        _setResults.fold<int>(0, (sum, r) => sum + r.badCount);
+
     context.pushReplacement(
       RouteConstants.workoutResult,
       extra: {
@@ -237,13 +240,20 @@ class _NativePoseWorkoutScreenState
         'exerciseName': exercise.name,
         'exerciseNameKr': exercise.nameKr,
         'totalReps': _completedWorkoutReps,
-        'correctReps': null,
-        'incorrectReps': null,
+        'correctReps': _completedWorkoutReps - totalBad,
+        'incorrectReps': totalBad,
         'elapsedSeconds': elapsedSeconds,
         'postureScore': null,
         'feedbackHistory': null,
         'targetReps': widget.targetReps * widget.targetSets,
         'targetSets': widget.targetSets,
+        'setResults': _setResults
+            .map((r) => {
+                  'reps': r.reps,
+                  'weightKg': r.weightKg,
+                  'badCount': r.badCount,
+                })
+            .toList(),
       },
     );
   }
