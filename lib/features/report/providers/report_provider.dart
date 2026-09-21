@@ -4,200 +4,165 @@ import '../../../core/i18n/locale_provider.dart';
 import '../../../models/workout_record_model.dart';
 import '../../../services/workout_records_service.dart';
 
-enum ReportTab { daily, weekly, monthly }
+/// 리포트 상단 탭 (운동량 / 분석).
+enum ReportSection { volume, analysis }
 
-final reportTabProvider = StateProvider<ReportTab>((ref) => ReportTab.daily);
+/// 운동량 탭의 집계 단위 (일별 / 주별 / 월별).
+enum ReportPeriod { daily, weekly, monthly }
 
-final reportDataProvider = Provider<Map<String, dynamic>>((ref) {
-  final tab = ref.watch(reportTabProvider);
-  final recordsAsync = ref.watch(workoutRecordsProvider);
-  final records = recordsAsync.value ?? [];
-  final isKo = ref.watch(selectedLanguageProvider) == 'ko';
+final reportSectionProvider =
+    StateProvider<ReportSection>((ref) => ReportSection.volume);
 
-  switch (tab) {
-    case ReportTab.daily:
-      return _buildDailyData(records, isKo);
-    case ReportTab.weekly:
-      return _buildWeeklyData(records, isKo);
-    case ReportTab.monthly:
-      return _buildMonthlyData(records, isKo);
-  }
-});
+final reportPeriodProvider =
+    StateProvider<ReportPeriod>((ref) => ReportPeriod.weekly);
 
-// ── Helpers ───────────────────────────────────────────────────────────────
+/// 차트에 그리는 구간 수: 지난 6개 구간 + 현재 구간.
+const reportBucketCount = 7;
 
-DateTime _dateOnly(DateTime dt) => DateTime(dt.year, dt.month, dt.day);
+/// 마지막으로 끝난 구간의 인덱스 (현재 구간 바로 앞).
+const reportLastCompletedIndex = reportBucketCount - 2;
 
-Map<String, dynamic> _buildSummary({
-  required List<double> scores,
-  required List<double> reps,
-  required List<double> minutes,
-  required List<WorkoutRecordModel> windowRecords,
-}) {
-  final totalReps = reps.fold(0.0, (a, b) => a + b).toInt();
-  final totalMins = minutes.fold(0.0, (a, b) => a + b).toInt();
-  final validScores = scores.where((s) => s > 0).toList();
-  final avgScore = validScores.isEmpty
-      ? 0.0
-      : validScores.fold(0.0, (a, b) => a + b) / validScores.length;
-  return {
-    'totalWorkouts': windowRecords.length,
-    'totalReps': totalReps,
-    'avgScore': avgScore,
-    'totalMinutes': totalMins,
-    'avgAchievement': avgScore,
-  };
-}
+/// 현재(진행 중) 구간의 인덱스.
+const reportCurrentIndex = reportBucketCount - 1;
 
-// ── Daily ──────────────────────────────────────────────────────────
-Map<String, dynamic> _buildDailyData(
-    List<WorkoutRecordModel> records, bool isKo) {
-  final today = _dateOnly(DateTime.now());
-  final days = List.generate(7, (i) => today.subtract(Duration(days: 6 - i)));
-
-  final labels = days.map((d) => '${d.month}/${d.day}').toList();
-  final scores = <double>[];
-  final reps = <double>[];
-  final minutes = <double>[];
-
-  for (final day in days) {
-    final dayRecs =
-        records.where((r) => _dateOnly(r.date) == day).toList();
-    scores.add(dayRecs.isEmpty
-        ? 0
-        : dayRecs.fold(0.0, (s, r) => s + r.postureScore) / dayRecs.length);
-    reps.add(dayRecs.fold(0.0, (s, r) => s + r.totalReps.toDouble()));
-    minutes.add(dayRecs.fold(0, (s, r) => s + r.durationSeconds) / 60.0);
-  }
-
-  final windowRecs =
-      records.where((r) => !_dateOnly(r.date).isBefore(days.first)).toList();
-
-  return {
-    'postureScores': scores,
-    'reps': reps,
-    'workoutMinutes': minutes,
-    'labels': labels,
-    ..._buildSummary(
-        scores: scores,
-        reps: reps,
-        minutes: minutes,
-        windowRecords: windowRecs),
-  };
-}
-
-// ── Weekly ────────────────────────────────────────────────────────────
-Map<String, dynamic> _buildWeeklyData(
-    List<WorkoutRecordModel> records, bool isKo) {
-  final now = DateTime.now();
-  final currentMonday =
-      _dateOnly(now).subtract(Duration(days: now.weekday - 1));
-
-  final weekStarts = List.generate(
-      6, (i) => currentMonday.subtract(Duration(days: (5 - i) * 7)));
-
-  final labels = weekStarts.asMap().entries.map((e) {
-    final ws = e.value;
-    final isCurrentWeek = e.key == weekStarts.length - 1;
-    if (isCurrentWeek) return isKo ? '이번주' : 'Now';
-    return '${ws.month}/${ws.day}';
-  }).toList();
-
-  final scores = <double>[];
-  final reps = <double>[];
-  final minutes = <double>[];
-
-  for (final weekStart in weekStarts) {
-    final weekEnd = weekStart.add(const Duration(days: 7));
-    final weekRecs = records
-        .where((r) =>
-            !_dateOnly(r.date).isBefore(weekStart) &&
-            _dateOnly(r.date).isBefore(weekEnd))
-        .toList();
-    scores.add(weekRecs.isEmpty
-        ? 0
-        : weekRecs.fold(0.0, (s, r) => s + r.postureScore) / weekRecs.length);
-    reps.add(weekRecs.fold(0.0, (s, r) => s + r.totalReps.toDouble()));
-    minutes
-        .add(weekRecs.fold(0, (s, r) => s + r.durationSeconds) / 60.0);
-  }
-
-  final windowRecs = records
-      .where((r) => !_dateOnly(r.date).isBefore(weekStarts.first))
-      .toList();
-
-  return {
-    'postureScores': scores,
-    'reps': reps,
-    'workoutMinutes': minutes,
-    'labels': labels,
-    ..._buildSummary(
-        scores: scores,
-        reps: reps,
-        minutes: minutes,
-        windowRecords: windowRecs),
-  };
-}
-
-// ── Monthly ─────────────────────────────────────────────────────────
-Map<String, dynamic> _buildMonthlyData(
-    List<WorkoutRecordModel> records, bool isKo) {
-  final now = DateTime.now();
-  final months = List.generate(6, (i) {
-    final offset = 5 - i;
-    int m = now.month - offset;
-    int y = now.year;
-    while (m <= 0) {
-      m += 12;
-      y--;
-    }
-    return DateTime(y, m);
+/// 운동량 탭에 표시할 집계 결과. 모든 합계는 차트에 보이는 7개 구간 전체 기준이다.
+class ReportVolumeData {
+  const ReportVolumeData({
+    required this.period,
+    required this.labels,
+    required this.minutes,
+    required this.reps,
+    required this.totalSeconds,
+    required this.totalReps,
+    required this.activeDays,
+    required this.timeChangePct,
   });
 
-  final koMonths = ['1월','2월','3월','4월','5월','6월',
-                    '7월','8월','9월','10월','11월','12월'];
-  final enMonths = ['Jan','Feb','Mar','Apr','May','Jun',
-                    'Jul','Aug','Sep','Oct','Nov','Dec'];
+  final ReportPeriod period;
+  final List<String> labels;
 
-  final labels = months.map((m) {
-    final isCurrentMonth = m.year == now.year && m.month == now.month;
-    final base = isKo ? koMonths[m.month - 1] : enMonths[m.month - 1];
-    return isCurrentMonth ? (isKo ? '이번달' : 'Now') : base;
-  }).toList();
+  /// 구간별 운동 시간(분).
+  final List<double> minutes;
 
-  final scores = <double>[];
-  final reps = <double>[];
-  final minutes = <double>[];
+  /// 구간별 반복 횟수.
+  final List<double> reps;
 
-  for (final month in months) {
-    final monthRecs = records
-        .where((r) => r.date.year == month.year && r.date.month == month.month)
-        .toList();
-    scores.add(monthRecs.isEmpty
-        ? 0
-        : monthRecs.fold(0.0, (s, r) => s + r.postureScore) /
-            monthRecs.length);
-    reps.add(monthRecs.fold(0.0, (s, r) => s + r.totalReps.toDouble()));
-    minutes
-        .add(monthRecs.fold(0, (s, r) => s + r.durationSeconds) / 60.0);
+  final int totalSeconds;
+  final int totalReps;
+
+  /// 운동 기록이 있는 날짜 수(중복 제거).
+  final int activeDays;
+
+  /// 마지막으로 끝난 구간의 운동 시간이 그 전 구간 대비 몇 % 변했는지.
+  /// 비교할 이전 기록이 없으면 null.
+  final int? timeChangePct;
+
+  bool get hasData => totalSeconds > 0 || totalReps > 0;
+
+  /// 운동한 날 하루당 평균 반복 횟수.
+  int get avgRepsPerActiveDay =>
+      activeDays == 0 ? 0 : (totalReps / activeDays).round();
+}
+
+final reportVolumeProvider = Provider<ReportVolumeData>((ref) {
+  final period = ref.watch(reportPeriodProvider);
+  final records = ref.watch(workoutRecordsProvider).value ?? const [];
+  final isKo = ref.watch(selectedLanguageProvider) == 'ko';
+  return buildReportVolume(records, period, isKo: isKo, now: DateTime.now());
+});
+
+const _weekdayKo = ['월', '화', '수', '목', '금', '토', '일'];
+const _weekdayEn = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const _monthEn = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+];
+
+/// [now] 기준으로 지난 6개 구간 + 현재 구간을 [period] 단위로 집계한다.
+ReportVolumeData buildReportVolume(
+  List<WorkoutRecordModel> records,
+  ReportPeriod period, {
+  required bool isKo,
+  required DateTime now,
+}) {
+  final today = DateTime(now.year, now.month, now.day);
+  final currentMonday = DateTime(today.year, today.month, today.day - (today.weekday - 1));
+
+  // 구간 i(0=가장 오래된 구간, 6=현재)의 [시작, 끝) 범위. DateTime 생성자의
+  // 날짜 오버플로 보정을 이용해 월/연도 경계와 서머타임을 안전하게 넘는다.
+  DateTime startOf(int i) {
+    final back = reportCurrentIndex - i;
+    switch (period) {
+      case ReportPeriod.daily:
+        return DateTime(today.year, today.month, today.day - back);
+      case ReportPeriod.weekly:
+        return DateTime(currentMonday.year, currentMonday.month,
+            currentMonday.day - back * 7);
+      case ReportPeriod.monthly:
+        return DateTime(today.year, today.month - back);
+    }
   }
 
-  final windowRecs = records
-      .where((r) =>
-          r.date.year > months.first.year ||
-          (r.date.year == months.first.year &&
-              r.date.month >= months.first.month))
-      .toList();
+  DateTime endOf(int i) {
+    final s = startOf(i);
+    switch (period) {
+      case ReportPeriod.daily:
+        return DateTime(s.year, s.month, s.day + 1);
+      case ReportPeriod.weekly:
+        return DateTime(s.year, s.month, s.day + 7);
+      case ReportPeriod.monthly:
+        return DateTime(s.year, s.month + 1);
+    }
+  }
 
-  return {
-    'postureScores': scores,
-    'reps': reps,
-    'workoutMinutes': minutes,
-    'labels': labels,
-    ..._buildSummary(
-        scores: scores,
-        reps: reps,
-        minutes: minutes,
-        windowRecords: windowRecs),
-  };
+  String labelOf(int i) {
+    if (i == reportCurrentIndex) {
+      if (period == ReportPeriod.daily) return isKo ? '오늘' : 'Today';
+      return isKo ? '이번' : 'Now';
+    }
+    switch (period) {
+      case ReportPeriod.daily:
+        final wd = startOf(i).weekday - 1;
+        return isKo ? _weekdayKo[wd] : _weekdayEn[wd];
+      case ReportPeriod.weekly:
+        return isKo ? '${i + 1}주' : 'W${i + 1}';
+      case ReportPeriod.monthly:
+        final m = startOf(i).month;
+        return isKo ? '$m월' : _monthEn[m - 1];
+    }
+  }
+
+  final minutes = List<double>.filled(reportBucketCount, 0);
+  final reps = List<double>.filled(reportBucketCount, 0);
+  final activeDates = <DateTime>{};
+  var totalSeconds = 0;
+  var totalReps = 0;
+
+  for (var i = 0; i < reportBucketCount; i++) {
+    final start = startOf(i);
+    final end = endOf(i);
+    for (final r in records) {
+      if (r.date.isBefore(start) || !r.date.isBefore(end)) continue;
+      minutes[i] += r.durationSeconds / 60.0;
+      reps[i] += r.totalReps;
+      totalSeconds += r.durationSeconds;
+      totalReps += r.totalReps;
+      activeDates.add(DateTime(r.date.year, r.date.month, r.date.day));
+    }
+  }
+
+  final prior = minutes[reportLastCompletedIndex - 1];
+  final last = minutes[reportLastCompletedIndex];
+  final int? changePct = prior > 0 ? ((last - prior) / prior * 100).round() : null;
+
+  return ReportVolumeData(
+    period: period,
+    labels: List.generate(reportBucketCount, labelOf),
+    minutes: minutes,
+    reps: reps,
+    totalSeconds: totalSeconds,
+    totalReps: totalReps,
+    activeDays: activeDates.length,
+    timeChangePct: changePct,
+  );
 }

@@ -1,818 +1,171 @@
-import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
-import '../../../core/constants/route_constants.dart';
 import '../../../core/i18n/locale_provider.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../data/mock_data.dart';
-import '../../../features/home/providers/home_provider.dart';
+import '../../../core/theme/app_theme.dart';
 import '../providers/report_provider.dart';
+import '../widgets/report_volume_tab.dart';
 
 class ReportScreen extends ConsumerWidget {
   const ReportScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final s = ref.watch(appStringsProvider);
-    final tab = ref.watch(reportTabProvider);
-    final data = ref.watch(reportDataProvider);
+    final isKo = ref.watch(selectedLanguageProvider) == 'ko';
+    final section = ref.watch(reportSectionProvider);
 
-    return Scaffold(
-      appBar: AppBar(title: Text(s.report)),
-      body: Column(
-        children: [
-          _TabSelector(current: tab, strings: s,
-              onChanged: (t) =>
-                  ref.read(reportTabProvider.notifier).state = t),
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
-              child: Column(
-                children: [
-                  _SummaryRow(data: data, strings: s),
-                  const SizedBox(height: 24),
-                  _ChartCard(
-                    title: s.postureScoreChart,
-                    subtitle: s.postureScoreSubtitle,
-                    chart: _PostureLineChart(
-                      scores: (data['postureScores'] as List).cast<double>(),
-                      labels: (data['labels'] as List).cast<String>(),
-                      noDataLabel: s.locale == 'ko' ? '아직 데이터가 없어요' : 'No data yet',
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  _ChartCard(
-                    title: s.repVolume,
-                    subtitle: s.repVolumeSubtitle,
-                    chart: _RepsBarChart(
-                      reps: (data['reps'] as List).cast<double>(),
-                      labels: (data['labels'] as List).cast<String>(),
-                      noDataLabel: s.locale == 'ko' ? '아직 데이터가 없어요' : 'No data yet',
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  _ChartCard(
-                    title: s.activeTimeChart,
-                    subtitle: s.activeTimeSubtitle,
-                    chart: _WorkoutTimeLineChart(
-                      minutes: (data['workoutMinutes'] as List).cast<double>(),
-                      labels: (data['labels'] as List).cast<String>(),
-                      noDataLabel: s.locale == 'ko' ? '아직 데이터가 없어요' : 'No data yet',
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  _RecentRecordsSection(strings: s),
-                ],
+    return Theme(
+      data: AppTheme.darkTheme,
+      child: Scaffold(
+        backgroundColor: AppColors.black,
+        body: SafeArea(
+          bottom: false,
+          child: Column(
+            children: [
+              // 고정 영역: 제목과 탭은 스크롤에 영향받지 않음
+              _ReportHeader(isKo: isKo),
+              _SectionTabs(
+                isKo: isKo,
+                current: section,
+                onChanged: (s) =>
+                    ref.read(reportSectionProvider.notifier).state = s,
               ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Tab Selector ───────────────────────────────────────────────────────────
-class _TabSelector extends StatelessWidget {
-  const _TabSelector(
-      {required this.current,
-      required this.onChanged,
-      required this.strings});
-  final ReportTab current;
-  final ValueChanged<ReportTab> onChanged;
-  final dynamic strings;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final s = strings;
-    final labels = [s.daily, s.weekly, s.monthly];
-
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.darkCard : AppColors.lightInputFill,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: ReportTab.values.asMap().entries.map((entry) {
-          final t = entry.value;
-          final selected = t == current;
-          return Expanded(
-            child: GestureDetector(
-              onTap: () => onChanged(t),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                decoration: BoxDecoration(
-                  color: selected ? AppColors.primary : Colors.transparent,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  labels[entry.key],
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: selected
-                        ? Colors.white
-                        : theme.colorScheme.onSurface.withValues(alpha: 0.5),
-                    fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
-                    fontSize: 13,
-                  ),
-                ),
+              Expanded(
+                child: section == ReportSection.volume
+                    ? ReportVolumeTab(isKo: isKo)
+                    : _AnalysisPlaceholder(isKo: isKo),
               ),
-            ),
-          );
-        }).toList(),
+            ],
+          ),
+        ),
       ),
     );
   }
 }
 
-// ── Summary Row ────────────────────────────────────────────────────────────
-class _SummaryRow extends StatelessWidget {
-  const _SummaryRow({required this.data, required this.strings});
-  final Map<String, dynamic> data;
-  final dynamic strings;
+// ── 제목 + 현재 연월 ───────────────────────────────────────────────────────
+class _ReportHeader extends StatelessWidget {
+  const _ReportHeader({required this.isKo});
+  final bool isKo;
 
   @override
   Widget build(BuildContext context) {
-    final s = strings;
-    final avg = data['avgScore'] as double;
-    final achievement = data['avgAchievement'] as double? ?? 0.0;
-    return Column(
-      children: [
-        Row(
-          children: [
-            Expanded(
-                child: _SummaryCard(
-                    label: s.workouts,
-                    value: '${data['totalWorkouts']}',
-                    icon: Icons.fitness_center_rounded,
-                    color: AppColors.primary)),
-            const SizedBox(width: 10),
-            Expanded(
-                child: _SummaryCard(
-                    label: s.totalReps,
-                    value: '${data['totalReps']}',
-                    icon: Icons.loop_rounded,
-                    color: AppColors.secondary)),
-            const SizedBox(width: 10),
-            Expanded(
-                child: _SummaryCard(
-                    label: s.avgScore,
-                    value: '${avg.toStringAsFixed(1)}%',
-                    icon: Icons.star_rounded,
-                    color: AppColors.warning)),
-            const SizedBox(width: 10),
-            Expanded(
-                child: _SummaryCard(
-                    label: s.minutes,
-                    value: '${data['totalMinutes']}',
-                    icon: Icons.timer_outlined,
-                    color: AppColors.info)),
-          ],
-        ),
-        const SizedBox(height: 12),
-        _AchievementSummaryBar(achievement: achievement, strings: s),
-      ],
-    );
-  }
-}
-
-class _SummaryCard extends StatelessWidget {
-  const _SummaryCard({
-    required this.label,
-    required this.value,
-    required this.icon,
-    required this.color,
-  });
-  final String label;
-  final String value;
-  final IconData icon;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 6),
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.darkCard : AppColors.lightCard,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        children: [
-          Icon(icon, color: color, size: 18),
-          const SizedBox(height: 5),
-          Text(value,
-              style: TextStyle(
-                  color: color,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 14)),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            style: theme.textTheme.labelSmall?.copyWith(
-              fontSize: 9,
-              color: theme.colorScheme.onSurface.withValues(alpha: 0.45),
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Achievement Summary Bar ────────────────────────────────────────────────
-class _AchievementSummaryBar extends StatelessWidget {
-  const _AchievementSummaryBar(
-      {required this.achievement, required this.strings});
-  final double achievement;
-  final dynamic strings;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final s = strings;
-    final color = achievement >= 90
-        ? AppColors.scoreExcellent
-        : achievement >= 75
-            ? AppColors.scoreGood
-            : AppColors.scoreFair;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.darkCard : AppColors.lightCard,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.flag_rounded, color: color, size: 16),
-          const SizedBox(width: 8),
-          Text(
-            s.locale == 'ko' ? '평균 목표 달성률' : 'Avg Goal Achievement',
-            style: theme.textTheme.bodySmall
-                ?.copyWith(fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: LinearProgressIndicator(
-                value: achievement / 100,
-                backgroundColor: color.withValues(alpha: 0.12),
-                valueColor: AlwaysStoppedAnimation<Color>(color),
-                minHeight: 7,
-              ),
-            ),
-          ),
-          const SizedBox(width: 10),
-          Text(
-            '${achievement.toInt()}%',
-            style: TextStyle(
-                color: color, fontWeight: FontWeight.w800, fontSize: 13),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Chart Card ─────────────────────────────────────────────────────────────
-class _ChartCard extends StatelessWidget {
-  const _ChartCard(
-      {required this.title,
-      required this.subtitle,
-      required this.chart});
-  final String title;
-  final String subtitle;
-  final Widget chart;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.darkCard : AppColors.lightCard,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(title,
-              style: theme.textTheme.titleSmall
-                  ?.copyWith(fontWeight: FontWeight.w700)),
-          const SizedBox(height: 2),
-          Text(subtitle,
-              style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.45),
-                  fontSize: 12)),
-          const SizedBox(height: 20),
-          SizedBox(height: 180, child: chart),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Shared chart helpers ───────────────────────────────────────────────────
-double _niceMax(List<double> values, double base) {
-  if (values.isEmpty) return base;
-  final max = values.reduce((a, b) => a > b ? a : b);
-  if (max <= 0) return base;
-  return ((max * 1.15) / base).ceil() * base;
-}
-
-double _niceInterval(double maxY, int steps) {
-  final result = ((maxY / steps) / 5).ceil() * 5;
-  return result <= 0 ? 5.0 : result.toDouble();
-}
-
-Widget _bottomLabel(
-    double v, List<String> labels, TextStyle style, int step) {
-  final i = v.toInt();
-  if (i < 0 || i >= labels.length || i % step != 0) return const SizedBox();
-  return Padding(
-    padding: const EdgeInsets.only(top: 6),
-    child: Text(labels[i], style: style),
-  );
-}
-
-// ── Posture Line Chart ─────────────────────────────────────────────────────
-class _PostureLineChart extends StatelessWidget {
-  const _PostureLineChart({
-    required this.scores,
-    required this.labels,
-    this.noDataLabel = 'No data yet',
-  });
-  final List<double> scores;
-  final List<String> labels;
-  final String noDataLabel;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final textStyle = TextStyle(
-        color: theme.colorScheme.onSurface.withValues(alpha: 0.45),
-        fontSize: 10);
-    final step = labels.length > 8 ? 2 : 1;
-
-    if (labels.isEmpty) {
-      return Center(
-        child: Text(noDataLabel, style: textStyle.copyWith(fontSize: 13)));
-    }
-
-    // 0점은 운동 없는 날이므로 선 연결에서 제외 (NaN 처리)
-    final spots = scores
-        .asMap()
-        .entries
-        .where((e) => e.value > 0)
-        .map((e) => FlSpot(e.key.toDouble(), e.value))
-        .toList();
-
-    final hasData = spots.isNotEmpty;
-
-    return LineChart(LineChartData(
-      minX: 0,
-      maxX: (labels.length - 1).toDouble(),
-      minY: 50,
-      maxY: 100,
-      gridData: FlGridData(
-        show: true,
-        drawVerticalLine: false,
-        horizontalInterval: 15,
-        getDrawingHorizontalLine: (_) => FlLine(
-            color: theme.dividerColor.withValues(alpha: 0.6), strokeWidth: 0.8),
-      ),
-      borderData: FlBorderData(show: false),
-      titlesData: FlTitlesData(
-        leftTitles: AxisTitles(
-          sideTitles: SideTitles(
-            showTitles: true,
-            reservedSize: 36,
-            interval: 15,
-            getTitlesWidget: (v, _) =>
-                Text('${v.toInt()}', style: textStyle),
-          ),
-        ),
-        bottomTitles: AxisTitles(
-          sideTitles: SideTitles(
-            showTitles: true,
-            interval: 1,
-            getTitlesWidget: (v, _) =>
-                _bottomLabel(v, labels, textStyle, step),
-          ),
-        ),
-        rightTitles:
-            const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-        topTitles:
-            const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-      ),
-      lineBarsData: [
-        LineChartBarData(
-          spots: hasData ? spots : const [FlSpot(0, 50)],
-          isCurved: spots.length > 1,
-          curveSmoothness: 0.35,
-          color: hasData ? AppColors.primary : Colors.transparent,
-          barWidth: 2.5,
-          dotData: FlDotData(
-            show: hasData,
-            getDotPainter: (_, __, ___, ____) => FlDotCirclePainter(
-              radius: 3,
-              color: AppColors.primary,
-              strokeColor: Colors.white,
-              strokeWidth: 1.5,
-            ),
-          ),
-          belowBarData: BarAreaData(
-            show: hasData,
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                AppColors.primary.withValues(alpha: 0.22),
-                AppColors.primary.withValues(alpha: 0.0),
-              ],
-            ),
-          ),
-        ),
-      ],
-      // 데이터 없을 때 안내 문구
-      extraLinesData: hasData ? null : const ExtraLinesData(extraLinesOnTop: false),
-    ));
-  }
-}
-
-// ── Reps Bar Chart ─────────────────────────────────────────────────────────
-class _RepsBarChart extends StatelessWidget {
-  const _RepsBarChart({
-    required this.reps,
-    required this.labels,
-    this.noDataLabel = 'No data yet',
-  });
-  final List<double> reps;
-  final List<String> labels;
-  final String noDataLabel;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final textStyle = TextStyle(
-        color: theme.colorScheme.onSurface.withValues(alpha: 0.45),
-        fontSize: 10);
-    final step = labels.length > 8 ? 2 : 1;
-
-    if (labels.isEmpty) {
-      return Center(
-        child: Text(noDataLabel, style: textStyle.copyWith(fontSize: 13)),
-      );
-    }
-
-    final hasData = reps.any((v) => v > 0);
-    final maxY = hasData ? _niceMax(reps, 50) : 50.0;
-    final yInterval = _niceInterval(maxY, 4);
-
-    return BarChart(BarChartData(
-      maxY: maxY,
-      gridData: FlGridData(
-        show: true,
-        drawVerticalLine: false,
-        horizontalInterval: yInterval,
-        getDrawingHorizontalLine: (_) => FlLine(
-            color: theme.dividerColor.withValues(alpha: 0.6), strokeWidth: 0.8),
-      ),
-      borderData: FlBorderData(show: false),
-      titlesData: FlTitlesData(
-        leftTitles: AxisTitles(
-          sideTitles: SideTitles(
-            showTitles: true,
-            reservedSize: 40,
-            interval: yInterval,
-            getTitlesWidget: (v, _) =>
-                Text('${v.toInt()}', style: textStyle),
-          ),
-        ),
-        bottomTitles: AxisTitles(
-          sideTitles: SideTitles(
-            showTitles: true,
-            interval: 1,
-            getTitlesWidget: (v, _) =>
-                _bottomLabel(v, labels, textStyle, step),
-          ),
-        ),
-        rightTitles:
-            const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-        topTitles:
-            const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-      ),
-      barGroups: reps
-          .asMap()
-          .entries
-          .map((e) => BarChartGroupData(
-                x: e.key,
-                barRods: [
-                  BarChartRodData(
-                    toY: e.value,
-                    gradient: AppColors.orangeGradient,
-                    width: labels.length > 8 ? 8 : 14,
-                    borderRadius: const BorderRadius.vertical(
-                        top: Radius.circular(5)),
-                  ),
-                ],
-              ))
-          .toList(),
-    ));
-  }
-}
-
-// ── Workout Time Line Chart ────────────────────────────────────────────────
-class _WorkoutTimeLineChart extends StatelessWidget {
-  const _WorkoutTimeLineChart({
-    required this.minutes,
-    required this.labels,
-    this.noDataLabel = 'No data yet',
-  });
-  final List<double> minutes;
-  final List<String> labels;
-  final String noDataLabel;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final textStyle = TextStyle(
-        color: theme.colorScheme.onSurface.withValues(alpha: 0.45),
-        fontSize: 10);
-    final step = labels.length > 8 ? 2 : 1;
-
-    if (labels.isEmpty) {
-      return Center(
-        child: Text(noDataLabel, style: textStyle.copyWith(fontSize: 13)),
-      );
-    }
-
-    final spots = minutes
-        .asMap()
-        .entries
-        .where((e) => e.value > 0)
-        .map((e) => FlSpot(e.key.toDouble(), e.value))
-        .toList();
-
-    final hasData = spots.isNotEmpty;
-    final maxY = hasData ? _niceMax(minutes, 10) : 10.0;
-    final yInterval = _niceInterval(maxY, 4);
-
-    return LineChart(LineChartData(
-      minX: 0,
-      maxX: (labels.length - 1).toDouble(),
-      minY: 0,
-      maxY: maxY,
-      gridData: FlGridData(
-        show: true,
-        drawVerticalLine: false,
-        horizontalInterval: yInterval,
-        getDrawingHorizontalLine: (_) => FlLine(
-            color: theme.dividerColor.withValues(alpha: 0.6), strokeWidth: 0.8),
-      ),
-      borderData: FlBorderData(show: false),
-      titlesData: FlTitlesData(
-        leftTitles: AxisTitles(
-          sideTitles: SideTitles(
-            showTitles: true,
-            reservedSize: 40,
-            interval: yInterval,
-            getTitlesWidget: (v, _) =>
-                Text('${v.toInt()}', style: textStyle),
-          ),
-        ),
-        bottomTitles: AxisTitles(
-          sideTitles: SideTitles(
-            showTitles: true,
-            interval: 1,
-            getTitlesWidget: (v, _) =>
-                _bottomLabel(v, labels, textStyle, step),
-          ),
-        ),
-        rightTitles:
-            const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-        topTitles:
-            const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-      ),
-      lineBarsData: [
-        LineChartBarData(
-          spots: hasData ? spots : const [FlSpot(0, 0)],
-          isCurved: spots.length > 1,
-          curveSmoothness: 0.35,
-          color: hasData ? AppColors.info : Colors.transparent,
-          barWidth: 2.5,
-          dotData: FlDotData(
-            show: hasData,
-            getDotPainter: (_, __, ___, ____) => FlDotCirclePainter(
-              radius: 3,
-              color: AppColors.info,
-              strokeColor: Colors.white,
-              strokeWidth: 1.5,
-            ),
-          ),
-          belowBarData: BarAreaData(
-            show: hasData,
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                AppColors.info.withValues(alpha: 0.2),
-                AppColors.info.withValues(alpha: 0.0),
-              ],
-            ),
-          ),
-        ),
-      ],
-    ));
-  }
-}
-
-// ── Recent Records ─────────────────────────────────────────────────────────
-class _RecentRecordsSection extends ConsumerWidget {
-  const _RecentRecordsSection({required this.strings});
-  final dynamic strings;
-
-  String _formatDate(DateTime date, dynamic s) {
     final now = DateTime.now();
-    final diff = now.difference(date).inDays;
-    if (diff == 0) return s.today;
-    if (diff == 1) return s.yesterday;
-    return '${date.month}/${date.day}/${date.year}';
-  }
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final s = strings;
-    final records = ref.watch(allRecordsProvider);
-
-    if (records.isEmpty) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    final month = now.month.toString().padLeft(2, '0');
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 14),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          Text(s.workoutHistory,
-              style: theme.textTheme.titleMedium
-                  ?.copyWith(fontWeight: FontWeight.w700)),
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 32),
-            decoration: BoxDecoration(
-              color: isDark ? AppColors.darkCard : AppColors.lightCard,
-              borderRadius: BorderRadius.circular(12),
+          Text(
+            isKo ? '리포트' : 'Report',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 28,
+              fontWeight: FontWeight.w900,
             ),
-            child: Center(
-              child: Text(
-                s.locale == 'ko'
-                    ? '아직 운동 기록이 없어요'
-                    : 'No workout records yet',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
-                ),
+          ),
+          const Spacer(),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: Text(
+              '${now.year}. $month',
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.4),
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
               ),
             ),
           ),
         ],
-      );
-    }
+      ),
+    );
+  }
+}
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(s.workoutHistory,
-            style: theme.textTheme.titleMedium
-                ?.copyWith(fontWeight: FontWeight.w700)),
-        const SizedBox(height: 12),
-        ...records.map((r) {
-              final scoreColor = r.postureScore >= 90
-                  ? AppColors.scoreExcellent
-                  : r.postureScore >= 75
-                      ? AppColors.scoreGood
-                      : AppColors.scoreFair;
-              return GestureDetector(
-                onTap: () => context.push(
-                  RouteConstants.workoutResult,
-                  extra: {
-                    'exerciseId': r.exerciseId,
-                    'exerciseName': r.exerciseName,
-                    'exerciseNameKr': findExercise(r.exerciseId).nameKr,
-                    'totalReps': r.totalReps,
-                    'correctReps': r.correctReps,
-                    'incorrectReps': r.incorrectReps,
-                    'elapsedSeconds': r.durationSeconds,
-                    'postureScore': r.postureScore,
-                    'feedbackHistory': r.feedbackNotes,
-                    'targetSets': 0,
-                    'isHistory': true,
-                    'date': r.date,
-                  },
+// ── 운동량 / 분석 탭 ───────────────────────────────────────────────────────
+class _SectionTabs extends StatelessWidget {
+  const _SectionTabs({
+    required this.isKo,
+    required this.current,
+    required this.onChanged,
+  });
+  final bool isKo;
+  final ReportSection current;
+  final ValueChanged<ReportSection> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final labels = {
+      ReportSection.volume: isKo ? '운동량' : 'Volume',
+      ReportSection.analysis: isKo ? '분석' : 'Analysis',
+    };
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
+        ),
+      ),
+      child: Row(
+        children: [
+          for (final section in ReportSection.values) ...[
+            GestureDetector(
+              onTap: () => onChanged(section),
+              behavior: HitTestBehavior.opaque,
+              child: IntrinsicWidth(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      labels[section]!,
+                      style: TextStyle(
+                        color: section == current
+                            ? Colors.white
+                            : Colors.white.withValues(alpha: 0.35),
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Container(
+                      height: 3,
+                      decoration: BoxDecoration(
+                        color: section == current
+                            ? AppColors.green
+                            : Colors.transparent,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ],
                 ),
-                child: Container(
-                  margin: const EdgeInsets.only(bottom: 10),
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: isDark ? AppColors.darkCard : AppColors.lightCard,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: scoreColor.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Image.asset(
-                          findExercise(r.exerciseId).imagePath,
-                          width: 24,
-                          height: 24,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(r.exerciseName,
-                                style: theme.textTheme.bodyMedium
-                                    ?.copyWith(fontWeight: FontWeight.w600)),
-                            const SizedBox(height: 2),
-                            Text(_formatDate(r.date, s),
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: theme.colorScheme.onSurface
-                                      .withValues(alpha: 0.45),
-                                )),
-                          ],
-                        ),
-                      ),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(
-                            '${r.postureScore.toInt()}%',
-                            style: TextStyle(
-                              color: scoreColor,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 14,
-                            ),
-                          ),
-                          const SizedBox(height: 3),
-                          if (r.targetReps > 0)
-                            Row(
-                              children: [
-                                Icon(Icons.flag_rounded,
-                                    size: 10,
-                                    color: theme.colorScheme.onSurface
-                                        .withValues(alpha: 0.4)),
-                                const SizedBox(width: 3),
-                                Text(
-                                  '${r.achievement}%',
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    color: theme.colorScheme.onSurface
-                                        .withValues(alpha: 0.55),
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 11,
-                                  ),
-                                ),
-                              ],
-                            )
-                          else
-                            Text(
-                              r.totalReps > 0
-                                  ? '${r.totalReps} ${s.reps}'
-                                  : r.durationFormatted,
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: theme.colorScheme.onSurface
-                                    .withValues(alpha: 0.45),
-                              ),
-                            ),
-                        ],
-                      ),
-                      const SizedBox(width: 6),
-                      Icon(Icons.chevron_right_rounded,
-                          color: theme.colorScheme.onSurface
-                              .withValues(alpha: 0.3),
-                          size: 18),
-                    ],
-                  ),
-                ),
-              );
-            }),
-      ],
+              ),
+            ),
+            const SizedBox(width: 24),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+// ── 분석 탭 (아직 구현 전) ─────────────────────────────────────────────────
+class _AnalysisPlaceholder extends StatelessWidget {
+  const _AnalysisPlaceholder({required this.isKo});
+  final bool isKo;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Text(
+        isKo ? '분석 화면은 곧 만나볼 수 있어요' : 'Analysis is coming soon',
+        style: TextStyle(
+          color: Colors.white.withValues(alpha: 0.4),
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
     );
   }
 }
