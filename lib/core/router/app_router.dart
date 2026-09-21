@@ -18,6 +18,7 @@ import '../../features/home/screens/home_screen.dart';
 import '../../features/profile/screens/profile_screen.dart';
 import '../../features/report/screens/report_screen.dart';
 import '../../features/splash/splash_screen.dart';
+import '../../features/workout/screens/camera_guide_screen.dart';
 import '../../features/workout/screens/exercise_selection_screen.dart';
 import '../../features/workout/screens/native_pose_workout_screen.dart';
 import '../../features/workout/screens/workout_result_screen.dart';
@@ -151,6 +152,28 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 _fadePage(state, const ExerciseSelectionScreen()),
           ),
         ],
+      ),
+      GoRoute(
+        path: RouteConstants.cameraGuide,
+        pageBuilder: (context, state) {
+          final extra = state.extra;
+          var exerciseId = 'squat';
+          var targetReps = 15;
+          var targetSets = 3;
+          if (extra is Map) {
+            exerciseId = extra['exerciseId'] as String? ?? exerciseId;
+            targetReps = extra['targetReps'] as int? ?? targetReps;
+            targetSets = extra['targetSets'] as int? ?? targetSets;
+          }
+          return _slidePage(
+            state,
+            CameraGuideScreen(
+              exerciseId: exerciseId,
+              targetReps: targetReps,
+              targetSets: targetSets,
+            ),
+          );
+        },
       ),
       GoRoute(
         path: RouteConstants.workout,
