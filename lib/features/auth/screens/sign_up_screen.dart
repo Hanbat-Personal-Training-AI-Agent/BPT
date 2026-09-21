@@ -16,6 +16,7 @@ class SignUpScreen extends ConsumerStatefulWidget {
 }
 
 class _SignUpScreenState extends ConsumerState<SignUpScreen> {
+  final _name = TextEditingController();
   final _email = TextEditingController();
   final _id = TextEditingController();
   final _password = TextEditingController();
@@ -23,6 +24,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
   final _phone = TextEditingController();
   final _birthDate = TextEditingController();
 
+  final _nameFocus = FocusNode();
   final _emailFocus = FocusNode();
   final _idFocus = FocusNode();
   final _passwordFocus = FocusNode();
@@ -33,7 +35,9 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
   bool _hidePassword = true;
   bool _hideConfirmPassword = true;
 
+  bool _nameTouched = false;
   bool _emailTouched = false;
+  bool _idTouched = false;
   bool _passwordTouched = false;
   bool _confirmPasswordTouched = false;
   bool _phoneTouched = false;
@@ -41,10 +45,20 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
   @override
   void initState() {
     super.initState();
+    _nameFocus.addListener(_onNameFocusChange);
     _emailFocus.addListener(_onEmailFocusChange);
+    _idFocus.addListener(_onIdFocusChange);
     _passwordFocus.addListener(_onPasswordFocusChange);
     _confirmPasswordFocus.addListener(_onConfirmPasswordFocusChange);
     _phoneFocus.addListener(_onPhoneFocusChange);
+  }
+
+  void _onNameFocusChange() {
+    if (!_nameFocus.hasFocus) setState(() => _nameTouched = true);
+  }
+
+  void _onIdFocusChange() {
+    if (!_idFocus.hasFocus) setState(() => _idTouched = true);
   }
 
   void _onEmailFocusChange() {
@@ -67,11 +81,14 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
 
   @override
   void dispose() {
+    _nameFocus.removeListener(_onNameFocusChange);
     _emailFocus.removeListener(_onEmailFocusChange);
+    _idFocus.removeListener(_onIdFocusChange);
     _passwordFocus.removeListener(_onPasswordFocusChange);
     _confirmPasswordFocus.removeListener(_onConfirmPasswordFocusChange);
     _phoneFocus.removeListener(_onPhoneFocusChange);
     for (final controller in [
+      _name,
       _email,
       _id,
       _password,
@@ -82,6 +99,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
       controller.dispose();
     }
     for (final focus in [
+      _nameFocus,
       _emailFocus,
       _idFocus,
       _passwordFocus,
@@ -143,40 +161,19 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
       onBack: () => context.pop(),
       body: [
         const SizedBox(height: 8),
-        Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-          Image.asset(
-            state.canSubmit
-                ? 'assets/images/character/face2.png'
-                : 'assets/images/character/face.png',
-            width: 62,
-            height: 68,
-            fit: BoxFit.contain,
-            excludeFromSemantics: true,
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-              child: Container(
-            margin: const EdgeInsets.only(bottom: 4),
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-            decoration: const BoxDecoration(
-              color: AppColors.green,
-              borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(22),
-                topRight: Radius.circular(22),
-                bottomRight: Radius.circular(22),
-                bottomLeft: Radius.circular(3),
-              ),
-            ),
-            child: Text(
-              state.canSubmit ? '좋아! 이제 가입할 수 있어!' : '너에 대해 알려줘!',
-              style: const TextStyle(
-                  color: AppColors.black,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 14),
-            ),
-          )),
-        ]),
-        const SizedBox(height: 20),
+        const AuthFieldLabel('이름'),
+        AuthTextField(
+          controller: _name,
+          focus: _nameFocus,
+          hint: '이름을 입력해줘',
+          onChanged: notifier.changeName,
+        ),
+        if (_nameTouched && state.name.isNotEmpty && !state.nameValid) ...[
+          const SizedBox(height: 8),
+          const Text('이름은 두 글자 이상 입력해줘.',
+              style: TextStyle(color: AppColors.red, fontSize: 13)),
+        ],
+        const SizedBox(height: 14),
         const AuthFieldLabel('이메일'),
         AuthTextField(
           controller: _email,
@@ -214,6 +211,12 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
           const SizedBox(height: 8),
           const Text('이미 사용 중인 아이디예요. 다른 아이디를 입력해줘.',
               style: TextStyle(color: AppColors.red, fontSize: 13)),
+        ] else if (_idTouched &&
+            state.id.trim().isNotEmpty &&
+            state.idCheck == IdCheckStatus.none) ...[
+          const SizedBox(height: 8),
+          const Text('아이디 중복확인을 해줘.',
+              style: TextStyle(color: AppColors.red, fontSize: 13)),
         ],
         const SizedBox(height: 14),
         const AuthFieldLabel('비밀번호'),
@@ -230,7 +233,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
             state.password.isNotEmpty &&
             !state.passwordValid) ...[
           const SizedBox(height: 8),
-          const Text('비밀번호는 8자 이상이어야 해.',
+          const Text('영문, 숫자를 포함해 8자 이상이어야 해.',
               style: TextStyle(color: AppColors.red, fontSize: 13)),
         ],
         const SizedBox(height: 14),

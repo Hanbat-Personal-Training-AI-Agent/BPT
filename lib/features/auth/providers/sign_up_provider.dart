@@ -8,6 +8,7 @@ enum IdCheckStatus { none, available, taken }
 
 class SignUpState {
   const SignUpState({
+    this.name = '',
     this.email = '',
     this.id = '',
     this.idCheck = IdCheckStatus.none,
@@ -18,6 +19,7 @@ class SignUpState {
     this.agreed = false,
   });
 
+  final String name;
   final String email;
   final String id;
   final IdCheckStatus idCheck;
@@ -27,13 +29,19 @@ class SignUpState {
   final DateTime? birthDate;
   final bool agreed;
 
+  bool get nameValid => name.trim().length >= 2;
   bool get emailValid => RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(email);
-  bool get passwordValid => password.length >= 8;
+  bool get passwordValid =>
+      password.length >= 8 &&
+      RegExp(r'[A-Za-z]').hasMatch(password) &&
+      RegExp(r'\d').hasMatch(password);
   bool get confirmValid =>
       confirmPassword.isNotEmpty && confirmPassword == password;
-  bool get phoneValid => phone.trim().length >= 9;
+  bool get phoneValid =>
+      RegExp(r'^01[016789]\d{7,8}$').hasMatch(phone.replaceAll('-', ''));
 
   bool get canSubmit =>
+      nameValid &&
       emailValid &&
       idCheck == IdCheckStatus.available &&
       passwordValid &&
@@ -43,6 +51,7 @@ class SignUpState {
       agreed;
 
   SignUpState copyWith({
+    String? name,
     String? email,
     String? id,
     IdCheckStatus? idCheck,
@@ -53,6 +62,7 @@ class SignUpState {
     bool? agreed,
   }) =>
       SignUpState(
+        name: name ?? this.name,
         email: email ?? this.email,
         id: id ?? this.id,
         idCheck: idCheck ?? this.idCheck,
@@ -66,6 +76,8 @@ class SignUpState {
 
 class SignUpNotifier extends StateNotifier<SignUpState> {
   SignUpNotifier() : super(const SignUpState());
+
+  void changeName(String value) => state = state.copyWith(name: value);
 
   void changeEmail(String value) => state = state.copyWith(email: value);
 
