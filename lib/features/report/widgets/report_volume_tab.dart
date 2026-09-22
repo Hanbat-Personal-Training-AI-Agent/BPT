@@ -4,9 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
 import '../providers/report_provider.dart';
 
-/// 지나간 구간 막대 색 (카드 배경보다 살짝 밝은 회색).
-const _pastBarColor = Color(0xFF2C2C2C);
-
 String _groupThousands(int n) {
   final digits = n.abs().toString();
   final buf = StringBuffer();
@@ -93,19 +90,12 @@ String _formatAxisCount(double value) {
   return k == k.roundToDouble() ? '${k.round()}k' : '${k.toStringAsFixed(1)}k';
 }
 
-/// 막대 색: 지난 구간은 회색, 마지막으로 끝난 구간은 라임, 현재 구간은 보라.
-Color _barColorAt(int i) => i == reportCurrentIndex
-    ? AppColors.purple
-    : i == reportLastCompletedIndex
-        ? AppColors.green
-        : _pastBarColor;
+/// 막대 색: 이전 구간은 모두 보라, 현재(이번) 구간만 라임.
+Color _barColorAt(int i) =>
+    i == reportCurrentIndex ? AppColors.green : AppColors.purple;
 
-/// 라임/보라로 강조된 구간의 x축 라벨 색. 나머지는 null(기본 회색).
-Color? _labelColorAt(int i) => i == reportCurrentIndex
-    ? AppColors.purple
-    : i == reportLastCompletedIndex
-        ? AppColors.green
-        : null;
+/// 현재(이번) 구간의 x축 라벨만 라임으로 강조. 나머지는 null(기본 회색).
+Color? _labelColorAt(int i) => i == reportCurrentIndex ? AppColors.green : null;
 
 /// 리포트 > 운동량 탭 본문.
 class ReportVolumeTab extends ConsumerWidget {

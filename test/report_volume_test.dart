@@ -199,7 +199,7 @@ void main() {
 
     await tester.tap(find.text('분석'));
     await tester.pumpAndSettle();
-    expect(find.text('분석 화면은 곧 만나볼 수 있어요'), findsOneWidget);
+    expect(find.text('종목별 비율'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

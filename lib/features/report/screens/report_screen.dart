@@ -5,6 +5,7 @@ import '../../../core/i18n/locale_provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../providers/report_provider.dart';
+import '../widgets/report_analysis_tab.dart';
 import '../widgets/report_volume_tab.dart';
 
 class ReportScreen extends ConsumerWidget {
@@ -34,7 +35,7 @@ class ReportScreen extends ConsumerWidget {
               Expanded(
                 child: section == ReportSection.volume
                     ? ReportVolumeTab(isKo: isKo)
-                    : _AnalysisPlaceholder(isKo: isKo),
+                    : ReportAnalysisTab(isKo: isKo),
               ),
             ],
           ),
@@ -150,22 +151,3 @@ class _SectionTabs extends StatelessWidget {
   }
 }
 
-// ── 분석 탭 (아직 구현 전) ─────────────────────────────────────────────────
-class _AnalysisPlaceholder extends StatelessWidget {
-  const _AnalysisPlaceholder({required this.isKo});
-  final bool isKo;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Text(
-        isKo ? '분석 화면은 곧 만나볼 수 있어요' : 'Analysis is coming soon',
-        style: TextStyle(
-          color: Colors.white.withValues(alpha: 0.4),
-          fontSize: 14,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-    );
-  }
-}
