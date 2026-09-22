@@ -320,10 +320,10 @@ class _InsightCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(22),
       ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Image.asset('assets/images/character/advice.png',
-              width: 48, height: 48, fit: BoxFit.contain),
+          Image.asset('assets/images/character/face2.png',
+              width: 64, height: 64, fit: BoxFit.contain),
           const SizedBox(width: 14),
           Expanded(
             child: Text(

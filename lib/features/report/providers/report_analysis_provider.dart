@@ -71,24 +71,26 @@ final reportAnalysisProvider = Provider<ReportAnalysisData>((ref) {
 const _mockAnalysisData = ReportAnalysisData(
   totalSessions: 42,
   // 6종목 합이 정확히 100%가 되도록 맞춘 목데이터. '기타' 항목은 없다.
+  // 색은 범례를 위에서 아래로 훑었을 때 색상환을 따라 매끄럽게 이어지도록
+  // (핑크 → 빨강 → 라임 → 민트 → 파랑 → 보라) 정렬했다.
   ratios: [
     ExerciseRatioItem(
       labelKo: '스쿼트',
       labelEn: 'Squat',
       percent: 30,
-      color: AppColors.green,
+      color: AppColors.pink,
     ),
     ExerciseRatioItem(
       labelKo: '벤치프레스',
       labelEn: 'Bench Press',
       percent: 22,
-      color: AppColors.purple,
+      color: AppColors.red,
     ),
     ExerciseRatioItem(
       labelKo: '데드리프트',
       labelEn: 'Deadlift',
       percent: 17,
-      color: AppColors.pink,
+      color: AppColors.green,
     ),
     ExerciseRatioItem(
       labelKo: '바벨로우',
@@ -106,7 +108,7 @@ const _mockAnalysisData = ReportAnalysisData(
       labelKo: '랫풀다운',
       labelEn: 'Lat Pulldown',
       percent: 8,
-      color: AppColors.red,
+      color: AppColors.purple,
     ),
   ],
   mistakes: [
@@ -141,8 +143,6 @@ const _mockAnalysisData = ReportAnalysisData(
       color: AppColors.green,
     ),
   ],
-  insightKo: '하체 운동을 많이 했고, 무릎 정렬 문제가 가장 자주 보였어.\n'
-      '다음 달엔 워밍업에 고관절 스트레칭을 하나 추가해보자!',
-  insightEn: 'You trained your lower body a lot, and knee alignment was the '
-      'most common issue.\nLet\'s add a hip stretch to next month\'s warm-up!',
+  insightKo: '하체 운동을 많이 했고, \n무릎 정렬 문제가 가장 자주 보였어.',
+  insightEn: 'You trained your lower body a lot, \nand knee alignment was the most common issue.'
 );
