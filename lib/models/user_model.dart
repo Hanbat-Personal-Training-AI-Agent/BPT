@@ -12,6 +12,7 @@ class UserModel {
   final double heightCm;
   final String? gender;
   final String? workoutGoal;
+  final String? phone;
   final int totalWorkouts;
   final int streakDays;
   final DateTime joinedAt;
@@ -28,6 +29,7 @@ class UserModel {
     this.heightCm = 0,
     this.gender,
     this.workoutGoal,
+    this.phone,
     this.totalWorkouts = 0,
     this.streakDays = 0,
     required this.joinedAt,
@@ -56,6 +58,7 @@ class UserModel {
     double? heightCm,
     String? gender,
     String? workoutGoal,
+    String? phone,
     int? totalWorkouts,
     int? streakDays,
   }) {
@@ -71,6 +74,7 @@ class UserModel {
       heightCm: heightCm ?? this.heightCm,
       gender: gender ?? this.gender,
       workoutGoal: workoutGoal ?? this.workoutGoal,
+      phone: phone ?? this.phone,
       totalWorkouts: totalWorkouts ?? this.totalWorkouts,
       streakDays: streakDays ?? this.streakDays,
       joinedAt: joinedAt,
@@ -89,6 +93,7 @@ class UserModel {
         'heightCm': heightCm,
         'gender': gender,
         'workoutGoal': workoutGoal,
+        'phone': phone,
         'totalWorkouts': totalWorkouts,
         'streakDays': streakDays,
         'joinedAt': joinedAt.toIso8601String(),
@@ -108,6 +113,7 @@ class UserModel {
         heightCm: (json['heightCm'] as num?)?.toDouble() ?? 0,
         gender: json['gender'] as String?,
         workoutGoal: json['workoutGoal'] as String?,
+        phone: json['phone'] as String?,
         totalWorkouts: (json['totalWorkouts'] as num?)?.toInt() ?? 0,
         streakDays: (json['streakDays'] as num?)?.toInt() ?? 0,
         joinedAt: json['joinedAt'] != null

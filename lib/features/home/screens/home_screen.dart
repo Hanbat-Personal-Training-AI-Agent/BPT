@@ -348,30 +348,17 @@ class _StatBox extends StatelessWidget {
 }
 
 // ── Body Check Banner (체형 재측정 배너, 3가지 상태) ───────────────────────
-enum _BodyCheckState { fresh, dueSoon, overdue }
-
-class _BodyCheckBanner extends StatelessWidget {
+class _BodyCheckBanner extends ConsumerWidget {
   const _BodyCheckBanner({required this.strings});
   final dynamic strings;
 
-  static const int _cycleDays = 30;
-  // TODO: 실제 마지막 체형 측정일이 저장되면 그 값으로 교체할 것. 지금은 목데이터.
-  static const int _daysSinceLastCheck = 30;
-
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final isKo = strings.locale == 'ko';
+    final daysSinceLastCheck = ref.watch(daysSinceLastBodyCheckProvider);
     final daysUntilNext =
-        (_cycleDays - _daysSinceLastCheck).clamp(0, _cycleDays);
-
-    final _BodyCheckState state;
-    if (_daysSinceLastCheck >= _cycleDays) {
-      state = _BodyCheckState.overdue;
-    } else if (daysUntilNext <= 3) {
-      state = _BodyCheckState.dueSoon;
-    } else {
-      state = _BodyCheckState.fresh;
-    }
+        (bodyCheckCycleDays - daysSinceLastCheck).clamp(0, bodyCheckCycleDays);
+    final state = resolveBodyCheckState(daysSinceLastCheck);
 
     late final Color bg;
     late final Color fg;
@@ -379,27 +366,27 @@ class _BodyCheckBanner extends StatelessWidget {
     late final String subtitle;
 
     switch (state) {
-      case _BodyCheckState.fresh:
+      case BodyCheckState.fresh:
         bg = AppColors.grey;
         fg = AppColors.green;
         title = isKo ? '체형 분석 완료!' : 'Body scan complete!';
         subtitle = isKo
             ? '다음 확인까지 $daysUntilNext일'
             : '$daysUntilNext days until next check';
-      case _BodyCheckState.dueSoon:
+      case BodyCheckState.dueSoon:
         bg = AppColors.purple.withValues(alpha: 0.18);
         fg = AppColors.purple;
         title = isKo ? '곧 체형을 다시 확인할 때야!' : 'Time to recheck your body soon!';
         subtitle = isKo
             ? '다음 측정까지 $daysUntilNext일'
             : '$daysUntilNext days until next check';
-      case _BodyCheckState.overdue:
+      case BodyCheckState.overdue:
         bg = AppColors.red;
         fg = Colors.white;
         title = isKo ? '체형을 다시 확인할 때야!' : 'Time to recheck your body!';
         subtitle = isKo
-            ? '마지막 측정 후 $_daysSinceLastCheck일이 지났어'
-            : "It's been $_daysSinceLastCheck days since your last check";
+            ? '마지막 측정 후 $daysSinceLastCheck일이 지났어'
+            : "It's been $daysSinceLastCheck days since your last check";
     }
 
     return GestureDetector(

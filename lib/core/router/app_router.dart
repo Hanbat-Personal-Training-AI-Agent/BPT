@@ -15,6 +15,8 @@ import '../../features/onboarding/screens/onboarding_analyzing_screen.dart';
 import '../../features/onboarding/screens/onboarding_result_screen.dart';
 import '../../features/calendar/screens/calendar_screen.dart';
 import '../../features/home/screens/home_screen.dart';
+import '../../features/profile/screens/account_info_screen.dart';
+import '../../features/profile/screens/edit_profile_screen.dart';
 import '../../features/profile/screens/profile_screen.dart';
 import '../../features/report/screens/report_screen.dart';
 import '../../features/splash/splash_screen.dart';
@@ -152,6 +154,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 _fadePage(state, const ExerciseSelectionScreen()),
           ),
         ],
+      ),
+      GoRoute(
+        path: RouteConstants.editProfile,
+        pageBuilder: (context, state) =>
+            _slidePage(state, const EditProfileScreen()),
+      ),
+      GoRoute(
+        path: RouteConstants.accountInfo,
+        pageBuilder: (context, state) =>
+            _slidePage(state, const AccountInfoScreen()),
       ),
       GoRoute(
         path: RouteConstants.cameraGuide,
