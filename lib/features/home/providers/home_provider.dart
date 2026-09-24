@@ -15,6 +15,21 @@ final currentUserProvider = Provider<UserModel>((ref) {
 // ── Weekly goal (user-adjustable, in-memory) ──────────────────────────────
 final weeklyWorkoutGoalProvider = StateProvider<int>((ref) => 5);
 
+// ── 체형 재측정 주기 (홈 배너/프로필 카드가 공유하는 상태) ────────────────
+// TODO: 실제 마지막 체형 측정일이 저장되면 그 값에서 계산한 값으로 교체할 것.
+// 지금은 두 화면이 같은 목데이터를 보도록 여기 한 곳에서만 관리한다.
+const bodyCheckCycleDays = 30;
+final daysSinceLastBodyCheckProvider = StateProvider<int>((ref) => 30);
+
+enum BodyCheckState { fresh, dueSoon, overdue }
+
+BodyCheckState resolveBodyCheckState(int daysSinceLastCheck) {
+  if (daysSinceLastCheck >= bodyCheckCycleDays) return BodyCheckState.overdue;
+  final daysUntilNext =
+      (bodyCheckCycleDays - daysSinceLastCheck).clamp(0, bodyCheckCycleDays);
+  return daysUntilNext <= 3 ? BodyCheckState.dueSoon : BodyCheckState.fresh;
+}
+
 // ── All records (falls back to mock data while there's no real history) ───
 final allRecordsProvider = Provider<List<WorkoutRecordModel>>((ref) {
   final recordsAsync = ref.watch(workoutRecordsProvider);

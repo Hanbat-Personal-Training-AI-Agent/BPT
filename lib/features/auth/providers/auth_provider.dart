@@ -1,13 +1,10 @@
-import 'package:flutter/foundation.dart' show kDebugMode;
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show ChangeNotifier, kDebugMode;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/api_client.dart';
 import '../../../models/user_model.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/local_storage_service.dart';
-
-final themeModeProvider = StateProvider<ThemeMode>((ref) => ThemeMode.system);
 
 // ── Auth Notifier (Spring Boot REST API + Offline Dev Fallback) ──────────────
 class AuthNotifier extends ChangeNotifier {
@@ -149,7 +146,8 @@ class AuthNotifier extends ChangeNotifier {
   /// 디버그 빌드에서 로그인 화면 UI 확인용으로만 쓰고, 배포 전 제거할 것.
   void debugSkipLogin() {
     if (!kDebugMode) return;
-    _currentUser = _createLocalFallbackUser(email: 'test@bpt.dev', name: 'Tester');
+    _currentUser =
+        _createLocalFallbackUser(email: 'test@bpt.dev', name: 'Tester');
     _isOfflineMode = true;
     _error = null;
     notifyListeners();
@@ -167,7 +165,8 @@ class AuthNotifier extends ChangeNotifier {
     final effectiveName = (name != null && name.isNotEmpty)
         ? name
         : (email.contains('@') ? email.split('@')[0] : email);
-    final initials = effectiveName.isNotEmpty ? effectiveName[0].toUpperCase() : 'U';
+    final initials =
+        effectiveName.isNotEmpty ? effectiveName[0].toUpperCase() : 'U';
 
     return UserModel(
       id: 'local_${DateTime.now().millisecondsSinceEpoch}',
@@ -187,18 +186,31 @@ class AuthNotifier extends ChangeNotifier {
 
   /// Update profile data
   Future<void> updateProfile(UserModel updated) async {
+    // 화면(예: 프로필 수정 바텀시트)이 서버 왕복을 기다리지 않고 바로 닫히고
+    // 최신 값을 보여줄 수 있도록, 로컬 상태부터 즉시 반영한 뒤 저장/동기화는
+    // 백그라운드에서 진행한다.
+    _currentUser = updated;
+    notifyListeners();
+    await _storage.saveUser(updated);
     try {
       await _authService.saveUserData(updated);
     } catch (_) {
       // Saved locally if offline
     }
-    _currentUser = updated;
-    await _storage.saveUser(updated);
-    notifyListeners();
   }
 
   /// Logout
   Future<void> logout() async {
+    await _storage.clearSession();
+    _currentUser = null;
+    _error = null;
+    _isOfflineMode = false;
+    notifyListeners();
+  }
+
+  /// 회원 탈퇴. 서버 탈퇴 API가 아직 없어 로컬 세션/저장 데이터만 정리한다.
+  /// TODO: 실제 백엔드 탈퇴 엔드포인트가 생기면 여기서 호출을 추가할 것.
+  Future<void> deleteAccount() async {
     await _storage.clearSession();
     _currentUser = null;
     _error = null;

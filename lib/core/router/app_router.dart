@@ -15,6 +15,8 @@ import '../../features/onboarding/screens/onboarding_analyzing_screen.dart';
 import '../../features/onboarding/screens/onboarding_result_screen.dart';
 import '../../features/calendar/screens/calendar_screen.dart';
 import '../../features/home/screens/home_screen.dart';
+import '../../features/profile/screens/account_info_screen.dart';
+import '../../features/profile/screens/edit_profile_screen.dart';
 import '../../features/profile/screens/profile_screen.dart';
 import '../../features/report/screens/report_screen.dart';
 import '../../features/splash/splash_screen.dart';
@@ -22,7 +24,6 @@ import '../../features/workout/screens/camera_guide_screen.dart';
 import '../../features/workout/screens/exercise_selection_screen.dart';
 import '../../features/workout/screens/native_pose_workout_screen.dart';
 import '../../features/workout/screens/workout_result_screen.dart';
-import '../../features/workout/screens/workout_screen.dart';
 import '../constants/route_constants.dart';
 import '../shell/main_shell.dart';
 
@@ -154,6 +155,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ],
       ),
       GoRoute(
+        path: RouteConstants.editProfile,
+        pageBuilder: (context, state) =>
+            _slidePage(state, const EditProfileScreen()),
+      ),
+      GoRoute(
+        path: RouteConstants.accountInfo,
+        pageBuilder: (context, state) =>
+            _slidePage(state, const AccountInfoScreen()),
+      ),
+      GoRoute(
         path: RouteConstants.cameraGuide,
         pageBuilder: (context, state) {
           final extra = state.extra;
@@ -173,13 +184,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               targetSets: targetSets,
             ),
           );
-        },
-      ),
-      GoRoute(
-        path: RouteConstants.workout,
-        pageBuilder: (context, state) {
-          final exerciseId = state.extra as String? ?? 'squat';
-          return _slidePage(state, WorkoutScreen(exerciseId: exerciseId));
         },
       ),
       GoRoute(

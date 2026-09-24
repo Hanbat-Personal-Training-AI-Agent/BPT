@@ -2,54 +2,68 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'app_colors.dart';
 
+/// 앱은 모든 화면에서 다크 테마를 명시적으로 씌우고 있어(각 화면의
+/// `Theme(data: AppTheme.darkTheme, ...)` 래핑) 라이트 테마는 실제로 노출된
+/// 적이 없다. 그래서 라이트/다크 분기 없이 다크 전용 테마 하나만 만든다 —
+/// `AppTheme.darkTheme`라는 이름은 그대로 유지해 기존 호출부를 안 건드린다.
 class AppTheme {
-  static ThemeData get lightTheme => _build(Brightness.light);
-  static ThemeData get darkTheme => _build(Brightness.dark);
+  static ThemeData get darkTheme => _build();
 
-  static ThemeData _build(Brightness brightness) {
-    final isDark = brightness == Brightness.dark;
-    final bg = isDark ? AppColors.darkBackground : AppColors.lightBackground;
-    final surface = isDark ? AppColors.darkSurface : AppColors.lightSurface;
-    final card = isDark ? AppColors.darkCard : AppColors.lightCard;
-    final textPrimary =
-        isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
-    final textSecondary =
-        isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
-    final divider = isDark ? AppColors.darkDivider : AppColors.lightDivider;
-    final inputFill =
-        isDark ? AppColors.darkInputFill : AppColors.lightInputFill;
+  static ThemeData _build() {
+    const bg = AppColors.darkBackground;
+    const surface = AppColors.darkSurface;
+    const card = AppColors.darkCard;
+    const textPrimary = AppColors.darkTextPrimary;
+    const textSecondary = AppColors.darkTextSecondary;
+    const divider = AppColors.darkDivider;
+    const inputFill = AppColors.darkInputFill;
 
-    final base = isDark ? ThemeData.dark() : ThemeData.light();
+    final base = ThemeData.dark();
 
     // Boosted text theme for readability
     final textTheme = GoogleFonts.interTextTheme(base.textTheme).copyWith(
-      displayLarge: GoogleFonts.inter(fontSize: 57, fontWeight: FontWeight.w800, color: textPrimary),
-      displayMedium: GoogleFonts.inter(fontSize: 45, fontWeight: FontWeight.w700, color: textPrimary),
-      displaySmall: GoogleFonts.inter(fontSize: 36, fontWeight: FontWeight.w700, color: textPrimary),
-      headlineLarge: GoogleFonts.inter(fontSize: 32, fontWeight: FontWeight.w800, color: textPrimary),
-      headlineMedium: GoogleFonts.inter(fontSize: 28, fontWeight: FontWeight.w700, color: textPrimary),
-      headlineSmall: GoogleFonts.inter(fontSize: 26, fontWeight: FontWeight.w700, color: textPrimary),
-      titleLarge: GoogleFonts.inter(fontSize: 22, fontWeight: FontWeight.w800, color: textPrimary),
-      titleMedium: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w700, color: textPrimary),
-      titleSmall: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600, color: textPrimary),
-      bodyLarge: GoogleFonts.inter(fontSize: 17, fontWeight: FontWeight.w500, color: textPrimary),
-      bodyMedium: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w500, color: textPrimary),
-      bodySmall: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w500, color: textSecondary),
-      labelLarge: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w600, color: textPrimary),
-      labelMedium: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: textPrimary),
-      labelSmall: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w500, color: textSecondary),
+      displayLarge: GoogleFonts.inter(
+          fontSize: 57, fontWeight: FontWeight.w800, color: textPrimary),
+      displayMedium: GoogleFonts.inter(
+          fontSize: 45, fontWeight: FontWeight.w700, color: textPrimary),
+      displaySmall: GoogleFonts.inter(
+          fontSize: 36, fontWeight: FontWeight.w700, color: textPrimary),
+      headlineLarge: GoogleFonts.inter(
+          fontSize: 32, fontWeight: FontWeight.w800, color: textPrimary),
+      headlineMedium: GoogleFonts.inter(
+          fontSize: 28, fontWeight: FontWeight.w700, color: textPrimary),
+      headlineSmall: GoogleFonts.inter(
+          fontSize: 26, fontWeight: FontWeight.w700, color: textPrimary),
+      titleLarge: GoogleFonts.inter(
+          fontSize: 22, fontWeight: FontWeight.w800, color: textPrimary),
+      titleMedium: GoogleFonts.inter(
+          fontSize: 18, fontWeight: FontWeight.w700, color: textPrimary),
+      titleSmall: GoogleFonts.inter(
+          fontSize: 16, fontWeight: FontWeight.w600, color: textPrimary),
+      bodyLarge: GoogleFonts.inter(
+          fontSize: 17, fontWeight: FontWeight.w500, color: textPrimary),
+      bodyMedium: GoogleFonts.inter(
+          fontSize: 15, fontWeight: FontWeight.w500, color: textPrimary),
+      bodySmall: GoogleFonts.inter(
+          fontSize: 13, fontWeight: FontWeight.w500, color: textSecondary),
+      labelLarge: GoogleFonts.inter(
+          fontSize: 15, fontWeight: FontWeight.w600, color: textPrimary),
+      labelMedium: GoogleFonts.inter(
+          fontSize: 13, fontWeight: FontWeight.w600, color: textPrimary),
+      labelSmall: GoogleFonts.inter(
+          fontSize: 12, fontWeight: FontWeight.w500, color: textSecondary),
     );
 
     return ThemeData(
       useMaterial3: true,
-      brightness: brightness,
-      colorScheme: ColorScheme(
-        brightness: brightness,
-        primary: AppColors.primary,
-        onPrimary: Colors.white,
-        secondary: AppColors.secondary,
+      brightness: Brightness.dark,
+      colorScheme: const ColorScheme(
+        brightness: Brightness.dark,
+        primary: AppColors.green,
+        onPrimary: AppColors.black,
+        secondary: AppColors.purple,
         onSecondary: Colors.white,
-        error: AppColors.error,
+        error: AppColors.red,
         onError: Colors.white,
         surface: surface,
         onSurface: textPrimary,
@@ -78,8 +92,8 @@ class AppTheme {
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.primary,
-          foregroundColor: Colors.white,
+          backgroundColor: AppColors.green,
+          foregroundColor: AppColors.black,
           elevation: 0,
           minimumSize: const Size(double.infinity, 56),
           shape:
@@ -93,8 +107,8 @@ class AppTheme {
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: AppColors.primary,
-          side: const BorderSide(color: AppColors.primary, width: 1.5),
+          foregroundColor: AppColors.green,
+          side: const BorderSide(color: AppColors.green, width: 1.5),
           minimumSize: const Size(double.infinity, 56),
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
@@ -113,15 +127,15 @@ class AppTheme {
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: divider, width: 1),
+          borderSide: const BorderSide(color: divider, width: 1),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: AppColors.primary, width: 2),
+          borderSide: const BorderSide(color: AppColors.green, width: 2),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: AppColors.error, width: 1.5),
+          borderSide: const BorderSide(color: AppColors.red, width: 1.5),
         ),
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
@@ -132,10 +146,10 @@ class AppTheme {
         ),
         labelStyle: GoogleFonts.inter(fontSize: 15, color: textSecondary),
       ),
-      dividerTheme: DividerThemeData(color: divider, thickness: 1),
+      dividerTheme: const DividerThemeData(color: divider, thickness: 1),
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
         backgroundColor: surface,
-        selectedItemColor: AppColors.primary,
+        selectedItemColor: AppColors.green,
         unselectedItemColor: textSecondary,
         elevation: 0,
         type: BottomNavigationBarType.fixed,
@@ -150,9 +164,9 @@ class AppTheme {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
       tabBarTheme: TabBarThemeData(
-        labelColor: AppColors.primary,
+        labelColor: AppColors.green,
         unselectedLabelColor: textSecondary,
-        indicatorColor: AppColors.primary,
+        indicatorColor: AppColors.green,
         labelStyle:
             GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w700),
         unselectedLabelStyle:

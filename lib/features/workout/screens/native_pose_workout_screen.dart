@@ -230,8 +230,7 @@ class _NativePoseWorkoutScreenState
         ? 0
         : DateTime.now().difference(_liveStartedAt!).inSeconds;
 
-    final totalBad =
-        _setResults.fold<int>(0, (sum, r) => sum + r.badCount);
+    final totalBad = _setResults.fold<int>(0, (sum, r) => sum + r.badCount);
 
     context.pushReplacement(
       RouteConstants.workoutResult,
@@ -1641,11 +1640,11 @@ class _WorkoutCompleteOverlay extends StatelessWidget {
                 height: 80,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: AppColors.primary.withValues(alpha: 0.15),
-                  border: Border.all(color: AppColors.primary, width: 2.5),
+                  color: AppColors.green.withValues(alpha: 0.15),
+                  border: Border.all(color: AppColors.green, width: 2.5),
                 ),
                 child: const Icon(Icons.emoji_events_rounded,
-                    color: AppColors.primary, size: 40),
+                    color: AppColors.green, size: 40),
               ),
               const SizedBox(height: 28),
               Text(
@@ -1672,8 +1671,8 @@ class _WorkoutCompleteOverlay extends StatelessWidget {
                 child: ElevatedButton(
                   onPressed: onFinish,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
+                    backgroundColor: AppColors.green,
+                    foregroundColor: AppColors.black,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16)),
@@ -1714,7 +1713,7 @@ class _MessageState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 46, color: AppColors.primary),
+            Icon(icon, size: 46, color: AppColors.green),
             const SizedBox(height: 16),
             Text(
               title,

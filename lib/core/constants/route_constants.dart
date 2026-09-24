@@ -14,9 +14,10 @@ class RouteConstants {
   static const String calendar = '/calendar';
   static const String report = '/report';
   static const String profile = '/profile';
+  static const String editProfile = '/edit-profile';
+  static const String accountInfo = '/account-info';
   static const String exerciseSelection = '/exercise-selection';
   static const String cameraGuide = '/camera-guide';
-  static const String workout = '/workout';
   static const String nativePoseWorkout = '/native-pose-workout';
   static const String workoutResult = '/workout-result';
 }
