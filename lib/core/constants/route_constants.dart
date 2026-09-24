@@ -18,7 +18,6 @@ class RouteConstants {
   static const String accountInfo = '/account-info';
   static const String exerciseSelection = '/exercise-selection';
   static const String cameraGuide = '/camera-guide';
-  static const String workout = '/workout';
   static const String nativePoseWorkout = '/native-pose-workout';
   static const String workoutResult = '/workout-result';
 }

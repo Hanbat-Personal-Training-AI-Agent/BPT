@@ -363,7 +363,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
               ),
               onPressed: () => setState(() => _obscureLogin = !_obscureLogin),
             ),
-            validator: (v) => v == null || v.length < 8 ? s.minEightChars : null,
+            validator: (v) =>
+                v == null || v.length < 8 ? s.minEightChars : null,
           ),
           Align(
             alignment: Alignment.centerRight,
@@ -513,18 +514,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppColors.error.withValues(alpha: 0.1),
+        color: AppColors.red.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
+        border: Border.all(color: AppColors.red.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [
-          const Icon(Icons.error_outline, color: AppColors.error, size: 18),
+          const Icon(Icons.error_outline, color: AppColors.red, size: 18),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               _localizeError(error, s),
-              style: const TextStyle(color: AppColors.error, fontSize: 13),
+              style: const TextStyle(color: AppColors.red, fontSize: 13),
             ),
           ),
         ],

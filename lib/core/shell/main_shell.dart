@@ -19,7 +19,6 @@ class MainShell extends ConsumerWidget {
 
   static const _workoutRoutes = [
     RouteConstants.exerciseSelection,
-    RouteConstants.workout,
     RouteConstants.nativePoseWorkout,
   ];
 

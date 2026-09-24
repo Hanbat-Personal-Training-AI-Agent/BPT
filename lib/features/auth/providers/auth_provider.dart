@@ -1,13 +1,10 @@
-import 'package:flutter/foundation.dart' show kDebugMode;
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show ChangeNotifier, kDebugMode;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/api_client.dart';
 import '../../../models/user_model.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/local_storage_service.dart';
-
-final themeModeProvider = StateProvider<ThemeMode>((ref) => ThemeMode.system);
 
 // ── Auth Notifier (Spring Boot REST API + Offline Dev Fallback) ──────────────
 class AuthNotifier extends ChangeNotifier {

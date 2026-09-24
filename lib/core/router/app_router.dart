@@ -24,7 +24,6 @@ import '../../features/workout/screens/camera_guide_screen.dart';
 import '../../features/workout/screens/exercise_selection_screen.dart';
 import '../../features/workout/screens/native_pose_workout_screen.dart';
 import '../../features/workout/screens/workout_result_screen.dart';
-import '../../features/workout/screens/workout_screen.dart';
 import '../constants/route_constants.dart';
 import '../shell/main_shell.dart';
 
@@ -185,13 +184,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               targetSets: targetSets,
             ),
           );
-        },
-      ),
-      GoRoute(
-        path: RouteConstants.workout,
-        pageBuilder: (context, state) {
-          final exerciseId = state.extra as String? ?? 'squat';
-          return _slidePage(state, WorkoutScreen(exerciseId: exerciseId));
         },
       ),
       GoRoute(

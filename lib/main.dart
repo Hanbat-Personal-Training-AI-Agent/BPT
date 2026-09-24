@@ -7,12 +7,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'core/i18n/locale_provider.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
-import 'features/auth/providers/auth_provider.dart';
 import 'services/local_storage_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // Initialize local persistent storage
   final prefs = await SharedPreferences.getInstance();
 
@@ -43,15 +42,14 @@ class BPTApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(appRouterProvider);
-    final themeMode = ref.watch(themeModeProvider);
     final locale = ref.watch(appLocaleProvider);
 
     return MaterialApp.router(
       title: 'BPT',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme,
-      themeMode: themeMode,
+      // 모든 화면이 다크 테마를 직접 씌우고 있어 앱 전체를 다크 전용으로
+      // 고정한다 (라이트/시스템 테마 분기 없음).
+      theme: AppTheme.darkTheme,
       locale: locale,
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
