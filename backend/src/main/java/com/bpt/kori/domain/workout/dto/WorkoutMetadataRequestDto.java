@@ -4,6 +4,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -17,6 +18,7 @@ public class WorkoutMetadataRequestDto {
     private String exerciseId;
     private String exerciseName;
     private LocalDateTime date;
+    private BigDecimal weightKg;
     private int totalReps;
     private int correctReps;
     private int incorrectReps;

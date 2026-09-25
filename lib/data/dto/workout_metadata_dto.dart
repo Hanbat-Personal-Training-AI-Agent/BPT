@@ -8,6 +8,7 @@ class WorkoutMetadataRequestDto {
   final String exerciseId;
   final String exerciseName;
   final DateTime date;
+  final double weightKg;
   final int totalReps;
   final int correctReps;
   final int incorrectReps;
@@ -23,6 +24,7 @@ class WorkoutMetadataRequestDto {
     required this.exerciseId,
     required this.exerciseName,
     required this.date,
+    this.weightKg = 0.0,
     required this.totalReps,
     required this.correctReps,
     required this.incorrectReps,
@@ -39,6 +41,7 @@ class WorkoutMetadataRequestDto {
         'exerciseId': exerciseId,
         'exerciseName': exerciseName,
         'date': date.toIso8601String(),
+        'weightKg': weightKg,
         'totalReps': totalReps,
         'correctReps': correctReps,
         'incorrectReps': incorrectReps,
@@ -58,6 +61,7 @@ class WorkoutMetadataRequestDto {
       date: json['date'] != null
           ? DateTime.tryParse(json['date'].toString()) ?? DateTime.now()
           : DateTime.now(),
+      weightKg: (json['weightKg'] as num?)?.toDouble() ?? 0.0,
       totalReps: (json['totalReps'] as num?)?.toInt() ?? 0,
       correctReps: (json['correctReps'] as num?)?.toInt() ?? 0,
       incorrectReps: (json['incorrectReps'] as num?)?.toInt() ?? 0,

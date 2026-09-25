@@ -13,6 +13,7 @@ public enum ErrorCode {
     INVALID_USERNAME_FORMAT(HttpStatus.BAD_REQUEST, "INVALID_USERNAME_FORMAT", "아이디는 영문 소문자, 숫자, 언더바(_)만 사용하여 4~20자 이내로 입력해 주세요."),
     PASSWORD_CONFIRM_MISMATCH(HttpStatus.BAD_REQUEST, "PASSWORD_CONFIRM_MISMATCH", "비밀번호가 일치하지 않습니다. 다시 확인해 주세요."),
     TERMS_NOT_AGREED(HttpStatus.BAD_REQUEST, "TERMS_NOT_AGREED", "이용약관 및 개인정보 처리방침에 동의해 주세요."),
+    INVALID_CALENDAR_MONTH(HttpStatus.BAD_REQUEST, "INVALID_CALENDAR_MONTH", "월(month)은 1부터 12 사이의 값이어야 합니다."),
 
     // 401 Unauthorized
     INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED, "INVALID_CREDENTIALS", "이메일 또는 비밀번호를 다시 확인해 주세요."),

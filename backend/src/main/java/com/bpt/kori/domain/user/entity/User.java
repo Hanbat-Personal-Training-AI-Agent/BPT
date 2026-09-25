@@ -67,6 +67,14 @@ public class User {
     @Builder.Default
     private Boolean isOnboardingCompleted = false;
 
+    @Builder.Default
+    @Column(nullable = false)
+    private Boolean termsAgreed = false;
+
+    @Builder.Default
+    @Column(nullable = false)
+    private Boolean privacyAgreed = false;
+
     @CreatedDate
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;

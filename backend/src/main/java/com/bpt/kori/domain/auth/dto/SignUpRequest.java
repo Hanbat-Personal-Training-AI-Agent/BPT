@@ -1,13 +1,12 @@
 package com.bpt.kori.domain.auth.dto;
 
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-
-import java.math.BigDecimal;
-import java.time.LocalDate;
 
 @Getter
 @Setter
@@ -26,13 +25,11 @@ public class SignUpRequest {
 
     private String name;
 
-    private LocalDate birthDate;
+    @NotNull(message = "서비스 이용약관에 동의해 주세요.")
+    @AssertTrue(message = "서비스 이용약관에 동의해 주세요.")
+    private Boolean termsAgreed;
 
-    private String gender;
-
-    private BigDecimal heightCm;
-
-    private BigDecimal weightKg;
-
-    private String workoutGoal;
+    @NotNull(message = "개인정보 수집 및 이용에 동의해 주세요.")
+    @AssertTrue(message = "개인정보 수집 및 이용에 동의해 주세요.")
+    private Boolean privacyAgreed;
 }
