@@ -1,5 +1,6 @@
 package com.bpt.kori.domain.workout.controller;
 
+import com.bpt.kori.domain.workout.dto.MonthlyCalendarResponseDto;
 import com.bpt.kori.domain.workout.dto.WorkoutMetadataRequestDto;
 import com.bpt.kori.domain.workout.dto.WorkoutMetadataResponseDto;
 import com.bpt.kori.domain.workout.dto.WorkoutRecordResponseDto;
@@ -44,5 +45,15 @@ public class WorkoutController {
     ) {
         List<WorkoutRecordResponseDto> records = workoutService.getWorkoutRecords(userPrincipal.getUserId());
         return ResponseEntity.ok(records);
+    }
+
+    @GetMapping("/calendar")
+    public ResponseEntity<MonthlyCalendarResponseDto> getMonthlyCalendar(
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @RequestParam(value = "year", required = false) Integer year,
+            @RequestParam(value = "month", required = false) Integer month
+    ) {
+        MonthlyCalendarResponseDto response = workoutService.getMonthlyCalendar(userPrincipal.getUserId(), year, month);
+        return ResponseEntity.ok(response);
     }
 }

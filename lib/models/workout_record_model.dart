@@ -7,6 +7,7 @@ class WorkoutRecordModel {
   final String exerciseId;
   final String exerciseName;
   final DateTime date;
+  final double weightKg;
   final int totalReps;
   final int correctReps;
   final int incorrectReps;
@@ -23,6 +24,7 @@ class WorkoutRecordModel {
     required this.exerciseId,
     required this.exerciseName,
     required this.date,
+    this.weightKg = 0.0,
     required this.totalReps,
     required this.correctReps,
     required this.incorrectReps,
@@ -52,6 +54,7 @@ class WorkoutRecordModel {
     String? exerciseId,
     String? exerciseName,
     DateTime? date,
+    double? weightKg,
     int? totalReps,
     int? correctReps,
     int? incorrectReps,
@@ -68,6 +71,7 @@ class WorkoutRecordModel {
       exerciseId: exerciseId ?? this.exerciseId,
       exerciseName: exerciseName ?? this.exerciseName,
       date: date ?? this.date,
+      weightKg: weightKg ?? this.weightKg,
       totalReps: totalReps ?? this.totalReps,
       correctReps: correctReps ?? this.correctReps,
       incorrectReps: incorrectReps ?? this.incorrectReps,
@@ -86,6 +90,7 @@ class WorkoutRecordModel {
       exerciseId: exerciseId,
       exerciseName: exerciseName,
       date: date,
+      weightKg: weightKg,
       totalReps: totalReps,
       correctReps: correctReps,
       incorrectReps: incorrectReps,
@@ -104,6 +109,7 @@ class WorkoutRecordModel {
       exerciseId: dto.exerciseId,
       exerciseName: dto.exerciseName,
       date: dto.date,
+      weightKg: dto.weightKg,
       totalReps: dto.totalReps,
       correctReps: dto.correctReps,
       incorrectReps: dto.incorrectReps,
@@ -122,6 +128,7 @@ class WorkoutRecordModel {
         'exerciseId': exerciseId,
         'exerciseName': exerciseName,
         'date': date.toIso8601String(),
+        'weightKg': weightKg,
         'totalReps': totalReps,
         'correctReps': correctReps,
         'incorrectReps': incorrectReps,
@@ -142,6 +149,7 @@ class WorkoutRecordModel {
         date: json['date'] != null
             ? DateTime.parse(json['date'] as String)
             : DateTime.now(),
+        weightKg: (json['weightKg'] as num?)?.toDouble() ?? 0.0,
         totalReps: (json['totalReps'] as num?)?.toInt() ?? 0,
         correctReps: (json['correctReps'] as num?)?.toInt() ?? 0,
         incorrectReps: (json['incorrectReps'] as num?)?.toInt() ?? 0,

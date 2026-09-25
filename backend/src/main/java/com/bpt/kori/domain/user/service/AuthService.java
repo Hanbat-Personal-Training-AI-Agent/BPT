@@ -55,16 +55,18 @@ public class AuthService {
             throw new CustomException(ErrorCode.USERNAME_ALREADY_EXISTS);
         }
 
+        if (Boolean.FALSE.equals(request.getTermsAgreed()) || Boolean.FALSE.equals(request.getPrivacyAgreed())
+                || request.getTermsAgreed() == null || request.getPrivacyAgreed() == null) {
+            throw new CustomException(ErrorCode.TERMS_NOT_AGREED);
+        }
+
         User user = User.builder()
                 .email(email)
                 .username(username)
                 .password(passwordEncoder.encode(request.getPassword()))
                 .name(request.getName() != null && !request.getName().isBlank() ? request.getName() : username)
-                .birthDate(request.getBirthDate())
-                .gender(request.getGender())
-                .heightCm(request.getHeightCm())
-                .weightKg(request.getWeightKg())
-                .workoutGoal(request.getWorkoutGoal())
+                .termsAgreed(Boolean.TRUE.equals(request.getTermsAgreed()))
+                .privacyAgreed(Boolean.TRUE.equals(request.getPrivacyAgreed()))
                 .build();
 
         userRepository.save(user);

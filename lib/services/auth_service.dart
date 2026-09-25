@@ -39,6 +39,8 @@ class AuthService {
     required String email,
     required String password,
     required String name,
+    bool termsAgreed = true,
+    bool privacyAgreed = true,
     DateTime? birthDate,
     String? gender,
     double? heightCm,
@@ -52,11 +54,8 @@ class AuthService {
         'email': email.trim(),
         'password': password,
         'name': name,
-        'birthDate': birthDate?.toIso8601String(),
-        'gender': gender,
-        'heightCm': heightCm ?? 0.0,
-        'weightKg': weightKg ?? 0.0,
-        'workoutGoal': workoutGoal,
+        'termsAgreed': termsAgreed,
+        'privacyAgreed': privacyAgreed,
       },
     );
 

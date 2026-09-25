@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -18,6 +19,7 @@ public class WorkoutRecordResponseDto {
     private final String exerciseId;
     private final String exerciseName;
     private final String date;
+    private final BigDecimal weightKg;
     private final int totalReps;
     private final int correctReps;
     private final int incorrectReps;
@@ -38,6 +40,7 @@ public class WorkoutRecordResponseDto {
                 .exerciseId(entity.getExerciseId())
                 .exerciseName(entity.getExerciseName())
                 .date(entity.getDate().toString())
+                .weightKg(entity.getWeightKg() != null ? entity.getWeightKg() : BigDecimal.ZERO)
                 .totalReps(entity.getTotalReps() != null ? entity.getTotalReps() : 0)
                 .correctReps(entity.getCorrectReps() != null ? entity.getCorrectReps() : 0)
                 .incorrectReps(entity.getIncorrectReps() != null ? entity.getIncorrectReps() : 0)

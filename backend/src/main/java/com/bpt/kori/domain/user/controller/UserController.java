@@ -1,5 +1,6 @@
 package com.bpt.kori.domain.user.controller;
 
+import com.bpt.kori.domain.user.dto.DashboardSummaryResponseDto;
 import com.bpt.kori.domain.user.dto.OnboardingRequest;
 import com.bpt.kori.domain.user.dto.OnboardingResponse;
 import com.bpt.kori.domain.user.dto.UserDto;
@@ -38,6 +39,12 @@ public class UserController {
             @RequestBody OnboardingRequest request
     ) {
         OnboardingResponse response = userService.updateOnboarding(userPrincipal.getUserId(), request);
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/me/dashboard")
+    public ResponseEntity<DashboardSummaryResponseDto> getDashboardSummary(@AuthenticationPrincipal UserPrincipal userPrincipal) {
+        DashboardSummaryResponseDto response = userService.getDashboardSummary(userPrincipal.getUserId());
         return ResponseEntity.ok(response);
     }
 }
