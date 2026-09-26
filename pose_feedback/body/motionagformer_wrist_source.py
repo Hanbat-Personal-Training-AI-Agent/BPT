@@ -61,6 +61,26 @@ def build_motionagformer_input_2d(
     return motionagformer_input, debug
 
 
+def reject_crossed_mediapipe_wrists(raw_body_2d, mediapipe_wrists_px):
+    """Drop MediaPipe wrists that sit closer to the opposite RTMPose wrist.
+
+    A wrist-centred hand crop can contain both hands (or only the other hand
+    when this one is occluded); MediaPipe then returns the wrong hand.
+    """
+    raw = np.asarray(raw_body_2d, dtype="float32")
+    kept = {}
+    for side, wrist in (mediapipe_wrists_px or {}).items():
+        xy = _as_wrist_xy(wrist)
+        if xy is None:
+            continue
+        other = "right" if side == "left" else "left"
+        own_d = np.linalg.norm(xy - raw[COCO_WRIST_INDEX[side], :2])
+        other_d = np.linalg.norm(xy - raw[COCO_WRIST_INDEX[other], :2])
+        if own_d <= other_d:
+            kept[side] = wrist
+    return kept
+
+
 def _side_debug(raw, motionagformer_input, side, mediapipe_wrist, source_used):
     wrist_index = COCO_WRIST_INDEX[side]
     return {
