@@ -48,11 +48,11 @@ void main() {
     await tester.pumpWidget(const MaterialApp(home: OnboardingCaptureScreen()));
 
     final headlineBefore =
-        tester.getTopLeft(find.text('마지막이야!\n세 방향만 찍으면 끝이야'));
+        tester.getTopLeft(find.text('마지막이야!\n네 방향만 찍으면 끝이야'));
     await tester.drag(
         find.byType(SingleChildScrollView), const Offset(0, -300));
     await tester.pump();
-    final headlineAfter = tester.getTopLeft(find.text('마지막이야!\n세 방향만 찍으면 끝이야'));
+    final headlineAfter = tester.getTopLeft(find.text('마지막이야!\n네 방향만 찍으면 끝이야'));
 
     expect(headlineAfter, headlineBefore);
     expect(tester.takeException(), isNull);

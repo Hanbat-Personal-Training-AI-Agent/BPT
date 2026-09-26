@@ -113,10 +113,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: RouteConstants.onboardingAnalyzing,
         pageBuilder: (context, state) {
-          final scanPaths =
-              (state.extra as List?)?.cast<String>() ?? const <String>[];
           return _slidePage(
-              state, OnboardingAnalyzingScreen(scanPaths: scanPaths));
+              state, OnboardingAnalyzingScreen(sessionPath: state.extra as String?));
         },
       ),
       GoRoute(

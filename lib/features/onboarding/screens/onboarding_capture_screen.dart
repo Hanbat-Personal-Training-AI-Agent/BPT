@@ -32,7 +32,7 @@ class _OnboardingCaptureScreenState extends State<OnboardingCaptureScreen> {
       onBack: () => context.pop(),
       nextLabel: '카메라 켜기',
       onNext: () => context.push(RouteConstants.onboardingScan),
-      headline: const Text('마지막이야!\n세 방향만 찍으면 끝이야',
+      headline: const Text('마지막이야!\n네 방향만 찍으면 끝이야',
           style: TextStyle(
               fontSize: 27,
               height: 1.15,

@@ -1,87 +1,96 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/route_constants.dart';
 import '../../../core/theme/app_colors.dart';
+import '../providers/onboarding_provider.dart';
+import '../widgets/calibration_silhouette.dart';
 
-enum _CapturePose { front, left, right }
-
-/// Full-screen native camera capture step: shown after the user taps
-/// "카메라 켜기" on [OnboardingCaptureScreen]. Hosts the native
-/// `bpt/body_scan_camera` PlatformView (live camera + RTMPose skeleton +
-/// stillness auto-capture) and drives the countdown UI from its
-/// `onScanUpdate` channel events.
-class OnboardingScanScreen extends StatefulWidget {
+/// Full-screen body calibration capture: shown after the user taps "카메라 켜기"
+/// on [OnboardingCaptureScreen].
+///
+/// The native `bpt/body_scan_camera` PlatformView owns the camera, RTMPose-s and the
+/// judging engine; this screen starts it with the user's height, renders the A-pose
+/// silhouette guide plus the guidance it reports, and leaves for the analysis step
+/// once all four views are in the session folder.
+class OnboardingScanScreen extends ConsumerStatefulWidget {
   const OnboardingScanScreen({super.key});
 
   static const String viewType = 'bpt/body_scan_camera';
 
   @override
-  State<OnboardingScanScreen> createState() => _OnboardingScanScreenState();
+  ConsumerState<OnboardingScanScreen> createState() => _OnboardingScanScreenState();
 }
 
-class _OnboardingScanScreenState extends State<OnboardingScanScreen> {
-  static const _poses = _CapturePose.values;
-  static const _poseLabels = {
-    _CapturePose.front: '정면',
-    _CapturePose.left: '왼쪽 측면',
-    _CapturePose.right: '오른쪽 측면',
+class _OnboardingScanScreenState extends ConsumerState<OnboardingScanScreen> {
+  /// Capture order the guidance recommends: one continuous turn.
+  static const _views = ['front', 'leftfront', 'back', 'rightfront'];
+  static const _viewLabels = {
+    'front': '정면',
+    'leftfront': '왼쪽 옆면',
+    'rightfront': '오른쪽 옆면',
+    'back': '뒷면',
   };
 
   MethodChannel? _channel;
-  int _poseIndex = 0;
-  final Map<_CapturePose, String> _capturedPaths = {};
-  String _status = 'searching';
-  int _countdown = 0;
+  CalibrationSilhouettes? _silhouettes;
+
+  String _guidance = '화면 안으로 들어와 주세요';
+  String? _targetView = 'front';
+  List<String> _capturedViews = const [];
+  double _holdProgress = 0;
+  bool _isPassing = false;
+  String? _error;
 
   bool get _isIOS => !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
-  _CapturePose get _pose => _poses[_poseIndex];
-  bool get _allCaptured => _capturedPaths.length == _poses.length;
+
+  @override
+  void initState() {
+    super.initState();
+    CalibrationSilhouettes.load().then((value) {
+      if (mounted) setState(() => _silhouettes = value);
+    });
+  }
 
   void _onPlatformViewCreated(int id) {
     _channel = MethodChannel('${OnboardingScanScreen.viewType}/$id');
     _channel!.setMethodCallHandler(_handleNativeCall);
+    _channel!.invokeMethod<void>('start', {
+      'userHeightCm': ref.read(onboardingProvider).heightCm,
+    });
   }
 
   Future<dynamic> _handleNativeCall(MethodCall call) async {
-    if (call.method != 'onScanUpdate') return null;
-    final args = (call.arguments as Map).cast<String, dynamic>();
-    final status = args['status'] as String? ?? 'searching';
-    final countdown = (args['countdown'] as num?)?.toInt() ?? 0;
-    final path = args['path'] as String?;
-
     if (!mounted) return null;
-
-    if (status == 'captured' && path != null) {
-      _onCaptured(path);
-      return null;
+    switch (call.method) {
+      case 'onCalibrationUpdate':
+        final args = (call.arguments as Map).cast<String, dynamic>();
+        final sessionPath = args['sessionPath'] as String?;
+        setState(() {
+          _guidance = args['guidance'] as String? ?? _guidance;
+          _targetView = args['targetView'] as String?;
+          _capturedViews =
+              (args['capturedViews'] as List?)?.cast<String>() ?? _capturedViews;
+          _holdProgress = (args['holdProgress'] as num?)?.toDouble() ?? 0;
+          _isPassing = args['isPassing'] as bool? ?? false;
+        });
+        if (args['isFinished'] == true && sessionPath != null) {
+          context.go(RouteConstants.onboardingAnalyzing, extra: sessionPath);
+        }
+      case 'onCalibrationError':
+        final args = (call.arguments as Map).cast<String, dynamic>();
+        setState(() => _error = args['error'] as String?);
     }
-
-    setState(() {
-      _status = status;
-      _countdown = countdown;
-    });
     return null;
   }
 
-  void _onCaptured(String path) {
-    setState(() {
-      _capturedPaths[_pose] = path;
-      _status = 'searching';
-      _countdown = 0;
-      if (_poseIndex < _poses.length - 1) _poseIndex += 1;
-    });
-    if (_allCaptured) {
-      context.go(RouteConstants.onboardingAnalyzing,
-          extra: _poses.map((p) => _capturedPaths[p]!).toList());
-    }
+  void _cancel() {
+    _channel?.invokeMethod<void>('cancel');
+    context.pop();
   }
-
-  // TODO(temp): debug-only skip button so the flow can be tested on the
-  // simulator (no real camera). Remove once real-device testing is set up.
-  void _debugSkip() => _onCaptured('');
 
   void _showHelp() {
     showModalBottomSheet<void>(
@@ -104,9 +113,11 @@ class _OnboardingScanScreenState extends State<OnboardingScanScreen> {
             SizedBox(height: 16),
             _HelpTip('몸에 붙는 옷이면 더 정확해'),
             SizedBox(height: 10),
-            _HelpTip('2m 정도 떨어져서 전신이 한 번에 보이게 해줘'),
+            _HelpTip('휴대폰을 세워서 고정하고 2m 정도 떨어져 줘'),
             SizedBox(height: 10),
-            _HelpTip('가이드 선 안에 서서 가만히 있으면 자동으로 찍혀'),
+            _HelpTip('팔은 A자로 벌리고, 제자리에서 천천히 한 바퀴 돌면 돼'),
+            SizedBox(height: 10),
+            _HelpTip('뒤를 볼 땐 화면이 안 보이니까 소리를 들어줘'),
           ],
         ),
       ),
@@ -115,12 +126,16 @@ class _OnboardingScanScreenState extends State<OnboardingScanScreen> {
 
   @override
   void dispose() {
+    _channel?.invokeMethod<void>('cancel');
     _channel?.setMethodCallHandler(null);
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final currentIndex = _capturedViews.length.clamp(0, _views.length - 1);
+    final label = _viewLabels[_targetView] ?? _viewLabels[_views[currentIndex]]!;
+
     return Theme(
       data: ThemeData.dark().copyWith(
         textTheme: ThemeData.dark().textTheme.apply(fontFamily: 'Pretendard'),
@@ -149,13 +164,13 @@ class _OnboardingScanScreenState extends State<OnboardingScanScreen> {
                       children: [
                         IconButton(
                           tooltip: '닫기',
-                          onPressed: () => context.pop(),
+                          onPressed: _cancel,
                           icon: const Icon(Icons.close_rounded,
                               color: AppColors.white, size: 24),
                         ),
                         Expanded(
                           child: Text(
-                            '${_poseIndex + 1} / ${_poses.length} · ${_poseLabels[_pose]}',
+                            '${_capturedViews.length} / ${_views.length} · $label',
                             textAlign: TextAlign.center,
                             style: const TextStyle(
                                 color: AppColors.white,
@@ -179,13 +194,13 @@ class _OnboardingScanScreenState extends State<OnboardingScanScreen> {
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: Row(
                       children: [
-                        for (var i = 0; i < _poses.length; i++) ...[
+                        for (var i = 0; i < _views.length; i++) ...[
                           if (i > 0) const SizedBox(width: 6),
                           Expanded(
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(3),
                               child: LinearProgressIndicator(
-                                value: i <= _poseIndex ? 1 : 0,
+                                value: _capturedViews.contains(_views[i]) ? 1 : 0,
                                 minHeight: 5,
                                 backgroundColor: AppColors.grey,
                                 valueColor: const AlwaysStoppedAnimation(
@@ -204,11 +219,17 @@ class _OnboardingScanScreenState extends State<OnboardingScanScreen> {
                         child: AspectRatio(
                           aspectRatio: 3 / 5,
                           child: IgnorePointer(
-                            child: CustomPaint(
-                              size: Size.infinite,
-                              painter:
-                                  _DashedGuidePainter(color: AppColors.green),
-                            ),
+                            child: _silhouettes == null
+                                ? const SizedBox.shrink()
+                                : CustomPaint(
+                                    size: Size.infinite,
+                                    painter: CalibrationSilhouettePainter(
+                                      silhouettes: _silhouettes!,
+                                      view: _targetView,
+                                      isPassing: _isPassing,
+                                      progress: _holdProgress,
+                                    ),
+                                  ),
                           ),
                         ),
                       ),
@@ -216,20 +237,23 @@ class _OnboardingScanScreenState extends State<OnboardingScanScreen> {
                   ),
                   Padding(
                     padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
-                    child: _StatusBubble(status: _status, countdown: _countdown),
+                    child: _StatusBubble(
+                      message: _error == null ? _guidance : _errorMessage(_error!),
+                      holdProgress: _holdProgress,
+                    ),
                   ),
                   Padding(
                     padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
                     child: Row(
                       children: [
-                        for (var i = 0; i < _poses.length; i++) ...[
+                        for (var i = 0; i < _views.length; i++) ...[
                           if (i > 0) const SizedBox(width: 8),
                           Expanded(
                             child: _PoseChip(
-                              label: _poseLabels[_poses[i]]!,
-                              state: i < _poseIndex
+                              label: _viewLabels[_views[i]]!,
+                              state: _capturedViews.contains(_views[i])
                                   ? _ChipState.done
-                                  : i == _poseIndex
+                                  : _views[i] == _targetView
                                       ? _ChipState.active
                                       : _ChipState.waiting,
                             ),
@@ -241,47 +265,26 @@ class _OnboardingScanScreenState extends State<OnboardingScanScreen> {
                 ],
               ),
             ),
-            // TODO(temp): debug-only skip button — remove once real-device
-            // testing is set up (the simulator has no camera to auto-advance).
-            Positioned(
-              right: 16,
-              bottom: 100,
-              child: SafeArea(
-                child: GestureDetector(
-                  onTap: _debugSkip,
-                  child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.6),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: AppColors.red, width: 1.5),
-                    ),
-                    child: const Text('다음 (테스트용)',
-                        style: TextStyle(
-                            color: AppColors.red,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w800)),
-                  ),
-                ),
-              ),
-            ),
           ],
         ),
       ),
     );
   }
+
+  String _errorMessage(String error) => switch (error) {
+        'camera_permission_denied' => '설정에서 카메라 권한을 켜줘',
+        _ => '카메라를 시작하지 못했어. 다시 시도해줘',
+      };
 }
 
 class _StatusBubble extends StatelessWidget {
-  const _StatusBubble({required this.status, required this.countdown});
+  const _StatusBubble({required this.message, required this.holdProgress});
 
-  final String status;
-  final int countdown;
+  final String message;
+  final double holdProgress;
 
   @override
   Widget build(BuildContext context) {
-    final isHolding = status == 'holding';
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
       decoration: BoxDecoration(
@@ -299,49 +302,26 @@ class _StatusBubble extends StatelessWidget {
           ),
           const SizedBox(width: 12),
           Expanded(
-            child: isHolding
-                ? RichText(
-                    text: TextSpan(
-                      style: const TextStyle(
-                          color: AppColors.black, height: 1.4),
-                      children: [
-                        TextSpan(
-                          text: '그대로 멈춰! $countdown초 뒤에 찍을게!\n',
-                          style: const TextStyle(
-                              fontSize: 14, fontWeight: FontWeight.w800),
-                        ),
-                        const TextSpan(
-                          text: '저장도 내가 알아서 할게!',
-                          style: TextStyle(
-                              fontSize: 12, fontWeight: FontWeight.w600),
-                        ),
-                      ],
-                    ),
-                  )
-                : const Text(
-                    '가이드에 맞춰 서 있으면\n내가 알아서 찍을게!',
-                    style: TextStyle(
-                        color: AppColors.black,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 13,
-                        height: 1.4),
-                  ),
+            child: Text(
+              message,
+              style: const TextStyle(
+                  color: AppColors.black,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 14,
+                  height: 1.4),
+            ),
           ),
-          if (isHolding) ...[
+          if (holdProgress > 0) ...[
             const SizedBox(width: 10),
-            Container(
-              width: 44,
-              height: 44,
-              alignment: Alignment.center,
-              decoration: const BoxDecoration(
-                color: AppColors.black,
-                shape: BoxShape.circle,
+            SizedBox(
+              width: 34,
+              height: 34,
+              child: CircularProgressIndicator(
+                value: holdProgress,
+                strokeWidth: 4,
+                backgroundColor: AppColors.black.withValues(alpha: 0.15),
+                valueColor: const AlwaysStoppedAnimation(AppColors.black),
               ),
-              child: Text('$countdown',
-                  style: const TextStyle(
-                      color: AppColors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w900)),
             ),
           ],
         ],
@@ -372,7 +352,7 @@ class _PoseChip extends StatelessWidget {
         child: Text('$label 완료',
             textAlign: TextAlign.center,
             style: const TextStyle(
-                color: AppColors.pink, fontSize: 12, fontWeight: FontWeight.w700)),
+                color: AppColors.pink, fontSize: 11, fontWeight: FontWeight.w700)),
       );
     }
 
@@ -389,12 +369,12 @@ class _PoseChip extends StatelessWidget {
           Text(label,
               textAlign: TextAlign.center,
               style: TextStyle(
-                  color: textColor, fontSize: 12, fontWeight: FontWeight.w700)),
+                  color: textColor, fontSize: 11, fontWeight: FontWeight.w700)),
           const SizedBox(height: 2),
           Text(statusWord,
               textAlign: TextAlign.center,
               style: TextStyle(
-                  color: textColor, fontSize: 12, fontWeight: FontWeight.w700)),
+                  color: textColor, fontSize: 11, fontWeight: FontWeight.w700)),
         ],
       ),
     );
@@ -430,41 +410,4 @@ class _HelpTip extends StatelessWidget {
           ),
         ],
       );
-}
-
-/// Dashed rounded-capsule "stand here" guide outline, drawn over the camera.
-class _DashedGuidePainter extends CustomPainter {
-  _DashedGuidePainter({required this.color});
-  final Color color;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final rrect = RRect.fromRectAndRadius(
-      Offset.zero & size,
-      Radius.circular(size.width / 2),
-    );
-    final path = Path()..addRRect(rrect);
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.5;
-
-    const dashWidth = 7.0;
-    const dashGap = 6.0;
-    for (final metric in path.computeMetrics()) {
-      var distance = 0.0;
-      while (distance < metric.length) {
-        final next = distance + dashWidth;
-        canvas.drawPath(
-          metric.extractPath(distance, next.clamp(0, metric.length)),
-          paint,
-        );
-        distance = next + dashGap;
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _DashedGuidePainter oldDelegate) =>
-      oldDelegate.color != color;
 }

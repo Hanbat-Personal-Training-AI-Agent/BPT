@@ -44,6 +44,7 @@ flutter:
     - assets/images/decoration/
     - assets/icons/nav/
     - assets/icons/home/
+    - assets/calibration/
   fonts:
     - family: Pretendard
       fonts:

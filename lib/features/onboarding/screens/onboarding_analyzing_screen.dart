@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -12,9 +11,10 @@ import '../../../core/theme/app_colors.dart';
 /// isn't wired up), then deletes the local scan photos and continues to
 /// the 3D result screen.
 class OnboardingAnalyzingScreen extends StatefulWidget {
-  const OnboardingAnalyzingScreen({super.key, this.scanPaths = const []});
+  const OnboardingAnalyzingScreen({super.key, this.sessionPath});
 
-  final List<String> scanPaths;
+  /// `Documents/calibration/<sessionId>` written by the native calibration session.
+  final String? sessionPath;
 
   @override
   State<OnboardingAnalyzingScreen> createState() =>
@@ -38,14 +38,8 @@ class _OnboardingAnalyzingScreenState extends State<OnboardingAnalyzingScreen>
   }
 
   void _finish() {
-    for (final path in widget.scanPaths) {
-      try {
-        final file = File(path);
-        if (file.existsSync()) file.deleteSync();
-      } catch (_) {
-        // Best-effort cleanup — a missing/locked file isn't fatal here.
-      }
-    }
+    // The capture bundle stays on disk: nothing uploads it yet, and the SMPL fitting
+    // pipeline is fed by hand from Files/Finder. Delete it here once upload exists.
     if (mounted) context.go(RouteConstants.onboardingResult);
   }
 
