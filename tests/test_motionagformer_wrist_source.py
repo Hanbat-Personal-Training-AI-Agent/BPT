@@ -4,10 +4,20 @@ import numpy as np
 
 from pose_feedback.body.motionagformer_wrist_source import (
     build_motionagformer_input_2d,
+    reject_crossed_mediapipe_wrists,
 )
 
 
 class MotionAGFormerWristSourceTests(unittest.TestCase):
+    def test_reject_crossed_mediapipe_wrists(self):
+        raw = np.zeros((17, 3), dtype="float32")
+        raw[9, :2] = [100.0, 100.0]  # left wrist
+        raw[10, :2] = [200.0, 100.0]  # right wrist
+        kept = reject_crossed_mediapipe_wrists(
+            raw, {"left": [195.0, 102.0], "right": [205.0, 98.0]},
+        )
+        self.assertEqual(list(kept), ["right"])
+
     def test_raw_rtmpose_keypoints_are_not_mutated(self):
         raw = synthetic_coco()
         original = raw.copy()
