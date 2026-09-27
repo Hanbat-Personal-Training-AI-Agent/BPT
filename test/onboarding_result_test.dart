@@ -14,7 +14,7 @@ void main() {
 
     expect(find.text('측정 끝!'), findsOneWidget);
     expect(find.text('드래그해서 360° 돌려봐'), findsOneWidget);
-    expect(find.text('완료'), findsNWidgets(3));
+    expect(find.text('완료'), findsNWidgets(4));
     expect(find.widgetWithText(ElevatedButton, '홈으로 가기'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
