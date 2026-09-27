@@ -7,7 +7,7 @@ void main() {
       (tester) async {
     await tester.pumpWidget(const MaterialApp(home: OnboardingScanScreen()));
 
-    expect(find.text('1 / 3 · 정면'), findsOneWidget);
+    expect(find.text('1 / 4 · 정면'), findsOneWidget);
     expect(find.byIcon(Icons.close_rounded), findsOneWidget);
     expect(find.text('도움말'), findsOneWidget);
     expect(tester.takeException(), isNull);
@@ -17,7 +17,7 @@ void main() {
       (tester) async {
     await tester.pumpWidget(const MaterialApp(home: OnboardingScanScreen()));
 
-    expect(find.text('가이드에 맞춰 서 있으면\n내가 알아서 찍을게!'), findsOneWidget);
+    expect(find.text('카메라 보고 팔은 A자로,\n발은 어깨너비로 벌려 줘!'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -36,7 +36,7 @@ void main() {
     await tester.pumpWidget(const MaterialApp(home: OnboardingScanScreen()));
 
     expect(find.text('촬영 중'), findsOneWidget);
-    expect(find.text('대기 중'), findsNWidgets(2));
+    expect(find.text('대기 중'), findsNWidgets(3));
     expect(tester.takeException(), isNull);
   });
 
@@ -49,7 +49,7 @@ void main() {
     await tester.tap(find.text('다음 (테스트용)'));
     await tester.pump();
 
-    expect(find.text('2 / 3 · 왼쪽 측면'), findsOneWidget);
+    expect(find.text('2 / 4 · 왼쪽'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

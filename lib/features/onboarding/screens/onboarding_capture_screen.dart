@@ -5,7 +5,7 @@ import '../../../core/constants/route_constants.dart';
 import '../../../core/theme/app_colors.dart';
 import '../widgets/onboarding_scaffold.dart';
 
-enum _CapturePose { front, left, right }
+enum _CapturePose { front, left, back, right }
 
 class OnboardingCaptureScreen extends StatefulWidget {
   const OnboardingCaptureScreen({super.key});
@@ -19,9 +19,10 @@ class _OnboardingCaptureScreenState extends State<OnboardingCaptureScreen> {
   _CapturePose _pose = _CapturePose.front;
 
   String get _poseImage => switch (_pose) {
-        _CapturePose.front => 'assets/images/character/front.png',
-        _CapturePose.left => 'assets/images/character/left.png',
-        _CapturePose.right => 'assets/images/character/right.png',
+        _CapturePose.front => 'assets/images/character/guide_front.png',
+        _CapturePose.left => 'assets/images/character/guide_left.png',
+        _CapturePose.back => 'assets/images/character/guide_back.png',
+        _CapturePose.right => 'assets/images/character/guide_right.png',
       };
 
   @override
@@ -32,7 +33,7 @@ class _OnboardingCaptureScreenState extends State<OnboardingCaptureScreen> {
       onBack: () => context.pop(),
       nextLabel: '카메라 켜기',
       onNext: () => context.push(RouteConstants.onboardingScan),
-      headline: const Text('마지막이야!\n세 방향만 찍으면 끝이야',
+      headline: const Text('마지막이야!\n네 방향만 찍으면 끝이야',
           style: TextStyle(
               fontSize: 27,
               height: 1.15,
@@ -65,7 +66,7 @@ class _OnboardingCaptureScreenState extends State<OnboardingCaptureScreen> {
                   ),
                 ),
                 child: const Text(
-                  '버튼은 안 눌러도 돼.\n가이드에 맞춰 서 있으면\n내가 알아서 찍을게!',
+                  '폰 세워 두고 나처럼만 서 있어 줘.\n버튼은 안 눌러도 돼,\n내가 알아서 찍을게!',
                   style: TextStyle(
                       color: AppColors.black,
                       fontWeight: FontWeight.w800,
@@ -91,7 +92,7 @@ class _OnboardingCaptureScreenState extends State<OnboardingCaptureScreen> {
             Expanded(
               child: _PoseStep(
                 number: 2,
-                label: '왼쪽 측면',
+                label: '왼쪽',
                 selected: _pose == _CapturePose.left,
                 onTap: () => setState(() => _pose = _CapturePose.left),
               ),
@@ -100,7 +101,16 @@ class _OnboardingCaptureScreenState extends State<OnboardingCaptureScreen> {
             Expanded(
               child: _PoseStep(
                 number: 3,
-                label: '오른쪽 측면',
+                label: '뒷면',
+                selected: _pose == _CapturePose.back,
+                onTap: () => setState(() => _pose = _CapturePose.back),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _PoseStep(
+                number: 4,
+                label: '오른쪽',
                 selected: _pose == _CapturePose.right,
                 onTap: () => setState(() => _pose = _CapturePose.right),
               ),
@@ -117,17 +127,17 @@ class _OnboardingCaptureScreenState extends State<OnboardingCaptureScreen> {
           child: Center(
             child: SizedBox(
               width: 140,
-              height: 170,
+              height: 190,
               child: Stack(
                 alignment: Alignment.center,
                 clipBehavior: Clip.none,
                 children: [
                   CustomPaint(
-                    size: const Size(140, 170),
+                    size: const Size(140, 190),
                     painter: _DashedGuidePainter(color: AppColors.green),
                   ),
                   // OverflowBox lets the character render larger than the
-                  // 140x170 guide capsule without that capsule (or anything
+                  // 140x190 guide capsule without that capsule (or anything
                   // else) changing size — a plain sized Image here was
                   // silently clamped to the capsule's own constraints.
                   OverflowBox(
@@ -154,9 +164,9 @@ class _OnboardingCaptureScreenState extends State<OnboardingCaptureScreen> {
           child: const Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _ChecklistItem('몸에 붙는 옷이면 더 정확해'),
+              _ChecklistItem('머리부터 발끝까지 다 보이게 서 줘'),
               SizedBox(height: 8),
-              _ChecklistItem('2m 정도 떨어져서 전신이 한 번에 보이게 해줘'),
+              _ChecklistItem('팔은 몸에서 떼서 A자로 벌리고, 제자리에서 돌아 줘'),
             ],
           ),
         ),

@@ -6,7 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/route_constants.dart';
 import '../../../core/theme/app_colors.dart';
 
-enum _CapturePose { front, left, right }
+enum _CapturePose { front, left, back, right }
 
 /// Full-screen native camera capture step: shown after the user taps
 /// "카메라 켜기" on [OnboardingCaptureScreen]. Hosts the native
@@ -26,8 +26,15 @@ class _OnboardingScanScreenState extends State<OnboardingScanScreen> {
   static const _poses = _CapturePose.values;
   static const _poseLabels = {
     _CapturePose.front: '정면',
-    _CapturePose.left: '왼쪽 측면',
-    _CapturePose.right: '오른쪽 측면',
+    _CapturePose.left: '왼쪽',
+    _CapturePose.back: '뒷면',
+    _CapturePose.right: '오른쪽',
+  };
+  static const _poseHints = {
+    _CapturePose.front: '카메라 보고 팔은 A자로,\n발은 어깨너비로 벌려 줘!',
+    _CapturePose.left: '제자리에서 왼쪽으로 비스듬히 돌아 줘.\n고개도 몸이랑 같은 방향으로!',
+    _CapturePose.back: '이번엔 등을 보여 줘.\n팔은 계속 A자 유지!',
+    _CapturePose.right: '마지막! 오른쪽으로 비스듬히 돌아 줘.\n거의 다 왔어!',
   };
 
   MethodChannel? _channel;
@@ -102,11 +109,15 @@ class _OnboardingScanScreenState extends State<OnboardingScanScreen> {
                     fontSize: 18,
                     fontWeight: FontWeight.w900)),
             SizedBox(height: 16),
+            _HelpTip('폰은 세로로 똑바로 세워서 고정해 줘'),
+            SizedBox(height: 10),
+            _HelpTip('머리부터 발끝까지 화면에 다 나오게 서 줘'),
+            SizedBox(height: 10),
+            _HelpTip('팔은 몸에서 떼서 A자로, 팔꿈치는 쭉 펴 줘'),
+            SizedBox(height: 10),
+            _HelpTip('처음 선 자리에서 발 떼지 말고 제자리에서 돌아 줘'),
+            SizedBox(height: 10),
             _HelpTip('몸에 붙는 옷이면 더 정확해'),
-            SizedBox(height: 10),
-            _HelpTip('2m 정도 떨어져서 전신이 한 번에 보이게 해줘'),
-            SizedBox(height: 10),
-            _HelpTip('가이드 선 안에 서서 가만히 있으면 자동으로 찍혀'),
           ],
         ),
       ),
@@ -216,7 +227,10 @@ class _OnboardingScanScreenState extends State<OnboardingScanScreen> {
                   ),
                   Padding(
                     padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
-                    child: _StatusBubble(status: _status, countdown: _countdown),
+                    child: _StatusBubble(
+                        status: _status,
+                        countdown: _countdown,
+                        hint: _poseHints[_pose]!),
                   ),
                   Padding(
                     padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
@@ -274,10 +288,12 @@ class _OnboardingScanScreenState extends State<OnboardingScanScreen> {
 }
 
 class _StatusBubble extends StatelessWidget {
-  const _StatusBubble({required this.status, required this.countdown});
+  const _StatusBubble(
+      {required this.status, required this.countdown, required this.hint});
 
   final String status;
   final int countdown;
+  final String hint;
 
   @override
   Widget build(BuildContext context) {
@@ -306,21 +322,21 @@ class _StatusBubble extends StatelessWidget {
                           color: AppColors.black, height: 1.4),
                       children: [
                         TextSpan(
-                          text: '그대로 멈춰! $countdown초 뒤에 찍을게!\n',
+                          text: '좋아, 그대로 멈춰! $countdown초 뒤에 찍을게!\n',
                           style: const TextStyle(
                               fontSize: 14, fontWeight: FontWeight.w800),
                         ),
                         const TextSpan(
-                          text: '저장도 내가 알아서 할게!',
+                          text: '저장은 내가 알아서 할게!',
                           style: TextStyle(
                               fontSize: 12, fontWeight: FontWeight.w600),
                         ),
                       ],
                     ),
                   )
-                : const Text(
-                    '가이드에 맞춰 서 있으면\n내가 알아서 찍을게!',
-                    style: TextStyle(
+                : Text(
+                    hint,
+                    style: const TextStyle(
                         color: AppColors.black,
                         fontWeight: FontWeight.w800,
                         fontSize: 13,

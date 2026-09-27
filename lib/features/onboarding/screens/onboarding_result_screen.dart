@@ -137,9 +137,11 @@ class _OnboardingResultScreenState extends State<OnboardingResultScreen> {
                   children: [
                     Expanded(child: _DoneChip(label: '정면')),
                     SizedBox(width: 10),
-                    Expanded(child: _DoneChip(label: '측면')),
+                    Expanded(child: _DoneChip(label: '왼쪽')),
                     SizedBox(width: 10),
-                    Expanded(child: _DoneChip(label: '후면')),
+                    Expanded(child: _DoneChip(label: '뒷면')),
+                    SizedBox(width: 10),
+                    Expanded(child: _DoneChip(label: '오른쪽')),
                   ],
                 ),
                 const SizedBox(height: 16),

@@ -15,17 +15,22 @@ void main() {
         .any((img) => (img.image as AssetImage).assetName == assetName);
 
     // Defaults to front.
-    expect(showsAsset('assets/images/character/front.png'), isTrue);
+    expect(showsAsset('assets/images/character/guide_front.png'), isTrue);
 
-    await tester.tap(find.text('왼쪽 측면'));
+    await tester.tap(find.text('왼쪽'));
     await tester.pump();
-    expect(showsAsset('assets/images/character/left.png'), isTrue);
-    expect(showsAsset('assets/images/character/front.png'), isFalse);
+    expect(showsAsset('assets/images/character/guide_left.png'), isTrue);
+    expect(showsAsset('assets/images/character/guide_front.png'), isFalse);
 
-    await tester.tap(find.text('오른쪽 측면'));
+    await tester.tap(find.text('뒷면'));
     await tester.pump();
-    expect(showsAsset('assets/images/character/right.png'), isTrue);
-    expect(showsAsset('assets/images/character/left.png'), isFalse);
+    expect(showsAsset('assets/images/character/guide_back.png'), isTrue);
+    expect(showsAsset('assets/images/character/guide_left.png'), isFalse);
+
+    await tester.tap(find.text('오른쪽'));
+    await tester.pump();
+    expect(showsAsset('assets/images/character/guide_right.png'), isTrue);
+    expect(showsAsset('assets/images/character/guide_back.png'), isFalse);
 
     expect(tester.takeException(), isNull);
   });
@@ -48,11 +53,11 @@ void main() {
     await tester.pumpWidget(const MaterialApp(home: OnboardingCaptureScreen()));
 
     final headlineBefore =
-        tester.getTopLeft(find.text('마지막이야!\n세 방향만 찍으면 끝이야'));
+        tester.getTopLeft(find.text('마지막이야!\n네 방향만 찍으면 끝이야'));
     await tester.drag(
         find.byType(SingleChildScrollView), const Offset(0, -300));
     await tester.pump();
-    final headlineAfter = tester.getTopLeft(find.text('마지막이야!\n세 방향만 찍으면 끝이야'));
+    final headlineAfter = tester.getTopLeft(find.text('마지막이야!\n네 방향만 찍으면 끝이야'));
 
     expect(headlineAfter, headlineBefore);
     expect(tester.takeException(), isNull);
