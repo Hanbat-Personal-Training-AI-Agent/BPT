@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/constants/profile_labels.dart';
 import '../../../core/constants/route_constants.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
@@ -14,16 +15,13 @@ import '../../../models/user_model.dart';
 import '../providers/profile_provider.dart';
 import '../widgets/profile_confirm_dialog.dart';
 
-const _goalOptions = ['근력 증가', '체중 감량', '체형 교정', '건강 관리'];
 const _frequencyOptions = [2, 3, 4, 5, 6];
 
-/// 온보딩에서 고른 성별을 신체 정보 카드에 표시할 라벨로 변환한다.
-/// 계정에 저장된 [UserModel.gender]가 아직 없을 때의 폴백으로만 쓰인다 —
-/// 회원가입이 실제 계정 생성으로 이어지면(현재는 미연동) 이 폴백은 자연히
-/// 안 쓰이게 된다.
-String? _genderLabelFromOnboarding(Gender? gender) => switch (gender) {
-      Gender.male => '남성',
-      Gender.female => '여성',
+/// 온보딩에서 고른 성별을 서버 코드로 바꾼다. 계정에 저장된
+/// [UserModel.gender]가 아직 없을 때의 폴백으로만 쓰인다.
+String? _genderCodeFromOnboarding(Gender? gender) => switch (gender) {
+      Gender.male => 'MALE',
+      Gender.female => 'FEMALE',
       _ => null,
     };
 
@@ -193,8 +191,8 @@ class _BodyInfoCard extends ConsumerWidget {
         ? user.weightKg / ((user.heightCm / 100) * (user.heightCm / 100))
         : 0.0;
     final onboardingGender = ref.watch(onboardingProvider).gender;
-    final genderLabel =
-        user.gender ?? _genderLabelFromOnboarding(onboardingGender) ?? '-';
+    final genderText =
+        genderLabel(user.gender ?? _genderCodeFromOnboarding(onboardingGender));
 
     return Container(
       padding: const EdgeInsets.all(18),
@@ -230,7 +228,7 @@ class _BodyInfoCard extends ConsumerWidget {
           const SizedBox(height: 16),
           Row(
             children: [
-              Expanded(child: _InfoStat(label: '성별', value: genderLabel)),
+              Expanded(child: _InfoStat(label: '성별', value: genderText)),
               Expanded(
                 child: _InfoStat(
                   label: '키',
@@ -353,8 +351,9 @@ class _EditBodyInfoSheetState extends ConsumerState<_EditBodyInfoSheet> {
   @override
   void initState() {
     super.initState();
-    _gender = widget.user.gender ??
-        _genderLabelFromOnboarding(ref.read(onboardingProvider).gender);
+    // 값은 서버 코드(MALE/FEMALE)로 다룬다.
+    _gender = normalizeGender(widget.user.gender) ??
+        _genderCodeFromOnboarding(ref.read(onboardingProvider).gender);
     _height = widget.user.heightCm > 0
         ? widget.user.heightCm.clamp(_editHeightMin, _editHeightMax)
         : 170.0;
@@ -465,18 +464,18 @@ class _EditBodyInfoSheetState extends ConsumerState<_EditBodyInfoSheet> {
             children: [
               Expanded(
                 child: _PickChip(
-                  label: '남성',
-                  selected: _gender == '남성',
-                  onTap: () => setState(() => _gender = '남성'),
+                  label: genderLabel('MALE'),
+                  selected: _gender == 'MALE',
+                  onTap: () => setState(() => _gender = 'MALE'),
                   fill: true,
                 ),
               ),
               const SizedBox(width: 10),
               Expanded(
                 child: _PickChip(
-                  label: '여성',
-                  selected: _gender == '여성',
-                  onTap: () => setState(() => _gender = '여성'),
+                  label: genderLabel('FEMALE'),
+                  selected: _gender == 'FEMALE',
+                  onTap: () => setState(() => _gender = 'FEMALE'),
                   fill: true,
                 ),
               ),
@@ -698,7 +697,7 @@ class _GoalCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final goal = user.workoutGoal ?? _goalOptions.first;
+    final goal = goalLabel(user.workoutGoal ?? goalCodes.first);
     final frequency = ref.watch(weeklyWorkoutGoalProvider);
 
     return Container(
@@ -797,15 +796,16 @@ class _EditGoalSheetState extends ConsumerState<_EditGoalSheet> {
   @override
   void initState() {
     super.initState();
-    _goal = widget.user.workoutGoal ?? _goalOptions.first;
+    // 값은 서버 코드(STRENGTH 등)로 다룬다.
+    _goal = normalizeGoal(widget.user.workoutGoal) ?? goalCodes.first;
     _frequency = widget.initialFrequency;
   }
 
   void _save() {
-    ref
-        .read(authNotifierProvider)
-        .updateProfile(widget.user.copyWith(workoutGoal: _goal));
-    ref.read(weeklyWorkoutGoalProvider.notifier).state = _frequency;
+    // TODO(backend): PUT /users/me 가 weeklyFrequency 를 받지 않아 주간 목표는
+    // 지금 기기에만 저장된다. 백엔드가 받게 되면 이 호출만으로 서버에도 반영된다.
+    ref.read(authNotifierProvider).updateProfile(
+        widget.user.copyWith(workoutGoal: _goal, weeklyFrequency: _frequency));
     Navigator.pop(context);
   }
 
@@ -843,9 +843,9 @@ class _EditGoalSheetState extends ConsumerState<_EditGoalSheet> {
             spacing: 8,
             runSpacing: 8,
             children: [
-              for (final g in _goalOptions)
+              for (final g in goalCodes)
                 _PickChip(
-                  label: g,
+                  label: goalLabel(g),
                   selected: _goal == g,
                   onTap: () => setState(() => _goal = g),
                 ),
@@ -1407,7 +1407,7 @@ void _confirmLogout(BuildContext context, WidgetRef ref) {
   showProfileConfirmDialog(
     context,
     title: '로그아웃',
-    message: '정말 로그아웃할까?',
+    message: '진짜 로그아웃할거야?',
     confirmLabel: '로그아웃',
     onConfirm: () => ref.read(authNotifierProvider).logout(),
   );
