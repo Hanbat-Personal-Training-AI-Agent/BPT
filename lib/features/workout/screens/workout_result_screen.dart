@@ -23,6 +23,24 @@ const _monthsEn = [
   'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
 ];
+const _weekdaysKo = ['월', '화', '수', '목', '금', '토', '일'];
+const _weekdaysEn = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+/// 운동한 날짜·시각 라벨. 예) `9월 9일 (수) 오후 3:20`, `Wed, Sep 9, 3:20 PM`
+String _formatWorkoutDateTime(DateTime date, bool isKo) {
+  final hour12raw = date.hour % 12;
+  final hour12 = hour12raw == 0 ? 12 : hour12raw;
+  final minute = date.minute.toString().padLeft(2, '0');
+  final isAm = date.hour < 12;
+  if (isKo) {
+    final period = isAm ? '오전' : '오후';
+    return '${date.month}월 ${date.day}일 (${_weekdaysKo[date.weekday - 1]}) '
+        '$period $hour12:$minute';
+  }
+  final period = isAm ? 'AM' : 'PM';
+  return '${_weekdaysEn[date.weekday - 1]}, ${_monthsEn[date.month - 1]} '
+      '${date.day}, $hour12:$minute $period';
+}
 
 // 운동별로 자세가 흐트러졌을 때 가장 흔히 지적되는 부위. 관절별 세부 분석
 // 데이터가 아직 없어서, 운동 종류당 대표 부위 하나로 단순화해 보여준다.
@@ -194,7 +212,11 @@ class _WorkoutResultScreenState extends ConsumerState<WorkoutResultScreen>
     final targetReps = r['targetReps'] as int? ?? 0;
     var targetSets = r['targetSets'] as int? ?? 0;
 
-    final weightKg = mockWeightKgByExercise[exerciseId] ?? 0;
+    // 과거 기록에 저장된 무게가 있으면 그걸 쓰고, 없으면 운동별 기본값.
+    final recordedWeight = (r['weightKg'] as num?)?.round() ?? 0;
+    final weightKg = recordedWeight > 0
+        ? recordedWeight
+        : mockWeightKgByExercise[exerciseId] ?? 0;
     final setRecords = _buildSetRecords(
       targetSets: targetSets > 0 ? targetSets : 1,
       totalReps: totalReps,
@@ -213,9 +235,7 @@ class _WorkoutResultScreenState extends ConsumerState<WorkoutResultScreen>
         ? ((correctReps / targetReps) * 100).clamp(0, 100).round()
         : (totalReps == 0 ? 0 : ((correctReps / totalReps) * 100).round());
 
-    final historyTitle = isKo
-        ? '${date.month}월 ${date.day}일 · $exerciseName'
-        : '${_monthsEn[date.month - 1]} ${date.day} · $exerciseName';
+    final historyTitle = _formatWorkoutDateTime(date, isKo);
 
     return Theme(
       data: AppTheme.darkTheme,
@@ -271,6 +291,7 @@ class _WorkoutResultScreenState extends ConsumerState<WorkoutResultScreen>
                                 isKo: isKo,
                                 exerciseId: exerciseId,
                                 records: setRecords,
+                                isHistory: isHistory,
                               ),
                               const SizedBox(height: 16),
                               _ReplaySection(isKo: isKo, records: setRecords),
@@ -380,20 +401,6 @@ class _HeroCard extends StatelessWidget {
   static const double _cardHeight = 112;
   static const double _characterSize = 230;
 
-  String _dateLabel() {
-    final hour24 = date.hour;
-    final isAm = hour24 < 12;
-    final hour12raw = hour24 % 12;
-    final hour12 = hour12raw == 0 ? 12 : hour12raw;
-    final minute = date.minute.toString().padLeft(2, '0');
-    if (isKo) {
-      final period = isAm ? '오전' : '오후';
-      return '${date.month}월 ${date.day}일 $period $hour12:$minute';
-    }
-    final period = isAm ? 'AM' : 'PM';
-    return '${_monthsEn[date.month - 1]} ${date.day}, $hour12:$minute $period';
-  }
-
   @override
   Widget build(BuildContext context) {
     return Stack(
@@ -415,7 +422,7 @@ class _HeroCard extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      _dateLabel(),
+                      _formatWorkoutDateTime(date, isKo),
                       style: TextStyle(
                         color: AppColors.black.withValues(alpha: 0.55),
                         fontSize: 11,
@@ -687,10 +694,12 @@ class _FeedbackCard extends StatelessWidget {
     required this.isKo,
     required this.exerciseId,
     required this.records,
+    this.isHistory = false,
   });
   final bool isKo;
   final String exerciseId;
   final List<_SetRecord> records;
+  final bool isHistory;
 
   @override
   Widget build(BuildContext context) {
@@ -706,8 +715,8 @@ class _FeedbackCard extends StatelessWidget {
     if (badIndices.isEmpty) {
       character = 'assets/images/character/face2.png';
       message = isKo
-          ? '오늘 자세 다 좋았어!\n이 페이스 그대로 가자!'
-          : 'Great form all the way through today!\nKeep this pace up.';
+          ? '${isHistory ? '이 날' : '오늘'} 자세 다 좋았어!\n이 페이스 그대로 가자!'
+          : 'Great form all the way through ${isHistory ? 'that day' : 'today'}!\nKeep this pace up.';
     } else {
       character = 'assets/images/character/worrying.png';
       final setsLabelKo = badIndices.join('·');
