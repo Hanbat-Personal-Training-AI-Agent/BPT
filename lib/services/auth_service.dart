@@ -102,6 +102,14 @@ class AuthService {
     );
   }
 
+  /// 주간 운동 목표(주 N회). 사용자 정보(/users/me)에는 없어서 대시보드의
+  /// weeklyGoalCount 를 읽는다.
+  Future<int?> fetchWeeklyGoal() async {
+    final response = await _apiClient.get('/users/me/dashboard');
+    final data = response.data;
+    return data is Map ? (data['weeklyGoalCount'] as num?)?.toInt() : null;
+  }
+
   /// 로그인·회원가입으로 받은 현재 토큰 (기기에 저장할 때 쓴다)
   String? get authToken => _apiClient.authToken;
 

@@ -1,63 +1,135 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_theme.dart';
 
 /// 로그아웃/회원 탈퇴처럼 되돌리기 어려운 액션을 확인받는 다이얼로그.
 ///
-/// `showDialog`가 여는 다이얼로그 라우트는 각 화면을 감싸는 로컬
-/// `Theme(data: AppTheme.darkTheme, ...)` 밖(앱 루트 테마) 컨텍스트에 붙기
-/// 때문에, 그냥 AlertDialog를 쓰면 Material3 surfaceTint 등으로 배경색이
-/// 지정해도 탁하게 뜨거나 버튼 리플 색이 앱 톤과 안 맞게 보일 수 있다.
-/// 여기서 다크 테마와 틴트를 명시적으로 고정해 로그아웃/탈퇴 두 다이얼로그가
-/// 항상 같은 톤으로 보이게 한다.
+/// 운동 화면의 "끝내기" 확인 모달과 같은 디자인이다: 짙은 회색 카드 + 회색
+/// 테두리, 왼쪽에 코리, 오른쪽에 제목·안내, 아래에 버튼 두 개
+/// (왼쪽 확인 액션 = 회색, 오른쪽 취소 = 초록).
+///
+/// 다이얼로그 라우트는 화면별 로컬 Theme 밖에 붙으므로, 색은 테마에 기대지
+/// 않고 여기서 직접 지정한다.
 Future<void> showProfileConfirmDialog(
   BuildContext context, {
   required String title,
   required String message,
   required String confirmLabel,
   required VoidCallback onConfirm,
-  Color confirmColor = AppColors.red,
+  String cancelLabel = '취소',
+  String character = 'assets/images/character/cry.png',
 }) {
   return showDialog<void>(
     context: context,
-    builder: (dialogCtx) => Theme(
-      data: AppTheme.darkTheme,
-      child: AlertDialog(
-        backgroundColor: AppColors.grey,
-        surfaceTintColor: Colors.transparent,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(
-          title,
-          style:
-              const TextStyle(color: Colors.white, fontWeight: FontWeight.w800),
-        ),
-        content: Text(
-          message,
-          style: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
-        ),
-        actionsPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-        actions: [
-          TextButton(
-            style: TextButton.styleFrom(
-              foregroundColor: Colors.white.withValues(alpha: 0.6),
+    barrierColor: Colors.black.withValues(alpha: 0.7),
+    builder: (dialogCtx) => Dialog(
+      backgroundColor: AppColors.grey,
+      surfaceTintColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(28),
+        side: const BorderSide(color: Color(0xFF5C5C5C)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(18, 22, 18, 18),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                Image.asset(character, width: 76, height: 76),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          color: AppColors.white,
+                          fontSize: 19,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        message,
+                        style: TextStyle(
+                          color: AppColors.white.withValues(alpha: 0.65),
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          height: 1.4,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-            onPressed: () => Navigator.pop(dialogCtx),
-            child: const Text('취소'),
-          ),
-          TextButton(
-            style: TextButton.styleFrom(foregroundColor: confirmColor),
-            onPressed: () {
-              Navigator.pop(dialogCtx);
-              onConfirm();
-            },
-            child: Text(
-              confirmLabel,
-              style: const TextStyle(fontWeight: FontWeight.w700),
+            const SizedBox(height: 22),
+            Row(
+              children: [
+                Expanded(
+                  child: _DialogButton(
+                    label: confirmLabel,
+                    primary: false,
+                    onTap: () {
+                      Navigator.pop(dialogCtx);
+                      onConfirm();
+                    },
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _DialogButton(
+                    label: cancelLabel,
+                    primary: true,
+                    onTap: () => Navigator.pop(dialogCtx),
+                  ),
+                ),
+              ],
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     ),
   );
+}
+
+class _DialogButton extends StatelessWidget {
+  const _DialogButton({
+    required this.label,
+    required this.primary,
+    required this.onTap,
+  });
+  final String label;
+  final bool primary;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: 52,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color:
+              primary ? AppColors.green : Colors.white.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(16),
+          border: primary
+              ? null
+              : Border.all(color: Colors.white.withValues(alpha: 0.15)),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: primary ? AppColors.black : Colors.white,
+            fontSize: 15,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+      ),
+    );
+  }
 }

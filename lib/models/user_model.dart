@@ -13,6 +13,9 @@ class UserModel {
   final String? gender;
   final String? workoutGoal;
   final String? phone;
+
+  /// 주간 운동 목표(주 N회). 서버의 weeklyFrequency / 대시보드 weeklyGoalCount.
+  final int? weeklyFrequency;
   final int totalWorkouts;
   final int streakDays;
   final DateTime joinedAt;
@@ -30,6 +33,7 @@ class UserModel {
     this.gender,
     this.workoutGoal,
     this.phone,
+    this.weeklyFrequency,
     this.totalWorkouts = 0,
     this.streakDays = 0,
     required this.joinedAt,
@@ -59,6 +63,7 @@ class UserModel {
     String? gender,
     String? workoutGoal,
     String? phone,
+    int? weeklyFrequency,
     int? totalWorkouts,
     int? streakDays,
   }) {
@@ -75,6 +80,7 @@ class UserModel {
       gender: gender ?? this.gender,
       workoutGoal: workoutGoal ?? this.workoutGoal,
       phone: phone ?? this.phone,
+      weeklyFrequency: weeklyFrequency ?? this.weeklyFrequency,
       totalWorkouts: totalWorkouts ?? this.totalWorkouts,
       streakDays: streakDays ?? this.streakDays,
       joinedAt: joinedAt,
@@ -94,6 +100,7 @@ class UserModel {
         'gender': gender,
         'workoutGoal': workoutGoal,
         'phone': phone,
+        'weeklyFrequency': weeklyFrequency,
         'totalWorkouts': totalWorkouts,
         'streakDays': streakDays,
         'joinedAt': joinedAt.toIso8601String(),
@@ -113,7 +120,9 @@ class UserModel {
         heightCm: (json['heightCm'] as num?)?.toDouble() ?? 0,
         gender: json['gender'] as String?,
         workoutGoal: json['workoutGoal'] as String?,
-        phone: json['phone'] as String?,
+        // 서버는 phoneNumber, 기기에 저장된 예전 값은 phone
+        phone: (json['phone'] ?? json['phoneNumber']) as String?,
+        weeklyFrequency: (json['weeklyFrequency'] as num?)?.toInt(),
         totalWorkouts: (json['totalWorkouts'] as num?)?.toInt() ?? 0,
         streakDays: (json['streakDays'] as num?)?.toInt() ?? 0,
         joinedAt: json['joinedAt'] != null

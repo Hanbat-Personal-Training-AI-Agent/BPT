@@ -13,7 +13,11 @@ final currentUserProvider = Provider<UserModel>((ref) {
 });
 
 // ── Weekly goal (user-adjustable, in-memory) ──────────────────────────────
-final weeklyWorkoutGoalProvider = StateProvider<int>((ref) => 5);
+/// 주간 운동 목표(주 N회). 사용자 정보의 weeklyFrequency 를 쓰고, 아직 없으면
+/// 서버 기본값과 같은 3회.
+final weeklyWorkoutGoalProvider = Provider<int>(
+  (ref) => ref.watch(currentUserProvider).weeklyFrequency ?? 3,
+);
 
 // ── 체형 재측정 주기 (홈 배너/프로필 카드가 공유하는 상태) ────────────────
 // TODO: 실제 마지막 체형 측정일이 저장되면 그 값에서 계산한 값으로 교체할 것.
