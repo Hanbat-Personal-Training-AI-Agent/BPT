@@ -27,9 +27,6 @@ public class Exercise {
     @Column(length = 30)
     private String category;
 
-    @Column(length = 50)
-    private String targetMuscle;
-
     @Column(precision = 5, scale = 2)
     private BigDecimal standardRomMin;
 
@@ -41,7 +38,4 @@ public class Exercise {
 
     @Column(length = 500)
     private String thumbnailUrl;
-
-    @Column(length = 500)
-    private String guideVideoUrl;
 }

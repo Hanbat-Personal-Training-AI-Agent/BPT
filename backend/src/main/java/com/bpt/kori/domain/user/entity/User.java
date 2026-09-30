@@ -44,6 +44,11 @@ public class User {
 
     private LocalDate birthDate;
 
+    private LocalDate lastBodyScanDate;
+
+    @Column(length = 10)
+    private String notificationTime;
+
     @Column(precision = 5, scale = 2)
     @Builder.Default
     private BigDecimal heightCm = BigDecimal.ZERO;
@@ -83,12 +88,14 @@ public class User {
     @Column(nullable = false)
     private LocalDateTime updatedAt;
 
-    public void updateOnboarding(String gender, BigDecimal heightCm, BigDecimal weightKg, String workoutGoal, Integer weeklyFrequency) {
+    public void updateOnboarding(String gender, BigDecimal heightCm, BigDecimal weightKg, String workoutGoal, Integer weeklyFrequency, String notificationTime) {
         if (gender != null) this.gender = gender;
         if (heightCm != null) this.heightCm = heightCm;
         if (weightKg != null) this.weightKg = weightKg;
         if (workoutGoal != null) this.workoutGoal = workoutGoal;
         if (weeklyFrequency != null) this.weeklyFrequency = weeklyFrequency;
+        if (notificationTime != null) this.notificationTime = notificationTime;
+        this.lastBodyScanDate = LocalDate.now();
         this.isOnboardingCompleted = true;
     }
 

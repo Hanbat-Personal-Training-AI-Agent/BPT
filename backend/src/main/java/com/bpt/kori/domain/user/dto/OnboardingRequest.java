@@ -16,4 +16,5 @@ public class OnboardingRequest {
     private BigDecimal weightKg;
     private String workoutGoal;
     private Integer weeklyFrequency;
+    private String notificationTime; // 예: "18:00"
 }

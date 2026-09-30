@@ -49,6 +49,8 @@ class AuthServiceTest {
         validSignUpRequest.setEmail("jihoon@bpt.app");
         validSignUpRequest.setPassword("password123!");
         validSignUpRequest.setName("지훈");
+        validSignUpRequest.setPhoneNumber("010-1234-5678");
+        validSignUpRequest.setBirthDate("1998-05-15");
         validSignUpRequest.setTermsAgreed(true);
         validSignUpRequest.setPrivacyAgreed(true);
     }

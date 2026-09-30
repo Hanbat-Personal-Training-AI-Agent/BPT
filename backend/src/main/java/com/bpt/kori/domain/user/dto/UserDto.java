@@ -16,11 +16,14 @@ public class UserDto {
     private final String email;
     private final String password;
     private final String avatarInitials;
+    private final String phoneNumber;
     private final String birthDate;
     private final double weightKg;
     private final double heightCm;
     private final String gender;
     private final String workoutGoal;
+    private final String notificationTime;
+    private final String lastBodyScanDate;
     private final int totalWorkouts;
     private final int streakDays;
     private final String joinedAt;
@@ -38,11 +41,14 @@ public class UserDto {
                 .email(user.getEmail())
                 .password("")
                 .avatarInitials(initials)
+                .phoneNumber(user.getPhoneNumber())
                 .birthDate(user.getBirthDate() != null ? user.getBirthDate().toString() : null)
                 .weightKg(user.getWeightKg() != null ? user.getWeightKg().doubleValue() : 0.0)
                 .heightCm(user.getHeightCm() != null ? user.getHeightCm().doubleValue() : 0.0)
                 .gender(user.getGender())
                 .workoutGoal(user.getWorkoutGoal())
+                .notificationTime(user.getNotificationTime())
+                .lastBodyScanDate(user.getLastBodyScanDate() != null ? user.getLastBodyScanDate().toString() : null)
                 .totalWorkouts(user.getTotalWorkouts() != null ? user.getTotalWorkouts() : 0)
                 .streakDays(user.getStreakDays() != null ? user.getStreakDays() : 0)
                 .joinedAt(user.getCreatedAt() != null ? user.getCreatedAt().toString() : "")

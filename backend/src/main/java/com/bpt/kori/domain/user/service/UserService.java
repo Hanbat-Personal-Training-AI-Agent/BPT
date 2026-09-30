@@ -72,7 +72,8 @@ public class UserService {
                 request.getHeightCm(),
                 request.getWeightKg(),
                 request.getWorkoutGoal(),
-                request.getWeeklyFrequency()
+                request.getWeeklyFrequency(),
+                request.getNotificationTime()
         );
 
         // Calculate BMI: weight / (height/100)^2
@@ -170,6 +171,8 @@ public class UserService {
         int daysSinceLastScan;
         if (latestCalibration.isPresent() && latestCalibration.get().getCalibratedAt() != null) {
             daysSinceLastScan = (int) ChronoUnit.DAYS.between(latestCalibration.get().getCalibratedAt().toLocalDate(), today);
+        } else if (user.getLastBodyScanDate() != null) {
+            daysSinceLastScan = (int) ChronoUnit.DAYS.between(user.getLastBodyScanDate(), today);
         } else {
             daysSinceLastScan = 30;
         }

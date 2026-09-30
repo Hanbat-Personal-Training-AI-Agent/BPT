@@ -65,7 +65,7 @@ class WorkoutServiceTest {
         request.setCorrectReps(38);
         request.setIncorrectReps(7);
         request.setDurationSeconds(1800);
-        request.setPostureScore(88.5);
+        request.setVideoLocalPath("/local/path/video.mp4");
         request.setTargetReps(12);
         request.setTargetSets(4);
 
@@ -76,7 +76,9 @@ class WorkoutServiceTest {
                 .exerciseId("SQUAT")
                 .exerciseName("바벨 백 스쿼트")
                 .weightKg(new BigDecimal("60.0"))
-                .postureScore(88.5)
+                .videoLocalPath("/local/path/video.mp4")
+                .targetSets(4)
+                .targetReps(12)
                 .build();
 
         given(workoutRecordRepository.save(any(WorkoutRecord.class))).willReturn(savedRecord);
@@ -87,7 +89,7 @@ class WorkoutServiceTest {
         // then
         assertThat(response.isSuccess()).isTrue();
         assertThat(response.getServerRecordId()).isEqualTo("501");
-        assertThat(response.getPostureScore()).isEqualTo(88.5);
+        assertThat(response.getVideoLocalPath()).isEqualTo("/local/path/video.mp4");
         verify(workoutRecordRepository).save(any(WorkoutRecord.class));
     }
 
