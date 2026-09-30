@@ -37,6 +37,12 @@ public class SecurityConfig {
                         .requestMatchers("/auth/**", "/api/v1/auth/**").permitAll()
                         // Public Exercise Endpoints
                         .requestMatchers("/exercises/**", "/api/v1/exercises/**").permitAll()
+                        // Swagger Endpoints
+                        .requestMatchers(
+                                "/swagger-ui/**",
+                                "/swagger-ui.html",
+                                "/v3/api-docs/**"
+                        ).permitAll()
                         // General public endpoints
                         .requestMatchers("/health", "/error").permitAll()
                         // All others require authentication
