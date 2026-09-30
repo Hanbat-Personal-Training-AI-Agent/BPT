@@ -260,6 +260,29 @@ class _NativePoseWorkoutScreenState
     });
   }
 
+  /// "끝내기"를 실수로 눌렀을 수 있으니 한 번 더 확인한다. 모달이 떠 있는 동안은
+  /// 일시정지해서 반복 수가 세지지 않게 하고, 닫으면 원래 상태로 돌려놓는다.
+  Future<void> _confirmEnd() async {
+    final wasPaused = _isPaused;
+    if (!wasPaused) setState(() => _isPaused = true);
+
+    final doneReps =
+        _setResults.fold<int>(0, (sum, r) => sum + r.reps) + _repsThisSet;
+    final isKo = ref.read(appStringsProvider).locale == 'ko';
+    final confirmed = await showDialog<bool>(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.7),
+      builder: (_) => _EndConfirmDialog(isKo: isKo, doneReps: doneReps),
+    );
+    if (!mounted) return;
+
+    if (confirmed == true) {
+      _finishWorkout();
+    } else if (!wasPaused) {
+      setState(() => _isPaused = false);
+    }
+  }
+
   void _finishWorkout() {
     if (!mounted) return;
 
@@ -432,7 +455,7 @@ class _NativePoseWorkoutScreenState
                 feedbackGood: _feedbackGood,
                 isPaused: _isPaused,
                 onTogglePause: _togglePause,
-                onEnd: _finishWorkout,
+                onEnd: _confirmEnd,
               ),
             ),
           ),
@@ -736,6 +759,8 @@ class _LiveHud extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
           child: Row(
             children: [
+              Expanded(child: _EndButton(isKo: isKo, onTap: onEnd)),
+              const SizedBox(width: 8),
               Expanded(
                 child: _PauseButton(
                   isKo: isKo,
@@ -743,8 +768,6 @@ class _LiveHud extends StatelessWidget {
                   onTap: onTogglePause,
                 ),
               ),
-              const SizedBox(width: 8),
-              Expanded(child: _EndButton(isKo: isKo, onTap: onEnd)),
             ],
           ),
         ),
@@ -1042,16 +1065,15 @@ class _PauseButton extends StatelessWidget {
         height: 52,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.08),
+          color: AppColors.pink,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
               isPaused ? Icons.play_arrow_rounded : Icons.pause_rounded,
-              color: Colors.white,
+              color: AppColors.black,
               size: 18,
             ),
             const SizedBox(width: 6),
@@ -1060,7 +1082,7 @@ class _PauseButton extends StatelessWidget {
                   ? (isKo ? '이어서 하기' : 'Resume')
                   : (isKo ? '잠깐 쉬기' : 'Pause'),
               style: const TextStyle(
-                color: Colors.white,
+                color: AppColors.black,
                 fontSize: 14,
                 fontWeight: FontWeight.w900,
               ),
@@ -1085,14 +1107,147 @@ class _EndButton extends StatelessWidget {
         height: 52,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: AppColors.pink,
+          color: Colors.white.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
         ),
         child: Text(
           isKo ? '끝내기' : 'End',
           style: const TextStyle(
-            color: AppColors.black,
+            color: Colors.white,
             fontSize: 14,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// "끝내기" 확인 모달. 왼쪽에 말하는 코리, 오른쪽에 안내 문구.
+class _EndConfirmDialog extends StatelessWidget {
+  const _EndConfirmDialog({required this.isKo, required this.doneReps});
+  final bool isKo;
+  final int doneReps;
+
+  @override
+  Widget build(BuildContext context) {
+    final title = isKo ? '벌써 끝낼 거야?' : 'Done already?';
+    // 한 회도 안 했으면 기록이 저장되지 않는다는 걸 미리 알려준다.
+    final message = doneReps == 0
+        ? (isKo
+            ? '아직 한 회도 안 했어.\n지금 끝내면 기록이 안 남아!'
+            : "You haven't done a rep yet.\nNothing will be saved.")
+        : (isKo
+            ? '지금까지 한 $doneReps회까지만\n기록으로 남길게!'
+            : "I'll save the $doneReps reps\nyou've done so far.");
+
+    return Dialog(
+      backgroundColor: AppColors.grey,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(28),
+        side: const BorderSide(color: Color(0xFF5C5C5C)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(18, 22, 18, 18),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                Image.asset(
+                  'assets/images/character/face2.png',
+                  width: 76,
+                  height: 76,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          color: AppColors.white,
+                          fontSize: 19,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        message,
+                        style: TextStyle(
+                          color: AppColors.white.withValues(alpha: 0.65),
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          height: 1.4,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 22),
+            // 운동 화면 하단 버튼과 같은 배치: 왼쪽 끝내기, 오른쪽 계속하기.
+            Row(
+              children: [
+                Expanded(
+                  child: _DialogButton(
+                    label: isKo ? '끝내기' : 'End',
+                    primary: false,
+                    onTap: () => Navigator.of(context).pop(true),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _DialogButton(
+                    label: isKo ? '계속하기' : 'Keep going',
+                    primary: true,
+                    onTap: () => Navigator.of(context).pop(false),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DialogButton extends StatelessWidget {
+  const _DialogButton({
+    required this.label,
+    required this.primary,
+    required this.onTap,
+  });
+  final String label;
+  final bool primary;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: 52,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: primary
+              ? AppColors.green
+              : Colors.white.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(16),
+          border: primary
+              ? null
+              : Border.all(color: Colors.white.withValues(alpha: 0.15)),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: primary ? AppColors.black : Colors.white,
+            fontSize: 15,
             fontWeight: FontWeight.w900,
           ),
         ),
