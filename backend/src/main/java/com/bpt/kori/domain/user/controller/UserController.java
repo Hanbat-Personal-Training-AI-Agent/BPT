@@ -4,6 +4,7 @@ import com.bpt.kori.domain.user.dto.DashboardSummaryResponseDto;
 import com.bpt.kori.domain.user.dto.OnboardingRequest;
 import com.bpt.kori.domain.user.dto.OnboardingResponse;
 import com.bpt.kori.domain.user.dto.UserDto;
+import com.bpt.kori.domain.user.dto.UserUpdateRequestDto;
 import com.bpt.kori.domain.user.service.UserService;
 import com.bpt.kori.security.UserPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
@@ -28,11 +29,11 @@ public class UserController {
         return ResponseEntity.ok(profile);
     }
 
-    @Operation(summary = "내 프로필 수정", description = "사용자의 이름, 성별, 키, 몸무게, 목표 등을 수정합니다.")
+    @Operation(summary = "내 프로필 수정", description = "사용자의 아이디, 이메일, 이름, 성별, 키, 몸무게, 목표 등을 수정합니다.")
     @PutMapping("/me")
     public ResponseEntity<UserDto> updateMyProfile(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
-            @RequestBody UserDto request
+            @RequestBody UserUpdateRequestDto request
     ) {
         UserDto updated = userService.updateProfile(userPrincipal.getUserId(), request);
         return ResponseEntity.ok(updated);

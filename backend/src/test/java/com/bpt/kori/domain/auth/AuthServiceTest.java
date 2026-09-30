@@ -52,7 +52,6 @@ class AuthServiceTest {
         validSignUpRequest.setPhoneNumber("010-1234-5678");
         validSignUpRequest.setBirthDate("1998-05-15");
         validSignUpRequest.setTermsAgreed(true);
-        validSignUpRequest.setPrivacyAgreed(true);
     }
 
     @Test
@@ -70,7 +69,6 @@ class AuthServiceTest {
                     .email(user.getEmail())
                     .name(user.getName())
                     .termsAgreed(user.getTermsAgreed())
-                    .privacyAgreed(user.getPrivacyAgreed())
                     .build();
         });
         given(tokenProvider.generateAccessToken(any(), anyString(), anyString())).willReturn("mock.jwt.token");

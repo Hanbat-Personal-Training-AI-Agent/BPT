@@ -6,6 +6,7 @@ import com.bpt.kori.domain.user.dto.DashboardSummaryResponseDto;
 import com.bpt.kori.domain.user.dto.OnboardingRequest;
 import com.bpt.kori.domain.user.dto.OnboardingResponse;
 import com.bpt.kori.domain.user.dto.UserDto;
+import com.bpt.kori.domain.user.dto.UserUpdateRequestDto;
 import com.bpt.kori.domain.user.entity.User;
 import com.bpt.kori.domain.user.entity.UserCalibration;
 import com.bpt.kori.domain.user.repository.UserCalibrationRepository;
@@ -17,7 +18,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -44,18 +44,41 @@ public class UserService {
     }
 
     @Transactional
-    public UserDto updateProfile(Long userId, UserDto request) {
+    public UserDto updateProfile(Long userId, UserUpdateRequestDto request) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
+        if (request.getUsername() != null && !request.getUsername().isBlank()) {
+            String newUsername = request.getUsername().trim();
+            if (!newUsername.equalsIgnoreCase(user.getUsername())) {
+                if (userRepository.existsByUsername(newUsername)) {
+                    throw new CustomException(ErrorCode.USERNAME_ALREADY_EXISTS);
+                }
+                user.setUsername(newUsername);
+            }
+        }
+
+        if (request.getEmail() != null && !request.getEmail().isBlank()) {
+            String newEmail = request.getEmail().trim();
+            if (!newEmail.equalsIgnoreCase(user.getEmail())) {
+                if (userRepository.existsByEmail(newEmail)) {
+                    throw new CustomException(ErrorCode.EMAIL_ALREADY_EXISTS);
+                }
+                user.setEmail(newEmail);
+            }
+        }
+
         if (request.getName() != null) user.setName(request.getName());
+        if (request.getPhoneNumber() != null) user.setPhoneNumber(request.getPhoneNumber());
         if (request.getGender() != null) user.setGender(request.getGender());
-        if (request.getHeightCm() > 0) user.setHeightCm(BigDecimal.valueOf(request.getHeightCm()));
-        if (request.getWeightKg() > 0) user.setWeightKg(BigDecimal.valueOf(request.getWeightKg()));
+        if (request.getHeightCm() != null && request.getHeightCm() > 0) user.setHeightCm(BigDecimal.valueOf(request.getHeightCm()));
+        if (request.getWeightKg() != null && request.getWeightKg() > 0) user.setWeightKg(BigDecimal.valueOf(request.getWeightKg()));
         if (request.getWorkoutGoal() != null) user.setWorkoutGoal(request.getWorkoutGoal());
-        if (request.getBirthDate() != null) {
+        if (request.getWeeklyFrequency() != null) user.setWeeklyFrequency(request.getWeeklyFrequency());
+        if (request.getNotificationTime() != null) user.setNotificationTime(request.getNotificationTime());
+        if (request.getBirthDate() != null && !request.getBirthDate().isBlank()) {
             try {
-                user.setBirthDate(LocalDate.parse(request.getBirthDate()));
+                user.setBirthDate(LocalDate.parse(request.getBirthDate().trim()));
             } catch (Exception ignored) {}
         }
 
@@ -72,41 +95,12 @@ public class UserService {
                 request.getHeightCm(),
                 request.getWeightKg(),
                 request.getWorkoutGoal(),
-                request.getWeeklyFrequency(),
-                request.getNotificationTime()
+                request.getWeeklyFrequency()
         );
-
-        // Calculate BMI: weight / (height/100)^2
-        BigDecimal bmi = BigDecimal.ZERO;
-        String bmiStatus = "NORMAL";
-        String bmiStatusLabel = "정상 범위";
-
-        if (request.getHeightCm() != null && request.getWeightKg() != null && request.getHeightCm().doubleValue() > 0) {
-            double hM = request.getHeightCm().doubleValue() / 100.0;
-            double w = request.getWeightKg().doubleValue();
-            double val = w / (hM * hM);
-            bmi = BigDecimal.valueOf(val).setScale(1, RoundingMode.HALF_UP);
-
-            if (val < 18.5) {
-                bmiStatus = "UNDERWEIGHT";
-                bmiStatusLabel = "저체중";
-            } else if (val < 23.0) {
-                bmiStatus = "NORMAL";
-                bmiStatusLabel = "정상 범위";
-            } else if (val < 25.0) {
-                bmiStatus = "OVERWEIGHT";
-                bmiStatusLabel = "과체중";
-            } else {
-                bmiStatus = "OBESE";
-                bmiStatusLabel = "비만";
-            }
-        }
 
         return OnboardingResponse.builder()
                 .userId(user.getId())
-                .bmi(bmi)
-                .bmiStatus(bmiStatus)
-                .bmiStatusLabel(bmiStatusLabel)
+                .isOnboardingCompleted(true)
                 .build();
     }
 

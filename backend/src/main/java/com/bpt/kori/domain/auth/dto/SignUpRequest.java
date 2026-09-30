@@ -42,8 +42,4 @@ public class SignUpRequest {
     @NotNull(message = "서비스 이용약관에 동의해 주세요.")
     @AssertTrue(message = "서비스 이용약관에 동의해 주세요.")
     private Boolean termsAgreed;
-
-    @NotNull(message = "개인정보 수집 및 이용에 동의해 주세요.")
-    @AssertTrue(message = "개인정보 수집 및 이용에 동의해 주세요.")
-    private Boolean privacyAgreed;
 }

@@ -61,8 +61,7 @@ public class AuthService {
             throw new CustomException(ErrorCode.USERNAME_ALREADY_EXISTS);
         }
 
-        if (Boolean.FALSE.equals(request.getTermsAgreed()) || Boolean.FALSE.equals(request.getPrivacyAgreed())
-                || request.getTermsAgreed() == null || request.getPrivacyAgreed() == null) {
+        if (Boolean.FALSE.equals(request.getTermsAgreed()) || request.getTermsAgreed() == null) {
             throw new CustomException(ErrorCode.TERMS_NOT_AGREED);
         }
 
@@ -83,7 +82,6 @@ public class AuthService {
                 .phoneNumber(request.getPhoneNumber() != null ? request.getPhoneNumber().trim() : null)
                 .birthDate(parsedBirthDate)
                 .termsAgreed(Boolean.TRUE.equals(request.getTermsAgreed()))
-                .privacyAgreed(Boolean.TRUE.equals(request.getPrivacyAgreed()))
                 .build();
 
         userRepository.save(user);

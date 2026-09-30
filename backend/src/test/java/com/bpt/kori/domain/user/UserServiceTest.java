@@ -1,6 +1,12 @@
 package com.bpt.kori.domain.user;
 
+import com.bpt.kori.common.exception.CustomException;
+import com.bpt.kori.common.exception.ErrorCode;
 import com.bpt.kori.domain.user.dto.DashboardSummaryResponseDto;
+import com.bpt.kori.domain.user.dto.OnboardingRequest;
+import com.bpt.kori.domain.user.dto.OnboardingResponse;
+import com.bpt.kori.domain.user.dto.UserDto;
+import com.bpt.kori.domain.user.dto.UserUpdateRequestDto;
 import com.bpt.kori.domain.user.entity.User;
 import com.bpt.kori.domain.user.entity.UserCalibration;
 import com.bpt.kori.domain.user.repository.UserCalibrationRepository;
@@ -92,5 +98,78 @@ class UserServiceTest {
         assertThat(dashboard.getRecentWorkouts()).hasSize(1);
         assertThat(dashboard.getRecentWorkouts().get(0).getExerciseName()).isEqualTo("스쿼트");
         assertThat(dashboard.getRecentWorkouts().get(0).getWeightKg()).isEqualByComparingTo("60.0");
+    }
+
+    @Test
+    @DisplayName("프로필 수정 - 아이디 중복 시 409 예외 발생")
+    void updateProfile_duplicateUsername_throwsException() {
+        Long userId = 1L;
+        User user = User.builder().id(userId).username("current_user").email("user@bpt.app").build();
+        given(userRepository.findById(userId)).willReturn(Optional.of(user));
+        given(userRepository.existsByUsername("taken_user")).willReturn(true);
+
+        UserUpdateRequestDto request = new UserUpdateRequestDto();
+        request.setUsername("taken_user");
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> userService.updateProfile(userId, request))
+                .isInstanceOf(CustomException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.USERNAME_ALREADY_EXISTS);
+    }
+
+    @Test
+    @DisplayName("프로필 수정 - 이메일 중복 시 409 예외 발생")
+    void updateProfile_duplicateEmail_throwsException() {
+        Long userId = 1L;
+        User user = User.builder().id(userId).username("current_user").email("user@bpt.app").build();
+        given(userRepository.findById(userId)).willReturn(Optional.of(user));
+        given(userRepository.existsByEmail("taken@bpt.app")).willReturn(true);
+
+        UserUpdateRequestDto request = new UserUpdateRequestDto();
+        request.setEmail("taken@bpt.app");
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> userService.updateProfile(userId, request))
+                .isInstanceOf(CustomException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.EMAIL_ALREADY_EXISTS);
+    }
+
+    @Test
+    @DisplayName("프로필 수정 성공 - 정상 업데이트")
+    void updateProfile_success() {
+        Long userId = 1L;
+        User user = User.builder().id(userId).username("current_user").email("user@bpt.app").name("홍길동").build();
+        given(userRepository.findById(userId)).willReturn(Optional.of(user));
+        given(userRepository.existsByUsername("new_username")).willReturn(false);
+
+        UserUpdateRequestDto request = new UserUpdateRequestDto();
+        request.setUsername("new_username");
+        request.setName("김철수");
+        request.setWeeklyFrequency(4);
+
+        UserDto result = userService.updateProfile(userId, request);
+
+        assertThat(result.getUsername()).isEqualTo("new_username");
+        assertThat(result.getName()).isEqualTo("김철수");
+        assertThat(result.getWeeklyFrequency()).isEqualTo(4);
+    }
+
+    @Test
+    @DisplayName("온보딩 정보 등록 성공 - BMI 없이 완료 여부 반환")
+    void updateOnboarding_success() {
+        Long userId = 1L;
+        User user = User.builder().id(userId).username("user1").build();
+        given(userRepository.findById(userId)).willReturn(Optional.of(user));
+
+        OnboardingRequest request = new OnboardingRequest();
+        request.setGender("MALE");
+        request.setHeightCm(BigDecimal.valueOf(180));
+        request.setWeightKg(BigDecimal.valueOf(75));
+        request.setWorkoutGoal("체력 증진");
+        request.setWeeklyFrequency(4);
+
+        OnboardingResponse response = userService.updateOnboarding(userId, request);
+
+        assertThat(response).isNotNull();
+        assertThat(response.getUserId()).isEqualTo(userId);
+        assertThat(response.getIsOnboardingCompleted()).isTrue();
     }
 }
