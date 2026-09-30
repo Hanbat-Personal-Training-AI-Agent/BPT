@@ -135,10 +135,7 @@ class _NativePoseWorkoutScreenState
   @override
   void initState() {
     super.initState();
-    // Only run the prep/countdown flow when we will actually show the camera.
-    if (_isSupportedExercise && _isIOS) {
-      _alignTimer = Timer(_alignHintDuration, _startCountdown);
-    }
+    _alignTimer = Timer(_alignHintDuration, _startCountdown);
   }
 
   void _startCountdown() {
@@ -186,8 +183,7 @@ class _NativePoseWorkoutScreenState
   // 네이티브 카메라가 보내는 반복 수 이벤트를 대신 흉내 내는 테스트용 동작.
   void _debugAddRep() => _onNativeUpdate(_latestNativeRep + 1);
 
-  void _debugFinishSet() =>
-      _onNativeUpdate(_setStartRep + _targetRepsThisSet);
+  void _debugFinishSet() => _onNativeUpdate(_setStartRep + _targetRepsThisSet);
 
   void _onNativeUpdate(int rep) {
     if (!mounted || _isPaused) return;
@@ -344,40 +340,41 @@ class _NativePoseWorkoutScreenState
     final exName = isKo ? exercise.nameKr : exercise.name;
 
     // 실시간 트래킹 중에는 뒤로가기 대신 "끝내기" 버튼으로만 나가도록 숨긴다.
-    final isLiveTracking = _isSupportedExercise &&
-        _isIOS &&
-        _phase == _PrepPhase.live &&
-        !_setComplete &&
-        !_workoutComplete;
+    final isLiveTracking =
+        _phase == _PrepPhase.live && !_setComplete && !_workoutComplete;
 
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: Stack(
-        children: [
-          Positioned.fill(child: _buildBody(context, exName, isKo)),
-          if (!isLiveTracking && !_setComplete)
-            Positioned.fill(
-              child: SafeArea(
-                child: Align(
-                  alignment: Alignment.topLeft,
-                  child: Padding(
-                    padding: const EdgeInsets.only(left: 8, top: 4),
-                    child: Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(24),
-                        onTap: () => Navigator.of(context).maybePop(),
-                        child: Container(
-                          width: 44,
-                          height: 44,
-                          decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.45),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.arrow_back_ios_rounded,
-                            color: Colors.white,
-                            size: 20,
+    // 운동 완료 화면에서는 뒤로가기(버튼·스와이프)를 막고 "결과 보러 가기"로만 나간다.
+    return PopScope(
+      canPop: !_workoutComplete,
+      child: Scaffold(
+        backgroundColor: Colors.black,
+        body: Stack(
+          children: [
+            Positioned.fill(child: _buildBody(context, exName, isKo)),
+            if (!isLiveTracking && !_setComplete && !_workoutComplete)
+              Positioned.fill(
+                child: SafeArea(
+                  child: Align(
+                    alignment: Alignment.topLeft,
+                    child: Padding(
+                      padding: const EdgeInsets.only(left: 8, top: 4),
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(24),
+                          onTap: () => Navigator.of(context).maybePop(),
+                          child: Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.45),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.arrow_back_ios_rounded,
+                              color: Colors.white,
+                              size: 20,
+                            ),
                           ),
                         ),
                       ),
@@ -385,8 +382,8 @@ class _NativePoseWorkoutScreenState
                   ),
                 ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -396,22 +393,6 @@ class _NativePoseWorkoutScreenState
     String exerciseName,
     bool isKo,
   ) {
-    if (!_isSupportedExercise) {
-      return _MessageState(
-        icon: Icons.error_outline_rounded,
-        title: '지원하지 않는 운동입니다.',
-        message: 'exerciseId: ${widget.exerciseId}',
-      );
-    }
-
-    if (!_isIOS) {
-      return const _MessageState(
-        icon: Icons.phone_iphone_rounded,
-        title: 'iOS 전용 기능',
-        message: '실시간 AI 카메라 코칭은 현재 iOS에서만 사용할 수 있습니다.',
-      );
-    }
-
     // Don't create the native UiKitView until the countdown has completed.
     if (_phase != _PrepPhase.live) {
       return _PrepOverlay(
@@ -424,12 +405,17 @@ class _NativePoseWorkoutScreenState
     return Stack(
       fit: StackFit.expand,
       children: [
-        UiKitView(
-          viewType: NativePoseWorkoutScreen.viewType,
-          creationParams: {'exerciseId': widget.exerciseId},
-          creationParamsCodec: const StandardMessageCodec(),
-          onPlatformViewCreated: _onPlatformViewCreated,
-        ),
+        // 네이티브 카메라는 iOS + 지원 운동에서만 띄운다. 그 외에는 검은 배경으로
+        // 두고 나머지 운동 흐름(HUD·휴식·완료)은 그대로 진행한다.
+        if (_isSupportedExercise && _isIOS)
+          UiKitView(
+            viewType: NativePoseWorkoutScreen.viewType,
+            creationParams: {'exerciseId': widget.exerciseId},
+            creationParamsCodec: const StandardMessageCodec(),
+            onPlatformViewCreated: _onPlatformViewCreated,
+          )
+        else
+          const ColoredBox(color: Colors.black),
         if (!_setComplete && !_workoutComplete)
           Positioned.fill(
             child: SafeArea(
@@ -464,8 +450,7 @@ class _NativePoseWorkoutScreenState
                 children: [
                   _DebugButton(label: '+1회 (테스트용)', onTap: _debugAddRep),
                   const SizedBox(height: 10),
-                  _DebugButton(
-                      label: '세트 채우기 (테스트용)', onTap: _debugFinishSet),
+                  _DebugButton(label: '세트 채우기 (테스트용)', onTap: _debugFinishSet),
                 ],
               ),
             ),
@@ -1733,7 +1718,8 @@ class _SetRow extends StatelessWidget {
 }
 
 /// Final overlay shown after the last set is finished.
-class _WorkoutCompleteOverlay extends StatelessWidget {
+/// 코리가 튀어나오며 등장하고, 위쪽에서 폭죽 조각이 터진다.
+class _WorkoutCompleteOverlay extends StatefulWidget {
   const _WorkoutCompleteOverlay({
     required this.totalSets,
     required this.isKo,
@@ -1745,123 +1731,247 @@ class _WorkoutCompleteOverlay extends StatelessWidget {
   final VoidCallback onFinish;
 
   @override
+  State<_WorkoutCompleteOverlay> createState() =>
+      _WorkoutCompleteOverlayState();
+}
+
+class _WorkoutCompleteOverlayState extends State<_WorkoutCompleteOverlay>
+    with SingleTickerProviderStateMixin {
+  static const _totalDuration = Duration(milliseconds: 3200);
+
+  late final AnimationController _ctrl =
+      AnimationController(vsync: this, duration: _totalDuration)..forward();
+  late final List<_ConfettiPiece> _pieces =
+      _ConfettiPiece.bursts(math.Random());
+
+  // 코리: 처음 0.6초 동안 통통 튀며 커진다.
+  late final Animation<double> _koriScale = CurvedAnimation(
+    parent: _ctrl,
+    curve: const Interval(0, 0.2, curve: Curves.elasticOut),
+  );
+  // 글씨·버튼: 코리 뒤에 이어서 서서히 나타난다.
+  late final Animation<double> _textFade = CurvedAnimation(
+    parent: _ctrl,
+    curve: const Interval(0.1, 0.3, curve: Curves.easeOut),
+  );
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final title = isKo ? '운동 완료!' : 'Workout Complete!';
+    final isKo = widget.isKo;
+    final title = isKo ? '운동 끝! 해냈다!' : 'Workout done!';
     final subtitle = isKo
-        ? '$totalSets 세트를 모두 마쳤어요. 수고하셨습니다!'
-        : 'You finished all $totalSets sets. Great job!';
-    final btnLabel = isKo ? '완료' : 'Finish';
+        ? '${widget.totalSets}세트 전부 해치웠어.\n오늘도 진짜 수고했어!'
+        : 'You crushed all ${widget.totalSets} sets.\nAwesome work today!';
+    final btnLabel = isKo ? '결과 보러 가기' : 'See my results';
 
     return Container(
-      color: Colors.black87,
-      child: Center(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 80,
-                height: 80,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: AppColors.green.withValues(alpha: 0.15),
-                  border: Border.all(color: AppColors.green, width: 2.5),
-                ),
-                child: const Icon(Icons.emoji_events_rounded,
-                    color: AppColors.green, size: 40),
-              ),
-              const SizedBox(height: 28),
-              Text(
-                title,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 28,
-                  fontWeight: FontWeight.w900,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 12),
-              Text(
-                subtitle,
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.65),
-                  fontSize: 15,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 40),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: onFinish,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.green,
-                    foregroundColor: AppColors.black,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16)),
-                  ),
-                  child: Text(
-                    btnLabel,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
+      color: AppColors.black,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
+              child: Column(
+                children: [
+                  const Spacer(),
+                  // 코리
+                  ScaleTransition(
+                    scale: _koriScale,
+                    child: SizedBox(
+                      width: 260,
+                      height: 280,
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          Image.asset(
+                            'assets/images/character/congrats.png',
+                            height: 270,
+                            fit: BoxFit.contain,
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
+                  const SizedBox(height: 24),
+                  FadeTransition(
+                    opacity: _textFade,
+                    child: Column(
+                      children: [
+                        Text(
+                          title,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: AppColors.white,
+                            fontSize: 28,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          subtitle,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: AppColors.white,
+                            fontSize: 17,
+                            fontWeight: FontWeight.w700,
+                            height: 1.4,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Spacer(),
+                  FadeTransition(
+                    opacity: _textFade,
+                    child: GestureDetector(
+                      onTap: widget.onFinish,
+                      child: Container(
+                        width: double.infinity,
+                        height: 56,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: AppColors.green,
+                          borderRadius: BorderRadius.circular(18),
+                        ),
+                        child: Text(
+                          btnLabel,
+                          style: const TextStyle(
+                            color: AppColors.black,
+                            fontSize: 17,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
-        ),
+          // 폭죽 (터치는 뒤로 통과)
+          IgnorePointer(
+            child: CustomPaint(
+              painter: _ConfettiPainter(
+                pieces: _pieces,
+                animation: _ctrl,
+                totalSeconds: _totalDuration.inMilliseconds / 1000,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _MessageState extends StatelessWidget {
-  const _MessageState({
-    required this.icon,
-    required this.title,
-    required this.message,
+/// 폭죽 조각 하나. 위치·속도는 화면 크기 비율(0~1) 기준이라 기기 크기와 무관하다.
+class _ConfettiPiece {
+  _ConfettiPiece({
+    required this.origin,
+    required this.velocity,
+    required this.delay,
+    required this.color,
+    required this.size,
+    required this.spin,
+    required this.isCircle,
   });
 
-  final IconData icon;
-  final String title;
-  final String message;
+  final Offset origin;
+  final Offset velocity; // 화면 비율 / 초
+  final double delay; // 초
+  final Color color;
+  final double size;
+  final double spin; // 회전 속도 (rad/s)
+  final bool isCircle;
+
+  static const _colors = [
+    AppColors.green,
+    AppColors.purple,
+    AppColors.pink,
+    AppColors.red,
+    AppColors.white,
+  ];
+
+  // 화면 위쪽 세 지점에서 시간차를 두고 터진다.
+  static List<_ConfettiPiece> bursts(math.Random rng) {
+    const centers = [Offset(0.5, 0.22), Offset(0.22, 0.3), Offset(0.78, 0.28)];
+    const delays = [0.1, 0.45, 0.8];
+    final pieces = <_ConfettiPiece>[];
+    for (var b = 0; b < centers.length; b++) {
+      for (var i = 0; i < 38; i++) {
+        final angle = rng.nextDouble() * math.pi * 2;
+        final speed = 0.25 + rng.nextDouble() * 0.45;
+        pieces.add(_ConfettiPiece(
+          origin: centers[b],
+          // 위로 조금 더 튀도록 y 속도를 보정한다.
+          velocity: Offset(
+              math.cos(angle) * speed * 0.8, math.sin(angle) * speed - 0.25),
+          delay: delays[b] + rng.nextDouble() * 0.08,
+          color: _colors[rng.nextInt(_colors.length)],
+          size: 5 + rng.nextDouble() * 6,
+          spin: (rng.nextDouble() - 0.5) * 14,
+          isCircle: rng.nextDouble() < 0.35,
+        ));
+      }
+    }
+    return pieces;
+  }
+}
+
+class _ConfettiPainter extends CustomPainter {
+  _ConfettiPainter({
+    required this.pieces,
+    required this.animation,
+    required this.totalSeconds,
+  }) : super(repaint: animation);
+
+  final List<_ConfettiPiece> pieces;
+  final Animation<double> animation;
+  final double totalSeconds;
+
+  static const _gravity = 0.9; // 화면 비율 / 초²
+  static const _life = 1.8; // 조각 하나가 보이는 시간(초)
 
   @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(28),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 46, color: AppColors.green),
-            const SizedBox(height: 16),
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.72),
-                fontSize: 14,
-                height: 1.4,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+  void paint(Canvas canvas, Size size) {
+    final now = animation.value * totalSeconds;
+    final paint = Paint();
+    for (final p in pieces) {
+      final t = now - p.delay;
+      if (t <= 0 || t >= _life) continue;
+      // 공기 저항처럼 점점 느려지는 수평 이동 + 중력 낙하
+      final drag = 1 - math.exp(-2.2 * t);
+      final x = p.origin.dx + p.velocity.dx * drag / 2.2;
+      final y = p.origin.dy +
+          p.velocity.dy * drag / 2.2 +
+          0.5 * _gravity * t * t * 0.5;
+      final fade =
+          t > _life * 0.6 ? 1 - (t - _life * 0.6) / (_life * 0.4) : 1.0;
+      paint.color = p.color.withValues(alpha: fade.clamp(0.0, 1.0));
+
+      canvas.save();
+      canvas.translate(x * size.width, y * size.height);
+      canvas.rotate(p.spin * t);
+      if (p.isCircle) {
+        canvas.drawCircle(Offset.zero, p.size / 2, paint);
+      } else {
+        canvas.drawRect(
+          Rect.fromCenter(
+              center: Offset.zero, width: p.size, height: p.size * 0.55),
+          paint,
+        );
+      }
+      canvas.restore();
+    }
   }
+
+  @override
+  bool shouldRepaint(_ConfettiPainter old) => false;
 }
