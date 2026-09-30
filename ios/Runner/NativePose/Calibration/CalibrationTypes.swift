@@ -1,9 +1,19 @@
 import Foundation
 
-/// The four capture directions, in the order the guidance recommends walking through them.
+/// The four capture directions.
 ///
 /// Yaw is counter-clockwise seen from above (the user turning to their own left is positive),
-/// 0 = facing the camera. `leftfront` shows the user's left-front side, i.e. they turned right.
+/// 0 = facing the camera. The raw value names the side of the body the camera sees, and is
+/// the label the fitting pipeline reads from the manifest:
+///
+/// | view         | yaw  | camera sees             | user was asked to        | UI label |
+/// |--------------|------|-------------------------|--------------------------|----------|
+/// | `front`      | 0    | front                   | face the camera          | 정면     |
+/// | `rightfront` | +60  | right-front side        | turn left                | 왼쪽     |
+/// | `back`       | 180  | back                    | keep turning             | 뒷면     |
+/// | `leftfront`  | −60  | left-front side         | keep turning (≈ right)   | 오른쪽   |
+///
+/// The UI names the turn, not the visible side, so "왼쪽" is `rightfront`.
 enum CalibrationView: String, CaseIterable {
     case front
     case leftfront
@@ -21,17 +31,28 @@ enum CalibrationView: String, CaseIterable {
 
     var fileName: String { "view_\(rawValue).jpg" }
 
+    /// Same wording as the capture screen chips (the direction the user turns).
     var koreanName: String {
         switch self {
         case .front: return "정면"
-        case .leftfront: return "왼쪽 옆면"
-        case .rightfront: return "오른쪽 옆면"
+        case .rightfront: return "왼쪽"
         case .back: return "뒷면"
+        case .leftfront: return "오른쪽"
         }
     }
 
-    /// One continuous turn: front, then keep turning the same way.
-    static let recommendedOrder: [CalibrationView] = [.front, .leftfront, .back, .rightfront]
+    /// What to say right after this view is captured, to send the user to the next one.
+    var nextStepInstruction: String {
+        switch self {
+        case .front: return "왼쪽으로 천천히 돌아주세요"
+        case .rightfront: return "계속 돌아서 등을 보여주세요"
+        case .back: return "계속 천천히 돌아주세요"
+        case .leftfront: return ""
+        }
+    }
+
+    /// One continuous turn to the user's left: front, left-oblique, back, right-oblique.
+    static let recommendedOrder: [CalibrationView] = [.front, .rightfront, .back, .leftfront]
 }
 
 /// COCO-17 keypoint in normalized image coordinates (0...1), unmirrored.
@@ -154,7 +175,9 @@ enum CalibrationGuidance: Equatable {
         case .turnedTooFar: return "너무 돌았어요, 살짝 돌아오세요"
         case .faceForwardWithBody: return "고개는 몸과 같은 방향으로, 시선만 화면으로 봐주세요"
         case .holdStill: return "그대로 멈춰주세요"
-        case .captured(let view): return "\(view.koreanName) 촬영 완료"
+        case .captured(let view):
+            let next = view.nextStepInstruction
+            return next.isEmpty ? "\(view.koreanName) 촬영 완료" : "\(view.koreanName) 촬영 완료, \(next)"
         case .finished: return "촬영이 모두 끝났어요"
         }
     }

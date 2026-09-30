@@ -2,7 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/i18n/locale_provider.dart';
 import '../../../models/workout_record_model.dart';
-import '../../../services/workout_records_service.dart';
+import '../../home/providers/home_provider.dart';
 
 /// 리포트 상단 탭 (운동량 / 분석).
 enum ReportSection { volume, analysis }
@@ -66,7 +66,8 @@ class ReportVolumeData {
 
 final reportVolumeProvider = Provider<ReportVolumeData>((ref) {
   final period = ref.watch(reportPeriodProvider);
-  final records = ref.watch(workoutRecordsProvider).value ?? const [];
+  // 캘린더·홈과 같은 기록(실제 + 목데이터)을 본다.
+  final records = ref.watch(allRecordsProvider);
   final isKo = ref.watch(selectedLanguageProvider) == 'ko';
   return buildReportVolume(records, period, isKo: isKo, now: DateTime.now());
 });

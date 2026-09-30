@@ -26,19 +26,29 @@ class OnboardingScanScreen extends ConsumerStatefulWidget {
 }
 
 class _OnboardingScanScreenState extends ConsumerState<OnboardingScanScreen> {
-  /// Capture order the guidance recommends: one continuous turn.
-  static const _views = ['front', 'leftfront', 'back', 'rightfront'];
+  /// Capture order the guidance recommends: one continuous turn to the user's left.
+  ///
+  /// Keys are the saved view labels (which side of the body the camera sees);
+  /// the chip labels name the way the user turns, so "왼쪽" is `rightfront`.
+  static const _views = ['front', 'rightfront', 'back', 'leftfront'];
   static const _viewLabels = {
     'front': '정면',
-    'leftfront': '왼쪽 옆면',
-    'rightfront': '오른쪽 옆면',
+    'rightfront': '왼쪽',
     'back': '뒷면',
+    'leftfront': '오른쪽',
+  };
+  static const _viewHints = {
+    'front': '카메라 보고 팔은 A자로,\n발은 어깨너비로 벌려 줘!',
+    'rightfront': '제자리에서 왼쪽으로 비스듬히 돌아 줘.\n고개도 몸이랑 같은 방향으로!',
+    'back': '이번엔 등을 보여 줘.\n팔은 계속 A자 유지!',
+    'leftfront': '마지막! 오른쪽으로 비스듬히 돌아 줘.\n거의 다 왔어!',
   };
 
   MethodChannel? _channel;
   CalibrationSilhouettes? _silhouettes;
 
-  String _guidance = '화면 안으로 들어와 주세요';
+  /// Latest line from the native judging engine; null until the camera reports in.
+  String? _guidance;
   String? _targetView = 'front';
   List<String> _capturedViews = const [];
   double _holdProgress = 0;
@@ -70,7 +80,7 @@ class _OnboardingScanScreenState extends ConsumerState<OnboardingScanScreen> {
         final args = (call.arguments as Map).cast<String, dynamic>();
         final sessionPath = args['sessionPath'] as String?;
         setState(() {
-          _guidance = args['guidance'] as String? ?? _guidance;
+          _guidance = args['guidance'] as String?;
           _targetView = args['targetView'] as String?;
           _capturedViews =
               (args['capturedViews'] as List?)?.cast<String>() ?? _capturedViews;
@@ -111,13 +121,17 @@ class _OnboardingScanScreenState extends ConsumerState<OnboardingScanScreen> {
                     fontSize: 18,
                     fontWeight: FontWeight.w900)),
             SizedBox(height: 16),
+            _HelpTip('폰은 세로로 똑바로 세워서 고정해 줘'),
+            SizedBox(height: 10),
+            _HelpTip('머리부터 발끝까지 화면에 다 나오게 서 줘'),
+            SizedBox(height: 10),
+            _HelpTip('팔은 몸에서 떼서 A자로, 팔꿈치는 쭉 펴 줘'),
+            SizedBox(height: 10),
+            _HelpTip('처음 선 자리에서 발 떼지 말고 제자리에서 돌아 줘'),
+            SizedBox(height: 10),
             _HelpTip('몸에 붙는 옷이면 더 정확해'),
             SizedBox(height: 10),
-            _HelpTip('휴대폰을 세워서 고정하고 2m 정도 떨어져 줘'),
-            SizedBox(height: 10),
-            _HelpTip('팔은 A자로 벌리고, 제자리에서 천천히 한 바퀴 돌면 돼'),
-            SizedBox(height: 10),
-            _HelpTip('뒤를 볼 땐 화면이 안 보이니까 소리를 들어줘'),
+            _HelpTip('등을 보일 땐 화면이 안 보이니까 소리를 들어 줘'),
           ],
         ),
       ),
@@ -134,7 +148,8 @@ class _OnboardingScanScreenState extends ConsumerState<OnboardingScanScreen> {
   @override
   Widget build(BuildContext context) {
     final currentIndex = _capturedViews.length.clamp(0, _views.length - 1);
-    final label = _viewLabels[_targetView] ?? _viewLabels[_views[currentIndex]]!;
+    final view = _targetView ?? _views[currentIndex];
+    final label = _viewLabels[view]!;
 
     return Theme(
       data: ThemeData.dark().copyWith(
@@ -170,7 +185,7 @@ class _OnboardingScanScreenState extends ConsumerState<OnboardingScanScreen> {
                         ),
                         Expanded(
                           child: Text(
-                            '${_capturedViews.length} / ${_views.length} · $label',
+                            '${currentIndex + 1} / ${_views.length} · $label',
                             textAlign: TextAlign.center,
                             style: const TextStyle(
                                 color: AppColors.white,
@@ -239,6 +254,7 @@ class _OnboardingScanScreenState extends ConsumerState<OnboardingScanScreen> {
                     padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
                     child: _StatusBubble(
                       message: _error == null ? _guidance : _errorMessage(_error!),
+                      hint: _viewHints[view]!,
                       holdProgress: _holdProgress,
                     ),
                   ),
@@ -277,10 +293,14 @@ class _OnboardingScanScreenState extends ConsumerState<OnboardingScanScreen> {
       };
 }
 
+/// Kori's speech bubble: the live guidance from the judging engine on top, the
+/// per-view instruction underneath (alone until the camera reports in).
 class _StatusBubble extends StatelessWidget {
-  const _StatusBubble({required this.message, required this.holdProgress});
+  const _StatusBubble(
+      {required this.message, required this.hint, required this.holdProgress});
 
-  final String message;
+  final String? message;
+  final String hint;
   final double holdProgress;
 
   @override
@@ -302,13 +322,28 @@ class _StatusBubble extends StatelessWidget {
           ),
           const SizedBox(width: 12),
           Expanded(
-            child: Text(
-              message,
-              style: const TextStyle(
-                  color: AppColors.black,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 14,
-                  height: 1.4),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (message != null)
+                  Text(
+                    message!,
+                    style: const TextStyle(
+                        color: AppColors.black,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 14,
+                        height: 1.4),
+                  ),
+                Text(
+                  hint,
+                  style: TextStyle(
+                      color: AppColors.black,
+                      fontWeight: message == null ? FontWeight.w800 : FontWeight.w600,
+                      fontSize: message == null ? 13 : 12,
+                      height: 1.4),
+                ),
+              ],
             ),
           ),
           if (holdProgress > 0) ...[

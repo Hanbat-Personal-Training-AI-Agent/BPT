@@ -15,17 +15,22 @@ void main() {
         .any((img) => (img.image as AssetImage).assetName == assetName);
 
     // Defaults to front.
-    expect(showsAsset('assets/images/character/front.png'), isTrue);
+    expect(showsAsset('assets/images/character/guide_front.png'), isTrue);
 
-    await tester.tap(find.text('왼쪽 측면'));
+    await tester.tap(find.text('왼쪽'));
     await tester.pump();
-    expect(showsAsset('assets/images/character/left.png'), isTrue);
-    expect(showsAsset('assets/images/character/front.png'), isFalse);
+    expect(showsAsset('assets/images/character/guide_left.png'), isTrue);
+    expect(showsAsset('assets/images/character/guide_front.png'), isFalse);
 
-    await tester.tap(find.text('오른쪽 측면'));
+    await tester.tap(find.text('뒷면'));
     await tester.pump();
-    expect(showsAsset('assets/images/character/right.png'), isTrue);
-    expect(showsAsset('assets/images/character/left.png'), isFalse);
+    expect(showsAsset('assets/images/character/guide_back.png'), isTrue);
+    expect(showsAsset('assets/images/character/guide_left.png'), isFalse);
+
+    await tester.tap(find.text('오른쪽'));
+    await tester.pump();
+    expect(showsAsset('assets/images/character/guide_right.png'), isTrue);
+    expect(showsAsset('assets/images/character/guide_back.png'), isFalse);
 
     expect(tester.takeException(), isNull);
   });

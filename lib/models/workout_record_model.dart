@@ -42,6 +42,11 @@ class WorkoutRecordModel {
   int get achievement =>
       targetReps == 0 ? 100 : ((correctReps / targetReps) * 100).clamp(0.0, 100.0).round();
 
+  /// 세트당 평균 반복 수. `totalReps` 는 전체 세트 합계라서 목록에 "N세트 × M회"
+  /// 로 보여줄 때는 이 값을 쓴다.
+  int get repsPerSet =>
+      targetSets <= 0 ? totalReps : (totalReps / targetSets).round();
+
   String get durationFormatted {
     final m = durationSeconds ~/ 60;
     final s = durationSeconds % 60;

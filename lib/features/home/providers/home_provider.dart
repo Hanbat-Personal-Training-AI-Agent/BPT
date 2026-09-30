@@ -30,11 +30,22 @@ BodyCheckState resolveBodyCheckState(int daysSinceLastCheck) {
   return daysUntilNext <= 3 ? BodyCheckState.dueSoon : BodyCheckState.fresh;
 }
 
-// ── All records (falls back to mock data while there's no real history) ───
+// ── All records ───────────────────────────────────────────────────────────
+// 시연용으로 목데이터를 실제 기록과 항상 같이 보여준다. 실제 기록만 보고 싶으면
+// false 로 바꾸면 된다 (그때도 실제 기록이 없으면 목데이터를 보여준다).
+const showMockWorkoutRecords = true;
+
 final allRecordsProvider = Provider<List<WorkoutRecordModel>>((ref) {
   final recordsAsync = ref.watch(workoutRecordsProvider);
-  final records = recordsAsync.value ?? [];
-  return records.isEmpty ? mockWorkoutRecords : records;
+  // 한 회도 세지 못하고 끝난 기록(테스트 중 바로 종료 등)은 목록에서 뺀다.
+  final records = (recordsAsync.value ?? [])
+      .where((r) => r.totalReps > 0)
+      .toList();
+  if (records.isEmpty) return mockWorkoutRecords;
+  if (!showMockWorkoutRecords) return records;
+  // 화면들은 최신 기록이 앞에 오는 순서를 기대한다.
+  return [...records, ...mockWorkoutRecords]
+    ..sort((a, b) => b.date.compareTo(a.date));
 });
 
 // ── Recent 3 records ──────────────────────────────────────────────────────

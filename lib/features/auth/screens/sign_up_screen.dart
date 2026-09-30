@@ -179,7 +179,9 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
           controller: _email,
           focus: _emailFocus,
           hint: '이메일을 입력해줘',
-          keyboard: TextInputType.emailAddress,
+          // visiblePassword: iOS에서 영문(ASCII) 키보드로 열린다.
+          keyboard: TextInputType.visiblePassword,
+          formatters: englishOnlyFormatters,
           onChanged: notifier.changeEmail,
         ),
         if (_emailTouched && state.email.isNotEmpty && !state.emailValid) ...[
@@ -195,6 +197,9 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
             controller: _id,
             focus: _idFocus,
             hint: '아이디를 입력해줘',
+            // visiblePassword: iOS에서 영문(ASCII) 키보드로 열린다.
+            keyboard: TextInputType.visiblePassword,
+            formatters: englishOnlyFormatters,
             onChanged: notifier.changeId,
           )),
           const SizedBox(width: 12),

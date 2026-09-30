@@ -113,6 +113,10 @@ final class CalibrationEngineTests: XCTestCase {
         XCTAssertEqual(captured.first?.view, .front)
         XCTAssertEqual(engine.capturedViews, [.front])
         XCTAssertNotNil(engine.reference)
+        // The recommended turn is to the user's left, so the right-front side comes next.
+        XCTAssertEqual(engine.targetView, .rightfront)
+        XCTAssertEqual(captured.first.map { CalibrationGuidance.captured($0.view).message },
+                       "정면 촬영 완료, 왼쪽으로 천천히 돌아주세요")
         // Nothing fires before the hold is satisfied.
         XCTAssertNil(outputs.first?.capture)
         XCTAssertEqual(outputs.first?.guidance, .holdStill)
