@@ -20,6 +20,7 @@ class NativePoseWorkoutScreen extends ConsumerStatefulWidget {
     required this.exerciseId,
     this.targetReps = 15,
     this.targetSets = 3,
+    this.setWeightsKg = const [],
   });
 
   static const String viewType = 'bpt/native_pose_camera';
@@ -34,6 +35,9 @@ class NativePoseWorkoutScreen extends ConsumerStatefulWidget {
   final String exerciseId;
   final int targetReps;
   final int targetSets;
+
+  /// 운동 시작 화면에서 정한 세트별 무게. 비어 있으면 운동별 기본 무게를 쓴다.
+  final List<int> setWeightsKg;
 
   @override
   ConsumerState<NativePoseWorkoutScreen> createState() =>
@@ -79,7 +83,19 @@ class _NativePoseWorkoutScreenState
   int _restRemaining = _defaultRestSeconds;
   final List<_SetResult> _setResults = [];
 
-  int get _weightForSet => mockWeightKgByExercise[widget.exerciseId] ?? 20;
+  /// [setNumber] 번째 세트(1부터)에 들 무게.
+  int _weightForSetNumber(int setNumber) {
+    final weights = widget.setWeightsKg;
+    if (setNumber >= 1 && setNumber <= weights.length) {
+      return weights[setNumber - 1];
+    }
+    return mockWeightKgByExercise[widget.exerciseId] ?? 20;
+  }
+
+  int get _weightForSet => _weightForSetNumber(_currentSet);
+
+  List<int> get _plannedWeights =>
+      List.generate(widget.targetSets, (i) => _weightForSetNumber(i + 1));
 
   bool get _isSupportedExercise =>
       NativePoseWorkoutScreen.supportedExerciseIds.contains(widget.exerciseId);
@@ -392,7 +408,7 @@ class _NativePoseWorkoutScreenState
               restTotal: _restTotal,
               setResults: _setResults,
               targetReps: widget.targetReps,
-              nextWeightKg: _weightForSet,
+              plannedWeightsKg: _plannedWeights,
               onAdjustRest: _adjustRest,
               onSkipRest: _skipRest,
               onNext: _startNextSet,
@@ -1021,7 +1037,7 @@ class _BreakTimeOverlay extends StatelessWidget {
     required this.restTotal,
     required this.setResults,
     required this.targetReps,
-    required this.nextWeightKg,
+    required this.plannedWeightsKg,
     required this.onAdjustRest,
     required this.onSkipRest,
     required this.onNext,
@@ -1035,7 +1051,7 @@ class _BreakTimeOverlay extends StatelessWidget {
   final int restTotal;
   final List<_SetResult> setResults;
   final int targetReps;
-  final int nextWeightKg;
+  final List<int> plannedWeightsKg;
   final ValueChanged<int> onAdjustRest;
   final VoidCallback onSkipRest;
   final VoidCallback onNext;
@@ -1135,7 +1151,7 @@ class _BreakTimeOverlay extends StatelessWidget {
                 completedSet: completedSet,
                 totalSets: totalSets,
                 targetReps: targetReps,
-                nextWeightKg: nextWeightKg,
+                plannedWeightsKg: plannedWeightsKg,
               ),
               const SizedBox(height: 20),
               GestureDetector(
@@ -1428,14 +1444,15 @@ class _SoFarCard extends StatefulWidget {
     required this.completedSet,
     required this.totalSets,
     required this.targetReps,
-    required this.nextWeightKg,
+    required this.plannedWeightsKg,
   });
   final bool isKo;
   final List<_SetResult> results;
   final int completedSet;
   final int totalSets;
   final int targetReps;
-  final int nextWeightKg;
+  // 아직 안 한 세트는 계획된 무게를 보여준다.
+  final List<int> plannedWeightsKg;
 
   @override
   State<_SoFarCard> createState() => _SoFarCardState();
@@ -1513,7 +1530,10 @@ class _SoFarCardState extends State<_SoFarCard> {
                   setNumber: setNumber,
                   done: done,
                   reps: result?.reps ?? widget.targetReps,
-                  weightKg: result?.weightKg ?? widget.nextWeightKg,
+                  weightKg: result?.weightKg ??
+                      (index < widget.plannedWeightsKg.length
+                          ? widget.plannedWeightsKg[index]
+                          : 0),
                   badCount: result?.badCount ?? 0,
                 );
               },

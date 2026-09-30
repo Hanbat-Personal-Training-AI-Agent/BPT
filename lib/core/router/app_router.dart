@@ -171,10 +171,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           var exerciseId = 'squat';
           var targetReps = 15;
           var targetSets = 3;
+          var setWeightsKg = const <int>[];
           if (extra is Map) {
             exerciseId = extra['exerciseId'] as String? ?? exerciseId;
             targetReps = extra['targetReps'] as int? ?? targetReps;
             targetSets = extra['targetSets'] as int? ?? targetSets;
+            setWeightsKg = _intList(extra['setWeightsKg']);
           }
           return _slidePage(
             state,
@@ -182,6 +184,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               exerciseId: exerciseId,
               targetReps: targetReps,
               targetSets: targetSets,
+              setWeightsKg: setWeightsKg,
             ),
           );
         },
@@ -193,10 +196,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           var exerciseId = 'squat';
           var targetReps = 15;
           var targetSets = 3;
+          var setWeightsKg = const <int>[];
           if (extra is Map) {
             exerciseId = extra['exerciseId'] as String? ?? exerciseId;
             targetReps = extra['targetReps'] as int? ?? targetReps;
             targetSets = extra['targetSets'] as int? ?? targetSets;
+            setWeightsKg = _intList(extra['setWeightsKg']);
           } else if (extra is String) {
             exerciseId = extra;
           }
@@ -206,6 +211,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               exerciseId: exerciseId,
               targetReps: targetReps,
               targetSets: targetSets,
+              setWeightsKg: setWeightsKg,
             ),
           );
         },
@@ -220,6 +226,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     ],
   );
 });
+
+/// route extra 로 넘어온 세트별 무게 목록. 없거나 형식이 다르면 빈 목록.
+List<int> _intList(Object? raw) => raw is List
+    ? raw.whereType<num>().map((e) => e.toInt()).toList()
+    : const <int>[];
 
 CustomTransitionPage<void> _fadePage(GoRouterState state, Widget child) {
   return CustomTransitionPage<void>(

@@ -121,6 +121,7 @@ class _WorkoutResultScreenState extends ConsumerState<WorkoutResultScreen>
   Future<void> _saveRecord() async {
     final r = widget.result;
     final dto = WorkoutMetadataRequestDto(
+      weightKg: _heaviestSetWeightKg(),
       clientRecordId: DateTime.now().millisecondsSinceEpoch.toString(),
       exerciseId: r['exerciseId'] as String? ?? 'squat',
       exerciseName: r['exerciseName'] as String? ?? 'Squat',
@@ -136,6 +137,20 @@ class _WorkoutResultScreenState extends ConsumerState<WorkoutResultScreen>
     );
 
     await ref.read(workoutRecordsProvider.notifier).addMetadataRecord(dto);
+  }
+
+  /// 기록에는 무게를 하나만 저장하므로, 세트마다 무게가 다르면 가장 무거운
+  /// 세트의 무게를 대표값으로 쓴다. 세트 정보가 없으면 운동별 기본 무게.
+  double _heaviestSetWeightKg() {
+    final exerciseId = widget.result['exerciseId'] as String? ?? 'squat';
+    final raw = widget.result['setResults'];
+    final weights = raw is List
+        ? raw
+            .map((e) => ((e as Map)['weightKg'] as num?)?.toDouble() ?? 0)
+            .toList()
+        : const <double>[];
+    if (weights.isNotEmpty) return weights.reduce(math.max);
+    return (mockWeightKgByExercise[exerciseId] ?? 0).toDouble();
   }
 
   /// 세트별 원본 기록(`setResults`)이 넘어온 경우 그대로 쓰고, 과거 기록
