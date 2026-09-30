@@ -4,10 +4,31 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/route_constants.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/app_toast.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../providers/onboarding_provider.dart';
 import '../widgets/onboarding_scaffold.dart';
 
 const _weeklyFrequencyOptions = [2, 3, 4, 5, 6];
+
+/// 신체 정보·목표 입력이 끝났으니 서버에 저장한다. 저장을 기다리지 않고 바로
+/// 체형 측정으로 넘어가며, 실패하면 토스트로만 알린다.
+Future<void> _saveOnboarding(
+    BuildContext context, WidgetRef ref, OnboardingState state) async {
+  final auth = ref.read(authNotifierProvider);
+  // 서버 계정으로 로그인한 경우에만 저장한다 (오프라인·테스트 로그인은 제외).
+  if (!auth.isLoggedIn || auth.isOfflineMode) return;
+  final error = await auth.saveOnboarding(
+    gender: state.genderCode,
+    heightCm: state.heightCm,
+    weightKg: state.weightKg,
+    workoutGoal: state.goalCode,
+    weeklyFrequency: state.weeklyFrequency,
+  );
+  if (error != null && context.mounted) {
+    showAppToast(context, error, type: AppToastType.error);
+  }
+}
 
 class OnboardingGoalScreen extends ConsumerWidget {
   const OnboardingGoalScreen({super.key});
@@ -22,7 +43,10 @@ class OnboardingGoalScreen extends ConsumerWidget {
       totalSteps: 4,
       onBack: () => context.pop(),
       nextLabel: '체형 측정하러 가기',
-      onNext: () => context.push(RouteConstants.onboardingCapture),
+      onNext: () {
+        _saveOnboarding(context, ref, state);
+        context.push(RouteConstants.onboardingCapture);
+      },
       headline: const Text('목표가 뭐야?\n거기에 맞춰줄게',
           style: TextStyle(
               fontSize: 27,

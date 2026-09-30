@@ -113,7 +113,15 @@ class AuthFieldLabel extends StatelessWidget {
       );
 }
 
-/// 이메일/아이디 입력용: 영문·숫자·기호(공백 제외)만 허용해 한글 입력을 막는다.
+/// 아이디 입력용: 대문자는 소문자로 바꾸고, 영문 소문자·숫자만 20자까지 받는다.
+final idInputFormatters = <TextInputFormatter>[
+  TextInputFormatter.withFunction((oldValue, newValue) =>
+      newValue.copyWith(text: newValue.text.toLowerCase())),
+  FilteringTextInputFormatter.allow(RegExp(r'[a-z0-9]')),
+  LengthLimitingTextInputFormatter(20),
+];
+
+/// 이메일 입력용: 영문·숫자·기호(공백 제외)만 허용해 한글 입력을 막는다.
 final englishOnlyFormatters = <TextInputFormatter>[
   FilteringTextInputFormatter.allow(RegExp(r'[\x21-\x7E]')),
 ];

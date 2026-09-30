@@ -1,10 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-/// UI preview only. Never creates a Firebase account.
-/// 아이디 목업 중복확인용으로 이미 사용 중인 것으로 취급하는 값들.
-const signUpTakenIds = ['test', 'admin', 'bpt'];
+import '../../../core/network/api_client.dart';
+import '../../../services/auth_service.dart';
 
-enum IdCheckStatus { none, available, taken }
+/// 아이디 규칙: 영문 소문자·숫자 4~20자. (백엔드는 _ 까지 허용하지만 앱에서는 받지 않는다)
+final authIdPattern = RegExp(r'^[a-z0-9]{4,20}$');
+
+enum IdCheckStatus { none, checking, available, taken, failed }
 
 class SignUpState {
   const SignUpState({
@@ -30,6 +32,7 @@ class SignUpState {
   final bool agreed;
 
   bool get nameValid => name.trim().length >= 2;
+  bool get idFormatValid => authIdPattern.hasMatch(id.trim());
   bool get emailValid => RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(email);
   bool get passwordValid =>
       password.length >= 8 &&
@@ -39,6 +42,13 @@ class SignUpState {
       confirmPassword.isNotEmpty && confirmPassword == password;
   bool get phoneValid =>
       RegExp(r'^01[016789]\d{7,8}$').hasMatch(phone.replaceAll('-', ''));
+
+  /// 백엔드 형식(010-1234-5678)으로 맞춘 전화번호
+  String get formattedPhone {
+    final d = phone.replaceAll(RegExp(r'\D'), '');
+    final mid = d.length - 7; // 가운데 자리: 3자리(10자리 번호) 또는 4자리
+    return '${d.substring(0, 3)}-${d.substring(3, 3 + mid)}-${d.substring(3 + mid)}';
+  }
 
   bool get canSubmit =>
       nameValid &&
@@ -75,7 +85,9 @@ class SignUpState {
 }
 
 class SignUpNotifier extends StateNotifier<SignUpState> {
-  SignUpNotifier() : super(const SignUpState());
+  SignUpNotifier(this._authService) : super(const SignUpState());
+
+  final AuthService _authService;
 
   void changeName(String value) => state = state.copyWith(name: value);
 
@@ -86,13 +98,21 @@ class SignUpNotifier extends StateNotifier<SignUpState> {
         idCheck: IdCheckStatus.none,
       );
 
-  void checkIdDuplicate() {
-    if (state.id.trim().isEmpty) return;
-    state = state.copyWith(
-      idCheck: signUpTakenIds.contains(state.id.trim())
-          ? IdCheckStatus.taken
-          : IdCheckStatus.available,
-    );
+  /// 서버에 아이디 사용 가능 여부를 묻는다.
+  Future<void> checkIdDuplicate() async {
+    final id = state.id.trim();
+    if (!state.idFormatValid) return;
+    state = state.copyWith(idCheck: IdCheckStatus.checking);
+    IdCheckStatus result;
+    try {
+      final available = await _authService.checkUsername(id);
+      result = available ? IdCheckStatus.available : IdCheckStatus.taken;
+    } on ApiException {
+      result = IdCheckStatus.failed;
+    }
+    // 확인하는 사이에 아이디를 바꿨으면 결과를 버린다.
+    if (!mounted || state.id.trim() != id) return;
+    state = state.copyWith(idCheck: result);
   }
 
   void changePassword(String value) => state = state.copyWith(password: value);
@@ -109,5 +129,5 @@ class SignUpNotifier extends StateNotifier<SignUpState> {
 
 final signUpProvider =
     StateNotifierProvider.autoDispose<SignUpNotifier, SignUpState>(
-  (ref) => SignUpNotifier(),
+  (ref) => SignUpNotifier(ref.watch(authServiceProvider)),
 );

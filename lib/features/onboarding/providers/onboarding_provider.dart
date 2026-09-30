@@ -45,6 +45,21 @@ class OnboardingState {
         WorkoutGoal.healthCare => '건강 관리',
       };
 
+  /// 백엔드로 보낼 성별 값 (MALE / FEMALE / NOT_SPECIFIED)
+  String get genderCode => switch (gender) {
+        Gender.male => 'MALE',
+        Gender.female => 'FEMALE',
+        Gender.preferNotToSay || null => 'NOT_SPECIFIED',
+      };
+
+  /// 백엔드로 보낼 운동 목표 값
+  String get goalCode => switch (goal) {
+        WorkoutGoal.strength => 'STRENGTH',
+        WorkoutGoal.weightLoss => 'WEIGHT_LOSS',
+        WorkoutGoal.postureCorrection => 'POSTURE_CORRECTION',
+        WorkoutGoal.healthCare => 'HEALTH_CARE',
+      };
+
   OnboardingState copyWith({
     Gender? gender,
     double? heightCm,
