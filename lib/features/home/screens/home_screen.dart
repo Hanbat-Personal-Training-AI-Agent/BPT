@@ -661,7 +661,9 @@ class _RecentRecordTile extends StatelessWidget {
           'elapsedSeconds': record.durationSeconds,
           'postureScore': record.postureScore,
           'feedbackHistory': record.feedbackNotes,
-          'targetSets': 0,
+          'targetReps': record.targetReps,
+          'targetSets': record.targetSets,
+          'weightKg': record.weightKg,
           'isHistory': true,
           'date': record.date,
         },
@@ -707,13 +709,16 @@ class _RecentRecordTile extends StatelessWidget {
                   const SizedBox(height: 3),
                   Text(
                     () {
-                      final weight = mockWeightKgByExercise[record.exerciseId];
+                      final weight = record.weightKg > 0
+                          ? record.weightKg
+                          : mockWeightKgByExercise[record.exerciseId]
+                              ?.toDouble();
                       final weightPart = (weight == null || weight == 0)
                           ? ''
-                          : ' · ${weight}kg';
+                          : ' · ${weight == weight.roundToDouble() ? weight.toInt() : weight}kg';
                       return isKo
-                          ? '${record.targetSets}세트 × ${record.totalReps}회$weightPart'
-                          : '${record.targetSets} sets × ${record.totalReps} reps$weightPart';
+                          ? '${record.targetSets}세트 × ${record.repsPerSet}회$weightPart'
+                          : '${record.targetSets} sets × ${record.repsPerSet} reps$weightPart';
                     }(),
                     style: TextStyle(
                       color: Colors.white.withValues(alpha: 0.5),

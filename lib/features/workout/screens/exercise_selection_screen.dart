@@ -169,6 +169,18 @@ class _ExerciseSelectionScreenState
 
     final repsForStart =
         _perSetEnabled ? _perSetValues.first.reps : _uniformReps;
+    // 세트마다 할 반복 수.
+    final repsListForStart = List<int>.generate(
+      _setCount,
+      (i) => _perSetEnabled ? _perSetValues[i].reps : _uniformReps,
+    );
+    // 세트마다 들 무게. 맨몸 운동은 0kg.
+    final weightsForStart = List<int>.generate(
+      _setCount,
+      (i) => !_usesWeight
+          ? 0
+          : (_perSetEnabled ? _perSetValues[i].weight : _uniformWeight),
+    );
 
     return Theme(
       data: AppTheme.darkTheme,
@@ -254,6 +266,9 @@ class _ExerciseSelectionScreenState
                               'exerciseId': ex.id,
                               'targetReps': repsForStart,
                               'targetSets': _setCount,
+                              'setWeightsKg': weightsForStart,
+                              'setReps': repsListForStart,
+                              'restSeconds': _restSeconds,
                             },
                           );
                         },

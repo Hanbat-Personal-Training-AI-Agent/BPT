@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -9,6 +10,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/route_constants.dart';
 import '../../../core/i18n/locale_provider.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/app_toast.dart';
 import '../../../data/mock_data.dart';
 
 /// Preparation phases shown before the native camera PlatformView appears.
@@ -20,7 +22,12 @@ class NativePoseWorkoutScreen extends ConsumerStatefulWidget {
     required this.exerciseId,
     this.targetReps = 15,
     this.targetSets = 3,
+    this.setWeightsKg = const [],
+    this.setReps = const [],
+    this.restSeconds = _defaultRestSeconds,
   });
+
+  static const int _defaultRestSeconds = 60;
 
   static const String viewType = 'bpt/native_pose_camera';
   static const Set<String> supportedExerciseIds = {
@@ -35,6 +42,15 @@ class NativePoseWorkoutScreen extends ConsumerStatefulWidget {
   final int targetReps;
   final int targetSets;
 
+  /// 운동 시작 화면에서 정한 세트별 무게. 비어 있으면 운동별 기본 무게를 쓴다.
+  final List<int> setWeightsKg;
+
+  /// 세트별 목표 반복 수. 비어 있으면 모든 세트가 [targetReps].
+  final List<int> setReps;
+
+  /// 세트 사이 쉬는 시간(초).
+  final int restSeconds;
+
   @override
   ConsumerState<NativePoseWorkoutScreen> createState() =>
       _NativePoseWorkoutScreenState();
@@ -44,8 +60,6 @@ class _NativePoseWorkoutScreenState
     extends ConsumerState<NativePoseWorkoutScreen> {
   // "카메라를 몸 전체가 보이도록 맞춰주세요" guidance duration before the countdown.
   static const Duration _alignHintDuration = Duration(milliseconds: 1800);
-
-  static const int _defaultRestSeconds = 60;
 
   Timer? _alignTimer;
   Timer? _countdownTimer;
@@ -75,11 +89,37 @@ class _NativePoseWorkoutScreenState
   int _badCountThisSet = 0;
 
   // 브레이크 타임: 세트 사이 휴식 타이머 + 세트별 기록.
-  int _restTotal = _defaultRestSeconds;
-  int _restRemaining = _defaultRestSeconds;
+  late int _restTotal = widget.restSeconds;
+  late int _restRemaining = widget.restSeconds;
   final List<_SetResult> _setResults = [];
 
-  int get _weightForSet => mockWeightKgByExercise[widget.exerciseId] ?? 20;
+  /// [setNumber] 번째 세트(1부터)에 들 무게.
+  int _weightForSetNumber(int setNumber) {
+    final weights = widget.setWeightsKg;
+    if (setNumber >= 1 && setNumber <= weights.length) {
+      return weights[setNumber - 1];
+    }
+    return mockWeightKgByExercise[widget.exerciseId] ?? 20;
+  }
+
+  int get _weightForSet => _weightForSetNumber(_currentSet);
+
+  List<int> get _plannedWeights =>
+      List.generate(widget.targetSets, (i) => _weightForSetNumber(i + 1));
+
+  /// [setNumber] 번째 세트(1부터)의 목표 반복 수.
+  int _repsForSetNumber(int setNumber) {
+    final reps = widget.setReps;
+    if (setNumber >= 1 && setNumber <= reps.length) return reps[setNumber - 1];
+    return widget.targetReps;
+  }
+
+  int get _targetRepsThisSet => _repsForSetNumber(_currentSet);
+
+  List<int> get _plannedReps =>
+      List.generate(widget.targetSets, (i) => _repsForSetNumber(i + 1));
+
+  int get _totalPlannedReps => _plannedReps.fold(0, (sum, r) => sum + r);
 
   bool get _isSupportedExercise =>
       NativePoseWorkoutScreen.supportedExerciseIds.contains(widget.exerciseId);
@@ -88,23 +128,14 @@ class _NativePoseWorkoutScreenState
   int get _repsThisSet {
     final v = _latestNativeRep - _setStartRep;
     if (v < 0) return 0;
-    if (v > widget.targetReps) return widget.targetReps;
+    if (v > _targetRepsThisSet) return _targetRepsThisSet;
     return v;
-  }
-
-  int get _completedWorkoutReps {
-    final completedSets = (_currentSet - 1).clamp(0, widget.targetSets);
-    final total = completedSets * widget.targetReps + _repsThisSet;
-    return total.clamp(0, widget.targetReps * widget.targetSets);
   }
 
   @override
   void initState() {
     super.initState();
-    // Only run the prep/countdown flow when we will actually show the camera.
-    if (_isSupportedExercise && _isIOS) {
-      _alignTimer = Timer(_alignHintDuration, _startCountdown);
-    }
+    _alignTimer = Timer(_alignHintDuration, _startCountdown);
   }
 
   void _startCountdown() {
@@ -148,6 +179,12 @@ class _NativePoseWorkoutScreenState
     return null;
   }
 
+  // TODO(temp): 시뮬레이터에서는 카메라가 없어 반복 수가 안 들어오므로,
+  // 네이티브 카메라가 보내는 반복 수 이벤트를 대신 흉내 내는 테스트용 동작.
+  void _debugAddRep() => _onNativeUpdate(_latestNativeRep + 1);
+
+  void _debugFinishSet() => _onNativeUpdate(_setStartRep + _targetRepsThisSet);
+
   void _onNativeUpdate(int rep) {
     if (!mounted || _isPaused) return;
     setState(() {
@@ -161,10 +198,10 @@ class _NativePoseWorkoutScreenState
         _hasFeedbackStarted = true;
         if (!_feedbackGood) _badCountThisSet += 1;
       }
-      if (rep - _setStartRep >= widget.targetReps) {
+      if (rep - _setStartRep >= _targetRepsThisSet) {
         _setResults.add(
           _SetResult(
-            reps: widget.targetReps,
+            reps: _targetRepsThisSet,
             weightKg: _weightForSet,
             badCount: _badCountThisSet,
           ),
@@ -185,8 +222,8 @@ class _NativePoseWorkoutScreenState
 
   void _startRestTimer() {
     _restTimer?.cancel();
-    _restTotal = _defaultRestSeconds;
-    _restRemaining = _defaultRestSeconds;
+    _restTotal = widget.restSeconds;
+    _restRemaining = widget.restSeconds;
     _restTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (!mounted) {
         timer.cancel();
@@ -202,7 +239,8 @@ class _NativePoseWorkoutScreenState
 
   void _adjustRest(int deltaSeconds) {
     setState(() {
-      _restTotal = (_restTotal + deltaSeconds).clamp(15, 300);
+      _restTotal = (_restTotal + deltaSeconds)
+          .clamp(15, math.max(300, widget.restSeconds));
       _restRemaining = (_restRemaining + deltaSeconds).clamp(0, _restTotal);
     });
   }
@@ -222,15 +260,64 @@ class _NativePoseWorkoutScreenState
     });
   }
 
+  /// "끝내기"를 실수로 눌렀을 수 있으니 한 번 더 확인한다. 모달이 떠 있는 동안은
+  /// 일시정지해서 반복 수가 세지지 않게 하고, 닫으면 원래 상태로 돌려놓는다.
+  Future<void> _confirmEnd() async {
+    final wasPaused = _isPaused;
+    if (!wasPaused) setState(() => _isPaused = true);
+
+    final doneReps =
+        _setResults.fold<int>(0, (sum, r) => sum + r.reps) + _repsThisSet;
+    final isKo = ref.read(appStringsProvider).locale == 'ko';
+    final confirmed = await showDialog<bool>(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.7),
+      builder: (_) => _EndConfirmDialog(isKo: isKo, doneReps: doneReps),
+    );
+    if (!mounted) return;
+
+    if (confirmed == true) {
+      _finishWorkout();
+    } else if (!wasPaused) {
+      setState(() => _isPaused = false);
+    }
+  }
+
   void _finishWorkout() {
     if (!mounted) return;
+
+    // 실제로 수행한 세트만 모은다. 끝난 세트 + 진행 중이던 세트(1회 이상 했을 때).
+    // 쉬는 시간/완료 화면에서는 방금 끝낸 세트가 이미 _setResults 에 들어 있다.
+    final performedSets = [
+      ..._setResults,
+      if (!_setComplete && !_workoutComplete && _repsThisSet > 0)
+        _SetResult(
+          reps: _repsThisSet,
+          weightKg: _weightForSet,
+          badCount: _badCountThisSet,
+        ),
+    ];
+    final totalReps = performedSets.fold<int>(0, (sum, r) => sum + r.reps);
+
+    // 한 회도 안 하고 끝내면 기록을 남기지 않고 운동 선택 화면으로 돌아간다.
+    if (totalReps == 0) {
+      final isKo = ref.read(appStringsProvider).locale == 'ko';
+      showAppToast(
+        context,
+        isKo
+            ? '수행한 횟수가 없어서 기록을 저장하지 않았어.'
+            : 'No reps completed, so nothing was saved.',
+      );
+      context.go(RouteConstants.exerciseSelection);
+      return;
+    }
 
     final exercise = findExercise(widget.exerciseId);
     final elapsedSeconds = _liveStartedAt == null
         ? 0
         : DateTime.now().difference(_liveStartedAt!).inSeconds;
 
-    final totalBad = _setResults.fold<int>(0, (sum, r) => sum + r.badCount);
+    final totalBad = performedSets.fold<int>(0, (sum, r) => sum + r.badCount);
 
     context.pushReplacement(
       RouteConstants.workoutResult,
@@ -238,15 +325,16 @@ class _NativePoseWorkoutScreenState
         'exerciseId': widget.exerciseId,
         'exerciseName': exercise.name,
         'exerciseNameKr': exercise.nameKr,
-        'totalReps': _completedWorkoutReps,
-        'correctReps': _completedWorkoutReps - totalBad,
+        'totalReps': totalReps,
+        'correctReps': totalReps - totalBad,
         'incorrectReps': totalBad,
         'elapsedSeconds': elapsedSeconds,
         'postureScore': null,
         'feedbackHistory': null,
-        'targetReps': widget.targetReps * widget.targetSets,
-        'targetSets': widget.targetSets,
-        'setResults': _setResults
+        'targetReps': _totalPlannedReps,
+        // 계획한 세트 수가 아니라 실제로 수행한 세트 수를 기록한다.
+        'targetSets': performedSets.length,
+        'setResults': performedSets
             .map((r) => {
                   'reps': r.reps,
                   'weightKg': r.weightKg,
@@ -275,40 +363,41 @@ class _NativePoseWorkoutScreenState
     final exName = isKo ? exercise.nameKr : exercise.name;
 
     // 실시간 트래킹 중에는 뒤로가기 대신 "끝내기" 버튼으로만 나가도록 숨긴다.
-    final isLiveTracking = _isSupportedExercise &&
-        _isIOS &&
-        _phase == _PrepPhase.live &&
-        !_setComplete &&
-        !_workoutComplete;
+    final isLiveTracking =
+        _phase == _PrepPhase.live && !_setComplete && !_workoutComplete;
 
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: Stack(
-        children: [
-          Positioned.fill(child: _buildBody(context, exName, isKo)),
-          if (!isLiveTracking && !_setComplete)
-            Positioned.fill(
-              child: SafeArea(
-                child: Align(
-                  alignment: Alignment.topLeft,
-                  child: Padding(
-                    padding: const EdgeInsets.only(left: 8, top: 4),
-                    child: Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(24),
-                        onTap: () => Navigator.of(context).maybePop(),
-                        child: Container(
-                          width: 44,
-                          height: 44,
-                          decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.45),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.arrow_back_ios_rounded,
-                            color: Colors.white,
-                            size: 20,
+    // 운동 완료 화면에서는 뒤로가기(버튼·스와이프)를 막고 "결과 보러 가기"로만 나간다.
+    return PopScope(
+      canPop: !_workoutComplete,
+      child: Scaffold(
+        backgroundColor: Colors.black,
+        body: Stack(
+          children: [
+            Positioned.fill(child: _buildBody(context, exName, isKo)),
+            if (!isLiveTracking && !_setComplete && !_workoutComplete)
+              Positioned.fill(
+                child: SafeArea(
+                  child: Align(
+                    alignment: Alignment.topLeft,
+                    child: Padding(
+                      padding: const EdgeInsets.only(left: 8, top: 4),
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(24),
+                          onTap: () => Navigator.of(context).maybePop(),
+                          child: Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.45),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.arrow_back_ios_rounded,
+                              color: Colors.white,
+                              size: 20,
+                            ),
                           ),
                         ),
                       ),
@@ -316,8 +405,8 @@ class _NativePoseWorkoutScreenState
                   ),
                 ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -327,22 +416,6 @@ class _NativePoseWorkoutScreenState
     String exerciseName,
     bool isKo,
   ) {
-    if (!_isSupportedExercise) {
-      return _MessageState(
-        icon: Icons.error_outline_rounded,
-        title: '지원하지 않는 운동입니다.',
-        message: 'exerciseId: ${widget.exerciseId}',
-      );
-    }
-
-    if (!_isIOS) {
-      return const _MessageState(
-        icon: Icons.phone_iphone_rounded,
-        title: 'iOS 전용 기능',
-        message: '실시간 AI 카메라 코칭은 현재 iOS에서만 사용할 수 있습니다.',
-      );
-    }
-
     // Don't create the native UiKitView until the countdown has completed.
     if (_phase != _PrepPhase.live) {
       return _PrepOverlay(
@@ -355,12 +428,17 @@ class _NativePoseWorkoutScreenState
     return Stack(
       fit: StackFit.expand,
       children: [
-        UiKitView(
-          viewType: NativePoseWorkoutScreen.viewType,
-          creationParams: {'exerciseId': widget.exerciseId},
-          creationParamsCodec: const StandardMessageCodec(),
-          onPlatformViewCreated: _onPlatformViewCreated,
-        ),
+        // 네이티브 카메라는 iOS + 지원 운동에서만 띄운다. 그 외에는 검은 배경으로
+        // 두고 나머지 운동 흐름(HUD·휴식·완료)은 그대로 진행한다.
+        if (_isSupportedExercise && _isIOS)
+          UiKitView(
+            viewType: NativePoseWorkoutScreen.viewType,
+            creationParams: {'exerciseId': widget.exerciseId},
+            creationParamsCodec: const StandardMessageCodec(),
+            onPlatformViewCreated: _onPlatformViewCreated,
+          )
+        else
+          const ColoredBox(color: Colors.black),
         if (!_setComplete && !_workoutComplete)
           Positioned.fill(
             child: SafeArea(
@@ -370,14 +448,33 @@ class _NativePoseWorkoutScreenState
                 exerciseName: exerciseName,
                 elapsedSeconds: _elapsedSeconds,
                 reps: _repsThisSet,
-                targetReps: widget.targetReps,
+                targetReps: _targetRepsThisSet,
                 currentSet: _currentSet,
                 totalSets: widget.targetSets,
                 feedbackIdle: !_hasFeedbackStarted,
                 feedbackGood: _feedbackGood,
                 isPaused: _isPaused,
                 onTogglePause: _togglePause,
-                onEnd: _finishWorkout,
+                onEnd: _confirmEnd,
+              ),
+            ),
+          ),
+        // TODO(temp): 디버그 빌드에서만 보이는 테스트 버튼. 실제 기기 카메라
+        // 연동 검증이 끝나면 제거할 것.
+        if (kDebugMode && !_setComplete && !_workoutComplete)
+          Positioned(
+            right: 16,
+            top: 0,
+            bottom: 0,
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  _DebugButton(label: '+1회 (테스트용)', onTap: _debugAddRep),
+                  const SizedBox(height: 10),
+                  _DebugButton(label: '세트 채우기 (테스트용)', onTap: _debugFinishSet),
+                ],
               ),
             ),
           ),
@@ -391,8 +488,8 @@ class _NativePoseWorkoutScreenState
               restRemaining: _restRemaining,
               restTotal: _restTotal,
               setResults: _setResults,
-              targetReps: widget.targetReps,
-              nextWeightKg: _weightForSet,
+              plannedReps: _plannedReps,
+              plannedWeightsKg: _plannedWeights,
               onAdjustRest: _adjustRest,
               onSkipRest: _skipRest,
               onNext: _startNextSet,
@@ -405,6 +502,35 @@ class _NativePoseWorkoutScreenState
             onFinish: _finishWorkout,
           ),
       ],
+    );
+  }
+}
+
+class _DebugButton extends StatelessWidget {
+  const _DebugButton({required this.label, required this.onTap});
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.6),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppColors.red, width: 1.5),
+        ),
+        child: Text(
+          label,
+          style: const TextStyle(
+            color: AppColors.red,
+            fontSize: 12,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ),
     );
   }
 }
@@ -633,6 +759,8 @@ class _LiveHud extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
           child: Row(
             children: [
+              Expanded(child: _EndButton(isKo: isKo, onTap: onEnd)),
+              const SizedBox(width: 8),
               Expanded(
                 child: _PauseButton(
                   isKo: isKo,
@@ -640,8 +768,6 @@ class _LiveHud extends StatelessWidget {
                   onTap: onTogglePause,
                 ),
               ),
-              const SizedBox(width: 8),
-              Expanded(child: _EndButton(isKo: isKo, onTap: onEnd)),
             ],
           ),
         ),
@@ -939,16 +1065,15 @@ class _PauseButton extends StatelessWidget {
         height: 52,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.08),
+          color: AppColors.pink,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
               isPaused ? Icons.play_arrow_rounded : Icons.pause_rounded,
-              color: Colors.white,
+              color: AppColors.black,
               size: 18,
             ),
             const SizedBox(width: 6),
@@ -957,7 +1082,7 @@ class _PauseButton extends StatelessWidget {
                   ? (isKo ? '이어서 하기' : 'Resume')
                   : (isKo ? '잠깐 쉬기' : 'Pause'),
               style: const TextStyle(
-                color: Colors.white,
+                color: AppColors.black,
                 fontSize: 14,
                 fontWeight: FontWeight.w900,
               ),
@@ -982,14 +1107,147 @@ class _EndButton extends StatelessWidget {
         height: 52,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: AppColors.pink,
+          color: Colors.white.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
         ),
         child: Text(
           isKo ? '끝내기' : 'End',
           style: const TextStyle(
-            color: AppColors.black,
+            color: Colors.white,
             fontSize: 14,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// "끝내기" 확인 모달. 왼쪽에 말하는 코리, 오른쪽에 안내 문구.
+class _EndConfirmDialog extends StatelessWidget {
+  const _EndConfirmDialog({required this.isKo, required this.doneReps});
+  final bool isKo;
+  final int doneReps;
+
+  @override
+  Widget build(BuildContext context) {
+    final title = isKo ? '벌써 끝낼 거야?' : 'Done already?';
+    // 한 회도 안 했으면 기록이 저장되지 않는다는 걸 미리 알려준다.
+    final message = doneReps == 0
+        ? (isKo
+            ? '아직 한 회도 안 했어.\n지금 끝내면 기록이 안 남아!'
+            : "You haven't done a rep yet.\nNothing will be saved.")
+        : (isKo
+            ? '지금까지 한 $doneReps회까지만\n기록으로 남길게!'
+            : "I'll save the $doneReps reps\nyou've done so far.");
+
+    return Dialog(
+      backgroundColor: AppColors.grey,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(28),
+        side: const BorderSide(color: Color(0xFF5C5C5C)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(18, 22, 18, 18),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                Image.asset(
+                  'assets/images/character/face2.png',
+                  width: 76,
+                  height: 76,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          color: AppColors.white,
+                          fontSize: 19,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        message,
+                        style: TextStyle(
+                          color: AppColors.white.withValues(alpha: 0.65),
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          height: 1.4,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 22),
+            // 운동 화면 하단 버튼과 같은 배치: 왼쪽 끝내기, 오른쪽 계속하기.
+            Row(
+              children: [
+                Expanded(
+                  child: _DialogButton(
+                    label: isKo ? '끝내기' : 'End',
+                    primary: false,
+                    onTap: () => Navigator.of(context).pop(true),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _DialogButton(
+                    label: isKo ? '계속하기' : 'Keep going',
+                    primary: true,
+                    onTap: () => Navigator.of(context).pop(false),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DialogButton extends StatelessWidget {
+  const _DialogButton({
+    required this.label,
+    required this.primary,
+    required this.onTap,
+  });
+  final String label;
+  final bool primary;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: 52,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: primary
+              ? AppColors.green
+              : Colors.white.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(16),
+          border: primary
+              ? null
+              : Border.all(color: Colors.white.withValues(alpha: 0.15)),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: primary ? AppColors.black : Colors.white,
+            fontSize: 15,
             fontWeight: FontWeight.w900,
           ),
         ),
@@ -1020,8 +1278,8 @@ class _BreakTimeOverlay extends StatelessWidget {
     required this.restRemaining,
     required this.restTotal,
     required this.setResults,
-    required this.targetReps,
-    required this.nextWeightKg,
+    required this.plannedReps,
+    required this.plannedWeightsKg,
     required this.onAdjustRest,
     required this.onSkipRest,
     required this.onNext,
@@ -1034,8 +1292,8 @@ class _BreakTimeOverlay extends StatelessWidget {
   final int restRemaining;
   final int restTotal;
   final List<_SetResult> setResults;
-  final int targetReps;
-  final int nextWeightKg;
+  final List<int> plannedReps;
+  final List<int> plannedWeightsKg;
   final ValueChanged<int> onAdjustRest;
   final VoidCallback onSkipRest;
   final VoidCallback onNext;
@@ -1134,8 +1392,8 @@ class _BreakTimeOverlay extends StatelessWidget {
                 results: setResults,
                 completedSet: completedSet,
                 totalSets: totalSets,
-                targetReps: targetReps,
-                nextWeightKg: nextWeightKg,
+                plannedReps: plannedReps,
+                plannedWeightsKg: plannedWeightsKg,
               ),
               const SizedBox(height: 20),
               GestureDetector(
@@ -1427,15 +1685,16 @@ class _SoFarCard extends StatefulWidget {
     required this.results,
     required this.completedSet,
     required this.totalSets,
-    required this.targetReps,
-    required this.nextWeightKg,
+    required this.plannedReps,
+    required this.plannedWeightsKg,
   });
   final bool isKo;
   final List<_SetResult> results;
   final int completedSet;
   final int totalSets;
-  final int targetReps;
-  final int nextWeightKg;
+  // 아직 안 한 세트는 계획된 반복 수·무게를 보여준다.
+  final List<int> plannedReps;
+  final List<int> plannedWeightsKg;
 
   @override
   State<_SoFarCard> createState() => _SoFarCardState();
@@ -1512,8 +1771,14 @@ class _SoFarCardState extends State<_SoFarCard> {
                   isKo: widget.isKo,
                   setNumber: setNumber,
                   done: done,
-                  reps: result?.reps ?? widget.targetReps,
-                  weightKg: result?.weightKg ?? widget.nextWeightKg,
+                  reps: result?.reps ??
+                      (index < widget.plannedReps.length
+                          ? widget.plannedReps[index]
+                          : 0),
+                  weightKg: result?.weightKg ??
+                      (index < widget.plannedWeightsKg.length
+                          ? widget.plannedWeightsKg[index]
+                          : 0),
                   badCount: result?.badCount ?? 0,
                 );
               },
@@ -1608,7 +1873,8 @@ class _SetRow extends StatelessWidget {
 }
 
 /// Final overlay shown after the last set is finished.
-class _WorkoutCompleteOverlay extends StatelessWidget {
+/// 코리가 튀어나오며 등장하고, 위쪽에서 폭죽 조각이 터진다.
+class _WorkoutCompleteOverlay extends StatefulWidget {
   const _WorkoutCompleteOverlay({
     required this.totalSets,
     required this.isKo,
@@ -1620,123 +1886,247 @@ class _WorkoutCompleteOverlay extends StatelessWidget {
   final VoidCallback onFinish;
 
   @override
+  State<_WorkoutCompleteOverlay> createState() =>
+      _WorkoutCompleteOverlayState();
+}
+
+class _WorkoutCompleteOverlayState extends State<_WorkoutCompleteOverlay>
+    with SingleTickerProviderStateMixin {
+  static const _totalDuration = Duration(milliseconds: 3200);
+
+  late final AnimationController _ctrl =
+      AnimationController(vsync: this, duration: _totalDuration)..forward();
+  late final List<_ConfettiPiece> _pieces =
+      _ConfettiPiece.bursts(math.Random());
+
+  // 코리: 처음 0.6초 동안 통통 튀며 커진다.
+  late final Animation<double> _koriScale = CurvedAnimation(
+    parent: _ctrl,
+    curve: const Interval(0, 0.2, curve: Curves.elasticOut),
+  );
+  // 글씨·버튼: 코리 뒤에 이어서 서서히 나타난다.
+  late final Animation<double> _textFade = CurvedAnimation(
+    parent: _ctrl,
+    curve: const Interval(0.1, 0.3, curve: Curves.easeOut),
+  );
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final title = isKo ? '운동 완료!' : 'Workout Complete!';
+    final isKo = widget.isKo;
+    final title = isKo ? '운동 끝! 해냈다!' : 'Workout done!';
     final subtitle = isKo
-        ? '$totalSets 세트를 모두 마쳤어요. 수고하셨습니다!'
-        : 'You finished all $totalSets sets. Great job!';
-    final btnLabel = isKo ? '완료' : 'Finish';
+        ? '${widget.totalSets}세트 전부 해치웠어.\n오늘도 진짜 수고했어!'
+        : 'You crushed all ${widget.totalSets} sets.\nAwesome work today!';
+    final btnLabel = isKo ? '결과 보러 가기' : 'See my results';
 
     return Container(
-      color: Colors.black87,
-      child: Center(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 80,
-                height: 80,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: AppColors.green.withValues(alpha: 0.15),
-                  border: Border.all(color: AppColors.green, width: 2.5),
-                ),
-                child: const Icon(Icons.emoji_events_rounded,
-                    color: AppColors.green, size: 40),
-              ),
-              const SizedBox(height: 28),
-              Text(
-                title,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 28,
-                  fontWeight: FontWeight.w900,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 12),
-              Text(
-                subtitle,
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.65),
-                  fontSize: 15,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 40),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: onFinish,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.green,
-                    foregroundColor: AppColors.black,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16)),
-                  ),
-                  child: Text(
-                    btnLabel,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
+      color: AppColors.black,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
+              child: Column(
+                children: [
+                  const Spacer(),
+                  // 코리
+                  ScaleTransition(
+                    scale: _koriScale,
+                    child: SizedBox(
+                      width: 260,
+                      height: 280,
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          Image.asset(
+                            'assets/images/character/congrats.png',
+                            height: 270,
+                            fit: BoxFit.contain,
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
+                  const SizedBox(height: 24),
+                  FadeTransition(
+                    opacity: _textFade,
+                    child: Column(
+                      children: [
+                        Text(
+                          title,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: AppColors.white,
+                            fontSize: 28,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          subtitle,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: AppColors.white,
+                            fontSize: 17,
+                            fontWeight: FontWeight.w700,
+                            height: 1.4,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Spacer(),
+                  FadeTransition(
+                    opacity: _textFade,
+                    child: GestureDetector(
+                      onTap: widget.onFinish,
+                      child: Container(
+                        width: double.infinity,
+                        height: 56,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: AppColors.green,
+                          borderRadius: BorderRadius.circular(18),
+                        ),
+                        child: Text(
+                          btnLabel,
+                          style: const TextStyle(
+                            color: AppColors.black,
+                            fontSize: 17,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
-        ),
+          // 폭죽 (터치는 뒤로 통과)
+          IgnorePointer(
+            child: CustomPaint(
+              painter: _ConfettiPainter(
+                pieces: _pieces,
+                animation: _ctrl,
+                totalSeconds: _totalDuration.inMilliseconds / 1000,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _MessageState extends StatelessWidget {
-  const _MessageState({
-    required this.icon,
-    required this.title,
-    required this.message,
+/// 폭죽 조각 하나. 위치·속도는 화면 크기 비율(0~1) 기준이라 기기 크기와 무관하다.
+class _ConfettiPiece {
+  _ConfettiPiece({
+    required this.origin,
+    required this.velocity,
+    required this.delay,
+    required this.color,
+    required this.size,
+    required this.spin,
+    required this.isCircle,
   });
 
-  final IconData icon;
-  final String title;
-  final String message;
+  final Offset origin;
+  final Offset velocity; // 화면 비율 / 초
+  final double delay; // 초
+  final Color color;
+  final double size;
+  final double spin; // 회전 속도 (rad/s)
+  final bool isCircle;
+
+  static const _colors = [
+    AppColors.green,
+    AppColors.purple,
+    AppColors.pink,
+    AppColors.red,
+    AppColors.white,
+  ];
+
+  // 화면 위쪽 세 지점에서 시간차를 두고 터진다.
+  static List<_ConfettiPiece> bursts(math.Random rng) {
+    const centers = [Offset(0.5, 0.22), Offset(0.22, 0.3), Offset(0.78, 0.28)];
+    const delays = [0.1, 0.45, 0.8];
+    final pieces = <_ConfettiPiece>[];
+    for (var b = 0; b < centers.length; b++) {
+      for (var i = 0; i < 38; i++) {
+        final angle = rng.nextDouble() * math.pi * 2;
+        final speed = 0.25 + rng.nextDouble() * 0.45;
+        pieces.add(_ConfettiPiece(
+          origin: centers[b],
+          // 위로 조금 더 튀도록 y 속도를 보정한다.
+          velocity: Offset(
+              math.cos(angle) * speed * 0.8, math.sin(angle) * speed - 0.25),
+          delay: delays[b] + rng.nextDouble() * 0.08,
+          color: _colors[rng.nextInt(_colors.length)],
+          size: 5 + rng.nextDouble() * 6,
+          spin: (rng.nextDouble() - 0.5) * 14,
+          isCircle: rng.nextDouble() < 0.35,
+        ));
+      }
+    }
+    return pieces;
+  }
+}
+
+class _ConfettiPainter extends CustomPainter {
+  _ConfettiPainter({
+    required this.pieces,
+    required this.animation,
+    required this.totalSeconds,
+  }) : super(repaint: animation);
+
+  final List<_ConfettiPiece> pieces;
+  final Animation<double> animation;
+  final double totalSeconds;
+
+  static const _gravity = 0.9; // 화면 비율 / 초²
+  static const _life = 1.8; // 조각 하나가 보이는 시간(초)
 
   @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(28),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 46, color: AppColors.green),
-            const SizedBox(height: 16),
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.72),
-                fontSize: 14,
-                height: 1.4,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+  void paint(Canvas canvas, Size size) {
+    final now = animation.value * totalSeconds;
+    final paint = Paint();
+    for (final p in pieces) {
+      final t = now - p.delay;
+      if (t <= 0 || t >= _life) continue;
+      // 공기 저항처럼 점점 느려지는 수평 이동 + 중력 낙하
+      final drag = 1 - math.exp(-2.2 * t);
+      final x = p.origin.dx + p.velocity.dx * drag / 2.2;
+      final y = p.origin.dy +
+          p.velocity.dy * drag / 2.2 +
+          0.5 * _gravity * t * t * 0.5;
+      final fade =
+          t > _life * 0.6 ? 1 - (t - _life * 0.6) / (_life * 0.4) : 1.0;
+      paint.color = p.color.withValues(alpha: fade.clamp(0.0, 1.0));
+
+      canvas.save();
+      canvas.translate(x * size.width, y * size.height);
+      canvas.rotate(p.spin * t);
+      if (p.isCircle) {
+        canvas.drawCircle(Offset.zero, p.size / 2, paint);
+      } else {
+        canvas.drawRect(
+          Rect.fromCenter(
+              center: Offset.zero, width: p.size, height: p.size * 0.55),
+          paint,
+        );
+      }
+      canvas.restore();
+    }
   }
+
+  @override
+  bool shouldRepaint(_ConfettiPainter old) => false;
 }

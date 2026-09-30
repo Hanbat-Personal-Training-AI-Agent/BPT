@@ -44,6 +44,10 @@ const _monthsEn = [
 
 DateTime _dateOnly(DateTime d) => DateTime(d.year, d.month, d.day);
 
+// 62.5 → "62.5", 60.0 → "60"
+String _formatKg(double kg) =>
+    kg == kg.roundToDouble() ? kg.toInt().toString() : kg.toString();
+
 class CalendarScreen extends ConsumerStatefulWidget {
   const CalendarScreen({super.key});
 
@@ -405,7 +409,9 @@ class _CalendarRecordTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ex = findExercise(record.exerciseId);
-    final weight = mockWeightKgByExercise[record.exerciseId];
+    final weight = record.weightKg > 0
+        ? record.weightKg
+        : mockWeightKgByExercise[record.exerciseId]?.toDouble();
 
     return GestureDetector(
       onTap: () => context.push(
@@ -420,7 +426,9 @@ class _CalendarRecordTile extends StatelessWidget {
           'elapsedSeconds': record.durationSeconds,
           'postureScore': record.postureScore,
           'feedbackHistory': record.feedbackNotes,
-          'targetSets': 0,
+          'targetReps': record.targetReps,
+          'targetSets': record.targetSets,
+          'weightKg': record.weightKg,
           'isHistory': true,
           'date': record.date,
         },
@@ -473,7 +481,7 @@ class _CalendarRecordTile extends StatelessWidget {
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
-                      '${weight}kg',
+                      '${_formatKg(weight)}kg',
                       style: const TextStyle(
                         color: AppColors.black,
                         fontWeight: FontWeight.w800,
@@ -492,8 +500,8 @@ class _CalendarRecordTile extends StatelessWidget {
             const SizedBox(height: 10),
             Text(
               isKo
-                  ? '${record.targetSets}세트 × ${record.totalReps}회'
-                  : '${record.targetSets} sets × ${record.totalReps} reps',
+                  ? '${record.targetSets}세트 × ${record.repsPerSet}회'
+                  : '${record.targetSets} sets × ${record.repsPerSet} reps',
               style: TextStyle(
                 color: Colors.white.withValues(alpha: 0.5),
                 fontSize: 13,

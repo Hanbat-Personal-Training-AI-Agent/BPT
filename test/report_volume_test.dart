@@ -1,5 +1,6 @@
 import 'package:bpt/data/dto/workout_metadata_dto.dart';
 import 'package:bpt/data/repositories/workout_repository.dart';
+import 'package:bpt/features/home/providers/home_provider.dart';
 import 'package:bpt/features/report/providers/report_provider.dart';
 import 'package:bpt/features/report/screens/report_screen.dart';
 import 'package:bpt/features/report/widgets/report_volume_tab.dart';
@@ -128,6 +129,9 @@ void main() {
       overrides: [
         workoutRecordsProvider.overrideWith(
             (ref) => WorkoutRecordsNotifier(_FakeRepository(records))),
+        // 리포트는 목데이터가 섞인 allRecordsProvider 를 보므로, 테스트에서는
+        // 넣어 준 기록만 보이게 고정한다.
+        allRecordsProvider.overrideWithValue(records),
       ],
       child: const MaterialApp(home: ReportScreen()),
     ));
