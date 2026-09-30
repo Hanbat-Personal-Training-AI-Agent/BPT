@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -9,6 +10,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/route_constants.dart';
 import '../../../core/i18n/locale_provider.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/app_toast.dart';
 import '../../../data/mock_data.dart';
 
 /// Preparation phases shown before the native camera PlatformView appears.
@@ -21,7 +23,11 @@ class NativePoseWorkoutScreen extends ConsumerStatefulWidget {
     this.targetReps = 15,
     this.targetSets = 3,
     this.setWeightsKg = const [],
+    this.setReps = const [],
+    this.restSeconds = _defaultRestSeconds,
   });
+
+  static const int _defaultRestSeconds = 60;
 
   static const String viewType = 'bpt/native_pose_camera';
   static const Set<String> supportedExerciseIds = {
@@ -39,6 +45,12 @@ class NativePoseWorkoutScreen extends ConsumerStatefulWidget {
   /// 운동 시작 화면에서 정한 세트별 무게. 비어 있으면 운동별 기본 무게를 쓴다.
   final List<int> setWeightsKg;
 
+  /// 세트별 목표 반복 수. 비어 있으면 모든 세트가 [targetReps].
+  final List<int> setReps;
+
+  /// 세트 사이 쉬는 시간(초).
+  final int restSeconds;
+
   @override
   ConsumerState<NativePoseWorkoutScreen> createState() =>
       _NativePoseWorkoutScreenState();
@@ -48,8 +60,6 @@ class _NativePoseWorkoutScreenState
     extends ConsumerState<NativePoseWorkoutScreen> {
   // "카메라를 몸 전체가 보이도록 맞춰주세요" guidance duration before the countdown.
   static const Duration _alignHintDuration = Duration(milliseconds: 1800);
-
-  static const int _defaultRestSeconds = 60;
 
   Timer? _alignTimer;
   Timer? _countdownTimer;
@@ -79,8 +89,8 @@ class _NativePoseWorkoutScreenState
   int _badCountThisSet = 0;
 
   // 브레이크 타임: 세트 사이 휴식 타이머 + 세트별 기록.
-  int _restTotal = _defaultRestSeconds;
-  int _restRemaining = _defaultRestSeconds;
+  late int _restTotal = widget.restSeconds;
+  late int _restRemaining = widget.restSeconds;
   final List<_SetResult> _setResults = [];
 
   /// [setNumber] 번째 세트(1부터)에 들 무게.
@@ -97,6 +107,20 @@ class _NativePoseWorkoutScreenState
   List<int> get _plannedWeights =>
       List.generate(widget.targetSets, (i) => _weightForSetNumber(i + 1));
 
+  /// [setNumber] 번째 세트(1부터)의 목표 반복 수.
+  int _repsForSetNumber(int setNumber) {
+    final reps = widget.setReps;
+    if (setNumber >= 1 && setNumber <= reps.length) return reps[setNumber - 1];
+    return widget.targetReps;
+  }
+
+  int get _targetRepsThisSet => _repsForSetNumber(_currentSet);
+
+  List<int> get _plannedReps =>
+      List.generate(widget.targetSets, (i) => _repsForSetNumber(i + 1));
+
+  int get _totalPlannedReps => _plannedReps.fold(0, (sum, r) => sum + r);
+
   bool get _isSupportedExercise =>
       NativePoseWorkoutScreen.supportedExerciseIds.contains(widget.exerciseId);
   bool get _isIOS => !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
@@ -104,14 +128,8 @@ class _NativePoseWorkoutScreenState
   int get _repsThisSet {
     final v = _latestNativeRep - _setStartRep;
     if (v < 0) return 0;
-    if (v > widget.targetReps) return widget.targetReps;
+    if (v > _targetRepsThisSet) return _targetRepsThisSet;
     return v;
-  }
-
-  int get _completedWorkoutReps {
-    final completedSets = (_currentSet - 1).clamp(0, widget.targetSets);
-    final total = completedSets * widget.targetReps + _repsThisSet;
-    return total.clamp(0, widget.targetReps * widget.targetSets);
   }
 
   @override
@@ -164,6 +182,13 @@ class _NativePoseWorkoutScreenState
     return null;
   }
 
+  // TODO(temp): 시뮬레이터에서는 카메라가 없어 반복 수가 안 들어오므로,
+  // 네이티브 카메라가 보내는 반복 수 이벤트를 대신 흉내 내는 테스트용 동작.
+  void _debugAddRep() => _onNativeUpdate(_latestNativeRep + 1);
+
+  void _debugFinishSet() =>
+      _onNativeUpdate(_setStartRep + _targetRepsThisSet);
+
   void _onNativeUpdate(int rep) {
     if (!mounted || _isPaused) return;
     setState(() {
@@ -177,10 +202,10 @@ class _NativePoseWorkoutScreenState
         _hasFeedbackStarted = true;
         if (!_feedbackGood) _badCountThisSet += 1;
       }
-      if (rep - _setStartRep >= widget.targetReps) {
+      if (rep - _setStartRep >= _targetRepsThisSet) {
         _setResults.add(
           _SetResult(
-            reps: widget.targetReps,
+            reps: _targetRepsThisSet,
             weightKg: _weightForSet,
             badCount: _badCountThisSet,
           ),
@@ -201,8 +226,8 @@ class _NativePoseWorkoutScreenState
 
   void _startRestTimer() {
     _restTimer?.cancel();
-    _restTotal = _defaultRestSeconds;
-    _restRemaining = _defaultRestSeconds;
+    _restTotal = widget.restSeconds;
+    _restRemaining = widget.restSeconds;
     _restTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (!mounted) {
         timer.cancel();
@@ -218,7 +243,8 @@ class _NativePoseWorkoutScreenState
 
   void _adjustRest(int deltaSeconds) {
     setState(() {
-      _restTotal = (_restTotal + deltaSeconds).clamp(15, 300);
+      _restTotal = (_restTotal + deltaSeconds)
+          .clamp(15, math.max(300, widget.restSeconds));
       _restRemaining = (_restRemaining + deltaSeconds).clamp(0, _restTotal);
     });
   }
@@ -241,12 +267,38 @@ class _NativePoseWorkoutScreenState
   void _finishWorkout() {
     if (!mounted) return;
 
+    // 실제로 수행한 세트만 모은다. 끝난 세트 + 진행 중이던 세트(1회 이상 했을 때).
+    // 쉬는 시간/완료 화면에서는 방금 끝낸 세트가 이미 _setResults 에 들어 있다.
+    final performedSets = [
+      ..._setResults,
+      if (!_setComplete && !_workoutComplete && _repsThisSet > 0)
+        _SetResult(
+          reps: _repsThisSet,
+          weightKg: _weightForSet,
+          badCount: _badCountThisSet,
+        ),
+    ];
+    final totalReps = performedSets.fold<int>(0, (sum, r) => sum + r.reps);
+
+    // 한 회도 안 하고 끝내면 기록을 남기지 않고 운동 선택 화면으로 돌아간다.
+    if (totalReps == 0) {
+      final isKo = ref.read(appStringsProvider).locale == 'ko';
+      showAppToast(
+        context,
+        isKo
+            ? '수행한 횟수가 없어서 기록을 저장하지 않았어.'
+            : 'No reps completed, so nothing was saved.',
+      );
+      context.go(RouteConstants.exerciseSelection);
+      return;
+    }
+
     final exercise = findExercise(widget.exerciseId);
     final elapsedSeconds = _liveStartedAt == null
         ? 0
         : DateTime.now().difference(_liveStartedAt!).inSeconds;
 
-    final totalBad = _setResults.fold<int>(0, (sum, r) => sum + r.badCount);
+    final totalBad = performedSets.fold<int>(0, (sum, r) => sum + r.badCount);
 
     context.pushReplacement(
       RouteConstants.workoutResult,
@@ -254,15 +306,16 @@ class _NativePoseWorkoutScreenState
         'exerciseId': widget.exerciseId,
         'exerciseName': exercise.name,
         'exerciseNameKr': exercise.nameKr,
-        'totalReps': _completedWorkoutReps,
-        'correctReps': _completedWorkoutReps - totalBad,
+        'totalReps': totalReps,
+        'correctReps': totalReps - totalBad,
         'incorrectReps': totalBad,
         'elapsedSeconds': elapsedSeconds,
         'postureScore': null,
         'feedbackHistory': null,
-        'targetReps': widget.targetReps * widget.targetSets,
-        'targetSets': widget.targetSets,
-        'setResults': _setResults
+        'targetReps': _totalPlannedReps,
+        // 계획한 세트 수가 아니라 실제로 수행한 세트 수를 기록한다.
+        'targetSets': performedSets.length,
+        'setResults': performedSets
             .map((r) => {
                   'reps': r.reps,
                   'weightKg': r.weightKg,
@@ -386,7 +439,7 @@ class _NativePoseWorkoutScreenState
                 exerciseName: exerciseName,
                 elapsedSeconds: _elapsedSeconds,
                 reps: _repsThisSet,
-                targetReps: widget.targetReps,
+                targetReps: _targetRepsThisSet,
                 currentSet: _currentSet,
                 totalSets: widget.targetSets,
                 feedbackIdle: !_hasFeedbackStarted,
@@ -394,6 +447,26 @@ class _NativePoseWorkoutScreenState
                 isPaused: _isPaused,
                 onTogglePause: _togglePause,
                 onEnd: _finishWorkout,
+              ),
+            ),
+          ),
+        // TODO(temp): 디버그 빌드에서만 보이는 테스트 버튼. 실제 기기 카메라
+        // 연동 검증이 끝나면 제거할 것.
+        if (kDebugMode && !_setComplete && !_workoutComplete)
+          Positioned(
+            right: 16,
+            top: 0,
+            bottom: 0,
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  _DebugButton(label: '+1회 (테스트용)', onTap: _debugAddRep),
+                  const SizedBox(height: 10),
+                  _DebugButton(
+                      label: '세트 채우기 (테스트용)', onTap: _debugFinishSet),
+                ],
               ),
             ),
           ),
@@ -407,7 +480,7 @@ class _NativePoseWorkoutScreenState
               restRemaining: _restRemaining,
               restTotal: _restTotal,
               setResults: _setResults,
-              targetReps: widget.targetReps,
+              plannedReps: _plannedReps,
               plannedWeightsKg: _plannedWeights,
               onAdjustRest: _adjustRest,
               onSkipRest: _skipRest,
@@ -421,6 +494,35 @@ class _NativePoseWorkoutScreenState
             onFinish: _finishWorkout,
           ),
       ],
+    );
+  }
+}
+
+class _DebugButton extends StatelessWidget {
+  const _DebugButton({required this.label, required this.onTap});
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.6),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppColors.red, width: 1.5),
+        ),
+        child: Text(
+          label,
+          style: const TextStyle(
+            color: AppColors.red,
+            fontSize: 12,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ),
     );
   }
 }
@@ -1036,7 +1138,7 @@ class _BreakTimeOverlay extends StatelessWidget {
     required this.restRemaining,
     required this.restTotal,
     required this.setResults,
-    required this.targetReps,
+    required this.plannedReps,
     required this.plannedWeightsKg,
     required this.onAdjustRest,
     required this.onSkipRest,
@@ -1050,7 +1152,7 @@ class _BreakTimeOverlay extends StatelessWidget {
   final int restRemaining;
   final int restTotal;
   final List<_SetResult> setResults;
-  final int targetReps;
+  final List<int> plannedReps;
   final List<int> plannedWeightsKg;
   final ValueChanged<int> onAdjustRest;
   final VoidCallback onSkipRest;
@@ -1150,7 +1252,7 @@ class _BreakTimeOverlay extends StatelessWidget {
                 results: setResults,
                 completedSet: completedSet,
                 totalSets: totalSets,
-                targetReps: targetReps,
+                plannedReps: plannedReps,
                 plannedWeightsKg: plannedWeightsKg,
               ),
               const SizedBox(height: 20),
@@ -1443,15 +1545,15 @@ class _SoFarCard extends StatefulWidget {
     required this.results,
     required this.completedSet,
     required this.totalSets,
-    required this.targetReps,
+    required this.plannedReps,
     required this.plannedWeightsKg,
   });
   final bool isKo;
   final List<_SetResult> results;
   final int completedSet;
   final int totalSets;
-  final int targetReps;
-  // 아직 안 한 세트는 계획된 무게를 보여준다.
+  // 아직 안 한 세트는 계획된 반복 수·무게를 보여준다.
+  final List<int> plannedReps;
   final List<int> plannedWeightsKg;
 
   @override
@@ -1529,7 +1631,10 @@ class _SoFarCardState extends State<_SoFarCard> {
                   isKo: widget.isKo,
                   setNumber: setNumber,
                   done: done,
-                  reps: result?.reps ?? widget.targetReps,
+                  reps: result?.reps ??
+                      (index < widget.plannedReps.length
+                          ? widget.plannedReps[index]
+                          : 0),
                   weightKg: result?.weightKg ??
                       (index < widget.plannedWeightsKg.length
                           ? widget.plannedWeightsKg[index]

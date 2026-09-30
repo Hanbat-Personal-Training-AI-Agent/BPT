@@ -61,12 +61,16 @@ class CameraGuideScreen extends ConsumerWidget {
     required this.targetReps,
     required this.targetSets,
     this.setWeightsKg = const [],
+    this.setReps = const [],
+    this.restSeconds = 60,
   });
 
   final String exerciseId;
   final int targetReps;
   final int targetSets;
   final List<int> setWeightsKg;
+  final List<int> setReps;
+  final int restSeconds;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -82,6 +86,8 @@ class CameraGuideScreen extends ConsumerWidget {
           'targetReps': targetReps,
           'targetSets': targetSets,
           'setWeightsKg': setWeightsKg,
+          'setReps': setReps,
+          'restSeconds': restSeconds,
         },
       );
     }
