@@ -30,10 +30,12 @@ class ServerException extends ApiException {
 
 /// Base API Config
 class ApiConfig {
-  /// Default Spring Boot backend URL (Android Emulator: 10.0.2.2, iOS/Web: localhost)
+  /// Default Spring Boot backend URL (deployed server).
+  /// Override for local dev with --dart-define=API_BASE_URL=...
+  /// (Android Emulator: http://10.0.2.2:8080/api/v1, iOS Simulator: http://localhost:8080/api/v1)
   static const String baseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://10.0.2.2:8080/api/v1',
+    defaultValue: 'http://151.145.79.106:8080/api/v1',
   );
   static const int connectTimeoutMs = 5000;
   static const int receiveTimeoutMs = 5000;

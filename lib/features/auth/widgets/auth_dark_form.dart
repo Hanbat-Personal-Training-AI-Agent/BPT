@@ -113,6 +113,11 @@ class AuthFieldLabel extends StatelessWidget {
       );
 }
 
+/// 이메일/아이디 입력용: 영문·숫자·기호(공백 제외)만 허용해 한글 입력을 막는다.
+final englishOnlyFormatters = <TextInputFormatter>[
+  FilteringTextInputFormatter.allow(RegExp(r'[\x21-\x7E]')),
+];
+
 OutlineInputBorder authFieldBorder(Color color) => OutlineInputBorder(
       borderRadius: BorderRadius.circular(18),
       borderSide: BorderSide(color: color),
