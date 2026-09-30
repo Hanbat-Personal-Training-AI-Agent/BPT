@@ -33,6 +33,11 @@ class AuthNotifier extends ChangeNotifier {
       return false;
     }
 
+    // 저장해 둔 토큰이 없으면 서버 인증을 되살릴 수 없으니 다시 로그인하게 한다.
+    final token = _storage.loadAuthToken();
+    if (token == null) return false;
+    _authService.restoreAuthToken(token);
+
     _currentUser = cachedUser;
     notifyListeners();
 
@@ -43,6 +48,10 @@ class AuthNotifier extends ChangeNotifier {
       await _storage.saveUser(freshUser);
       _isOfflineMode = false;
       notifyListeners();
+    } on UnauthorizedException {
+      // 토큰이 만료됐거나 서버에서 거절됨 → 저장된 세션을 지우고 로그인 화면으로
+      await logout();
+      return false;
     } catch (_) {
       // Offline fallback: continue with cached user profile
       _isOfflineMode = true;
@@ -65,12 +74,13 @@ class AuthNotifier extends ChangeNotifier {
       final user = await _authService.login(email: email, password: password);
       _currentUser = user;
       await _storage.saveUser(user);
+      await _storage.saveAuthToken(_authService.authToken);
       await _storage.saveAutoLogin(rememberMe);
       _isOfflineMode = false;
       _error = null;
     } on NetworkException {
       // Spring Boot backend not running or unreachable -> Fallback to Offline Local Login
-      _currentUser = _createLocalFallbackUser(email: email);
+      _currentUser = _createLocalFallbackUser(username: email);
       await _storage.saveUser(_currentUser!);
       await _storage.saveAutoLogin(rememberMe);
       _isOfflineMode = true;
@@ -85,76 +95,105 @@ class AuthNotifier extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Sign up via Spring Boot REST API (Falls back to offline local user if server is unreachable)
-  Future<void> signUp({
+  /// 서버에 계정을 만들고 바로 로그인 상태로 둔다.
+  /// 성공하면 null, 실패하면 화면에 보여줄 안내 문구를 돌려준다.
+  /// 서버에 연결되지 않으면 계정이 만들어지지 않으므로 오프라인 가입은 하지 않는다.
+  Future<String?> signUp({
+    required String username,
     required String email,
     required String password,
     required String name,
-    DateTime? birthDate,
-    String? gender,
-    double? heightCm,
-    double? weightKg,
-    String? workoutGoal,
+    required String phoneNumber,
+    required DateTime birthDate,
   }) async {
     _isLoading = true;
     _error = null;
     notifyListeners();
 
+    String? message;
     try {
       final user = await _authService.signUp(
+        username: username,
         email: email,
         password: password,
         name: name,
-        birthDate: birthDate,
-        gender: gender,
-        heightCm: heightCm,
-        weightKg: weightKg,
-        workoutGoal: workoutGoal,
+        phoneNumber: phoneNumber,
+        birthDate: '${birthDate.year.toString().padLeft(4, '0')}-'
+            '${birthDate.month.toString().padLeft(2, '0')}-'
+            '${birthDate.day.toString().padLeft(2, '0')}',
       );
-
       _currentUser = user;
       await _storage.saveUser(user);
+      await _storage.saveAuthToken(_authService.authToken);
       await _storage.saveAutoLogin(true);
       _isOfflineMode = false;
-      _error = null;
     } on NetworkException {
-      // Spring Boot backend not running or unreachable -> Fallback to Offline Local Sign Up
-      _currentUser = _createLocalFallbackUser(
-        email: email,
-        name: name,
-        birthDate: birthDate,
+      message = '서버에 연결할 수 없어. 인터넷 연결을 확인하고 다시 시도해줘.';
+    } on ApiException catch (e) {
+      // 백엔드가 보내는 안내 문구(예: 이미 가입된 이메일 주소입니다.)를 그대로 보여준다.
+      message = e.message;
+    } catch (_) {
+      message = '가입 중에 문제가 생겼어. 잠시 후 다시 시도해줘.';
+    }
+
+    _error = message;
+    _isLoading = false;
+    notifyListeners();
+    return message;
+  }
+
+  /// 온보딩 정보를 서버에 저장하고 현재 사용자 정보에도 반영한다.
+  /// 실패해도 온보딩 진행은 막지 않고, 안내 문구만 돌려준다.
+  Future<String?> saveOnboarding({
+    required String gender,
+    required double heightCm,
+    required double weightKg,
+    required String workoutGoal,
+    required int weeklyFrequency,
+  }) async {
+    final user = _currentUser;
+    if (user != null) {
+      _currentUser = user.copyWith(
         gender: gender,
         heightCm: heightCm,
         weightKg: weightKg,
         workoutGoal: workoutGoal,
       );
       await _storage.saveUser(_currentUser!);
-      await _storage.saveAutoLogin(true);
-      _isOfflineMode = true;
-      _error = null;
-    } on ApiException catch (e) {
-      _error = _mapApiError(e);
-    } catch (e) {
-      _error = 'unknown_error';
+      notifyListeners();
     }
-
-    _isLoading = false;
-    notifyListeners();
+    try {
+      await _authService.updateOnboarding(
+        gender: gender,
+        heightCm: heightCm,
+        weightKg: weightKg,
+        workoutGoal: workoutGoal,
+        weeklyFrequency: weeklyFrequency,
+      );
+      return null;
+    } on ApiException catch (e) {
+      return e is NetworkException
+          ? '서버에 연결할 수 없어서 신체 정보를 저장하지 못했어.'
+          : e.message;
+    }
   }
 
   /// TEST ONLY: 백엔드 호출 없이 로컬 오프라인 유저로 즉시 로그인 처리한다.
   /// 디버그 빌드에서 로그인 화면 UI 확인용으로만 쓰고, 배포 전 제거할 것.
   void debugSkipLogin() {
     if (!kDebugMode) return;
-    _currentUser =
-        _createLocalFallbackUser(email: 'test@bpt.dev', name: 'Tester');
+    _currentUser = _createLocalFallbackUser(
+        username: 'tester', email: 'test@bpt.dev', name: 'Tester');
     _isOfflineMode = true;
     _error = null;
     notifyListeners();
   }
 
+  /// 서버 없이 쓰는 로컬 사용자. [username]은 아이디이며, 이메일이 들어오면
+  /// @ 앞부분을 아이디로 쓴다.
   UserModel _createLocalFallbackUser({
-    required String email,
+    required String username,
+    String email = '',
     String? name,
     DateTime? birthDate,
     String? gender,
@@ -162,17 +201,16 @@ class AuthNotifier extends ChangeNotifier {
     double? weightKg,
     String? workoutGoal,
   }) {
-    final effectiveName = (name != null && name.isNotEmpty)
-        ? name
-        : (email.contains('@') ? email.split('@')[0] : email);
+    final id = username.contains('@') ? username.split('@')[0] : username;
+    final effectiveName = (name != null && name.isNotEmpty) ? name : id;
     final initials =
         effectiveName.isNotEmpty ? effectiveName[0].toUpperCase() : 'U';
 
     return UserModel(
       id: 'local_${DateTime.now().millisecondsSinceEpoch}',
-      username: email.trim(),
+      username: id.trim(),
       name: effectiveName,
-      email: email.trim(),
+      email: (email.isEmpty && username.contains('@') ? username : email).trim(),
       password: '',
       avatarInitials: initials,
       birthDate: birthDate,
@@ -202,6 +240,7 @@ class AuthNotifier extends ChangeNotifier {
   /// Logout
   Future<void> logout() async {
     await _storage.clearSession();
+    _authService.restoreAuthToken(null);
     _currentUser = null;
     _error = null;
     _isOfflineMode = false;
@@ -212,6 +251,7 @@ class AuthNotifier extends ChangeNotifier {
   /// TODO: 실제 백엔드 탈퇴 엔드포인트가 생기면 여기서 호출을 추가할 것.
   Future<void> deleteAccount() async {
     await _storage.clearSession();
+    _authService.restoreAuthToken(null);
     _currentUser = null;
     _error = null;
     _isOfflineMode = false;

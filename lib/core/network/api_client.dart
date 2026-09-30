@@ -1,5 +1,7 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart' show debugPrint, kDebugMode;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Exceptions handled across Spring Boot REST API calls
@@ -8,7 +10,10 @@ class ApiException implements Exception {
   final int? statusCode;
   final dynamic errorData;
 
-  ApiException(this.message, {this.statusCode, this.errorData});
+  /// 백엔드 에러 코드 (예: EMAIL_ALREADY_EXISTS).
+  final String? code;
+
+  ApiException(this.message, {this.statusCode, this.errorData, this.code});
 
   @override
   String toString() => 'ApiException: [$statusCode] $message';
@@ -19,13 +24,17 @@ class NetworkException extends ApiException {
 }
 
 class UnauthorizedException extends ApiException {
-  UnauthorizedException([super.message = 'Unauthorized session. Please login again.'])
-      : super(statusCode: 401);
+  UnauthorizedException(
+      [super.message = 'Unauthorized session. Please login again.', String? code])
+      : super(statusCode: 401, code: code);
 }
 
 class ServerException extends ApiException {
-  ServerException([super.message = 'Spring Boot Server error occurred', int? statusCode])
-      : super(statusCode: statusCode);
+  ServerException(
+      [super.message = 'Spring Boot Server error occurred',
+      int? statusCode,
+      String? code])
+      : super(statusCode: statusCode, code: code);
 }
 
 /// Base API Config
@@ -62,6 +71,8 @@ class ApiClient {
     );
 
     _dio.interceptors.addAll([
+      // 디버그 빌드에서만 모든 API 요청/응답을 콘솔에 찍는다. (배포 빌드는 출력 없음)
+      if (kDebugMode) _ApiDebugLogInterceptor(),
       InterceptorsWrapper(
         onRequest: (options, handler) {
           if (_authToken != null && _authToken!.isNotEmpty) {
@@ -87,6 +98,8 @@ class ApiClient {
   void setAuthToken(String? token) {
     _authToken = token;
   }
+
+  String? get authToken => _authToken;
 
   Dio get dio => _dio;
 
@@ -178,17 +191,104 @@ class ApiClient {
       case DioExceptionType.badResponse:
         final statusCode = error.response?.statusCode;
         final data = error.response?.data;
-        final message = data is Map ? (data['message'] ?? data['error'] ?? 'Server error') : 'Server error ($statusCode)';
+        // 백엔드 에러 응답 형식: {success: false, error: {code, message}}
+        final errorBody = data is Map ? data['error'] : null;
+        final code = errorBody is Map ? errorBody['code']?.toString() : null;
+        final message = errorBody is Map
+            ? (errorBody['message'] ?? 'Server error')
+            : data is Map
+                ? (data['message'] ?? 'Server error')
+                : 'Server error ($statusCode)';
 
         if (statusCode == 401 || statusCode == 403) {
-          return UnauthorizedException(message.toString());
+          return UnauthorizedException(message.toString(), code);
         }
-        return ServerException(message.toString(), statusCode);
+        return ServerException(message.toString(), statusCode, code);
       case DioExceptionType.cancel:
         return ApiException('Request cancelled');
       default:
         return ApiException(error.message ?? 'Unexpected network error');
     }
+  }
+}
+
+/// 디버그 콘솔용 API 로그. 예)
+///   [API] → POST /auth/login {"email":"tester","password":"***"}
+///   [API] ← 200 POST /auth/login (182ms) {"token":"***","user":{...}}
+///   [API] ✕ 401 POST /auth/login (95ms) INVALID_CREDENTIALS: 이메일 또는 비밀번호를...
+/// 비밀번호·토큰 값은 가리고, 긴 본문은 잘라서 보여준다.
+class _ApiDebugLogInterceptor extends Interceptor {
+  static const _secretKeys = {
+    'password',
+    'token',
+    'accessToken',
+    'refreshToken',
+  };
+  static const _maxBodyLength = 800;
+
+  @override
+  void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
+    options.extra['_apiLogStart'] = DateTime.now();
+    final query =
+        options.queryParameters.isEmpty ? '' : ' ${options.queryParameters}';
+    final body = options.data == null ? '' : ' ${_format(options.data)}';
+    debugPrint('[API] → ${options.method} ${options.path}$query$body');
+    handler.next(options);
+  }
+
+  @override
+  void onResponse(Response response, ResponseInterceptorHandler handler) {
+    final o = response.requestOptions;
+    debugPrint('[API] ← ${response.statusCode} ${o.method} ${o.path}'
+        '${_elapsed(o)} ${_format(response.data)}');
+    handler.next(response);
+  }
+
+  @override
+  void onError(DioException err, ErrorInterceptorHandler handler) {
+    final o = err.requestOptions;
+    final status = err.response?.statusCode;
+    final data = err.response?.data;
+    final errorBody = data is Map ? data['error'] : null;
+    final detail = errorBody is Map
+        ? '${errorBody['code']}: ${errorBody['message']}'
+        : data != null
+            ? _format(data)
+            : '${err.type.name} ${err.message ?? ''}';
+    debugPrint('[API] ✕ ${status ?? '-'} ${o.method} ${o.path}'
+        '${_elapsed(o)} $detail');
+    handler.next(err);
+  }
+
+  String _elapsed(RequestOptions o) {
+    final start = o.extra['_apiLogStart'];
+    if (start is! DateTime) return '';
+    return ' (${DateTime.now().difference(start).inMilliseconds}ms)';
+  }
+
+  String _format(dynamic data) {
+    String text;
+    try {
+      text = jsonEncode(_mask(data));
+    } catch (_) {
+      text = data.toString();
+    }
+    return text.length > _maxBodyLength
+        ? '${text.substring(0, _maxBodyLength)}...(${text.length}자)'
+        : text;
+  }
+
+  dynamic _mask(dynamic data) {
+    if (data is Map) {
+      return {
+        for (final e in data.entries)
+          e.key.toString(): _secretKeys.contains(e.key) && e.value != null
+              ? '***'
+              : _mask(e.value),
+      };
+    }
+    if (data is List) return data.map(_mask).toList();
+    return data;
   }
 }
 

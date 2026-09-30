@@ -1,16 +1,57 @@
 import 'package:bpt/core/constants/route_constants.dart';
+import 'package:bpt/core/network/api_client.dart';
 import 'package:bpt/core/theme/app_colors.dart';
 import 'package:bpt/features/auth/providers/sign_up_provider.dart';
 import 'package:bpt/features/auth/screens/sign_up_screen.dart';
 import 'package:bpt/features/onboarding/screens/onboarding_gender_screen.dart';
+import 'package:bpt/models/user_model.dart';
+import 'package:bpt/services/auth_service.dart';
+import 'package:bpt/services/local_storage_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+/// 서버 대신 쓰는 가짜 인증 서비스. 'admin'만 이미 사용 중인 아이디로 취급한다.
+class _FakeAuthService extends AuthService {
+  _FakeAuthService() : super(ApiClient());
+
+  final signUps = <String>[];
+
+  @override
+  Future<bool> checkUsername(String username) async => username != 'admin';
+
+  @override
+  Future<UserModel> signUp({
+    required String username,
+    required String email,
+    required String password,
+    required String name,
+    required String phoneNumber,
+    required String birthDate,
+    bool termsAgreed = true,
+    bool privacyAgreed = true,
+  }) async {
+    signUps.add('$username $phoneNumber $birthDate');
+    return UserModel.fromJson(
+        {'id': '1', 'username': username, 'email': email, 'name': name});
+  }
+}
+
+Future<List<Override>> _overrides(_FakeAuthService auth) async {
+  SharedPreferences.setMockInitialValues({});
+  final prefs = await SharedPreferences.getInstance();
+  return [
+    authServiceProvider.overrideWithValue(auth),
+    sharedPreferencesProvider.overrideWithValue(prefs),
+  ];
+}
 
 void main() {
-  test('id duplicate check and submit gating follow the mock rules', () {
-    final notifier = SignUpNotifier();
+  test('id duplicate check and submit gating follow the server rules',
+      () async {
+    final notifier = SignUpNotifier(_FakeAuthService());
     addTearDown(notifier.dispose);
 
     notifier.changeName('김');
@@ -19,15 +60,21 @@ void main() {
     expect(notifier.state.nameValid, isTrue);
 
     notifier.changeEmail('jihoon@bpt.app');
+    // 백엔드 규칙(영문 소문자·숫자·_ 4~20자)에 안 맞으면 확인 요청을 보내지 않는다.
+    notifier.changeId('Ad');
+    expect(notifier.state.idFormatValid, isFalse);
+    await notifier.checkIdDuplicate();
+    expect(notifier.state.idCheck, IdCheckStatus.none);
+
     notifier.changeId('admin');
-    notifier.checkIdDuplicate();
+    await notifier.checkIdDuplicate();
     expect(notifier.state.idCheck, IdCheckStatus.taken);
     expect(notifier.state.canSubmit, isFalse);
 
-    notifier.changeId('jihoon_kim');
+    notifier.changeId('jihoonkim');
     // Editing the id after a check must reset the check result.
     expect(notifier.state.idCheck, IdCheckStatus.none);
-    notifier.checkIdDuplicate();
+    await notifier.checkIdDuplicate();
     expect(notifier.state.idCheck, IdCheckStatus.available);
 
     notifier.changePassword('1234567');
@@ -39,6 +86,10 @@ void main() {
     notifier.changePassword('abcd1234');
     expect(notifier.state.passwordValid, isTrue);
     notifier.changeConfirmPassword('abcd1234');
+    notifier.changePhone('01028417756');
+    expect(notifier.state.formattedPhone, '010-2841-7756');
+    notifier.changePhone('0111234567'); // 10자리 번호는 가운데가 3자리
+    expect(notifier.state.formattedPhone, '011-123-4567');
     notifier.changePhone('01028417756');
     expect(notifier.state.canSubmit, isFalse); // no birth date / terms yet
 
@@ -62,8 +113,10 @@ void main() {
         builder: (context, state) => const OnboardingGenderScreen(),
       ),
     ]);
-    await tester.pumpWidget(
-        ProviderScope(child: MaterialApp.router(routerConfig: router)));
+    final auth = _FakeAuthService();
+    await tester.pumpWidget(ProviderScope(
+        overrides: await _overrides(auth),
+        child: MaterialApp.router(routerConfig: router)));
 
     final fields = find.byType(TextField);
     // name, email, id, password, confirm, phone, birth date
@@ -83,7 +136,7 @@ void main() {
     await tester.pump();
     expect(find.text('이미 사용 중인 아이디예요. 다른 아이디를 입력해줘.'), findsOneWidget);
 
-    await tester.enterText(fields.at(2), 'jihoon_kim');
+    await tester.enterText(fields.at(2), 'jihoonkim');
     await tester.pump();
     // editing after a failed check clears the error and re-enables the button
     expect(find.text('이미 사용 중인 아이디예요. 다른 아이디를 입력해줘.'), findsNothing);
@@ -130,6 +183,8 @@ void main() {
 
     await tester.tap(submitFinder);
     await tester.pumpAndSettle();
+    // 서버에 입력한 아이디로 계정을 만든 뒤 온보딩으로 넘어간다.
+    expect(auth.signUps, ['jihoonkim 010-2841-7756 1999-04-12']);
     expect(find.byType(OnboardingGenderScreen), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
@@ -141,8 +196,9 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
-    await tester.pumpWidget(
-        const ProviderScope(child: MaterialApp(home: SignUpScreen())));
+    await tester.pumpWidget(ProviderScope(
+        overrides: await _overrides(_FakeAuthService()),
+        child: const MaterialApp(home: SignUpScreen())));
 
     final fields = find.byType(TextField);
     const name = 0, email = 1, id = 2, password = 3, phone = 5;
@@ -187,7 +243,7 @@ void main() {
 
     // 아이디는 입력만 하고 중복확인을 안 하면 안내가 뜬다. (이 칸은 위에서 이미
     // 한 번 포커스를 벗어났으므로 다시 입력하는 즉시 안내가 보인다.)
-    await tester.enterText(fields.at(id), 'jihoon_kim');
+    await tester.enterText(fields.at(id), 'jihoonkim');
     await tester.pump();
     expect(find.text('아이디 중복확인을 해줘.'), findsOneWidget);
     await tester.tap(find.text('중복확인'));

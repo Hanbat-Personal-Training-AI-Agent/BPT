@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/route_constants.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/app_toast.dart';
+import '../providers/auth_provider.dart';
 import '../providers/sign_up_provider.dart';
 import '../widgets/auth_dark_form.dart';
 
@@ -146,9 +148,27 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
         '${picked.day.toString().padLeft(2, '0')}';
   }
 
-  void _submit(SignUpState state) {
-    if (!state.canSubmit) return;
+  bool _submitting = false;
+
+  /// 서버에 계정을 만든 뒤 온보딩으로 넘어간다. 실패하면 이 화면에 머물며 안내한다.
+  Future<void> _submit(SignUpState state) async {
+    if (!state.canSubmit || _submitting) return;
     FocusScope.of(context).unfocus();
+    setState(() => _submitting = true);
+    final error = await ref.read(authNotifierProvider).signUp(
+          username: state.id.trim(),
+          email: state.email.trim(),
+          password: state.password,
+          name: state.name.trim(),
+          phoneNumber: state.formattedPhone,
+          birthDate: state.birthDate!,
+        );
+    if (!mounted) return;
+    setState(() => _submitting = false);
+    if (error != null) {
+      showAppToast(context, error, type: AppToastType.error);
+      return;
+    }
     context.push(RouteConstants.onboardingGender);
   }
 
@@ -196,23 +216,35 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
               child: AuthTextField(
             controller: _id,
             focus: _idFocus,
-            hint: '아이디를 입력해줘',
+            hint: '영문 소문자, 숫자 4~20자',
             // visiblePassword: iOS에서 영문(ASCII) 키보드로 열린다.
             keyboard: TextInputType.visiblePassword,
-            formatters: englishOnlyFormatters,
+            formatters: idInputFormatters,
             onChanged: notifier.changeId,
           )),
           const SizedBox(width: 12),
           AuthStatusButton(
-              label:
-                  state.idCheck == IdCheckStatus.available ? '확인 완료' : '중복확인',
+              label: switch (state.idCheck) {
+                IdCheckStatus.available => '확인 완료',
+                IdCheckStatus.checking => '확인 중',
+                _ => '중복확인',
+              },
               complete: state.idCheck == IdCheckStatus.available,
-              onTap: state.id.trim().isEmpty ||
-                      state.idCheck == IdCheckStatus.available
+              onTap: !state.idFormatValid ||
+                      state.idCheck == IdCheckStatus.available ||
+                      state.idCheck == IdCheckStatus.checking
                   ? null
                   : notifier.checkIdDuplicate),
         ]),
-        if (state.idCheck == IdCheckStatus.taken) ...[
+        if (state.id.trim().isNotEmpty && !state.idFormatValid) ...[
+          const SizedBox(height: 8),
+          const Text('아이디는 영문 소문자, 숫자로 4~20자 입력해줘.',
+              style: TextStyle(color: AppColors.red, fontSize: 13)),
+        ] else if (state.idCheck == IdCheckStatus.failed) ...[
+          const SizedBox(height: 8),
+          const Text('중복확인에 실패했어. 잠시 후 다시 눌러줘.',
+              style: TextStyle(color: AppColors.red, fontSize: 13)),
+        ] else if (state.idCheck == IdCheckStatus.taken) ...[
           const SizedBox(height: 8),
           const Text('이미 사용 중인 아이디예요. 다른 아이디를 입력해줘.',
               style: TextStyle(color: AppColors.red, fontSize: 13)),
@@ -324,8 +356,8 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
         ),
       ],
       bottomBar: AuthPillButton(
-        label: '가입하기',
-        onTap: state.canSubmit ? () => _submit(state) : null,
+        label: _submitting ? '가입하는 중...' : '가입하기',
+        onTap: state.canSubmit && !_submitting ? () => _submit(state) : null,
         background: AppColors.green,
         foreground: AppColors.black,
         disabledBackground: AppColors.green.withValues(alpha: 0.5),
