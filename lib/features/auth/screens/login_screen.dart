@@ -10,6 +10,8 @@ import '../../../core/constants/route_constants.dart';
 import '../../../core/i18n/locale_provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../providers/auth_provider.dart';
+import '../providers/sign_up_provider.dart';
+import '../widgets/auth_dark_form.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -23,7 +25,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   final _loginFormKey = GlobalKey<FormState>();
 
   // Login
-  final _loginEmailCtrl = TextEditingController(); // username → email
+  final _loginEmailCtrl = TextEditingController(); // 아이디
   final _loginPasswordCtrl = TextEditingController();
   bool _obscureLogin = true;
   // 시안에서 자동 로그인 체크박스가 제거되어 기본값(false)으로 고정.
@@ -58,14 +60,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
   Future<void> _submit(s) async {
     final auth = ref.read(authNotifierProvider);
-    if (kDebugMode) {
-      // TEST ONLY: 백엔드 로그인 없이 네비게이션/화면 확인용 임시 우회. 배포 전 제거할 것.
-      auth.debugSkipLogin();
-      return;
-    }
     if (!(_loginFormKey.currentState?.validate() ?? false)) return;
     await auth.login(
-      _loginEmailCtrl.text.trim(), // username → email
+      _loginEmailCtrl.text.trim(), // 아이디 (백엔드는 아이디·이메일 모두 받음)
       _loginPasswordCtrl.text.trim(),
       rememberMe: _autoLogin,
     );
@@ -117,6 +114,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                           const SizedBox(height: 28),
                           const Spacer(),
                           _buildStartButton(auth, s),
+                          // TEST ONLY: 디버그 빌드에서만 보이는, 서버 없이 화면만
+                          // 둘러볼 때 쓰는 로그인 버튼. 배포 전 제거할 것.
+                          if (kDebugMode) ...[
+                            const SizedBox(height: 10),
+                            _buildDebugSkipButton(auth),
+                          ],
                           const SizedBox(height: 20),
                           _buildBottomSignUpToggle(s),
                           const SizedBox(height: 12),
@@ -341,15 +344,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         children: [
           _buildLoginField(
             controller: _loginEmailCtrl,
-            hint: isKo ? '아이디' : 'Email',
+            hint: isKo ? '아이디' : 'ID',
             // visiblePassword: iOS에서 영문(ASCII) 키보드로 열린다.
             keyboardType: TextInputType.visiblePassword,
-            inputFormatters: [
-              FilteringTextInputFormatter.allow(RegExp(r'[\x21-\x7E]')),
-            ],
+            inputFormatters: idInputFormatters,
             validator: (v) {
               if (v == null || v.isEmpty) return s.idRequired;
-              if (!v.contains('@')) return s.invalidEmail;
+              if (!authIdPattern.hasMatch(v)) {
+                return isKo
+                    ? '아이디는 영문 소문자, 숫자로 4~20자야.'
+                    : 'ID must be 4-20 lowercase letters or numbers.';
+              }
               return null;
             },
           ),
@@ -497,13 +502,37 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     );
   }
 
+  Widget _buildDebugSkipButton(AuthNotifier auth) {
+    return GestureDetector(
+      onTap: auth.debugSkipLogin,
+      child: Container(
+        width: double.infinity,
+        height: 44,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.6),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppColors.red, width: 1.5),
+        ),
+        child: const Text(
+          '서버 없이 둘러보기 (테스트용)',
+          style: TextStyle(
+            color: AppColors.red,
+            fontSize: 13,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ),
+    );
+  }
+
   String _localizeError(String code, s) {
     final isKo = s.locale == 'ko';
     switch (code) {
       case 'username_or_password_incorrect':
         return isKo
-            ? '이메일 또는 비밀번호가 올바르지 않아요.'
-            : 'Email or password is incorrect.';
+            ? '아이디 또는 비밀번호가 올바르지 않아.'
+            : 'ID or password is incorrect.';
       case 'username_already_exists':
         return isKo ? '이미 사용 중인 이메일이에요.' : 'This email is already in use.';
       case 'password_too_weak':

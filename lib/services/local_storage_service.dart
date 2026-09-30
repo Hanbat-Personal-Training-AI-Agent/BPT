@@ -20,6 +20,7 @@ class LocalStorageService {
 
   static const _keyUser = 'bpt_user';
   static const _keyAutoLogin = 'bpt_auto_login';
+  static const _keyAuthToken = 'bpt_auth_token';
 
   String _recordsKey(String? uid) =>
       uid != null ? 'bpt_workout_records_$uid' : 'bpt_workout_records';
@@ -51,6 +52,17 @@ class LocalStorageService {
   }
 
   bool loadAutoLogin() => _prefs.getBool(_keyAutoLogin) ?? false;
+
+  // ── Auth token (서버 로그인 유지용) ───────────────────────────────────────
+  Future<void> saveAuthToken(String? token) async {
+    if (token == null || token.isEmpty) {
+      await _prefs.remove(_keyAuthToken);
+    } else {
+      await _prefs.setString(_keyAuthToken, token);
+    }
+  }
+
+  String? loadAuthToken() => _prefs.getString(_keyAuthToken);
 
   // ── Workout Records ───────────────────────────────────────────────────────
   Future<void> saveRecords(List<WorkoutRecordModel> records,
@@ -87,10 +99,12 @@ class LocalStorageService {
   // ── Session ───────────────────────────────────────────────────────────────
   Future<void> clearSession() async {
     await _prefs.setBool(_keyAutoLogin, false);
+    await _prefs.remove(_keyAuthToken);
   }
 
   Future<void> clearAll() async {
     await _prefs.remove(_keyUser);
     await _prefs.setBool(_keyAutoLogin, false);
+    await _prefs.remove(_keyAuthToken);
   }
 }
