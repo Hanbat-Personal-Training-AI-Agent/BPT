@@ -102,16 +102,11 @@ public class UserService {
             }
         }
 
-        int freq = request.getWeeklyFrequency() != null ? request.getWeeklyFrequency() : 3;
-        String goal = request.getWorkoutGoal() != null ? request.getWorkoutGoal() : "체형 관리";
-        String coachMessage = String.format("주 %d회! %s 코스로 가볼까! 세트 수랑 반복 횟수는 나중에 바꿀 수 있어.", freq, goal);
-
         return OnboardingResponse.builder()
                 .userId(user.getId())
                 .bmi(bmi)
                 .bmiStatus(bmiStatus)
                 .bmiStatusLabel(bmiStatusLabel)
-                .coachMessage(coachMessage)
                 .build();
     }
 
@@ -178,11 +173,6 @@ public class UserService {
         }
 
         boolean needsBodyScan = daysSinceLastScan >= 30;
-        String bodyScanAlertMessage = needsBodyScan
-                ? String.format("체형 다시 확인할 때야! 마지막 측정 후 %d일이 지났어", daysSinceLastScan)
-                : null;
-
-        String coachMessage = "오늘 무슨 운동을 할까? 바로 시작해보자!";
 
         List<WorkoutRecord> allRecent = workoutRecordRepository.findAllByUserIdOrderByDateDesc(userId);
         List<DashboardSummaryResponseDto.RecentWorkoutItemDto> recentWorkouts = allRecent.stream()
@@ -221,8 +211,6 @@ public class UserService {
                 .weeklyActiveDays(weeklyActiveDays)
                 .needsBodyScan(needsBodyScan)
                 .daysSinceLastScan(daysSinceLastScan)
-                .bodyScanAlertMessage(bodyScanAlertMessage)
-                .coachMessage(coachMessage)
                 .recentWorkouts(recentWorkouts)
                 .build();
     }
