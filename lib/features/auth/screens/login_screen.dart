@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -341,7 +342,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
           _buildLoginField(
             controller: _loginEmailCtrl,
             hint: isKo ? '아이디' : 'Email',
-            keyboardType: TextInputType.emailAddress,
+            // visiblePassword: iOS에서 영문(ASCII) 키보드로 열린다.
+            keyboardType: TextInputType.visiblePassword,
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(RegExp(r'[\x21-\x7E]')),
+            ],
             validator: (v) {
               if (v == null || v.isEmpty) return s.idRequired;
               if (!v.contains('@')) return s.invalidEmail;
@@ -399,6 +404,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     required TextEditingController controller,
     required String hint,
     TextInputType? keyboardType,
+    List<TextInputFormatter>? inputFormatters,
     bool obscureText = false,
     Widget? suffixIcon,
     String? Function(String?)? validator,
@@ -406,6 +412,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     return TextFormField(
       controller: controller,
       keyboardType: keyboardType,
+      inputFormatters: inputFormatters,
       obscureText: obscureText,
       validator: validator,
       cursorColor: const Color(0xFF8A8F94),

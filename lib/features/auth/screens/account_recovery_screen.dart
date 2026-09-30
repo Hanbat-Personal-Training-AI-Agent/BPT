@@ -165,7 +165,9 @@ class _AccountRecoveryScreenState extends ConsumerState<AccountRecoveryScreen> {
             controller: _email,
             focus: _emailFocus,
             hint: '이메일을 입력해줘',
-            keyboard: TextInputType.emailAddress,
+            // visiblePassword: iOS에서 영문(ASCII) 키보드로 열린다.
+            keyboard: TextInputType.visiblePassword,
+            formatters: englishOnlyFormatters,
             onChanged: (value) {
               ref.read(accountRecoveryProvider.notifier).changeEmail(value);
               _code.clear();
