@@ -59,12 +59,19 @@ final recentRecordsProvider = Provider<List<WorkoutRecordModel>>((ref) {
 });
 
 // ── Weekly workout count ──────────────────────────────────────────────────
+// 주간 목표는 "주 N회(일)" 기준이라, 기록 개수가 아니라 이번 주에 운동한 날 수를 센다.
+// 하루에 여러 종목/여러 번 운동해도 1회로 친다.
 final weeklyWorkoutsProvider = Provider<int>((ref) {
   final records = ref.watch(allRecordsProvider);
   final now = DateTime.now();
-  final weekStart = DateTime(now.year, now.month, now.day)
-      .subtract(Duration(days: now.weekday - 1));
-  return records.where((r) => !r.date.isBefore(weekStart)).length;
+  final today = DateTime(now.year, now.month, now.day);
+  final weekStart = today.subtract(Duration(days: now.weekday - 1));
+  final weekEnd = today.add(const Duration(days: 1));
+  return records
+      .map((r) => DateTime(r.date.year, r.date.month, r.date.day))
+      .where((d) => !d.isBefore(weekStart) && d.isBefore(weekEnd))
+      .toSet()
+      .length;
 });
 
 // ── Streak days (consecutive days with at least one workout) ──────────────

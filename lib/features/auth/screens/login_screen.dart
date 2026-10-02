@@ -376,6 +376,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
             validator: (v) =>
                 v == null || v.length < 8 ? s.minEightChars : null,
           ),
+          // 로그인 실패 문구는 박스 없이 비밀번호 입력칸 바로 아래에 인라인으로.
+          if (auth.error != null) _buildInlineError(auth.error!, s),
           Align(
             alignment: Alignment.centerRight,
             child: TextButton(
@@ -395,10 +397,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
             ),
           ),
           const SizedBox(height: 18),
-          if (auth.error != null) ...[
-            _buildErrorBox(auth.error!, s),
-            const SizedBox(height: 16),
-          ],
         ],
       ),
     );
@@ -546,25 +544,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     }
   }
 
-  Widget _buildErrorBox(String error, s) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.red.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppColors.red.withValues(alpha: 0.3)),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.error_outline, color: AppColors.red, size: 18),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              _localizeError(error, s),
-              style: const TextStyle(color: AppColors.red, fontSize: 13),
-            ),
-          ),
-        ],
+  // 입력칸 텍스트 시작 위치(contentPadding 18)에 맞춘 인라인 에러 문구
+  Widget _buildInlineError(String error, s) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(18, 8, 18, 0),
+      child: Text(
+        _localizeError(error, s),
+        style: const TextStyle(color: AppColors.red, fontSize: 13),
       ),
     );
   }

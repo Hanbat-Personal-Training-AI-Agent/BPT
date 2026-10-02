@@ -197,20 +197,16 @@ List<WorkoutRecordModel> _buildMockWorkoutRecords() {
   final records = <WorkoutRecordModel>[];
   var routineIndex = 0;
 
-  for (var offset = spanDays; offset >= 0; offset--) {
+  // 오늘 기록은 만들지 않는다. 오늘 운동 여부는 실제 기록으로만 판단해야
+  // 이번 주 목표/오늘 요약에 하지 않은 운동이 잡히지 않는다.
+  for (var offset = spanDays; offset >= 1; offset--) {
     final day = today.subtract(Duration(days: offset));
-    final isToday = offset == 0;
     final roll = rng.nextDouble();
-    if (!isToday && roll > dayChance[day.weekday]!) continue;
+    if (roll > dayChance[day.weekday]!) continue;
 
     // 시작 시각: 평일 저녁 18:40~21:00, 주말 10:00~15:00.
-    // 오늘은 이미 끝난 운동처럼 보이도록 지금보다 1~2시간 전에 시작.
     DateTime start;
-    if (isToday) {
-      final t = now.subtract(Duration(minutes: 60 + rng.nextInt(60)));
-      start = DateTime(t.year, t.month, t.day, t.hour, t.minute);
-      if (start.day != now.day) continue; // 새벽이면 오늘 기록은 건너뜀
-    } else if (day.weekday >= 6) {
+    if (day.weekday >= 6) {
       start = day.add(Duration(hours: 10, minutes: rng.nextInt(300)));
     } else {
       start = day.add(Duration(hours: 18, minutes: 40 + rng.nextInt(140)));
