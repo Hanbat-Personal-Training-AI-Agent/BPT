@@ -59,6 +59,9 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
   late DateTime _visibleMonth;
   DateTime? _selectedDate;
 
+  /// 마지막으로 넘긴 방향. 1: 다음 달, -1: 이전 달.
+  int _monthSlideDirection = 1;
+
   @override
   void initState() {
     super.initState();
@@ -69,6 +72,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
 
   void _changeMonth(int delta) {
     setState(() {
+      _monthSlideDirection = delta > 0 ? 1 : -1;
       _visibleMonth =
           DateTime(_visibleMonth.year, _visibleMonth.month + delta, 1);
     });
@@ -132,6 +136,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                     const SizedBox(height: 20),
                     _MonthCalendarCard(
                       visibleMonth: _visibleMonth,
+                      slideDirection: _monthSlideDirection,
                       selectedDate: _selectedDate,
                       workoutDates: workoutDates,
                       isKo: isKo,
@@ -202,6 +207,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
 class _MonthCalendarCard extends StatelessWidget {
   const _MonthCalendarCard({
     required this.visibleMonth,
+    required this.slideDirection,
     required this.selectedDate,
     required this.workoutDates,
     required this.isKo,
@@ -211,6 +217,9 @@ class _MonthCalendarCard extends StatelessWidget {
   });
 
   final DateTime visibleMonth;
+
+  /// 1: 다음 달로 넘김, -1: 이전 달로 넘김.
+  final int slideDirection;
   final DateTime? selectedDate;
   final Set<DateTime> workoutDates;
   final bool isKo;
@@ -230,121 +239,208 @@ class _MonthCalendarCard extends StatelessWidget {
         : '${_monthsEn[visibleMonth.month - 1]} ${visibleMonth.year}';
     final weekdayHeader = isKo ? _weekdayHeaderKo : _weekdayHeaderEn;
 
-    return Container(
-      padding: const EdgeInsets.fromLTRB(12, 16, 12, 16),
-      decoration: BoxDecoration(
-        color: AppColors.grey,
-        borderRadius: BorderRadius.circular(24),
-      ),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _MonthNavButton(
-                  icon: Icons.chevron_left_rounded, onTap: onPrevMonth),
-              Text(
-                monthLabel,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 17,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              _MonthNavButton(
-                  icon: Icons.chevron_right_rounded, onTap: onNextMonth),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: List.generate(7, (i) {
-              final Color color;
-              if (i == 0) {
-                color = AppColors.red;
-              } else if (i == 6) {
-                color = AppColors.purple;
-              } else {
-                color = Colors.white.withValues(alpha: 0.55);
-              }
-              return Expanded(
-                child: Center(
+    // 좌우로 쓸어 넘겨도 달이 바뀐다 (왼쪽으로 쓸면 다음 달).
+    return GestureDetector(
+      onHorizontalDragEnd: (details) {
+        final v = details.primaryVelocity ?? 0;
+        if (v < -200) onNextMonth();
+        if (v > 200) onPrevMonth();
+      },
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(12, 16, 12, 16),
+        decoration: BoxDecoration(
+          color: AppColors.grey,
+          borderRadius: BorderRadius.circular(24),
+        ),
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _MonthNavButton(
+                    icon: Icons.chevron_left_rounded, onTap: onPrevMonth),
+                // 월 제목: 넘기는 방향으로 살짝 밀리며 바뀐다.
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 280),
+                  switchInCurve: Curves.easeOutCubic,
+                  switchOutCurve: Curves.easeInCubic,
+                  transitionBuilder: (child, animation) {
+                    final incoming = child.key == ValueKey(monthLabel);
+                    final dx =
+                        (incoming ? slideDirection : -slideDirection) * 0.35;
+                    return FadeTransition(
+                      opacity: animation,
+                      child: SlideTransition(
+                        position: animation.drive(
+                          Tween(begin: Offset(dx, 0), end: Offset.zero),
+                        ),
+                        child: child,
+                      ),
+                    );
+                  },
                   child: Text(
-                    weekdayHeader[i],
-                    style: TextStyle(
-                      color: color,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
+                    monthLabel,
+                    key: ValueKey(monthLabel),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
                 ),
-              );
-            }),
-          ),
-          const SizedBox(height: 6),
-          GridView.builder(
-            shrinkWrap: true,
-            padding: EdgeInsets.zero,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 7,
-              childAspectRatio: 1,
+                _MonthNavButton(
+                    icon: Icons.chevron_right_rounded, onTap: onNextMonth),
+              ],
             ),
-            itemCount: leadingBlanks + daysInMonth,
-            itemBuilder: (context, index) {
-              if (index < leadingBlanks) return const SizedBox.shrink();
-              final day = index - leadingBlanks + 1;
-              final date = DateTime(visibleMonth.year, visibleMonth.month, day);
-              final isToday = date == today;
-              final isSelected = date == selectedDate;
-              final hasWorkout = workoutDates.contains(date);
-
-              return GestureDetector(
-                onTap: () => onSelectDate(date),
-                behavior: HitTestBehavior.opaque,
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Container(
-                      width: 34,
-                      height: 34,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: isToday ? AppColors.green : Colors.transparent,
-                        border: (!isToday && isSelected)
-                            ? Border.all(
-                                color: Colors.white.withValues(alpha: 0.4))
-                            : null,
-                      ),
-                      child: Text(
-                        '$day',
-                        style: TextStyle(
-                          color: isToday ? AppColors.black : Colors.white,
-                          fontWeight:
-                              isToday ? FontWeight.w800 : FontWeight.w600,
-                          fontSize: 14,
-                        ),
+            const SizedBox(height: 12),
+            Row(
+              children: List.generate(7, (i) {
+                final Color color;
+                if (i == 0) {
+                  color = AppColors.red;
+                } else if (i == 6) {
+                  color = AppColors.purple;
+                } else {
+                  color = Colors.white.withValues(alpha: 0.55);
+                }
+                return Expanded(
+                  child: Center(
+                    child: Text(
+                      weekdayHeader[i],
+                      style: TextStyle(
+                        color: color,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
-                    const SizedBox(height: 3),
-                    SizedBox(
-                      width: 5,
-                      height: 5,
-                      child: hasWorkout
-                          ? const DecoratedBox(
-                              decoration: BoxDecoration(
-                                color: AppColors.green,
-                                shape: BoxShape.circle,
-                              ),
-                            )
-                          : null,
-                    ),
-                  ],
+                  ),
+                );
+              }),
+            ),
+            const SizedBox(height: 6),
+            _MonthGridSlider(
+              monthKey: ValueKey(visibleMonth),
+              direction: slideDirection,
+              child: GridView.builder(
+                key: ValueKey(visibleMonth),
+                shrinkWrap: true,
+                padding: EdgeInsets.zero,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 7,
+                  childAspectRatio: 1,
                 ),
-              );
-            },
+                itemCount: leadingBlanks + daysInMonth,
+                itemBuilder: (context, index) {
+                  if (index < leadingBlanks) return const SizedBox.shrink();
+                  final day = index - leadingBlanks + 1;
+                  final date =
+                      DateTime(visibleMonth.year, visibleMonth.month, day);
+                  final isToday = date == today;
+                  final isSelected = date == selectedDate;
+                  final hasWorkout = workoutDates.contains(date);
+
+                  return GestureDetector(
+                    onTap: () => onSelectDate(date),
+                    behavior: HitTestBehavior.opaque,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          width: 34,
+                          height: 34,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color:
+                                isToday ? AppColors.green : Colors.transparent,
+                            border: (!isToday && isSelected)
+                                ? Border.all(
+                                    color: Colors.white.withValues(alpha: 0.4))
+                                : null,
+                          ),
+                          child: Text(
+                            '$day',
+                            style: TextStyle(
+                              color: isToday ? AppColors.black : Colors.white,
+                              fontWeight:
+                                  isToday ? FontWeight.w800 : FontWeight.w600,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        SizedBox(
+                          width: 5,
+                          height: 5,
+                          child: hasWorkout
+                              ? const DecoratedBox(
+                                  decoration: BoxDecoration(
+                                    color: AppColors.green,
+                                    shape: BoxShape.circle,
+                                  ),
+                                )
+                              : null,
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── 월 넘김 슬라이드 ────────────────────────────────────────────────────────
+/// 날짜 칸을 넘기는 방향으로 밀어서 바꾼다. 다음 달이면 새 달이 오른쪽에서 들어오고
+/// 이전 달은 왼쪽으로 밀려나며, 두 달이 붙어서 움직인다. 달마다 줄 수(5/6주)가
+/// 달라 높이가 바뀌는 것도 부드럽게 맞춘다.
+class _MonthGridSlider extends StatelessWidget {
+  const _MonthGridSlider({
+    required this.monthKey,
+    required this.direction,
+    required this.child,
+  });
+  final Key monthKey;
+  final int direction;
+  final Widget child;
+
+  static const _duration = Duration(milliseconds: 320);
+  static const _curve = Curves.easeOutCubic;
+
+  @override
+  Widget build(BuildContext context) {
+    final dir = direction.toDouble();
+    return ClipRect(
+      child: AnimatedSize(
+        duration: _duration,
+        curve: _curve,
+        alignment: Alignment.topCenter,
+        child: AnimatedSwitcher(
+          duration: _duration,
+          switchInCurve: _curve,
+          // 나가는 달은 애니메이션이 거꾸로 돌아서 뒤집은 곡선을 써야 같이 붙어 움직인다.
+          switchOutCurve: _curve.flipped,
+          layoutBuilder: (current, previous) => Stack(
+            alignment: Alignment.topCenter,
+            children: [...previous, if (current != null) current],
           ),
-        ],
+          transitionBuilder: (child, animation) {
+            final incoming = child.key == monthKey;
+            return SlideTransition(
+              position: animation.drive(Tween(
+                begin: Offset(incoming ? dir : -dir, 0),
+                end: Offset.zero,
+              )),
+              child: child,
+            );
+          },
+          child: child,
+        ),
       ),
     );
   }
