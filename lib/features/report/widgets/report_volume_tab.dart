@@ -203,21 +203,24 @@ class _StatsRow extends StatelessWidget {
         Expanded(
           child: _StatTile(
             label: isKo ? '총 시간' : 'Total time',
-            value: _formatDuration(data.totalSeconds),
+            value: data.totalSeconds,
+            format: _formatDuration,
           ),
         ),
         const SizedBox(width: 10),
         Expanded(
           child: _StatTile(
             label: isKo ? '총 반복' : 'Total reps',
-            value: _groupThousands(data.totalReps),
+            value: data.totalReps,
+            format: _groupThousands,
           ),
         ),
         const SizedBox(width: 10),
         Expanded(
           child: _StatTile(
             label: isKo ? '운동 일수' : 'Active days',
-            value: isKo ? '${data.activeDays}일' : '${data.activeDays}d',
+            value: data.activeDays,
+            format: (n) => isKo ? '$n일' : '${n}d',
           ),
         ),
       ],
@@ -226,9 +229,14 @@ class _StatsRow extends StatelessWidget {
 }
 
 class _StatTile extends StatelessWidget {
-  const _StatTile({required this.label, required this.value});
+  const _StatTile({
+    required this.label,
+    required this.value,
+    required this.format,
+  });
   final String label;
-  final String value;
+  final int value;
+  final String Function(int value) format;
 
   @override
   Widget build(BuildContext context) {
@@ -255,12 +263,20 @@ class _StatTile extends StatelessWidget {
           FittedBox(
             fit: BoxFit.scaleDown,
             alignment: Alignment.centerLeft,
-            child: Text(
-              value,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 22,
-                fontWeight: FontWeight.w900,
+            // 처음 열릴 때 0부터 빠르게 올라가고, 집계 단위를 바꾸면 새 값까지 이어서 움직인다.
+            child: TweenAnimationBuilder<int>(
+              tween: IntTween(begin: 0, end: value),
+              duration: const Duration(milliseconds: 800),
+              curve: Curves.easeOutCubic,
+              builder: (context, shown, _) => Text(
+                format(shown),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w900,
+                  // 숫자가 바뀌는 동안 폭이 흔들리지 않게 고정폭 숫자
+                  fontFeatures: [FontFeature.tabularFigures()],
+                ),
               ),
             ),
           ),
@@ -534,10 +550,13 @@ class _BarChartState extends State<_BarChart> {
                                   child: Padding(
                                     padding: const EdgeInsets.symmetric(
                                         horizontal: 3),
+                                    // 처음엔 바닥에서 차오르고, 왼쪽 막대부터 살짝씩
+                                    // 늦게 끝나서 순서대로 올라오는 느낌을 준다.
                                     child: TweenAnimationBuilder<double>(
-                                      tween: Tween(end: barHeightOf(i)),
-                                      duration:
-                                          const Duration(milliseconds: 500),
+                                      tween:
+                                          Tween(begin: 0, end: barHeightOf(i)),
+                                      duration: Duration(
+                                          milliseconds: 600 + i * 70),
                                       curve: Curves.easeOutCubic,
                                       builder: (context, height, _) => Align(
                                         alignment: Alignment.bottomCenter,
