@@ -80,6 +80,37 @@ class _RatioDonut extends StatelessWidget {
 
   static const _size = 130.0;
 
+  /// 전체 중 [t](0~1) 만큼만 앞에서부터 채운 조각 목록. 남은 부분은 투명 조각으로
+  /// 자리만 잡아서, 각 종목 조각이 순서대로 이어 그려지는 것처럼 보이게 한다.
+  List<PieChartSectionData> _revealedSections(double t) {
+    final total =
+        data.ratios.fold<double>(0, (sum, r) => sum + r.percent.toDouble());
+    if (total <= 0) return const [];
+    var remaining = total * t;
+    final sections = <PieChartSectionData>[];
+    for (final r in data.ratios) {
+      final shown = remaining.clamp(0.0, r.percent.toDouble());
+      remaining -= shown;
+      if (shown <= 0) continue;
+      sections.add(PieChartSectionData(
+        value: shown,
+        color: r.color,
+        radius: _size * 0.16,
+        showTitle: false,
+      ));
+    }
+    final rest = total - total * t;
+    if (rest > 0.01) {
+      sections.add(PieChartSectionData(
+        value: rest,
+        color: Colors.transparent,
+        radius: _size * 0.16,
+        showTitle: false,
+      ));
+    }
+    return sections;
+  }
+
   @override
   Widget build(BuildContext context) {
     return SizedBox(
@@ -88,31 +119,37 @@ class _RatioDonut extends StatelessWidget {
       child: Stack(
         alignment: Alignment.center,
         children: [
-          PieChart(
-            PieChartData(
-              sectionsSpace: 2,
-              centerSpaceRadius: _size * 0.34,
-              startDegreeOffset: -90,
-              sections: [
-                for (final r in data.ratios)
-                  PieChartSectionData(
-                    value: r.percent.toDouble(),
-                    color: r.color,
-                    radius: _size * 0.16,
-                    showTitle: false,
-                  ),
-              ],
+          // 12시 방향에서 시계 방향으로 한 바퀴 그려지며 차오른다.
+          TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0, end: 1),
+            duration: const Duration(milliseconds: 900),
+            curve: Curves.easeOutCubic,
+            builder: (context, t, _) => PieChart(
+              PieChartData(
+                sectionsSpace: 2,
+                centerSpaceRadius: _size * 0.34,
+                startDegreeOffset: -90,
+                sections: _revealedSections(t),
+              ),
+              // 차오르는 효과는 위에서 직접 그리므로 차트 자체 보간은 끈다.
+              swapAnimationDuration: Duration.zero,
             ),
           ),
           Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                '${data.totalSessions}',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 26,
-                  fontWeight: FontWeight.w900,
+              TweenAnimationBuilder<int>(
+                tween: IntTween(begin: 0, end: data.totalSessions),
+                duration: const Duration(milliseconds: 800),
+                curve: Curves.easeOutCubic,
+                builder: (context, shown, _) => Text(
+                  '$shown',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 26,
+                    fontWeight: FontWeight.w900,
+                    fontFeatures: [FontFeature.tabularFigures()],
+                  ),
                 ),
               ),
               Text(
@@ -227,8 +264,8 @@ class _MistakesCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 14),
-          for (final m in data.mistakes) ...[
-            _MistakeRow(isKo: isKo, item: m, maxCount: maxCount),
+          for (final (i, m) in data.mistakes.indexed) ...[
+            _MistakeRow(isKo: isKo, item: m, maxCount: maxCount, order: i),
             if (m != data.mistakes.last) const SizedBox(height: 10),
           ],
         ],
@@ -242,10 +279,14 @@ class _MistakeRow extends StatelessWidget {
     required this.isKo,
     required this.item,
     required this.maxCount,
+    this.order = 0,
   });
   final bool isKo;
   final MistakeItem item;
   final int maxCount;
+
+  /// 위에서부터 몇 번째 줄인지. 아래 줄일수록 조금 늦게 끝나 순서대로 차오른다.
+  final int order;
 
   @override
   Widget build(BuildContext context) {
@@ -285,9 +326,10 @@ class _MistakeRow extends StatelessWidget {
                   width: constraints.maxWidth,
                   color: Colors.white.withValues(alpha: 0.08),
                 ),
+                // 처음엔 왼쪽 끝에서부터 차오른다.
                 TweenAnimationBuilder<double>(
-                  tween: Tween(end: fraction),
-                  duration: const Duration(milliseconds: 500),
+                  tween: Tween(begin: 0, end: fraction),
+                  duration: Duration(milliseconds: 700 + order * 100),
                   curve: Curves.easeOutCubic,
                   builder: (context, f, _) => Container(
                     height: 7,
