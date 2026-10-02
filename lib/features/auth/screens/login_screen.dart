@@ -9,6 +9,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/route_constants.dart';
 import '../../../core/i18n/locale_provider.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/floating_decoration.dart';
 import '../providers/auth_provider.dart';
 import '../providers/sign_up_provider.dart';
 import '../widgets/auth_dark_form.dart';
@@ -243,26 +244,41 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                     Positioned(
                       left: w * 0.02,
                       top: 0,
-                      child: Transform.rotate(
-                        angle: -20 * math.pi / 180,
-                        child: Image.asset(
-                          'assets/images/decoration/spark_pink.png',
-                          width: w * 0.22,
-                          height: w * 0.22,
-                          excludeFromSemantics: true,
+                      // 반짝이: 조금 빠르게, 더 많이 기울면서 반짝이듯
+                      child: FloatingDecoration(
+                        period: const Duration(milliseconds: 2400),
+                        floatDistance: 3,
+                        rotationDegrees: 8,
+                        scaleAmount: 0.07,
+                        child: Transform.rotate(
+                          angle: -20 * math.pi / 180,
+                          child: Image.asset(
+                            'assets/images/decoration/spark_pink.png',
+                            width: w * 0.22,
+                            height: w * 0.22,
+                            excludeFromSemantics: true,
+                          ),
                         ),
                       ),
                     ),
                     Positioned(
                       right: w * 0.07,
                       top: h * 0.60,
-                      child: Transform.rotate(
-                        angle: -12 * math.pi / 180,
-                        child: Image.asset(
-                          'assets/images/decoration/heart_pink.png',
-                          width: w * 0.21,
-                          height: w * 0.21,
-                          excludeFromSemantics: true,
+                      // 하트: 반짝이와 박자를 엇갈려 천천히 둥실둥실
+                      child: FloatingDecoration(
+                        period: const Duration(milliseconds: 3200),
+                        phase: 0.4,
+                        floatDistance: 5,
+                        rotationDegrees: 5,
+                        scaleAmount: 0.04,
+                        child: Transform.rotate(
+                          angle: -12 * math.pi / 180,
+                          child: Image.asset(
+                            'assets/images/decoration/heart_pink.png',
+                            width: w * 0.21,
+                            height: w * 0.21,
+                            excludeFromSemantics: true,
+                          ),
                         ),
                       ),
                     ),
