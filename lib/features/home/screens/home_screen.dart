@@ -9,6 +9,7 @@ import '../../../core/constants/route_constants.dart';
 import '../../../core/i18n/locale_provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/floating_decoration.dart';
 import '../../../data/mock_data.dart';
 import '../../../models/workout_record_model.dart';
 import '../providers/home_provider.dart';
@@ -224,21 +225,36 @@ class _StartWorkoutCard extends StatelessWidget {
               Positioned(
                 right: 35,
                 top: 19,
-                child: Image.asset(
-                  'assets/images/decoration/tilde_purple.png',
-                  width: 25,
-                  height: 25,
+                // 물결: 천천히 살랑살랑
+                child: FloatingDecoration(
+                  period: const Duration(milliseconds: 3400),
+                  floatDistance: 1.2,
+                  rotationDegrees: 5,
+                  scaleAmount: 0.03,
+                  child: Image.asset(
+                    'assets/images/decoration/tilde_purple.png',
+                    width: 25,
+                    height: 25,
+                  ),
                 ),
               ),
               Positioned(
                 right: 17,
                 top: 8,
-                child: Transform.rotate(
-                  angle: -30 * math.pi / 180,
-                  child: Image.asset(
-                    'assets/images/decoration/note_purple.png',
-                    width: 24,
-                    height: 24,
+                // 음표: 물결과 박자를 엇갈려 통통 리듬 타듯
+                child: FloatingDecoration(
+                  period: const Duration(milliseconds: 2600),
+                  phase: 0.5,
+                  floatDistance: 1.5,
+                  rotationDegrees: 6,
+                  scaleAmount: 0.03,
+                  child: Transform.rotate(
+                    angle: -30 * math.pi / 180,
+                    child: Image.asset(
+                      'assets/images/decoration/note_purple.png',
+                      width: 24,
+                      height: 24,
+                    ),
                   ),
                 ),
               ),
@@ -264,7 +280,7 @@ class _QuickStatsRow extends StatelessWidget {
         Expanded(
           child: _StatBox(
             label: isKo ? '운동 시간' : 'Active time',
-            value: '${summary['totalMinutes'] ?? 0}',
+            value: summary['totalMinutes'] as int? ?? 0,
             unit: isKo ? '분' : 'm',
           ),
         ),
@@ -272,7 +288,7 @@ class _QuickStatsRow extends StatelessWidget {
         Expanded(
           child: _StatBox(
             label: isKo ? '완료 세트' : 'Sets done',
-            value: '${summary['completedSets'] ?? 0}',
+            value: summary['completedSets'] as int? ?? 0,
             unit: isKo ? '세트' : ' sets',
           ),
         ),
@@ -280,7 +296,7 @@ class _QuickStatsRow extends StatelessWidget {
         Expanded(
           child: _StatBox(
             label: isKo ? '총 반복' : 'Total reps',
-            value: '${summary['totalReps'] ?? 0}',
+            value: summary['totalReps'] as int? ?? 0,
             unit: isKo ? '회' : ' reps',
           ),
         ),
@@ -296,7 +312,7 @@ class _StatBox extends StatelessWidget {
     required this.unit,
   });
   final String label;
-  final String value;
+  final int value;
   final String unit;
 
   @override
@@ -319,26 +335,34 @@ class _StatBox extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 6),
-          RichText(
-            text: TextSpan(
-              children: [
-                TextSpan(
-                  text: value,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 23,
-                    fontWeight: FontWeight.w800,
+          // 화면이 열릴 때 0부터 실제 값까지 빠르게 올라간다.
+          TweenAnimationBuilder<int>(
+            tween: IntTween(begin: 0, end: value),
+            duration: const Duration(milliseconds: 800),
+            curve: Curves.easeOutCubic,
+            builder: (context, shown, _) => RichText(
+              text: TextSpan(
+                children: [
+                  TextSpan(
+                    text: '$shown',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 23,
+                      fontWeight: FontWeight.w800,
+                      // 숫자가 바뀌는 동안 폭이 흔들리지 않게 고정폭 숫자
+                      fontFeatures: [FontFeature.tabularFigures()],
+                    ),
                   ),
-                ),
-                TextSpan(
-                  text: unit,
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.55),
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
+                  TextSpan(
+                    text: unit,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.55),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ],
@@ -510,13 +534,20 @@ class _WeeklyGoalCard extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 14),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(6),
-            child: LinearProgressIndicator(
-              value: progress,
-              backgroundColor: Colors.white.withValues(alpha: 0.08),
-              valueColor: const AlwaysStoppedAnimation<Color>(AppColors.green),
-              minHeight: 8,
+          // 화면이 열릴 때 0에서 달성한 만큼까지 차오른다. 값이 바뀌면 그 값까지 이어서 움직인다.
+          TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0, end: progress),
+            duration: const Duration(milliseconds: 900),
+            curve: Curves.easeOutCubic,
+            builder: (context, value, _) => ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: LinearProgressIndicator(
+                value: value,
+                backgroundColor: Colors.white.withValues(alpha: 0.08),
+                valueColor:
+                    const AlwaysStoppedAnimation<Color>(AppColors.green),
+                minHeight: 8,
+              ),
             ),
           ),
           const SizedBox(height: 14),

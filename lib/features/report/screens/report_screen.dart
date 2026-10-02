@@ -33,13 +33,57 @@ class ReportScreen extends ConsumerWidget {
                     ref.read(reportSectionProvider.notifier).state = s,
               ),
               Expanded(
-                child: section == ReportSection.volume
-                    ? ReportVolumeTab(isKo: isKo)
-                    : ReportAnalysisTab(isKo: isKo),
+                child: _SectionSlider(
+                  section: section,
+                  child: section == ReportSection.volume
+                      ? ReportVolumeTab(
+                          key: const ValueKey(ReportSection.volume),
+                          isKo: isKo)
+                      : ReportAnalysisTab(
+                          key: const ValueKey(ReportSection.analysis),
+                          isKo: isKo),
+                ),
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+// ── 운동량 ↔ 분석 슬라이드 전환 ────────────────────────────────────────────
+/// 탭 순서(운동량 → 분석)대로 옆으로 밀어서 바꾼다. 오른쪽 탭으로 가면 새 화면이
+/// 오른쪽에서 들어오고 이전 화면은 왼쪽으로 밀려나며, 두 화면이 붙어서 움직인다.
+class _SectionSlider extends StatelessWidget {
+  const _SectionSlider({required this.section, required this.child});
+  final ReportSection section;
+  final Widget child;
+
+  static const _curve = Curves.easeOutCubic;
+
+  @override
+  Widget build(BuildContext context) {
+    // 1: 오른쪽 탭(분석)으로 이동, -1: 왼쪽 탭(운동량)으로 이동.
+    final dir = section.index > 0 ? 1.0 : -1.0;
+    return ClipRect(
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 320),
+        switchInCurve: _curve,
+        // 나가는 화면은 애니메이션이 거꾸로 돌기 때문에 뒤집은 곡선을 써야
+        // 들어오는 화면과 같은 속도로 붙어서 움직인다.
+        switchOutCurve: _curve.flipped,
+        transitionBuilder: (child, animation) {
+          final incoming = child.key == ValueKey(section);
+          final offset = incoming
+              ? Tween(begin: Offset(dir, 0), end: Offset.zero)
+              : Tween(begin: Offset(-dir, 0), end: Offset.zero);
+          return SlideTransition(
+            position: animation.drive(offset),
+            child: child,
+          );
+        },
+        child: child,
       ),
     );
   }

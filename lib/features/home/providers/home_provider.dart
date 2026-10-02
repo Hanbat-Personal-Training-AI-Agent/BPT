@@ -100,6 +100,16 @@ final streakDaysProvider = Provider<int>((ref) {
 });
 
 // ── Today's summary ───────────────────────────────────────────────────────
+// 테스트용: 오늘 실제 기록이 없을 때 홈 상단 통계 카드(운동 시간/완료 세트/총 반복)에
+// 보여줄 숫자. 숫자 올라가는 애니메이션 확인용이라 이 세 값만 바꾸고, 이번 주 목표
+// 등 다른 집계에는 영향이 없다. 실제 값만 보려면 false 로 바꾸면 된다.
+const showMockTodayStats = true;
+const _mockTodayStats = {
+  'totalMinutes': 42,
+  'completedSets': 8,
+  'totalReps': 86,
+};
+
 final todaySummaryProvider = Provider<Map<String, dynamic>>((ref) {
   final records = ref.watch(allRecordsProvider);
   final streak = ref.watch(streakDaysProvider);
@@ -126,6 +136,7 @@ final todaySummaryProvider = Provider<Map<String, dynamic>>((ref) {
     'completedSets': completedSets,
     'avgPostureScore': avgScore,
     'streak': streak,
+    if (showMockTodayStats && todayRecords.isEmpty) ..._mockTodayStats,
   };
 });
 
