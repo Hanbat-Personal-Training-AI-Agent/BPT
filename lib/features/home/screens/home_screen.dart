@@ -9,6 +9,7 @@ import '../../../core/constants/route_constants.dart';
 import '../../../core/i18n/locale_provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/floating_decoration.dart';
 import '../../../data/mock_data.dart';
 import '../../../models/workout_record_model.dart';
 import '../providers/home_provider.dart';
@@ -224,21 +225,36 @@ class _StartWorkoutCard extends StatelessWidget {
               Positioned(
                 right: 35,
                 top: 19,
-                child: Image.asset(
-                  'assets/images/decoration/tilde_purple.png',
-                  width: 25,
-                  height: 25,
+                // 물결: 천천히 살랑살랑
+                child: FloatingDecoration(
+                  period: const Duration(milliseconds: 3400),
+                  floatDistance: 1.2,
+                  rotationDegrees: 5,
+                  scaleAmount: 0.03,
+                  child: Image.asset(
+                    'assets/images/decoration/tilde_purple.png',
+                    width: 25,
+                    height: 25,
+                  ),
                 ),
               ),
               Positioned(
                 right: 17,
                 top: 8,
-                child: Transform.rotate(
-                  angle: -30 * math.pi / 180,
-                  child: Image.asset(
-                    'assets/images/decoration/note_purple.png',
-                    width: 24,
-                    height: 24,
+                // 음표: 물결과 박자를 엇갈려 통통 리듬 타듯
+                child: FloatingDecoration(
+                  period: const Duration(milliseconds: 2600),
+                  phase: 0.5,
+                  floatDistance: 1.5,
+                  rotationDegrees: 6,
+                  scaleAmount: 0.03,
+                  child: Transform.rotate(
+                    angle: -30 * math.pi / 180,
+                    child: Image.asset(
+                      'assets/images/decoration/note_purple.png',
+                      width: 24,
+                      height: 24,
+                    ),
                   ),
                 ),
               ),
