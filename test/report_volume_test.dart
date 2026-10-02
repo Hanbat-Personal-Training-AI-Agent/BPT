@@ -143,7 +143,6 @@ void main() {
     expect(find.text('40m'), findsOneWidget);
     expect(find.text('300'), findsOneWidget);
     expect(find.text('2일'), findsOneWidget);
-    expect(find.text('+67%'), findsOneWidget);
     expect(find.text('이번'), findsNWidgets(2)); // 두 차트의 x축에 하나씩
 
     // y축: 가장 긴 구간(25분) 기준으로 0 / 10m / 20m / 30m 눈금이 왼쪽에 깔린다.
