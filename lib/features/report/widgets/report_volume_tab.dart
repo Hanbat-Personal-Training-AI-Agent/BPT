@@ -285,7 +285,6 @@ class _TimeChangeCard extends StatelessWidget {
       // y축 글자 자리 때문에 그래프가 오른쪽으로 밀려 보여서, 그래프만 카드
       // 왼쪽 여백 쪽으로 조금 당긴다.
       chartLeftBleed: 8,
-      trailing: _ChangeBadge(pct: data.timeChangePct),
       child: _BarChart(
         // 집계 단위를 바꾸면 선택된 막대를 초기화한다.
         key: ValueKey(data.period),
@@ -301,44 +300,6 @@ class _TimeChangeCard extends StatelessWidget {
           for (var i = 0; i < reportBucketCount; i++) _labelColorAt(i)
         ],
         barAreaHeight: 112,
-      ),
-    );
-  }
-}
-
-class _ChangeBadge extends StatelessWidget {
-  const _ChangeBadge({required this.pct});
-  final int? pct;
-
-  @override
-  Widget build(BuildContext context) {
-    final p = pct;
-    if (p == null) return const SizedBox.shrink();
-    final Color bg;
-    final Color fg;
-    if (p > 0) {
-      bg = AppColors.green;
-      fg = AppColors.black;
-    } else if (p < 0) {
-      bg = AppColors.red;
-      fg = Colors.white;
-    } else {
-      bg = Colors.white.withValues(alpha: 0.12);
-      fg = Colors.white;
-    }
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Text(
-        p > 0 ? '+$p%' : '$p%',
-        style: TextStyle(
-          color: fg,
-          fontSize: 13,
-          fontWeight: FontWeight.w900,
-        ),
       ),
     );
   }
@@ -391,12 +352,12 @@ class _RepsChangeCard extends StatelessWidget {
 class _ChartCard extends StatelessWidget {
   const _ChartCard({
     required this.title,
-    required this.trailing,
+    this.trailing,
     required this.child,
     this.chartLeftBleed = 0,
   });
   final String title;
-  final Widget trailing;
+  final Widget? trailing;
   final Widget child;
 
   /// [child]를 카드 왼쪽 안쪽 여백 쪽으로 이만큼 당겨서 그린다. 제목 줄은 그대로
@@ -428,7 +389,7 @@ class _ChartCard extends StatelessWidget {
                     fontWeight: FontWeight.w900,
                   ),
                 ),
-                trailing,
+                if (trailing != null) trailing!,
               ],
             ),
           ),

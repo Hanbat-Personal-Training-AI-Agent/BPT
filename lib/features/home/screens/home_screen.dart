@@ -302,7 +302,7 @@ class _StatBox extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+      padding: const EdgeInsets.fromLTRB(16, 16, 12, 16),
       decoration: BoxDecoration(
         color: AppColors.grey,
         borderRadius: BorderRadius.circular(22),
@@ -326,7 +326,7 @@ class _StatBox extends StatelessWidget {
                   text: value,
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 21,
+                    fontSize: 23,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
@@ -563,8 +563,9 @@ class _WeekdayPill extends StatelessWidget {
         bg = AppColors.green;
         fg = AppColors.black;
       case _DayState.today:
-        bg = AppColors.purple;
-        fg = Colors.white;
+        // 오늘: 기본 배경 + 보라색 외곽선/글씨
+        bg = Colors.white.withValues(alpha: 0.06);
+        fg = AppColors.purple;
       case _DayState.inactive:
         bg = Colors.white.withValues(alpha: 0.06);
         fg = Colors.white.withValues(alpha: 0.35);
@@ -575,6 +576,9 @@ class _WeekdayPill extends StatelessWidget {
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(10),
+        border: state == _DayState.today
+            ? Border.all(color: AppColors.purple, width: 1.5)
+            : null,
       ),
       alignment: Alignment.center,
       child: Text(
