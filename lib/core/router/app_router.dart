@@ -130,27 +130,27 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: RouteConstants.home,
             pageBuilder: (context, state) =>
-                _fadePage(state, const HomeScreen()),
+                _tabPage(state, 0, const HomeScreen()),
           ),
           GoRoute(
             path: RouteConstants.calendar,
             pageBuilder: (context, state) =>
-                _fadePage(state, const CalendarScreen()),
+                _tabPage(state, 1, const CalendarScreen()),
           ),
           GoRoute(
             path: RouteConstants.report,
             pageBuilder: (context, state) =>
-                _fadePage(state, const ReportScreen()),
+                _tabPage(state, 3, const ReportScreen()),
           ),
           GoRoute(
             path: RouteConstants.profile,
             pageBuilder: (context, state) =>
-                _fadePage(state, const ProfileScreen()),
+                _tabPage(state, 4, const ProfileScreen()),
           ),
           GoRoute(
             path: RouteConstants.exerciseSelection,
             pageBuilder: (context, state) =>
-                _fadePage(state, const ExerciseSelectionScreen()),
+                _tabPage(state, 2, const ExerciseSelectionScreen()),
           ),
         ],
       ),
@@ -265,6 +265,49 @@ CustomTransitionPage<void> _slidePage(GoRouterState state, Widget child) {
         end: Offset.zero,
       ).chain(CurveTween(curve: Curves.easeOutCubic));
       return SlideTransition(position: animation.drive(tween), child: c);
+    },
+  );
+}
+
+// ── 하단 탭 전환 ──────────────────────────────────────────────────────────
+// 네비바 순서(홈, 캘린더, 운동, 리포트, 프로필)대로 옆으로 밀어서 넘긴다.
+// 오른쪽 탭으로 가면 새 화면이 오른쪽에서 들어오고 이전 화면은 왼쪽으로 밀려나며,
+// 두 화면이 같은 속도로 붙어서 움직여 한 장처럼 이어진다.
+int? _currentTabIndex;
+
+/// 1: 오른쪽 탭으로 이동, -1: 왼쪽 탭으로 이동.
+/// 들어오는 화면과 나가는 화면이 같은 값을 읽어야 해서 한 곳에 둔다.
+double _tabSlideDirection = 1;
+
+CustomTransitionPage<void> _tabPage(
+    GoRouterState state, int tabIndex, Widget child) {
+  // pageBuilder 는 같은 화면에서도 다시 불릴 수 있어서, 탭이 실제로 바뀔 때만 방향을 갱신한다.
+  final previous = _currentTabIndex;
+  if (previous != null && previous != tabIndex) {
+    _tabSlideDirection = tabIndex > previous ? 1 : -1;
+  }
+  _currentTabIndex = tabIndex;
+
+  return CustomTransitionPage<void>(
+    key: state.pageKey,
+    child: child,
+    transitionDuration: const Duration(milliseconds: 320),
+    reverseTransitionDuration: const Duration(milliseconds: 320),
+    transitionsBuilder: (_, animation, secondaryAnimation, c) {
+      final curve = CurveTween(curve: Curves.easeOutCubic);
+      final dir = _tabSlideDirection;
+      // 들어올 때: 이동 방향 쪽 바깥에서 가운데로.
+      final enter = animation.drive(curve).drive(
+            Tween(begin: Offset(dir, 0), end: Offset.zero),
+          );
+      // 나갈 때: 가운데에서 반대쪽 바깥으로 (다음 화면의 진행에 맞춰 함께 이동).
+      final exit = secondaryAnimation.drive(curve).drive(
+            Tween(begin: Offset.zero, end: Offset(-dir, 0)),
+          );
+      return SlideTransition(
+        position: exit,
+        child: SlideTransition(position: enter, child: c),
+      );
     },
   );
 }
