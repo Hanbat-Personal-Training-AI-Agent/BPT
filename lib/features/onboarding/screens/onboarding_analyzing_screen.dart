@@ -161,7 +161,7 @@ class _OnboardingAnalyzingScreenState extends State<OnboardingAnalyzingScreen>
                         ),
                         const SizedBox(height: 18),
                         const _StepRow(
-                          label: '자동 촬영 3장 수집',
+                          label: '자동 촬영 4장 수집',
                           state: _StepState.done,
                         ),
                         const SizedBox(height: 10),

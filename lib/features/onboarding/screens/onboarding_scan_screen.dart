@@ -26,24 +26,6 @@ class OnboardingScanScreen extends ConsumerStatefulWidget {
 }
 
 class _OnboardingScanScreenState extends ConsumerState<OnboardingScanScreen> {
-  /// Capture order the guidance recommends: one continuous turn to the user's left.
-  ///
-  /// Keys are the saved view labels (which side of the body the camera sees);
-  /// the chip labels name the way the user turns, so "왼쪽" is `rightfront`.
-  static const _views = ['front', 'rightfront', 'back', 'leftfront'];
-  static const _viewLabels = {
-    'front': '정면',
-    'rightfront': '왼쪽',
-    'back': '뒷면',
-    'leftfront': '오른쪽',
-  };
-  static const _viewHints = {
-    'front': '카메라 보고 팔은 A자로,\n발은 어깨너비로 벌려 줘!',
-    'rightfront': '제자리에서 왼쪽으로 비스듬히 돌아 줘.\n고개도 몸이랑 같은 방향으로!',
-    'back': '이번엔 등을 보여 줘.\n팔은 계속 A자 유지!',
-    'leftfront': '마지막! 오른쪽으로 비스듬히 돌아 줘.\n거의 다 왔어!',
-  };
-
   MethodChannel? _channel;
   CalibrationSilhouettes? _silhouettes;
 
@@ -58,6 +40,12 @@ class _OnboardingScanScreenState extends ConsumerState<OnboardingScanScreen> {
 
   /// White flash over the preview each time a view is captured.
   bool _flash = false;
+
+  /// The "…찍었어!" line arrives on a single frame; keep it in the bubble for the
+  /// capture cooldown so it can be read, not just heard.
+  static const _captureLineHold = Duration(milliseconds: 1500);
+  String? _captureLine;
+  DateTime _captureLineUntil = DateTime.fromMillisecondsSinceEpoch(0);
 
   bool get _isIOS => !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
 
@@ -92,7 +80,11 @@ class _OnboardingScanScreenState extends ConsumerState<OnboardingScanScreen> {
           _capturedViews = captured;
           _holdProgress = (args['holdProgress'] as num?)?.toDouble() ?? 0;
           _isPassing = args['isPassing'] as bool? ?? false;
-          if (newCapture) _flash = true;
+          if (newCapture) {
+            _flash = true;
+            _captureLine = _guidance;
+            _captureLineUntil = DateTime.now().add(_captureLineHold);
+          }
         });
         if (newCapture) {
           Future.delayed(const Duration(milliseconds: 120), () {
@@ -161,9 +153,93 @@ class _OnboardingScanScreenState extends ConsumerState<OnboardingScanScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final currentIndex = _capturedViews.length.clamp(0, _views.length - 1);
-    final view = _targetView ?? _views[currentIndex];
-    final label = _viewLabels[view]!;
+    return CalibrationScanOverlay(
+      // Camera fills the screen edge to edge; everything else floats on top of it.
+      preview: _isIOS
+          ? UiKitView(
+              viewType: OnboardingScanScreen.viewType,
+              creationParamsCodec: const StandardMessageCodec(),
+              onPlatformViewCreated: _onPlatformViewCreated,
+            )
+          : Container(color: AppColors.grey),
+      silhouettes: _silhouettes,
+      guidance: _error != null
+          ? _errorMessage(_error!)
+          : DateTime.now().isBefore(_captureLineUntil)
+              ? _captureLine
+              : _guidance,
+      targetView: _targetView,
+      capturedViews: _capturedViews,
+      holdProgress: _holdProgress,
+      isPassing: _isPassing,
+      flash: _flash,
+      onClose: _cancel,
+      onHelp: _showHelp,
+    );
+  }
+
+  String _errorMessage(String error) => switch (error) {
+        'camera_permission_denied' => '설정에서 카메라 권한을 켜줘',
+        _ => '카메라를 시작하지 못했어. 다시 시도해줘',
+      };
+}
+
+/// Everything drawn over the camera: header, progress, the A-pose guide, Kori's bubble
+/// and the view chips. Pure presentation, so the same widget can be fed recorded
+/// states (see tool/calibration_mock_video_test.dart) as well as live native events.
+class CalibrationScanOverlay extends StatelessWidget {
+  const CalibrationScanOverlay({
+    super.key,
+    required this.preview,
+    required this.silhouettes,
+    required this.guidance,
+    required this.targetView,
+    required this.capturedViews,
+    required this.holdProgress,
+    required this.isPassing,
+    required this.flash,
+    this.onClose,
+    this.onHelp,
+  });
+
+  /// Capture order the guidance recommends: one continuous turn to the user's left.
+  ///
+  /// Keys are the saved view labels (which side of the body the camera sees);
+  /// the chip labels name the way the user turns, so "왼쪽" is `rightfront`.
+  static const views = ['front', 'rightfront', 'back', 'leftfront'];
+  static const viewLabels = {
+    'front': '정면',
+    'rightfront': '왼쪽',
+    'back': '뒷면',
+    'leftfront': '오른쪽',
+  };
+  static const viewHints = {
+    'front': '카메라 보고 팔은 A자로,\n발은 어깨너비로 벌려 줘!',
+    'rightfront': '제자리에서 왼쪽으로 비스듬히 돌아 줘.\n고개도 몸이랑 같은 방향으로!',
+    'back': '이번엔 등을 보여 줘.\n팔은 계속 A자 유지!',
+    'leftfront': '마지막! 오른쪽으로 비스듬히 돌아 줘.\n거의 다 왔어!',
+  };
+
+  final Widget preview;
+  final CalibrationSilhouettes? silhouettes;
+
+  /// Latest line from the native judging engine; null until the camera reports in.
+  final String? guidance;
+  final String? targetView;
+  final List<String> capturedViews;
+  final double holdProgress;
+  final bool isPassing;
+
+  /// White flash over the preview each time a view is captured.
+  final bool flash;
+  final VoidCallback? onClose;
+  final VoidCallback? onHelp;
+
+  @override
+  Widget build(BuildContext context) {
+    final currentIndex = capturedViews.length.clamp(0, views.length - 1);
+    final view = targetView ?? views[currentIndex];
+    final label = viewLabels[view]!;
 
     return Theme(
       data: ThemeData.dark().copyWith(
@@ -177,17 +253,11 @@ class _OnboardingScanScreenState extends ConsumerState<OnboardingScanScreen> {
           children: [
             // Camera fills the entire screen edge-to-edge; every other
             // element below floats on top of it as an overlay.
-            _isIOS
-                ? UiKitView(
-                    viewType: OnboardingScanScreen.viewType,
-                    creationParamsCodec: const StandardMessageCodec(),
-                    onPlatformViewCreated: _onPlatformViewCreated,
-                  )
-                : Container(color: AppColors.grey),
+            preview,
             IgnorePointer(
               child: AnimatedOpacity(
-                opacity: _flash ? 0.85 : 0,
-                duration: Duration(milliseconds: _flash ? 40 : 260),
+                opacity: flash ? 0.85 : 0,
+                duration: Duration(milliseconds: flash ? 40 : 260),
                 child: const ColoredBox(color: Colors.white),
               ),
             ),
@@ -200,13 +270,13 @@ class _OnboardingScanScreenState extends ConsumerState<OnboardingScanScreen> {
                       children: [
                         IconButton(
                           tooltip: '닫기',
-                          onPressed: _cancel,
+                          onPressed: onClose,
                           icon: const Icon(Icons.close_rounded,
                               color: AppColors.white, size: 24),
                         ),
                         Expanded(
                           child: Text(
-                            '${currentIndex + 1} / ${_views.length} · $label',
+                            '${currentIndex + 1} / ${views.length} · $label',
                             textAlign: TextAlign.center,
                             style: const TextStyle(
                                 color: AppColors.white,
@@ -215,7 +285,7 @@ class _OnboardingScanScreenState extends ConsumerState<OnboardingScanScreen> {
                           ),
                         ),
                         GestureDetector(
-                          onTap: _showHelp,
+                          onTap: onHelp,
                           child: const Text('도움말',
                               style: TextStyle(
                                   color: Color(0xFF9AA0A6),
@@ -230,13 +300,13 @@ class _OnboardingScanScreenState extends ConsumerState<OnboardingScanScreen> {
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: Row(
                       children: [
-                        for (var i = 0; i < _views.length; i++) ...[
+                        for (var i = 0; i < views.length; i++) ...[
                           if (i > 0) const SizedBox(width: 6),
                           Expanded(
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(3),
                               child: LinearProgressIndicator(
-                                value: _capturedViews.contains(_views[i]) ? 1 : 0,
+                                value: capturedViews.contains(views[i]) ? 1 : 0,
                                 minHeight: 5,
                                 backgroundColor: AppColors.grey,
                                 valueColor: const AlwaysStoppedAnimation(
@@ -255,15 +325,15 @@ class _OnboardingScanScreenState extends ConsumerState<OnboardingScanScreen> {
                         child: AspectRatio(
                           aspectRatio: 3 / 5,
                           child: IgnorePointer(
-                            child: _silhouettes == null
+                            child: silhouettes == null
                                 ? const SizedBox.shrink()
                                 : CustomPaint(
                                     size: Size.infinite,
                                     painter: CalibrationSilhouettePainter(
-                                      silhouettes: _silhouettes!,
-                                      view: _targetView,
-                                      isPassing: _isPassing,
-                                      progress: _holdProgress,
+                                      silhouettes: silhouettes!,
+                                      view: targetView,
+                                      isPassing: isPassing,
+                                      progress: holdProgress,
                                     ),
                                   ),
                           ),
@@ -274,23 +344,23 @@ class _OnboardingScanScreenState extends ConsumerState<OnboardingScanScreen> {
                   Padding(
                     padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
                     child: _StatusBubble(
-                      message: _error == null ? _guidance : _errorMessage(_error!),
-                      hint: _viewHints[view]!,
-                      holdProgress: _holdProgress,
+                      message: guidance,
+                      hint: viewHints[view]!,
+                      holdProgress: holdProgress,
                     ),
                   ),
                   Padding(
                     padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
                     child: Row(
                       children: [
-                        for (var i = 0; i < _views.length; i++) ...[
+                        for (var i = 0; i < views.length; i++) ...[
                           if (i > 0) const SizedBox(width: 8),
                           Expanded(
                             child: _PoseChip(
-                              label: _viewLabels[_views[i]]!,
-                              state: _capturedViews.contains(_views[i])
+                              label: viewLabels[views[i]]!,
+                              state: capturedViews.contains(views[i])
                                   ? _ChipState.done
-                                  : _views[i] == _targetView
+                                  : views[i] == targetView
                                       ? _ChipState.active
                                       : _ChipState.waiting,
                             ),
@@ -307,11 +377,6 @@ class _OnboardingScanScreenState extends ConsumerState<OnboardingScanScreen> {
       ),
     );
   }
-
-  String _errorMessage(String error) => switch (error) {
-        'camera_permission_denied' => '설정에서 카메라 권한을 켜줘',
-        _ => '카메라를 시작하지 못했어. 다시 시도해줘',
-      };
 }
 
 /// Kori's speech bubble: the live guidance from the judging engine on top, the
