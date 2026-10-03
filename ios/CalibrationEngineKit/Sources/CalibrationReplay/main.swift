@@ -1,7 +1,10 @@
 // calibration-replay: feeds a recorded video through the app's own calibration code
 // (CalibrationFrameAnalyzer + CalibrationEngine, symlinked from ios/Runner) on macOS.
 //
-//   swift run -c release --package-path ios/CalibrationEngineKit calibration-replay [--lenient-pose] <video.mp4>...
+//   swift run -c release --package-path ios/CalibrationEngineKit calibration-replay [--lenient-pose] [--overlay] <video.mp4>...
+//
+// --overlay also writes overlay_<name>.mp4: keypoints, the RTMPose crop, the face box, every gate
+// with its value and limits, and the engine's final decision drawn on each frame.
 //
 // --lenient-pose widens only the A-pose and stance-width gates, for footage of people who were
 // not following BPT's pose instructions; view classification and everything else stay as shipped.
@@ -26,9 +29,10 @@ try FileManager.default.createDirectory(at: outputDir, withIntermediateDirectori
 
 let arguments = CommandLine.arguments.dropFirst()
 let lenientPose = arguments.contains("--lenient-pose")
+let drawOverlayVideo = arguments.contains("--overlay")
 let videos = arguments.filter { !$0.hasPrefix("--") }.map { URL(fileURLWithPath: $0) }
 guard !videos.isEmpty else {
-    print("usage: calibration-replay [--lenient-pose] <video.mp4>...")
+    print("usage: calibration-replay [--lenient-pose] [--overlay] <video.mp4>...")
     exit(2)
 }
 
@@ -108,6 +112,11 @@ for video in videos {
         + "wristDropL,wristDropR,elbowL,elbowR,wristReach,ankleGap,meanConf,"
         + "swT,hwT,nose,rtmFace,earL,earR,analyzeMs,cropMeanReq,cropAllReq,stretchMeanReq,stretchAllReq\n"
     var frameIndex = -1
+    let overlay = drawOverlayVideo
+        ? try OverlayVideoWriter(url: outputDir.appendingPathComponent("overlay_\(name).mp4"),
+                                 size: track.naturalSize, context: context)
+        : nil
+    var flash: (view: CalibrationView, until: Double)?
     var timeline: [(start: Double, end: Double, guidance: String)] = []
     var captures: [(view: CalibrationView, t: Double)] = []
 
@@ -122,9 +131,10 @@ for video in videos {
         let cropScores = analysis.keypoints.map(\.confidence)
         let stretchScores = try stretchedPoseScores(image)
         let width = Double(analysis.imageSize.width), height = Double(analysis.imageSize.height)
-        let result = engine.process(CalibrationFrame(
+        let calibrationFrame = CalibrationFrame(
             keypoints: analysis.keypoints.map { CalibrationKeypoint(x: $0.x / width, y: $0.y / height, score: $0.confidence) },
-            aspect: width / height, timestamp: t, device: .still, face: analysis.face))
+            aspect: width / height, timestamp: t, device: .still, face: analysis.face)
+        let result = engine.process(calibrationFrame)
 
         if let capture = result.capture {
             captures.append((capture.view, t))
@@ -138,6 +148,18 @@ for video in videos {
         }
         let m = result.measurement
         let r = m.flatMap { engine.rValue($0) }, delta = m.flatMap { engine.delta($0) }
+        if let overlay {
+            if let capture = result.capture { flash = (capture.view, t + 1.0) }
+            let state = OverlayState(
+                t: t, size: overlay.size, keypoints: analysis.keypoints, crop: analysis.crop,
+                faceBox: analysis.faceBox, face: analysis.face, result: result, reference: engine.reference,
+                motion: engine.lastMotion, candidate: engine.viewCandidate(for: calibrationFrame),
+                r: r, delta: delta, config: config, lenient: lenientPose,
+                flash: flash.flatMap { t < $0.until ? $0.view : nil })
+            overlay.append(image, at: CMSampleBufferGetPresentationTimeStamp(sampleBuffer)) { cg in
+                drawOverlay(cg, state)
+            }
+        }
         csv += [String(frameIndex), f(t), "\"\(message)\"", result.classifiedView?.rawValue ?? "", result.targetView?.rawValue ?? "",
                 f(result.holdProgress), result.isPassing ? "1" : "0", analysis.face.isDetected ? "1" : "0",
                 f(analysis.face.yawDeg), f(r), f(delta), f(m?.bodyHeight), f(m?.midX), f(m?.feet),
@@ -149,6 +171,7 @@ for video in videos {
                 f(meanRequired(stretchScores)), allRequired(stretchScores) ? "1" : "0"]
             .joined(separator: ",") + "\n"
     }
+    overlay?.finish()
     try csv.write(to: outputDir.appendingPathComponent("\(name).csv"), atomically: true, encoding: .utf8)
 
     print("== \(name)")

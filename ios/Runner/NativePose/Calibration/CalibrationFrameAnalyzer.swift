@@ -18,6 +18,9 @@ final class CalibrationFrameAnalyzer {
         var keypoints: [PoseKeypoint]
         var face: CalibrationFace
         var imageSize: CGSize
+        /// What RTMPose saw and where the user's face was, in top-left pixel coordinates (debug views).
+        var crop: CGRect
+        var faceBox: CGRect?
     }
 
     private let model: MLModel
@@ -51,7 +54,8 @@ final class CalibrationFrameAnalyzer {
         let rect = crop ?? Self.fitToInputAspect(CGRect(origin: .zero, size: size))
         let keypoints = try runPose(on: image, rect: rect)
         updateCrop(from: keypoints, imageSize: size)
-        return Result(keypoints: keypoints, face: detectFace(in: image, keypoints: keypoints), imageSize: size)
+        let (face, faceBox) = detectFace(in: image, keypoints: keypoints)
+        return Result(keypoints: keypoints, face: face, imageSize: size, crop: rect, faceBox: faceBox)
     }
 
     // MARK: - RTMPose
@@ -143,11 +147,11 @@ final class CalibrationFrameAnalyzer {
 
     /// Looks for the user's face. Faces away from the head region (posters, bystanders) are ignored,
     /// otherwise a back view with a face in the background would never classify.
-    private func detectFace(in image: CIImage, keypoints: [PoseKeypoint]) -> CalibrationFace {
+    private func detectFace(in image: CIImage, keypoints: [PoseKeypoint]) -> (CalibrationFace, CGRect?) {
         let ls = keypoints[CocoJoint.leftShoulder.rawValue], rs = keypoints[CocoJoint.rightShoulder.rawValue]
         let lh = keypoints[CocoJoint.leftHip.rawValue], rh = keypoints[CocoJoint.rightHip.rawValue]
         guard min(ls.confidence, rs.confidence, lh.confidence, rh.confidence) >= minConfidence else {
-            return .none
+            return (.none, nil)
         }
         let shoulderY = (ls.y + rs.y) / 2
         let torso = (lh.y + rh.y) / 2 - shoulderY
@@ -160,7 +164,7 @@ final class CalibrationFrameAnalyzer {
         let small = image.transformed(by: CGAffineTransform(scaleX: downscale, y: downscale))
         let handler = VNImageRequestHandler(ciImage: small, orientation: .up, options: [:])
         guard (try? handler.perform([faceRequest])) != nil, let faces = faceRequest.results else {
-            return .none
+            return (.none, nil)
         }
         let match = faces
             .map { face -> (VNFaceObservation, CGPoint) in
@@ -170,8 +174,11 @@ final class CalibrationFrameAnalyzer {
             }
             .filter { headBox.contains($0.1) }
             .max { $0.0.boundingBox.width < $1.0.boundingBox.width }
-        guard let (face, _) = match else { return .none }
-        return CalibrationFace(isDetected: true, yawDeg: face.yaw.map { $0.doubleValue * 180 / .pi })
+        guard let (face, _) = match else { return (.none, nil) }
+        let box = face.boundingBox
+        let pixels = CGRect(x: box.minX * size.width, y: (1 - box.maxY) * size.height,
+                            width: box.width * size.width, height: box.height * size.height)
+        return (CalibrationFace(isDetected: true, yawDeg: face.yaw.map { $0.doubleValue * 180 / .pi }), pixels)
     }
 }
 

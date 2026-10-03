@@ -17,6 +17,8 @@ final class CalibrationEngine {
 
     private(set) var capturedViews: [CalibrationView] = []
     private(set) var reference: CalibrationReference?
+    /// Joint travel of the last judged frame, in torso lengths; nil when it never got that far.
+    private(set) var lastMotion: Double?
 
     private var holdStartedAt: TimeInterval?
     private var holdView: CalibrationView?
@@ -50,6 +52,7 @@ final class CalibrationEngine {
     }
 
     func process(_ frame: CalibrationFrame) -> CalibrationEngineOutput {
+        lastMotion = nil
         let target = targetView
         let didTimeOut = updateTimeout(target: target, now: frame.timestamp)
 
@@ -79,6 +82,7 @@ final class CalibrationEngine {
             return fail(.showFullBody, target: target, measurement: nil, didTimeOut: didTimeOut)
         }
         let motion = motionSince(frame)
+        lastMotion = motion
 
         // 3. Framing
         if let guidance = framingGuidance(measurement, frontCaptured: reference != nil) {
@@ -130,6 +134,13 @@ final class CalibrationEngine {
 
         // 8. Capture
         return capture(view: classified, measurement: measurement, frame: frame, didTimeOut: didTimeOut)
+    }
+
+    /// The view this frame would classify as if every earlier gate passed. No state changes;
+    /// for debug overlays that show the classification even while, say, the arms are off.
+    func viewCandidate(for frame: CalibrationFrame) -> CalibrationView? {
+        guard let measurement = measure(frame) else { return nil }
+        return classify(measurement, face: frame.face).view
     }
 
     // MARK: - Measurement
