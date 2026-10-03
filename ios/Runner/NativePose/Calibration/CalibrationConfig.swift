@@ -62,8 +62,10 @@ struct CalibrationConfig {
         /// A face this close to frontal on an oblique body means the head turned back to the camera.
         var turnedHeadMaxFaceYawDeg: Double = 20
 
-        /// Back: no face, shoulders and hips back to (nearly) full width.
-        var backMinR: Double = 0.80
+        /// Back: no face, shoulders and hips back to (nearly) full width. On the People Snapshot
+        /// replays, faceless frames at 165–195° had r ≥ 0.90 in 97% of cases, while back-obliques
+        /// (120–150°, 210–240°) reached 0.90 in only 19% (0.80 let half of them through).
+        var backMinR: Double = 0.90
 
         /// r = shoulderWeight * (sw/T)/ref_s + (1 - shoulderWeight) * (hw/T)/ref_h
         var shoulderWeight: Double = 0.6

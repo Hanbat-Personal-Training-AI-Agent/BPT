@@ -9,7 +9,8 @@
 // Only the camera and CoreMotion are replaced: frames come from the file in order and the
 // phone is assumed upright and still. For every video it prints what the user would be told
 // over time and which views got captured, writes a per-frame CSV and the captured frames to
-// outputs/calibration_replay/.
+// outputs/calibration_replay/. The CSV also carries the raw measurements, the analysis time and,
+// for comparison, the keypoint confidence of the old full-frame stretch preprocessing.
 import AVFoundation
 import CoreImage
 import CoreML
@@ -54,8 +55,40 @@ func writeJPEG(_ image: CIImage, to url: URL) {
 
 func f(_ value: Double?) -> String { value.map { String(format: "%.3f", $0) } ?? "" }
 
+/// The pre-overhaul path for comparison: whole frame squeezed into 192×256 regardless of aspect.
+func stretchedPoseScores(_ image: CIImage) throws -> [Double] {
+    let size = image.extent.size
+    let scaled = image.applyingFilter("CILanczosScaleTransform", parameters: [
+        kCIInputScaleKey: 256 / size.height,
+        kCIInputAspectRatioKey: (192 / size.width) / (256 / size.height),
+    ])
+    var pixels = [UInt8](repeating: 0, count: 192 * 256 * 4)
+    pixels.withUnsafeMutableBytes { buffer in
+        context.render(scaled, toBitmap: buffer.baseAddress!, rowBytes: 192 * 4,
+                       bounds: CGRect(x: 0, y: 0, width: 192, height: 256), format: .RGBA8,
+                       colorSpace: CGColorSpaceCreateDeviceRGB())
+    }
+    let input = try PosePreprocess.makeRTMPoseInputArray()
+    try PosePreprocess.normalizeRGBAIntoRTMPoseInput(pixels, input: input, width: 192, height: 256)
+    let output = try model.prediction(from: MLDictionaryFeatureProvider(dictionary: ["input_image": input]))
+    let decoded = try SimCCDecoder.decodeToInputCoordinates(
+        simccX: output.featureValue(for: "simcc_x")!.multiArrayValue!,
+        simccY: output.featureValue(for: "simcc_y")!.multiArrayValue!)
+    return decoded.confidences
+}
+
+func meanRequired(_ scores: [Double]) -> Double {
+    CocoJoint.required.map { scores[$0.rawValue] }.reduce(0, +) / Double(CocoJoint.required.count)
+}
+
+func allRequired(_ scores: [Double]) -> Bool {
+    CocoJoint.required.allSatisfy { scores[$0.rawValue] >= config.framing.minKeypointConfidence }
+}
+
 for video in videos {
-    let name = video.deletingPathExtension().lastPathComponent
+    // v1 and v2 fixtures share file names, so keep the folder in the output name.
+    let folder = video.deletingLastPathComponent().lastPathComponent
+    let name = (folder == "calibration_dummy_videos" ? "" : folder + "__") + video.deletingPathExtension().lastPathComponent
     let asset = AVURLAsset(url: video)
     guard let track = asset.tracks(withMediaType: .video).first else {
         print("\(name): no video track")
@@ -71,8 +104,10 @@ for video in videos {
     let analyzer = CalibrationFrameAnalyzer(model: model, context: context,
                                             minConfidence: config.framing.minKeypointConfidence)
     let engine = CalibrationEngine(config: config)
-    var csv = "t,guidance,classified,target,hold,pass,faceDetected,faceYaw,r,delta,bodyH,midX,feet,"
-        + "wristDropL,wristDropR,elbowL,elbowR,wristReach,ankleGap,meanConf\n"
+    var csv = "i,t,guidance,classified,target,hold,pass,faceDetected,faceYaw,r,delta,bodyH,midX,feet,"
+        + "wristDropL,wristDropR,elbowL,elbowR,wristReach,ankleGap,meanConf,"
+        + "swT,hwT,nose,rtmFace,earL,earR,analyzeMs,cropMeanReq,cropAllReq,stretchMeanReq,stretchAllReq\n"
+    var frameIndex = -1
     var timeline: [(start: Double, end: Double, guidance: String)] = []
     var captures: [(view: CalibrationView, t: Double)] = []
 
@@ -80,7 +115,12 @@ for video in videos {
         guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { continue }
         let t = CMSampleBufferGetPresentationTimeStamp(sampleBuffer).seconds
         let image = CIImage(cvPixelBuffer: pixelBuffer)
+        frameIndex += 1
+        let started = CFAbsoluteTimeGetCurrent()
         guard let analysis = try? analyzer.analyze(image) else { continue }
+        let analyzeMs = (CFAbsoluteTimeGetCurrent() - started) * 1000
+        let cropScores = analysis.keypoints.map(\.confidence)
+        let stretchScores = try stretchedPoseScores(image)
         let width = Double(analysis.imageSize.width), height = Double(analysis.imageSize.height)
         let result = engine.process(CalibrationFrame(
             keypoints: analysis.keypoints.map { CalibrationKeypoint(x: $0.x / width, y: $0.y / height, score: $0.confidence) },
@@ -98,11 +138,15 @@ for video in videos {
         }
         let m = result.measurement
         let r = m.flatMap { engine.rValue($0) }, delta = m.flatMap { engine.delta($0) }
-        csv += [f(t), "\"\(message)\"", result.classifiedView?.rawValue ?? "", result.targetView?.rawValue ?? "",
+        csv += [String(frameIndex), f(t), "\"\(message)\"", result.classifiedView?.rawValue ?? "", result.targetView?.rawValue ?? "",
                 f(result.holdProgress), result.isPassing ? "1" : "0", analysis.face.isDetected ? "1" : "0",
                 f(analysis.face.yawDeg), f(r), f(delta), f(m?.bodyHeight), f(m?.midX), f(m?.feet),
                 f(m?.leftWristDrop), f(m?.rightWristDrop), f(m?.leftElbowRatio), f(m?.rightElbowRatio),
-                f(m?.wristReach), f(m?.ankleGapOverHipWidth), f(m?.meanRequiredConfidence)]
+                f(m?.wristReach), f(m?.ankleGapOverHipWidth), f(m?.meanRequiredConfidence),
+                f(m.map { $0.shoulderWidth / $0.torso }), f(m.map { $0.hipWidth / $0.torso }), f(m?.noseOffset),
+                f(m?.face), f(m?.earLeft), f(m?.earRight), f(analyzeMs),
+                f(meanRequired(cropScores)), allRequired(cropScores) ? "1" : "0",
+                f(meanRequired(stretchScores)), allRequired(stretchScores) ? "1" : "0"]
             .joined(separator: ",") + "\n"
     }
     try csv.write(to: outputDir.appendingPathComponent("\(name).csv"), atomically: true, encoding: .utf8)
