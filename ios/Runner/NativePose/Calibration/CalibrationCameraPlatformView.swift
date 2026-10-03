@@ -82,6 +82,8 @@ final class CalibrationCameraPlatformView: NSObject, FlutterPlatformView {
             "isPassing": update.isPassing,
             "isFinished": update.isFinished,
             "sessionPath": update.sessionPath as Any,
+            "person": update.person as Any,
+            "guide": update.guide,
             "debug": update.debug,
         ])
     }

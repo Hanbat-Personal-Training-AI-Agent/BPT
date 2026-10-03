@@ -120,7 +120,7 @@ def phone_frame(screen, fonts):
     draw.text((CANVAS[0] // 2, caption_y), "BPT 체형 촬영 목업 · 실제 앱 UI + 판정 엔진 재생",
               font=fonts["caption"], fill=(235, 235, 240), anchor="ma")
     draw.text((CANVAS[0] // 2, caption_y + 46),
-              "테스트 영상 People Snapshot · 자세 기준 완화 · 음성 macOS Yuna",
+              "테스트 영상 People Snapshot(가운데 정렬) · 자세 기준 완화 · 음성 macOS Yuna",
               font=fonts["small"], fill=(150, 150, 158), anchor="ma")
     return canvas
 

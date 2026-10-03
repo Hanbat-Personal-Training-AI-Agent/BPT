@@ -14,13 +14,17 @@ struct CalibrationConfig {
 
     struct Framing {
         var minKeypointConfidence: Double = 0.3
-        var maxBodyHeight: Double = 0.82
-        /// The capture screen's guide outline spans about 0.55 of the buffer height,
-        /// so the lower bound sits under it: a user who fits the guide passes.
-        var minBodyHeight: Double = 0.50
+        /// The outline on the capture screen *is* this target: drawn this tall (in buffer
+        /// heights, head top to feet as measured below), centred, standing on the user's feet.
+        /// Passing the size and centre gates means the user fills the outline, so the screen
+        /// never says "good" while the outline and the body disagree.
+        var guideBodyHeight: Double = 0.62
+        var bodyHeightTolerance: Double = 0.07
+        var minBodyHeight: Double { guideBodyHeight - bodyHeightTolerance }
+        var maxBodyHeight: Double { guideBodyHeight + bodyHeightTolerance }
         var minHeadTop: Double = 0.02
         var maxFeet: Double = 0.98
-        var maxCentreOffset: Double = 0.10
+        var maxCentreOffset: Double = 0.06
         /// Head top sits this many torso lengths above the shoulder midpoint.
         var headTopTorsoFactor: Double = 0.75
         /// Soles sit this many torso lengths below the lowest ankle.

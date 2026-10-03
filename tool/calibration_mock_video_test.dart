@@ -86,6 +86,8 @@ void main() {
         guidance: state['shown'] as String?,
         targetView: state['target'] as String?,
         capturedViews: (state['captured'] as List).cast<String>(),
+        guide: CalibrationGuide.fromMap((state['guide'] as Map).cast<String, dynamic>()),
+        person: CalibrationPerson.fromMap((state['person'] as Map?)?.cast<String, dynamic>()),
         holdProgress: (state['hold'] as num).toDouble(),
         isPassing: state['pass'] as bool,
         flash: state['flash'] as bool,

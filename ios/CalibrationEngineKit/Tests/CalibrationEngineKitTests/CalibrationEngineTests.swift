@@ -10,11 +10,13 @@ final class CalibrationEngineTests: XCTestCase {
     // Portrait 1080x1920 buffer.
     private let aspect = 1080.0 / 1920.0
 
+    /// Torso 0.20 tall: head top 0.21, feet 0.872, so the body is 0.66 of the frame,
+    /// inside the guide's 0.62 ± 0.07.
     private struct Body {
-        var shoulderY = 0.30
-        var hipY = 0.55
+        var shoulderY = 0.36
+        var hipY = 0.56
         var midX = 0.5
-        var ankleY = 0.85
+        var ankleY = 0.86
         /// Shoulder and hip widths in height units; shrinking them is what turning looks like.
         var shoulderWidth = 0.40 * 0.25
         var hipWidth = 0.32 * 0.25
@@ -204,9 +206,11 @@ final class CalibrationEngineTests: XCTestCase {
         let engine = CalibrationEngine()
         captureFront(engine)
         var moved = turned(r: 1.0, delta: 0)
-        // Past maxCentreDrift (0.08) but inside the framing window (0.10), so the stance
-        // check fires rather than the framing guidance above it.
-        moved.midX = 0.5 + 0.09
+        // A step towards the camera: same size and centre, so framing still passes, but the
+        // feet sit 0.04 lower than at the front capture (maxFeetDrift 0.03).
+        moved.shoulderY += 0.04
+        moved.hipY += 0.04
+        moved.ankleY += 0.04
 
         let outputs = run(engine, body: moved, face: .none, from: 10)
         XCTAssertTrue(outputs.allSatisfy { $0.capture == nil })

@@ -111,7 +111,7 @@ for video in videos {
     var csv = "i,t,guidance,classified,target,hold,pass,faceDetected,faceYaw,r,delta,bodyH,midX,feet,"
         + "wristDropL,wristDropR,elbowL,elbowR,wristReach,ankleGap,meanConf,"
         + "swT,hwT,nose,rtmFace,earL,earR,analyzeMs,cropMeanReq,cropAllReq,stretchMeanReq,stretchAllReq,"
-        + "lrShoulder,lrHip,captured\n"
+        + "lrShoulder,lrHip,captured,guideH,guideMinH,guideMaxH,guideCentreTol,aspect\n"
     var frameIndex = -1
     let overlay = drawOverlayVideo
         ? try OverlayVideoWriter(url: outputDir.appendingPathComponent("overlay_\(name).mp4"),
@@ -173,7 +173,9 @@ for video in videos {
                 // anatomical left minus right, as a fraction of the frame width (sign = which side is where)
                 f((analysis.keypoints[CocoJoint.leftShoulder.rawValue].x - analysis.keypoints[CocoJoint.rightShoulder.rawValue].x) / width),
                 f((analysis.keypoints[CocoJoint.leftHip.rawValue].x - analysis.keypoints[CocoJoint.rightHip.rawValue].x) / width),
-                result.capturedViews.map(\.rawValue).joined(separator: "|")]
+                result.capturedViews.map(\.rawValue).joined(separator: "|"),
+                f(config.framing.guideBodyHeight), f(config.framing.minBodyHeight), f(config.framing.maxBodyHeight),
+                f(config.framing.maxCentreOffset), f(width / height)]
             .joined(separator: ",") + "\n"
     }
     overlay?.finish()

@@ -23,6 +23,10 @@ final class CalibrationSession: NSObject {
         var sessionPath: String?
         var didTimeOut: Bool
         var beepProgress: Double?
+        /// Where the user is (normalized, unmirrored buffer) and the outline they should fill;
+        /// the capture screen draws the guide from these, so it agrees with the gates.
+        var person: [String: Double]?
+        var guide: [String: Double]
         var debug: [String: Double]
     }
 
@@ -41,6 +45,7 @@ final class CalibrationSession: NSObject {
     private var userHeightCm: Double = 0
     private var isRunning = false
     private var lastIntrinsics = CalibrationStore.Intrinsics()
+    private var lastBufferAspect = 9.0 / 16.0
     /// Sharpest frame of the current stillness hold: rendered only when it beats the previous best.
     private var bestHoldFrame: (confidence: Double, image: CGImage, keypoints: [PoseKeypoint], timestamp: TimeInterval)?
 
@@ -149,6 +154,7 @@ final class CalibrationSession: NSObject {
             let image = CIImage(cvPixelBuffer: pixelBuffer)
             guard let analysis = try? analyzer.analyze(image) else { return }
             let width = Double(analysis.imageSize.width), height = Double(analysis.imageSize.height)
+            lastBufferAspect = width / height
 
             let pts = CMSampleBufferGetPresentationTimeStamp(sampleBuffer).seconds
             let frame = CalibrationFrame(
@@ -261,6 +267,14 @@ final class CalibrationSession: NSObject {
             sessionPath: finished ? store?.directory.path : nil,
             didTimeOut: result.didTimeOut,
             beepProgress: beepProgress(result, r: r, face: face),
+            person: result.measurement.map { ["midX": $0.midX, "feet": $0.feet, "bodyHeight": $0.bodyHeight] },
+            guide: [
+                "bodyHeight": config.framing.guideBodyHeight,
+                "minBodyHeight": config.framing.minBodyHeight,
+                "maxBodyHeight": config.framing.maxBodyHeight,
+                "maxCentreOffset": config.framing.maxCentreOffset,
+                "bufferAspect": lastBufferAspect,
+            ],
             debug: debug
         )
     }

@@ -33,6 +33,8 @@ class _OnboardingScanScreenState extends ConsumerState<OnboardingScanScreen> {
   String? _guidance;
   String? _targetView = 'front';
   List<String> _capturedViews = const [];
+  CalibrationGuide _guide = const CalibrationGuide();
+  CalibrationPerson? _person;
   double _holdProgress = 0;
   bool _isPassing = false;
   String? _error;
@@ -78,6 +80,8 @@ class _OnboardingScanScreenState extends ConsumerState<OnboardingScanScreen> {
           _guidance = args['guidance'] as String?;
           _targetView = args['targetView'] as String?;
           _capturedViews = captured;
+          _guide = CalibrationGuide.fromMap((args['guide'] as Map?)?.cast<String, dynamic>());
+          _person = CalibrationPerson.fromMap((args['person'] as Map?)?.cast<String, dynamic>());
           _holdProgress = (args['holdProgress'] as num?)?.toDouble() ?? 0;
           _isPassing = args['isPassing'] as bool? ?? false;
           if (newCapture) {
@@ -170,6 +174,8 @@ class _OnboardingScanScreenState extends ConsumerState<OnboardingScanScreen> {
               : _guidance,
       targetView: _targetView,
       capturedViews: _capturedViews,
+      guide: _guide,
+      person: _person,
       holdProgress: _holdProgress,
       isPassing: _isPassing,
       flash: _flash,
@@ -195,6 +201,8 @@ class CalibrationScanOverlay extends StatelessWidget {
     required this.guidance,
     required this.targetView,
     required this.capturedViews,
+    this.guide = const CalibrationGuide(),
+    this.person,
     required this.holdProgress,
     required this.isPassing,
     required this.flash,
@@ -227,6 +235,10 @@ class CalibrationScanOverlay extends StatelessWidget {
   final String? guidance;
   final String? targetView;
   final List<String> capturedViews;
+
+  /// The engine's framing target and where it measured the user; the outline is drawn from these.
+  final CalibrationGuide guide;
+  final CalibrationPerson? person;
   final double holdProgress;
   final bool isPassing;
 
@@ -254,6 +266,17 @@ class CalibrationScanOverlay extends StatelessWidget {
             // Camera fills the entire screen edge-to-edge; every other
             // element below floats on top of it as an overlay.
             preview,
+            if (silhouettes != null)
+              IgnorePointer(
+                child: CalibrationGuideOverlay(
+                  silhouettes: silhouettes!,
+                  view: targetView,
+                  guide: guide,
+                  person: person,
+                  isPassing: isPassing,
+                  progress: holdProgress,
+                ),
+              ),
             IgnorePointer(
               child: AnimatedOpacity(
                 opacity: flash ? 0.85 : 0,
@@ -318,29 +341,7 @@ class CalibrationScanOverlay extends StatelessWidget {
                       ],
                     ),
                   ),
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Center(
-                        child: AspectRatio(
-                          aspectRatio: 3 / 5,
-                          child: IgnorePointer(
-                            child: silhouettes == null
-                                ? const SizedBox.shrink()
-                                : CustomPaint(
-                                    size: Size.infinite,
-                                    painter: CalibrationSilhouettePainter(
-                                      silhouettes: silhouettes!,
-                                      view: targetView,
-                                      isPassing: isPassing,
-                                      progress: holdProgress,
-                                    ),
-                                  ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
+                  const Spacer(),
                   Padding(
                     padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
                     child: _StatusBubble(
