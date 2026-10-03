@@ -16,6 +16,10 @@
 .swiftpm/
 migrate_working_dir/
 
+# Swift Package Manager
+.build/
+.swiftpm/
+
 # Python
 **/__pycache__/
 *.py[cod]
@@ -72,6 +76,7 @@ outputs/
 assets/*
 !assets/README.md
 !assets/images/
+!assets/calibration/
 models/*
 !models/README.md
 !models/rtmpose/
@@ -103,3 +108,4 @@ external/*
 BPT_v1.0/
 dist/
 fit3d_test.tar.gz
+SMPL_python_v.1.1.0.zip

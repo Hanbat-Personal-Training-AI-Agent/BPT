@@ -1,11 +1,18 @@
 import 'package:bpt/features/onboarding/screens/onboarding_scan_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+/// The capture itself is native (camera + RTMPose + judging engine); these cover the
+/// overlay this screen owns before any native event arrives.
+Widget _screen() => const ProviderScope(
+      child: MaterialApp(home: OnboardingScanScreen()),
+    );
 
 void main() {
   testWidgets('shows the first pose, close button and help link on entry',
       (tester) async {
-    await tester.pumpWidget(const MaterialApp(home: OnboardingScanScreen()));
+    await tester.pumpWidget(_screen());
 
     expect(find.text('1 / 4 · 정면'), findsOneWidget);
     expect(find.byIcon(Icons.close_rounded), findsOneWidget);
@@ -13,16 +20,17 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('shows the searching-state guidance bubble with no countdown',
+  testWidgets('shows the per-view hint and no hold indicator before the camera reports',
       (tester) async {
-    await tester.pumpWidget(const MaterialApp(home: OnboardingScanScreen()));
+    await tester.pumpWidget(_screen());
 
     expect(find.text('카메라 보고 팔은 A자로,\n발은 어깨너비로 벌려 줘!'), findsOneWidget);
+    expect(find.byType(CircularProgressIndicator), findsNothing);
     expect(tester.takeException(), isNull);
   });
 
   testWidgets('help link opens a tips bottom sheet', (tester) async {
-    await tester.pumpWidget(const MaterialApp(home: OnboardingScanScreen()));
+    await tester.pumpWidget(_screen());
 
     await tester.tap(find.text('도움말'));
     await tester.pumpAndSettle();
@@ -31,25 +39,21 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('pose chips reflect front-active, others waiting on entry',
+  testWidgets('pose chips follow the turn order with front active, others waiting',
       (tester) async {
-    await tester.pumpWidget(const MaterialApp(home: OnboardingScanScreen()));
+    await tester.pumpWidget(_screen());
 
     expect(find.text('촬영 중'), findsOneWidget);
     expect(find.text('대기 중'), findsNWidgets(3));
-    expect(tester.takeException(), isNull);
-  });
-
-  testWidgets('temporary debug skip button advances to the next pose',
-      (tester) async {
-    await tester.pumpWidget(const MaterialApp(home: OnboardingScanScreen()));
-
-    expect(find.text('다음 (테스트용)'), findsOneWidget);
-
-    await tester.tap(find.text('다음 (테스트용)'));
-    await tester.pump();
-
-    expect(find.text('2 / 4 · 왼쪽'), findsOneWidget);
+    final labels = ['왼쪽', '뒷면', '오른쪽'].map(find.text);
+    for (final label in labels) {
+      expect(label, findsOneWidget);
+    }
+    // Left turn first, then the back, then the right: one continuous turn.
+    expect(tester.getTopLeft(find.text('왼쪽')).dx,
+        lessThan(tester.getTopLeft(find.text('뒷면')).dx));
+    expect(tester.getTopLeft(find.text('뒷면')).dx,
+        lessThan(tester.getTopLeft(find.text('오른쪽')).dx));
     expect(tester.takeException(), isNull);
   });
 }

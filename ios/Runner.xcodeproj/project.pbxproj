@@ -42,9 +42,15 @@
 		E373932DEE26C31DD346DEB5 /* MediaPipeHandLandmarkerRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CCE7980CB9E4B502305AFFA /* MediaPipeHandLandmarkerRunner.swift */; };
 		EF3784812C6EE0FD8DEF1387 /* BarbellRowTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A1FD033181BAA88DDC1B0E9 /* BarbellRowTypes.swift */; };
 		FEEDD62DEEFAEFF0804DBBBC /* CameraPosePreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1ACABEF752B807EA9D21EAB /* CameraPosePreview.swift */; };
-		A340992DA4A84905BF0978F3 /* BodyScanCameraPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA1DDB6B87994D25AACC8012 /* BodyScanCameraPreview.swift */; };
-		D5B3B56182A0429F834F387C /* BodyScanCameraPlatformView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07B97A54C8C74253B2CA636E /* BodyScanCameraPlatformView.swift */; };
-		5A27BDA020684B1083A408BC /* BodyScanCameraPlatformViewFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 421C2F9C1405430580270330 /* BodyScanCameraPlatformViewFactory.swift */; };
+		86AB2F1D28559673AEFB3414 /* CalibrationConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9C95AA857FF5EB6E528887C /* CalibrationConfig.swift */; };
+		5A078BAFDB04ACF07057A2B7 /* CalibrationTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19834FA938874BF09D66DE00 /* CalibrationTypes.swift */; };
+		0769990B245BA6D1840230A1 /* CalibrationEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = E760E89ED925A4E2008B2E5F /* CalibrationEngine.swift */; };
+		06DA224CC54411106FB622FB /* CalibrationStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49AF4E54B4A65A4CEA144369 /* CalibrationStore.swift */; };
+		4EECF09D12FA45B0829E7EEB /* DeviceMotionMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27439F5A8A68B8EDD6B4B211 /* DeviceMotionMonitor.swift */; };
+		3ADE02570275D4BCFFA42291 /* CalibrationVoice.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9904FCF0AC9BC0DB7C5C3AD /* CalibrationVoice.swift */; };
+		B75CABD5DE5ECD9A619075AC /* CalibrationDebugLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2F3CD58F303C94E51B2ECAF /* CalibrationDebugLog.swift */; };
+		9B1765659A9EB03CD190EA76 /* CalibrationSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = A477883B45E9D69598BA97E3 /* CalibrationSession.swift */; };
+		B80641859AA06A9A441B5935 /* CalibrationCameraPlatformView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2B44E870E9B48FAB6FB2538 /* CalibrationCameraPlatformView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -120,9 +126,15 @@
 		F6B6AACE97A047453F5ADE62 /* SquatEvaluator.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SquatEvaluator.swift; sourceTree = "<group>"; };
 		FC8A40F59BAE22171EA28319 /* Pods-Runner.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.debug.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.debug.xcconfig"; sourceTree = "<group>"; };
 		FCEB665660D0A67B817FFAB4 /* NativePoseCameraPlatformView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NativePoseCameraPlatformView.swift; sourceTree = "<group>"; };
-		EA1DDB6B87994D25AACC8012 /* BodyScanCameraPreview.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BodyScanCameraPreview.swift; sourceTree = "<group>"; };
-		07B97A54C8C74253B2CA636E /* BodyScanCameraPlatformView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BodyScanCameraPlatformView.swift; sourceTree = "<group>"; };
-		421C2F9C1405430580270330 /* BodyScanCameraPlatformViewFactory.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BodyScanCameraPlatformViewFactory.swift; sourceTree = "<group>"; };
+		B9C95AA857FF5EB6E528887C /* CalibrationConfig.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CalibrationConfig.swift; sourceTree = "<group>"; };
+		19834FA938874BF09D66DE00 /* CalibrationTypes.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CalibrationTypes.swift; sourceTree = "<group>"; };
+		E760E89ED925A4E2008B2E5F /* CalibrationEngine.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CalibrationEngine.swift; sourceTree = "<group>"; };
+		49AF4E54B4A65A4CEA144369 /* CalibrationStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CalibrationStore.swift; sourceTree = "<group>"; };
+		27439F5A8A68B8EDD6B4B211 /* DeviceMotionMonitor.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DeviceMotionMonitor.swift; sourceTree = "<group>"; };
+		A9904FCF0AC9BC0DB7C5C3AD /* CalibrationVoice.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CalibrationVoice.swift; sourceTree = "<group>"; };
+		B2F3CD58F303C94E51B2ECAF /* CalibrationDebugLog.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CalibrationDebugLog.swift; sourceTree = "<group>"; };
+		A477883B45E9D69598BA97E3 /* CalibrationSession.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CalibrationSession.swift; sourceTree = "<group>"; };
+		C2B44E870E9B48FAB6FB2538 /* CalibrationCameraPlatformView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CalibrationCameraPlatformView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -157,19 +169,25 @@
 				199AE752EA955431FAE9E67C /* Types */,
 				17B7ED684A41F740B3C81AAF /* Bridge */,
 				6D0801A39A80D1F1709F7C11 /* Models */,
-				D23B9A62B3F140FB85D25B33 /* BodyScan */,
+				135F99FB5EA7C2E853792ACE /* Calibration */,
 			);
 			path = NativePose;
 			sourceTree = "<group>";
 		};
-		D23B9A62B3F140FB85D25B33 /* BodyScan */ = {
+		135F99FB5EA7C2E853792ACE /* Calibration */ = {
 			isa = PBXGroup;
 			children = (
-				EA1DDB6B87994D25AACC8012 /* BodyScanCameraPreview.swift */,
-				07B97A54C8C74253B2CA636E /* BodyScanCameraPlatformView.swift */,
-				421C2F9C1405430580270330 /* BodyScanCameraPlatformViewFactory.swift */,
+				B9C95AA857FF5EB6E528887C /* CalibrationConfig.swift */,
+				19834FA938874BF09D66DE00 /* CalibrationTypes.swift */,
+				E760E89ED925A4E2008B2E5F /* CalibrationEngine.swift */,
+				49AF4E54B4A65A4CEA144369 /* CalibrationStore.swift */,
+				27439F5A8A68B8EDD6B4B211 /* DeviceMotionMonitor.swift */,
+				A9904FCF0AC9BC0DB7C5C3AD /* CalibrationVoice.swift */,
+				B2F3CD58F303C94E51B2ECAF /* CalibrationDebugLog.swift */,
+				A477883B45E9D69598BA97E3 /* CalibrationSession.swift */,
+				C2B44E870E9B48FAB6FB2538 /* CalibrationCameraPlatformView.swift */,
 			);
-			path = BodyScan;
+			path = Calibration;
 			sourceTree = "<group>";
 		};
 		17B7ED684A41F740B3C81AAF /* Bridge */ = {
@@ -577,9 +595,15 @@
 				622CB33062458ACA0B781D8B /* NativePoseCameraPlatformView.swift in Sources */,
 				C4CC1F25A32E8EDA3BF8D0D3 /* NativePoseCameraPlatformViewFactory.swift in Sources */,
 				3EAE5785BD00E55356394216 /* NativePoseRegistration.swift in Sources */,
-				A340992DA4A84905BF0978F3 /* BodyScanCameraPreview.swift in Sources */,
-				D5B3B56182A0429F834F387C /* BodyScanCameraPlatformView.swift in Sources */,
-				5A27BDA020684B1083A408BC /* BodyScanCameraPlatformViewFactory.swift in Sources */,
+				86AB2F1D28559673AEFB3414 /* CalibrationConfig.swift in Sources */,
+				5A078BAFDB04ACF07057A2B7 /* CalibrationTypes.swift in Sources */,
+				0769990B245BA6D1840230A1 /* CalibrationEngine.swift in Sources */,
+				06DA224CC54411106FB622FB /* CalibrationStore.swift in Sources */,
+				4EECF09D12FA45B0829E7EEB /* DeviceMotionMonitor.swift in Sources */,
+				3ADE02570275D4BCFFA42291 /* CalibrationVoice.swift in Sources */,
+				B75CABD5DE5ECD9A619075AC /* CalibrationDebugLog.swift in Sources */,
+				9B1765659A9EB03CD190EA76 /* CalibrationSession.swift in Sources */,
+				B80641859AA06A9A441B5935 /* CalibrationCameraPlatformView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
