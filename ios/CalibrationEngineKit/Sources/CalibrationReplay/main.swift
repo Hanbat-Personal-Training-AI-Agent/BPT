@@ -110,7 +110,8 @@ for video in videos {
     let engine = CalibrationEngine(config: config)
     var csv = "i,t,guidance,classified,target,hold,pass,faceDetected,faceYaw,r,delta,bodyH,midX,feet,"
         + "wristDropL,wristDropR,elbowL,elbowR,wristReach,ankleGap,meanConf,"
-        + "swT,hwT,nose,rtmFace,earL,earR,analyzeMs,cropMeanReq,cropAllReq,stretchMeanReq,stretchAllReq\n"
+        + "swT,hwT,nose,rtmFace,earL,earR,analyzeMs,cropMeanReq,cropAllReq,stretchMeanReq,stretchAllReq,"
+        + "lrShoulder,lrHip\n"
     var frameIndex = -1
     let overlay = drawOverlayVideo
         ? try OverlayVideoWriter(url: outputDir.appendingPathComponent("overlay_\(name).mp4"),
@@ -168,7 +169,10 @@ for video in videos {
                 f(m.map { $0.shoulderWidth / $0.torso }), f(m.map { $0.hipWidth / $0.torso }), f(m?.noseOffset),
                 f(m?.face), f(m?.earLeft), f(m?.earRight), f(analyzeMs),
                 f(meanRequired(cropScores)), allRequired(cropScores) ? "1" : "0",
-                f(meanRequired(stretchScores)), allRequired(stretchScores) ? "1" : "0"]
+                f(meanRequired(stretchScores)), allRequired(stretchScores) ? "1" : "0",
+                // anatomical left minus right, as a fraction of the frame width (sign = which side is where)
+                f((analysis.keypoints[CocoJoint.leftShoulder.rawValue].x - analysis.keypoints[CocoJoint.rightShoulder.rawValue].x) / width),
+                f((analysis.keypoints[CocoJoint.leftHip.rawValue].x - analysis.keypoints[CocoJoint.rightHip.rawValue].x) / width)]
             .joined(separator: ",") + "\n"
     }
     overlay?.finish()

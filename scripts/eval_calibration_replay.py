@@ -8,6 +8,8 @@ Reports, per subject and overall:
 - view classification of the shipped rules (Vision face + r + δ) against the old spec rules
   (RTMPose ear/face scores), on every unique source frame of the continuous (v2) fixtures
 - captures from the held (v1) fixtures and their yaw error
+- a left/right confusion matrix, and whether RTMPose's anatomical left/right joints sit on the side
+  the turn angle predicts (cos yaw > 0: left shoulder on the image right)
 - RTMPose keypoint confidence with the person crop vs the old full-frame stretch
 - analysis time per frame
 
@@ -17,6 +19,7 @@ Reports, per subject and overall:
 """
 import csv
 import json
+import math
 import statistics
 from pathlib import Path
 
@@ -166,6 +169,38 @@ def main():
         print(f"    정답 구간 안에서 맞게 판정한 비율: {parts}")
         if predictions:
             print(f"    판정 {predictions}회 중 방향 오차 30° 이내 {good}회({good / predictions:.0%}), 45° 초과 {bad}회({bad / predictions:.0%})")
+
+    print("\n좌우를 구분한 혼동 행렬 (행 = 근사 정답, 열 = 판정, 새 판정)")
+    cols = VIEWS + [None]
+    names = {"front": "정면", "rightfront": "왼쪽(+60)", "back": "뒷면", "leftfront": "오른쪽(-60)", None: "판정 안 함"}
+    print("    " + "".join(f"{names[c]:>12}" for c in cols))
+    swaps = 0
+    for truth in VIEWS + ["between"]:
+        counts = {c: 0 for c in cols}
+        for row, ref, yaw in all_frames:
+            if label(yaw) == truth:
+                counts[classify_new(row, ref)] += 1
+        print(f"    {names.get(truth, '사이 구간'):<10}" + "".join(f"{counts[c]:>12}" for c in cols))
+    for row, ref, yaw in all_frames:
+        predicted = classify_new(row, ref)
+        side = (yaw % 360) < 180  # turned towards the user's left half of the circle
+        if predicted == "rightfront" and not side or predicted == "leftfront" and side:
+            swaps += 1
+    print(f"    왼쪽/오른쪽 사선을 반대로 판정한 프레임: {swaps}")
+
+    print("\nRTMPose 관절 좌우 (어깨·골반의 좌우 순서가 회전각과 맞는지, 옆모습 ±30° 제외)")
+    for name, lo, hi in (("앞쪽 (정면±60°)", -60, 60), ("뒤쪽 (뒷면±60°)", 120, 240)):
+        ok_s = ok_h = n = 0
+        for row, ref, yaw in all_frames:
+            y = yaw % 360
+            y = y - 360 if y > 180 and lo < 0 else y
+            if not (lo <= y <= hi) or row.get("lrShoulder", "") == "":
+                continue
+            expected = 1 if math.cos(math.radians(yaw)) > 0 else -1
+            n += 1
+            ok_s += (num(row, "lrShoulder") > 0) == (expected > 0)
+            ok_h += (num(row, "lrHip") > 0) == (expected > 0)
+        print(f"  {name}: 프레임 {n}개, 어깨 좌우 맞음 {ok_s / n:.0%}, 골반 좌우 맞음 {ok_h / n:.0%}")
 
     crop = [num(r, "cropMeanReq") for r in conf_rows]
     stretch = [num(r, "stretchMeanReq") for r in conf_rows]
