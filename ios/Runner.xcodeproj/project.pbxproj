@@ -51,6 +51,8 @@
 		B75CABD5DE5ECD9A619075AC /* CalibrationDebugLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2F3CD58F303C94E51B2ECAF /* CalibrationDebugLog.swift */; };
 		9B1765659A9EB03CD190EA76 /* CalibrationSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = A477883B45E9D69598BA97E3 /* CalibrationSession.swift */; };
 		B80641859AA06A9A441B5935 /* CalibrationCameraPlatformView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2B44E870E9B48FAB6FB2538 /* CalibrationCameraPlatformView.swift */; };
+		925BCFA4D5D958F6F478B0AC /* CalibrationFrameAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7823F1F23BB7F8BB16A7D5B8 /* CalibrationFrameAnalyzer.swift */; };
+		F6385859DC9CD45597CCF40F /* RTMPoseInputTensor.swift in Sources */ = {isa = PBXBuildFile; fileRef = BCF4F40DCF7F2B98E0095348 /* RTMPoseInputTensor.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -135,6 +137,8 @@
 		B2F3CD58F303C94E51B2ECAF /* CalibrationDebugLog.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CalibrationDebugLog.swift; sourceTree = "<group>"; };
 		A477883B45E9D69598BA97E3 /* CalibrationSession.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CalibrationSession.swift; sourceTree = "<group>"; };
 		C2B44E870E9B48FAB6FB2538 /* CalibrationCameraPlatformView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CalibrationCameraPlatformView.swift; sourceTree = "<group>"; };
+		7823F1F23BB7F8BB16A7D5B8 /* CalibrationFrameAnalyzer.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CalibrationFrameAnalyzer.swift; sourceTree = "<group>"; };
+		BCF4F40DCF7F2B98E0095348 /* RTMPoseInputTensor.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = RTMPoseInputTensor.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -185,6 +189,7 @@
 				A9904FCF0AC9BC0DB7C5C3AD /* CalibrationVoice.swift */,
 				B2F3CD58F303C94E51B2ECAF /* CalibrationDebugLog.swift */,
 				A477883B45E9D69598BA97E3 /* CalibrationSession.swift */,
+				7823F1F23BB7F8BB16A7D5B8 /* CalibrationFrameAnalyzer.swift */,
 				C2B44E870E9B48FAB6FB2538 /* CalibrationCameraPlatformView.swift */,
 			);
 			path = Calibration;
@@ -239,6 +244,7 @@
 			children = (
 				C22663292A168CDCAD307E66 /* PoseCoordinateTransforms.swift */,
 				9C26CE42DA3E61208CE01EF8 /* PosePreprocess.swift */,
+				BCF4F40DCF7F2B98E0095348 /* RTMPoseInputTensor.swift */,
 				C7C4940B99ECEFA823DD8EB1 /* SimCCDecoder.swift */,
 			);
 			path = PosePipeline;
@@ -575,6 +581,7 @@
 				FEEDD62DEEFAEFF0804DBBBC /* CameraPosePreview.swift in Sources */,
 				A7DD801D7BE99E90AD97FF07 /* PoseCoordinateTransforms.swift in Sources */,
 				21CDBC22A214628A2C924DA7 /* PosePreprocess.swift in Sources */,
+				F6385859DC9CD45597CCF40F /* RTMPoseInputTensor.swift in Sources */,
 				8A47468CE23144E7FE449BEB /* SimCCDecoder.swift in Sources */,
 				223CDB2759C9124390D74E5F /* BundledVideoHandFrameProcessor.swift in Sources */,
 				08C943D98F2961D3E7FD292C /* HandCropBuilder.swift in Sources */,
@@ -603,6 +610,7 @@
 				3ADE02570275D4BCFFA42291 /* CalibrationVoice.swift in Sources */,
 				B75CABD5DE5ECD9A619075AC /* CalibrationDebugLog.swift in Sources */,
 				9B1765659A9EB03CD190EA76 /* CalibrationSession.swift in Sources */,
+				925BCFA4D5D958F6F478B0AC /* CalibrationFrameAnalyzer.swift in Sources */,
 				B80641859AA06A9A441B5935 /* CalibrationCameraPlatformView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

@@ -92,12 +92,24 @@ struct CalibrationDeviceState: Equatable {
     static let still = CalibrationDeviceState()
 }
 
+/// Face detection result for the frame (Apple Vision). This, not RTMPose's face/ear scores,
+/// is what tells "facing the camera" from "back to the camera".
+struct CalibrationFace: Equatable {
+    var isDetected: Bool
+    /// Head yaw relative to the camera; magnitude only is used, so the sign convention does not matter.
+    var yawDeg: Double?
+
+    static let none = CalibrationFace(isDetected: false, yawDeg: nil)
+    static let frontal = CalibrationFace(isDetected: true, yawDeg: 0)
+}
+
 struct CalibrationFrame {
     var keypoints: [CalibrationKeypoint]
     /// width / height of the judged buffer; horizontal distances are multiplied by it to become height units.
     var aspect: Double
     var timestamp: TimeInterval
     var device: CalibrationDeviceState
+    var face: CalibrationFace
 }
 
 /// Everything measured from one frame, in torso-relative units.
@@ -148,12 +160,15 @@ enum CalibrationGuidance: Equatable {
     case lowerArms
     case straightenElbows
     case widenFeet
+    case faceCamera
     case keepTurning
     case turnedTooFar
     case faceForwardWithBody
     case holdStill
     case captured(CalibrationView)
     case finished
+    /// Played once when one view has not been captured for `viewTimeout` seconds.
+    case timeoutSummary
 
     var message: String {
         switch self {
@@ -171,6 +186,7 @@ enum CalibrationGuidance: Equatable {
         case .lowerArms: return "팔을 조금 내려주세요"
         case .straightenElbows: return "팔꿈치를 펴주세요"
         case .widenFeet: return "발을 어깨너비로 벌려주세요"
+        case .faceCamera: return "카메라를 정면으로 바라봐 주세요"
         case .keepTurning: return "천천히 계속 돌아주세요"
         case .turnedTooFar: return "너무 돌았어요, 살짝 돌아오세요"
         case .faceForwardWithBody: return "고개는 몸과 같은 방향으로, 시선만 화면으로 봐주세요"
@@ -179,13 +195,14 @@ enum CalibrationGuidance: Equatable {
             let next = view.nextStepInstruction
             return next.isEmpty ? "\(view.koreanName) 촬영 완료" : "\(view.koreanName) 촬영 완료, \(next)"
         case .finished: return "촬영이 모두 끝났어요"
+        case .timeoutSummary: return "팔은 A자, 제자리에서, 천천히 돌아주세요"
         }
     }
 
     /// Spoken immediately, cutting off whatever is being said.
     var interrupts: Bool {
         switch self {
-        case .captured, .finished, .returnToStart: return true
+        case .captured, .finished, .returnToStart, .timeoutSummary: return true
         default: return false
         }
     }

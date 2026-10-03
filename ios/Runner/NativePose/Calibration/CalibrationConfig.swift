@@ -2,8 +2,8 @@ import Foundation
 
 /// Every threshold the calibration judging engine uses.
 ///
-/// Nothing in `CalibrationEngine` hardcodes a number: the values below are the
-/// starting point from the spec and are expected to be tuned on a real device.
+/// Nothing in `CalibrationEngine` hardcodes a number. Values are the starting point for
+/// real-device tuning; `debug_frames.csv` in each session folder records what they see.
 struct CalibrationConfig {
     struct Device {
         var maxRollDeg: Double = 3.0
@@ -15,7 +15,9 @@ struct CalibrationConfig {
     struct Framing {
         var minKeypointConfidence: Double = 0.3
         var maxBodyHeight: Double = 0.82
-        var minBodyHeight: Double = 0.60
+        /// The capture screen's guide outline spans about 0.55 of the buffer height,
+        /// so the lower bound sits under it: a user who fits the guide passes.
+        var minBodyHeight: Double = 0.50
         var minHeadTop: Double = 0.02
         var maxFeet: Double = 0.98
         var maxCentreOffset: Double = 0.10
@@ -41,24 +43,27 @@ struct CalibrationConfig {
         var maxAnkleGapOverHipWidth: Double = 2.6
     }
 
+    /// Which way the body faces comes from geometry (RTMPose) plus face detection (Vision).
+    ///
+    /// RTMPose keypoint scores are not visibility: from behind it still scores the ears
+    /// 0.5–1.0 and the face 0.55–0.85, so nothing here thresholds them.
     struct ViewClassification {
-        var frontMinFace: Double = 0.5
+        /// Front: a face looking at the camera, nose over the shoulder midline.
+        var frontMaxFaceYawDeg: Double = 20
         var frontMaxNoseOffset: Double = 0.08
-        var frontMaxEarDifference: Double = 0.25
 
-        var obliqueMinFace: Double = 0.4
+        /// ±60°: r in this band, nose swung off the midline, face still visible.
+        /// r reads wider than |cos yaw| on real bodies (RTMPose puts the hidden far shoulder and
+        /// hip on the outline): six held ~50–60° views of three People Snapshot subjects gave
+        /// r 0.48–0.74 with Vision head yaw 41–71°, so the upper bound is 0.75 rather than cos 48°.
         var obliqueMinR: Double = 0.31
-        var obliqueMaxR: Double = 0.67
+        var obliqueMaxR: Double = 0.75
         var obliqueMinDelta: Double = 0.12
-        var obliqueNearEarMin: Double = 0.5
-        var obliqueFarEarMax: Double = 0.3
-        /// Both ears this visible inside the oblique r band means the head is turned back to the camera.
-        var turnedHeadEarMin: Double = 0.4
+        /// A face this close to frontal on an oblique body means the head turned back to the camera.
+        var turnedHeadMaxFaceYawDeg: Double = 20
 
-        var backMaxFace: Double = 0.35
-        var backFaceRefFactor: Double = 0.5
-        var backMaxEar: Double = 0.3
-        var backMinR: Double = 0.85
+        /// Back: no face, shoulders and hips back to (nearly) full width.
+        var backMinR: Double = 0.80
 
         /// r = shoulderWeight * (sw/T)/ref_s + (1 - shoulderWeight) * (hw/T)/ref_h
         var shoulderWeight: Double = 0.6

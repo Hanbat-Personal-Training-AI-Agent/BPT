@@ -4,19 +4,17 @@ import UIKit
 
 /// Flutter platform view for the body calibration camera.
 ///
-/// Native side owns the camera, RTMPose and the judging engine; Dart gets state events
-/// (`onCalibrationUpdate`) and draws the silhouette guide, guidance text and progress.
-/// Dart drives the lifecycle with `start(userHeightCm:)` and `cancel`.
+/// Native side owns the camera, perception and the judging engine; Dart gets state events
+/// (`onCalibrationUpdate`, `onCalibrationError`) and draws the silhouette guide, guidance
+/// text and progress. Dart drives the lifecycle with `start(userHeightCm:)` and `cancel`.
 final class CalibrationCameraPlatformView: NSObject, FlutterPlatformView {
-    private let container = UIView()
-    private let previewLayer: AVCaptureVideoPreviewLayer
+    private let container = PreviewContainerView()
     private let debugLabel = UILabel()
     private let channel: FlutterMethodChannel
     private var session: CalibrationSession!
 
     init(frame: CGRect, viewId: Int64, messenger: FlutterBinaryMessenger) {
         channel = FlutterMethodChannel(name: "bpt/body_scan_camera/\(viewId)", binaryMessenger: messenger)
-        previewLayer = AVCaptureVideoPreviewLayer()
         super.init()
 
         session = CalibrationSession(
@@ -29,26 +27,23 @@ final class CalibrationCameraPlatformView: NSObject, FlutterPlatformView {
         container.frame = frame
         container.backgroundColor = .black
         container.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-
-        previewLayer.session = session.captureSession
-        previewLayer.videoGravity = .resizeAspectFill
-        // Preview mirrors so the user sees themselves as in a mirror; judging stays unmirrored.
-        if let connection = previewLayer.connection, connection.isVideoMirroringSupported {
-            connection.automaticallyAdjustsVideoMirroring = false
-            connection.isVideoMirrored = true
-        }
-        container.layer.addSublayer(previewLayer)
+        // Front camera previews mirror by default (automaticallyAdjustsVideoMirroring), which is what
+        // the user expects; the data output that is judged and saved is set to unmirrored.
+        container.previewLayer.session = session.captureSession
+        container.previewLayer.videoGravity = .resizeAspectFill
 
         if CalibrationDebugLog.isEnabled {
             debugLabel.numberOfLines = 0
             debugLabel.font = .monospacedSystemFont(ofSize: 10, weight: .regular)
             debugLabel.textColor = .green
             debugLabel.backgroundColor = UIColor.black.withAlphaComponent(0.35)
+            debugLabel.frame = CGRect(x: 8, y: 120, width: frame.width - 16, height: 160)
+            debugLabel.autoresizingMask = [.flexibleWidth]
             container.addSubview(debugLabel)
         }
 
         channel.setMethodCallHandler { [weak self] call, result in
-            guard let self else { return }
+            guard let self else { return result(nil) }
             switch call.method {
             case "start":
                 let args = call.arguments as? [String: Any]
@@ -63,28 +58,23 @@ final class CalibrationCameraPlatformView: NSObject, FlutterPlatformView {
         }
     }
 
-    func view() -> UIView {
-        previewLayer.frame = container.bounds
-        debugLabel.frame = CGRect(x: 8, y: 120, width: container.bounds.width - 16, height: 150)
-        return container
-    }
+    func view() -> UIView { container }
 
     private func send(_ update: CalibrationSession.Update) {
-        previewLayer.frame = container.bounds
         if CalibrationDebugLog.isEnabled {
-            let debug = update.debug
+            let values = update.debug
                 .sorted { $0.key < $1.key }
-                .map { String(format: "%@ %.3f", $0.key, $0.value) }
+                .map { String(format: "%@ %.2f", $0.key, $0.value) }
                 .joined(separator: "  ")
             debugLabel.text = """
-            \(update.guidance)
-            target \(update.targetView ?? "-")  class \(update.classifiedView ?? "-")  hold \
-            \(String(format: "%.2f", update.holdProgress))
-            \(debug)
+            \(update.guidance.message)
+            target \(update.targetView ?? "-")  class \(update.classifiedView ?? "-")  \
+            hold \(String(format: "%.2f", update.holdProgress))
+            \(values)
             """
         }
         channel.invokeMethod("onCalibrationUpdate", arguments: [
-            "guidance": update.guidance,
+            "guidance": update.guidance.message,
             "classifiedView": update.classifiedView as Any,
             "targetView": update.targetView as Any,
             "capturedViews": update.capturedViews,
@@ -97,7 +87,28 @@ final class CalibrationCameraPlatformView: NSObject, FlutterPlatformView {
     }
 
     deinit {
+        // The Dart side may be gone before its cancel arrives; stop() never deletes a finished run.
         session?.stop()
+    }
+}
+
+/// Keeps the preview layer sized to the view through every layout pass.
+private final class PreviewContainerView: UIView {
+    let previewLayer = AVCaptureVideoPreviewLayer()
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        layer.addSublayer(previewLayer)
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        previewLayer.frame = bounds
+        CATransaction.commit()
     }
 }
 

@@ -2,9 +2,16 @@ import Foundation
 
 /// Decides, frame by frame, what to tell the user and when to take a picture.
 ///
-/// Pure logic: no UIKit, no AVFoundation, no clock of its own. Input is keypoints,
-/// aspect, a timestamp and the device state; output is guidance, a view classification
-/// and a capture decision. That keeps it unit-testable with synthetic keypoints.
+/// Pure logic: no UIKit, no AVFoundation, no clock of its own. Input is keypoints, aspect,
+/// a timestamp, the device state and a face-detection result; output is guidance, a view
+/// classification and a capture decision. That keeps it unit-testable with synthetic input.
+///
+/// Which way the body faces is decided from geometry and face detection, never from
+/// RTMPose keypoint scores (they stay high for hidden ears and faces):
+/// - r = |cos yaw| from shoulder and hip width against the front reference
+/// - δ = nose offset from the shoulder midline minus the front value; its sign is the turn side
+/// - Vision face: present for front and ±60°, absent from behind; its yaw spots a head
+///   turned back to the camera
 final class CalibrationEngine {
     let config: CalibrationConfig
 
@@ -92,9 +99,10 @@ final class CalibrationEngine {
         }
 
         // 6. View classification
-        let classification = classify(measurement)
+        let classification = classify(measurement, face: frame.face)
         guard let classified = classification.view, !capturedViews.contains(classified) else {
-            let guidance = classification.guidance ?? rotationGuidance(measurement, target: target)
+            let guidance = classification.guidance
+                ?? rotationGuidance(measurement, face: frame.face, target: target)
             return fail(guidance, target: target, measurement: measurement, didTimeOut: didTimeOut)
         }
 
@@ -268,53 +276,58 @@ final class CalibrationEngine {
         return m.noseOffset - reference.noseOffset
     }
 
-    private func classify(_ m: CalibrationMeasurement) -> (view: CalibrationView?, guidance: CalibrationGuidance?) {
+    private func classify(_ m: CalibrationMeasurement,
+                          face: CalibrationFace) -> (view: CalibrationView?, guidance: CalibrationGuidance?) {
+        let v = config.view
+        let faceYaw = face.yawDeg.map(abs)
+
         guard reference != nil else {
-            let isFront = m.face >= config.view.frontMinFace
-                && abs(m.noseOffset) <= config.view.frontMaxNoseOffset
-                && abs(m.earLeft - m.earRight) <= config.view.frontMaxEarDifference
-            return (isFront ? .front : nil, nil)
+            let lookingAtCamera = face.isDetected && (faceYaw ?? 0) <= v.frontMaxFaceYawDeg
+            let isFront = lookingAtCamera && abs(m.noseOffset) <= v.frontMaxNoseOffset
+            return isFront ? (.front, nil) : (nil, .faceCamera)
         }
         guard let r = rValue(m), let d = delta(m) else { return (nil, nil) }
 
-        let inObliqueBand = r >= config.view.obliqueMinR && r <= config.view.obliqueMaxR
-        if inObliqueBand,
-           m.earLeft >= config.view.turnedHeadEarMin,
-           m.earRight >= config.view.turnedHeadEarMin,
-           m.face >= config.view.frontMinFace {
-            // Body is oblique but the head swivelled back to the camera: the shot would not match the yaw.
-            return (nil, .faceForwardWithBody)
+        if r >= v.obliqueMinR, r <= v.obliqueMaxR, face.isDetected {
+            if let faceYaw, faceYaw <= v.turnedHeadMaxFaceYawDeg {
+                // Body is oblique but the head swivelled back to the camera: the shot would not match the yaw.
+                return (nil, .faceForwardWithBody)
+            }
+            if abs(d) >= v.obliqueMinDelta {
+                // Nose towards the image right = user turned to their own left = right-front side visible.
+                return (d > 0 ? .rightfront : .leftfront, nil)
+            }
+            return (nil, nil)
         }
 
-        if inObliqueBand, m.face >= config.view.obliqueMinFace, abs(d) >= config.view.obliqueMinDelta {
-            let rightEarNear = m.earRight >= config.view.obliqueNearEarMin
-                && m.earLeft <= config.view.obliqueFarEarMax
-            let leftEarNear = m.earLeft >= config.view.obliqueNearEarMin
-                && m.earRight <= config.view.obliqueFarEarMax
-            if d > 0, rightEarNear { return (.rightfront, nil) }
-            if d < 0, leftEarNear { return (.leftfront, nil) }
-            return (nil, nil)  // sign and ears disagree: do not classify
-        }
-
-        let faceGate = min(config.view.backMaxFace, config.view.backFaceRefFactor * (reference?.face ?? 1))
-        if m.face <= faceGate,
-           m.earLeft <= config.view.backMaxEar,
-           m.earRight <= config.view.backMaxEar,
-           r >= config.view.backMinR {
+        // r near 1 is either front or back; only the missing face tells them apart.
+        if r >= v.backMinR, !face.isDetected {
             return (.back, nil)
         }
         return (nil, nil)
     }
 
+    /// Steers towards `target` when the frame matches no uncaptured view.
+    ///
+    /// The turn is continuous, so the same r means different things on the way there:
+    /// leaving the front, r < band is overshoot; coming round from the back, it is a profile
+    /// the user has to keep turning through.
     private func rotationGuidance(_ m: CalibrationMeasurement,
+                                  face: CalibrationFace,
                                   target: CalibrationView?) -> CalibrationGuidance {
-        guard let target, let r = rValue(m) else { return .keepTurning }
+        guard let target, let r = rValue(m) else { return .faceCamera }
+        let v = config.view
         switch target {
-        case .leftfront, .rightfront:
-            if r > config.view.obliqueMaxR { return .keepTurning }
-            if r < config.view.obliqueMinR, m.face >= config.view.obliqueMinFace { return .turnedTooFar }
+        case .front:
+            return .faceCamera
+        case .back:
             return .keepTurning
-        case .back, .front:
+        case .leftfront, .rightfront:
+            let comingFromBack = capturedViews.contains(.back)
+            if comingFromBack {
+                return face.isDetected && r > v.obliqueMaxR ? .turnedTooFar : .keepTurning
+            }
+            if r < v.obliqueMinR || !face.isDetected { return .turnedTooFar }
             return .keepTurning
         }
     }

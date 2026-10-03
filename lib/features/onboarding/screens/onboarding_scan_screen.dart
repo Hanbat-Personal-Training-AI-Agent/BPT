@@ -54,6 +54,10 @@ class _OnboardingScanScreenState extends ConsumerState<OnboardingScanScreen> {
   double _holdProgress = 0;
   bool _isPassing = false;
   String? _error;
+  bool _finished = false;
+
+  /// White flash over the preview each time a view is captured.
+  bool _flash = false;
 
   bool get _isIOS => !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
 
@@ -79,15 +83,24 @@ class _OnboardingScanScreenState extends ConsumerState<OnboardingScanScreen> {
       case 'onCalibrationUpdate':
         final args = (call.arguments as Map).cast<String, dynamic>();
         final sessionPath = args['sessionPath'] as String?;
+        final captured =
+            (args['capturedViews'] as List?)?.cast<String>() ?? _capturedViews;
+        final newCapture = captured.length > _capturedViews.length;
         setState(() {
           _guidance = args['guidance'] as String?;
           _targetView = args['targetView'] as String?;
-          _capturedViews =
-              (args['capturedViews'] as List?)?.cast<String>() ?? _capturedViews;
+          _capturedViews = captured;
           _holdProgress = (args['holdProgress'] as num?)?.toDouble() ?? 0;
           _isPassing = args['isPassing'] as bool? ?? false;
+          if (newCapture) _flash = true;
         });
-        if (args['isFinished'] == true && sessionPath != null) {
+        if (newCapture) {
+          Future.delayed(const Duration(milliseconds: 120), () {
+            if (mounted) setState(() => _flash = false);
+          });
+        }
+        if (args['isFinished'] == true && sessionPath != null && !_finished) {
+          _finished = true;
           context.go(RouteConstants.onboardingAnalyzing, extra: sessionPath);
         }
       case 'onCalibrationError':
@@ -140,7 +153,8 @@ class _OnboardingScanScreenState extends ConsumerState<OnboardingScanScreen> {
 
   @override
   void dispose() {
-    _channel?.invokeMethod<void>('cancel');
+    // Leaving mid-run (back swipe) throws the partial session away; a finished one is kept.
+    if (!_finished) _channel?.invokeMethod<void>('cancel');
     _channel?.setMethodCallHandler(null);
     super.dispose();
   }
@@ -170,6 +184,13 @@ class _OnboardingScanScreenState extends ConsumerState<OnboardingScanScreen> {
                     onPlatformViewCreated: _onPlatformViewCreated,
                   )
                 : Container(color: AppColors.grey),
+            IgnorePointer(
+              child: AnimatedOpacity(
+                opacity: _flash ? 0.85 : 0,
+                duration: Duration(milliseconds: _flash ? 40 : 260),
+                child: const ColoredBox(color: Colors.white),
+              ),
+            ),
             SafeArea(
               child: Column(
                 children: [
