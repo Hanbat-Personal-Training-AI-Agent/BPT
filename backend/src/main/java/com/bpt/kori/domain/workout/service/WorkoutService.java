@@ -47,7 +47,7 @@ public class WorkoutService {
             return WorkoutMetadataResponseDto.builder()
                     .serverRecordId(String.valueOf(record.getId()))
                     .clientRecordId(record.getClientRecordId())
-                    .postureScore(record.getPostureScore())
+                    .videoLocalPath(record.getVideoLocalPath())
                     .success(true)
                     .message("Record already synced")
                     .syncedAt(record.getCreatedAt())
@@ -63,6 +63,9 @@ public class WorkoutService {
             }
         }
 
+        int sets = dto.getEffectiveSets();
+        int reps = dto.getEffectiveReps();
+
         WorkoutRecord record = WorkoutRecord.builder()
                 .user(user)
                 .clientRecordId(dto.getClientRecordId())
@@ -70,13 +73,13 @@ public class WorkoutService {
                 .exerciseName(dto.getExerciseName())
                 .date(dto.getDate() != null ? dto.getDate() : LocalDateTime.now())
                 .weightKg(dto.getWeightKg() != null ? dto.getWeightKg() : BigDecimal.ZERO)
-                .totalReps(dto.getTotalReps())
+                .totalReps(dto.getTotalReps() > 0 ? dto.getTotalReps() : (sets * reps))
                 .correctReps(dto.getCorrectReps())
                 .incorrectReps(dto.getIncorrectReps())
                 .durationSeconds(dto.getDurationSeconds())
-                .postureScore(dto.getPostureScore())
-                .targetReps(dto.getTargetReps())
-                .targetSets(dto.getTargetSets())
+                .videoLocalPath(dto.getVideoLocalPath())
+                .targetReps(reps)
+                .targetSets(sets)
                 .poseMetricsSummary(summaryJson)
                 .build();
 
@@ -95,7 +98,7 @@ public class WorkoutService {
         return WorkoutMetadataResponseDto.builder()
                 .serverRecordId(String.valueOf(saved.getId()))
                 .clientRecordId(saved.getClientRecordId())
-                .postureScore(saved.getPostureScore())
+                .videoLocalPath(saved.getVideoLocalPath())
                 .success(true)
                 .message("Record synced successfully")
                 .syncedAt(saved.getCreatedAt())

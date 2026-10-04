@@ -8,10 +8,14 @@ import com.bpt.kori.domain.user.entity.User;
 import com.bpt.kori.domain.user.repository.UserRepository;
 import com.bpt.kori.security.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
+
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -23,7 +27,9 @@ public class AuthService {
 
     @Transactional
     public TokenResponse login(LoginRequest request) {
-        User user = userRepository.findByEmail(request.getEmail().trim())
+        String identifier = request.getEmail().trim();
+        User user = userRepository.findByEmail(identifier)
+                .or(() -> userRepository.findByUsername(identifier))
                 .orElseThrow(() -> new CustomException(ErrorCode.INVALID_CREDENTIALS));
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
@@ -55,9 +61,17 @@ public class AuthService {
             throw new CustomException(ErrorCode.USERNAME_ALREADY_EXISTS);
         }
 
-        if (Boolean.FALSE.equals(request.getTermsAgreed()) || Boolean.FALSE.equals(request.getPrivacyAgreed())
-                || request.getTermsAgreed() == null || request.getPrivacyAgreed() == null) {
+        if (Boolean.FALSE.equals(request.getTermsAgreed()) || request.getTermsAgreed() == null) {
             throw new CustomException(ErrorCode.TERMS_NOT_AGREED);
+        }
+
+        LocalDate parsedBirthDate = null;
+        if (request.getBirthDate() != null && !request.getBirthDate().isBlank()) {
+            try {
+                parsedBirthDate = LocalDate.parse(request.getBirthDate().trim());
+            } catch (Exception e) {
+                log.warn("Invalid birthDate format: {}", request.getBirthDate());
+            }
         }
 
         User user = User.builder()
@@ -65,8 +79,9 @@ public class AuthService {
                 .username(username)
                 .password(passwordEncoder.encode(request.getPassword()))
                 .name(request.getName() != null && !request.getName().isBlank() ? request.getName() : username)
+                .phoneNumber(request.getPhoneNumber() != null ? request.getPhoneNumber().trim() : null)
+                .birthDate(parsedBirthDate)
                 .termsAgreed(Boolean.TRUE.equals(request.getTermsAgreed()))
-                .privacyAgreed(Boolean.TRUE.equals(request.getPrivacyAgreed()))
                 .build();
 
         userRepository.save(user);
@@ -93,5 +108,26 @@ public class AuthService {
             return new CheckUsernameResponse(false, "이미 사용 중인 아이디입니다.");
         }
         return new CheckUsernameResponse(true, "사용 가능한 아이디입니다.");
+    }
+
+    public EmailVerificationResponse requestEmailVerification(EmailVerificationRequest request) {
+        int randomCode = 100000 + (int) (Math.random() * 900000);
+        String code = String.valueOf(randomCode);
+        log.info("==================================================");
+        log.info("[MOCK EMAIL VERIFICATION] Target Email: {}, 6-digit Code: {}", request.getEmail().trim(), code);
+        log.info("==================================================");
+        return EmailVerificationResponse.builder()
+                .success(true)
+                .message("인증번호가 발송되었습니다. (테스트 환경: 서버 로그 확인)")
+                .build();
+    }
+
+    public EmailVerificationConfirmResponse confirmEmailVerification(EmailVerificationConfirmRequest request) {
+        log.info("[MOCK EMAIL CONFIRM] Email: {}, Input Code: {} -> Result: Verified(true)",
+                request.getEmail().trim(), request.getCode().trim());
+        return EmailVerificationConfirmResponse.builder()
+                .verified(true)
+                .message("이메일 인증이 완료되었습니다.")
+                .build();
     }
 }

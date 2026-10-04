@@ -55,11 +55,10 @@ public class WorkoutRecord {
     private Integer incorrectReps = 0;
 
     @Builder.Default
-    private Integer durationSeconds = 0;
+    private Integer durationSeconds = 0; // 휴식 시간을 제외한 순수 운동 진행 시간의 총합
 
-    @Column(nullable = false)
-    @Builder.Default
-    private Double postureScore = 0.0;
+    @Column(length = 500)
+    private String videoLocalPath; // 기기 내부 스토리지 녹화 영상 경로
 
     @Builder.Default
     private Integer targetReps = 0;
