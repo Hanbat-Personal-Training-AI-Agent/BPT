@@ -64,9 +64,11 @@ class _AccountRecoveryScreenState extends ConsumerState<AccountRecoveryScreen> {
     }
   }
 
-  void _sendCode() {
+  Future<void> _sendCode() async {
     final notifier = ref.read(accountRecoveryProvider.notifier);
-    if (notifier.sendCode()) {
+    final sent = await notifier.sendCode();
+    if (!mounted) return;
+    if (sent) {
       _code.clear();
       // The code field only becomes enabled after this rebuild, so
       // requesting focus must wait for that frame or it's silently dropped.
@@ -78,8 +80,9 @@ class _AccountRecoveryScreenState extends ConsumerState<AccountRecoveryScreen> {
     }
   }
 
-  void _verifyCode() {
-    ref.read(accountRecoveryProvider.notifier).verifyCode(_code.text);
+  Future<void> _verifyCode() async {
+    await ref.read(accountRecoveryProvider.notifier).verifyCode(_code.text);
+    if (!mounted) return;
     if (ref.read(accountRecoveryProvider).verified) {
       FocusScope.of(context).unfocus();
     }
@@ -99,7 +102,7 @@ class _AccountRecoveryScreenState extends ConsumerState<AccountRecoveryScreen> {
     _password.clear();
     _confirmation.clear();
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-      content: Text('미리보기 완료! 실제 비밀번호는 변경되지 않았어.'),
+      content: Text('비밀번호 재설정은 아직 서버에서 지원하지 않아. 실제로 바뀌지 않았어.'),
     ));
   }
 
@@ -155,7 +158,7 @@ class _AccountRecoveryScreenState extends ConsumerState<AccountRecoveryScreen> {
           )),
         ]),
         const SizedBox(height: 16),
-        const Text('미리보기 · 실제 이메일은 발송되지 않아. 테스트 코드: 418320',
+        const Text('테스트 서버 · 인증번호는 메일 대신 서버 로그에 찍혀.',
             style: TextStyle(color: Color(0xFF999999), fontSize: 11)),
         const SizedBox(height: 12),
         const AuthFieldLabel('이메일'),
@@ -178,9 +181,13 @@ class _AccountRecoveryScreenState extends ConsumerState<AccountRecoveryScreen> {
           )),
           const SizedBox(width: 12),
           AuthStatusButton(
-              label: state.sent ? '전송 완료' : '인증하기',
+              label: state.sent
+                  ? '전송 완료'
+                  : state.sending
+                      ? '보내는 중'
+                      : '인증하기',
               complete: state.sent,
-              onTap: state.sent ? null : _sendCode),
+              onTap: state.sent || state.sending ? null : _sendCode),
         ]),
         const SizedBox(height: 14),
         const AuthFieldLabel('인증 코드'),
@@ -200,9 +207,16 @@ class _AccountRecoveryScreenState extends ConsumerState<AccountRecoveryScreen> {
           )),
           const SizedBox(width: 12),
           AuthStatusButton(
-              label: state.verified ? '인증 완료' : '인증하기',
+              label: state.verified
+                  ? '인증 완료'
+                  : state.verifying
+                      ? '확인 중'
+                      : '인증하기',
               complete: state.verified,
-              onTap: state.sent && !state.verified && _code.text.length == 6
+              onTap: state.sent &&
+                      !state.verified &&
+                      !state.verifying &&
+                      _code.text.length == 6
                   ? _verifyCode
                   : null),
         ]),
@@ -301,19 +315,19 @@ class _AccountRecoveryScreenState extends ConsumerState<AccountRecoveryScreen> {
         decoration: BoxDecoration(
             color: AppColors.green, borderRadius: BorderRadius.circular(28)),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Text('찾은 아이디 · 미리보기',
+          const Text('인증된 로그인 이메일',
               style: TextStyle(
                   color: Color(0xFF536E29),
                   fontSize: 13,
                   fontWeight: FontWeight.w700)),
           const SizedBox(height: 8),
-          Text(state.maskedId,
+          Text(state.email,
               style: const TextStyle(
                   color: AppColors.black,
                   fontSize: 26,
                   fontWeight: FontWeight.w900)),
           const SizedBox(height: 8),
-          const Text('가입일은 계정 연동 후 표시돼.',
+          const Text('아이디 대신 이 이메일로 로그인할 수 있어.',
               style: TextStyle(color: Color(0xFF536E29), fontSize: 12)),
         ]),
       );
