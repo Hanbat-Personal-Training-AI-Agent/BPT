@@ -24,11 +24,14 @@ final class CalibrationEngineTests: XCTestCase {
         var elbowRatio = 0.5
         /// Nose offset from the shoulder midpoint, in torso lengths.
         var noseOffset = 0.0
+        /// Seen from behind, every left joint sits on the image left.
+        var facingAway = false
     }
 
     private func keypoints(_ b: Body) -> [CalibrationKeypoint] {
         let torso = b.hipY - b.shoulderY
-        let toX = { (heightUnits: Double) in heightUnits / self.aspect }
+        let side = b.facingAway ? -1.0 : 1.0
+        let toX = { (heightUnits: Double) in side * heightUnits / self.aspect }
         var kps = Array(repeating: CalibrationKeypoint(x: b.midX, y: b.shoulderY, score: 0.9), count: 17)
 
         func set(_ joint: CocoJoint, _ x: Double, _ y: Double) {
@@ -36,7 +39,7 @@ final class CalibrationEngineTests: XCTestCase {
         }
 
         // RTMPose scores the face and ears high from every side, so they stay 0.9 throughout.
-        let noseX = b.midX + toX(b.noseOffset * torso)
+        let noseX = b.midX + side * toX(b.noseOffset * torso)
         set(.nose, noseX, b.shoulderY - 0.5 * torso)
         set(.leftEye, noseX + toX(0.02), b.shoulderY - 0.55 * torso)
         set(.rightEye, noseX - toX(0.02), b.shoulderY - 0.55 * torso)
@@ -97,6 +100,13 @@ final class CalibrationEngineTests: XCTestCase {
         return b
     }
 
+    /// Past 90°: the back half of the turn, shoulders reversed in the image.
+    private func turnedAway(r: Double, delta: Double) -> Body {
+        var b = turned(r: r, delta: delta)
+        b.facingAway = true
+        return b
+    }
+
     private func face(yaw: Double) -> CalibrationFace { CalibrationFace(isDetected: true, yawDeg: yaw) }
 
     // MARK: - Front
@@ -152,7 +162,16 @@ final class CalibrationEngineTests: XCTestCase {
         let engine = CalibrationEngine()
         captureFront(engine)
         // Same width as 60°, but at 120° the face is gone.
-        let outputs = run(engine, body: turned(r: 0.5, delta: 0.3), face: .none, from: 10)
+        let outputs = run(engine, body: turnedAway(r: 0.5, delta: 0.3), face: .none, from: 10)
+        XCTAssertTrue(outputs.allSatisfy { $0.capture == nil })
+        XCTAssertEqual(engine.capturedViews, [.front])
+    }
+
+    func testBackObliqueWithHeadStillTowardsTheCameraIsNotOblique() {
+        let engine = CalibrationEngine()
+        captureFront(engine)
+        // Body at 120° (same r as 60°), head lagging behind so Vision still finds the face.
+        let outputs = run(engine, body: turnedAway(r: 0.5, delta: 0.3), face: face(yaw: 60), from: 10)
         XCTAssertTrue(outputs.allSatisfy { $0.capture == nil })
         XCTAssertEqual(engine.capturedViews, [.front])
     }
@@ -162,7 +181,7 @@ final class CalibrationEngineTests: XCTestCase {
     func testBackIsCaptured() {
         let engine = CalibrationEngine()
         captureFront(engine)
-        let outputs = run(engine, body: turned(r: 1.0, delta: 0), face: .none, from: 10)
+        let outputs = run(engine, body: turnedAway(r: 1.0, delta: 0), face: .none, from: 10)
         XCTAssertEqual(outputs.compactMap(\.capture).first?.view, .back)
     }
 
@@ -171,6 +190,15 @@ final class CalibrationEngineTests: XCTestCase {
         captureFront(engine)
         // Full width with a face: still the front, which is already captured.
         let outputs = run(engine, body: turned(r: 1.0, delta: 0), face: .frontal, from: 10)
+        XCTAssertTrue(outputs.allSatisfy { $0.capture == nil })
+    }
+
+    func testFrontWithMissedFaceIsNotBack() {
+        let engine = CalibrationEngine()
+        captureFront(engine)
+        // Vision misses the face, but the shoulders still face the camera.
+        let outputs = run(engine, body: turned(r: 1.0, delta: 0), face: .none, from: 10)
+        XCTAssertFalse(engine.capturedViews.contains(.back))
         XCTAssertTrue(outputs.allSatisfy { $0.capture == nil })
     }
 
@@ -196,16 +224,16 @@ final class CalibrationEngineTests: XCTestCase {
         let fromBack = CalibrationEngine()
         captureFront(fromBack)
         run(fromBack, body: turned(r: 0.5, delta: 0.3), face: face(yaw: 60), from: 10)
-        run(fromBack, body: turned(r: 1.0, delta: 0), face: .none, from: 20)
+        run(fromBack, body: turnedAway(r: 1.0, delta: 0), face: .none, from: 20)
         XCTAssertEqual(fromBack.capturedViews, [.front, .rightfront, .back])
-        XCTAssertEqual(run(fromBack, body: turned(r: 0.15, delta: -0.1), face: .none, from: 30).last?.guidance,
+        XCTAssertEqual(run(fromBack, body: turnedAway(r: 0.15, delta: -0.1), face: .none, from: 30).last?.guidance,
                        .keepTurning)
     }
 
     func testLeavingTheSpotAsksTheUserToComeBack() {
         let engine = CalibrationEngine()
         captureFront(engine)
-        var moved = turned(r: 1.0, delta: 0)
+        var moved = turnedAway(r: 1.0, delta: 0)
         // A step towards the camera: same size and centre, so framing still passes, but the
         // feet sit 0.04 lower than at the front capture (maxFeetDrift 0.03).
         moved.shoulderY += 0.04

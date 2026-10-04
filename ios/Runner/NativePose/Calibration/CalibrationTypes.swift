@@ -127,6 +127,8 @@ struct CalibrationMeasurement: Equatable {
     var rightElbowRatio: Double
     var face: Double
     var noseOffset: Double
+    /// Unmirrored image: the user's left shoulder sits on the image right while the chest faces the camera.
+    var chestTowardsCamera: Bool
     var earLeft: Double
     var earRight: Double
     var wristReach: Double

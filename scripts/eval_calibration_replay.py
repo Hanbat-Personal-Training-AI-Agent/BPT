@@ -83,13 +83,14 @@ def classify_new(row, ref):
     if face and abs(yaw or 0) <= 20 and abs(num(row, "nose")) <= 0.08:
         return "front"
     r, d = r_delta(row, ref)
-    if 0.31 <= r <= 0.75 and face:
+    chest_towards_camera = num(row, "lrShoulder") > 0  # left shoulder on the image right
+    if 0.31 <= r <= 0.75 and face and chest_towards_camera:
         if yaw is not None and abs(yaw) <= 20:
             return None
         if abs(d) >= 0.12:
             return "rightfront" if d > 0 else "leftfront"
         return None
-    if r >= 0.90 and not face:  # CalibrationConfig.view.backMinR
+    if r >= 0.90 and not face and not chest_towards_camera:  # CalibrationConfig.view.backMinR
         return "back"
     return None
 

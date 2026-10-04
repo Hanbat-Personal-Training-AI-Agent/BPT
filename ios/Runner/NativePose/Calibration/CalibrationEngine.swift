@@ -203,6 +203,7 @@ final class CalibrationEngine {
             rightElbowRatio: elbowRatio(required[.rightElbow]!, required[.rightWrist]!),
             face: faceScores.reduce(0, +) / Double(faceScores.count),
             noseOffset: (nose.x - shoulderX) * aspect / torso,
+            chestTowardsCamera: ls.x > rs.x,
             earLeft: frame.keypoints[CocoJoint.leftEar.rawValue].score,
             earRight: frame.keypoints[CocoJoint.rightEar.rawValue].score,
             wristReach: wristReach,
@@ -299,7 +300,9 @@ final class CalibrationEngine {
         }
         guard let r = rValue(m), let d = delta(m) else { return (nil, nil) }
 
-        if r >= v.obliqueMinR, r <= v.obliqueMaxR, face.isDetected {
+        // r is the same at 60° and 120° (and at 0° and 180°), and a head left facing the camera keeps the
+        // face detectable well past 90°; the shoulder order says which half of the turn the body is in.
+        if r >= v.obliqueMinR, r <= v.obliqueMaxR, face.isDetected, m.chestTowardsCamera {
             if let faceYaw, faceYaw <= v.turnedHeadMaxFaceYawDeg {
                 // Body is oblique but the head swivelled back to the camera: the shot would not match the yaw.
                 return (nil, .faceForwardWithBody)
@@ -311,8 +314,8 @@ final class CalibrationEngine {
             return (nil, nil)
         }
 
-        // r near 1 is either front or back; only the missing face tells them apart.
-        if r >= v.backMinR, !face.isDetected {
+        // r near 1 is either front or back; the missing face and the shoulder order tell them apart.
+        if r >= v.backMinR, !face.isDetected, !m.chestTowardsCamera {
             return (.back, nil)
         }
         return (nil, nil)
