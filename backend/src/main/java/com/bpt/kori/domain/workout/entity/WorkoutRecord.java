@@ -66,8 +66,21 @@ public class WorkoutRecord {
     @Builder.Default
     private Integer targetSets = 1;
 
+    @Builder.Default
+    private Integer totalSets = 0;
+
+    @Builder.Default
+    private Boolean isGoalAchieved = false;
+
+    @Builder.Default
+    private Integer totalVolume = 0;
+
     @Column(columnDefinition = "TEXT")
     private String poseMetricsSummary;
+
+    @OneToMany(mappedBy = "workoutRecord", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<WorkoutSetRecord> setRecords = new ArrayList<>();
 
     @OneToMany(mappedBy = "workoutRecord", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
@@ -76,4 +89,12 @@ public class WorkoutRecord {
     @CreatedDate
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
+
+    public void addSetRecord(WorkoutSetRecord setRecord) {
+        if (setRecords == null) {
+            setRecords = new ArrayList<>();
+        }
+        setRecords.add(setRecord);
+        setRecord.setWorkoutRecord(this);
+    }
 }

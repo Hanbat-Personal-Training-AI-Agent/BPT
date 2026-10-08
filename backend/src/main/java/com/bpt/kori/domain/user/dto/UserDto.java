@@ -54,6 +54,12 @@ public class UserDto {
     @Schema(description = "푸시 알림 시간 (HH:mm)", example = "18:00")
     private final String notificationTime;
 
+    @Schema(description = "알림 활성화 여부", example = "true")
+    private final Boolean notificationEnabled;
+
+    @Schema(description = "체형 분석 로컬 파일 경로", example = "/var/mobile/Containers/Data/Application/scan_01.dat")
+    private final String bodyScanLocalPath;
+
     @Schema(description = "마지막 체형 측정일 (YYYY-MM-DD)", example = "2026-09-30")
     private final String lastBodyScanDate;
 
@@ -87,6 +93,8 @@ public class UserDto {
                 .workoutGoal(user.getWorkoutGoal())
                 .weeklyFrequency(user.getWeeklyFrequency() != null ? user.getWeeklyFrequency() : 3)
                 .notificationTime(user.getNotificationTime())
+                .notificationEnabled(user.getNotificationEnabled())
+                .bodyScanLocalPath(user.getBodyScanLocalPath())
                 .lastBodyScanDate(user.getLastBodyScanDate() != null ? user.getLastBodyScanDate().toString() : null)
                 .totalWorkouts(user.getTotalWorkouts() != null ? user.getTotalWorkouts() : 0)
                 .streakDays(user.getStreakDays() != null ? user.getStreakDays() : 0)

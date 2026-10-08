@@ -29,8 +29,6 @@ public class ExerciseService {
                     .category("LEGS")
                     .standardRomMin(BigDecimal.valueOf(80.0))
                     .standardRomMax(BigDecimal.valueOf(110.0))
-                    .cameraGuideNote("측면 45도 각도에서 전신이 나오도록 촬영해 주세요.")
-                    .thumbnailUrl("https://cdn.bpt.app/exercises/squat.png")
                     .build());
 
             exerciseRepository.save(Exercise.builder()
@@ -39,8 +37,6 @@ public class ExerciseService {
                     .category("CHEST")
                     .standardRomMin(BigDecimal.valueOf(75.0))
                     .standardRomMax(BigDecimal.valueOf(95.0))
-                    .cameraGuideNote("측면 45도 또는 대각선 위에서 바벨의 궤적이 보이도록 거치해 주세요.")
-                    .thumbnailUrl("https://cdn.bpt.app/exercises/bench.png")
                     .build());
 
             exerciseRepository.save(Exercise.builder()
@@ -49,8 +45,6 @@ public class ExerciseService {
                     .category("BACK")
                     .standardRomMin(BigDecimal.valueOf(60.0))
                     .standardRomMax(BigDecimal.valueOf(100.0))
-                    .cameraGuideNote("측면 45도 또는 90도에서 척추 정렬이 보이도록 거치해 주세요.")
-                    .thumbnailUrl("https://cdn.bpt.app/exercises/deadlift.png")
                     .build());
         }
     }

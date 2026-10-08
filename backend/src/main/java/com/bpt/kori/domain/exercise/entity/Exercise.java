@@ -32,10 +32,4 @@ public class Exercise {
 
     @Column(precision = 5, scale = 2)
     private BigDecimal standardRomMax;
-
-    @Column(length = 255)
-    private String cameraGuideNote;
-
-    @Column(length = 500)
-    private String thumbnailUrl;
 }

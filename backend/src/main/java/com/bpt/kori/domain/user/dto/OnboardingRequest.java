@@ -27,4 +27,7 @@ public class OnboardingRequest {
 
     @Schema(description = "주간 목표 운동 일수", example = "4")
     private Integer weeklyFrequency;
+
+    @Schema(description = "체형 분석 로컬 파일 경로", example = "/var/mobile/Containers/Data/Application/scan_01.dat")
+    private String bodyScanLocalPath;
 }

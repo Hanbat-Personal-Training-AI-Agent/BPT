@@ -10,6 +10,7 @@ import com.bpt.kori.domain.workout.dto.WorkoutMetadataResponseDto;
 import com.bpt.kori.domain.workout.dto.WorkoutRecordResponseDto;
 import com.bpt.kori.domain.workout.entity.WorkoutFeedbackLog;
 import com.bpt.kori.domain.workout.entity.WorkoutRecord;
+import com.bpt.kori.domain.workout.entity.WorkoutSetRecord;
 import com.bpt.kori.domain.workout.repository.WorkoutRecordRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -66,6 +67,29 @@ public class WorkoutService {
         int sets = dto.getEffectiveSets();
         int reps = dto.getEffectiveReps();
 
+        int calculatedVolume = 0;
+        int completedSetsCount = (dto.getTotalSets() != null && dto.getTotalSets() > 0) ? dto.getTotalSets() : sets;
+
+        if (dto.getSetsDetail() != null && !dto.getSetsDetail().isEmpty()) {
+            completedSetsCount = dto.getSetsDetail().size();
+            for (var setDto : dto.getSetsDetail()) {
+                double weight = setDto.getWeightKg() != null ? setDto.getWeightKg() : (dto.getWeightKg() != null ? dto.getWeightKg().doubleValue() : 0.0);
+                int setReps = setDto.getReps() != null ? setDto.getReps() : 0;
+                calculatedVolume += (int) (weight * setReps);
+            }
+        } else if (dto.getWeightKg() != null) {
+            int totalReps = dto.getTotalReps() > 0 ? dto.getTotalReps() : (sets * reps);
+            calculatedVolume = (int) (dto.getWeightKg().doubleValue() * totalReps);
+        }
+
+        int finalVolume = (dto.getTotalVolume() != null && dto.getTotalVolume() > 0)
+                ? dto.getTotalVolume()
+                : calculatedVolume;
+
+        Boolean isGoalAchieved = dto.getIsGoalAchieved() != null
+                ? dto.getIsGoalAchieved()
+                : (completedSetsCount >= sets);
+
         WorkoutRecord record = WorkoutRecord.builder()
                 .user(user)
                 .clientRecordId(dto.getClientRecordId())
@@ -80,8 +104,22 @@ public class WorkoutService {
                 .videoLocalPath(dto.getVideoLocalPath())
                 .targetReps(reps)
                 .targetSets(sets)
+                .totalSets(completedSetsCount)
+                .isGoalAchieved(isGoalAchieved)
+                .totalVolume(finalVolume)
                 .poseMetricsSummary(summaryJson)
                 .build();
+
+        if (dto.getSetsDetail() != null) {
+            for (var setDto : dto.getSetsDetail()) {
+                record.addSetRecord(WorkoutSetRecord.builder()
+                        .setNumber(setDto.getSetNumber() != null ? setDto.getSetNumber() : 1)
+                        .reps(setDto.getReps() != null ? setDto.getReps() : 0)
+                        .weightKg(setDto.getWeightKg() != null ? setDto.getWeightKg() : (dto.getWeightKg() != null ? dto.getWeightKg().doubleValue() : 0.0))
+                        .postureStatus(setDto.getPostureStatus())
+                        .build());
+            }
+        }
 
         if (dto.getFeedbackNotes() != null) {
             for (String note : dto.getFeedbackNotes()) {

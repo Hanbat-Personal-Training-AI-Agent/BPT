@@ -37,6 +37,18 @@ public class WorkoutMetadataRequestDto {
     @Schema(description = "목표 세트 수", example = "3")
     private Integer targetSets;
 
+    @Schema(description = "완료한 총 세트 수", example = "3")
+    private Integer totalSets;
+
+    @Schema(description = "목표 달성 여부 (상단 '목표 달성!' 배너 표시용)", example = "true")
+    private Boolean isGoalAchieved;
+
+    @Schema(description = "총 볼륨 (중량 * 횟수 총합)", example = "1440")
+    private Integer totalVolume;
+
+    @Schema(description = "세트별 상세 기록 목록")
+    private List<WorkoutSetRecordDto> setsDetail;
+
     @Schema(description = "세트당 반복 횟수", example = "12")
     private Integer reps;
 
@@ -65,6 +77,7 @@ public class WorkoutMetadataRequestDto {
     private Map<String, Object> poseMetricsSummary;
 
     public int getEffectiveSets() {
+        if (totalSets != null && totalSets > 0) return totalSets;
         if (targetSets != null && targetSets > 0) return targetSets;
         if (sets != null && sets > 0) return sets;
         return 1;

@@ -76,6 +76,8 @@ public class UserService {
         if (request.getWorkoutGoal() != null) user.setWorkoutGoal(request.getWorkoutGoal());
         if (request.getWeeklyFrequency() != null) user.setWeeklyFrequency(request.getWeeklyFrequency());
         if (request.getNotificationTime() != null) user.setNotificationTime(request.getNotificationTime());
+        if (request.getNotificationEnabled() != null) user.setNotificationEnabled(request.getNotificationEnabled());
+        if (request.getBodyScanLocalPath() != null) user.setBodyScanLocalPath(request.getBodyScanLocalPath());
         if (request.getBirthDate() != null && !request.getBirthDate().isBlank()) {
             try {
                 user.setBirthDate(LocalDate.parse(request.getBirthDate().trim()));
@@ -95,7 +97,8 @@ public class UserService {
                 request.getHeightCm(),
                 request.getWeightKg(),
                 request.getWorkoutGoal(),
-                request.getWeeklyFrequency()
+                request.getWeeklyFrequency(),
+                request.getBodyScanLocalPath()
         );
 
         return OnboardingResponse.builder()
