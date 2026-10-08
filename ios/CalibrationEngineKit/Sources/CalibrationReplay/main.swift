@@ -1,7 +1,7 @@
 // calibration-replay: feeds a recorded video through the app's own calibration code
 // (CalibrationFrameAnalyzer + CalibrationEngine, symlinked from ios/Runner) on macOS.
 //
-//   swift run -c release --package-path ios/CalibrationEngineKit calibration-replay [--lenient-pose] [--overlay] <video.mp4>...
+//   swift run -c release --package-path ios/CalibrationEngineKit calibration-replay [--lenient-pose] [--overlay] [--output-dir PATH] <video.mp4>...
 //
 // --overlay also writes overlay_<name>.mp4: keypoints, the RTMPose crop, the face box, every gate
 // with its value and limits, and the engine's final decision drawn on each frame.
@@ -24,17 +24,34 @@ import UniformTypeIdentifiers
 let repoRoot = URL(fileURLWithPath: #filePath)
     .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
     .deletingLastPathComponent().deletingLastPathComponent()
-let outputDir = repoRoot.appendingPathComponent("outputs/calibration_replay")
-try FileManager.default.createDirectory(at: outputDir, withIntermediateDirectories: true)
-
-let arguments = CommandLine.arguments.dropFirst()
-let lenientPose = arguments.contains("--lenient-pose")
-let drawOverlayVideo = arguments.contains("--overlay")
-let videos = arguments.filter { !$0.hasPrefix("--") }.map { URL(fileURLWithPath: $0) }
+var outputDir = repoRoot.appendingPathComponent("outputs/calibration_replay")
+var lenientPose = false
+var drawOverlayVideo = false
+var videos: [URL] = []
+var arguments = CommandLine.arguments.dropFirst().makeIterator()
+while let argument = arguments.next() {
+    switch argument {
+    case "--lenient-pose": lenientPose = true
+    case "--overlay": drawOverlayVideo = true
+    case "--output-dir":
+        guard let path = arguments.next(), !path.hasPrefix("--") else {
+            print("--output-dir requires a directory path")
+            exit(2)
+        }
+        outputDir = URL(fileURLWithPath: path, isDirectory: true)
+    default:
+        guard !argument.hasPrefix("--") else {
+            print("unknown option: \(argument)")
+            exit(2)
+        }
+        videos.append(URL(fileURLWithPath: argument))
+    }
+}
 guard !videos.isEmpty else {
-    print("usage: calibration-replay [--lenient-pose] [--overlay] <video.mp4>...")
+    print("usage: calibration-replay [--lenient-pose] [--overlay] [--output-dir PATH] <video.mp4>...")
     exit(2)
 }
+try FileManager.default.createDirectory(at: outputDir, withIntermediateDirectories: true)
 
 let modelURL = repoRoot.appendingPathComponent("ios/Runner/NativePose/Models/rtmpose_s_forward.mlpackage")
 let configuration = MLModelConfiguration()
@@ -49,12 +66,12 @@ if lenientPose {
     config.aPose.minAnkleGapOverHipWidth = 0.5
 }
 
-func writeJPEG(_ image: CIImage, to url: URL) {
+func writeJPEG(_ image: CIImage, to url: URL) -> Bool {
     guard let cgImage = context.createCGImage(image, from: image.extent),
           let destination = CGImageDestinationCreateWithURL(url as CFURL, UTType.jpeg.identifier as CFString, 1, nil)
-    else { return }
+    else { return false }
     CGImageDestinationAddImage(destination, cgImage, nil)
-    CGImageDestinationFinalize(destination)
+    return CGImageDestinationFinalize(destination)
 }
 
 func f(_ value: Double?) -> String { value.map { String(format: "%.3f", $0) } ?? "" }
@@ -105,7 +122,7 @@ for video in videos {
     reader.add(output)
     reader.startReading()
 
-    let analyzer = CalibrationFrameAnalyzer(model: model, context: context,
+    let analyzer = try CalibrationFrameAnalyzer(model: model, context: context,
                                             minConfidence: config.framing.minKeypointConfidence)
     let engine = CalibrationEngine(config: config)
     var csv = "i,t,guidance,classified,target,hold,pass,faceDetected,faceYaw,r,delta,bodyH,midX,feet,"
@@ -127,7 +144,7 @@ for video in videos {
         let image = CIImage(cvPixelBuffer: pixelBuffer)
         frameIndex += 1
         let started = CFAbsoluteTimeGetCurrent()
-        guard let analysis = try? analyzer.analyze(image) else { continue }
+        guard let analysis = try? analyzer.analyze(image) else { engine.invalidateFrame(); continue }
         let analyzeMs = (CFAbsoluteTimeGetCurrent() - started) * 1000
         let cropScores = analysis.keypoints.map(\.confidence)
         let stretchScores = try stretchedPoseScores(image)
@@ -135,11 +152,12 @@ for video in videos {
         let calibrationFrame = CalibrationFrame(
             keypoints: analysis.keypoints.map { CalibrationKeypoint(x: $0.x / width, y: $0.y / height, score: $0.confidence) },
             aspect: width / height, timestamp: t, device: .still, face: analysis.face)
-        let result = engine.process(calibrationFrame)
+        var result = engine.process(calibrationFrame)
 
         if let capture = result.capture {
-            captures.append((capture.view, t))
-            writeJPEG(image, to: outputDir.appendingPathComponent("\(name)_\(capture.view.rawValue).jpg"))
+            let saved = writeJPEG(image, to: outputDir.appendingPathComponent("\(name)_\(capture.view.rawValue).jpg"))
+            if let resolved = engine.resolveCapture(id: capture.id, saved: saved) { result = resolved }
+            if saved { captures.append((capture.view, t)) }
         }
         let message = result.guidance.message
         if let last = timeline.last, last.guidance == message {

@@ -26,6 +26,8 @@ final class CalibrationFrameAnalyzer {
     private let model: MLModel
     private let context: CIContext
     private let minConfidence: Double
+    private let workspace: RTMPoseInputWorkspace
+    private let colorSpace = CGColorSpaceCreateDeviceRGB()
     private let faceRequest: VNDetectFaceRectanglesRequest = {
         let request = VNDetectFaceRectanglesRequest()
         request.revision = VNDetectFaceRectanglesRequestRevision3
@@ -39,10 +41,11 @@ final class CalibrationFrameAnalyzer {
     private static let inputHeight = PoseCoordinateTransforms.rtmposeInputHeight
     private static let inputAspect = Double(inputWidth) / Double(inputHeight)
 
-    init(model: MLModel, context: CIContext, minConfidence: Double) {
+    init(model: MLModel, context: CIContext, minConfidence: Double) throws {
         self.model = model
         self.context = context
         self.minConfidence = minConfidence
+        workspace = try RTMPoseInputWorkspace()
     }
 
     func reset() {
@@ -61,13 +64,10 @@ final class CalibrationFrameAnalyzer {
     // MARK: - RTMPose
 
     private func runPose(on image: CIImage, rect: CGRect) throws -> [PoseKeypoint] {
-        let input = try PosePreprocess.makeRTMPoseInputArray()
-        let pixels = try renderInput(image, rect: rect)
-        try PosePreprocess.normalizeRGBAIntoRTMPoseInput(pixels, input: input,
+        renderInput(image, rect: rect)
+        try PosePreprocess.normalizeRGBAIntoRTMPoseInput(workspace.pixels, input: workspace.input,
                                                           width: Self.inputWidth, height: Self.inputHeight)
-        let output = try model.prediction(from: MLDictionaryFeatureProvider(dictionary: [
-            "input_image": MLFeatureValue(multiArray: input)
-        ]))
+        let output = try model.prediction(from: workspace.provider)
         guard let simccX = output.featureValue(for: "simcc_x")?.multiArrayValue,
               let simccY = output.featureValue(for: "simcc_y")?.multiArrayValue else {
             throw CalibrationFrameAnalyzerError.modelOutputMissing
@@ -81,7 +81,7 @@ final class CalibrationFrameAnalyzer {
 
     /// Renders `rect` (top-left pixel coordinates, may extend past the frame) into a 192×256
     /// RGBA buffer. Outside the frame is black, matching the zero border RTMPose was trained with.
-    private func renderInput(_ image: CIImage, rect: CGRect) throws -> [UInt8] {
+    private func renderInput(_ image: CIImage, rect: CGRect) {
         let height = image.extent.height
         // Core Image is bottom-left based.
         let ciRect = CGRect(x: rect.minX, y: height - rect.maxY, width: rect.width, height: rect.height)
@@ -95,13 +95,11 @@ final class CalibrationFrameAnalyzer {
                 kCIInputAspectRatioKey: 1.0,
             ])
         let target = CGRect(x: 0, y: 0, width: Self.inputWidth, height: Self.inputHeight)
-        var pixels = [UInt8](repeating: 0, count: Self.inputWidth * Self.inputHeight * 4)
-        pixels.withUnsafeMutableBytes { buffer in
+        workspace.pixels.withUnsafeMutableBytes { buffer in
             // Bitmap rows run top to bottom, as RTMPose expects.
             context.render(scaled, toBitmap: buffer.baseAddress!, rowBytes: Self.inputWidth * 4,
-                           bounds: target, format: .RGBA8, colorSpace: CGColorSpaceCreateDeviceRGB())
+                           bounds: target, format: .RGBA8, colorSpace: colorSpace)
         }
-        return pixels
     }
 
     /// Follows the person with hysteresis: the crop only moves once they leave it or change
@@ -151,7 +149,7 @@ final class CalibrationFrameAnalyzer {
         let ls = keypoints[CocoJoint.leftShoulder.rawValue], rs = keypoints[CocoJoint.rightShoulder.rawValue]
         let lh = keypoints[CocoJoint.leftHip.rawValue], rh = keypoints[CocoJoint.rightHip.rawValue]
         guard min(ls.confidence, rs.confidence, lh.confidence, rh.confidence) >= minConfidence else {
-            return (.none, nil)
+            return (.unknown, nil)
         }
         let shoulderY = (ls.y + rs.y) / 2
         let torso = (lh.y + rh.y) / 2 - shoulderY
@@ -164,7 +162,7 @@ final class CalibrationFrameAnalyzer {
         let small = image.transformed(by: CGAffineTransform(scaleX: downscale, y: downscale))
         let handler = VNImageRequestHandler(ciImage: small, orientation: .up, options: [:])
         guard (try? handler.perform([faceRequest])) != nil, let faces = faceRequest.results else {
-            return (.none, nil)
+            return (.unknown, nil)
         }
         let match = faces
             .map { face -> (VNFaceObservation, CGPoint) in

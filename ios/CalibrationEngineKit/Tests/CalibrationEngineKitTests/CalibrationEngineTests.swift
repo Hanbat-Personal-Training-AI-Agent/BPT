@@ -82,7 +82,11 @@ final class CalibrationEngineTests: XCTestCase {
                      from start: TimeInterval,
                      duration: TimeInterval = 1.2) -> [CalibrationEngineOutput] {
         stride(from: start, through: start + duration, by: 0.1).map {
-            engine.process(frame(body, face, at: $0))
+            let output = engine.process(frame(body, face, at: $0))
+            if let request = output.capture {
+                return engine.resolveCapture(id: request.id, saved: true)!
+            }
+            return output
         }
     }
 
@@ -275,5 +279,241 @@ final class CalibrationEngineTests: XCTestCase {
         // 31 s stuck facing the camera while the left turn is due.
         let outputs = run(engine, body: turned(r: 1.0, delta: 0), face: .frontal, from: 10, duration: 31)
         XCTAssertEqual(outputs.filter(\.didTimeOut).count, 1)
+    }
+
+    private func request(_ engine: CalibrationEngine, body: Body = Body(),
+                         face: CalibrationFace = .frontal, from start: Double = 0) throws -> CalibrationCaptureRequest {
+        for t in stride(from: start, through: start + 1.5, by: 0.1) {
+            if let request = engine.process(frame(body, face, at: t)).capture { return request }
+        }
+        throw NSError(domain: "No capture request", code: 1)
+    }
+
+    func testCaptureWaitsForPersistenceAndIgnoresDuplicateOrStaleACKs() throws {
+        let engine = CalibrationEngine()
+        let pending = try request(engine)
+        XCTAssertEqual(engine.capturedViews, [])
+        XCTAssertNil(engine.reference)
+        XCTAssertFalse(engine.isFinished)
+        XCTAssertNil(engine.process(frame(Body(), .frontal, at: 2)).capture)
+        XCTAssertNil(engine.resolveCapture(id: UUID(), saved: true))
+        let saved = try XCTUnwrap(engine.resolveCapture(id: pending.id, saved: true))
+        XCTAssertEqual(saved.guidance, .captured(.front))
+        XCTAssertEqual(engine.capturedViews, [.front])
+        XCTAssertNotNil(engine.reference)
+        XCTAssertNil(engine.resolveCapture(id: pending.id, saved: true))
+        engine.reset()
+        XCTAssertNil(engine.resolveCapture(id: pending.id, saved: true))
+        XCTAssertNil(engine.reference)
+    }
+
+    func testFailedSaveCanRetakeSameViewWithoutCommittingReference() throws {
+        let engine = CalibrationEngine()
+        let first = try request(engine)
+        let failed = engine.resolveCapture(id: first.id, saved: false)
+        XCTAssertEqual(failed?.guidance, .saveFailed)
+        XCTAssertEqual(engine.capturedViews, [])
+        XCTAssertEqual(engine.targetView, .front)
+        XCTAssertNil(engine.reference)
+        let retry = try request(engine, from: 2)
+        XCTAssertNotEqual(first.id, retry.id)
+        XCTAssertNil(engine.resolveCapture(id: first.id, saved: true))
+        engine.resolveCapture(id: retry.id, saved: true)
+        XCTAssertEqual(engine.capturedViews, [.front])
+    }
+
+    func testLastViewIsNotFinishedUntilItsSaveSucceeds() throws {
+        let engine = CalibrationEngine()
+        captureFront(engine)
+        run(engine, body: turned(r: 0.5, delta: 0.3), face: face(yaw: 60), from: 10)
+        run(engine, body: turnedAway(r: 1, delta: 0), face: .none, from: 20)
+        let pending = try request(engine, body: turned(r: 0.5, delta: -0.3), face: face(yaw: -60), from: 30)
+        XCTAssertTrue(pending.isLastView)
+        XCTAssertFalse(engine.isFinished)
+        engine.resolveCapture(id: pending.id, saved: false)
+        XCTAssertFalse(engine.isFinished)
+        XCTAssertEqual(engine.capturedViews.count, 3)
+        let retry = try request(engine, body: turned(r: 0.5, delta: -0.3), face: face(yaw: -60), from: 40)
+        XCTAssertEqual(engine.resolveCapture(id: retry.id, saved: true)?.guidance, .finished)
+        XCTAssertTrue(engine.isFinished)
+    }
+
+    func testSpeedAndCaptureTimeAgreeAtTenFifteenAndThirtyFPS() throws {
+        for fps in [10.0, 15.0, 30.0] {
+            let engine = CalibrationEngine()
+            var captureTime: Double?
+            for index in 0...Int(fps) {
+                let t = Double(index) / fps
+                var body = Body()
+                // Exactly 0.1 torso lengths / second, independent of sample rate.
+                body.midX += 0.1 * (body.hipY - body.shoulderY) * t / aspect
+                let output = engine.process(frame(body, .frontal, at: t))
+                if index > 0 { XCTAssertEqual(try XCTUnwrap(engine.lastMotion), 0.1, accuracy: 1e-10) }
+                if output.capture != nil { captureTime = t; break }
+            }
+            XCTAssertEqual(try XCTUnwrap(captureTime), 0.8, accuracy: 1e-8)
+
+            let fast = CalibrationEngine()
+            _ = fast.process(frame(Body(), .frontal, at: 0))
+            var moved = Body()
+            moved.midX += 0.6 * (moved.hipY - moved.shoulderY) / fps / aspect
+            let output = fast.process(frame(moved, .frontal, at: 1 / fps))
+            XCTAssertEqual(try XCTUnwrap(fast.lastMotion), 0.6, accuracy: 1e-10)
+            XCTAssertEqual(output.holdProgress, 0)
+            XCTAssertFalse(output.isPassing)
+        }
+    }
+
+    func testIrregularValidSamplingKeepsAContinuousHold() {
+        let engine = CalibrationEngine()
+        let times = [0.0, 0.05, 0.16, 0.24, 0.35, 0.49, 0.59, 0.73, 0.85]
+        var output: CalibrationEngineOutput?
+        for time in times { output = engine.process(frame(Body(), .frontal, at: time)) }
+        XCTAssertNotNil(output?.capture)
+    }
+
+    func testDroppedIntervalDoesNotCountTowardsHold() {
+        let engine = CalibrationEngine()
+        for i in 0...7 { _ = engine.process(frame(Body(), .frontal, at: Double(i) / 10)) }
+        let afterGap = engine.process(frame(Body(), .frontal, at: 2))
+        XCTAssertNil(afterGap.capture)
+        XCTAssertEqual(afterGap.holdProgress, 0)
+        XCTAssertEqual(afterGap.holdStartedAt, 2)
+        XCTAssertNotNil(run(engine, body: Body(), face: .frontal, from: 2.1).compactMap(\.capture).first)
+    }
+
+    func testInferenceFailureAndNonmonotonicTimestampsBreakHold() {
+        for invalidTime in [Double.nan, 0.5, 0.4] {
+            let engine = CalibrationEngine()
+            for i in 0...5 { _ = engine.process(frame(Body(), .frontal, at: Double(i) / 10)) }
+            let invalid = engine.process(frame(Body(), .frontal, at: invalidTime))
+            XCTAssertEqual(invalid.guidance, .trackingUnavailable)
+            let next = engine.process(frame(Body(), .frontal, at: 0.7))
+            XCTAssertEqual(next.holdProgress, 0)
+            XCTAssertNil(next.capture)
+        }
+        let engine = CalibrationEngine()
+        for i in 0...5 { _ = engine.process(frame(Body(), .frontal, at: Double(i) / 10)) }
+        engine.invalidateFrame()
+        XCTAssertEqual(engine.process(frame(Body(), .frontal, at: 0.6)).holdProgress, 0)
+    }
+
+    func testMinimumSamplesAndUnknownFaceCannotCapture() {
+        var config = CalibrationConfig.default
+        config.capture.maxFrameGap = 1
+        let sparse = CalibrationEngine(config: config)
+        for t in [0.0, 0.4, 0.8] { XCTAssertNil(sparse.process(frame(Body(), .frontal, at: t)).capture) }
+
+        let back = CalibrationEngine()
+        captureFront(back)
+        let outputs = run(back, body: turnedAway(r: 1, delta: 0), face: .unknown, from: 10)
+        XCTAssertTrue(outputs.allSatisfy { $0.guidance == .trackingUnavailable && $0.capture == nil })
+        XCTAssertEqual(back.capturedViews, [.front])
+    }
+
+    func testShortAndNonfiniteKeypointsAreRejectedWithoutIndexing() {
+        let engine = CalibrationEngine()
+        var input = frame(Body(), .frontal, at: 0)
+        input.keypoints = []
+        XCTAssertEqual(engine.process(input).guidance, .trackingUnavailable)
+        input = frame(Body(), .frontal, at: 0.1)
+        input.keypoints[0].x = .nan
+        XCTAssertEqual(engine.process(input).guidance, .trackingUnavailable)
+    }
+
+    func testStoreFailurePreservesManifestAndSelectedFrameMetadata() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        var failManifest = false
+        var failJPEG = true
+        let store = try CalibrationStore(sessionId: "test-session", rootDirectory: root) { data, url in
+            if (failManifest && url.lastPathComponent == "manifest.json") ||
+                (failJPEG && url.pathExtension == "jpg") { throw CocoaError(.fileWriteOutOfSpace) }
+            try data.write(to: url, options: .atomic)
+        }
+        let engine = CalibrationEngine()
+        let pending = try request(engine)
+        var selected = frame(Body(), .frontal, at: 0.2)
+        selected.device.gravity = [0.01, -0.99, 0.02]
+        selected.device.timestamp = 123.4
+        selected.keypoints = selected.keypoints.map { CalibrationKeypoint(x: $0.x, y: $0.y, score: 0.8) }
+        let measurement = try XCTUnwrap(CalibrationEngine().process(selected).measurement)
+        let snapshot = CalibrationStore.Snapshot(frame: selected, measurement: measurement,
+            imageWidth: 1000, imageHeight: 2000,
+            intrinsics: .init(fx: 1111, fy: 1112, cx: 499, cy: 999, source: "attachment"))
+        let record = CalibrationStore.ViewRecord(label: .front, snapshot: snapshot, r: 1, delta: 0)
+        let jpeg = Data([0xff, 0xd8, 0xff, 0xd9])
+        let manifestURL = store.directory.appendingPathComponent("manifest.json")
+        XCTAssertThrowsError(try store.writeCapture(jpeg: jpeg, record: record, userHeightCm: 175, reference: pending.reference))
+        XCTAssertEqual(store.capturedCount, 0)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: manifestURL.path))
+        failJPEG = false
+        failManifest = true
+        XCTAssertThrowsError(try store.writeCapture(jpeg: jpeg, record: record, userHeightCm: 175, reference: pending.reference))
+        XCTAssertEqual(store.capturedCount, 0)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: manifestURL.path))
+        failManifest = false
+        try store.writeCapture(jpeg: jpeg, record: record, userHeightCm: 175, reference: pending.reference)
+        engine.resolveCapture(id: pending.id, saved: true)
+        let committed = try Data(contentsOf: manifestURL)
+        let json = try XCTUnwrap(JSONSerialization.jsonObject(with: committed) as? [String: Any])
+        let view = try XCTUnwrap((json["views"] as? [[String: Any]])?.first)
+        XCTAssertEqual(view["timestamp"] as? Double, 0.2) // not capture-request time 0.8
+        XCTAssertEqual(view["deviceTimestamp"] as? Double, 123.4)
+        XCTAssertEqual(view["gravity"] as? [Double], selected.device.gravity)
+        XCTAssertEqual(view["face"] as? Double, measurement.face)
+        XCTAssertEqual((view["intrinsics"] as? [String: Any])?["fx"] as? Double, 1111)
+        XCTAssertEqual((view["keypoints"] as? [[Double]])?[0], [selected.keypoints[0].x * 1000, selected.keypoints[0].y * 2000, 0.8])
+        XCTAssertEqual(json["isComplete"] as? Bool, false)
+        XCTAssertThrowsError(try store.writeCapture(jpeg: jpeg, record: record, userHeightCm: 175, reference: pending.reference))
+        let next = CalibrationStore.ViewRecord(label: .rightfront, snapshot: snapshot, r: 0.5, delta: 0.3)
+        failManifest = true
+        XCTAssertThrowsError(try store.writeCapture(jpeg: jpeg, record: next, userHeightCm: 175, reference: pending.reference))
+        XCTAssertEqual(try Data(contentsOf: manifestURL), committed)
+        XCTAssertEqual(store.capturedCount, 1)
+        failManifest = false
+        for view in [CalibrationView.rightfront, .back, .leftfront] {
+            try store.writeCapture(jpeg: jpeg, record: .init(label: view, snapshot: snapshot, r: nil, delta: nil),
+                                   userHeightCm: 175, reference: pending.reference)
+        }
+        let complete = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: manifestURL)) as? [String: Any])
+        XCTAssertEqual(complete["isComplete"] as? Bool, true)
+        XCTAssertEqual(store.capturedCount, 4)
+    }
+
+    func testGateAllowsOnlyOneInFlightFrameAcrossQueues() {
+        let gate = CalibrationFrameGate()
+        let counterLock = NSLock()
+        var running = 0
+        var maximum = 0
+        DispatchQueue.concurrentPerform(iterations: 1000) { _ in
+            guard gate.acquire() else { return }
+            counterLock.lock()
+            running += 1
+            maximum = max(maximum, running)
+            counterLock.unlock()
+            Thread.sleep(forTimeInterval: 0.0001)
+            counterLock.lock()
+            running -= 1
+            counterLock.unlock()
+            gate.release()
+        }
+        XCTAssertEqual(maximum, 1)
+        XCTAssertTrue(gate.acquire())
+        XCTAssertFalse(gate.acquire())
+        let released = expectation(description: "released on another queue")
+        DispatchQueue.global().async { gate.release(); released.fulfill() }
+        wait(for: [released], timeout: 2)
+        XCTAssertTrue(gate.acquire())
+        gate.release()
+    }
+
+    func testHandsAreOptionalForSquatAndExplicitlyOverridable() {
+        XCTAssertFalse(NativePoseExercise.squat.handBranchEnabled())
+        XCTAssertTrue(NativePoseExercise.squat.handBranchEnabled(override: true))
+        for exercise in NativePoseExercise.allCases where exercise != .squat {
+            XCTAssertTrue(exercise.handBranchEnabled())
+            XCTAssertFalse(exercise.handBranchEnabled(override: false))
+        }
     }
 }

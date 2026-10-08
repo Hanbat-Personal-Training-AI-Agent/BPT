@@ -88,6 +88,8 @@ struct CalibrationDeviceState: Equatable {
     var rotationRateRadPerSec: Double = 0
     var gravity: [Double] = [0, -1, 0]
     var isAvailable: Bool = true
+    /// CoreMotion sample time, when available; not assumed equal to camera PTS.
+    var timestamp: TimeInterval?
 
     static let still = CalibrationDeviceState()
 }
@@ -98,9 +100,12 @@ struct CalibrationFace: Equatable {
     var isDetected: Bool
     /// Head yaw relative to the camera; magnitude only is used, so the sign convention does not matter.
     var yawDeg: Double?
+    /// False means detection failed, not that a successfully searched image has no face.
+    var isReliable: Bool = true
 
     static let none = CalibrationFace(isDetected: false, yawDeg: nil)
     static let frontal = CalibrationFace(isDetected: true, yawDeg: 0)
+    static let unknown = CalibrationFace(isDetected: false, yawDeg: nil, isReliable: false)
 }
 
 struct CalibrationFrame {
@@ -167,6 +172,8 @@ enum CalibrationGuidance: Equatable {
     case turnedTooFar
     case faceForwardWithBody
     case holdStill
+    case trackingUnavailable
+    case saveFailed
     case captured(CalibrationView)
     case finished
     /// Played once when one view has not been captured for `viewTimeout` seconds.
@@ -196,6 +203,8 @@ enum CalibrationGuidance: Equatable {
         case .turnedTooFar: return "앗, 너무 돌았어! 살짝만 돌아와 줘"
         case .faceForwardWithBody: return "고개는 몸이랑 같은 방향! 눈만 화면 봐 줘"
         case .holdStill: return "좋아, 그대로 멈춰!"
+        case .trackingUnavailable: return "인식이 잠깐 끊겼어. 그대로 잠시 기다려 줘"
+        case .saveFailed: return "사진 저장에 실패했어. 저장 공간을 확인하고 다시 시도해 줘"
         case .captured(let view):
             let next = view.nextStepInstruction
             return next.isEmpty ? "\(view.koreanName) 찍었어!" : "\(view.koreanName) 찍었어! \(next)"
@@ -229,15 +238,38 @@ struct CalibrationEngineOutput {
     var capture: CalibrationCaptureRequest?
     var measurement: CalibrationMeasurement?
     var didTimeOut: Bool
+    /// Identity of the continuous hold; prevents reuse of an earlier hold's best image.
+    var holdStartedAt: TimeInterval?
 }
 
 struct CalibrationCaptureRequest {
+    let id: UUID
     var view: CalibrationView
-    /// Frames from this timestamp onwards are the stillness window to pick the sharpest frame from.
+    /// Frames from this timestamp onwards are the stillness window to pick the best confidence from.
     var holdStartedAt: TimeInterval
     var measurement: CalibrationMeasurement
     var reference: CalibrationReference
     var r: Double?
     var delta: Double?
     var isLastView: Bool
+}
+
+/// One frame in flight. The capture queue acquires; the processing queue releases.
+final class CalibrationFrameGate: @unchecked Sendable {
+    private let lock = NSLock()
+    private var busy = false
+
+    func acquire() -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        guard !busy else { return false }
+        busy = true
+        return true
+    }
+
+    func release() {
+        lock.lock()
+        defer { lock.unlock() }
+        busy = false
+    }
 }

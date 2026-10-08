@@ -69,8 +69,8 @@ extension PosePreprocess {
         return try preprocessFullImage(cgImage)
     }
 
-    static func preprocessFullImage(_ cgImage: CGImage) throws -> PosePreprocessResult {
-        try preprocessFullImageFast(cgImage)
+    static func preprocessFullImage(_ cgImage: CGImage, workspace: RTMPoseInputWorkspace? = nil) throws -> PosePreprocessResult {
+        try preprocessFullImageFast(cgImage, workspace: workspace)
     }
 
     static func preprocessFullImageFast(_ image: UIImage) throws -> PosePreprocessResult {
@@ -80,7 +80,7 @@ extension PosePreprocess {
         return try preprocessFullImageFast(cgImage)
     }
 
-    static func preprocessFullImageFast(_ cgImage: CGImage) throws -> PosePreprocessResult {
+    static func preprocessFullImageFast(_ cgImage: CGImage, workspace: RTMPoseInputWorkspace? = nil) throws -> PosePreprocessResult {
         let imageWidth = cgImage.width
         let imageHeight = cgImage.height
         let inputWidth = PoseCoordinateTransforms.rtmposeInputWidth
@@ -88,21 +88,21 @@ extension PosePreprocess {
 
         var timing = PosePreprocessTiming()
         let pixelExtractStart = CACurrentMediaTime()
-        var pixels = Array(repeating: UInt8(0), count: inputWidth * inputHeight * 4)
+        let workspace = try workspace ?? RTMPoseInputWorkspace()
         timing.pixelExtractMs = elapsedMs(pixelExtractStart)
 
         let resizeStart = CACurrentMediaTime()
         try drawResizedRGBA(
             cgImage,
-            pixels: &pixels,
+            pixels: &workspace.pixels,
             width: inputWidth,
             height: inputHeight
         )
         timing.resizeMs = elapsedMs(resizeStart)
 
-        let input = try makeRTMPoseInputArray()
+        let input = workspace.input
         let normalizeStart = CACurrentMediaTime()
-        try normalizeRGBAIntoRTMPoseInput(pixels, input: input, width: inputWidth, height: inputHeight)
+        try normalizeRGBAIntoRTMPoseInput(workspace.pixels, input: input, width: inputWidth, height: inputHeight)
         timing.normalizeToMultiArrayMs = elapsedMs(normalizeStart)
 
         return PosePreprocessResult(
@@ -220,6 +220,8 @@ extension PosePreprocess {
                 throw PosePreprocessError.couldNotCreateBitmapContext
             }
             context.interpolationQuality = .high
+            // The bitmap is reused: transparent input must overwrite, not blend over the last frame.
+            context.setBlendMode(.copy)
             context.draw(cgImage, in: CGRect(x: 0, y: 0, width: width, height: height))
         }
     }

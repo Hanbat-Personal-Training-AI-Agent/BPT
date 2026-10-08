@@ -226,8 +226,8 @@ func drawOverlay(_ cg: CGContext, _ s: OverlayState) {
         row(cg, x1, y, .skip, "제자리 발", "정면 촬영 후"); y += step
         row(cg, x1, y, .skip, "제자리 중심", "정면 촬영 후"); y += step
     }
-    row(cg, x1, y, mark(s.motion.map { $0 <= c.capture.maxMotion }), "정지",
-        s.motion.map { String(format: "%.3f  (≤%.3f)", $0, c.capture.maxMotion) } ?? "-")
+    row(cg, x1, y, mark(s.motion.map { $0 <= c.capture.maxMotionPerSecond }), "정지 속도",
+        s.motion.map { String(format: "%.3f/s  (≤%.3f/s)", $0, c.capture.maxMotionPerSecond) } ?? "-")
 
     y = 26
     let a = c.aPose

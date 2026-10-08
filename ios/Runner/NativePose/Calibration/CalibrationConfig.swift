@@ -76,7 +76,11 @@ struct CalibrationConfig {
     }
 
     struct Capture {
-        var maxMotion: Double = 0.015
+        /// Torso lengths / second; equivalent to the former 0.015/frame at 30 Hz.
+        /// A rate conversion, not a newly validated real-device threshold.
+        var maxMotionPerSecond: Double = 0.45
+        var maxFrameGap: Double = 0.25
+        var minimumHoldSamples: Int = 5
         var holdDuration: Double = 0.8
         var cooldown: Double = 1.5
         var viewTimeout: Double = 30.0

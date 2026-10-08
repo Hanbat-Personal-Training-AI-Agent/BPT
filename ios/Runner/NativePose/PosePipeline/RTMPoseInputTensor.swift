@@ -1,6 +1,21 @@
 import CoreML
 import Foundation
 
+/// Owned by one serial inference queue. Do not normalize/overwrite until prediction returns.
+/// Reuses the 192×256 RGBA storage, Float32 tensor and feature provider between frames.
+final class RTMPoseInputWorkspace {
+    let input: MLMultiArray
+    let provider: MLDictionaryFeatureProvider
+    var pixels = [UInt8](repeating: 0, count: 192 * 256 * 4)
+
+    init() throws {
+        input = try PosePreprocess.makeRTMPoseInputArray()
+        provider = try MLDictionaryFeatureProvider(dictionary: [
+            "input_image": MLFeatureValue(multiArray: input)
+        ])
+    }
+}
+
 enum PosePreprocessError: Error {
     case missingCGImage
     case couldNotCreateBitmapContext

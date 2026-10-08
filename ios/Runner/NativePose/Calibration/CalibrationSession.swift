@@ -44,10 +44,15 @@ final class CalibrationSession: NSObject {
     private var debugLog: CalibrationDebugLog?
     private var userHeightCm: Double = 0
     private var isRunning = false
-    private var lastIntrinsics = CalibrationStore.Intrinsics()
+    private var startRequestID: UUID?
     private var lastBufferAspect = 9.0 / 16.0
-    /// Sharpest frame of the current stillness hold: rendered only when it beats the previous best.
-    private var bestHoldFrame: (confidence: Double, image: CGImage, keypoints: [PoseKeypoint], timestamp: TimeInterval)?
+    /// Highest-confidence frame (not a sharpness score), with all of its own metadata.
+    private struct SelectedFrame {
+        let image: CGImage
+        let snapshot: CalibrationStore.Snapshot
+        let holdStartedAt: TimeInterval
+    }
+    private var bestHoldFrame: SelectedFrame?
 
     // main thread only
     private var announcedCaptures = 0
@@ -71,50 +76,68 @@ final class CalibrationSession: NSObject {
     // MARK: - Lifecycle (callable from main)
 
     func start(userHeightCm: Double) {
-        AVCaptureDevice.requestAccess(for: .video) { [weak self] granted in
-            guard let self else { return }
-            guard granted else {
-                DispatchQueue.main.async { self.onError("camera_permission_denied") }
-                return
+        processingQueue.async { [weak self] in
+            guard let self, !self.isRunning, self.store == nil, self.startRequestID == nil else { return }
+            let requestID = UUID()
+            self.startRequestID = requestID
+            AVCaptureDevice.requestAccess(for: .video) { [weak self] granted in
+                guard let self else { return }
+                self.processingQueue.async {
+                    // A permission dialog may outlive this screen/capture run.
+                    guard self.startRequestID == requestID else { return }
+                    self.startRequestID = nil
+                    guard granted else {
+                        DispatchQueue.main.async { self.onError("camera_permission_denied") }
+                        return
+                    }
+                    self.begin(userHeightCm: userHeightCm)
+                }
             }
-            processingQueue.async { self.begin(userHeightCm: userHeightCm) }
         }
     }
 
     /// Stops the run. A finished session keeps its folder; an unfinished one is deleted.
     func cancel() {
-        processingQueue.async { self.teardown(discardUnfinished: true) }
+        processingQueue.async {
+            self.startRequestID = nil
+            self.teardown(discardUnfinished: true)
+        }
     }
 
     /// Stops the camera but keeps whatever was captured.
     func stop() {
-        processingQueue.async { self.teardown(discardUnfinished: false) }
+        processingQueue.async {
+            self.startRequestID = nil
+            self.teardown(discardUnfinished: false)
+        }
     }
 
     private func begin(userHeightCm: Double) {
         guard !isRunning, store == nil else { return }
         do {
             let model = try loadModel(named: "rtmpose_s_forward")
-            analyzer = CalibrationFrameAnalyzer(model: model, context: ciContext,
+            analyzer = try CalibrationFrameAnalyzer(model: model, context: ciContext,
                                                 minConfidence: config.framing.minKeypointConfidence)
             let store = try CalibrationStore()
             self.store = store
             debugLog = CalibrationDebugLog(directory: store.directory)
-            try captureManager.configure()
+            try captureManager.configure { [weak self] sampleBuffer in
+                guard let self else { return }
+                // Bind the latest IMU snapshot when the camera frame arrives, before inference.
+                let device = self.motion.state
+                self.processingQueue.async {
+                    defer { self.captureManager.markIdle() }
+                    self.handle(sampleBuffer, device: device)
+                }
+            }
         } catch {
+            teardown(discardUnfinished: true)
             let message = "setup_failed: \(error.localizedDescription)"
             DispatchQueue.main.async { self.onError(message) }
             return
         }
         self.userHeightCm = userHeightCm
         isRunning = true
-        captureManager.onFrame = { [weak self] sampleBuffer in
-            guard let self else { return }
-            processingQueue.async {
-                self.handle(sampleBuffer)
-                self.captureManager.markIdle()
-            }
-        }
         motion.start()
         captureManager.start()
         DispatchQueue.main.async {
@@ -125,19 +148,18 @@ final class CalibrationSession: NSObject {
 
     /// processingQueue only.
     private func teardown(discardUnfinished: Bool) {
-        if isRunning {
-            isRunning = false
-            captureManager.stop()
-            motion.stop()
-            debugLog?.close()
-            debugLog = nil
-        }
+        isRunning = false
+        captureManager.stop()
+        motion.stop()
+        debugLog?.close()
+        debugLog = nil
+        bestHoldFrame = nil
+        analyzer = nil
         let finished = engine.isFinished
         if discardUnfinished, !finished {
             store?.discard()
             store = nil
             engine.reset()
-            analyzer?.reset()
         }
         DispatchQueue.main.async {
             UIApplication.shared.isIdleTimerDisabled = false
@@ -148,11 +170,19 @@ final class CalibrationSession: NSObject {
 
     // MARK: - Per-frame pipeline (processingQueue)
 
-    private func handle(_ sampleBuffer: CMSampleBuffer) {
-        guard isRunning, let analyzer, let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
+    private func handle(_ sampleBuffer: CMSampleBuffer, device: CalibrationDeviceState) {
+        guard isRunning, let analyzer else { return }
         autoreleasepool {
+            guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else {
+                reportTrackingInterruption(device: device)
+                return
+            }
             let image = CIImage(cvPixelBuffer: pixelBuffer)
-            guard let analysis = try? analyzer.analyze(image) else { return }
+            guard let analysis = try? analyzer.analyze(image) else {
+                analyzer.reset()
+                reportTrackingInterruption(device: device)
+                return
+            }
             let width = Double(analysis.imageSize.width), height = Double(analysis.imageSize.height)
             lastBufferAspect = width / height
 
@@ -162,16 +192,16 @@ final class CalibrationSession: NSObject {
                     CalibrationKeypoint(x: $0.x / width, y: $0.y / height, score: $0.confidence)
                 },
                 aspect: width / height,
-                timestamp: pts.isFinite ? pts : CACurrentMediaTime(),
-                device: motion.state,
+                timestamp: pts,
+                device: device,
                 face: analysis.face
             )
-            let result = engine.process(frame)
-            trackBestFrame(result, image: image, keypoints: analysis.keypoints, timestamp: frame.timestamp)
+            var result = engine.process(frame)
+            trackBestFrame(result, image: image, frame: frame, sampleBuffer: sampleBuffer)
 
             if let request = result.capture {
-                lastIntrinsics = intrinsics(from: sampleBuffer, width: width, height: height)
-                writeCapture(request, image: image, keypoints: analysis.keypoints, timestamp: frame.timestamp)
+                let saved = writeCapture(request)
+                if let resolved = engine.resolveCapture(id: request.id, saved: saved) { result = resolved }
             }
             let r = result.measurement.flatMap { engine.rValue($0) }
             let delta = result.measurement.flatMap { engine.delta($0) }
@@ -184,54 +214,50 @@ final class CalibrationSession: NSObject {
         }
     }
 
+    private func reportTrackingInterruption(device: CalibrationDeviceState) {
+        bestHoldFrame = nil
+        let update = makeUpdate(engine.invalidateFrame(), r: nil, delta: nil, device: device, face: .unknown)
+        DispatchQueue.main.async { self.deliver(update) }
+    }
+
     private func trackBestFrame(_ result: CalibrationEngineOutput,
                                 image: CIImage,
-                                keypoints: [PoseKeypoint],
-                                timestamp: TimeInterval) {
-        guard result.isPassing, let confidence = result.measurement?.meanRequiredConfidence else {
+                                frame: CalibrationFrame,
+                                sampleBuffer: CMSampleBuffer) {
+        guard result.isPassing, let measurement = result.measurement,
+              let holdStartedAt = result.holdStartedAt else {
             bestHoldFrame = nil
             return
         }
-        if let best = bestHoldFrame, best.confidence >= confidence { return }
+        if let best = bestHoldFrame, best.holdStartedAt == holdStartedAt,
+           best.snapshot.measurement.meanRequiredConfidence >= measurement.meanRequiredConfidence { return }
         // A full-resolution copy only when this frame is the best of the hold so far.
         guard let cgImage = ciContext.createCGImage(image, from: image.extent) else { return }
-        bestHoldFrame = (confidence, cgImage, keypoints, timestamp)
+        bestHoldFrame = SelectedFrame(image: cgImage, snapshot: CalibrationStore.Snapshot(
+            frame: frame, measurement: measurement, imageWidth: cgImage.width, imageHeight: cgImage.height,
+            intrinsics: intrinsics(from: sampleBuffer, width: Double(cgImage.width), height: Double(cgImage.height))
+        ), holdStartedAt: holdStartedAt)
     }
 
-    private func writeCapture(_ request: CalibrationCaptureRequest,
-                              image: CIImage,
-                              keypoints: [PoseKeypoint],
-                              timestamp: TimeInterval) {
-        guard let store else { return }
-        let chosen = bestHoldFrame.flatMap { $0.timestamp >= request.holdStartedAt ? $0 : nil }
-        bestHoldFrame = nil
-        guard let cgImage = chosen?.image ?? ciContext.createCGImage(image, from: image.extent) else { return }
+    private func writeCapture(_ request: CalibrationCaptureRequest) -> Bool {
+        defer { bestHoldFrame = nil }
+        guard let store, let chosen = bestHoldFrame,
+              chosen.holdStartedAt == request.holdStartedAt,
+              chosen.snapshot.frame.timestamp >= request.holdStartedAt,
+              let jpeg = UIImage(cgImage: chosen.image).jpegData(compressionQuality: CGFloat(config.capture.jpegQuality))
+        else { return false }
 
         do {
-            try store.writeImage(UIImage(cgImage: cgImage), for: request.view, quality: config.capture.jpegQuality)
-            store.add(CalibrationStore.ViewRecord(
-                label: request.view,
-                r: request.r,
-                delta: request.delta,
-                earLeft: request.measurement.earLeft,
-                earRight: request.measurement.earRight,
-                face: request.measurement.face,
-                keypoints: (chosen?.keypoints ?? keypoints).map { [$0.x, $0.y, $0.confidence] },
-                gravity: motion.state.gravity,
-                timestamp: chosen?.timestamp ?? timestamp
-            ))
-            if request.isLastView {
-                try store.writeManifest(
-                    userHeightCm: userHeightCm,
-                    imageWidth: cgImage.width,
-                    imageHeight: cgImage.height,
-                    intrinsics: lastIntrinsics,
-                    reference: engine.reference
-                )
-            }
+            let record = CalibrationStore.ViewRecord(
+                label: request.view, snapshot: chosen.snapshot,
+                r: engine.rValue(chosen.snapshot.measurement, relativeTo: request.reference),
+                delta: engine.delta(chosen.snapshot.measurement, relativeTo: request.reference))
+            try store.writeCapture(jpeg: jpeg, record: record, userHeightCm: userHeightCm, reference: request.reference)
+            return true
         } catch {
-            let message = "write_failed: \(error.localizedDescription)"
-            DispatchQueue.main.async { self.onError(message) }
+            // Recoverable guidance is sent by resolveCapture; don't leave Dart's fatal camera error set.
+            print("Calibration capture persistence failed: \(type(of: error))")
+            return false
         }
     }
 
@@ -243,6 +269,7 @@ final class CalibrationSession: NSObject {
         var debug: [String: Double] = [
             "roll": device.rollDeg, "pitch": device.pitchDeg,
             "faceDetected": face.isDetected ? 1 : 0,
+            "faceReliable": face.isReliable ? 1 : 0,
         ]
         if let yaw = face.yawDeg { debug["faceYaw"] = yaw }
         if let r { debug["r"] = r }
@@ -372,10 +399,20 @@ final class CalibrationCaptureManager: NSObject, AVCaptureVideoDataOutputSampleB
     private var rotationCoordinator: AnyObject?
     private(set) var horizontalFieldOfView: Float = 0
 
-    nonisolated(unsafe) var onFrame: ((CMSampleBuffer) -> Void)?
-    nonisolated(unsafe) private var isBusy = false
+    // Handler/configuration are confined to queue; in-flight gate is locked across queues.
+    nonisolated(unsafe) private var onFrame: ((CMSampleBuffer) -> Void)?
+    private let frameGate = CalibrationFrameGate()
+    private var isConfigured = false
 
-    func configure() throws {
+    func configure(onFrame: @escaping (CMSampleBuffer) -> Void) throws {
+        try queue.sync {
+            try configureOnQueue()
+            self.onFrame = onFrame
+        }
+    }
+
+    private func configureOnQueue() throws {
+        if isConfigured { return }
         // Speech and beeps run on our own audio session; the capture session must not reconfigure it.
         session.automaticallyConfiguresApplicationAudioSession = false
 
@@ -388,6 +425,9 @@ final class CalibrationCaptureManager: NSObject, AVCaptureVideoDataOutputSampleB
 
         session.beginConfiguration()
         defer { session.commitConfiguration() }
+        // Retry after a partially failed configuration without duplicate inputs/outputs.
+        session.inputs.forEach { session.removeInput($0) }
+        session.outputs.forEach { session.removeOutput($0) }
 
         guard let device = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .front) else {
             throw CalibrationSessionError.noCamera
@@ -427,6 +467,7 @@ final class CalibrationCaptureManager: NSObject, AVCaptureVideoDataOutputSampleB
             }
             applyPortraitRotation(to: connection, device: device)
         }
+        isConfigured = true
     }
 
     /// Portrait buffer. The coordinator's angle is used when it reports portrait; if the phone is
@@ -452,7 +493,8 @@ final class CalibrationCaptureManager: NSObject, AVCaptureVideoDataOutputSampleB
     }
 
     func stop() {
-        queue.async { [session] in
+        queue.async { [self] in
+            onFrame = nil
             if session.isRunning { session.stopRunning() }
         }
     }
@@ -461,13 +503,12 @@ final class CalibrationCaptureManager: NSObject, AVCaptureVideoDataOutputSampleB
                                    didOutput sampleBuffer: CMSampleBuffer,
                                    from connection: AVCaptureConnection) {
         // One frame in flight at a time; the camera outruns judging, so skip rather than queue up.
-        guard !isBusy else { return }
-        isBusy = true
-        onFrame?(sampleBuffer)
+        guard let onFrame, frameGate.acquire() else { return }
+        onFrame(sampleBuffer)
     }
 
     /// Called once the frame has been judged, so the next one can be picked up.
     func markIdle() {
-        isBusy = false
+        frameGate.release()
     }
 }

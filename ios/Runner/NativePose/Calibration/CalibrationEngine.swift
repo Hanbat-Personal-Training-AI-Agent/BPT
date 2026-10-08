@@ -17,7 +17,7 @@ final class CalibrationEngine {
 
     private(set) var capturedViews: [CalibrationView] = []
     private(set) var reference: CalibrationReference?
-    /// Joint travel of the last judged frame, in torso lengths; nil when it never got that far.
+    /// Mean joint speed of the last judged frame, in torso lengths / second.
     private(set) var lastMotion: Double?
 
     private var holdStartedAt: TimeInterval?
@@ -28,6 +28,8 @@ final class CalibrationEngine {
     private var previousTimestamp: TimeInterval?
     private var targetStartedAt: TimeInterval?
     private var lastTarget: CalibrationView?
+    private var lastInputTimestamp: TimeInterval?
+    private var pendingCapture: (request: CalibrationCaptureRequest, output: CalibrationEngineOutput, timestamp: TimeInterval)?
 
     init(config: CalibrationConfig = .default) {
         self.config = config
@@ -42,6 +44,8 @@ final class CalibrationEngine {
         previousTimestamp = nil
         targetStartedAt = nil
         lastTarget = nil
+        lastInputTimestamp = nil
+        pendingCapture = nil
     }
 
     var isFinished: Bool { capturedViews.count == CalibrationView.allCases.count }
@@ -53,6 +57,25 @@ final class CalibrationEngine {
 
     func process(_ frame: CalibrationFrame) -> CalibrationEngineOutput {
         lastMotion = nil
+        if pendingCapture != nil {
+            // Persistence must ACK or reject the existing request; never issue duplicates.
+            return output(.holdStill, target: targetView, measurement: nil, didTimeOut: false)
+        }
+        guard frame.timestamp.isFinite, frame.aspect.isFinite, frame.aspect > 0,
+              frame.keypoints.count == 17,
+              frame.keypoints.allSatisfy({ $0.x.isFinite && $0.y.isFinite && $0.score.isFinite }) else {
+            return invalidateFrame()
+        }
+        if let previous = lastInputTimestamp {
+            let dt = frame.timestamp - previous
+            guard dt > 0 else { return invalidateFrame() }
+            if dt > config.capture.maxFrameGap {
+                resetHold()
+                previousJoints = [:]
+                previousTimestamp = nil
+            }
+        }
+        lastInputTimestamp = frame.timestamp
         let target = targetView
         let didTimeOut = updateTimeout(target: target, now: frame.timestamp)
 
@@ -81,7 +104,7 @@ final class CalibrationEngine {
             previousJoints = [:]
             return fail(.showFullBody, target: target, measurement: nil, didTimeOut: didTimeOut)
         }
-        let motion = motionSince(frame)
+        let motion = motionSince(frame, torso: measurement.torso)
         lastMotion = motion
 
         // 3. Framing
@@ -103,6 +126,9 @@ final class CalibrationEngine {
         }
 
         // 6. View classification
+        guard frame.face.isReliable else {
+            return fail(.trackingUnavailable, target: target, measurement: measurement, didTimeOut: didTimeOut)
+        }
         let classification = classify(measurement, face: frame.face)
         guard let classified = classification.view, !capturedViews.contains(classified) else {
             let guidance = classification.guidance
@@ -111,7 +137,7 @@ final class CalibrationEngine {
         }
 
         // 7. Stillness
-        if motion > config.capture.maxMotion {
+        if motion > config.capture.maxMotionPerSecond {
             return fail(.holdStill, target: classified, measurement: measurement, didTimeOut: didTimeOut)
         }
         if holdView != classified {
@@ -124,7 +150,8 @@ final class CalibrationEngine {
         let progress = min(1, heldFor / config.capture.holdDuration)
 
         let inCooldown = lastCaptureAt.map { frame.timestamp - $0 < config.capture.cooldown } ?? false
-        guard heldFor >= config.capture.holdDuration, !inCooldown else {
+        guard heldFor + 1e-9 >= config.capture.holdDuration,
+              holdSamples.count >= config.capture.minimumHoldSamples, !inCooldown else {
             var out = output(.holdStill, target: classified, measurement: measurement, didTimeOut: didTimeOut)
             out.classifiedView = classified
             out.holdProgress = progress
@@ -139,8 +166,20 @@ final class CalibrationEngine {
     /// The view this frame would classify as if every earlier gate passed. No state changes;
     /// for debug overlays that show the classification even while, say, the arms are off.
     func viewCandidate(for frame: CalibrationFrame) -> CalibrationView? {
-        guard let measurement = measure(frame) else { return nil }
+        guard frame.keypoints.count == 17, frame.face.isReliable,
+              let measurement = measure(frame) else { return nil }
         return classify(measurement, face: frame.face).view
+    }
+
+    /// A failed inference/invalid timestamp breaks continuity, even if the next pose looks identical.
+    @discardableResult
+    func invalidateFrame() -> CalibrationEngineOutput {
+        resetHold()
+        previousJoints = [:]
+        previousTimestamp = nil
+        lastInputTimestamp = nil
+        lastMotion = nil
+        return output(.trackingUnavailable, target: targetView, measurement: nil, didTimeOut: false)
     }
 
     // MARK: - Measurement
@@ -213,8 +252,8 @@ final class CalibrationEngine {
         )
     }
 
-    /// Mean per-joint travel since the previous frame, in torso lengths.
-    private func motionSince(_ frame: CalibrationFrame) -> Double {
+    /// Mean per-joint velocity; never bridge missing/invalid or widely spaced frames.
+    private func motionSince(_ frame: CalibrationFrame, torso: Double) -> Double {
         var current: [Int: (x: Double, y: Double)] = [:]
         for j in CocoJoint.required {
             guard let kp = joint(frame, j) else { continue }
@@ -224,8 +263,9 @@ final class CalibrationEngine {
             previousJoints = current
             previousTimestamp = frame.timestamp
         }
-        guard !previousJoints.isEmpty,
-              let torso = measure(frame)?.torso, torso > 1e-6 else { return 0 }
+        guard !previousJoints.isEmpty, let previousTimestamp,
+              frame.timestamp > previousTimestamp, torso > 1e-6 else { return 0 }
+        let dt = frame.timestamp - previousTimestamp
         var total = 0.0
         var count = 0
         for (index, point) in current {
@@ -233,7 +273,7 @@ final class CalibrationEngine {
             total += hypot(point.x - previous.x, point.y - previous.y)
             count += 1
         }
-        return count == 0 ? 0 : (total / Double(count)) / torso
+        return count == 0 ? 0 : (total / Double(count)) / torso / dt
     }
 
     // MARK: - Checks
@@ -275,16 +315,17 @@ final class CalibrationEngine {
     // MARK: - View classification
 
     /// `|cos yaw|`, from how much the shoulders and hips have narrowed against the front reference.
-    func rValue(_ m: CalibrationMeasurement) -> Double? {
-        guard let reference, reference.shoulderRatio > 1e-6, reference.hipRatio > 1e-6 else { return nil }
+    func rValue(_ m: CalibrationMeasurement, relativeTo candidate: CalibrationReference? = nil) -> Double? {
+        guard let reference = candidate ?? reference,
+              reference.shoulderRatio > 1e-6, reference.hipRatio > 1e-6 else { return nil }
         let w = config.view.shoulderWeight
         let value = w * (m.shoulderWidth / m.torso) / reference.shoulderRatio
             + (1 - w) * (m.hipWidth / m.torso) / reference.hipRatio
         return min(max(value, 0), 1)
     }
 
-    func delta(_ m: CalibrationMeasurement) -> Double? {
-        guard let reference else { return nil }
+    func delta(_ m: CalibrationMeasurement, relativeTo candidate: CalibrationReference? = nil) -> Double? {
+        guard let reference = candidate ?? reference else { return nil }
         return m.noseOffset - reference.noseOffset
     }
 
@@ -353,8 +394,9 @@ final class CalibrationEngine {
                          frame: CalibrationFrame,
                          didTimeOut: Bool) -> CalibrationEngineOutput {
         let samples = holdSamples
+        var proposedReference = reference
         if view == .front {
-            reference = CalibrationReference(
+            proposedReference = CalibrationReference(
                 shoulderRatio: median(samples.map { $0.shoulderWidth / $0.torso }),
                 hipRatio: median(samples.map { $0.hipWidth / $0.torso }),
                 noseOffset: median(samples.map(\.noseOffset)),
@@ -364,26 +406,45 @@ final class CalibrationEngine {
             )
         }
         let request = CalibrationCaptureRequest(
+            id: UUID(),
             view: view,
             holdStartedAt: holdStartedAt ?? frame.timestamp,
             measurement: measurement,
-            reference: reference ?? CalibrationReference(shoulderRatio: 0, hipRatio: 0, noseOffset: 0,
+            reference: proposedReference ?? CalibrationReference(shoulderRatio: 0, hipRatio: 0, noseOffset: 0,
                                                          feet: 0, midX: 0, face: 0),
-            r: rValue(measurement),
-            delta: delta(measurement),
+            r: rValue(measurement, relativeTo: proposedReference),
+            delta: delta(measurement, relativeTo: proposedReference),
             isLastView: capturedViews.count + 1 == CalibrationView.allCases.count
         )
-        capturedViews.append(view)
-        lastCaptureAt = frame.timestamp
-        targetStartedAt = frame.timestamp
-        resetHold()
-
-        var out = output(isFinished ? .finished : .captured(view),
-                         target: targetView, measurement: measurement, didTimeOut: didTimeOut)
+        var out = output(.holdStill, target: view, measurement: measurement, didTimeOut: didTimeOut)
         out.classifiedView = view
         out.capture = request
         out.holdProgress = 1
         out.isPassing = true
+        pendingCapture = (request, out, frame.timestamp)
+        return out
+    }
+
+    /// Only persistence success advances the view/reference and permits final completion.
+    /// IDs make late/double acknowledgements harmless (including after reset).
+    @discardableResult
+    func resolveCapture(id: UUID, saved: Bool) -> CalibrationEngineOutput? {
+        guard let pending = pendingCapture, pending.request.id == id else { return nil }
+        pendingCapture = nil
+        resetHold()
+        guard saved else {
+            previousJoints = [:]
+            previousTimestamp = nil
+            return output(.saveFailed, target: targetView, measurement: pending.output.measurement, didTimeOut: false)
+        }
+        reference = pending.request.reference
+        capturedViews.append(pending.request.view)
+        lastCaptureAt = pending.timestamp
+        targetStartedAt = pending.timestamp
+        var out = pending.output
+        out.guidance = isFinished ? .finished : .captured(pending.request.view)
+        out.capturedViews = capturedViews
+        out.targetView = targetView
         return out
     }
 
@@ -431,7 +492,8 @@ final class CalibrationEngine {
             isPassing: false,
             capture: nil,
             measurement: measurement,
-            didTimeOut: didTimeOut
+            didTimeOut: didTimeOut,
+            holdStartedAt: holdStartedAt
         )
     }
 
