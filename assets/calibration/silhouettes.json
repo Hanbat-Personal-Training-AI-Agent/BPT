@@ -3,10 +3,16 @@
   "armDropDeg": 50.0,
   "legSpreadDeg": -3.0,
   "coordinates": "x,y normalized by body height; y=0 head top, y=1 feet; x=0.5 body centre",
+  "engineAnchors": "headTop/feet/midX as CalibrationEngine measures them (shoulder-hip torso T, headTop = shoulders - 0.75T, feet = lowest ankle + 0.06T), same coordinates",
   "views": {
     "front": {
       "nominalYawDeg": 0.0,
       "widthOverHeight": 0.6776,
+      "engineAnchors": {
+        "top": -0.035,
+        "feet": 0.9799,
+        "midX": 0.4992
+      },
       "points": [
         [
           0.5011,
@@ -565,6 +571,11 @@
     "leftfront": {
       "nominalYawDeg": -60.0,
       "widthOverHeight": 0.3889,
+      "engineAnchors": {
+        "top": -0.035,
+        "feet": 0.9799,
+        "midX": 0.478
+      },
       "points": [
         [
           0.4777,
@@ -1079,6 +1090,11 @@
     "rightfront": {
       "nominalYawDeg": 60.0,
       "widthOverHeight": 0.3906,
+      "engineAnchors": {
+        "top": -0.035,
+        "feet": 0.9799,
+        "midX": 0.5225
+      },
       "points": [
         [
           0.5233,
@@ -1593,6 +1609,11 @@
     "back": {
       "nominalYawDeg": 180.0,
       "widthOverHeight": 0.6776,
+      "engineAnchors": {
+        "top": -0.035,
+        "feet": 0.9799,
+        "midX": 0.5008
+      },
       "points": [
         [
           0.4979,

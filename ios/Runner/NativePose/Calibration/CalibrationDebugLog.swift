@@ -13,25 +13,23 @@ final class CalibrationDebugLog {
         #endif
     }()
 
-    private let url: URL
     private let queue = DispatchQueue(label: "com.bpt.calibration.debuglog")
-    private var handle: FileHandle?
+    private var handle: FileHandle?  // queue only
 
     private static let header = [
         "timestamp", "guidance", "classified", "target", "holdProgress", "pass",
-        "r", "delta", "face", "earL", "earR", "bodyH", "midX", "feet",
-        "wristDropL", "wristDropR", "elbowRatioL", "elbowRatioR",
+        "r", "delta", "faceDetected", "faceYaw", "rtmFace", "earL", "earR",
+        "bodyH", "midX", "feet", "wristDropL", "wristDropR", "elbowRatioL", "elbowRatioR",
         "roll", "pitch", "meanConf",
     ].joined(separator: ",")
 
     init?(directory: URL) {
         guard Self.isEnabled else { return nil }
-        url = directory.appendingPathComponent("debug_frames.csv")
-        guard let data = (Self.header + "\n").data(using: .utf8) else { return nil }
+        let url = directory.appendingPathComponent("debug_frames.csv")
         do {
-            try data.write(to: url, options: .atomic)
+            try Data((Self.header + "\n").utf8).write(to: url, options: .atomic)
             handle = try FileHandle(forWritingTo: url)
-            handle?.seekToEndOfFile()
+            try handle?.seekToEnd()
         } catch {
             return nil
         }
@@ -41,8 +39,8 @@ final class CalibrationDebugLog {
                 output: CalibrationEngineOutput,
                 r: Double?,
                 delta: Double?,
-                device: CalibrationDeviceState) {
-        guard let handle else { return }
+                device: CalibrationDeviceState,
+                face: CalibrationFace) {
         let m = output.measurement
         let fields: [String] = [
             String(format: "%.3f", timestamp),
@@ -52,6 +50,7 @@ final class CalibrationDebugLog {
             String(format: "%.2f", output.holdProgress),
             output.isPassing ? "1" : "0",
             format(r), format(delta),
+            face.isDetected ? "1" : "0", format(face.yawDeg),
             format(m?.face), format(m?.earLeft), format(m?.earRight),
             format(m?.bodyHeight), format(m?.midX), format(m?.feet),
             format(m?.leftWristDrop), format(m?.rightWristDrop),
@@ -59,17 +58,17 @@ final class CalibrationDebugLog {
             String(format: "%.2f", device.rollDeg), String(format: "%.2f", device.pitchDeg),
             format(m?.meanRequiredConfidence),
         ]
-        let line = fields.joined(separator: ",") + "\n"
-        queue.async {
-            if let data = line.data(using: .utf8) {
-                handle.write(data)
-            }
+        let line = Data((fields.joined(separator: ",") + "\n").utf8)
+        queue.async { [self] in
+            // A write after close is a no-op instead of an Objective-C exception.
+            try? handle?.write(contentsOf: line)
         }
     }
 
     func close() {
-        queue.async { [handle] in
+        queue.async { [self] in
             try? handle?.close()
+            handle = nil
         }
     }
 

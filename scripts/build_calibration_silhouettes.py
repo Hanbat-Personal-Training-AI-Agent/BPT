@@ -124,7 +124,7 @@ def report_pose_metrics(model, verts):
     print(f"ankleGap/hipWidth {ankle_gap / hip_w:.2f} (0.9-2.6)")
 
 
-def silhouette_contour(verts, faces, yaw_deg, size, epsilon_frac):
+def silhouette_contour(verts, faces, joints, yaw_deg, size, epsilon_frac):
     import cv2
 
     yaw = np.deg2rad(yaw_deg)
@@ -153,7 +153,21 @@ def silhouette_contour(verts, faces, yaw_deg, size, epsilon_frac):
     body = bottom - top
     out = np.stack([(contour[:, 0] - (px.min() + px.max()) / 2) / body + 0.5,
                     (contour[:, 1] - top) / body], axis=1)
-    return out, float((px.max() - px.min()) / body)
+
+    # Where CalibrationEngine would put this body's head top, feet and centre, in the same
+    # coordinates, so the app can lay the outline over a person measured the same way.
+    pj = joints @ rot.T
+    jx = ((pj[:, 0] - (minx + maxx) / 2) * scale + size / 2 - (px.min() + px.max()) / 2) / body + 0.5
+    jy = ((maxy - pj[:, 1]) * scale + size * 0.04 - top) / body
+    sx, sy = (jx[16] + jx[17]) / 2, (jy[16] + jy[17]) / 2
+    hx, hy = (jx[1] + jx[2]) / 2, (jy[1] + jy[2]) / 2
+    torso = hy - sy
+    anchors = {
+        "top": round(float(sy - 0.75 * torso), 4),          # framing.headTopTorsoFactor
+        "feet": round(float(max(jy[7], jy[8]) + 0.06 * torso), 4),  # framing.feetTorsoFactor
+        "midX": round(float((sx + hx) / 2), 4),
+    }
+    return out, float((px.max() - px.min()) / body), anchors
 
 
 def main():
@@ -167,10 +181,12 @@ def main():
 
     views = {}
     for name, yaw in VIEWS.items():
-        points, width = silhouette_contour(verts, faces, yaw, args.render_size, args.epsilon)
+        joints = model["J_regressor"] @ verts
+        points, width, anchors = silhouette_contour(verts, faces, joints, yaw, args.render_size, args.epsilon)
         views[name] = {
             "nominalYawDeg": yaw,
             "widthOverHeight": round(width, 4),
+            "engineAnchors": anchors,
             "points": [[round(float(x), 4), round(float(y), 4)] for x, y in points],
         }
         print(f"{name:10s} yaw {yaw:6.1f}  points {len(points):3d}  w/h {width:.3f}")
@@ -182,6 +198,8 @@ def main():
         "armDropDeg": args.arm_drop_deg,
         "legSpreadDeg": args.leg_spread_deg,
         "coordinates": "x,y normalized by body height; y=0 head top, y=1 feet; x=0.5 body centre",
+        "engineAnchors": "headTop/feet/midX as CalibrationEngine measures them (shoulder-hip torso T, "
+                         "headTop = shoulders - 0.75T, feet = lowest ankle + 0.06T), same coordinates",
         "views": views,
     }, indent=2) + "\n")
     print(f"output={out}")
