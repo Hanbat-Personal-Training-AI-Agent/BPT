@@ -104,6 +104,12 @@ external/*
 *.swp
 *.bak
 
+# Secret configurations (API keys, SMTP passwords)
+**/application-secret.yml
+**/application-secret.yaml
+*secret*.yml
+*secret*.yaml
+
 # 제출 산출물 패키지와 내려받은 데이터셋 (scripts/clean_workspace.sh 가 보존)
 BPT_v1.0/
 dist/

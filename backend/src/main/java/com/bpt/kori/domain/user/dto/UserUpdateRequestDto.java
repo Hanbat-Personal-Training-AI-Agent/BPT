@@ -43,4 +43,13 @@ public class UserUpdateRequestDto {
 
     @Schema(description = "알림 시간 (HH:mm)", example = "18:00")
     private String notificationTime;
+
+    @Schema(description = "알림 활성화 여부", example = "true")
+    private Boolean notificationEnabled;
+
+    @Schema(description = "체형 분석 로컬 파일 경로", example = "/var/mobile/Containers/Data/Application/scan_01.dat")
+    private String bodyScanLocalPath;
+
+    @Schema(description = "마지막 체형 측정일 (YYYY-MM-DD)", example = "2026-10-09")
+    private String lastBodyScanDate;
 }

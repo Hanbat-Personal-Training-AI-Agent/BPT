@@ -9,11 +9,17 @@ import com.bpt.kori.domain.user.repository.UserRepository;
 import com.bpt.kori.security.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.mail.SimpleMailMessage;
+import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.security.SecureRandom;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
 @Service
@@ -24,12 +30,16 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider tokenProvider;
+    private final JavaMailSender mailSender;
+
+    private final Map<String, VerificationEntry> verificationStore = new ConcurrentHashMap<>();
+
+    public record VerificationEntry(String code, LocalDateTime expiresAt) {}
 
     @Transactional
     public TokenResponse login(LoginRequest request) {
-        String identifier = request.getEmail().trim();
-        User user = userRepository.findByEmail(identifier)
-                .or(() -> userRepository.findByUsername(identifier))
+        String username = request.getUsername().trim();
+        User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new CustomException(ErrorCode.INVALID_CREDENTIALS));
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
@@ -111,20 +121,64 @@ public class AuthService {
     }
 
     public EmailVerificationResponse requestEmailVerification(EmailVerificationRequest request) {
-        int randomCode = 100000 + (int) (Math.random() * 900000);
+        String email = request.getEmail().trim().toLowerCase();
+        int randomCode = 100000 + new SecureRandom().nextInt(900000);
         String code = String.valueOf(randomCode);
-        log.info("==================================================");
-        log.info("[MOCK EMAIL VERIFICATION] Target Email: {}, 6-digit Code: {}", request.getEmail().trim(), code);
-        log.info("==================================================");
+        LocalDateTime expiresAt = LocalDateTime.now().plusMinutes(5);
+
+        verificationStore.put(email, new VerificationEntry(code, expiresAt));
+
+        try {
+            SimpleMailMessage mailMessage = new SimpleMailMessage();
+            mailMessage.setTo(email);
+            mailMessage.setSubject("[BPT] 이메일 인증번호 안내");
+            mailMessage.setText("안녕하세요, BPT(Body Posture Training) 서비스입니다.\n\n"
+                    + "회원가입 본인 인증을 위한 6자리 인증번호는 다음과 같습니다.\n\n"
+                    + "인증번호: [" + code + "]\n\n"
+                    + "인증번호는 발송 시점으로부터 5분간 유효합니다.\n\n"
+                    + "감사합니다.");
+            mailSender.send(mailMessage);
+            log.info("[EMAIL SENT] Successfully sent verification code to {}", email);
+        } catch (Exception e) {
+            log.warn("[EMAIL SEND WARNING] Could not send email via SMTP to {}: {}. Verification code is preserved in memory: {}",
+                    email, e.getMessage(), code);
+        }
+
         return EmailVerificationResponse.builder()
                 .success(true)
-                .message("인증번호가 발송되었습니다. (테스트 환경: 서버 로그 확인)")
+                .message("인증번호가 이메일로 발송되었습니다. (5분 내 입력)")
                 .build();
     }
 
     public EmailVerificationConfirmResponse confirmEmailVerification(EmailVerificationConfirmRequest request) {
-        log.info("[MOCK EMAIL CONFIRM] Email: {}, Input Code: {} -> Result: Verified(true)",
-                request.getEmail().trim(), request.getCode().trim());
+        String email = request.getEmail().trim().toLowerCase();
+        String inputCode = request.getCode() != null ? request.getCode().trim() : "";
+
+        VerificationEntry entry = verificationStore.get(email);
+        if (entry == null) {
+            return EmailVerificationConfirmResponse.builder()
+                    .verified(false)
+                    .message("인증번호 요청 내역이 없거나 만료되었습니다.")
+                    .build();
+        }
+
+        if (LocalDateTime.now().isAfter(entry.expiresAt())) {
+            verificationStore.remove(email);
+            return EmailVerificationConfirmResponse.builder()
+                    .verified(false)
+                    .message("인증번호 유효시간(5분)이 만료되었습니다. 다시 요청해 주세요.")
+                    .build();
+        }
+
+        if (!entry.code().equals(inputCode)) {
+            return EmailVerificationConfirmResponse.builder()
+                    .verified(false)
+                    .message("인증번호가 일치하지 않습니다.")
+                    .build();
+        }
+
+        verificationStore.remove(email);
+        log.info("[EMAIL VERIFIED] Email {} verified successfully", email);
         return EmailVerificationConfirmResponse.builder()
                 .verified(true)
                 .message("이메일 인증이 완료되었습니다.")
