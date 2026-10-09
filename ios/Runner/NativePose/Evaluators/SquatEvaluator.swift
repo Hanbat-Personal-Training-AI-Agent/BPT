@@ -61,6 +61,8 @@ final class SquatEvaluator {
     private var currentRepMaxDepthNorm: Double?
     private var currentRepMinKneeAngleDegrees: Double?
     private(set) var completedRepSummaries: [SquatRepSummary] = []
+    /// Form warnings (rep summary `warnings`); judged only between startRep and the counted rep end.
+    let formTracker = FormWarningTracker(exercise: .squat)
 
     var sessionSummary: SquatSessionSummary {
         makeSessionSummary()
@@ -89,9 +91,13 @@ final class SquatEvaluator {
         currentRepMaxDepthNorm = nil
         currentRepMinKneeAngleDegrees = nil
         completedRepSummaries = []
+        formTracker.reset()
     }
 
-    func evaluate(frameIndex: Int, coco17: [PoseKeypoint]) -> SquatFrameResult {
+    /// `pose3D`: MotionAGFormer H36M17 selected3D when available (form metrics only; nil in the live app).
+    /// `feet`: Halpe26 toes/heels (squat_heel_rise only; nil with the COCO17 model).
+    func evaluate(frameIndex: Int, coco17: [PoseKeypoint], pose3D: [SIMD3<Double>]? = nil,
+                  feet: FootKeypoints? = nil) -> SquatFrameResult {
         let measurements = computeMeasurements(coco17: coco17)
         let rawCandidate = classifyRawStatusCandidate(measurements)
         let previousStatus = stableStatus
@@ -102,12 +108,14 @@ final class SquatEvaluator {
         )
 
         updateTopBaselineIfNeeded(status: status, measurements: measurements)
+        formTracker.observe(frameIndex: frameIndex, coco17: coco17, pose3D: pose3D, feet: feet, phase: status.rawValue)
         let done = updateRepState(
             frameIndex: frameIndex,
             previousStatus: previousStatus,
             status: status,
             measurements: measurements
         )
+        if repStarted { formTracker.recordCurrentFrame() }
 
         if frameIndex % 30 == 0 {
             let depthText = measurements.squatDepthNorm.map { String(format: "%.3f", $0) } ?? "nil"
@@ -382,6 +390,7 @@ final class SquatEvaluator {
         currentRepBottomFrame = nil
         currentRepMaxDepthNorm = nil
         currentRepMinKneeAngleDegrees = nil
+        formTracker.beginRep()
     }
 
     private func updateCurrentRep(_ measurements: Measurements) {
@@ -414,7 +423,7 @@ final class SquatEvaluator {
             endFrame: frameIndex,
             maxDepthNorm: maxDepth,
             minKneeAngleDegrees: minKneeAngle,
-            warnings: []
+            warnings: formTracker.finishRep(repIndex: completedRepCount).warnings
         )
         completedRepSummaries.append(summary)
         trimCompletedRepSummaries()

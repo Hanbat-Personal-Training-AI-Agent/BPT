@@ -10,6 +10,7 @@ import simd
 /// flexion, theta < 0 hyperextension (sign checked on real MotionAGFormer-XS output).
 /// theta < -limit rotates the shin about a around the knee onto -limit (ankle only, length kept).
 /// Not wired into the app yet; call right after selected3D (after any bone-length fix).
+/// Detection (`Result.bad3D`) is always on; FormWarningTracker uses it to skip 3D metrics.
 enum KneeHingeLimit {
     struct Config {
         /// Off by default. The 92% squat_03 firing came from the old `screen` input normalisation; with
@@ -24,6 +25,8 @@ enum KneeHingeLimit {
         var corrected = false
         /// Rotation applied towards flexion, >= 0.
         var correctionDegrees = 0.0
+        /// theta < -limit (non-degenerate), reported whether or not correction is enabled.
+        var hyperextended = false
         var degenerate: Bool { thetaDegrees == nil }
     }
 
@@ -31,6 +34,8 @@ enum KneeHingeLimit {
         var joints: [SIMD3<Double>]
         var right: LegReport
         var left: LegReport
+        /// "3D 불량": skip every 3D-based judgment for this frame (correction stays off by default).
+        var bad3D: Bool { right.hyperextended || left.hyperextended }
     }
 
     static let minBoneLength = 1e-6
@@ -47,7 +52,8 @@ enum KneeHingeLimit {
                 continue
             }
             var report = LegReport(thetaDegrees: theta)
-            if config.enabled, theta < -config.limitDegrees {
+            report.hyperextended = theta < -config.limitDegrees
+            if config.enabled, report.hyperextended {
                 let correction = -config.limitDegrees - theta
                 let phi = correction * .pi / 180
                 let v = joints[ankle] - joints[knee]

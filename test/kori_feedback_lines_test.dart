@@ -16,9 +16,6 @@ void main() {
       'set_summary',
     ];
     expect(koriFeedbackLines.keys.toSet(), keys.toSet());
-    for (final key in koriDemoWarningKeyByExercise.values) {
-      expect(koriFeedbackLines[key]!.kind, KoriFeedbackKind.warning);
-    }
   });
 
   test('{n} {reps} {k} 를 채운다', () {

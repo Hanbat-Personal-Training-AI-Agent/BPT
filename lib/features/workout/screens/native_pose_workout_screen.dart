@@ -85,11 +85,10 @@ class _NativePoseWorkoutScreenState
   bool _isPaused = false;
 
   // 코리 피드백: 네이티브가 `onFeedback` 으로 보낸 대사 키를 보여준다
-  // (kori_feedback_lines.dart). 키가 한 번도 안 왔으면 rep마다 칭찬과 운동별 대표
-  // 경고를 번갈아 보여주는 임시 동작을 쓴다. 첫 피드백 전에는 운동별 기본 팁을 보여준다.
+  // (kori_feedback_lines.dart). `silent: true` 인 키는 말풍선 없이 세트 요약에만 넣는다.
+  // 첫 피드백 전에는 운동별 기본 팁을 보여준다.
   String? _feedbackKey;
   int? _feedbackCount;
-  bool _nativeFeedbackActive = false;
   int _badCountThisSet = 0;
   final Set<String> _warningKeysThisSet = {};
 
@@ -181,20 +180,30 @@ class _NativePoseWorkoutScreenState
       final rep = (args['rep'] as num?)?.toInt() ?? _latestNativeRep;
       _onNativeUpdate(rep);
     } else if (call.method == 'onFeedback') {
-      // { key: 'squat_shallow', n?: 3 } — key는 kori_feedback_lines.dart 목록 기준.
+      // { key: 'squat_shallow', n?: 3, silent?: true } — key는 kori_feedback_lines.dart 목록 기준.
       final args = (call.arguments as Map).cast<String, dynamic>();
       final key = args['key'] as String?;
-      if (key != null) _onNativeFeedback(key, (args['n'] as num?)?.toInt());
+      if (key != null) {
+        _onNativeFeedback(
+          key,
+          (args['n'] as num?)?.toInt(),
+          silent: args['silent'] == true,
+        );
+      }
     }
     return null;
   }
 
-  void _onNativeFeedback(String key, int? count) {
+  void _onNativeFeedback(String key, int? count, {bool silent = false}) {
     final line = koriFeedbackLines[key];
     if (!mounted || _isPaused || line == null) return;
     if (_setComplete || _workoutComplete) return;
+    if (silent) {
+      // 참고 등급 등: 말하지 않고 세트 후 요약(고칠 점 개수)에만 반영.
+      if (line.kind == KoriFeedbackKind.warning) _warningKeysThisSet.add(key);
+      return;
+    }
     setState(() {
-      _nativeFeedbackActive = true;
       _feedbackKey = key;
       _feedbackCount = count;
       if (line.kind == KoriFeedbackKind.warning) {
@@ -202,18 +211,6 @@ class _NativePoseWorkoutScreenState
         _warningKeysThisSet.add(key);
       }
     });
-  }
-
-  /// 네이티브 피드백 연동 전 임시 동작: rep마다 칭찬 ↔ 운동별 대표 경고.
-  void _advanceDemoFeedback() {
-    final warningKey = koriDemoWarningKeyByExercise[widget.exerciseId];
-    final showWarning = warningKey != null && _feedbackKey == 'praise_fixed';
-    _feedbackKey = showWarning ? warningKey : 'praise_fixed';
-    _feedbackCount = null;
-    if (showWarning) {
-      _badCountThisSet += 1;
-      _warningKeysThisSet.add(warningKey);
-    }
   }
 
   // TODO(temp): 시뮬레이터에서는 카메라가 없어 반복 수가 안 들어오므로,
@@ -225,12 +222,10 @@ class _NativePoseWorkoutScreenState
   void _onNativeUpdate(int rep) {
     if (!mounted || _isPaused) return;
     setState(() {
-      final repIncreased = rep > _latestNativeRep;
       _latestNativeRep = rep;
       // Don't advance set state while a set-complete / done prompt is showing;
       // reps performed during the rest period are discarded on "next set".
       if (_setComplete || _workoutComplete) return;
-      if (repIncreased && !_nativeFeedbackActive) _advanceDemoFeedback();
       if (rep - _setStartRep >= _targetRepsThisSet) {
         _setResults.add(
           _SetResult(

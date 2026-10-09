@@ -42,6 +42,9 @@ MotionAGFormer-XS `selected3D`(H36M17 [17,3])에서 무릎이 해부학적으로
 - |u|, |v|, |L|이 너무 작거나, L이 u와 거의 평행하거나, v가 축 a와 거의 평행하면 θ를 정하지 않고
   `degenerate`로 표시하고 손대지 않는다.
 - 3D 경로 연결 시 순서: selected3D → (뼈 길이 고정) → 무릎 차단.
+- **보정은 기본 OFF, 감지는 항상 ON.** 비퇴화 다리의 θ < −limit이면 report에 `hyperextended`가 서고
+  그 프레임은 "3D 불량"(`is_bad_3d` / Swift `Result.bad3D`)이다. 3D 기반 판단은 그 프레임에서 건너뛰고,
+  앱은 세션 동안 개수를 센다(`FormWarningTracker.sessionBad3DFrames`, 디버그 빌드 `workout_form_logs/*.jsonl`).
 
 ### 부호 규약 근거
 

@@ -10,6 +10,7 @@ final class KneeHingeLimitTests: XCTestCase {
             let corrected: Bool
             let correction_deg: Double
             let degenerate: Bool
+            let hyperextended: Bool
         }
         let name: String
         let limit_deg: Double
@@ -28,6 +29,8 @@ final class KneeHingeLimitTests: XCTestCase {
 
     private func vec(_ rows: [[Double]]) -> [SIMD3<Double>] { rows.map { SIMD3($0[0], $0[1], $0[2]) } }
 
+    private func hyper(_ c: Case, _ leg: String) -> Bool { c.expected_report[leg]?.hyperextended ?? false }
+
     func testMatchesPythonFixture() throws {
         let cases = try loadCases()
         XCTAssertGreaterThanOrEqual(cases.count, 10)
@@ -42,6 +45,7 @@ final class KneeHingeLimitTests: XCTestCase {
                 let e = try XCTUnwrap(c.expected_report[leg])
                 XCTAssertEqual(report.corrected, e.corrected, "\(c.name) \(leg)")
                 XCTAssertEqual(report.degenerate, e.degenerate, "\(c.name) \(leg)")
+                XCTAssertEqual(report.hyperextended, e.hyperextended, "\(c.name) \(leg)")
                 XCTAssertEqual(report.correctionDegrees, e.correction_deg, accuracy: 1e-9, "\(c.name) \(leg)")
                 if let theta = e.theta_deg {
                     XCTAssertEqual(try XCTUnwrap(report.thetaDegrees), theta, accuracy: 1e-9, "\(c.name) \(leg)")
@@ -49,6 +53,7 @@ final class KneeHingeLimitTests: XCTestCase {
                     XCTAssertNil(report.thetaDegrees, "\(c.name) \(leg)")
                 }
             }
+            XCTAssertEqual(result.bad3D, hyper(c, "right") || hyper(c, "left"), c.name)
             if !result.right.corrected && !result.left.corrected {
                 XCTAssertEqual(result.joints, input, "\(c.name): in-range input must come back unchanged")
             }

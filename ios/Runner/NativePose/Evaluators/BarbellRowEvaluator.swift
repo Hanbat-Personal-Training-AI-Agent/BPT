@@ -68,6 +68,9 @@ final class BarbellRowEvaluator {
         self.config = config
     }
 
+    /// Form warnings (rep summary `warnings`); judged only between startRep and the counted rep end.
+    let formTracker = FormWarningTracker(exercise: .barbellRow)
+
     func reset() {
         stableStatus = .unknown
         candidateStatus = .unknown
@@ -86,9 +89,11 @@ final class BarbellRowEvaluator {
         currentRepMinElbowAngleDegrees = nil
         completedRepCount = 0
         completedRepSummaries = []
+        formTracker.reset()
     }
 
-    func evaluate(frameIndex: Int, coco17: [PoseKeypoint]) -> BarbellRowFrameResult {
+    /// `pose3D`: MotionAGFormer H36M17 selected3D when available (form metrics only; nil in the live app).
+    func evaluate(frameIndex: Int, coco17: [PoseKeypoint], pose3D: [SIMD3<Double>]? = nil) -> BarbellRowFrameResult {
         let measurements = computeMeasurements(coco17: coco17)
         let rawCandidate = classifyRawStatusCandidate(measurements)
         let previousStatus = stableStatus
@@ -99,12 +104,14 @@ final class BarbellRowEvaluator {
         )
 
         updateBottomBaselineIfNeeded(status: status, measurements: measurements)
+        formTracker.observe(frameIndex: frameIndex, coco17: coco17, pose3D: pose3D, phase: status.rawValue)
         let done = updateRepState(
             frameIndex: frameIndex,
             previousStatus: previousStatus,
             status: status,
             measurements: measurements
         )
+        if repStarted { formTracker.recordCurrentFrame() }
 
         previousRowDepthNorm = measurements.rowDepthNorm
 
@@ -368,6 +375,7 @@ final class BarbellRowEvaluator {
         currentRepTopFrame = nil
         currentRepMaxRowDepthNorm = nil
         currentRepMinElbowAngleDegrees = nil
+        formTracker.beginRep()
     }
 
     private func updateCurrentRep(_ measurements: Measurements) {
@@ -400,7 +408,7 @@ final class BarbellRowEvaluator {
             endFrame: frameIndex,
             maxRowDepthNorm: maxDepth,
             minElbowAngleDegrees: minElbowAngle,
-            warnings: []
+            warnings: formTracker.finishRep(repIndex: completedRepCount).warnings
         )
         completedRepSummaries.append(summary)
         trimCompletedRepSummaries()

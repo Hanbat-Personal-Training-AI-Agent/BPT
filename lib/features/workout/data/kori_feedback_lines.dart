@@ -232,11 +232,3 @@ const List<KoriFeedbackLine> _lines = [
 final Map<String, KoriFeedbackLine> koriFeedbackLines = {
   for (final line in _lines) line.key: line,
 };
-
-/// 네이티브 피드백 연동 전, 렙마다 칭찬과 번갈아 보여줄 운동별 대표 경고.
-/// 대사가 아직 없는 운동은 null (칭찬만 보여준다).
-const Map<String, String> koriDemoWarningKeyByExercise = {
-  'pushup': 'pushup_hip_sag',
-  'squat': 'squat_knee_valgus',
-  'barbell-row': 'row_torso_swing',
-};

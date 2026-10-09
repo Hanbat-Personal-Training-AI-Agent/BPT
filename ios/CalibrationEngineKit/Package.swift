@@ -8,8 +8,8 @@ import PackageDescription
 // Run the tests with:  swift test --package-path ios/CalibrationEngineKit
 // Replay a recorded video through the app's perception + engine (camera and CoreMotion aside):
 //   swift run -c release --package-path ios/CalibrationEngineKit calibration-replay <video.mp4>...
-// Replay a squat video through the workout pose path + SquatEvaluator:
-//   swift run -c release --package-path ios/CalibrationEngineKit pose-replay [--model coco17|halpe26] <video.mp4>...
+// Replay a workout video through the workout pose path + evaluator + form warnings (JSON per rep):
+//   swift run -c release --package-path ios/CalibrationEngineKit pose-replay [--exercise squat|pushup|row] [--model coco17|halpe26] [--motion3d PATH|none] <video.mp4>...
 //
 // (The Xcode RunnerTests target cannot run them: injecting a test bundle into the Flutter
 // host app aborts inside MediaPipe's calculator registry, which also happens with the
