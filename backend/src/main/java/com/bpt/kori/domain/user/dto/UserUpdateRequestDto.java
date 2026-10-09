@@ -49,4 +49,7 @@ public class UserUpdateRequestDto {
 
     @Schema(description = "체형 분석 로컬 파일 경로", example = "/var/mobile/Containers/Data/Application/scan_01.dat")
     private String bodyScanLocalPath;
+
+    @Schema(description = "마지막 체형 측정일 (YYYY-MM-DD)", example = "2026-10-09")
+    private String lastBodyScanDate;
 }

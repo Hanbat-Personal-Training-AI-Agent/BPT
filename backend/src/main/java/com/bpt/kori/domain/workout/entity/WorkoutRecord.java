@@ -78,6 +78,13 @@ public class WorkoutRecord {
     @Column(columnDefinition = "TEXT")
     private String poseMetricsSummary;
 
+    @ElementCollection(fetch = FetchType.LAZY)
+    @CollectionTable(name = "workout_feedback_counts", joinColumns = @JoinColumn(name = "workout_record_id"))
+    @MapKeyColumn(name = "feedback_key", length = 100)
+    @Column(name = "count")
+    @Builder.Default
+    private java.util.Map<String, Integer> feedbackCounts = new java.util.HashMap<>();
+
     @OneToMany(mappedBy = "workoutRecord", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<WorkoutSetRecord> setRecords = new ArrayList<>();

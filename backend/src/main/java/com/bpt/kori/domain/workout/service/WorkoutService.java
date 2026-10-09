@@ -90,6 +90,10 @@ public class WorkoutService {
                 ? dto.getIsGoalAchieved()
                 : (completedSetsCount >= sets);
 
+        Map<String, Integer> feedbackCounts = (dto.getFeedbackCounts() != null)
+                ? new HashMap<>(dto.getFeedbackCounts())
+                : new HashMap<>();
+
         WorkoutRecord record = WorkoutRecord.builder()
                 .user(user)
                 .clientRecordId(dto.getClientRecordId())
@@ -108,6 +112,7 @@ public class WorkoutService {
                 .isGoalAchieved(isGoalAchieved)
                 .totalVolume(finalVolume)
                 .poseMetricsSummary(summaryJson)
+                .feedbackCounts(feedbackCounts)
                 .build();
 
         if (dto.getSetsDetail() != null) {

@@ -73,6 +73,9 @@ public class WorkoutMetadataRequestDto {
     @Schema(description = "자세 피드백 노트 목록")
     private List<String> feedbackNotes;
 
+    @Schema(description = "자세 피드백 유형별 발생 횟수 (키 = 피드백 키, 값 = 발생 횟수)", example = "{\"squat_knee_valgus\": 3, \"squat_shallow\": 2}")
+    private Map<String, Integer> feedbackCounts;
+
     @Schema(description = "자세 측정 통계 요약 (JSON 객체)")
     private Map<String, Object> poseMetricsSummary;
 

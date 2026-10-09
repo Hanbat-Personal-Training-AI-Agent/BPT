@@ -1,13 +1,17 @@
 package com.bpt.kori.domain.workout.dto;
 
 import com.bpt.kori.domain.workout.entity.WorkoutRecord;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 
 import java.math.BigDecimal;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Getter
@@ -15,6 +19,8 @@ import java.util.stream.Collectors;
 @Builder
 @Schema(description = "운동 세션 기록 상세 응답 DTO")
 public class WorkoutRecordResponseDto {
+
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     @Schema(description = "서버 레코드 ID", example = "101")
     private final String id;
@@ -76,6 +82,12 @@ public class WorkoutRecordResponseDto {
     @Schema(description = "피드백 노트 목록")
     private final List<String> feedbackNotes;
 
+    @Schema(description = "자세 피드백 유형별 발생 횟수", example = "{\"squat_knee_valgus\": 3, \"squat_shallow\": 2}")
+    private final Map<String, Integer> feedbackCounts;
+
+    @Schema(description = "자세 측정 통계 요약 (JSON 객체)")
+    private final Object poseMetricsSummary;
+
     public static WorkoutRecordResponseDto fromEntity(WorkoutRecord entity) {
         List<String> notes = entity.getFeedbackLogs().stream()
                 .map(log -> log.getFeedbackNote())
@@ -84,6 +96,19 @@ public class WorkoutRecordResponseDto {
         List<WorkoutSetRecordDto> setsDetail = entity.getSetRecords() != null
                 ? entity.getSetRecords().stream().map(WorkoutSetRecordDto::fromEntity).collect(Collectors.toList())
                 : List.of();
+
+        Map<String, Integer> feedbackMap = (entity.getFeedbackCounts() != null && !entity.getFeedbackCounts().isEmpty())
+                ? new LinkedHashMap<>(entity.getFeedbackCounts())
+                : Collections.emptyMap();
+
+        Object metricsSummary = null;
+        if (entity.getPoseMetricsSummary() != null && !entity.getPoseMetricsSummary().isBlank()) {
+            try {
+                metricsSummary = OBJECT_MAPPER.readValue(entity.getPoseMetricsSummary(), Object.class);
+            } catch (Exception ignored) {
+                metricsSummary = entity.getPoseMetricsSummary();
+            }
+        }
 
         int effectiveTotalSets = entity.getTotalSets() != null && entity.getTotalSets() > 0
                 ? entity.getTotalSets()
@@ -113,6 +138,8 @@ public class WorkoutRecordResponseDto {
                 .durationSeconds(entity.getDurationSeconds() != null ? entity.getDurationSeconds() : 0)
                 .videoLocalPath(entity.getVideoLocalPath())
                 .feedbackNotes(notes)
+                .feedbackCounts(feedbackMap)
+                .poseMetricsSummary(metricsSummary)
                 .build();
     }
 }

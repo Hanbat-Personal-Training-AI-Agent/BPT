@@ -78,10 +78,35 @@ public class UserService {
         if (request.getNotificationTime() != null) user.setNotificationTime(request.getNotificationTime());
         if (request.getNotificationEnabled() != null) user.setNotificationEnabled(request.getNotificationEnabled());
         if (request.getBodyScanLocalPath() != null) user.setBodyScanLocalPath(request.getBodyScanLocalPath());
+        if (request.getLastBodyScanDate() != null && !request.getLastBodyScanDate().isBlank()) {
+            try {
+                user.setLastBodyScanDate(LocalDate.parse(request.getLastBodyScanDate().trim()));
+            } catch (Exception ignored) {}
+        }
         if (request.getBirthDate() != null && !request.getBirthDate().isBlank()) {
             try {
                 user.setBirthDate(LocalDate.parse(request.getBirthDate().trim()));
             } catch (Exception ignored) {}
+        }
+
+        return UserDto.fromEntity(user);
+    }
+
+    @Transactional
+    public UserDto recordBodyScan(Long userId, com.bpt.kori.domain.user.dto.BodyScanRecordRequestDto request) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        LocalDate scanDate = LocalDate.now();
+        if (request != null && request.getScanDate() != null && !request.getScanDate().isBlank()) {
+            try {
+                scanDate = LocalDate.parse(request.getScanDate().trim());
+            } catch (Exception ignored) {}
+        }
+        user.setLastBodyScanDate(scanDate);
+
+        if (request != null && request.getBodyScanLocalPath() != null && !request.getBodyScanLocalPath().isBlank()) {
+            user.setBodyScanLocalPath(request.getBodyScanLocalPath().trim());
         }
 
         return UserDto.fromEntity(user);
@@ -159,17 +184,21 @@ public class UserService {
                 : 0.0;
 
         // Body scan calibration status
+        LocalDate effectiveScanDate = user.getLastBodyScanDate();
         Optional<UserCalibration> latestCalibration = userCalibrationRepository.findTopByUserIdOrderByCalibratedAtDesc(userId);
-        int daysSinceLastScan;
         if (latestCalibration.isPresent() && latestCalibration.get().getCalibratedAt() != null) {
-            daysSinceLastScan = (int) ChronoUnit.DAYS.between(latestCalibration.get().getCalibratedAt().toLocalDate(), today);
-        } else if (user.getLastBodyScanDate() != null) {
-            daysSinceLastScan = (int) ChronoUnit.DAYS.between(user.getLastBodyScanDate(), today);
-        } else {
-            daysSinceLastScan = 30;
+            LocalDate calDate = latestCalibration.get().getCalibratedAt().toLocalDate();
+            if (effectiveScanDate == null || calDate.isAfter(effectiveScanDate)) {
+                effectiveScanDate = calDate;
+            }
         }
 
-        boolean needsBodyScan = daysSinceLastScan >= 30;
+        Integer daysSinceLastScan = null;
+        boolean needsBodyScan = true;
+        if (effectiveScanDate != null) {
+            daysSinceLastScan = (int) ChronoUnit.DAYS.between(effectiveScanDate, today);
+            needsBodyScan = daysSinceLastScan >= 30;
+        }
 
         List<WorkoutRecord> allRecent = workoutRecordRepository.findAllByUserIdOrderByDateDesc(userId);
         List<DashboardSummaryResponseDto.RecentWorkoutItemDto> recentWorkouts = allRecent.stream()
