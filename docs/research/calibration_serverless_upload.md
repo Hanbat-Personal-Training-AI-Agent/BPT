@@ -159,6 +159,31 @@ Content-Type: application/json
 {"status": "failed", "error": "person_not_found"}
 ```
 
+`done`의 `result` 형식(schemaVersion 1). `smplBeta`·`boneLengthData`는 백엔드 `UserCalibration` 열 이름과 같다.
+
+```json
+{
+  "schemaVersion": 1,
+  "stub": false,
+  "bodyModel": "smpl_neutral_v1.1.0",
+  "userHeightCm": 172.0,
+  "smplBeta": [0.32, 0.03, "... 10개"],
+  "boneLengthData": {
+    "unit": "cm", "skeleton": "h36m17", "pose": "rest",
+    "segments": {"pelvis-right_hip": 14.6, "right_hip-right_knee": 43.9, "...": 0, "shoulder_width": 28.9, "hip_width": 29.4},
+    "appDefinitionDiffers": ["pelvis-spine", "spine-thorax", "thorax-neck", "neck-head", "thorax-left_shoulder", "thorax-right_shoulder"]
+  },
+  "jointsH36m": {"order": ["pelvis", "right_hip", "..."], "unit": "m", "pose": "rest", "positions": [[0, 0, 0], "... 17개"]},
+  "quality": {"heightErrorCm": 0.0, "perView": {"front": {"reprojectionErrorPx": 3.1}, "...": {}}},
+  "debug": {"per_view": {"front": {"body_pose": ["69개"], "global_orient": [0, 0, 0], "transl": [0, 0, 0], "camera": {"fx": 0, "fy": 0, "cx": 0, "cy": 0, "source": "attachment"}}}}
+}
+```
+
+- 관절 순서는 [이미지→포즈 파이프라인 §12](rtmpose_motionagformer_image_to_pose_pipeline.md)의 H36M 17관절이다. 뼈 길이는 휴식 자세(T-pose) 메시에서 `J_regressor_h36m`으로 뽑은 관절 사이 거리이고, 16개 부모-자식 구간과 `shoulder_width`(좌우 어깨), `hip_width`(좌우 엉덩이)다.
+- `appDefinitionDiffers`의 구간은 앱이 COCO 평균으로 합성하는 spine·thorax·neck·head 관절이 끼어 있어 앱 측정값과 정의가 다르다. H36M 엉덩이·어깨 관절도 COCO 관절과 위치가 달라 `hip_width`·`shoulder_width`를 앱 2D 값과 직접 비교하지 않는다.
+- `debug.per_view`는 사진별 SMPL 자세·전역 회전·이동과 사용한 카메라 값이며 앱 기능에 쓰지 않는다.
+- 1단계 스텁은 같은 형식에 `"stub": true`, 체형 필드는 `null`이다.
+
 `accepted`(완료 API)는 접수만 뜻하고, 체형 결과는 이 API가 `done`을 반환할 때만 있다. 실패 코드는 `person_not_found`, `low_keypoint_confidence`, `fit_diverged`, `internal_error` 등이다. 1단계 서버의 `result`는 입력 검증 뒤 반환하는 고정 값(`"stub": true`)이며 실제 체형 측정이 아니다. 앱의 결과 polling은 아직 구현하지 않았다.
 
 ## 실패와 재시도

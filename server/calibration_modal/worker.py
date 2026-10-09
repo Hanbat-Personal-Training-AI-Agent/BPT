@@ -1,9 +1,6 @@
 """The fitting job, independent of Modal so it runs in tests with a fake bucket and state."""
+import body
 import checks
-
-# Stage 1 stub: inputs are verified for real, the body result is a fixed placeholder.
-STUB_RESULT = {"stub": True, "betas": [0.0] * 10, "joints_h36m": None, "bone_lengths_cm": None,
-               "quality": None}
 
 
 class FitFailed(Exception):
@@ -42,5 +39,47 @@ def run(job, bucket, state, fit):
     return result
 
 
+def build_result(manifest, *, beta=None, joints=None, mesh_height_m=None, reprojection_px=None,
+                 per_view=None, stub=False):
+    """The result JSON. smplBeta and boneLengthData are named after the backend's UserCalibration
+    columns; everything the app should not rely on sits under debug.per_view.
+
+    beta: fitted SMPL β (10). joints: (17, 3) H36M joints of the rest-pose mesh in metres.
+    reprojection_px: {view: mean px}. per_view: {view: {body_pose, global_orient, transl}}.
+    """
+    views = [v["label"] for v in manifest["views"]]
+    segments = body.bone_lengths_cm(joints) if joints is not None else None
+    return {
+        "schemaVersion": 1,
+        "stub": stub,
+        "bodyModel": "smpl_neutral_v1.1.0",
+        "userHeightCm": manifest["userHeightCm"],
+        "smplBeta": None if beta is None else [float(b) for b in beta],
+        "boneLengthData": None if segments is None else {
+            "unit": "cm",
+            "skeleton": "h36m17",
+            "pose": "rest",
+            "segments": segments,
+            # The app synthesises spine/thorax/neck/head from COCO averages; these are not comparable.
+            "appDefinitionDiffers": [name for name in segments if body.app_definition_differs(name)],
+        },
+        "jointsH36m": None if joints is None else {
+            "order": list(body.H36M_JOINTS), "unit": "m", "pose": "rest",
+            "positions": [[round(float(c), 5) for c in j] for j in joints],
+        },
+        "quality": {
+            "heightErrorCm": None if mesh_height_m is None
+            else round(mesh_height_m * 100 - manifest["userHeightCm"], 2),
+            "perView": {v: {"reprojectionErrorPx": (reprojection_px or {}).get(v)} for v in views},
+        },
+        "debug": {"per_view": {
+            v["label"]: (per_view or {}).get(v["label"], {})
+            | {"camera": v.get("intrinsics", manifest.get("intrinsics"))}
+            for v in manifest["views"]
+        }},
+    }
+
+
 def stub_fit(manifest, photos):
-    return STUB_RESULT | {"userHeightCm": manifest["userHeightCm"]}
+    """Stage 1: inputs are verified for real, there is no body fit yet."""
+    return build_result(manifest, stub=True)

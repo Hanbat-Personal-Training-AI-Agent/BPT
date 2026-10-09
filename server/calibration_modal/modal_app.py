@@ -14,8 +14,8 @@ secrets = [modal.Secret.from_name("bpt-r2"), modal.Secret.from_name("bpt-jwt")]
 
 image = (
     modal.Image.debian_slim(python_version="3.12")
-    .pip_install("fastapi[standard]==0.143.0", "boto3==1.43.110", "pyjwt==2.15.1", "pillow==12.3.0")
-    .add_local_python_source("checks", "service", "storage", "worker")
+    .pip_install("fastapi[standard]==0.143.0", "boto3==1.43.110", "pyjwt==2.15.1", "pillow==12.3.0", "numpy==2.5.3")
+    .add_local_python_source("body", "checks", "service", "storage", "worker")
 )
 
 

@@ -10,7 +10,9 @@
 | `service.py` | API 3개, 멱등 접수 |
 | `checks.py` | 토큰, 식별자, 파일 목록, manifest, JPEG 검증 |
 | `storage.py` | S3 호환 버킷(boto3): presigned PUT, 조회 |
-| `worker.py` | 작업 실행과 상태 전이(`queued → running → done/failed`) |
+| `worker.py` | 작업 실행과 상태 전이(`queued → running → done/failed`), 결과 JSON 형식 |
+| `body.py` | β 키 사영, H36M 관절, 뼈 길이 (fitting 없이 가능한 부분) |
+| `prepare_weights.py` | SMPL 중립 모델 + `J_regressor_h36m`(좌우 순서 교정)을 npz로 만들어 Volume `bpt-weights`에 업로드 |
 | `e2e.py` | 배포된 서버에 앱과 같은 요청을 보내는 점검 스크립트 |
 
 ## 준비
@@ -62,6 +64,18 @@ BPT_TOKEN=<token> .venv/bin/python e2e.py \
   --storage-host <account_id>.r2.cloudflarestorage.com \
   [--session-dir <앱 Documents/calibration/<sessionId> 폴더>]
 ```
+
+## 체형 모델 가중치 (2단계)
+
+SMPL과 `J_regressor_h36m.npy`는 재배포가 금지되거나 출처 라이선스가 SMPL에 묶여 있어 git에 넣지 않는다. 배포하는 사람이 각자 받아서 Volume에 올린다.
+
+```sh
+# SMPL: https://smpl.is.tue.mpg.de (SMPL for Python v1.1.0, 연구·교육용 비상업 라이선스)
+# J_regressor_h36m.npy: SPIN fetch_data.sh가 받는 data.tar.gz 안의 data/J_regressor_h36m.npy
+python prepare_weights.py --smpl basicmodel_neutral_lbs_10_207_0_v1.1.0.pkl --h36m J_regressor_h36m.npy --upload
+```
+
+SPIN 배포본은 1~3행이 왼쪽 다리, 4~6행이 오른쪽 다리다. 스크립트가 앱 순서(오른쪽 먼저)로 바꾸고 SMPL 휴식 자세에서 좌우를 검사한다. 공식 pickle은 chumpy가 있어야 열린다.
 
 ## 상태 저장과 한계
 
