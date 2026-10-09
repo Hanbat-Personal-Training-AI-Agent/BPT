@@ -346,8 +346,10 @@ final class SquatEvaluator {
     ) -> Bool {
         var done = false
 
+        // A fast descent can reach `bottom` straight from `top` (forced transition) without a
+        // stable `descending`; it still starts the rep.
         if !repStarted,
-           status == .descending,
+           status == .descending || status == .bottom,
            previousStatus == .top || previousStatus == .unknown {
             startRep(frameIndex: frameIndex)
         }
@@ -369,8 +371,12 @@ final class SquatEvaluator {
             currentRepBottomFrame = frameIndex
         }
 
+        // Likewise a fast ascent goes `bottom` -> `top` without a stable `ascending`.
+        if repStarted && previousStatus == .bottom && status == .top {
+            sawAscending = true
+        }
         if repStarted,
-           previousStatus == .ascending,
+           previousStatus == .ascending || previousStatus == .bottom,
            status == .top {
             done = finalizeRepIfValid(frameIndex: frameIndex)
             resetCurrentRep()
