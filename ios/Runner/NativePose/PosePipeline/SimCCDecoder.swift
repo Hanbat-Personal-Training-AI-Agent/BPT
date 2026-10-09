@@ -86,15 +86,17 @@ enum CoreMLMultiArrayIndexing {
 }
 
 /// The RTMPose-s checkpoint the app runs (the replay tools too, unless given `--model`).
-/// Both mlpackages ship in the bundle, so switching is this one value.
-/// Still `.coco17`: on the same footage Halpe26 changed a squat rep count (1 → 2 on
+/// Both mlpackages ship in the bundle, so switching is this one value; Xcode scheme environment
+/// BPT_POSE_MODEL=halpe26 picks Halpe26 without a code change.
+/// Default `.coco17`: on the same footage Halpe26 changed a squat rep count (1 → 2 on
 /// squat_03) and a calibration capture (guided dummy_03 finishes instead of missing
 /// leftfront), so it needs a decision before it ships.
 enum RTMPoseModel: String, CaseIterable {
     case coco17 = "rtmpose_s_forward"
     case halpe26 = "rtmpose_s_halpe26_forward"
 
-    static let active: RTMPoseModel = .halpe26
+    static let active: RTMPoseModel = ProcessInfo.processInfo.environment["BPT_POSE_MODEL"]
+        .flatMap { name in allCases.first { "\($0)" == name } } ?? .coco17
 }
 
 /// Halpe26 indices, from MMPose configs/_base_/datasets/halpe26.py. 0–16 are COCO17 in the
