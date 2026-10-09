@@ -9,9 +9,28 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-class _EmptyRepository implements IWorkoutRepository {
+WorkoutRecordModel _record(String exerciseId, {double weightKg = 0}) =>
+    WorkoutRecordModel(
+      id: '$exerciseId-${_seq++}',
+      exerciseId: exerciseId,
+      exerciseName: exerciseId,
+      date: DateTime(2026, 10, 1),
+      weightKg: weightKg,
+      totalReps: 10,
+      correctReps: 10,
+      incorrectReps: 0,
+      durationSeconds: 60,
+      postureScore: 0,
+      feedbackNotes: const [],
+    );
+var _seq = 0;
+
+class _FakeRepository implements IWorkoutRepository {
+  _FakeRepository(this.records);
+  final List<WorkoutRecordModel> records;
+
   @override
-  Future<List<WorkoutRecordModel>> getWorkoutRecords() async => const [];
+  Future<List<WorkoutRecordModel>> getWorkoutRecords() async => records;
 
   @override
   Future<WorkoutRecordModel> submitWorkoutRecord(
@@ -20,25 +39,31 @@ class _EmptyRepository implements IWorkoutRepository {
 }
 
 void main() {
-  test('mock exercise ratios add up to exactly 100%', () {
-    final container = ProviderContainer();
-    addTearDown(container.dispose);
-    final data = container.read(reportAnalysisProvider);
-    final sum = data.ratios.fold<int>(0, (a, r) => a + r.percent);
-    expect(sum, 100);
-    expect(data.ratios.length, 6);
-    expect(data.ratios.any((r) => r.labelKo == '기타'), isFalse);
+  test('ratios come from real records and add up to exactly 100%', () {
+    final data = buildReportAnalysis([
+      _record('squat'),
+      _record('squat'),
+      _record('squat'),
+      _record('benchpress'),
+      _record('benchpress'),
+      _record('deadlift'),
+    ]);
+    expect(data.totalSessions, 6);
+    expect(data.ratios.map((r) => r.labelKo), ['스쿼트', '벤치프레스', '데드리프트']);
+    expect(data.ratios.map((r) => r.percent), [50, 33, 17]);
+    expect(data.ratios.fold<int>(0, (a, r) => a + r.percent), 100);
+    expect(data.insight(true), contains('스쿼트를 가장 많이 했어'));
   });
 
-  test('mistake counts add up to the displayed total', () {
-    final container = ProviderContainer();
-    addTearDown(container.dispose);
-    final data = container.read(reportAnalysisProvider);
-    final sum = data.mistakes.fold<int>(0, (a, m) => a + m.count);
-    expect(sum, data.totalMistakes);
+  test('no records → empty ratios, no mistakes, waiting message', () {
+    final data = buildReportAnalysis(const []);
+    expect(data.totalSessions, 0);
+    expect(data.ratios, isEmpty);
+    expect(data.mistakes, isEmpty);
+    expect(data.insight(true), contains('기록이 쌓이면'));
   });
 
-  testWidgets('analysis tab renders the ratio donut, mistakes and insight',
+  testWidgets('analysis tab renders real ratios and the empty mistakes state',
       (tester) async {
     GoogleFonts.config.allowRuntimeFetching = false;
     tester.view.physicalSize = const Size(390, 1400);
@@ -48,8 +73,8 @@ void main() {
 
     await tester.pumpWidget(ProviderScope(
       overrides: [
-        workoutRecordsProvider.overrideWith(
-            (ref) => WorkoutRecordsNotifier(_EmptyRepository())),
+        workoutRecordsProvider.overrideWith((ref) => WorkoutRecordsNotifier(
+            _FakeRepository([_record('squat'), _record('pushup')]))),
       ],
       child: const MaterialApp(home: ReportScreen()),
     ));
@@ -59,20 +84,11 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('종목별 비율'), findsOneWidget);
-    expect(find.text('42'), findsOneWidget);
     expect(find.text('세션'), findsOneWidget);
-    expect(find.text('스쿼트'), findsOneWidget);
-    expect(find.text('30%'), findsOneWidget);
-    expect(find.text('랫풀다운'), findsOneWidget);
-    expect(find.text('8%'), findsOneWidget);
-    expect(find.text('기타'), findsNothing);
-
+    expect(find.text('스쿼트'), findsWidgets);
+    expect(find.text('50%'), findsNWidgets(2));
     expect(find.text('자주 나온 실수'), findsOneWidget);
-    expect(find.text('총 68회'), findsOneWidget);
-    expect(find.text('무릎 안쪽 모임'), findsOneWidget);
-    expect(find.text('24회'), findsOneWidget);
-
-    expect(find.textContaining('하체 운동을 많이 했고'), findsOneWidget);
+    expect(find.text('자세 실수 분석은 곧 보여줄게!'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }
