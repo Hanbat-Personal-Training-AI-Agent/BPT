@@ -2,7 +2,7 @@
 
 앱이 촬영한 사진 4장과 `manifest.json`을 받아 검증하고 체형 fitting 작업을 접수한다. 계약은 [캘리브레이션 서버리스 업로드](../../docs/research/calibration_serverless_upload.md)가 기준이다.
 
-현재 1단계: 업로드 URL 발급, 완료 검증, 단 한 번의 작업 접수, 작업 상태 조회. `fit_body`는 입력을 다시 검증한 뒤 **고정 결과(`"stub": true`)** 를 저장하는 스텁이며 실제 체형 측정이 아니다. GPU도 아직 쓰지 않는다.
+업로드 URL 발급, 완료 검증, 단 한 번의 작업 접수, 작업 상태 조회, 그리고 L4 GPU의 `fit_body`(`fitting.py`): manifest의 RTMPose COCO-17로 사람 상자 → SAM 3D Body(사진별) → MHR 공식 변환기로 SMPL(β 하나 공유) → 2D 키포인트 재투영으로 공동 보정 → β 키 사영 → 자세 재보정. 마스크·실루엣 손실은 없다(v1).
 
 | 파일 | 역할 |
 | --- | --- |
@@ -11,6 +11,7 @@
 | `checks.py` | 토큰, 식별자, 파일 목록, manifest, JPEG 검증 |
 | `storage.py` | S3 호환 버킷(boto3): presigned PUT, 조회 |
 | `worker.py` | 작업 실행과 상태 전이(`queued → running → done/failed`), 결과 JSON 형식 |
+| `fitting.py` | GPU fitting (SAM 3D Body, MHR→SMPL, 재투영 보정) |
 | `body.py` | β 키 사영, H36M 관절, 뼈 길이 (fitting 없이 가능한 부분) |
 | `prepare_weights.py` | SMPL 중립 모델 + `J_regressor_h36m`(좌우 순서 교정)을 npz로 만들어 Volume `bpt-weights`에 업로드 |
 | `e2e.py` | 배포된 서버에 앱과 같은 요청을 보내는 점검 스크립트 |
@@ -76,6 +77,10 @@ python prepare_weights.py --smpl basicmodel_neutral_lbs_10_207_0_v1.1.0.pkl --h3
 ```
 
 SPIN 배포본은 1~3행이 왼쪽 다리, 4~6행이 오른쪽 다리다. 스크립트가 앱 순서(오른쪽 먼저)로 바꾸고 SMPL 휴식 자세에서 좌우를 검사한다. 공식 pickle은 chumpy가 있어야 열린다.
+
+SAM 3D Body 체크포인트(`facebook/sam-3d-body-dinov3`, 접근 승인 필요)는 `modal run modal_app.py::download_weights`로 Volume에 받는다(Secret `bpt-hf`의 HF_TOKEN).
+
+알려진 우회: pymomentum-cpu 0.1.114로 MHR FBX 리그를 읽으면 세그폴트가 나서, SAM 3D Body는 `MOMENTUM_ENABLED=0`으로 체크포인트의 TorchScript MHR을 쓰고, 변환기에는 MHR 면 정보만 넘긴다(`MhrTopology`, 정점 입력 변환은 면만 읽는다).
 
 ## 상태 저장과 한계
 
