@@ -12,6 +12,7 @@ import '../../../core/i18n/locale_provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_toast.dart';
 import '../../../data/mock_data.dart';
+import '../../home/providers/home_provider.dart';
 
 /// Preparation phases shown before the native camera PlatformView appears.
 enum _PrepPhase { alignHint, countdown, live }
@@ -99,7 +100,7 @@ class _NativePoseWorkoutScreenState
     if (setNumber >= 1 && setNumber <= weights.length) {
       return weights[setNumber - 1];
     }
-    return mockWeightKgByExercise[widget.exerciseId] ?? 20;
+    return ref.read(defaultWeightKgProvider(widget.exerciseId));
   }
 
   int get _weightForSet => _weightForSetNumber(_currentSet);

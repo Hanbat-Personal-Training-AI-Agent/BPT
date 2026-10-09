@@ -3,13 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/i18n/locale_provider.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../data/mock_data.dart';
+import '../../../models/workout_record_model.dart';
+import '../../home/providers/home_provider.dart';
 
-// ── ⚠️ MOCK DATA ─────────────────────────────────────────────────────────
-// 분석 탭은 아직 운동 종목별 세션 집계와 자세 실수 분류를 만들어 주는 백엔드가
-// 없어서(리포트 화면의 운동량 탭과 달리 실제 WorkoutRecordModel에서 계산하지
-// 않는다), 화면 레이아웃만 먼저 구현하고 고정된 목데이터를 채워 둔 상태다.
-// 특히 "자주 나온 실수" 목록은 실제 자세 평가 로직이 생기면 항목/문구가 통째로
-// 바뀔 자리표시자이니, 실 데이터 연동 시 이 파일 전체를 교체한다.
+// 리포트 > 분석 탭 데이터. 종목별 비율과 세션 수는 실제 운동 기록
+// (allRecordsProvider)에서 계산한다. "자주 나온 실수"는 기록에 자세 피드백 횟수가
+// 아직 저장되지 않아 빈 목록이다 — 백엔드가 기록에 피드백 횟수를 내려주면 여기서
+// 집계한다 (백엔드 요청 문서 "요청 1").
 
 /// 분석 탭 하나의 종목 비율 항목.
 class ExerciseRatioItem {
@@ -65,84 +66,87 @@ class ReportAnalysisData {
 
 final reportAnalysisProvider = Provider<ReportAnalysisData>((ref) {
   ref.watch(selectedLanguageProvider); // 언어가 바뀌면 문구도 다시 계산
-  return _mockAnalysisData;
+  return buildReportAnalysis(ref.watch(allRecordsProvider));
 });
 
-const _mockAnalysisData = ReportAnalysisData(
-  totalSessions: 42,
-  // 6종목 합이 정확히 100%가 되도록 맞춘 목데이터. '기타' 항목은 없다.
-  // 색은 범례를 위에서 아래로 훑었을 때 색상환을 따라 매끄럽게 이어지도록
-  // (핑크 → 빨강 → 라임 → 민트 → 파랑 → 보라) 정렬했다.
-  ratios: [
-    ExerciseRatioItem(
-      labelKo: '스쿼트',
-      labelEn: 'Squat',
-      percent: 30,
-      color: AppColors.pink,
-    ),
-    ExerciseRatioItem(
-      labelKo: '벤치프레스',
-      labelEn: 'Bench Press',
-      percent: 22,
-      color: AppColors.red,
-    ),
-    ExerciseRatioItem(
-      labelKo: '데드리프트',
-      labelEn: 'Deadlift',
-      percent: 17,
-      color: AppColors.green,
-    ),
-    ExerciseRatioItem(
-      labelKo: '바벨로우',
-      labelEn: 'Barbell Row',
-      percent: 13,
-      color: Color(0xFF47FFCE),
-    ),
-    ExerciseRatioItem(
-      labelKo: '푸쉬업',
-      labelEn: 'Push Up',
-      percent: 10,
-      color: Color(0xFF54BDFF),
-    ),
-    ExerciseRatioItem(
-      labelKo: '랫풀다운',
-      labelEn: 'Lat Pulldown',
-      percent: 8,
-      color: AppColors.purple,
-    ),
-  ],
-  mistakes: [
-    MistakeItem(
-      labelKo: '무릎 안쪽 모임',
-      labelEn: 'Knees caving in',
-      count: 24,
-      color: Color(0xFF47FFCE),
-    ),
-    MistakeItem(
-      labelKo: '상체 과도한 숙임',
-      labelEn: 'Excessive torso lean',
-      count: 17,
-      color: AppColors.pink,
-    ),
-    MistakeItem(
-      labelKo: '하강 깊이 부족',
-      labelEn: 'Shallow depth',
-      count: 13,
-      color: AppColors.purple,
-    ),
-    MistakeItem(
-      labelKo: '팔꿈치 벌어짐',
-      labelEn: 'Elbows flaring',
-      count: 9,
-      color: Color(0xFF54BDFF),
-    ),
-    MistakeItem(
-      labelKo: '허리 과신전',
-      labelEn: 'Lower back overextension',
-      count: 5,
-      color: AppColors.green,
-    ),
-  ],
-  insightKo: '하체 운동을 많이 했고, \n무릎 정렬 문제가 가장 자주 보였어.',
-  insightEn: 'You trained your lower body a lot, \nand knee alignment was the most common issue.'
-);
+/// 범례를 위에서 아래로 훑었을 때 색상환을 따라 이어지는 순서
+/// (핑크 → 빨강 → 라임 → 민트 → 파랑). 운동마다 색을 고정한다.
+const Map<String, Color> _exerciseColors = {
+  'squat': AppColors.pink,
+  'benchpress': AppColors.red,
+  'deadlift': AppColors.green,
+  'barbell-row': Color(0xFF47FFCE),
+  'pushup': Color(0xFF54BDFF),
+};
+
+ReportAnalysisData buildReportAnalysis(List<WorkoutRecordModel> records) {
+  final counts = <String, int>{};
+  final names = <String, (String, String)>{};
+  for (final r in records) {
+    counts[r.exerciseId] = (counts[r.exerciseId] ?? 0) + 1;
+    final known = mockExercises.where((e) => e.id == r.exerciseId).firstOrNull;
+    names[r.exerciseId] = known != null
+        ? (known.nameKr, known.name)
+        : (r.exerciseName, r.exerciseName);
+  }
+  final total = records.length;
+  final ids = counts.keys.toList()
+    ..sort((a, b) => counts[b]!.compareTo(counts[a]!));
+  final percents = _percentsSummingTo100([for (final id in ids) counts[id]!]);
+
+  final ratios = [
+    for (final (i, id) in ids.indexed)
+      ExerciseRatioItem(
+        labelKo: names[id]!.$1,
+        labelEn: names[id]!.$2,
+        percent: percents[i],
+        color: _exerciseColors[id] ?? AppColors.purple,
+      ),
+  ];
+
+  final String insightKo;
+  final String insightEn;
+  if (ratios.isEmpty) {
+    insightKo = '운동 기록이 쌓이면\n코리가 분석해 줄게!';
+    insightEn = "Once you log some workouts,\nI'll break them down for you!";
+  } else {
+    final top = ratios.first;
+    insightKo = '${top.labelKo}${_objectParticle(top.labelKo)} 가장 많이 했어!\n'
+        '전체 운동의 ${top.percent}%야.';
+    insightEn = 'You did ${top.labelEn} the most!\n'
+        "That's ${top.percent}% of your workouts.";
+  }
+
+  return ReportAnalysisData(
+    totalSessions: total,
+    ratios: ratios,
+    mistakes: const [],
+    insightKo: insightKo,
+    insightEn: insightEn,
+  );
+}
+
+/// 반올림 오차를 큰 나머지 순으로 나눠 합이 정확히 100이 되게 한다.
+List<int> _percentsSummingTo100(List<int> counts) {
+  final total = counts.fold<int>(0, (a, c) => a + c);
+  if (total == 0) return [for (final _ in counts) 0];
+  final exact = [for (final c in counts) c * 100 / total];
+  final result = [for (final e in exact) e.floor()];
+  var left = 100 - result.fold<int>(0, (a, c) => a + c);
+  final order = List.generate(counts.length, (i) => i)
+    ..sort((a, b) => (exact[b] - result[b]).compareTo(exact[a] - result[a]));
+  for (final i in order) {
+    if (left <= 0) break;
+    result[i] += 1;
+    left -= 1;
+  }
+  return result;
+}
+
+/// 받침이 있으면 '을', 없으면 '를'.
+String _objectParticle(String word) {
+  if (word.isEmpty) return '를';
+  final code = word.codeUnitAt(word.length - 1);
+  if (code < 0xAC00 || code > 0xD7A3) return '를';
+  return (code - 0xAC00) % 28 == 0 ? '를' : '을';
+}

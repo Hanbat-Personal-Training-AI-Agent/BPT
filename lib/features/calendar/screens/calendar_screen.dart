@@ -505,9 +505,7 @@ class _CalendarRecordTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ex = findExercise(record.exerciseId);
-    final weight = record.weightKg > 0
-        ? record.weightKg
-        : mockWeightKgByExercise[record.exerciseId]?.toDouble();
+    final double? weight = record.weightKg > 0 ? record.weightKg : null;
 
     return GestureDetector(
       onTap: () => context.push(
