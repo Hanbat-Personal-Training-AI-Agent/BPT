@@ -63,7 +63,7 @@ void main() {
         child: const MaterialApp(home: AccountRecoveryScreen())));
     final fields = find.byType(TextField);
     expect(tester.widget<TextField>(fields.at(1)).enabled, isFalse);
-    expect(find.text('인증된 로그인 이메일'), findsNothing);
+    expect(find.text('인증된 이메일'), findsNothing);
     await tester.enterText(fields.at(0), 'jihoon@bpt.app');
     expect(tester.widget<TextField>(fields.at(0)).focusNode!.hasFocus, isTrue);
     final border = tester
@@ -81,18 +81,18 @@ void main() {
     await tester.pump();
     await tester.tap(find.text('인증하기'));
     await tester.pumpAndSettle();
-    expect(find.text('인증된 로그인 이메일'), findsNothing);
+    expect(find.text('인증된 이메일'), findsNothing);
     expect(find.text('인증 코드가 맞지 않아. 다시 확인해줘.'), findsOneWidget);
     await tester.enterText(fields.at(1), _validCode);
     await tester.pump();
     await tester.tap(find.text('인증하기'));
     await tester.pumpAndSettle();
     expect(find.text('인증 완료'), findsOneWidget);
-    expect(find.text('인증된 로그인 이메일'), findsOneWidget);
+    expect(find.text('인증된 이메일'), findsOneWidget);
     expect(tester.widget<TextField>(fields.at(1)).focusNode!.hasFocus, isFalse);
     await tester.enterText(fields.at(0), 'different@bpt.app');
     await tester.pump();
-    expect(find.text('인증된 로그인 이메일'), findsNothing);
+    expect(find.text('인증된 이메일'), findsNothing);
     expect(tester.widget<TextField>(fields.at(1)).enabled, isFalse);
     tester.view.physicalSize = const Size(320, 568);
     tester.view.viewInsets = const FakeViewPadding(bottom: 250);
