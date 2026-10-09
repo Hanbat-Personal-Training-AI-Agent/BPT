@@ -9,13 +9,30 @@ import torch
 
 
 ROOT = Path(__file__).resolve().parents[1]
-CONFIG_PATH = ROOT / "models/rtmpose/rtmpose-s_8xb256-420e_coco-256x192.py"
-CHECKPOINT_PATH = ROOT / "models/rtmpose/rtmpose-s_coco.pth"
+# Same RTMPose-s network, two checkpoints. Pick with BPT_RTMPOSE_VARIANT=coco17|halpe26
+# (default coco17). Halpe26 = COCO17 order for 0-16, then head, neck, hip, toes, heels.
+VARIANTS = {
+    "coco17": (
+        "rtmpose-s_8xb256-420e_coco-256x192.py",
+        "rtmpose-s_coco.pth",
+        "rtmpose_s",
+    ),
+    "halpe26": (
+        "rtmpose-s_8xb1024-700e_body8-halpe26-256x192.py",
+        "rtmpose-s_simcc-body7_pt-body7-halpe26_700e-256x192-7f134165_20230605.pth",
+        "rtmpose_s_halpe26",
+    ),
+}
+VARIANT = os.environ.get("BPT_RTMPOSE_VARIANT", "coco17")
+_config_name, _checkpoint_name, _stem = VARIANTS[VARIANT]
+CONFIG_PATH = ROOT / "models/rtmpose" / _config_name
+CHECKPOINT_PATH = ROOT / "models/rtmpose" / _checkpoint_name
 VIDEO_PATH = ROOT / "assets/smoke/vedio_1.mp4"
 COREML_DIR = ROOT / "assets/coreml"
-TRACE_PATH = COREML_DIR / "rtmpose_s_forward_trace.pt"
+# Trace and mlpackage are per variant so a cached trace never leaks into the other model.
+TRACE_PATH = COREML_DIR / f"{_stem}_forward_trace.pt"
 FORWARD_INPUT_NPY = COREML_DIR / "rtmpose_s_forward_input.npy"
-COREML_MODEL_PATH = COREML_DIR / "rtmpose_s_forward.mlpackage"
+COREML_MODEL_PATH = COREML_DIR / f"{_stem}_forward.mlpackage"
 INPUT_NAME = "input_image"
 OUTPUT_NAMES = ("simcc_x", "simcc_y")
 INPUT_SIZE_WH = (192, 256)

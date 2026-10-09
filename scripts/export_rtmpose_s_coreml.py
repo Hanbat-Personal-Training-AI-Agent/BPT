@@ -25,6 +25,7 @@ from rtmpose_s_coreml_common import (  # noqa: E402
     INPUT_SHAPE,
     OUTPUT_NAMES,
     TRACE_PATH,
+    VARIANT,
     load_rtmpose_model,
     load_or_create_forward_input,
     trace_forward_model,
@@ -52,6 +53,7 @@ def main():
             mlmodel = convert_trace(traced, precision)
             mlmodel.user_defined_metadata["precision"] = precision
             mlmodel.user_defined_metadata["export_scope"] = "rtmpose_s_forward_only"
+            mlmodel.user_defined_metadata["keypoints"] = VARIANT
             mlmodel.user_defined_metadata["source"] = "RTMPose-s model.extract_feat + model.head fixed [1,3,256,192]"
             if COREML_MODEL_PATH.exists():
                 if COREML_MODEL_PATH.is_dir():

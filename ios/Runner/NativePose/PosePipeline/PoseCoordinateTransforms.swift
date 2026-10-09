@@ -133,6 +133,27 @@ enum PoseCoordinateTransforms {
         }
     }
 
+    /// Halpe26 toes and heels through the same inverse affine; nil for the COCO17 model.
+    static func applyInverseAffineToFeet(
+        decoded: SimCCDecodeResult,
+        inverseAffine: Affine2x3
+    ) -> FootKeypoints? {
+        let offset = SimCCDecoder.cocoJointCount
+        guard decoded.extraInputCoordinates.count == Halpe26.jointCount - offset else { return nil }
+        func point(_ index: Int) -> PoseKeypoint {
+            let p = inverseAffine.apply(decoded.extraInputCoordinates[index - offset])
+            return PoseKeypoint(x: p.x, y: p.y, confidence: decoded.extraConfidences[index - offset])
+        }
+        return FootKeypoints(
+            leftBigToe: point(Halpe26.leftBigToe),
+            rightBigToe: point(Halpe26.rightBigToe),
+            leftSmallToe: point(Halpe26.leftSmallToe),
+            rightSmallToe: point(Halpe26.rightSmallToe),
+            leftHeel: point(Halpe26.leftHeel),
+            rightHeel: point(Halpe26.rightHeel)
+        )
+    }
+
     static func normalizedMotionAGFormerFrame(
         fromCOCO17 coco17: [PoseKeypoint],
         imageWidth: Int,

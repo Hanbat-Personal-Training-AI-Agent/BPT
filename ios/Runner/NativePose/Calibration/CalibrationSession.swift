@@ -115,7 +115,7 @@ final class CalibrationSession: NSObject {
     private func begin(userHeightCm: Double) {
         guard !isRunning, store == nil else { return }
         do {
-            let model = try loadModel(named: "rtmpose_s_forward")
+            let model = try loadModel(named: RTMPoseModel.active.rawValue)
             analyzer = try CalibrationFrameAnalyzer(model: model, context: ciContext,
                                                 minConfidence: config.framing.minKeypointConfidence)
             let store = try CalibrationStore()

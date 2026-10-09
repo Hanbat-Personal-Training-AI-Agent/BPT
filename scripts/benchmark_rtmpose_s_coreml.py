@@ -16,8 +16,10 @@ if str(SCRIPT_DIR) not in sys.path:
 from rtmpose_s_coreml_common import COREML_MODEL_PATH, INPUT_NAME, load_or_create_forward_input  # noqa: E402
 
 
-OUTPUT_JSON = ROOT / "assets/coreml/rtmpose_s_coreml_benchmark_macos.json"
-OUTPUT_CSV = ROOT / "assets/coreml/rtmpose_s_coreml_benchmark_macos.csv"
+# Optional argv[1]: another .mlpackage to benchmark (e.g. the COCO17 one shipped in the app).
+MODEL_PATH = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else COREML_MODEL_PATH
+OUTPUT_JSON = ROOT / f"assets/coreml/{MODEL_PATH.stem}_benchmark_macos.json"
+OUTPUT_CSV = ROOT / f"assets/coreml/{MODEL_PATH.stem}_benchmark_macos.csv"
 WARMUP = 10
 ITERATIONS = 100
 
@@ -27,7 +29,7 @@ def main():
 
     input_tensor = load_or_create_forward_input()
     load_start = time.perf_counter()
-    model = ct.models.MLModel(str(COREML_MODEL_PATH), compute_units=ct.ComputeUnit.ALL)
+    model = ct.models.MLModel(str(MODEL_PATH), compute_units=ct.ComputeUnit.ALL)
     model_load_ms = elapsed_ms(load_start)
 
     first_start = time.perf_counter()
@@ -45,7 +47,7 @@ def main():
 
     stats = summarize_times(times)
     result = {
-        "coreml_model_path": "assets/coreml/rtmpose_s_forward.mlpackage",
+        "coreml_model_path": str(MODEL_PATH.relative_to(ROOT)),
         "input_shape": list(input_tensor.shape),
         "model_load_ms": float(model_load_ms),
         "first_prediction_ms": float(first_prediction_ms),
