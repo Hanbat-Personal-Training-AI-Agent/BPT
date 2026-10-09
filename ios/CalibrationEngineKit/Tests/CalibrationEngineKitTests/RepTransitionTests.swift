@@ -37,4 +37,54 @@ final class RepTransitionTests: XCTestCase {
         }
         XCTAssertEqual(squatReps(poses), 0)
     }
+
+    /// Bent-over row facing +x. `spread` = shoulder/hip/arm half-width in x (0 = pure side view,
+    /// large = rear view). `pull` 0 = arms hanging, 1 = bar at the lower chest. `farArmConfidence`
+    /// for the right elbow/wrist (side view hides it).
+    private func rowPose(pull: Double, spread: Double, farArmConfidence: Double = 0.9) -> [PoseKeypoint] {
+        func lerp(_ a: (Double, Double), _ b: (Double, Double)) -> (Double, Double) {
+            (a.0 + (b.0 - a.0) * pull, a.1 + (b.1 - a.1) * pull)
+        }
+        let elbow = lerp((200, 80), (130, 40)), wrist = lerp((200, 220), (190, 50))
+        var k = [PoseKeypoint](repeating: kp(260, -90), count: 17)
+        for (sign, ids) in [(-1.0, (5, 7, 9, 11)), (1.0, (6, 8, 10, 12))] {
+            let dx = sign * spread
+            let armC = sign > 0 ? farArmConfidence : 0.9
+            k[ids.0] = kp(200 + dx, -60)
+            k[ids.1] = kp(elbow.0 + dx, elbow.1, armC)
+            k[ids.2] = kp(wrist.0 + dx, wrist.1, armC)
+            k[ids.3] = kp(dx, 0)
+        }
+        return k
+    }
+
+    private func rowRun(spread: Double, farArmConfidence: Double = 0.9) -> (reps: Int, tracker: FormWarningTracker) {
+        let evaluator = BarbellRowEvaluator()
+        evaluator.formTracker.common.enabledFeedbackKeys = ["setup_side_view"]
+        let ramp = (0...12).map { Double($0) / 12 }
+        let pulls = Array(repeating: 0.0, count: 40)
+            + Array(repeating: Array(repeating: 0.0, count: 20) + ramp + Array(repeating: 1.0, count: 10) + ramp.reversed(), count: 3).flatMap { $0 }
+            + Array(repeating: 0.0, count: 20)
+        var rep = 0
+        for (i, p) in pulls.enumerated() {
+            rep = evaluator.evaluate(frameIndex: i, coco17: rowPose(pull: p, spread: spread, farArmConfidence: farArmConfidence)).rep
+        }
+        return (rep, evaluator.formTracker)
+    }
+
+    func testRowSideViewCountsWithOneConfidentArm() {
+        let run = rowRun(spread: 5, farArmConfidence: 0.1)
+        XCTAssertEqual(run.tracker.sideView, true)
+        XCTAssertEqual(run.reps, 3)
+        XCTAssertEqual(run.tracker.drainEvents(), [])
+    }
+
+    func testRowRearViewIsGatedWithSetupGuidance() {
+        // Shoulder width / torso length ≈ 0.8 (Exercise3D rear cams: 0.66–0.84).
+        let run = rowRun(spread: 85)
+        XCTAssertEqual(run.tracker.sideView, false)
+        XCTAssertEqual(run.reps, 0)
+        XCTAssertTrue(run.tracker.reports.isEmpty)
+        XCTAssertEqual(run.tracker.drainEvents().map(\.key), ["setup_side_view"])
+    }
 }

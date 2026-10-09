@@ -108,6 +108,15 @@ struct BarbellRowFormConfig {
     var shortPullBelowBaseline = 0.10
     /// row_head_up (참고): ear moves above the shoulder–hip line, vs the rep start, by more than this × torso length. 임시값 — 테스트 영상으로 조정
     var headUpDeviation = 0.15
+    /// Side-view gate (rep counting + warnings): median shoulder width / torso length over the last
+    /// `sideViewWindowFrames` frames <= this = side. Exercise3D rows: cams 20–36° from side 0.11–0.51,
+    /// rear cams 76–81° 0.66–0.84; 0.56 = the widest 36° subject (0.509) scaled to 40° (× sin40/sin36).
+    var sideViewMaxShoulderRatio = 0.56
+    /// Once decided, the side flips only past the cutoff ± this. 임시값 — 테스트 영상으로 조정
+    var sideViewHysteresis = 0.03
+    /// Rolling window (frames, ~5 s) / frames needed before the first decision (nil until then).
+    var sideViewWindowFrames = 150
+    var sideViewMinFrames = 30
     /// row_shrug (개선, 실험): off until normal vs shrug footage separates it. 임시값 — 테스트 영상으로 조정
     var shrugEnabled = false
     /// row_shrug: ear–shoulder distance shrinks by more than this fraction of its rep-start value. 임시값 — 테스트 영상으로 조정
@@ -254,6 +263,7 @@ struct FormFrameSample {
     var shoulderY: Double?
     var torsoLength: Double?
     var frontView: Bool?
+    var shoulderRatio: Double?
     var kneeAnkleGapRatio: Double?
     var heelToe: Double?
     var torso3D: Double?
@@ -337,6 +347,10 @@ final class FormWarningTracker {
     private(set) var warningRepCounts: [String: Int] = [:]
     private(set) var reports: [FormRepReport] = []
     private(set) var side: FormSide?
+    /// Barbell row side-view gate (see `BarbellRowFormConfig.sideViewMaxShoulderRatio`); nil until
+    /// `sideViewMinFrames` frames. Other exercises leave it nil.
+    private(set) var sideView: Bool?
+    private var shoulderRatios: [Double] = []
 
     private var facing: Double?
     private var facingCandidateRun = 0
@@ -360,6 +374,8 @@ final class FormWarningTracker {
         warningRepCounts = [:]
         reports = []
         side = nil
+        sideView = nil
+        shoulderRatios = []
         facing = nil
         facingCandidateRun = 0
         current = nil
@@ -404,6 +420,24 @@ final class FormWarningTracker {
         }
         current = sample
         updateTracking(sample)
+        if exercise == .barbellRow { updateSideView(sample) }
+    }
+
+    /// Rolling-median shoulder ratio vs the cutoff, with hysteresis. Turning "not side" queues
+    /// setup_side_view (sent only if enabled, like every key).
+    private func updateSideView(_ sample: FormFrameSample) {
+        guard let ratio = sample.shoulderRatio else { return }
+        shoulderRatios.append(ratio)
+        if shoulderRatios.count > row.sideViewWindowFrames { shoulderRatios.removeFirst() }
+        guard shoulderRatios.count >= row.sideViewMinFrames, let median = Self.median(shoulderRatios) else { return }
+        let cut = row.sideViewMaxShoulderRatio, h = row.sideViewHysteresis
+        let next = switch sideView {
+        case nil: median <= cut
+        case true?: median <= cut + h
+        case false?: median < cut - h
+        }
+        if next == false && sideView != false { emit(FormFeedbackEvent(key: "setup_side_view", n: nil, silent: false)) }
+        sideView = next
     }
 
     func beginRep() {
@@ -563,7 +597,8 @@ final class FormWarningTracker {
         if let ls = p(5), let rs = p(6), let lh = p(11), let rh = p(12) {
             let torso = hypot((ls.x + rs.x - lh.x - rh.x) / 2, (ls.y + rs.y - lh.y - rh.y) / 2)
             if torso > 1e-8 {
-                let front = abs(ls.x - rs.x) / torso >= common.frontViewShoulderRatio
+                s.shoulderRatio = abs(ls.x - rs.x) / torso
+                let front = s.shoulderRatio! >= common.frontViewShoulderRatio
                 s.frontView = front
                 // Signed: crossed knees go negative.
                 if front, let lk = p(13), let rk = p(14), let la = p(15), let ra = p(16), abs(la.x - ra.x) > 1 {
@@ -700,7 +735,9 @@ final class FormWarningTracker {
             guard first.count == n, last.count == n else { return nil }
             return last.reduce(0, +) / Double(n) - first.reduce(0, +) / Double(n) > t
         }
-        let sideView = (m["front_view_fraction"] ?? 0) < common.frontViewRepFraction
+        // Row: the session gate when decided, else the per-rep front-view fraction.
+        let sideView = (exercise == .barbellRow ? self.sideView : nil)
+            ?? ((m["front_view_fraction"] ?? 0) < common.frontViewRepFraction)
         let firstRep = history.isEmpty
 
         switch exercise {
@@ -802,6 +839,7 @@ final class WorkoutFormLog {
             "frames_3d": tracker.sessionFrames3D,
             "bad_3d_frames": tracker.sessionBad3DFrames,
             "warning_rep_counts": tracker.warningRepCounts,
+            "side_view": tracker.sideView.map { $0 as Any } ?? NSNull(),
         ])
         queue.async { [self] in
             try? handle?.close()

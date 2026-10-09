@@ -93,9 +93,13 @@ final class BarbellRowEvaluator {
     }
 
     /// `pose3D`: MotionAGFormer H36M17 selected3D when available (form metrics only; nil in the live app).
+    /// Side-view gate (formTracker.sideView, nil = not decided yet → side). Not side: the status
+    /// machine still runs (and is reported/logged) but no rep is started or counted, so no warnings;
+    /// the tracker queues setup_side_view instead.
     func evaluate(frameIndex: Int, coco17: [PoseKeypoint], pose3D: [SIMD3<Double>]? = nil) -> BarbellRowFrameResult {
-        let measurements = computeMeasurements(coco17: coco17)
-        let rawCandidate = classifyRawStatusCandidate(measurements)
+        let sideView = formTracker.sideView != false
+        let measurements = computeMeasurements(coco17: coco17, sideView: sideView)
+        let rawCandidate = classifyRawStatusCandidate(measurements, sideView: sideView)
         let previousStatus = stableStatus
         let status = updateStableStatus(
             rawCandidate: rawCandidate,
@@ -105,12 +109,17 @@ final class BarbellRowEvaluator {
 
         updateBottomBaselineIfNeeded(status: status, measurements: measurements)
         formTracker.observe(frameIndex: frameIndex, coco17: coco17, pose3D: pose3D, phase: status.rawValue)
-        let done = updateRepState(
-            frameIndex: frameIndex,
-            previousStatus: previousStatus,
-            status: status,
-            measurements: measurements
-        )
+        var done = false
+        if sideView {
+            done = updateRepState(
+                frameIndex: frameIndex,
+                previousStatus: previousStatus,
+                status: status,
+                measurements: measurements
+            )
+        } else if repStarted {
+            resetCurrentRep()
+        }
         if repStarted { formTracker.recordCurrentFrame() }
 
         previousRowDepthNorm = measurements.rowDepthNorm
@@ -139,9 +148,13 @@ final class BarbellRowEvaluator {
         )
     }
 
-    private func computeMeasurements(coco17: [PoseKeypoint]) -> Measurements {
+    private func computeMeasurements(coco17: [PoseKeypoint], sideView: Bool) -> Measurements {
+        // Side view hides the far arm at the top of the pull: one confident arm side is enough
+        // there, and that side alone is used; otherwise every joint is required (average of both).
+        let leftOK = sideConfident(coco17, left: true)
+        let rightOK = sideConfident(coco17, left: false)
         guard coco17.count == 17,
-              jointsAreConfident(coco17) else {
+              sideView ? (leftOK || rightOK) : (leftOK && rightOK) else {
             return Measurements(
                 rowDepthNorm: nil,
                 rowDepthDeltaNorm: nil,
@@ -163,9 +176,12 @@ final class BarbellRowEvaluator {
         let leftHip = coco17[COCO17.leftHip]
         let rightHip = coco17[COCO17.rightHip]
 
-        let shoulderCenter = average(leftShoulder, rightShoulder)
-        let hipCenter = average(leftHip, rightHip)
-        let wristCenter = average(leftWrist, rightWrist)
+        func pick(_ l: PoseKeypoint, _ r: PoseKeypoint) -> PoseKeypoint {
+            leftOK && rightOK ? average(l, r) : (leftOK ? l : r)
+        }
+        let shoulderCenter = pick(leftShoulder, rightShoulder)
+        let hipCenter = pick(leftHip, rightHip)
+        let wristCenter = pick(leftWrist, rightWrist)
         let lowerChestProxy = weightedAverage(shoulderCenter, hipCenter, shoulderWeight: 0.65)
         let torsoLength = max(distance(shoulderCenter, hipCenter), 1.0)
         let wristToTorsoDistNorm = distance(wristCenter, lowerChestProxy) / torsoLength
@@ -175,8 +191,8 @@ final class BarbellRowEvaluator {
 
         let depthNorm = (bottomWristDistanceBaseline ?? wristToTorsoDistNorm) - wristToTorsoDistNorm
         let depthDeltaNorm = optionalDiff(depthNorm, previousRowDepthNorm)
-        let leftElbowAngle = Self.angle2D(a: leftShoulder, b: leftElbow, c: leftWrist)
-        let rightElbowAngle = Self.angle2D(a: rightShoulder, b: rightElbow, c: rightWrist)
+        let leftElbowAngle = leftOK ? Self.angle2D(a: leftShoulder, b: leftElbow, c: leftWrist) : nil
+        let rightElbowAngle = rightOK ? Self.angle2D(a: rightShoulder, b: rightElbow, c: rightWrist) : nil
         let avgElbowAngle = averageValid(leftElbowAngle, rightElbowAngle)
         let torsoLean = torsoLeanAngleDegrees(shoulderCenter: shoulderCenter, hipCenter: hipCenter)
 
@@ -192,8 +208,15 @@ final class BarbellRowEvaluator {
         )
     }
 
-    private func classifyRawStatusCandidate(_ measurements: Measurements) -> BarbellRowStatus {
+    private func classifyRawStatusCandidate(_ measurements: Measurements, sideView: Bool) -> BarbellRowStatus {
         guard let depth = measurements.rowDepthNorm else { return .unknown }
+        let atRest = depth < config.bottomRowDepthThreshold ||
+            (measurements.avgElbowAngleDegrees.map { $0 > config.bottomElbowAngleThreshold } ?? false)
+        // Side view: the rest position wins over 1-frame delta jitter so `bottom` confirms between
+        // reps. (Rear views break with this — elbow angles there are unreliable — hence the gate.)
+        if sideView && atRest {
+            return .bottom
+        }
         if let delta = measurements.rowDepthDeltaNorm {
             if delta > config.rowPullDeltaThreshold {
                 return .pulling
@@ -202,8 +225,7 @@ final class BarbellRowEvaluator {
                 return .lowering
             }
         }
-        if depth < config.bottomRowDepthThreshold ||
-            (measurements.avgElbowAngleDegrees.map { $0 > config.bottomElbowAngleThreshold } ?? false) {
+        if atRest {
             return .bottom
         }
         if depth > config.topRowDepthThreshold ||
@@ -445,19 +467,11 @@ final class BarbellRowEvaluator {
         )
     }
 
-    private func jointsAreConfident(_ coco17: [PoseKeypoint]) -> Bool {
-        [
-            COCO17.leftShoulder,
-            COCO17.rightShoulder,
-            COCO17.leftElbow,
-            COCO17.rightElbow,
-            COCO17.leftWrist,
-            COCO17.rightWrist,
-            COCO17.leftHip,
-            COCO17.rightHip,
-        ].allSatisfy { index in
-            coco17.indices.contains(index) && coco17[index].confidence >= config.minJointConfidence
-        }
+    private func sideConfident(_ coco17: [PoseKeypoint], left: Bool) -> Bool {
+        let ids = left
+            ? [COCO17.leftShoulder, COCO17.leftElbow, COCO17.leftWrist, COCO17.leftHip]
+            : [COCO17.rightShoulder, COCO17.rightElbow, COCO17.rightWrist, COCO17.rightHip]
+        return ids.allSatisfy { coco17.indices.contains($0) && coco17[$0].confidence >= config.minJointConfidence }
     }
 
     private func optionalDiff(_ value: Double?, _ previous: Double?) -> Double? {
