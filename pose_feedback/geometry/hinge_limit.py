@@ -37,9 +37,10 @@ def clamp_knee_hyperextension(joints_3d, limit_deg=DEFAULT_LIMIT_DEG, enabled=Fa
     """Return (joints, report) for one H36M17 [17,3] frame.
 
     report[leg] = {"theta_deg": float | None, "corrected": bool,
-                   "correction_deg": float, "degenerate": bool}
+                   "correction_deg": float, "degenerate": bool, "hyperextended": bool}
     theta_deg is the angle before correction; correction_deg is how far the shin
-    was rotated (>= 0, towards flexion).
+    was rotated (>= 0, towards flexion). hyperextended (theta < -limit, not
+    degenerate) is reported whether or not correction is enabled; see is_bad_3d.
     """
     if np is None:  # pragma: no cover
         raise ImportError("numpy is required for the knee hinge limit")
@@ -50,9 +51,11 @@ def clamp_knee_hyperextension(joints_3d, limit_deg=DEFAULT_LIMIT_DEG, enabled=Fa
     report = {}
     for leg, (hip, knee, ankle) in LEGS.items():
         theta, axis = _knee_theta(j, hip, knee, ankle)
-        entry = {"theta_deg": theta, "corrected": False, "correction_deg": 0.0, "degenerate": theta is None}
+        hyper = theta is not None and theta < -limit_deg
+        entry = {"theta_deg": theta, "corrected": False, "correction_deg": 0.0, "degenerate": theta is None,
+                 "hyperextended": hyper}
         report[leg] = entry
-        if not enabled or theta is None or theta >= -limit_deg:
+        if not enabled or not hyper:
             continue
         phi = math.radians(-limit_deg - theta)
         v = j[ankle] - j[knee]
@@ -67,6 +70,12 @@ def clamp_knee_hyperextension(joints_3d, limit_deg=DEFAULT_LIMIT_DEG, enabled=Fa
         entry["corrected"] = True
         entry["correction_deg"] = -limit_deg - theta
     return out, report
+
+
+def is_bad_3d(report):
+    """"3D 불량" frame: either knee hyperextended past the limit. Any 3D-based judgment
+    for the frame is skipped; the app counts these per workout session."""
+    return any(report[leg]["hyperextended"] for leg in LEGS)
 
 
 def knee_theta_deg(joints_3d, leg):

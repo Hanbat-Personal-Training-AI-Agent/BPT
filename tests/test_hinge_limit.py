@@ -12,7 +12,7 @@ from pathlib import Path
 
 import numpy as np
 
-from pose_feedback.geometry.hinge_limit import clamp_knee_hyperextension, knee_theta_deg
+from pose_feedback.geometry.hinge_limit import clamp_knee_hyperextension, is_bad_3d, knee_theta_deg
 
 FIXTURE = Path(__file__).parent / "fixtures" / "knee_hinge_limit_cases.json"
 THIGH, SHIN = 0.45, 0.40
@@ -155,6 +155,18 @@ class KneeHingeLimitTests(unittest.TestCase):
                 self.assertAlmostEqual(report[leg]["correction_deg"], -limit - report[leg]["theta_deg"], places=12)
         self.assertAlmostEqual(self.run_case("hyperextension_15")[1][1]["right"]["correction_deg"], 5.0, places=9)
 
+    def test_bad_3d_detected_even_when_correction_disabled(self):
+        bad = {"hyperextension_15", "hyperextension_30_both", "hyperextension_30_rotated_translated",
+               "abduction_30_hyperextension_25", "hyperextension_15_limit_20", "hyperextension_30_disabled",
+               "degenerate_zero_thigh", "degenerate_thigh_along_pelvis"}  # degenerate cases: the left leg is -30
+        for name in self.cases:
+            _, (_, report) = self.run_case(name)
+            self.assertEqual(is_bad_3d(report), name in bad, name)
+        _, (out, report) = self.run_case("hyperextension_30_disabled")
+        self.assertTrue(report["right"]["hyperextended"] and not report["right"]["corrected"])
+        self.assertFalse(self.run_case("at_limit_9_9")[1][1]["right"]["hyperextended"])
+        self.assertFalse(self.run_case("degenerate_zero_thigh")[1][1]["right"]["hyperextended"])
+
     def test_degenerate_frames_untouched_and_flagged(self):
         for name, leg in (("degenerate_zero_thigh", "right"), ("degenerate_thigh_along_pelvis", "right")):
             j, (out, report) = self.run_case(name)
@@ -173,7 +185,8 @@ class KneeHingeLimitTests(unittest.TestCase):
             np.testing.assert_allclose(s["expected_joints"], f["expected_joints"], atol=1e-12)
             for leg in ("right", "left"):
                 sr, fr = s["expected_report"][leg], f["expected_report"][leg]
-                self.assertEqual((sr["corrected"], sr["degenerate"]), (fr["corrected"], fr["degenerate"]))
+                self.assertEqual((sr["corrected"], sr["degenerate"], sr["hyperextended"]),
+                                 (fr["corrected"], fr["degenerate"], fr["hyperextended"]))
                 for key in ("theta_deg", "correction_deg"):
                     if sr[key] is None:
                         self.assertIsNone(fr[key])

@@ -182,13 +182,15 @@
     "theta_deg": 4.999999999999999,
     "corrected": false,
     "correction_deg": 0.0,
-    "degenerate": false
+    "degenerate": false,
+    "hyperextended": false
    },
    "left": {
     "theta_deg": 3.0000000000000004,
     "corrected": false,
     "correction_deg": 0.0,
-    "degenerate": false
+    "degenerate": false,
+    "hyperextended": false
    }
   }
  },
@@ -375,13 +377,15 @@
     "theta_deg": 125.00000000000001,
     "corrected": false,
     "correction_deg": 0.0,
-    "degenerate": false
+    "degenerate": false,
+    "hyperextended": false
    },
    "left": {
     "theta_deg": 125.00000000000001,
     "corrected": false,
     "correction_deg": 0.0,
-    "degenerate": false
+    "degenerate": false,
+    "hyperextended": false
    }
   }
  },
@@ -568,13 +572,15 @@
     "theta_deg": -14.999999999999998,
     "corrected": true,
     "correction_deg": 4.999999999999998,
-    "degenerate": false
+    "degenerate": false,
+    "hyperextended": true
    },
    "left": {
     "theta_deg": 4.999999999999999,
     "corrected": false,
     "correction_deg": 0.0,
-    "degenerate": false
+    "degenerate": false,
+    "hyperextended": false
    }
   }
  },
@@ -761,13 +767,15 @@
     "theta_deg": -29.999999999999996,
     "corrected": true,
     "correction_deg": 19.999999999999996,
-    "degenerate": false
+    "degenerate": false,
+    "hyperextended": true
    },
    "left": {
     "theta_deg": -29.999999999999996,
     "corrected": true,
     "correction_deg": 19.999999999999996,
-    "degenerate": false
+    "degenerate": false,
+    "hyperextended": true
    }
   }
  },
@@ -954,13 +962,15 @@
     "theta_deg": -29.999999999999996,
     "corrected": true,
     "correction_deg": 19.999999999999996,
-    "degenerate": false
+    "degenerate": false,
+    "hyperextended": true
    },
    "left": {
     "theta_deg": 1.5955901152866008e-14,
     "corrected": false,
     "correction_deg": 0.0,
-    "degenerate": false
+    "degenerate": false,
+    "hyperextended": false
    }
   }
  },
@@ -1147,13 +1157,15 @@
     "theta_deg": 50.76847951640774,
     "corrected": false,
     "correction_deg": 0.0,
-    "degenerate": false
+    "degenerate": false,
+    "hyperextended": false
    },
    "left": {
     "theta_deg": 0.0,
     "corrected": false,
     "correction_deg": 0.0,
-    "degenerate": false
+    "degenerate": false,
+    "hyperextended": false
    }
   }
  },
@@ -1340,13 +1352,15 @@
     "theta_deg": 40.0,
     "corrected": false,
     "correction_deg": 0.0,
-    "degenerate": false
+    "degenerate": false,
+    "hyperextended": false
    },
    "left": {
     "theta_deg": 0.0,
     "corrected": false,
     "correction_deg": 0.0,
-    "degenerate": false
+    "degenerate": false,
+    "hyperextended": false
    }
   }
  },
@@ -1533,13 +1547,15 @@
     "theta_deg": -25.0,
     "corrected": true,
     "correction_deg": 15.0,
-    "degenerate": false
+    "degenerate": false,
+    "hyperextended": true
    },
    "left": {
     "theta_deg": 0.0,
     "corrected": false,
     "correction_deg": 0.0,
-    "degenerate": false
+    "degenerate": false,
+    "hyperextended": false
    }
   }
  },
@@ -1726,13 +1742,15 @@
     "theta_deg": 0.0,
     "corrected": false,
     "correction_deg": 0.0,
-    "degenerate": false
+    "degenerate": false,
+    "hyperextended": false
    },
    "left": {
     "theta_deg": 0.0,
     "corrected": false,
     "correction_deg": 0.0,
-    "degenerate": false
+    "degenerate": false,
+    "hyperextended": false
    }
   }
  },
@@ -1919,13 +1937,15 @@
     "theta_deg": -9.900000000000002,
     "corrected": false,
     "correction_deg": 0.0,
-    "degenerate": false
+    "degenerate": false,
+    "hyperextended": false
    },
    "left": {
     "theta_deg": -9.900000000000002,
     "corrected": false,
     "correction_deg": 0.0,
-    "degenerate": false
+    "degenerate": false,
+    "hyperextended": false
    }
   }
  },
@@ -2112,13 +2132,15 @@
     "theta_deg": -14.999999999999998,
     "corrected": false,
     "correction_deg": 0.0,
-    "degenerate": false
+    "degenerate": false,
+    "hyperextended": false
    },
    "left": {
     "theta_deg": -25.000000000000004,
     "corrected": true,
     "correction_deg": 5.0000000000000036,
-    "degenerate": false
+    "degenerate": false,
+    "hyperextended": true
    }
   }
  },
@@ -2305,13 +2327,15 @@
     "theta_deg": -29.999999999999996,
     "corrected": false,
     "correction_deg": 0.0,
-    "degenerate": false
+    "degenerate": false,
+    "hyperextended": true
    },
    "left": {
     "theta_deg": -29.999999999999996,
     "corrected": false,
     "correction_deg": 0.0,
-    "degenerate": false
+    "degenerate": false,
+    "hyperextended": true
    }
   }
  },
@@ -2498,13 +2522,15 @@
     "theta_deg": null,
     "corrected": false,
     "correction_deg": 0.0,
-    "degenerate": true
+    "degenerate": true,
+    "hyperextended": false
    },
    "left": {
     "theta_deg": -29.999999999999996,
     "corrected": true,
     "correction_deg": 19.999999999999996,
-    "degenerate": false
+    "degenerate": false,
+    "hyperextended": true
    }
   }
  },
@@ -2691,13 +2717,15 @@
     "theta_deg": null,
     "corrected": false,
     "correction_deg": 0.0,
-    "degenerate": true
+    "degenerate": true,
+    "hyperextended": false
    },
    "left": {
     "theta_deg": -29.999999999999996,
     "corrected": true,
     "correction_deg": 19.999999999999996,
-    "degenerate": false
+    "degenerate": false,
+    "hyperextended": true
    }
   }
  }
