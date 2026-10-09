@@ -21,6 +21,13 @@ struct BarbellRowEvaluatorConfig {
     /// lost push-ups (outputs/rep_validation/G_ready_pose.md). 임시값 — 테스트 영상으로 조정
     var readyPoseHoldFrames = 0
     var readyPoseTolerance = 0.05  // row depth (torso lengths)
+
+    /// Ready-pose preset (evaluation only; the app default stays off): hold 0.5 s at `fps` with 2×
+    /// tolerance, which kept every Exercise3D side-camera rep. Push-up has no preset (it lost reps).
+    mutating func applyReadyPosePreset(fps: Double = 30) {
+        readyPoseHoldFrames = max(1, Int((fps * 0.5).rounded()))
+        readyPoseTolerance *= 2
+    }
 }
 
 final class BarbellRowEvaluator {

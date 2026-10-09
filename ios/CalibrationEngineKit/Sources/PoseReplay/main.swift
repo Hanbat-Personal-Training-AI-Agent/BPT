@@ -5,7 +5,7 @@
 //
 //   swift run -c release --package-path ios/CalibrationEngineKit pose-replay \
 //       [--exercise squat|pushup|row] [--model coco17|halpe26] [--motion3d PATH|none] [--lookahead N] \
-//       [--row-shrug] [--output-dir PATH] <video.mp4>...
+//       [--row-shrug] [--ready-pose off|preset] [--output-dir PATH] <video.mp4>...
 //
 // halpe26 also feeds the decoded toes/heels to SquatEvaluator (heel_rise_max; squat_heel_rise is off). --row-shrug turns on
 // the experimental row_shrug rule (off in the app).
@@ -34,9 +34,10 @@ var motion3DPath: String? = {
 }()
 var lookahead = 5
 var rowShrug = false
+var readyPosePreset = false
 var videos: [URL] = []
 var arguments = CommandLine.arguments.dropFirst().makeIterator()
-let usage = "usage: pose-replay [--exercise squat|pushup|row] [--model coco17|halpe26] [--motion3d PATH|none] [--lookahead N] [--row-shrug] [--output-dir PATH] <video.mp4>..."
+let usage = "usage: pose-replay [--exercise squat|pushup|row] [--model coco17|halpe26] [--motion3d PATH|none] [--lookahead N] [--row-shrug] [--ready-pose off|preset] [--output-dir PATH] <video.mp4>..."
 while let argument = arguments.next() {
     switch argument {
     case "--model":
@@ -63,6 +64,14 @@ while let argument = arguments.next() {
         lookahead = value
     case "--row-shrug":
         rowShrug = true
+    case "--ready-pose":
+        switch arguments.next() {
+        case "off": readyPosePreset = false
+        case "preset": readyPosePreset = true
+        default:
+            print("--ready-pose requires off or preset")
+            exit(2)
+        }
     case "--output-dir":
         guard let path = arguments.next() else { exit(2) }
         outputDir = URL(fileURLWithPath: path, isDirectory: true)
@@ -176,9 +185,14 @@ for video in videos {
     // Pass 3: evaluator + form tracker, frame by frame like the app.
     let tracker: FormWarningTracker
     let step: (Int, [PoseKeypoint], [SIMD3<Double>]?, FootKeypoints?) -> (status: String, rep: Int)
+    // --ready-pose preset: squat/row hold the start pose 0.5 s (scaled to this video's fps) before
+    // the first rep; push-up stays off.
+    let fps = times.count > 1 && times.last! > times.first! ? Double(times.count - 1) / (times.last! - times.first!) : 30
     switch exercise {
     case .squat:
-        let evaluator = SquatEvaluator()
+        var config = SquatEvaluatorConfig()
+        if readyPosePreset { config.applyReadyPosePreset(fps: fps) }
+        let evaluator = SquatEvaluator(config: config)
         tracker = evaluator.formTracker
         step = { let r = evaluator.evaluate(frameIndex: $0, coco17: $1, pose3D: $2, feet: $3); return (r.status.rawValue, r.rep) }
     case .pushUp:
@@ -186,7 +200,9 @@ for video in videos {
         tracker = evaluator.formTracker
         step = { i, k, p, _ in let r = evaluator.evaluate(frameIndex: i, coco17: k, pose3D: p); return (r.status.rawValue, r.rep) }
     case .barbellRow:
-        let evaluator = BarbellRowEvaluator()
+        var config = BarbellRowEvaluatorConfig()
+        if readyPosePreset { config.applyReadyPosePreset(fps: fps) }
+        let evaluator = BarbellRowEvaluator(config: config)
         tracker = evaluator.formTracker
         tracker.row.shrugEnabled = rowShrug
         step = { i, k, p, _ in let r = evaluator.evaluate(frameIndex: i, coco17: k, pose3D: p); return (r.status.rawValue, r.rep) }
@@ -228,6 +244,7 @@ for video in videos {
         "model": "\(poseModel)",
         "motion3d": motion3DPath.map { $0 as Any } ?? NSNull(),
         "lookahead": lookahead,
+        "ready_pose": readyPosePreset ? "preset" : "off",
         "frames": coco17Frames.count,
         "image_size": [imageWidth, imageHeight],
         "reps": reps,

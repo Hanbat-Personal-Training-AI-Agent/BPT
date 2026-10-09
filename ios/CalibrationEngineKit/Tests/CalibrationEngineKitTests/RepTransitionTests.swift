@@ -97,6 +97,13 @@ final class RepTransitionTests: XCTestCase {
         gate.update(atStartPose: true, value: 0.52)
         XCTAssertTrue(gate.armed)
         XCTAssertTrue(ReadyPoseGate(holdFrames: 0, tolerance: 0).armed, "0 = off")
+        var squat = SquatEvaluatorConfig(), row = BarbellRowEvaluatorConfig()
+        squat.applyReadyPosePreset(fps: 30)
+        row.applyReadyPosePreset(fps: 50)
+        XCTAssertEqual(squat.readyPoseHoldFrames, 15)
+        XCTAssertEqual(squat.readyPoseTolerance, 0.06, accuracy: 1e-12)
+        XCTAssertEqual(row.readyPoseHoldFrames, 25)
+        XCTAssertEqual(row.readyPoseTolerance, 0.10, accuracy: 1e-12)
     }
 
     func testSquatReadyPoseSkipsPreSetMotion() {
