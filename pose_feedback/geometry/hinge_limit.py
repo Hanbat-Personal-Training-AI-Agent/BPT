@@ -32,7 +32,8 @@ R_HIP, L_HIP = 1, 4
 LEGS = {"right": (1, 2, 3), "left": (4, 5, 6)}
 
 
-def clamp_knee_hyperextension(joints_3d, limit_deg=DEFAULT_LIMIT_DEG, enabled=True):
+# Off by default until the portrait-normalisation fix is re-measured (README).
+def clamp_knee_hyperextension(joints_3d, limit_deg=DEFAULT_LIMIT_DEG, enabled=False):
     """Return (joints, report) for one H36M17 [17,3] frame.
 
     report[leg] = {"theta_deg": float | None, "corrected": bool,
