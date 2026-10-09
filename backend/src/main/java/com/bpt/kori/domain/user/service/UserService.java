@@ -240,4 +240,22 @@ public class UserService {
                 .recentWorkouts(recentWorkouts)
                 .build();
     }
+
+    @Transactional
+    public void deleteAccount(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        // 1. Delete all workout records (cascades to sets, feedback logs, feedback counts)
+        List<WorkoutRecord> records = workoutRecordRepository.findAllByUserIdOrderByDateDesc(userId);
+        if (!records.isEmpty()) {
+            workoutRecordRepository.deleteAll(records);
+        }
+
+        // 2. Delete all calibrations
+        userCalibrationRepository.deleteAllByUserId(userId);
+
+        // 3. Delete user account
+        userRepository.delete(user);
+    }
 }

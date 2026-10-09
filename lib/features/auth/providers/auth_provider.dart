@@ -268,9 +268,13 @@ class AuthNotifier extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// 회원 탈퇴. 서버 탈퇴 API가 아직 없어 로컬 세션/저장 데이터만 정리한다.
-  /// TODO: 실제 백엔드 탈퇴 엔드포인트가 생기면 여기서 호출을 추가할 것.
+  /// 회원 탈퇴. 서버 탈퇴 API(/users/me)를 호출하고 로컬 세션/저장 데이터를 정리한다.
   Future<void> deleteAccount() async {
+    try {
+      await _authService.deleteAccount();
+    } catch (_) {
+      // 오프라인이거나 서버 에러 시에도 기기 로컬 세션은 정상 정리
+    }
     await _storage.clearSession();
     _authService.restoreAuthToken(null);
     _currentUser = null;

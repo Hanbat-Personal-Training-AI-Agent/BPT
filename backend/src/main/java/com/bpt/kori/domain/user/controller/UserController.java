@@ -65,4 +65,14 @@ public class UserController {
         DashboardSummaryResponseDto response = userService.getDashboardSummary(userPrincipal.getUserId());
         return ResponseEntity.ok(response);
     }
+
+    @Operation(summary = "회원 탈퇴", description = "현재 로그인된 회원의 계정 및 연관된 모든 운동 기록, 체형 데이터를 영구 삭제합니다.")
+    @DeleteMapping("/me")
+    public ResponseEntity<java.util.Map<String, Object>> deleteMyAccount(@AuthenticationPrincipal UserPrincipal userPrincipal) {
+        userService.deleteAccount(userPrincipal.getUserId());
+        return ResponseEntity.ok(java.util.Map.of(
+                "success", true,
+                "message", "회원 탈퇴가 성공적으로 완료되었습니다."
+        ));
+    }
 }
