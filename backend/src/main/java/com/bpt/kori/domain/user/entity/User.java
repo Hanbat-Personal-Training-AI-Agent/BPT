@@ -49,6 +49,13 @@ public class User {
     @Column(length = 10)
     private String notificationTime;
 
+    @Builder.Default
+    @Column(nullable = false)
+    private Boolean notificationEnabled = false;
+
+    @Column(length = 500)
+    private String bodyScanLocalPath;
+
     @Column(precision = 5, scale = 2)
     @Builder.Default
     private BigDecimal heightCm = BigDecimal.ZERO;
@@ -92,6 +99,11 @@ public class User {
         if (weeklyFrequency != null) this.weeklyFrequency = weeklyFrequency;
         this.lastBodyScanDate = LocalDate.now();
         this.isOnboardingCompleted = true;
+    }
+
+    public void updateOnboarding(String gender, BigDecimal heightCm, BigDecimal weightKg, String workoutGoal, Integer weeklyFrequency, String bodyScanLocalPath) {
+        updateOnboarding(gender, heightCm, weightKg, workoutGoal, weeklyFrequency);
+        if (bodyScanLocalPath != null) this.bodyScanLocalPath = bodyScanLocalPath;
     }
 
     public void incrementWorkoutCount() {

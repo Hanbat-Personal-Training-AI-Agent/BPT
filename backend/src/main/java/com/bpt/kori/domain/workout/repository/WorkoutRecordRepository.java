@@ -27,4 +27,14 @@ public interface WorkoutRecordRepository extends JpaRepository<WorkoutRecord, Lo
             @Param("exerciseId") String exerciseId,
             @Param("since") LocalDateTime since
     );
+
+    @Query("SELECT r FROM WorkoutRecord r WHERE r.user.id = :userId " +
+           "AND (CAST(:startDate AS timestamp) IS NULL OR r.date >= :startDate) " +
+           "AND (CAST(:endDate AS timestamp) IS NULL OR r.date <= :endDate) " +
+           "ORDER BY r.date DESC")
+    List<WorkoutRecord> findRecordsByUserIdAndDateRange(
+            @Param("userId") Long userId,
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate
+    );
 }

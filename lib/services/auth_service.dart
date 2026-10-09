@@ -153,6 +153,11 @@ class AuthService {
       data: user.toJson(),
     );
   }
+
+  /// Delete current user account from Spring Boot backend
+  Future<void> deleteAccount() async {
+    await _apiClient.delete('/users/me');
+  }
 }
 
 final authServiceProvider = Provider<AuthService>((ref) {

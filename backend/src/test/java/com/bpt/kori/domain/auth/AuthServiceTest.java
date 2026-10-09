@@ -37,6 +37,9 @@ class AuthServiceTest {
     @Mock
     private JwtTokenProvider tokenProvider;
 
+    @Mock
+    private org.springframework.mail.javamail.JavaMailSender mailSender;
+
     @InjectMocks
     private AuthService authService;
 
@@ -111,5 +114,49 @@ class AuthServiceTest {
         // then
         assertThat(taken.isAvailable()).isFalse();
         assertThat(available.isAvailable()).isTrue();
+    }
+
+    @Test
+    @DisplayName("아이디 전용 로그인 성공")
+    void login_withUsername_success() {
+        User user = User.builder()
+                .id(1L)
+                .username("jihoon_kim")
+                .password("encodedPassword")
+                .email("jihoon@bpt.app")
+                .build();
+
+        given(userRepository.findByUsername("jihoon_kim")).willReturn(java.util.Optional.of(user));
+        given(passwordEncoder.matches("password123!", "encodedPassword")).willReturn(true);
+        given(tokenProvider.generateAccessToken(1L, "jihoon_kim", "jihoon@bpt.app")).willReturn("mock.jwt.token");
+        given(tokenProvider.generateRefreshToken(1L)).willReturn("mock.refresh.token");
+        given(tokenProvider.getAccessTokenExpirationSeconds()).willReturn(3600L);
+
+        com.bpt.kori.domain.auth.dto.LoginRequest loginReq = new com.bpt.kori.domain.auth.dto.LoginRequest();
+        loginReq.setUsername("jihoon_kim");
+        loginReq.setPassword("password123!");
+
+        TokenResponse response = authService.login(loginReq);
+
+        assertThat(response).isNotNull();
+        assertThat(response.getToken()).isEqualTo("mock.jwt.token");
+    }
+
+    @Test
+    @DisplayName("이메일 발송 및 인증 확인")
+    void emailVerification_flow() {
+        com.bpt.kori.domain.auth.dto.EmailVerificationRequest req = new com.bpt.kori.domain.auth.dto.EmailVerificationRequest();
+        req.setEmail("test@bpt.app");
+
+        var sendRes = authService.requestEmailVerification(req);
+        assertThat(sendRes.isSuccess()).isTrue();
+
+        // 없는 코드 검증 시 실패
+        com.bpt.kori.domain.auth.dto.EmailVerificationConfirmRequest confirmReq = new com.bpt.kori.domain.auth.dto.EmailVerificationConfirmRequest();
+        confirmReq.setEmail("test@bpt.app");
+        confirmReq.setCode("000000");
+
+        var confirmRes = authService.confirmEmailVerification(confirmReq);
+        assertThat(confirmRes.isVerified()).isFalse();
     }
 }

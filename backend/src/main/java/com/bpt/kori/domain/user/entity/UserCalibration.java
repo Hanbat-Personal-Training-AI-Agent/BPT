@@ -40,8 +40,5 @@ public class UserCalibration {
     @Column(length = 500)
     private String modelGlbUrl;
 
-    @Column(length = 255)
-    private String coachComment;
-
     private LocalDateTime calibratedAt;
 }

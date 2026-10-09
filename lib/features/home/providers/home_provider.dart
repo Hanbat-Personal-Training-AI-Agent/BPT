@@ -20,10 +20,17 @@ final weeklyWorkoutGoalProvider = Provider<int>(
 );
 
 // ── 체형 재측정 주기 (홈 배너/프로필 카드가 공유하는 상태) ────────────────
-// TODO: 실제 마지막 체형 측정일이 저장되면 그 값에서 계산한 값으로 교체할 것.
-// 지금은 두 화면이 같은 목데이터를 보도록 여기 한 곳에서만 관리한다.
+// 서버의 마지막 체형 측정일(lastBodyScanDate)에서 계산한다. 한 번도 측정하지
+// 않았으면 바로 측정이 필요한 상태(주기만큼 지난 것)로 본다.
 const bodyCheckCycleDays = 30;
-final daysSinceLastBodyCheckProvider = StateProvider<int>((ref) => 30);
+final daysSinceLastBodyCheckProvider = Provider<int>((ref) {
+  final last = ref.watch(currentUserProvider).lastBodyScanDate;
+  if (last == null) return bodyCheckCycleDays;
+  final now = DateTime.now();
+  final today = DateTime(now.year, now.month, now.day);
+  final day = DateTime(last.year, last.month, last.day);
+  return today.difference(day).inDays.clamp(0, 9999);
+});
 
 enum BodyCheckState { fresh, dueSoon, overdue }
 
@@ -35,17 +42,14 @@ BodyCheckState resolveBodyCheckState(int daysSinceLastCheck) {
 }
 
 // ── All records ───────────────────────────────────────────────────────────
-// 시연용으로 목데이터를 실제 기록과 항상 같이 보여준다. 실제 기록만 보고 싶으면
-// false 로 바꾸면 된다 (그때도 실제 기록이 없으면 목데이터를 보여준다).
-const showMockWorkoutRecords = true;
+// 시연할 때만 true 로 바꾸면 목데이터를 실제 기록과 같이 보여준다.
+const showMockWorkoutRecords = false;
 
 final allRecordsProvider = Provider<List<WorkoutRecordModel>>((ref) {
   final recordsAsync = ref.watch(workoutRecordsProvider);
   // 한 회도 세지 못하고 끝난 기록(테스트 중 바로 종료 등)은 목록에서 뺀다.
-  final records = (recordsAsync.value ?? [])
-      .where((r) => r.totalReps > 0)
-      .toList();
-  if (records.isEmpty) return mockWorkoutRecords;
+  final records =
+      (recordsAsync.value ?? []).where((r) => r.totalReps > 0).toList();
   if (!showMockWorkoutRecords) return records;
   // 화면들은 최신 기록이 앞에 오는 순서를 기대한다.
   return [...records, ...mockWorkoutRecords]
@@ -101,9 +105,8 @@ final streakDaysProvider = Provider<int>((ref) {
 
 // ── Today's summary ───────────────────────────────────────────────────────
 // 테스트용: 오늘 실제 기록이 없을 때 홈 상단 통계 카드(운동 시간/완료 세트/총 반복)에
-// 보여줄 숫자. 숫자 올라가는 애니메이션 확인용이라 이 세 값만 바꾸고, 이번 주 목표
-// 등 다른 집계에는 영향이 없다. 실제 값만 보려면 false 로 바꾸면 된다.
-const showMockTodayStats = true;
+// 보여줄 숫자. 숫자 올라가는 애니메이션을 확인할 때만 true 로 바꾼다.
+const showMockTodayStats = false;
 const _mockTodayStats = {
   'totalMinutes': 42,
   'completedSets': 8,
@@ -144,3 +147,16 @@ final todaySummaryProvider = Provider<Map<String, dynamic>>((ref) {
 final recommendedExerciseProvider = Provider<ExerciseModel>(
   (ref) => mockExercises[0],
 );
+
+// ── 운동별 시작 무게 ─────────────────────────────────────────────────────────
+// 그 운동을 마지막으로 했을 때 든 무게. 기록이 없으면 운동별 기본 무게.
+final defaultWeightKgProvider = Provider.family<int, String>((ref, exerciseId) {
+  final records = ref.watch(allRecordsProvider);
+  WorkoutRecordModel? latest;
+  for (final r in records) {
+    if (r.exerciseId != exerciseId || r.weightKg <= 0) continue;
+    if (latest == null || r.date.isAfter(latest.date)) latest = r;
+  }
+  if (latest != null) return latest.weightKg.round();
+  return mockWeightKgByExercise[exerciseId] ?? 20;
+});

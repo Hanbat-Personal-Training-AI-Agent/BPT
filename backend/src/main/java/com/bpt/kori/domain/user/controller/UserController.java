@@ -29,13 +29,23 @@ public class UserController {
         return ResponseEntity.ok(profile);
     }
 
-    @Operation(summary = "내 프로필 수정", description = "사용자의 아이디, 이메일, 이름, 성별, 키, 몸무게, 목표 등을 수정합니다.")
+    @Operation(summary = "내 프로필 수정", description = "사용자의 아이디, 이메일, 이름, 성별, 키, 몸무게, 목표, 마지막 체형 측정일 등을 수정합니다.")
     @PutMapping("/me")
     public ResponseEntity<UserDto> updateMyProfile(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
             @RequestBody UserUpdateRequestDto request
     ) {
         UserDto updated = userService.updateProfile(userPrincipal.getUserId(), request);
+        return ResponseEntity.ok(updated);
+    }
+
+    @Operation(summary = "체형 측정 완료 기록 (API 13)", description = "체형 촬영(사진 4장) 완료 후 마지막 체형 측정일(lastBodyScanDate)을 오늘 날짜(또는 요청된 날짜)로 갱신합니다.")
+    @PostMapping({"/me/body-scans", "/me/body-scan"})
+    public ResponseEntity<UserDto> recordBodyScan(
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @RequestBody(required = false) com.bpt.kori.domain.user.dto.BodyScanRecordRequestDto request
+    ) {
+        UserDto updated = userService.recordBodyScan(userPrincipal.getUserId(), request);
         return ResponseEntity.ok(updated);
     }
 
@@ -54,5 +64,15 @@ public class UserController {
     public ResponseEntity<DashboardSummaryResponseDto> getDashboardSummary(@AuthenticationPrincipal UserPrincipal userPrincipal) {
         DashboardSummaryResponseDto response = userService.getDashboardSummary(userPrincipal.getUserId());
         return ResponseEntity.ok(response);
+    }
+
+    @Operation(summary = "회원 탈퇴", description = "현재 로그인된 회원의 계정 및 연관된 모든 운동 기록, 체형 데이터를 영구 삭제합니다.")
+    @DeleteMapping("/me")
+    public ResponseEntity<java.util.Map<String, Object>> deleteMyAccount(@AuthenticationPrincipal UserPrincipal userPrincipal) {
+        userService.deleteAccount(userPrincipal.getUserId());
+        return ResponseEntity.ok(java.util.Map.of(
+                "success", true,
+                "message", "회원 탈퇴가 성공적으로 완료되었습니다."
+        ));
     }
 }

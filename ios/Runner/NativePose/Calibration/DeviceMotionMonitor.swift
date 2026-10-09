@@ -13,8 +13,15 @@ final class DeviceMotionMonitor {
                                                 rotationRateRadPerSec: 0, gravity: [0, -1, 0],
                                                 isAvailable: false)
     private let lock = NSLock()
+    private var generation = 0
 
     func start() {
+        lock.lock()
+        generation += 1
+        let currentGeneration = generation
+        latest.isAvailable = false
+        latest.timestamp = nil
+        lock.unlock()
         guard manager.isDeviceMotionAvailable else { return }
         manager.deviceMotionUpdateInterval = 1.0 / 30.0
         manager.startDeviceMotionUpdates(to: queue) { [weak self] motion, _ in
@@ -31,15 +38,22 @@ final class DeviceMotionMonitor {
                 userAccelerationG: sqrt(a.x * a.x + a.y * a.y + a.z * a.z),
                 rotationRateRadPerSec: sqrt(r.x * r.x + r.y * r.y + r.z * r.z),
                 gravity: [g.x, g.y, g.z],
-                isAvailable: true
+                isAvailable: true,
+                timestamp: motion.timestamp
             )
             self.lock.lock()
+            guard self.generation == currentGeneration else { self.lock.unlock(); return }
             self.latest = state
             self.lock.unlock()
         }
     }
 
     func stop() {
+        lock.lock()
+        generation += 1
+        latest.isAvailable = false
+        latest.timestamp = nil
+        lock.unlock()
         manager.stopDeviceMotionUpdates()
     }
 

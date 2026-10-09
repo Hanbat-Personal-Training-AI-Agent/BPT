@@ -10,4 +10,6 @@ public interface UserCalibrationRepository extends JpaRepository<UserCalibration
     Optional<UserCalibration> findTopByUserIdOrderByCalibratedAtDesc(Long userId);
 
     Optional<UserCalibration> findByJobId(String jobId);
+
+    void deleteAllByUserId(Long userId);
 }

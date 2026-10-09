@@ -6,6 +6,8 @@ import PackageDescription
 // one copy of the code, two ways to build it.
 //
 // Run the tests with:  swift test --package-path ios/CalibrationEngineKit
+// Replay a recorded video through the app's perception + engine (camera and CoreMotion aside):
+//   swift run -c release --package-path ios/CalibrationEngineKit calibration-replay <video.mp4>...
 //
 // (The Xcode RunnerTests target cannot run them: injecting a test bundle into the Flutter
 // host app aborts inside MediaPipe's calculator registry, which also happens with the
@@ -15,6 +17,7 @@ let package = Package(
     platforms: [.macOS(.v13)],
     targets: [
         .target(name: "CalibrationEngineKit"),
+        .executableTarget(name: "calibration-replay", path: "Sources/CalibrationReplay"),
         .testTarget(name: "CalibrationEngineKitTests", dependencies: ["CalibrationEngineKit"]),
     ]
 )

@@ -22,37 +22,21 @@ public class ExerciseService {
     @PostConstruct
     @Transactional
     public void initExercises() {
-        if (exerciseRepository.count() == 0) {
-            exerciseRepository.save(Exercise.builder()
-                    .exerciseCode("SQUAT")
-                    .exerciseName("바벨 백 스쿼트")
-                    .category("LEGS")
-                    .standardRomMin(BigDecimal.valueOf(80.0))
-                    .standardRomMax(BigDecimal.valueOf(110.0))
-                    .cameraGuideNote("측면 45도 각도에서 전신이 나오도록 촬영해 주세요.")
-                    .thumbnailUrl("https://cdn.bpt.app/exercises/squat.png")
-                    .build());
+        upsertExercise("PUSH_UP", "푸쉬업", "CHEST", BigDecimal.valueOf(70.0), BigDecimal.valueOf(90.0));
+        upsertExercise("SQUAT", "스쿼트", "LEGS", BigDecimal.valueOf(80.0), BigDecimal.valueOf(110.0));
+        upsertExercise("BARBELL_ROW", "바벨로우", "BACK", BigDecimal.valueOf(60.0), BigDecimal.valueOf(100.0));
+        upsertExercise("BENCH_PRESS", "벤치프레스", "CHEST", BigDecimal.valueOf(75.0), BigDecimal.valueOf(95.0));
+        upsertExercise("DEADLIFT", "데드리프트", "BACK", BigDecimal.valueOf(60.0), BigDecimal.valueOf(100.0));
+    }
 
-            exerciseRepository.save(Exercise.builder()
-                    .exerciseCode("BENCH_PRESS")
-                    .exerciseName("바벨 벤치프레스")
-                    .category("CHEST")
-                    .standardRomMin(BigDecimal.valueOf(75.0))
-                    .standardRomMax(BigDecimal.valueOf(95.0))
-                    .cameraGuideNote("측면 45도 또는 대각선 위에서 바벨의 궤적이 보이도록 거치해 주세요.")
-                    .thumbnailUrl("https://cdn.bpt.app/exercises/bench.png")
-                    .build());
-
-            exerciseRepository.save(Exercise.builder()
-                    .exerciseCode("DEADLIFT")
-                    .exerciseName("컨벤셔널 데드리프트")
-                    .category("BACK")
-                    .standardRomMin(BigDecimal.valueOf(60.0))
-                    .standardRomMax(BigDecimal.valueOf(100.0))
-                    .cameraGuideNote("측면 45도 또는 90도에서 척추 정렬이 보이도록 거치해 주세요.")
-                    .thumbnailUrl("https://cdn.bpt.app/exercises/deadlift.png")
-                    .build());
-        }
+    private void upsertExercise(String code, String name, String category, BigDecimal romMin, BigDecimal romMax) {
+        Exercise ex = exerciseRepository.findByExerciseCode(code)
+                .orElse(Exercise.builder().exerciseCode(code).build());
+        ex.setExerciseName(name);
+        ex.setCategory(category);
+        ex.setStandardRomMin(romMin);
+        ex.setStandardRomMax(romMax);
+        exerciseRepository.save(ex);
     }
 
     public List<Exercise> getAllExercises(String category) {
