@@ -95,6 +95,15 @@ def test_manifest_accepts_the_native_shape():
     assert checks.manifest(raw(manifest_dict()), "session-1")["userHeightCm"] == 172.0
 
 
+def test_manifest_with_the_apps_unknown_camera_fallback_is_accepted():
+    m = manifest_dict()
+    for view in m["views"]:
+        view["intrinsics"] = {"fx": 0, "fy": 0, "cx": 30.0, "cy": 40.0, "source": "fov_estimate"}
+    checks.manifest(raw(m), "session-1")
+    m["views"][0]["intrinsics"]["source"] = "attachment"  # a real camera must have a focal length
+    rejected("invalid_manifest", checks.manifest, raw(m), "session-1")
+
+
 def test_manifest_without_newer_fields_is_still_accepted():
     m = manifest_dict()
     del m["isComplete"], m["perViewCameraMetadata"]

@@ -139,11 +139,19 @@ def manifest(data, expected_session):
         intrinsics = view.get("intrinsics", m.get("intrinsics"))
         if intrinsics is not None and not (
             isinstance(intrinsics, dict)
-            and all(positive(intrinsics.get(k)) for k in ("fx", "fy"))
             and all(type(intrinsics.get(k)) in (int, float) and math.isfinite(intrinsics[k]) for k in ("cx", "cy"))
+            and (all(positive(intrinsics.get(k)) for k in ("fx", "fy")) or unknown_focal(intrinsics))
         ):
             raise bad(f"views.{label}.intrinsics")
     return m
+
+
+def unknown_focal(intrinsics):
+    """The app's no-camera fallback (CalibrationSession.intrinsics): fx = fy = 0, "fov_estimate".
+
+    The photos are still valid; the fitting worker must estimate the focal length itself.
+    """
+    return intrinsics.get("fx") == 0 and intrinsics.get("fy") == 0 and intrinsics.get("source") == "fov_estimate"
 
 
 def jpeg(data, name):

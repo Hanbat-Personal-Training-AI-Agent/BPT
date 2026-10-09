@@ -41,7 +41,7 @@ flutter run \
 
 manifest 원문을 수정하거나 keypoint 좌표를 재정규화하지 않는다. 주요 값은 사진의 원본 픽셀 좌표, confidence, 키, intrinsics와 그 출처, 중력, 시간, `nominalYawDeg`다. `rightfront`는 사용자가 왼쪽으로 돌아 카메라에 오른쪽 앞면이 보이는 +60° 라벨이다. `leftfront`는 −60°, `back`은 180°, `front`는 0°다. 각도는 목표 라벨이지 정밀 측정한 실제 회전각이 아니다.
 
-후속 네이티브 변경은 schemaVersion 1을 유지하면서 `isComplete`, `perViewCameraMetadata`, `views[].imageWidth/imageHeight/intrinsics/deviceTimestamp/deviceMotionAvailable`을 추가했다. 새 서버는 사진별 camera 값을 우선 사용하고, 해당 필드가 없는 이전 manifest만 top-level 값으로 처리해야 한다. 새 manifest의 top-level camera 정보는 **정면 사진의 호환용 값**이다. IMU는 사진 도착 시점에 읽은 최신 표본으로, camera PTS와 동기화된 동일 timestamp가 아니다.
+후속 네이티브 변경은 schemaVersion 1을 유지하면서 `isComplete`, `perViewCameraMetadata`, `views[].imageWidth/imageHeight/intrinsics/deviceTimestamp/deviceMotionAvailable`을 추가했다. 새 서버는 사진별 camera 값을 우선 사용하고, 해당 필드가 없는 이전 manifest만 top-level 값으로 처리해야 한다. 기기에서 카메라 intrinsics와 화각을 모두 얻지 못하면 앱은 `fx = fy = 0`, 중심점, `source: "fov_estimate"`를 기록한다. 서버는 이 조합을 초점거리 미상으로 받아들이고 fitting에서 추정한다. 그 밖의 0 이하 초점거리는 거절한다. 새 manifest의 top-level camera 정보는 **정면 사진의 호환용 값**이다. IMU는 사진 도착 시점에 읽은 최신 표본으로, camera PTS와 동기화된 동일 timestamp가 아니다.
 
 manifest는 각 사진 저장 뒤 갱신하므로 1~3장의 부분 manifest도 존재한다(`isComplete: false`). 앱 업로더는 네 view가 모두 있어야 전송하므로 부분 세션은 거절한다. 서버도 네 view와 파일 존재를 검증하고 명시적인 `isComplete: false`를 거절해야 한다. 필드가 없던 이전 완성 세션과의 호환성은 유지한다. 저장 실패 시 미확정 JPEG가 남을 수 있지만 성공 manifest에는 포함되지 않는다. 상세 구현·테스트 범위는 [안정성 개선 현황](calibration_realtime_ai_review.md)에 기록했다.
 
