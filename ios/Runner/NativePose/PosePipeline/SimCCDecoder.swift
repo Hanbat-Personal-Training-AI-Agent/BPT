@@ -94,7 +94,7 @@ enum RTMPoseModel: String, CaseIterable {
     case coco17 = "rtmpose_s_forward"
     case halpe26 = "rtmpose_s_halpe26_forward"
 
-    static let active: RTMPoseModel = .coco17
+    static let active: RTMPoseModel = .halpe26
 }
 
 /// Halpe26 indices, from MMPose configs/_base_/datasets/halpe26.py. 0–16 are COCO17 in the
