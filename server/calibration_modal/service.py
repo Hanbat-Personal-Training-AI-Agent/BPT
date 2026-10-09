@@ -4,7 +4,7 @@
     POST /v1/calibrations/uploads/{uploadId}/complete verify the files, accept once, queue fitting
     GET  /v1/calibrations/jobs/{jobId}                fitting status and result
 
-`state` is a modal.Dict (or anything with get / put(skip_if_exists) / pop); entries:
+`state` is storage.BucketState (anything with get / put(skip_if_exists) / pop); entries:
     upload:{uploadId}             who may complete it, for which session, declared sizes
     session:{userId}:{sessionId}  {"jobId"}  - written once, atomically, by the first accepted complete
     job:{jobId}                   owner, inputs, status ("queued" | "running" | "done" | "failed"), result/error
@@ -24,7 +24,7 @@ def object_key(user_id, session, upload_id, name):
 
 
 def create_app(bucket, state, spawn, jwt_secret):
-    """`spawn(job)` queues the fitting worker and returns its call id (fit_body.spawn in production)."""
+    """`spawn(job)` queues the fitting worker (fit_body.spawn in production)."""
     app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
 
     @app.exception_handler(Rejected)
@@ -80,13 +80,12 @@ def create_app(bucket, state, spawn, jwt_secret):
             state.pop(f"job:{job_id}", None)
             return {"status": "accepted", "jobId": accepted_job(user_id, session)}
         try:
-            call_id = spawn(job)
+            spawn(job)
         except Exception:
             # Release the claim so the app's retry can queue it; never report accepted without a job.
             state.pop(f"session:{user_id}:{session}", None)
             state.pop(f"job:{job_id}", None)
             raise
-        state.put(f"job:{job_id}", job | {"callId": call_id})
         return {"status": "accepted", "jobId": job_id}
 
     @app.get("/v1/calibrations/jobs/{job_id}")

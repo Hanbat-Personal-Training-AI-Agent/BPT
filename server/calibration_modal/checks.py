@@ -37,7 +37,8 @@ def user_id_from_token(authorization, secret_b64):
     try:
         claims = jwt.decode(
             authorization[len("Bearer "):],
-            base64.b64decode(secret_b64),
+            # Padding is often lost when the secret is copied into a shell; the key bytes are the same.
+            base64.b64decode(secret_b64 + "=" * (-len(secret_b64) % 4)),
             algorithms=["HS256", "HS384", "HS512"],  # jjwt picks the HS size from the key length
             options={"require": ["sub", "exp"]},
         )

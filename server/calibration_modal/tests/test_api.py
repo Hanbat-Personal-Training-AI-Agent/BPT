@@ -12,8 +12,8 @@ from moto.server import ThreadedMotoServer
 
 import service
 import worker
-from conftest import SECRET, FakeDict, bundle, jpeg_bytes, token
-from storage import Bucket
+from conftest import SECRET, bundle, jpeg_bytes, token
+from storage import Bucket, BucketState
 
 
 @pytest.fixture(scope="module")
@@ -41,7 +41,6 @@ class Spawner:
 
     def __call__(self, job):
         self.jobs.append(job)
-        return f"fc-{len(self.jobs)}"
 
     def run(self, fit=worker.stub_fit):
         for job in self.jobs:
@@ -50,7 +49,7 @@ class Spawner:
 
 @pytest.fixture
 def env(bucket):
-    state = FakeDict()
+    state = BucketState(bucket)
     spawner = Spawner(bucket, state)
     client = TestClient(service.create_app(bucket, state, spawner, SECRET))
     return client, bucket, state, spawner

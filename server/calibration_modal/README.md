@@ -65,6 +65,7 @@ BPT_TOKEN=<token> .venv/bin/python e2e.py \
 
 ## 상태 저장과 한계
 
-- 상태는 `modal.Dict("bpt-calibration-state")`에 둔다. 접수는 `put(..., skip_if_exists=True)`로 사용자·세션당 한 번만 성공한다. Modal 문서는 이 반환값(키가 이미 있으면 False)만 설명하고 동시성 보장을 따로 명시하지 않는다.
-- Dict 항목은 7일 동안 읽기·쓰기가 없으면 만료된다(Modal 문서). 만료 뒤에는 같은 세션을 다시 접수할 수 있고 작업 조회가 404가 된다. 결과 JSON은 버킷 `results/<userId>/<sessionId>/<jobId>.json`에 남는다.
+- 상태는 사진 버킷의 `state/` 아래 작은 JSON 객체다(`storage.BucketState`). 업로드 URL은 `calibrations/` 키에만 발급되므로 앱이 `state/`를 쓸 수 없다.
+- 사용자·세션당 한 번만 접수되는 것은 버킷 조건부 쓰기(`If-None-Match: *`)로 보장한다. S3와 R2 모두 지원하며 만료되지 않는다. 동시 조건부 쓰기 충돌(409)은 짧게 재시도한다.
+- 결과 JSON은 `results/<userId>/<sessionId>/<jobId>.json`에도 남는다.
 - 사진 자동 삭제, 부분 업로드 만료 정리, 요청 제한은 아직 없다. 버킷 수명 주기 규칙으로 따로 설정해야 한다.

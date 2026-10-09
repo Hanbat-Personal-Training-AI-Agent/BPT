@@ -10,7 +10,6 @@ import os
 import modal
 
 app = modal.App("bpt-calibration")
-state = modal.Dict.from_name("bpt-calibration-state", create_if_missing=True)
 secrets = [modal.Secret.from_name("bpt-r2"), modal.Secret.from_name("bpt-jwt")]
 
 image = (
@@ -25,7 +24,8 @@ def fit_body(job):
     import storage
     import worker
 
-    return worker.run(job, storage.Bucket.from_env(), state, worker.stub_fit)
+    bucket = storage.Bucket.from_env()
+    return worker.run(job, bucket, storage.BucketState(bucket), worker.stub_fit)
 
 
 @app.function(image=image, secrets=secrets)
@@ -35,9 +35,10 @@ def api():
     import service
     import storage
 
+    bucket = storage.Bucket.from_env()
     return service.create_app(
-        bucket=storage.Bucket.from_env(),
-        state=state,
-        spawn=lambda job: fit_body.spawn(job).object_id,
+        bucket=bucket,
+        state=storage.BucketState(bucket),
+        spawn=fit_body.spawn,
         jwt_secret=os.environ["JWT_SECRET"],
     )

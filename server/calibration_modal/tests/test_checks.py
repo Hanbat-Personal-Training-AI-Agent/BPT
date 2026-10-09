@@ -19,6 +19,7 @@ def rejected(code, fn, *args):
 
 def test_backend_token_gives_the_user_id():
     assert checks.user_id_from_token(f"Bearer {token()}", SECRET) == "42"
+    assert checks.user_id_from_token(f"Bearer {token()}", SECRET.rstrip("=")) == "42"
     assert checks.user_id_from_token(f"Bearer {token(algorithm='HS256')}", SECRET) == "42"
 
 
