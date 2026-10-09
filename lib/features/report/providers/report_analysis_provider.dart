@@ -6,11 +6,11 @@ import '../../../core/theme/app_colors.dart';
 import '../../../data/mock_data.dart';
 import '../../../models/workout_record_model.dart';
 import '../../home/providers/home_provider.dart';
+import '../../workout/data/kori_feedback_lines.dart';
 
-// 리포트 > 분석 탭 데이터. 종목별 비율과 세션 수는 실제 운동 기록
-// (allRecordsProvider)에서 계산한다. "자주 나온 실수"는 기록에 자세 피드백 횟수가
-// 아직 저장되지 않아 빈 목록이다 — 백엔드가 기록에 피드백 횟수를 내려주면 여기서
-// 집계한다 (백엔드 요청 문서 "요청 1").
+// 리포트 > 분석 탭 데이터. 종목별 비율, 세션 수, "자주 나온 실수"를 모두 실제 운동
+// 기록(allRecordsProvider)에서 계산한다. 실수는 기록의 feedbackCounts(네이티브 자세
+// 판정이 보낸 경고 횟수)를 키별로 더한 것이다.
 
 /// 분석 탭 하나의 종목 비율 항목.
 class ExerciseRatioItem {
@@ -35,11 +35,15 @@ class MistakeItem {
     required this.labelEn,
     required this.count,
     required this.color,
+    this.key,
   });
   final String labelKo;
   final String labelEn;
   final int count;
   final Color color;
+
+  /// 자세 피드백 키 (kori_feedback_lines.dart).
+  final String? key;
 
   String label(bool isKo) => isKo ? labelKo : labelEn;
 }
@@ -79,6 +83,50 @@ const Map<String, Color> _exerciseColors = {
   'pushup': Color(0xFF54BDFF),
 };
 
+/// "자주 나온 실수" 막대 색. 위에서부터 이 순서로 돌려 쓴다.
+const List<Color> _mistakeColors = [
+  Color(0xFF47FFCE),
+  AppColors.pink,
+  AppColors.purple,
+  Color(0xFF54BDFF),
+  AppColors.green,
+];
+
+/// 실수 목록에 보여줄 최대 줄 수.
+const int _maxMistakes = 5;
+
+List<MistakeItem> _buildMistakes(List<WorkoutRecordModel> records) {
+  final counts = <String, int>{};
+  for (final r in records) {
+    r.feedbackCounts.forEach((key, count) {
+      if (count > 0 && koriMistakeLabels.containsKey(key)) {
+        counts[key] = (counts[key] ?? 0) + count;
+      }
+    });
+  }
+  final keys = counts.keys.toList()
+    ..sort((a, b) {
+      final byCount = counts[b]!.compareTo(counts[a]!);
+      return byCount != 0 ? byCount : a.compareTo(b);
+    });
+  return [
+    for (final (i, key) in keys.take(_maxMistakes).indexed)
+      () {
+        final (ko, en) = koriMistakeLabels[key]!;
+        final exercise = mockExercises
+            .where((e) => e.id == koriMistakeExerciseId(key))
+            .firstOrNull;
+        return MistakeItem(
+          labelKo: exercise == null ? ko : '$ko · ${exercise.nameKr}',
+          labelEn: exercise == null ? en : '$en · ${exercise.name}',
+          count: counts[key]!,
+          color: _mistakeColors[i % _mistakeColors.length],
+          key: key,
+        );
+      }(),
+  ];
+}
+
 ReportAnalysisData buildReportAnalysis(List<WorkoutRecordModel> records) {
   final counts = <String, int>{};
   final names = <String, (String, String)>{};
@@ -104,11 +152,20 @@ ReportAnalysisData buildReportAnalysis(List<WorkoutRecordModel> records) {
       ),
   ];
 
+  final mistakes = _buildMistakes(records);
+
   final String insightKo;
   final String insightEn;
   if (ratios.isEmpty) {
     insightKo = '운동 기록이 쌓이면\n코리가 분석해 줄게!';
     insightEn = "Once you log some workouts,\nI'll break them down for you!";
+  } else if (mistakes.isNotEmpty) {
+    final top = ratios.first;
+    final (mistakeKo, mistakeEn) = koriMistakeLabels[mistakes.first.key]!;
+    insightKo = '${top.labelKo}${_objectParticle(top.labelKo)} 가장 많이 했고,\n'
+        '$mistakeKo${_subjectParticle(mistakeKo)} 가장 자주 보였어.';
+    insightEn = 'You did ${top.labelEn} the most,\n'
+        'and "$mistakeEn" showed up most often.';
   } else {
     final top = ratios.first;
     insightKo = '${top.labelKo}${_objectParticle(top.labelKo)} 가장 많이 했어!\n'
@@ -120,7 +177,7 @@ ReportAnalysisData buildReportAnalysis(List<WorkoutRecordModel> records) {
   return ReportAnalysisData(
     totalSessions: total,
     ratios: ratios,
-    mistakes: const [],
+    mistakes: mistakes,
     insightKo: insightKo,
     insightEn: insightEn,
   );
@@ -141,6 +198,14 @@ List<int> _percentsSummingTo100(List<int> counts) {
     left -= 1;
   }
   return result;
+}
+
+/// 받침이 있으면 '이', 없으면 '가'.
+String _subjectParticle(String word) {
+  if (word.isEmpty) return '가';
+  final code = word.codeUnitAt(word.length - 1);
+  if (code < 0xAC00 || code > 0xD7A3) return '가';
+  return (code - 0xAC00) % 28 == 0 ? '가' : '이';
 }
 
 /// 받침이 있으면 '을', 없으면 '를'.

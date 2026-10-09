@@ -240,3 +240,35 @@ const Map<String, String> koriDemoWarningKeyByExercise = {
   'squat': 'squat_knee_valgus',
   'barbell-row': 'row_torso_swing',
 };
+
+/// 리포트 "자주 나온 실수"에 쓰는 경고 키별 짧은 이름 (한국어, 영어).
+const Map<String, (String, String)> koriMistakeLabels = {
+  'pushup_hip_sag': ('엉덩이 처짐', 'Hips sagging'),
+  'pushup_hip_pike': ('엉덩이 들림', 'Hips piking'),
+  'pushup_shallow': ('내려가는 깊이 부족', 'Shallow depth'),
+  'pushup_no_lockout': ('팔 덜 폄', 'No lockout'),
+  'pushup_head_drop': ('고개 떨굼', 'Head dropping'),
+  'pushup_head_up': ('고개 듦', 'Head lifted'),
+  'pushup_hand_position': ('손 위치', 'Hand position'),
+  'pushup_depth_fade': ('갈수록 얕아짐', 'Depth fading'),
+  'squat_hips_first': ('엉덩이 먼저 올라옴', 'Hips rising first'),
+  'squat_shallow': ('앉는 깊이 부족', 'Shallow depth'),
+  'squat_no_lockout': ('덜 일어섬', 'No lockout'),
+  'squat_lean_drift': ('상체 점점 숙여짐', 'Torso leaning more'),
+  'squat_depth_fade': ('갈수록 얕아짐', 'Depth fading'),
+  'squat_knee_valgus': ('무릎 안쪽 모임', 'Knees caving in'),
+  'squat_heel_rise': ('뒤꿈치 들림', 'Heels lifting'),
+  'row_torso_swing': ('상체 반동', 'Torso swinging'),
+  'row_standing_up': ('상체 일어섬', 'Standing up'),
+  'row_short_pull': ('당기기 부족', 'Short pull'),
+  'row_head_up': ('고개 듦', 'Head lifted'),
+  'row_shrug': ('어깨 으쓱', 'Shoulder shrug'),
+};
+
+/// 경고 키의 운동 id (키 앞부분 기준). 알 수 없으면 null.
+String? koriMistakeExerciseId(String key) {
+  if (key.startsWith('pushup_')) return 'pushup';
+  if (key.startsWith('squat_')) return 'squat';
+  if (key.startsWith('row_')) return 'barbell-row';
+  return null;
+}
