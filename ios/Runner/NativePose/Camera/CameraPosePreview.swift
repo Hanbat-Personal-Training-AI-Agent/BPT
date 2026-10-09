@@ -45,6 +45,7 @@ struct CameraProcessingResult {
     let imageHeight: Double
     let visualCoco17: [PoseKeypoint]
     let rawCoco17: [PoseKeypoint]
+    let feet: FootKeypoints?
     let handResults: [HandLandmarkResult]
 }
 
@@ -159,6 +160,9 @@ final class CameraPoseViewModel: ObservableObject {
     private var lastReportedRep: Int?
     private var lastReportedStatus: String?
     private var lastReportedDone: Bool?
+    // Form feedback → Flutter `onFeedback` {key, n?, silent?} (kori_feedback_lines.dart).
+    private let onFeedback: ((String, Int?, Bool) -> Void)?
+    private var formLog: WorkoutFormLog?
 
     // Models (loaded once)
     private var rtmpose: MLModel?
@@ -171,9 +175,12 @@ final class CameraPoseViewModel: ObservableObject {
     private var barbellRowEvaluator: BarbellRowEvaluator?
     private var pushUpEvaluator: PushUpEvaluator?
 
-    init(exercise: NativePoseExercise, onUpdate: ((Int, String, Bool) -> Void)? = nil) {
+    init(exercise: NativePoseExercise,
+         onUpdate: ((Int, String, Bool) -> Void)? = nil,
+         onFeedback: ((String, Int?, Bool) -> Void)? = nil) {
         self.exercise = exercise
         self.onUpdate = onUpdate
+        self.onFeedback = onFeedback
     }
 
     func requestCameraAndStart() {
@@ -192,6 +199,19 @@ final class CameraPoseViewModel: ObservableObject {
 
     func stopCamera() {
         captureManager.stop()
+        if let tracker = formTracker { formLog?.close(tracker) }
+        formLog = nil
+    }
+
+    private var formTracker: FormWarningTracker? {
+        squatEvaluator?.formTracker ?? pushUpEvaluator?.formTracker ?? barbellRowEvaluator?.formTracker
+    }
+
+    /// Every frame: forward the tracker's feedback events; after a counted rep also log its report.
+    private func reportForm(done: Bool) {
+        guard let tracker = formTracker else { return }
+        if done, let report = tracker.reports.last { formLog?.append(report) }
+        for event in tracker.drainEvents() { onFeedback?(event.key, event.n, event.silent) }
     }
 
     private func setup() {
@@ -211,6 +231,7 @@ final class CameraPoseViewModel: ObservableObject {
         case .barbellRow: barbellRowEvaluator = BarbellRowEvaluator()
         case .pushUp: pushUpEvaluator = PushUpEvaluator()
         }
+        if let tracker = formTracker { formLog = WorkoutFormLog(exercise: tracker.exercise) }
 
         let handEnabled = exercise.handBranchEnabled(override: CameraPreviewOptions.handBranchOverride)
         if handEnabled {
@@ -310,6 +331,10 @@ final class CameraPoseViewModel: ObservableObject {
                     imageHeight: Double(preprocess.imageHeight),
                     visualCoco17: visualCoco17,
                     rawCoco17: rawCoco17,
+                    feet: PoseCoordinateTransforms.applyInverseAffineToFeet(
+                        decoded: decoded,
+                        inverseAffine: preprocess.inverseAffine
+                    ),
                     handResults: handResults
                 )
 
@@ -326,7 +351,8 @@ final class CameraPoseViewModel: ObservableObject {
 
     @MainActor
     private func handleProcessingResult(_ result: CameraProcessingResult) {
-        let (statusText, rep, done) = self.runEvaluator(frameIndex: result.frameIndex, rawCoco17: result.rawCoco17)
+        let (statusText, rep, done) = self.runEvaluator(frameIndex: result.frameIndex, rawCoco17: result.rawCoco17,
+                                                        feet: result.feet)
 
         let frameData = CameraFrameData(
             id: result.frameIndex,
@@ -357,7 +383,8 @@ final class CameraPoseViewModel: ObservableObject {
         }
     }
 
-    private func runEvaluator(frameIndex: Int, rawCoco17: [PoseKeypoint]) -> (status: String, rep: Int, done: Bool) {
+    private func runEvaluator(frameIndex: Int, rawCoco17: [PoseKeypoint],
+                              feet: FootKeypoints?) -> (status: String, rep: Int, done: Bool) {
         switch exercise {
         case .deadlift:
             if let eval = deadliftEvaluator {
@@ -371,17 +398,20 @@ final class CameraPoseViewModel: ObservableObject {
             }
         case .squat:
             if let eval = squatEvaluator {
-                let r = eval.evaluate(frameIndex: frameIndex, coco17: rawCoco17)
+                let r = eval.evaluate(frameIndex: frameIndex, coco17: rawCoco17, feet: feet)
+                reportForm(done: r.done)
                 return (r.status.rawValue, r.rep, r.done)
             }
         case .barbellRow:
             if let eval = barbellRowEvaluator {
                 let r = eval.evaluate(frameIndex: frameIndex, coco17: rawCoco17)
+                reportForm(done: r.done)
                 return (r.status.rawValue, r.rep, r.done)
             }
         case .pushUp:
             if let eval = pushUpEvaluator {
                 let r = eval.evaluate(frameIndex: frameIndex, coco17: rawCoco17)
+                reportForm(done: r.done)
                 return (r.status.rawValue, r.rep, r.done)
             }
         }
@@ -428,9 +458,12 @@ struct CameraPosePreview: View {
     let exercise: NativePoseExercise
     @StateObject private var model: CameraPoseViewModel
 
-    init(exercise: NativePoseExercise, onUpdate: ((Int, String, Bool) -> Void)? = nil) {
+    init(exercise: NativePoseExercise,
+         onUpdate: ((Int, String, Bool) -> Void)? = nil,
+         onFeedback: ((String, Int?, Bool) -> Void)? = nil) {
         self.exercise = exercise
-        _model = StateObject(wrappedValue: CameraPoseViewModel(exercise: exercise, onUpdate: onUpdate))
+        _model = StateObject(wrappedValue: CameraPoseViewModel(exercise: exercise, onUpdate: onUpdate,
+                                                               onFeedback: onFeedback))
     }
 
     var body: some View {

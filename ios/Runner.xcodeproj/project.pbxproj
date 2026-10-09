@@ -23,6 +23,7 @@
 		3EAE5785BD00E55356394216 /* NativePoseRegistration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28CF067E5302E66D43049D22 /* NativePoseRegistration.swift */; };
 		40E3761BDF18FECA75D4155D /* BarbellRowEvaluator.swift in Sources */ = {isa = PBXBuildFile; fileRef = D17BBF73154938F9C729D2C4 /* BarbellRowEvaluator.swift */; };
 		511C8B1A5E3231BB606B95BE /* SquatTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66A9249975D25A56873258E4 /* SquatTypes.swift */; };
+		7A3F0C1E9B2D4E5F6A7B8C01 /* FormWarnings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A3F0C1E9B2D4E5F6A7B8C02 /* FormWarnings.swift */; };
 		55B007C91D57370B112B9A8F /* HandOverlayRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36C9903487E33B6D811F2A8D /* HandOverlayRenderer.swift */; };
 		622CB33062458ACA0B781D8B /* NativePoseCameraPlatformView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCEB665660D0A67B817FFAB4 /* NativePoseCameraPlatformView.swift */; };
 		680C86C56462486E58B77C3F /* BenchPressEvaluator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F9D88DA5CB850FD0093B2DD /* BenchPressEvaluator.swift */; };
@@ -96,6 +97,7 @@
 		4FF7A798DDF28A668B7AB568 /* Pods_Runner.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_Runner.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		5F9D88DA5CB850FD0093B2DD /* BenchPressEvaluator.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BenchPressEvaluator.swift; sourceTree = "<group>"; };
 		66A9249975D25A56873258E4 /* SquatTypes.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SquatTypes.swift; sourceTree = "<group>"; };
+		7A3F0C1E9B2D4E5F6A7B8C02 /* FormWarnings.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = FormWarnings.swift; sourceTree = "<group>"; };
 		74858FAD1ED2DC5600515810 /* Runner-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "Runner-Bridging-Header.h"; sourceTree = "<group>"; };
 		74858FAE1ED2DC5600515810 /* AppDelegate.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		75300D023784EA0CF4021DF0 /* DeadliftTypes.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DeadliftTypes.swift; sourceTree = "<group>"; };
@@ -337,6 +339,7 @@
 				AD715C08999EC86EA56E8795 /* PushUpTypes.swift */,
 				F6B6AACE97A047453F5ADE62 /* SquatEvaluator.swift */,
 				66A9249975D25A56873258E4 /* SquatTypes.swift */,
+				7A3F0C1E9B2D4E5F6A7B8C02 /* FormWarnings.swift */,
 			);
 			path = Evaluators;
 			sourceTree = "<group>";
@@ -610,6 +613,7 @@
 				AC70631CACCCB3FA72FF8EB2 /* PushUpTypes.swift in Sources */,
 				6A92035D6C60A5B2C3F40A9D /* SquatEvaluator.swift in Sources */,
 				511C8B1A5E3231BB606B95BE /* SquatTypes.swift in Sources */,
+				7A3F0C1E9B2D4E5F6A7B8C01 /* FormWarnings.swift in Sources */,
 				B7BF1D830B9649D4FFEE946D /* NativePoseExercise.swift in Sources */,
 				622CB33062458ACA0B781D8B /* NativePoseCameraPlatformView.swift in Sources */,
 				C4CC1F25A32E8EDA3BF8D0D3 /* NativePoseCameraPlatformViewFactory.swift in Sources */,

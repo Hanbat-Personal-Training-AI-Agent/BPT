@@ -22,12 +22,19 @@ final class NativePoseCameraPlatformView: NSObject, FlutterPlatformView {
         let rootView: AnyView
         if let exercise {
             rootView = AnyView(
-                CameraPosePreview(exercise: exercise) { rep, status, done in
+                CameraPosePreview(exercise: exercise, onUpdate: { rep, status, done in
                     channel.invokeMethod(
                         "onPoseUpdate",
                         arguments: ["rep": rep, "status": status, "done": done]
                     )
-                }
+                }, onFeedback: { key, n, silent in
+                    // native_pose_workout_screen.dart `onFeedback`: { key, n?, silent? }
+                    // silent = set-summary only (참고 grade, or not the one key said this rep).
+                    var arguments: [String: Any] = ["key": key]
+                    if let n { arguments["n"] = n }
+                    if silent { arguments["silent"] = true }
+                    channel.invokeMethod("onFeedback", arguments: arguments)
+                })
             )
         } else {
             rootView = AnyView(UnsupportedNativePoseExerciseView(exerciseId: exerciseId))

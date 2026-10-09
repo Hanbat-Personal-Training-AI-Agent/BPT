@@ -7,9 +7,10 @@ struct PushUpEvaluatorConfig {
     var topDepthThreshold = 0.06
     var bottomDepthThreshold = 0.18
     // Fixed fallbacks, used until the observed elbow-angle range is wide enough
-    // to calibrate. In pushup_01's top/downward-rear view the 2D elbow angle is
-    // compressed, so a high fixed bottom threshold (e.g. 120-125) labels every
-    // frame as bottom. The fallback bottom is therefore kept low.
+    // to calibrate. These were tuned on pushup_01 (top/downward-rear view, where the 2D
+    // elbow angle is compressed, so a high fixed bottom threshold labelled every frame as
+    // bottom); the camera is now assumed to be at the side (docs/research/form_feedback_spec.md)
+    // and the values are unchanged until side-view footage exists.
     var topElbowAngleThreshold = 130.0
     var bottomElbowAngleThreshold = 105.0
     var validBottomElbowAngleThreshold = 130.0
@@ -38,7 +39,7 @@ struct PushUpEvaluatorConfig {
 }
 
 final class PushUpEvaluator {
-    static let cameraViewEstimate = "top/downward-rear"
+    static let cameraViewEstimate = "side"
     static let selectedDepthSignal = "elbow_angle_primary_with_depth_debug"
 
     private enum COCO17 {
@@ -113,6 +114,9 @@ final class PushUpEvaluator {
         self.config = config
     }
 
+    /// Form warnings (rep summary `warnings`); judged only between startRep and the counted rep end.
+    let formTracker = FormWarningTracker(exercise: .pushUp)
+
     func reset() {
         stableStatus = .unknown
         candidateStatus = .unknown
@@ -143,20 +147,24 @@ final class PushUpEvaluator {
         currentRepDepthSignalReliable = false
         completedRepCount = 0
         completedRepSummaries = []
+        formTracker.reset()
     }
 
-    func evaluate(frameIndex: Int, coco17: [PoseKeypoint]) -> PushUpFrameResult {
+    /// `pose3D`: MotionAGFormer H36M17 selected3D when available (form metrics only; nil in the live app).
+    func evaluate(frameIndex: Int, coco17: [PoseKeypoint], pose3D: [SIMD3<Double>]? = nil) -> PushUpFrameResult {
         let measurements = computeMeasurements(coco17: coco17)
         let rawCandidate = classifyRawStatusCandidate(measurements)
         let previousStatus = stableStatus
         var status = updateStableStatus(rawCandidate: rawCandidate, measurements: measurements)
         updateTopBaselineIfNeeded(status: status, measurements: measurements)
+        formTracker.observe(frameIndex: frameIndex, coco17: coco17, pose3D: pose3D, phase: status.rawValue)
         let repUpdate = updateRepState(
             frameIndex: frameIndex,
             previousStatus: previousStatus,
             status: status,
             measurements: measurements
         )
+        if repStarted { formTracker.recordCurrentFrame() }
         if let override = repUpdate.statusOverride {
             status = override
         }
@@ -229,11 +237,15 @@ final class PushUpEvaluator {
         let leftAnkle = coco17[COCO17.leftAnkle]
         let rightAnkle = coco17[COCO17.rightAnkle]
 
-        let shoulderCenter = average(leftShoulder, rightShoulder)
-        let wristCenter = average(leftWrist, rightWrist)
-        let hipCenter = average(leftHip, rightHip)
-        let ankleCenter = average(leftAnkle, rightAnkle)
-        let armLength = max(averageArmLength(coco17), 1.0)
+        // Side view: the far arm/leg is often occluded. With both sides confident this is the
+        // old two-side average; otherwise the confident (camera-near) side alone.
+        let leftArm = sideConfident(coco17, [COCO17.leftShoulder, COCO17.leftElbow, COCO17.leftWrist])
+        let rightArm = sideConfident(coco17, [COCO17.rightShoulder, COCO17.rightElbow, COCO17.rightWrist])
+        let shoulderCenter = pair(leftShoulder, rightShoulder)
+        let wristCenter = pair(leftWrist, rightWrist)
+        let hipCenter = pair(leftHip, rightHip)
+        let ankleCenter = pair(leftAnkle, rightAnkle)
+        let armLength = max(averageArmLength(coco17, left: leftArm, right: rightArm), 1.0)
         let shoulderWristDeltaY = shoulderCenter.y - wristCenter.y
         provisionalMinShoulderWristDeltaY = min(provisionalMinShoulderWristDeltaY ?? shoulderWristDeltaY, shoulderWristDeltaY)
         let baseline = topShoulderWristDeltaBaseline ?? provisionalMinShoulderWristDeltaY ?? shoulderWristDeltaY
@@ -242,8 +254,8 @@ final class PushUpEvaluator {
         updateDepthWindow(pushDepthNorm)
         let depthSignalReliable = currentDepthRange() >= config.depthRangeReliableThreshold
 
-        let leftElbowAngle = Self.angle2D(a: leftShoulder, b: leftElbow, c: leftWrist)
-        let rightElbowAngle = Self.angle2D(a: rightShoulder, b: rightElbow, c: rightWrist)
+        let leftElbowAngle = leftArm ? Self.angle2D(a: leftShoulder, b: leftElbow, c: leftWrist) : nil
+        let rightElbowAngle = rightArm ? Self.angle2D(a: rightShoulder, b: rightElbow, c: rightWrist) : nil
         let avgElbowAngle = averageValid(leftElbowAngle, rightElbowAngle)
         updateElbowCalibrationAndEffectiveThresholds(avgElbowAngle)
         let elbowDelta = updateElbowAngleHistoryAndDelta(avgElbowAngle)
@@ -537,6 +549,7 @@ final class PushUpEvaluator {
         currentRepBodyLineAngleDegrees = nil
         currentRepMaxHipLineDeviationNorm = nil
         currentRepDepthSignalReliable = false
+        formTracker.beginRep()
     }
 
     private func updateCurrentRep(_ measurements: Measurements) {
@@ -581,7 +594,7 @@ final class PushUpEvaluator {
             minElbowAngleDegrees: minElbow,
             bodyLineAngleDegrees: currentRepBodyLineAngleDegrees,
             maxHipLineDeviationNorm: currentRepMaxHipLineDeviationNorm,
-            warnings: []
+            warnings: formTracker.finishRep(repIndex: completedRepCount).warnings
         )
         completedRepSummaries.append(summary)
         trimCompletedRepSummaries()
@@ -622,20 +635,23 @@ final class PushUpEvaluator {
         )
     }
 
+    /// One whole side (shoulder, elbow, wrist, hip, ankle) is enough in a side view.
     private func jointsAreConfident(_ coco17: [PoseKeypoint]) -> Bool {
-        [
-            COCO17.leftShoulder,
-            COCO17.rightShoulder,
-            COCO17.leftElbow,
-            COCO17.rightElbow,
-            COCO17.leftWrist,
-            COCO17.rightWrist,
-            COCO17.leftHip,
-            COCO17.rightHip,
-            COCO17.leftAnkle,
-            COCO17.rightAnkle,
-        ].allSatisfy { index in
-            coco17.indices.contains(index) && coco17[index].confidence >= config.pushUpMinJointConfidence
+        sideConfident(coco17, [COCO17.leftShoulder, COCO17.leftElbow, COCO17.leftWrist, COCO17.leftHip, COCO17.leftAnkle])
+            || sideConfident(coco17, [COCO17.rightShoulder, COCO17.rightElbow, COCO17.rightWrist, COCO17.rightHip, COCO17.rightAnkle])
+    }
+
+    private func sideConfident(_ coco17: [PoseKeypoint], _ indices: [Int]) -> Bool {
+        indices.allSatisfy { coco17.indices.contains($0) && coco17[$0].confidence >= config.pushUpMinJointConfidence }
+    }
+
+    /// Two-side average when both are confident, else the confident one.
+    private func pair(_ left: PoseKeypoint, _ right: PoseKeypoint) -> PoseKeypoint {
+        let t = config.pushUpMinJointConfidence
+        switch (left.confidence >= t, right.confidence >= t) {
+        case (true, false): return left
+        case (false, true): return right
+        default: return average(left, right)
         }
     }
 
@@ -651,11 +667,12 @@ final class PushUpEvaluator {
         return maxValue - minValue
     }
 
-    private func averageArmLength(_ coco17: [PoseKeypoint]) -> Double {
+    private func averageArmLength(_ coco17: [PoseKeypoint], left useLeft: Bool, right useRight: Bool) -> Double {
         let left = distance(coco17[COCO17.leftShoulder], coco17[COCO17.leftElbow])
             + distance(coco17[COCO17.leftElbow], coco17[COCO17.leftWrist])
         let right = distance(coco17[COCO17.rightShoulder], coco17[COCO17.rightElbow])
             + distance(coco17[COCO17.rightElbow], coco17[COCO17.rightWrist])
+        if useLeft != useRight { return max(useLeft ? left : right, 1.0) }
         return max((left + right) * 0.5, 1.0)
     }
 
