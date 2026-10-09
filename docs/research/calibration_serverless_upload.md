@@ -1,6 +1,6 @@
 # 캘리브레이션 서버리스 업로드 연동
 
-이 문서는 BPT 앱 개발자와 서버리스 API 구현 담당자를 위한 연결 계약이다. 앱은 네이티브 캘리브레이션에서 저장한 사진 4장과 메타데이터를 검증하고, 사용자 동의 후 임시 URL로 저장소에 전송한 다음 서버 접수를 확인한다. **앱의 전송 경로는 구현했지만 서버리스 서비스 선정, 배포, 실서버 연결, 3D 분석 결과 수신은 아직 하지 않았다.** 이 문서의 URL은 예시이며 운영 서버가 아니다.
+이 문서는 BPT 앱 개발자와 서버리스 API 구현 담당자를 위한 연결 계약이다. 앱은 네이티브 캘리브레이션에서 저장한 사진 4장과 메타데이터를 검증하고, 사용자 동의 후 임시 URL로 저장소에 전송한 다음 서버 접수를 확인한다. **앱의 전송 경로와 Modal 서버 코드(`server/calibration_modal/`, 1단계: 업로드·검증·접수·작업 조회와 고정 결과 스텁)는 구현했지만 배포, 실서버 연결, 실제 체형 fitting, 앱의 결과 수신은 아직 하지 않았다.** 이 문서의 URL은 예시이며 운영 서버가 아니다.
 
 ## 구현 범위
 
@@ -131,6 +131,36 @@ Content-Type: application/json
 
 이 응답은 **분석 작업 접수 완료**를 의미하며 SMPL 최적화나 체형 측정의 완료를 의미하지 않는다. 서버는 파일 존재·크기·MIME·JPEG 디코딩·manifest schema·사용자 소유권을 확인해야 한다. 중복 요청이 동일 작업을 여러 번 생성하지 않도록 사용자 ID와 session ID 기준의 원자적 상태 전이 및 작업 등록을 구현한다. 파일이 불완전하면 성공을 반환하지 않는다. 업로드 전용 함수의 응답 안에서 무거운 체형 fitting을 동기로 수행하는 구조는 이 계약에 포함하지 않는다.
 
+### 거절 응답
+
+검증에 실패하면 성공 상태를 반환하지 않고 아래 형식의 4xx를 반환한다. `detail`은 문제가 된 파일 이름이나 manifest 필드이며 없을 수 있다. 앱은 현재 401만 구분하고 나머지는 재시도 안내로 표시한다.
+
+```json
+{"error": "file_missing", "detail": "view_back.jpg"}
+```
+
+| 상태 | `error` | 의미 |
+| --- | --- | --- |
+| 400 | `invalid_idempotency_key`, `session_mismatch`, `unsupported_schema`, `invalid_files`, `invalid_content_type`, `invalid_file_size`, `invalid_upload_id`, `invalid_job_id` | 요청 헤더·본문 오류 |
+| 401 | `unauthorized` | 토큰 없음, 서명·만료 오류 |
+| 404 | `upload_not_found`, `job_not_found` | 없거나 다른 사용자의 업로드·작업 |
+| 422 | `file_missing`, `invalid_file_size`, `invalid_content_type`, `invalid_manifest`, `invalid_jpeg` | 저장소에 올라온 파일 검증 실패 |
+
+## 작업 상태 API
+
+`GET {CALIBRATION_API_BASE_URL}/calibrations/jobs/{jobId}`
+
+헤더는 `Authorization: Bearer <로그인 토큰>`만 보낸다. 작업을 만든 사용자만 조회할 수 있고, 다른 사용자의 작업은 없는 작업과 같은 404다.
+
+```json
+{"status": "queued"}
+{"status": "running"}
+{"status": "done", "result": {"...": "체형 fitting 결과"}}
+{"status": "failed", "error": "person_not_found"}
+```
+
+`accepted`(완료 API)는 접수만 뜻하고, 체형 결과는 이 API가 `done`을 반환할 때만 있다. 실패 코드는 `person_not_found`, `low_keypoint_confidence`, `fit_diverged`, `internal_error` 등이다. 1단계 서버의 `result`는 입력 검증 뒤 반환하는 고정 값(`"stub": true`)이며 실제 체형 측정이 아니다. 앱의 결과 polling은 아직 구현하지 않았다.
+
 ## 실패와 재시도
 
 API 연결 제한 시간은 10초, API 송수신 제한은 각각 30초다. 저장소 연결은 10초, 송신은 2분, 수신은 30초다. 이 값은 앱 설정이며 전체 분석 시간 예측이 아니다.
@@ -140,6 +170,10 @@ API 연결 제한 시간은 10초, API 송수신 제한은 각각 30초다. 저�
 완료 응답을 받은 후 세션 폴더에 `upload_receipt.json`을 원자적 rename으로 기록한다. `jobId`, session ID, API 주소, 접수 시각만 저장한다. receipt 저장 실패 시 재시도하면 서버의 기존 접수를 확인할 수 있다. 사진과 manifest는 그대로 유지한다.
 
 화면을 떠나면 진행 중 요청을 취소한다. 취소 이전에 서버에 전달된 파일까지 지워지는 것은 아니다. 고아 업로드는 서버의 만료 정책으로 정리해야 한다. iOS background URLSession, 앱 강제 종료 뒤 자동 재개, 미전송 세션 목록 UI, 로그인 갱신과 자동 재시도는 이번 구현 범위가 아니다. 동일 세션 경로로 업로드 화면을 다시 열면 수동 재시도는 가능하다.
+
+## 서버 구현 (Modal)
+
+`server/calibration_modal/`에 이 계약의 Modal 구현이 있다. 배포, Secret, 버킷 설정은 그 폴더의 README를 따른다. 앱 설정은 `CALIBRATION_API_BASE_URL=<Modal 배포 URL>/v1`, `CALIBRATION_STORAGE_HOSTS=<버킷 S3 API 호스트>`다.
 
 ## 운영 전 서버 담당자가 구현할 부분
 
