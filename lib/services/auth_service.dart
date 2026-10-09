@@ -43,7 +43,6 @@ class AuthService {
     required String phoneNumber, // 010-1234-5678
     required String birthDate, // 1998-05-15
     bool termsAgreed = true,
-    bool privacyAgreed = true,
   }) async {
     final response = await _apiClient.post(
       '/auth/signup',
@@ -55,7 +54,6 @@ class AuthService {
         'phoneNumber': phoneNumber,
         'birthDate': birthDate,
         'termsAgreed': termsAgreed,
-        'privacyAgreed': privacyAgreed,
       },
     );
 
@@ -80,6 +78,28 @@ class AuthService {
     );
     final data = response.data as Map<String, dynamic>;
     return (data['available'] ?? data['isAvailable']) == true;
+  }
+
+  /// 아이디/비밀번호 찾기용 이메일 인증번호 발송 (6자리, 5분 유효).
+  Future<void> requestEmailVerification(String email) async {
+    await _apiClient.post(
+      '/auth/verify-email/request',
+      data: {'email': email.trim()},
+    );
+  }
+
+  /// 인증번호 확인. 응답: {"success": bool, "message": String}
+  /// (예전 서버 응답의 "verified" 도 같이 받는다)
+  Future<bool> confirmEmailVerification({
+    required String email,
+    required String code,
+  }) async {
+    final response = await _apiClient.post(
+      '/auth/verify-email/confirm',
+      data: {'email': email.trim(), 'code': code.trim()},
+    );
+    final data = response.data;
+    return data is Map && (data['success'] ?? data['verified']) == true;
   }
 
   /// 온보딩에서 입력한 성별·키·몸무게·목표·주간 운동 횟수 저장
