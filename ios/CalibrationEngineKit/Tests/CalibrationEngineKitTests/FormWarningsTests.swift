@@ -108,8 +108,27 @@ final class FormWarningsTests: XCTestCase {
         return tracker.finishRep(repIndex: frame / 2 + 1)
     }
 
+    func testFeedbackOffByDefaultPerKeyFlag() {
+        XCTAssertEqual(RTMPoseModel.active, .coco17)
+        let tracker = FormWarningTracker(exercise: .pushUp)
+        XCTAssertTrue(tracker.common.enabledFeedbackKeys.isEmpty)
+        _ = pushUpRep(tracker, hipDrop: 0, frame: 0)
+        let sag = pushUpRep(tracker, hipDrop: 40, frame: 2)
+        XCTAssertEqual(sag.warnings, ["pushup_hip_sag"], "still judged and logged")
+        XCTAssertNil(sag.spoken)
+        XCTAssertEqual(tracker.drainEvents(), [])
+        // Only the enabled key is sent; pike stays log-only.
+        tracker.common.enabledFeedbackKeys = ["pushup_hip_sag"]
+        _ = pushUpRep(tracker, hipDrop: 40, frame: 4)
+        XCTAssertEqual(tracker.drainEvents(), [FormFeedbackEvent(key: "pushup_hip_sag", n: 2, silent: false)])
+        let pike = pushUpRep(tracker, hipDrop: -50, frame: 6)
+        XCTAssertEqual(pike.warnings, ["pushup_hip_pike"])
+        XCTAssertEqual(tracker.drainEvents(), [], "praise_fixed and pike not enabled")
+    }
+
     func testPushUpHipSagPikeAndDelivery() throws {
         let tracker = FormWarningTracker(exercise: .pushUp)
+        tracker.common.enabledFeedbackKeys = FormWarningTracker.allKeys
         let clean = pushUpRep(tracker, hipDrop: 0, frame: 0)
         XCTAssertEqual(clean.warnings, [])
         XCTAssertEqual(clean.side, "left")
@@ -164,9 +183,11 @@ final class FormWarningsTests: XCTestCase {
         XCTAssertEqual(squat.judge(rep, history: history, repIndex: 4), ["squat_shallow", "squat_no_lockout"])
         XCTAssertEqual(squat.judge(rep, history: history + [rep, rep], repIndex: 6),
                        ["squat_shallow", "squat_no_lockout", "squat_lean_drift", "squat_depth_fade"])
-        // Front view: only valgus (+ heel rise) run.
+        // Front view: only valgus (+ heel rise when enabled) run.
         XCTAssertEqual(squat.judge(["knee_min": 150, "front_view_fraction": 1, "knee_ankle_gap_ratio_min": 0.8],
                                    history: [], repIndex: 1), ["squat_knee_valgus"])
+        XCTAssertEqual(squat.judge(["heel_rise_max": 0.1], history: [], repIndex: 1), [], "heel rise off by default")
+        squat.squat.heelRiseEnabled = true
         XCTAssertEqual(squat.judge(["heel_rise_max": 0.1], history: [], repIndex: 1), ["squat_heel_rise"])
         XCTAssertEqual(FormWarningTracker.median([3, 1, 2]), 2)
 
@@ -201,11 +222,12 @@ final class FormWarningsTests: XCTestCase {
         tracker.observe(frameIndex: 1, coco17: coco, feet: feet(heelY: 500), phase: "bottom")
         let report = tracker.finishRep(repIndex: 1)
         XCTAssertEqual(try XCTUnwrap(report.metrics2D["heel_rise_max"]), 20 / hypot(100, 25), accuracy: 1e-9)
-        XCTAssertTrue(report.warnings.contains("squat_heel_rise"))
+        XCTAssertFalse(report.warnings.contains("squat_heel_rise"), "off by default; metric still logged")
     }
 
     func testTrackingEvents() {
         let tracker = FormWarningTracker(exercise: .squat)
+        tracker.common.enabledFeedbackKeys = FormWarningTracker.allKeys
         var missing = sidePushUp(hipDrop: 0)
         for i in 5...16 { missing[i].confidence = 0.1 }
         for f in 0..<tracker.common.setupFullBodyFrames {

@@ -11,6 +11,7 @@
 - 각도·편차는 부호 있게 계산(abs 금지). 몸통 각 = 어깨-엉덩이 선의 수직 대비 기울기, 앞뒤는 코 x 위치로 구분.
 - 등급: 우선 = 렙 직후 바로 / 개선 = 같은 키 2렙 연속일 때 / 참고 = 세트 후 요약만 / 셋업 = 첫 렙 1회.
 - 한 렙에 여러 경고면 등급 가장 높은 것 1개만 말함. 같은 키 쿨다운(초기 3렙).
+- 전달(말하기·Flutter `onFeedback`)은 기본 꺼짐: `FormCommonConfig.enabledFeedbackKeys`에 넣은 키만 보낸다. 판정·로그(렙 리포트, 세션 로그, pose-replay)는 항상.
 
 ## 푸쉬업 (측면)
 
@@ -37,7 +38,7 @@
 | squat_lean_drift | 참고 | 렙마다 하단 몸통 각이 커지는 추세(마지막 3렙 vs 처음 3렙) |
 | squat_depth_fade | 참고 | 렙마다 깊이가 줄어드는 추세(마지막 3렙 vs 처음 3렙) |
 | squat_knee_valgus | 우선 | 정면 세트 전용. 렙 하단~상승 구간에서 무릎 간격 < 발목 간격. 다리별 각도(FPPA)는 쓰지 않음 |
-| squat_heel_rise | 개선 | Halpe26일 때만. (뒤꿈치 y − 엄지발가락 y) ÷ 정강이 길이가 렙 시작 대비 기준 이상. 발 키포인트 confidence 낮은 프레임 제외 |
+| squat_heel_rise | 개선 | 이번 범위에서는 끔(`SquatFormConfig.heelRiseEnabled = false`). Halpe26일 때만. (뒤꿈치 y − 엄지발가락 y) ÷ 정강이 길이가 렙 시작 대비 기준 이상. 발 키포인트 confidence 낮은 프레임 제외 |
 
 - 절대 몸통 각 경고("너무 숙였다")와 "무릎이 발끝 넘음"은 만들지 말 것.
 

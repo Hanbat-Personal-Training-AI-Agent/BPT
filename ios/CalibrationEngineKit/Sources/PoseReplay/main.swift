@@ -7,7 +7,7 @@
 //       [--exercise squat|pushup|row] [--model coco17|halpe26] [--motion3d PATH|none] [--lookahead N] \
 //       [--row-shrug] [--output-dir PATH] <video.mp4>...
 //
-// halpe26 also feeds the decoded toes/heels to SquatEvaluator (squat_heel_rise). --row-shrug turns on
+// halpe26 also feeds the decoded toes/heels to SquatEvaluator (heel_rise_max; squat_heel_rise is off). --row-shrug turns on
 // the experimental row_shrug rule (off in the app).
 //
 // --motion3d: MotionAGFormer-XS Core ML package (default <repo>/assets/coreml/motionagformer_xs.mlpackage
@@ -191,6 +191,8 @@ for video in videos {
         tracker.row.shrugEnabled = rowShrug
         step = { i, k, p, _ in let r = evaluator.evaluate(frameIndex: i, coco17: k, pose3D: p); return (r.status.rawValue, r.rep) }
     }
+    // Every key on (the app sends none by default) so `spoken` and `events` show what would be said.
+    tracker.common.enabledFeedbackKeys = FormWarningTracker.allKeys
     var csv = "frame,time,status,rep," + (0..<(17 + (extraFrames.first?.count ?? 0)))
         .map { "j\($0)_x,j\($0)_y,j\($0)_c" }.joined(separator: ",") + "\n"
     var transitions: [String] = []

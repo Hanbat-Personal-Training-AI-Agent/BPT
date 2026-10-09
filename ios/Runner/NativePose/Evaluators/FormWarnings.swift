@@ -16,6 +16,10 @@ import simd
 // (highest grade), a spoken key is not repeated for `cooldownReps` reps, praise_fixed once when the
 // key spoken on the previous rep is gone.
 //
+// Nothing reaches Flutter unless its key is in `FormCommonConfig.enabledFeedbackKeys` (default
+// empty = log only): rules still run and every would-be warning stays in `FormRepReport.warnings`,
+// the session log and pose-replay (which enables every key).
+//
 // Every threshold is TEMPORARY (임시값 — 테스트 영상으로 조정); tune with
 //   swift run -c release --package-path ios/CalibrationEngineKit pose-replay --exercise <name> <video>
 
@@ -43,6 +47,9 @@ struct FormCommonConfig {
     var trackingLostFrames = 15
     /// Forward/back (nose x vs ear x) flips only after this many agreeing frames. 임시값 — 테스트 영상으로 조정
     var facingFlipFrames = 5
+    /// onFeedback keys sent to Flutter (spoken or silent), per key, e.g. ["pushup_hip_sag", "praise_fixed"].
+    /// Default none: warnings are judged and logged only. `FormWarningTracker.allKeys` turns everything on.
+    var enabledFeedbackKeys: Set<String> = []
 }
 
 /// Push-up (side view).
@@ -85,6 +92,8 @@ struct SquatFormConfig {
     var valgusKneeAnkleGapRatio = 1.0
     /// squat_heel_rise (개선, Halpe26 only): (heel y − big-toe y) / shin drops by more than this vs the rep start. 임시값 — 테스트 영상으로 조정
     var heelRiseShinRatio = 0.05
+    /// squat_heel_rise: off for now (not judged with either model; the metric is still logged).
+    var heelRiseEnabled = false
     /// squat_heel_rise: heel / big-toe confidence below this skips the frame. 임시값 — 테스트 영상으로 조정
     var footMinConfidence = 0.30
 }
@@ -307,6 +316,9 @@ final class FormWarningTracker {
         ],
     ]
 
+    /// Every key the tracker can send: the rules plus praise_fixed, setup_full_body, tracking_lost.
+    static let allKeys = Set(rules.values.flatMap { $0.map(\.key) } + ["praise_fixed", "setup_full_body", "tracking_lost"])
+
     static func grade(of key: String) -> FormGrade {
         for list in rules.values { if let rule = list.first(where: { $0.key == key }) { return rule.grade } }
         return .setup  // setup_full_body, tracking_lost
@@ -442,20 +454,20 @@ final class FormWarningTracker {
     private func deliver(_ fired: [String], repIndex: Int) -> String? {
         let eligible = fired.filter { key in
             let grade = Self.grade(of: key)
-            guard grade != .reference else { return false }
+            guard grade != .reference, common.enabledFeedbackKeys.contains(key) else { return false }
             if let last = lastSpokenRep[key], repIndex - last <= common.cooldownReps { return false }
             return grade != .improve || previousFired.contains(key)
         }
         var spoken = eligible.min { Self.grade(of: $0) < Self.grade(of: $1) }  // stable: first in rule order
         if let key = spoken {
             lastSpokenRep[key] = repIndex
-            events.append(FormFeedbackEvent(key: key, n: warningRepCounts[key], silent: false))
-        } else if let last = previousSpoken, !fired.contains(last) {
+            emit(FormFeedbackEvent(key: key, n: warningRepCounts[key], silent: false))
+        } else if let last = previousSpoken, !fired.contains(last), common.enabledFeedbackKeys.contains("praise_fixed") {
             spoken = "praise_fixed"
-            events.append(FormFeedbackEvent(key: "praise_fixed", n: nil, silent: false))
+            emit(FormFeedbackEvent(key: "praise_fixed", n: nil, silent: false))
         }
         for key in fired where key != spoken {
-            events.append(FormFeedbackEvent(key: key, n: warningRepCounts[key], silent: true))
+            emit(FormFeedbackEvent(key: key, n: warningRepCounts[key], silent: true))
         }
         previousFired = Set(fired)
         previousSpoken = spoken == "praise_fixed" ? nil : spoken
@@ -472,10 +484,15 @@ final class FormWarningTracker {
         missingRun += 1
         let started = !reports.isEmpty || lastRecordedFrame == sample.frame - 1
         if started, missingRun == common.trackingLostFrames {
-            events.append(FormFeedbackEvent(key: "tracking_lost", n: nil, silent: false))
+            emit(FormFeedbackEvent(key: "tracking_lost", n: nil, silent: false))
         } else if !started, missingRun == common.setupFullBodyFrames {
-            events.append(FormFeedbackEvent(key: "setup_full_body", n: nil, silent: false))
+            emit(FormFeedbackEvent(key: "setup_full_body", n: nil, silent: false))
         }
+    }
+
+    /// Queues an onFeedback call only for an enabled key.
+    private func emit(_ event: FormFeedbackEvent) {
+        if common.enabledFeedbackKeys.contains(event.key) { events.append(event) }
     }
 
     // MARK: Side, 2D metrics
@@ -716,7 +733,7 @@ final class FormWarningTracker {
             } else {
                 fire("squat_knee_valgus", under("knee_ankle_gap_ratio_min", c.valgusKneeAnkleGapRatio))
             }
-            fire("squat_heel_rise", over("heel_rise_max", c.heelRiseShinRatio))
+            if c.heelRiseEnabled { fire("squat_heel_rise", over("heel_rise_max", c.heelRiseShinRatio)) }
         case .barbellRow:
             fire("setup_side_view", firstRep && !sideView)
             guard sideView else { break }
