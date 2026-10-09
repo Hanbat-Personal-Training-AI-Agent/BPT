@@ -99,6 +99,98 @@ def denormalize_motionagformer_2d(normalized_2d, image_width, image_height):
     return ((points + offset) * float(image_width) / 2.0).astype("float32")
 
 
+# 3D-input normalizations. All three are the same map, p -> (p - center) / side * 2, with a
+# different square crop (docs/research/rtmpose_motionagformer_image_to_pose_pipeline.md §13):
+#   "screen":      VideoPose3D normalize_screen_coordinates, side = W, image centre.
+#                  On portrait video y spans +-H/W (~+-1.78) while H36M training is ~+-1.
+#   "long_side":   side = max(W, H), image centre -> both axes within +-1.
+#   "person_crop": side = person bbox * margin, held with hysteresis (PersonSquareCropTracker).
+# 2D evaluators and calibration never see these values; this is the MotionAGFormer input only.
+NORMALIZATION_SCREEN = "screen"
+NORMALIZATION_LONG_SIDE = "long_side"
+NORMALIZATION_PERSON_CROP = "person_crop"
+NORMALIZATIONS = (NORMALIZATION_SCREEN, NORMALIZATION_LONG_SIDE, NORMALIZATION_PERSON_CROP)
+# Measured in docs §13 (squat_03 + calibration dummies). Back to the old behaviour: NORMALIZATION_SCREEN.
+DEFAULT_3D_NORMALIZATION = NORMALIZATION_PERSON_CROP
+
+
+def image_square_crop(image_width, image_height, method):
+    """(center_x, center_y, side) of the image-level crop for "screen" / "long_side"."""
+    if image_width <= 0 or image_height <= 0:
+        raise ValueError("image_width and image_height must be positive")
+    if method == NORMALIZATION_SCREEN:
+        side = float(image_width)
+    elif method == NORMALIZATION_LONG_SIDE:
+        side = float(max(image_width, image_height))
+    else:
+        raise ValueError(f"no image-level crop for {method!r}")
+    return (image_width * 0.5, image_height * 0.5, side)
+
+
+def square_crop_normalize(joints_2d, crop):
+    cx, cy, side = crop
+    points = _as_2d_array(joints_2d)
+    return ((points - np.asarray([cx, cy], dtype="float32")) / float(side) * 2.0).astype("float32")
+
+
+def square_crop_denormalize(normalized_2d, crop):
+    cx, cy, side = crop
+    points = _as_2d_array(normalized_2d)
+    return (points * float(side) / 2.0 + np.asarray([cx, cy], dtype="float32")).astype("float32")
+
+
+class PersonSquareCropTracker:
+    """Square crop around the person, held still with hysteresis.
+
+    Same idea as CalibrationFrameAnalyzer.updateCrop: the crop only moves when the person
+    leaves it or its size leaves [min_ratio, max_ratio] x the fresh target, so keypoint
+    jitter does not reach the normalized input. The band is wide on the large side because
+    a squat shrinks the bbox to ~0.6x (squat_03) and the crop must not follow it (a fixed camera, as in
+    H36M, sees the person get smaller). ios PersonSquareCropTracker mirrors this
+    (tests/fixtures/motionagformer_normalization_cases.json).
+    """
+
+    def __init__(self, margin=2.0, min_confidence=0.3, min_ratio=0.8, max_ratio=2.0):
+        self.margin = margin
+        self.min_confidence = min_confidence
+        self.min_ratio = min_ratio
+        self.max_ratio = max_ratio
+        self.crop = None
+
+    def update(self, joints_2d, confidence):
+        """Feed one frame; returns the crop (cx, cy, side) or None before the first valid frame."""
+        pts = _as_2d_array(joints_2d)[np.asarray(confidence) >= self.min_confidence]
+        if len(pts) < 2:
+            return self.crop  # keep the last crop through dropouts
+        x0, y0 = (float(v) for v in pts.min(axis=0))
+        x1, y1 = (float(v) for v in pts.max(axis=0))
+        if x1 - x0 <= 1.0 or y1 - y0 <= 1.0:
+            return self.crop
+        pad = 0.08 * (y1 - y0)  # keypoints stop at the eyes and ankles
+        y0, y1 = y0 - pad, y1 + pad
+        target = ((x0 + x1) * 0.5, (y0 + y1) * 0.5, max(x1 - x0, y1 - y0) * self.margin)
+        if self.crop is not None:
+            cx, cy, side = self.crop
+            h = side * 0.5
+            inside = cx - h <= x0 and x1 <= cx + h and cy - h <= y0 and y1 <= cy + h
+            if inside and self.min_ratio * target[2] < side < self.max_ratio * target[2]:
+                return self.crop
+        self.crop = target
+        return self.crop
+
+
+def normalize_motionagformer_sequence(h36m_xy, h36m_conf, image_width, image_height,
+                                      method=DEFAULT_3D_NORMALIZATION, tracker=None):
+    """[N,17,2] pixel H36M17 -> [N,17,2] MotionAGFormer input, frames in time order."""
+    xy = _as_2d_array(h36m_xy)
+    if method == NORMALIZATION_PERSON_CROP:
+        tracker = tracker or PersonSquareCropTracker()
+        fallback = image_square_crop(image_width, image_height, NORMALIZATION_LONG_SIDE)
+        out = [square_crop_normalize(f, tracker.update(f, c) or fallback) for f, c in zip(xy, h36m_conf)]
+        return np.stack(out).astype("float32") if out else np.zeros((0, 17, 2), dtype="float32")
+    return square_crop_normalize(xy, image_square_crop(image_width, image_height, method))
+
+
 def motionagformer_angles(joints_3d):
     """Return elbow/knee angles for MotionAGFormer's H36M17 order."""
     from pose_feedback.geometry.angles_3d import angle_3d

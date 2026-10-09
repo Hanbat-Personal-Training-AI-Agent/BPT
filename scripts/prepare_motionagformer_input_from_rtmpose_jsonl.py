@@ -12,7 +12,7 @@ if str(ROOT) not in sys.path:
 
 from pose_feedback.body.motionagformer_adapter import (
     coco17_to_motionagformer_h36m17,
-    normalize_motionagformer_2d,
+    normalize_motionagformer_sequence,
 )
 from pose_feedback.body.motionagformer_buffer import MotionAGFormerWindowBuilder
 
@@ -36,7 +36,7 @@ def main():
 
     raw_coco17, image_width, image_height, frame_numbers = rows_to_coco17(rows)
     converted, confidences = coco17_to_motionagformer_h36m17(raw_coco17)
-    normalized_xy = normalize_motionagformer_2d(converted, image_width, image_height)
+    normalized_xy = normalize_motionagformer_sequence(converted, confidences, image_width, image_height)
     normalized = np.concatenate([normalized_xy, confidences[..., None]], axis=-1).astype("float32")
 
     builder = MotionAGFormerWindowBuilder(window_size=args.window_size)

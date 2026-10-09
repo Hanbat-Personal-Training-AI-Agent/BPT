@@ -6,8 +6,9 @@ except ModuleNotFoundError:  # pragma: no cover
     np = None
 
 from pose_feedback.body.motionagformer_adapter import (
+    DEFAULT_3D_NORMALIZATION,
     coco17_to_motionagformer_h36m17,
-    normalize_motionagformer_2d,
+    normalize_motionagformer_sequence,
 )
 from pose_feedback.body.motionagformer_buffer import MotionAGFormerWindowBuilder
 
@@ -19,11 +20,12 @@ MOTIONAGFORMER_WRIST_ELBOW_INDICES = {
 }
 
 
-def motionagformer_frame_from_coco17(coco17, image_width, image_height):
-    """Convert one COCO17 frame to normalized MotionAGFormer [17, 3]."""
-    h36m_xy, h36m_conf = coco17_to_motionagformer_h36m17(coco17)
-    normalized_xy = normalize_motionagformer_2d(h36m_xy, image_width, image_height)
-    return np.concatenate([normalized_xy, h36m_conf[:, None]], axis=-1).astype("float32")
+def motionagformer_frames_from_coco17(coco17_sequence, image_width, image_height,
+                                      normalization=DEFAULT_3D_NORMALIZATION):
+    """Convert COCO17 frames (time order) to normalized MotionAGFormer [N, 17, 3]."""
+    h36m_xy, h36m_conf = coco17_to_motionagformer_h36m17(np.stack(coco17_sequence))
+    normalized_xy = normalize_motionagformer_sequence(h36m_xy, h36m_conf, image_width, image_height, normalization)
+    return np.concatenate([normalized_xy, h36m_conf[..., None]], axis=-1).astype("float32")
 
 
 def run_live_motionagformer_sequence(
@@ -33,6 +35,7 @@ def run_live_motionagformer_sequence(
     image_height,
     lookahead=5,
     window_size=MOTIONAGFORMER_WINDOW_SIZE,
+    normalization=DEFAULT_3D_NORMALIZATION,
 ):
     """Run MotionAGFormer over a selected COCO17 sequence.
 
@@ -51,12 +54,7 @@ def run_live_motionagformer_sequence(
         empty_norm = np.zeros((0, 17, 3), dtype="float32")
         return empty_selected, empty_windows, empty_indices, empty_norm
 
-    normalized_frames = np.stack(
-        [
-            motionagformer_frame_from_coco17(coco, image_width, image_height)
-            for coco in coco17_sequence
-        ],
-    ).astype("float32")
+    normalized_frames = motionagformer_frames_from_coco17(coco17_sequence, image_width, image_height, normalization)
     builder = MotionAGFormerWindowBuilder(window_size=window_size)
     select_index = window_size - 1 - int(lookahead)
     pred_windows = []

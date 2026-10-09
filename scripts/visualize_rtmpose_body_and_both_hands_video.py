@@ -22,7 +22,7 @@ from pose_feedback.body.coreml_motionagformer import (
 )
 from pose_feedback.body.live_motionagformer import (
     MOTIONAGFORMER_WINDOW_SIZE,
-    motionagformer_frame_from_coco17,
+    motionagformer_frames_from_coco17,
     motionagformer_body_3d_debug,
     run_live_motionagformer_sequence,
 )
@@ -654,12 +654,7 @@ def run_timed_motionagformer_sequence(
 ):
     import numpy as np
 
-    normalized_frames = np.stack(
-        [
-            motionagformer_frame_from_coco17(coco, image_width, image_height)
-            for coco in coco17_sequence
-        ],
-    ).astype("float32")
+    normalized_frames = motionagformer_frames_from_coco17(coco17_sequence, image_width, image_height)
     builder = MotionAGFormerWindowBuilder(window_size=window_size)
     select_index = window_size - 1 - int(lookahead)
     pred_selected = []
