@@ -52,7 +52,7 @@ python -m venv .venv && .venv/bin/pip install modal "fastapi[standard]" boto3 py
 .venv/bin/python -m pytest -q tests
 ```
 
-버킷은 moto 서버(실제 HTTP presigned PUT), `modal.Dict`는 메모리 대역으로 대신한다. moto는 presigned 서명의 Content-Type을 검사하지 않으므로, 그 확인은 실제 버킷에 대한 `e2e.py`가 한다.
+버킷은 moto 서버(실제 HTTP presigned PUT과 조건부 쓰기)로 대신한다. moto는 presigned 서명의 Content-Type을 검사하지 않으므로, 그 확인은 실제 버킷에 대한 `e2e.py`가 한다.
 
 배포 뒤 점검 (토큰은 백엔드 로그인 토큰, 출력하지 않는다):
 
