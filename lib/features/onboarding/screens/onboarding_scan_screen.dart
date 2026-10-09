@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -6,6 +8,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/route_constants.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../providers/onboarding_provider.dart';
 import '../widgets/calibration_silhouette.dart';
 
@@ -97,6 +100,10 @@ class _OnboardingScanScreenState extends ConsumerState<OnboardingScanScreen> {
         }
         if (args['isFinished'] == true && sessionPath != null && !_finished) {
           _finished = true;
+          // 4장을 다 찍은 시점이 체형 측정일이다 (POST /users/me/body-scans).
+          unawaited(ref
+              .read(authNotifierProvider)
+              .recordBodyScan(sessionPath: sessionPath));
           context.go(RouteConstants.onboardingAnalyzing, extra: sessionPath);
         }
       case 'onCalibrationError':

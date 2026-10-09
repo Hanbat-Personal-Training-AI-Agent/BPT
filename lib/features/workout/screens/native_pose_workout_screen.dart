@@ -93,6 +93,10 @@ class _NativePoseWorkoutScreenState
   int _badCountThisSet = 0;
   final Set<String> _warningKeysThisSet = {};
 
+  /// 운동 전체에서 네이티브 판정이 보낸 경고 키별 횟수 (기록의 feedbackCounts).
+  /// 임시 데모 피드백은 실제 판정이 아니라서 여기에 넣지 않는다.
+  final Map<String, int> _nativeFeedbackCounts = {};
+
   // 브레이크 타임: 세트 사이 휴식 타이머 + 세트별 기록.
   late int _restTotal = widget.restSeconds;
   late int _restRemaining = widget.restSeconds;
@@ -200,6 +204,9 @@ class _NativePoseWorkoutScreenState
       if (line.kind == KoriFeedbackKind.warning) {
         _badCountThisSet += 1;
         _warningKeysThisSet.add(key);
+        // {n}이 있는 세트 요약형 경고는 해당 렙 수만큼, 나머지는 1회로 센다.
+        _nativeFeedbackCounts.update(key, (c) => c + (count ?? 1),
+            ifAbsent: () => count ?? 1);
       }
     });
   }
@@ -369,6 +376,7 @@ class _NativePoseWorkoutScreenState
         'elapsedSeconds': elapsedSeconds,
         'postureScore': null,
         'feedbackHistory': null,
+        'feedbackCounts': Map<String, int>.of(_nativeFeedbackCounts),
         'targetReps': _totalPlannedReps,
         // 계획한 세트 수가 아니라 실제로 수행한 세트 수를 기록한다.
         'targetSets': performedSets.length,

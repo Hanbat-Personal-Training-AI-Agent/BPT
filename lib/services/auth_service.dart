@@ -122,12 +122,14 @@ class AuthService {
     );
   }
 
-  /// 주간 운동 목표(주 N회). 사용자 정보(/users/me)에는 없어서 대시보드의
-  /// weeklyGoalCount 를 읽는다.
-  Future<int?> fetchWeeklyGoal() async {
-    final response = await _apiClient.get('/users/me/dashboard');
-    final data = response.data;
-    return data is Map ? (data['weeklyGoalCount'] as num?)?.toInt() : null;
+  /// 체형 촬영(사진 4장)을 끝냈다고 서버에 알린다. 서버가 오늘 날짜를 측정일로
+  /// 저장하고 갱신된 사용자 정보를 돌려준다.
+  Future<UserModel> recordBodyScan({String? sessionPath}) async {
+    final response = await _apiClient.post(
+      '/users/me/body-scans',
+      data: {if (sessionPath != null) 'bodyScanLocalPath': sessionPath},
+    );
+    return UserModel.fromJson(response.data as Map<String, dynamic>);
   }
 
   /// 로그인·회원가입으로 받은 현재 토큰 (기기에 저장할 때 쓴다)
