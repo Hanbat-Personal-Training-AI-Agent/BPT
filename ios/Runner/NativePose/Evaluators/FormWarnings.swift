@@ -54,16 +54,18 @@ struct FormCommonConfig {
 
 /// Push-up (side view).
 struct PushUpFormConfig {
-    /// pushup_hip_sag (우선): hip below the shoulder–ankle line by more than this × line length. 임시값 — 테스트 영상으로 조정
-    var hipSagDeviation = 0.06
+    /// pushup_hip_sag (우선): hip below the shoulder–ankle line by more than this × line length.
+    /// Exercise3D p99 (outputs/rep_validation/E_warning_dist_coco17.md).
+    var hipSagDeviation = 0.140
     /// pushup_hip_pike (개선): hip above the shoulder–ankle line by more than this × line length. 임시값 — 테스트 영상으로 조정
     var hipPikeDeviation = 0.08
     /// pushup_shallow (개선): rep min elbow angle larger than the baseline by more than this (deg). 임시값 — 테스트 영상으로 조정
     var shallowOverBaselineDegrees = 15.0
     /// pushup_no_lockout (참고): rep max elbow angle smaller than the set max by more than this (deg). 임시값 — 테스트 영상으로 조정
     var noLockoutBelowSetMaxDegrees = 10.0
-    /// pushup_head_drop (참고): ear moves floor-side of the shoulder–hip line, vs the rep's top, by more than this × torso length. 임시값 — 테스트 영상으로 조정
-    var headDropDeviation = 0.15
+    /// pushup_head_drop (참고): ear moves floor-side of the shoulder–hip line, vs the rep's top, by more than this × torso length.
+    /// Exercise3D p99 (E_warning_dist_coco17.md).
+    var headDropDeviation = 0.376
     /// pushup_head_up (참고): same, upwards. 임시값 — 테스트 영상으로 조정
     var headUpDeviation = 0.15
     /// pushup_hand_position (셋업): first-rep top wrist ahead of the shoulder (towards the head) by more than this × arm length. 임시값 — 테스트 영상으로 조정
@@ -100,8 +102,8 @@ struct SquatFormConfig {
 
 /// Barbell row (side view).
 struct BarbellRowFormConfig {
-    /// row_torso_swing (우선): torso angle max − min within the rep above this (deg). 임시값 — 테스트 영상으로 조정
-    var torsoSwingRangeDegrees = 15.0
+    /// row_torso_swing (우선): torso angle max − min within the rep above this (deg). Exercise3D p99 (E_warning_dist_coco17.md).
+    var torsoSwingRangeDegrees = 39.9
     /// row_standing_up (개선): rep mean torso angle more upright than the baseline by more than this (deg). 임시값 — 테스트 영상으로 조정
     var standingUpDegrees = 10.0
     /// row_short_pull (개선): peak elbow distance behind the shoulder–hip line smaller than the baseline by more than this × torso length. 임시값 — 테스트 영상으로 조정

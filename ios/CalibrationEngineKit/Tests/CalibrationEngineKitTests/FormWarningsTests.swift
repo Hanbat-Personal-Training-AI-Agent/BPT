@@ -113,13 +113,13 @@ final class FormWarningsTests: XCTestCase {
         let tracker = FormWarningTracker(exercise: .pushUp)
         XCTAssertTrue(tracker.common.enabledFeedbackKeys.isEmpty)
         _ = pushUpRep(tracker, hipDrop: 0, frame: 0)
-        let sag = pushUpRep(tracker, hipDrop: 40, frame: 2)
+        let sag = pushUpRep(tracker, hipDrop: 70, frame: 2)
         XCTAssertEqual(sag.warnings, ["pushup_hip_sag"], "still judged and logged")
         XCTAssertNil(sag.spoken)
         XCTAssertEqual(tracker.drainEvents(), [])
         // Only the enabled key is sent; pike stays log-only.
         tracker.common.enabledFeedbackKeys = ["pushup_hip_sag"]
-        _ = pushUpRep(tracker, hipDrop: 40, frame: 4)
+        _ = pushUpRep(tracker, hipDrop: 70, frame: 4)
         XCTAssertEqual(tracker.drainEvents(), [FormFeedbackEvent(key: "pushup_hip_sag", n: 2, silent: false)])
         let pike = pushUpRep(tracker, hipDrop: -50, frame: 6)
         XCTAssertEqual(pike.warnings, ["pushup_hip_pike"])
@@ -135,7 +135,7 @@ final class FormWarningsTests: XCTestCase {
         _ = tracker.drainEvents()
 
         // 우선: spoken right away.
-        let sag = pushUpRep(tracker, hipDrop: 40, frame: 2)
+        let sag = pushUpRep(tracker, hipDrop: 70, frame: 2)
         XCTAssertEqual(sag.warnings, ["pushup_hip_sag"], "\(sag.metrics2D)")
         XCTAssertEqual(sag.spoken, "pushup_hip_sag")
         XCTAssertEqual(tracker.drainEvents(), [FormFeedbackEvent(key: "pushup_hip_sag", n: 1, silent: false)])
@@ -193,7 +193,7 @@ final class FormWarningsTests: XCTestCase {
 
         let row = FormWarningTracker(exercise: .barbellRow)
         let rowBase: [String: Double] = ["torso_mean": 60, "elbow_behind_max": 0.3]
-        XCTAssertEqual(row.judge(["torso_min": 40, "torso_max": 60, "torso_mean": 45, "elbow_behind_max": 0.1,
+        XCTAssertEqual(row.judge(["torso_min": 10, "torso_max": 60, "torso_mean": 45, "elbow_behind_max": 0.1,
                                   "ear_shoulder_drop": 0.5],
                                  history: Array(repeating: rowBase, count: 3), repIndex: 4),
                        ["row_torso_swing", "row_standing_up", "row_short_pull"])  // shrug off by default
