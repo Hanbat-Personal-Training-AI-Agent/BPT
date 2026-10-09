@@ -20,12 +20,13 @@ Reports, per subject and overall:
 import csv
 import json
 import math
+import os
 import statistics
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURES = ROOT / "outputs/calibration_dummy_videos"
-REPLAY = ROOT / "outputs/calibration_replay"
+REPLAY = Path(os.environ.get("CALIBRATION_REPLAY_DIR", ROOT / "outputs/calibration_replay"))
 SUBJECTS = ["dummy_01_male-3-sport", "dummy_02_female-3-sport", "dummy_03_male-4-sport"]
 NOMINAL = {"front": 0, "rightfront": 60, "back": 180, "leftfront": 300}
 VIEWS = list(NOMINAL)
@@ -147,7 +148,7 @@ def main():
             src = fixture["source_frame_for_each_output_frame"]
             if rows is v1_rows:
                 caps = [(r["classified"], num(r, "t"), yaw(src[int(r["i"])])) for r in rows
-                        if r["classified"] and ("촬영 완료" in r["guidance"] or "모두 끝났어요" in r["guidance"])]
+                        if r["classified"] and "찍었어!" in r["guidance"]]
                 text = ", ".join(f"{v} {t:.2f}s(약 {y:.0f}°, 오차 {angle_error(y, NOMINAL[v]):.0f}°)" for v, t, y in caps)
                 print(f"  {subject}: {len(caps)}/4  {text}")
                 continue
