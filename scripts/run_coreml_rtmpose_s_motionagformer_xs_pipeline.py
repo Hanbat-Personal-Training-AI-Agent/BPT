@@ -229,9 +229,9 @@ def run_rtmpose_pass(args, rtmpose_model):
     while args.max_frames <= 0 or frame_index < args.max_frames:
         start = time.perf_counter()
         ok, frame = cap.read()
-        stage_times["frame_decode_ms"].append(elapsed_ms(start))
         if not ok:
             break
+        stage_times["frame_decode_ms"].append(elapsed_ms(start))
 
         timestamp_sec = frame_index / fps
         start = time.perf_counter()
