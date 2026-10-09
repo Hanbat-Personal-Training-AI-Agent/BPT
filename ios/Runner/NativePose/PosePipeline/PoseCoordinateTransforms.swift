@@ -154,13 +154,16 @@ enum PoseCoordinateTransforms {
         )
     }
 
+    /// One frame of MotionAGFormer input ([17][x, y, confidence]). Call in frame order with the
+    /// same `normalizer` for the whole session: `.personCrop` keeps a crop across frames.
     static func normalizedMotionAGFormerFrame(
         fromCOCO17 coco17: [PoseKeypoint],
         imageWidth: Int,
-        imageHeight: Int
+        imageHeight: Int,
+        normalizer: inout MotionAGFormerInputNormalizer
     ) throws -> [[Float]] {
         let h36m = try coco17ToH36M17(coco17)
-        return normalizeMotionAGFormer2D(h36m, imageWidth: imageWidth, imageHeight: imageHeight)
+        return normalizer.normalize(h36m, imageWidth: imageWidth, imageHeight: imageHeight)
     }
 
     static func coco17ToH36M17(_ coco17: [PoseKeypoint]) throws -> [PoseKeypoint] {
@@ -189,17 +192,12 @@ enum PoseCoordinateTransforms {
         return output
     }
 
-    static func normalizeMotionAGFormer2D(
-        _ h36m17: [PoseKeypoint],
-        imageWidth: Int,
-        imageHeight: Int
-    ) -> [[Float]] {
-        let width = Double(imageWidth)
-        let heightOverWidth = Double(imageHeight) / width
-        return h36m17.map { keypoint in
-            let normalizedX = keypoint.x / width * 2.0 - 1.0
-            let normalizedY = keypoint.y / width * 2.0 - heightOverWidth
-            return [Float(normalizedX), Float(normalizedY), Float(keypoint.confidence)]
+    /// p -> (p - centre) / side * 2 for every joint; confidence passes through.
+    static func squareCropNormalize(_ h36m17: [PoseKeypoint], crop: SquareCrop) -> [[Float]] {
+        h36m17.map { keypoint in
+            [Float((keypoint.x - crop.centerX) / crop.side * 2.0),
+             Float((keypoint.y - crop.centerY) / crop.side * 2.0),
+             Float(keypoint.confidence)]
         }
     }
 
@@ -261,5 +259,86 @@ enum PoseCoordinateTransforms {
         matrix.map { row in
             row[0] * vector[0] + row[1] * vector[1] + row[2] * vector[2]
         }
+    }
+}
+
+/// MotionAGFormer 2D-input normalization; mirrors pose_feedback/body/motionagformer_adapter.py and
+/// docs/research/rtmpose_motionagformer_image_to_pose_pipeline.md §13. Every method is the same
+/// square-crop map with a different crop. Only the 3D lifter input uses it: 2D evaluators and
+/// calibration keep pixel keypoints.
+enum MotionAGFormerNormalization: String {
+    /// VideoPose3D screen coordinates (x/W*2-1, y/W*2-H/W). Portrait video puts y at +-H/W.
+    case screen
+    /// Image centre, side = max(W, H): both axes within +-1.
+    case longSide = "long_side"
+    /// Person-centred square crop held with hysteresis (PersonSquareCropTracker).
+    case personCrop = "person_crop"
+
+    /// Single switch back to the old behaviour: set to `.screen`.
+    static let default3D: MotionAGFormerNormalization = .personCrop
+}
+
+struct SquareCrop: Equatable {
+    var centerX: Double
+    var centerY: Double
+    var side: Double
+
+    /// Image-level crop for `.screen` / `.longSide`; `.personCrop` falls back to `.longSide`.
+    static func image(width: Int, height: Int, normalization: MotionAGFormerNormalization) -> SquareCrop {
+        let side = normalization == .screen ? Double(width) : Double(max(width, height))
+        return SquareCrop(centerX: Double(width) * 0.5, centerY: Double(height) * 0.5, side: side)
+    }
+}
+
+/// Square crop around the person, held still with hysteresis like CalibrationFrameAnalyzer.updateCrop:
+/// it only moves when the person leaves it or its size leaves [minRatio, maxRatio] x the fresh target.
+/// The band is wide on the large side so a squat (bbox ~0.6x) does not shrink the crop.
+struct PersonSquareCropTracker {
+    var margin = 2.0
+    var minConfidence = 0.3
+    var minRatio = 0.8
+    var maxRatio = 2.0
+    private(set) var crop: SquareCrop?
+
+    /// Feed one H36M17 frame; nil until the first frame with a usable bbox, then the last crop
+    /// through dropouts.
+    mutating func update(_ joints: [PoseKeypoint]) -> SquareCrop? {
+        let points = joints.filter { $0.confidence >= minConfidence }
+        guard points.count >= 2 else { return crop }
+        let xs = points.map(\.x), ys = points.map(\.y)
+        let x0 = xs.min()!, x1 = xs.max()!
+        var y0 = ys.min()!, y1 = ys.max()!
+        guard x1 - x0 > 1, y1 - y0 > 1 else { return crop }
+        let pad = 0.08 * (y1 - y0)  // keypoints stop at the eyes and ankles
+        y0 -= pad
+        y1 += pad
+        let target = SquareCrop(centerX: (x0 + x1) * 0.5, centerY: (y0 + y1) * 0.5,
+                                side: max(x1 - x0, y1 - y0) * margin)
+        if let current = crop {
+            let h = current.side * 0.5
+            let inside = current.centerX - h <= x0 && x1 <= current.centerX + h
+                && current.centerY - h <= y0 && y1 <= current.centerY + h
+            if inside && minRatio * target.side < current.side && current.side < maxRatio * target.side {
+                return current
+            }
+        }
+        crop = target
+        return target
+    }
+}
+
+struct MotionAGFormerInputNormalizer {
+    var normalization: MotionAGFormerNormalization = .default3D
+    var tracker = PersonSquareCropTracker()
+
+    mutating func normalize(_ h36m17: [PoseKeypoint], imageWidth: Int, imageHeight: Int) -> [[Float]] {
+        let crop: SquareCrop
+        if normalization == .personCrop {
+            crop = tracker.update(h36m17)
+                ?? SquareCrop.image(width: imageWidth, height: imageHeight, normalization: .longSide)
+        } else {
+            crop = SquareCrop.image(width: imageWidth, height: imageHeight, normalization: normalization)
+        }
+        return PoseCoordinateTransforms.squareCropNormalize(h36m17, crop: crop)
     }
 }

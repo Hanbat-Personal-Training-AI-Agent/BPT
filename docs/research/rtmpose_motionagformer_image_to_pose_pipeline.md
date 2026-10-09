@@ -11,7 +11,7 @@ BPT의 AI 모델 파이프라인은 다음 구조를 기준으로 한다.
 카메라 이미지
 → RTMPose-s Core ML
 → COCO17 2D keypoint
-→ H36M17 변환 및 screen normalization
+→ H36M17 변환 및 3D 입력 normalization
 → 27프레임 lookahead5 window
 → MotionAGFormer-XS Core ML
 → target frame H36M17 3D keypoint
@@ -305,18 +305,77 @@ MotionAGFormer는 Human3.6M 방식의 17관절 순서를 사용하므로 adapter
 
 COCO에 없는 spine·thorax·neck·head를 2D 관절 평균으로 합성하기 때문에 이 mapping은 근사값이다. 특히 입력 2D가 흔들리면 MotionAGFormer depth에도 영향을 줄 수 있다.
 
-## 13. MotionAGFormer screen normalization
+## 13. MotionAGFormer 입력 normalization
 
-H36M17의 pixel 좌표를 MotionAGFormer가 기대하는 screen coordinate로 바꾼다.
+H36M17의 pixel 좌표를 MotionAGFormer 입력 좌표로 바꾼다. 이 값은 3D lifter 입력에만 쓴다.
+2D 자세 판정기와 캘리브레이션은 pixel 좌표를 그대로 쓰며 영향을 받지 않는다.
 
-원본 이미지 크기가 `(W,H)`일 때:
+세 방식 모두 같은 정사각형 crop 사상이고 crop만 다르다.
 
 ```text
-xNorm = x / W × 2 - 1
-yNorm = y / W × 2 - H/W
+xNorm = (x - cx) / side × 2
+yNorm = (y - cy) / side × 2
+역변환: x = xNorm × side / 2 + cx (y도 같음)
 ```
 
-y도 `H`가 아니라 `W`로 나누는 것이 중요하다. 이는 VideoPose3D 계열의 `normalize_screen_coordinates` 규약을 따른다.
+| 방식 | 코드 이름 | crop | 이미지 `(W,H)` 기준 식 |
+| --- | --- | --- | --- |
+| 이전 기본값 | `screen` | 이미지 중심, side = W | `x/W×2−1`, `y/W×2−H/W` (VideoPose3D `normalize_screen_coordinates`) |
+| A | `long_side` | 이미지 중심, side = max(W,H) | 세로 영상: `x/H×2−W/H`, `y/H×2−1` |
+| **B (현재 기본값)** | `person_crop` | 사람 중심 정사각형, hysteresis로 고정 | 아래 참고 |
+
+`screen`은 세로 영상(720×1280)에서 y 범위가 ±H/W≈±1.78이 된다. H36M 학습 입력은 약 ±1이다.
+발목이 y≈1.1~1.5에 놓이면 모델이 다리를 안쪽으로 눌러 3D 정강이가 짧아진다. 아래 측정에서 정강이/허벅지 비가 2D·목표 대비 약 0.6배였다.
+
+**B `person_crop`.** 신뢰도 0.3 이상 관절의 bbox를 구한다. 위아래에 높이의 8%(정수리·발바닥 여유)를 더한다.
+side = max(w,h) × 2.0이다. margin 2.0에서는 사람 키가 입력의 약 1 단위가 되어 H36M 입력 크기와 비슷해진다.
+
+흔들림은 CalibrationFrameAnalyzer.updateCrop과 같은 hysteresis로 막는다. 사람이 crop 밖으로 나가거나 새 target side 대비 현재 side가 (0.8, 2.0) 밖이면 그때만 crop을 다시 잡는다.
+그 외에는 crop을 그대로 둔다. 상한 2.0은 스쿼트에서 bbox가 약 0.6배로 줄어도 crop을 따라 줄이지 않기 위한 값이다. 고정 카메라처럼 사람이 작아지는 것을 그대로 보여 준다.
+상한이 1.6이면 squat_03에서 crop이 6번 다시 잡힌다. 그때 clamp 14%, jitter 4.0으로 나빠진다.
+EMA(α=0.1)도 시험했다. EMA는 스쿼트를 따라 crop을 줄여서 squat_03 clamp 13%, jitter 3.8이었고, hysteresis보다 나빴다.
+
+첫 유효 프레임 전에는 `long_side` crop을 쓴다. 관절이 사라진 프레임에는 직전 crop을 유지한다. 영상을 다시 추론하지는 않는다. MotionAGFormer는 2D keypoint만 입력으로 받는다.
+
+되돌리기 스위치는 하나다.
+
+- Python: `pose_feedback/body/motionagformer_adapter.py::DEFAULT_3D_NORMALIZATION`. pipeline 스크립트는 `--normalization screen|long_side|person_crop`로 고를 수 있다.
+- Swift: `MotionAGFormerNormalization.default3D` (`PoseCoordinateTransforms.swift`). `MotionAGFormerInputNormalizer`를 세션마다 하나 두고 프레임 순서대로 넘긴다.
+- 두 구현은 `tests/fixtures/motionagformer_normalization_cases.json`으로 일치를 확인한다.
+
+### 13.1 측정 (2026-10-09)
+
+측정 도구는 `scripts/compare_motionagformer_3d_normalization.py`다. RTMPose-s Core ML(full image)이 만든 같은 2D를 쓰고, MotionAGFormer-XS Core ML(lookahead 5)을 방식마다 다시 돌렸다.
+목표 비율은 `outputs/calibration_fit/result_guided.json`의 boneLengthData에서 가져왔다(R 41.79/43.62=0.96, L 0.94). clamp는 `enabled=True`로 측정만 했고 코드 기본값은 OFF 그대로다.
+bone 보정량은 `apply_bone_lengths`의 다리 4개, 정강이 2개, 팔 4개 마디의 평균 |보정|%다.
+jitter는 프레임 간 3D 관절 속도 중앙값을 다리 길이 중앙값으로 나눈 값(×1000)이다.
+
+| 영상 | 방식 | 정강이/허벅지 R 3D (2D, 목표) | 발목 높이/몸통 3D (2D) | 좌우 다리 차 % | clamp R/L % | bone 보정 % 다리/정강이/팔 | jitter |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| squat_03 552×1078 | screen | **0.57** (1.16, 0.96) | 0.99 (1.33) | 2.4 | **92** / 0 | 35.5 / 43.7 / 53.2 | 3.0 |
+| | A long_side | 0.99 | 1.34 | 4.4 | 24 / 0 | 9.9 / 3.5 / 10.0 | 3.0 |
+| | **B person_crop** | 0.96 | 1.27 | 4.7 | **0** / 0 | **3.1** / 3.0 / 7.2 | 3.3 |
+| dummy_01 720×1280 | screen | 0.70 (0.92, 0.96) | 1.22 (1.42) | 1.8 | 0 / 0 | 18.7 / 34.9 / 12.4 | 2.2 |
+| | A | 0.94 | 1.47 | 4.3 | 0 / 0 | 3.7 / 4.2 / 8.6 | 1.8 |
+| | B | 0.95 | 1.48 | 4.3 | 0 / 0 | 3.1 / 3.1 / 6.5 | 1.8 |
+| dummy_02 720×1280 | screen | 0.73 (1.01, 0.96) | 1.31 (1.51) | 0.5 | 0 / 0 | 18.3 / 33.8 / 15.1 | 2.3 |
+| | A | 0.96 | 1.52 | 3.8 | 0 / 0 | 3.2 / 2.7 / 7.2 | 1.8 |
+| | B | 0.97 | 1.52 | 3.4 | 0 / 0 | 3.0 / 2.0 / 5.4 | 1.8 |
+| dummy_03 720×1280 | screen | 0.59 (0.93, 0.96) | 1.19 (1.46) | 0.6 | 0 / 0 | 31.3 / 60.1 / 13.0 | 2.1 |
+| | A | 0.93 | 1.50 | 4.0 | 0 / 0 | 4.0 / 4.8 / 7.8 | 1.7 |
+| | B | 0.95 | 1.49 | 3.8 | 0 / 0 | 2.9 / 3.0 / 6.4 | 1.6 |
+| dummy_03_guided 720×1280 | screen | 0.59 (0.91, 0.96) | 1.19 (1.49) | 0.9 | 0 / 0 | 33.2 / 63.3 / 13.2 | 2.1 |
+| | A | 0.93 | 1.51 | 4.6 | 0 / 0 | 4.3 / 5.2 / 8.1 | 1.7 |
+| | B | 0.95 | 1.51 | 3.9 | 0 / 0 | 3.0 / 3.4 / 6.9 | 1.7 |
+| male-3-outdoor 1080×1080 (대조군) | screen = A | 0.93 (0.96, 0.96) | 1.45 (1.42) | 4.1 | 0 / 0 | 4.0 / 5.3 / 10.0 | 6.2 |
+| | B | 0.94 | 1.46 | 3.5 | 0 / 0 | 2.8 / 3.1 / 6.5 | 6.3 |
+
+- 발목 높이를 같은 입력 단위로 비교했다(골반 기준, 양발 평균). squat_03 screen은 2D 1.25 → 3D 0.76으로 눌린다. A는 0.64 → 0.66, B는 0.38 → 0.39로 2D와 같다.
+- 정사각형 영상에서는 screen과 A가 같다. 세로 영상에서만 생기는 문제라는 대조 결과다.
+- B가 A보다 나은 점은 bone 보정량(squat_03 다리 9.9% → 3.1%)과 clamp(24% → 0%)다. 사람 크기를 H36M 입력 크기에 맞춘 효과다. margin 1.25에서는 A와 비슷했다.
+- B의 대가는 squat_03 jitter 3.0 → 3.3(+10%)과 상태(tracker)다. 세로 더미 영상에서는 차이가 없었고, recrop은 모든 영상에서 0회였다.
+- 좌우 다리 길이 차는 screen이 더 작다(0.5~2.4% vs 3.4~4.7%). screen이 다리를 눌러 양쪽을 비슷한 템플릿 길이로 내보낸 결과로 본다. 정사각형 대조군(screen=A)도 4.1%다.
+- 원 표와 B 변형(margin 1.25, 상한 1.6, EMA)은 `outputs/pose3d_norm/compare_all.md`(gitignored)에 있다. 다시 만들려면 pipeline으로 npz를 만들고(2D는 `--normalization`과 무관) 위 스크립트를 실행한다.
 
 관절별 입력 channel은 다음 세 개다.
 
@@ -556,11 +615,12 @@ func processCameraFrame(sampleBuffer, frameIndex) throws {
     let decoded = try SimCCDecoder.decode(simcc.x, simcc.y)
     let coco17 = applyInverseAffine(decoded, preprocessed.inverseAffine)
 
-    // 2. COCO17 → normalized H36M17
+    // 2. COCO17 → normalized H36M17 (§13, 세션당 normalizer 하나)
     let motionFrame = try normalizedMotionAGFormerFrame(
-        coco17,
+        fromCOCO17: coco17,
         imageWidth: preprocessed.imageWidth,
-        imageHeight: preprocessed.imageHeight
+        imageHeight: preprocessed.imageHeight,
+        normalizer: &motionNormalizer
     )
 
     // 3. 동일 프레임 데이터 저장
@@ -606,7 +666,7 @@ func processCameraFrame(sampleBuffer, frameIndex) throws {
 | SimCC decode | 완료 | Python + Swift |
 | inverse affine | 완료 | Python + Swift scaffold |
 | COCO17→H36M17 | 완료 | Python + Swift |
-| Motion screen normalization | 완료 | Python + Swift |
+| Motion input normalization (§13, 기본 person_crop) | 완료 | Python + Swift, 공유 fixture |
 | lookahead padded window | 완료 | Python + Swift |
 | MotionAGFormer-XS Core ML export | 완료 | `coreml_safe`, FP16 기록 |
 | Motion Core ML inference | 완료 | Python runner + Swift benchmark scaffold |
@@ -750,7 +810,7 @@ RGB frame
 → inverse affine
 → COCO17 image-space 2D
 → H36M17 conversion
-→ Motion screen normalization
+→ Motion input normalization (§13 person_crop)
 → 27-frame lookahead5 window
 → MotionAGFormer-XS forward
 → output temporal index 21

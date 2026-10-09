@@ -56,6 +56,9 @@ MotionAGFormer-XS 출력은 y가 아래(이미지 좌표계), 골반 L−R은 +x
   꺾인다. 굽힘 평면 법선과 축 a가 거의 수직(정렬도 중앙값 0.1~0.4)이라 θ 부호가 사실상 임의다.
   오른다리 92% 프레임이 보정 대상이 된다.
 - 회전이 많은 영상(`sample_video`, 피겨)에서도 23%가 보정 대상이고 보정량이 평균 50°, 최대 169°다.
+- 위 squat_03 92%는 세로 영상 입력 normalization(`screen`, y가 ±1.78) 때문에 다리가 눌린 출력에서 나온 값이다.
+  3D 입력 기본값을 `person_crop`으로 바꾼 뒤(docs/research/rtmpose_motionagformer_image_to_pose_pipeline.md §13.1)
+  squat_03 보정 비율은 오른다리 0%, 왼다리 0%이고, 세로 캘리브레이션 더미 4개도 0%다. 기본값 OFF는 그대로 둔다.
 - 따라서 기본값은 OFF(`enabled=False`)이고, 이 축 정의로는 앱 3D 경로에 그대로 켜면 안 된다. 축 정의 보강(예: 정렬도가 낮으면
   degenerate 처리, 큰 보정량은 신뢰하지 않기)이 먼저다.
 

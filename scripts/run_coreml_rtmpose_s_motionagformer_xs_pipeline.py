@@ -30,8 +30,10 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from pose_feedback.body.motionagformer_adapter import (  # noqa: E402
+    DEFAULT_3D_NORMALIZATION,
+    NORMALIZATIONS,
     coco17_to_motionagformer_h36m17,
-    normalize_motionagformer_2d,
+    normalize_motionagformer_sequence,
 )
 from pose_feedback.body.motionagformer_buffer import MotionAGFormerWindowBuilder  # noqa: E402
 
@@ -118,6 +120,12 @@ def parse_args():
     parser.add_argument("--output-video", default="assets/coreml_pipeline/videos/vedio_1_coreml_2d_3d_side_by_side.mp4")
     parser.add_argument("--max-frames", type=int, default=240)
     parser.add_argument("--lookahead", type=int, default=5)
+    parser.add_argument(
+        "--normalization",
+        choices=NORMALIZATIONS,
+        default=DEFAULT_3D_NORMALIZATION,
+        help="MotionAGFormer 2D input normalization (docs §13); 'screen' is the pre-2026-10 behaviour",
+    )
     return parser.parse_args()
 
 
@@ -173,6 +181,8 @@ def main():
         timestamps,
         args.lookahead,
         motion_indices,
+        (video_meta["image_width"], video_meta["image_height"]),
+        args.normalization,
     )
     benchmark = build_benchmark(
         args,
@@ -220,7 +230,6 @@ def run_rtmpose_pass(args, rtmpose_model):
     rows = []
     coco17 = []
     h36m17 = []
-    normalized = []
     frame_indices = []
     timestamps = []
     stage_times = new_stage_times()
@@ -255,8 +264,6 @@ def run_rtmpose_pass(args, rtmpose_model):
 
         start = time.perf_counter()
         h36m_xy, h36m_conf = coco17_to_motionagformer_h36m17(coco)
-        normalized_xy = normalize_motionagformer_2d(h36m_xy, image_w, image_h)
-        normalized_frame = np.concatenate([normalized_xy, h36m_conf[:, None]], axis=-1).astype("float32")
         stage_times["coco_to_h36m_ms"].append(elapsed_ms(start))
 
         start = time.perf_counter()
@@ -278,7 +285,6 @@ def run_rtmpose_pass(args, rtmpose_model):
         rows.append(row)
         coco17.append(coco)
         h36m17.append(np.concatenate([h36m_xy, h36m_conf[:, None]], axis=-1).astype("float32"))
-        normalized.append(normalized_frame)
         frame_indices.append(frame_index)
         timestamps.append(timestamp_sec)
         stage_times["postprocess_ms"].append(elapsed_ms(start))
@@ -287,12 +293,15 @@ def run_rtmpose_pass(args, rtmpose_model):
     cap.release()
     if not rows:
         raise RuntimeError("No frames processed")
+    h36m = np.stack(h36m17).astype("float32")
+    normalized_xy = normalize_motionagformer_sequence(h36m[..., :2], h36m[..., 2], image_w, image_h, args.normalization)
+    normalized = np.concatenate([normalized_xy, h36m[..., 2:]], axis=-1)
 
     return (
         rows,
         np.stack(coco17).astype("float32"),
-        np.stack(h36m17).astype("float32"),
-        np.stack(normalized).astype("float32"),
+        h36m,
+        normalized.astype("float32"),
         np.asarray(frame_indices, dtype=np.int32),
         np.asarray(timestamps, dtype="float32"),
         stage_times,
@@ -534,6 +543,7 @@ def build_benchmark(args, stage_times, video_meta, rtmpose_load_ms, motion_load_
         "frames_with_3d": int(len(pred_3d_selected)),
         "bbox_policy": "full_image",
         "lookahead": int(args.lookahead),
+        "normalization": args.normalization,
         "latency_frames": int(args.lookahead),
         "model_load_ms": {
             "rtmpose": float(rtmpose_load_ms),
@@ -597,7 +607,7 @@ def save_jsonl(path, rows):
             fh.write(json.dumps(row, sort_keys=True) + "\n")
 
 
-def save_npz(path, pred_3d, pred_3d_selected, coco17_2d, h36m17_2d, normalized_h36m17_2d, frame_indices, timestamps, lookahead, motion_indices):
+def save_npz(path, pred_3d, pred_3d_selected, coco17_2d, h36m17_2d, normalized_h36m17_2d, frame_indices, timestamps, lookahead, motion_indices, image_size, normalization):
     path.parent.mkdir(parents=True, exist_ok=True)
     np.savez_compressed(
         path,
@@ -610,6 +620,8 @@ def save_npz(path, pred_3d, pred_3d_selected, coco17_2d, h36m17_2d, normalized_h
         timestamps_sec=np.asarray(timestamps, dtype="float32"),
         motionagformer_window_indices=np.asarray(motion_indices, dtype=np.int32),
         latency_frames=np.asarray([lookahead], dtype=np.int32),
+        image_size=np.asarray(image_size, dtype=np.int32),
+        normalization=np.asarray([normalization]),
         model=np.asarray(["MotionAGFormer-XS CoreML"]),
         source_2d=np.asarray(["RTMPose-s CoreML"]),
     )

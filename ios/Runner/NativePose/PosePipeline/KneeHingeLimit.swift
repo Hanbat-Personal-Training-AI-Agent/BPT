@@ -12,8 +12,8 @@ import simd
 /// Not wired into the app yet; call right after selected3D (after any bone-length fix).
 enum KneeHingeLimit {
     struct Config {
-        /// Off by default: on squat_03 and a spinning clip it fires on 23-92% of normal frames
-        /// (portrait input normalisation, see pose_feedback/geometry/README.md). Re-measure before enabling.
+        /// Off by default. The 92% squat_03 firing came from the old `screen` input normalisation; with
+        /// `person_crop` it is 0% (docs/research/rtmpose_motionagformer_image_to_pose_pipeline.md §13.1).
         var enabled = false
         var limitDegrees = 10.0
     }
