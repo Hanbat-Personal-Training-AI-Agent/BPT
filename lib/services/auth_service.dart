@@ -152,7 +152,7 @@ class AuthService {
   Future<void> saveUserData(UserModel user) async {
     await _apiClient.put(
       '/users/me',
-      data: user.toJson(),
+      data: user.toUpdateJson(),
     );
   }
 
