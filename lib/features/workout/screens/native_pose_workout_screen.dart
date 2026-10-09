@@ -13,6 +13,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_toast.dart';
 import '../../../data/mock_data.dart';
 import '../../home/providers/home_provider.dart';
+import '../data/kori_feedback_lines.dart';
 
 /// Preparation phases shown before the native camera PlatformView appears.
 enum _PrepPhase { alignHint, countdown, live }
@@ -83,11 +84,14 @@ class _NativePoseWorkoutScreenState
   int _elapsedSeconds = 0;
   bool _isPaused = false;
 
-  // 코리 피드백: 실제 자세 평가 연동 전까지 rep마다 good/more deep을 번갈아 보여준다.
-  // 첫 rep이 잡히기 전까지는 "준비되면 시작해보자!" 기본 멘트를 보여준다.
-  bool _feedbackGood = true;
-  bool _hasFeedbackStarted = false;
+  // 코리 피드백: 네이티브가 `onFeedback` 으로 보낸 대사 키를 보여준다
+  // (kori_feedback_lines.dart). 키가 한 번도 안 왔으면 rep마다 칭찬과 운동별 대표
+  // 경고를 번갈아 보여주는 임시 동작을 쓴다. 첫 피드백 전에는 운동별 기본 팁을 보여준다.
+  String? _feedbackKey;
+  int? _feedbackCount;
+  bool _nativeFeedbackActive = false;
   int _badCountThisSet = 0;
+  final Set<String> _warningKeysThisSet = {};
 
   // 브레이크 타임: 세트 사이 휴식 타이머 + 세트별 기록.
   late int _restTotal = widget.restSeconds;
@@ -176,8 +180,40 @@ class _NativePoseWorkoutScreenState
       final args = (call.arguments as Map).cast<String, dynamic>();
       final rep = (args['rep'] as num?)?.toInt() ?? _latestNativeRep;
       _onNativeUpdate(rep);
+    } else if (call.method == 'onFeedback') {
+      // { key: 'squat_shallow', n?: 3 } — key는 kori_feedback_lines.dart 목록 기준.
+      final args = (call.arguments as Map).cast<String, dynamic>();
+      final key = args['key'] as String?;
+      if (key != null) _onNativeFeedback(key, (args['n'] as num?)?.toInt());
     }
     return null;
+  }
+
+  void _onNativeFeedback(String key, int? count) {
+    final line = koriFeedbackLines[key];
+    if (!mounted || _isPaused || line == null) return;
+    if (_setComplete || _workoutComplete) return;
+    setState(() {
+      _nativeFeedbackActive = true;
+      _feedbackKey = key;
+      _feedbackCount = count;
+      if (line.kind == KoriFeedbackKind.warning) {
+        _badCountThisSet += 1;
+        _warningKeysThisSet.add(key);
+      }
+    });
+  }
+
+  /// 네이티브 피드백 연동 전 임시 동작: rep마다 칭찬 ↔ 운동별 대표 경고.
+  void _advanceDemoFeedback() {
+    final warningKey = koriDemoWarningKeyByExercise[widget.exerciseId];
+    final showWarning = warningKey != null && _feedbackKey == 'praise_fixed';
+    _feedbackKey = showWarning ? warningKey : 'praise_fixed';
+    _feedbackCount = null;
+    if (showWarning) {
+      _badCountThisSet += 1;
+      _warningKeysThisSet.add(warningKey);
+    }
   }
 
   // TODO(temp): 시뮬레이터에서는 카메라가 없어 반복 수가 안 들어오므로,
@@ -194,17 +230,14 @@ class _NativePoseWorkoutScreenState
       // Don't advance set state while a set-complete / done prompt is showing;
       // reps performed during the rest period are discarded on "next set".
       if (_setComplete || _workoutComplete) return;
-      if (repIncreased) {
-        _feedbackGood = !_feedbackGood;
-        _hasFeedbackStarted = true;
-        if (!_feedbackGood) _badCountThisSet += 1;
-      }
+      if (repIncreased && !_nativeFeedbackActive) _advanceDemoFeedback();
       if (rep - _setStartRep >= _targetRepsThisSet) {
         _setResults.add(
           _SetResult(
             reps: _targetRepsThisSet,
             weightKg: _weightForSet,
             badCount: _badCountThisSet,
+            fixCount: _warningKeysThisSet.length,
           ),
         );
         if (_currentSet < widget.targetSets) {
@@ -258,6 +291,9 @@ class _NativePoseWorkoutScreenState
       _setStartRep = _latestNativeRep; // snapshot: discard rest-period reps
       _setComplete = false;
       _badCountThisSet = 0;
+      _warningKeysThisSet.clear();
+      _feedbackKey = null;
+      _feedbackCount = null;
     });
   }
 
@@ -296,6 +332,7 @@ class _NativePoseWorkoutScreenState
           reps: _repsThisSet,
           weightKg: _weightForSet,
           badCount: _badCountThisSet,
+          fixCount: _warningKeysThisSet.length,
         ),
     ];
     final totalReps = performedSets.fold<int>(0, (sum, r) => sum + r.reps);
@@ -452,8 +489,8 @@ class _NativePoseWorkoutScreenState
                 targetReps: _targetRepsThisSet,
                 currentSet: _currentSet,
                 totalSets: widget.targetSets,
-                feedbackIdle: !_hasFeedbackStarted,
-                feedbackGood: _feedbackGood,
+                feedbackKey: _feedbackKey,
+                feedbackCount: _feedbackCount,
                 isPaused: _isPaused,
                 onTogglePause: _togglePause,
                 onEnd: _confirmEnd,
@@ -641,8 +678,8 @@ class _LiveHud extends StatelessWidget {
     required this.targetReps,
     required this.currentSet,
     required this.totalSets,
-    required this.feedbackIdle,
-    required this.feedbackGood,
+    required this.feedbackKey,
+    required this.feedbackCount,
     required this.isPaused,
     required this.onTogglePause,
     required this.onEnd,
@@ -656,8 +693,9 @@ class _LiveHud extends StatelessWidget {
   final int targetReps;
   final int currentSet;
   final int totalSets;
-  final bool feedbackIdle;
-  final bool feedbackGood;
+  /// null이면 첫 피드백 전 기본 팁.
+  final String? feedbackKey;
+  final int? feedbackCount;
   final bool isPaused;
   final VoidCallback onTogglePause;
   final VoidCallback onEnd;
@@ -747,8 +785,8 @@ class _LiveHud extends StatelessWidget {
           child: _KoriFeedbackRow(
             isKo: isKo,
             exerciseId: exerciseId,
-            idle: feedbackIdle,
-            good: feedbackGood,
+            feedbackKey: feedbackKey,
+            feedbackCount: feedbackCount,
           ),
         ),
         Padding(
@@ -892,7 +930,7 @@ class _SoundToggleButtonState extends State<_SoundToggleButton> {
   }
 }
 
-/// 코리가 rep마다 보여주는 임시 피드백 말풍선 (실제 자세 평가 연동 전 placeholder).
+/// 코리 피드백 말풍선. [feedbackKey] 대사를 보여주고, null이면 운동별 기본 팁.
 class _KoriFeedbackRow extends StatelessWidget {
   // 첫 rep이 잡히기 전 기본 상태에서 운동별로 보여주는 한 줄 주의사항.
   static const Map<String, String> _idleTipsKo = {
@@ -913,13 +951,13 @@ class _KoriFeedbackRow extends StatelessWidget {
   const _KoriFeedbackRow({
     required this.isKo,
     required this.exerciseId,
-    required this.idle,
-    required this.good,
+    required this.feedbackKey,
+    required this.feedbackCount,
   });
   final bool isKo;
   final String exerciseId;
-  final bool idle;
-  final bool good;
+  final String? feedbackKey;
+  final int? feedbackCount;
 
   @override
   Widget build(BuildContext context) {
@@ -929,7 +967,8 @@ class _KoriFeedbackRow extends StatelessWidget {
     final String title;
     final String subtitle;
 
-    if (idle) {
+    final line = koriFeedbackLines[feedbackKey];
+    if (line == null) {
       characterAsset = 'assets/images/character/considering.png';
       bubbleColor = AppColors.purple;
       textColor = AppColors.black;
@@ -937,18 +976,25 @@ class _KoriFeedbackRow extends StatelessWidget {
       subtitle = isKo
           ? (_idleTipsKo[exerciseId] ?? _idleTipsKo['squat']!)
           : (_idleTipsEn[exerciseId] ?? _idleTipsEn['squat']!);
-    } else if (good) {
-      characterAsset = 'assets/images/character/cheering.png';
-      bubbleColor = AppColors.green;
-      textColor = AppColors.black;
-      title = isKo ? '좋아! 자세 정확해' : 'Nice! Great form';
-      subtitle = isKo ? '지금처럼만 유지해' : 'Keep it up just like this';
     } else {
-      characterAsset = 'assets/images/character/worrying.png';
-      bubbleColor = AppColors.pink;
-      textColor = AppColors.white;
-      title = isKo ? '잠깐! 무릎이 너무 안쪽으로 모였어' : 'Wait! Your knees caved in';
-      subtitle = isKo ? '발끝 방향으로 살짝 벌려줘' : 'Push them out toward your toes';
+      switch (line.kind) {
+        case KoriFeedbackKind.praise:
+          characterAsset = 'assets/images/character/cheering.png';
+          bubbleColor = AppColors.green;
+          textColor = AppColors.black;
+        case KoriFeedbackKind.warning:
+          characterAsset = 'assets/images/character/worrying.png';
+          bubbleColor = AppColors.pink;
+          textColor = AppColors.white;
+        case KoriFeedbackKind.setup:
+          characterAsset = 'assets/images/character/considering.png';
+          bubbleColor = AppColors.purple;
+          textColor = AppColors.black;
+      }
+      final parts =
+          splitKoriLine(line.render(isKo: isKo, n: feedbackCount));
+      title = parts.title;
+      subtitle = parts.subtitle;
     }
 
     return Row(
@@ -1000,16 +1046,18 @@ class _KoriFeedbackRow extends StatelessWidget {
                       height: 1.1,
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      color: textColor.withValues(alpha: 0.75),
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                      height: 1.1,
+                  if (subtitle.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        color: textColor.withValues(alpha: 0.75),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        height: 1.1,
+                      ),
                     ),
-                  ),
+                  ],
                 ],
               ),
             ),
@@ -1263,10 +1311,16 @@ class _SetResult {
     required this.reps,
     required this.weightKg,
     required this.badCount,
+    required this.fixCount,
   });
   final int reps;
   final int weightKg;
+
+  /// 경고가 나온 횟수 (결과 기록의 incorrectReps).
   final int badCount;
+
+  /// 이 세트에서 나온 서로 다른 경고 종류 수 (set_summary 의 {k}).
+  final int fixCount;
 }
 
 /// 브레이크 타임 화면: 세트 사이 휴식 타이머 + 코리 코멘트 + 세트별 기록.
@@ -1301,7 +1355,7 @@ class _BreakTimeOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final lastBadCount = setResults.isEmpty ? 0 : setResults.last.badCount;
+    final lastResult = setResults.isEmpty ? null : setResults.last;
     return Container(
       color: AppColors.black,
       child: SafeArea(
@@ -1384,8 +1438,8 @@ class _BreakTimeOverlay extends StatelessWidget {
               const SizedBox(height: 20),
               _KoriBreakMessage(
                 isKo: isKo,
-                completedSet: completedSet,
-                badCount: lastBadCount,
+                reps: lastResult?.reps ?? 0,
+                fixCount: lastResult?.fixCount ?? 0,
               ),
               const SizedBox(height: 16),
               _SoFarCard(
@@ -1605,27 +1659,21 @@ class _RestAdjustButtonState extends State<_RestAdjustButton> {
 class _KoriBreakMessage extends StatelessWidget {
   const _KoriBreakMessage({
     required this.isKo,
-    required this.completedSet,
-    required this.badCount,
+    required this.reps,
+    required this.fixCount,
   });
   final bool isKo;
-  final int completedSet;
-  final int badCount;
+  final int reps;
+  final int fixCount;
 
   @override
   Widget build(BuildContext context) {
-    final String title;
-    final String subtitle;
-    if (badCount == 0) {
-      title = isKo ? '$completedSet세트 완벽했어!' : 'Set $completedSet was perfect!';
-      subtitle = isKo ? '이 페이스 그대로 가자!' : 'Keep this pace going!';
-    } else {
-      title = isKo
-          ? '$completedSet세트에서 무릎이 살짝 흔들렸어.'
-          : 'Your knees wobbled a bit in set $completedSet.';
-      subtitle =
-          isKo ? '다음 세트는 조금만 천천히 해보자!' : 'Take it a little slower next set!';
-    }
+    // 경고 없이 끝난 세트 → praise_clean_set, 경고가 있었으면 → set_summary.
+    final line = fixCount == 0
+        ? koriFeedbackLines['praise_clean_set']!
+        : koriFeedbackLines['set_summary']!;
+    final (:title, :subtitle) =
+        splitKoriLine(line.render(isKo: isKo, reps: reps, k: fixCount));
 
     return Container(
       width: double.infinity,
@@ -1657,16 +1705,18 @@ class _KoriBreakMessage extends StatelessWidget {
                     height: 1.15,
                   ),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  style: const TextStyle(
-                    color: AppColors.black,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w800,
-                    height: 1.15,
+                if (subtitle.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      color: AppColors.black,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      height: 1.15,
+                    ),
                   ),
-                ),
+                ],
               ],
             ),
           ),
@@ -1818,7 +1868,7 @@ class _SetRow extends StatelessWidget {
       trailingText = isKo ? '완벽해' : 'Perfect';
       trailingColor = AppColors.green;
     } else {
-      trailingText = isKo ? '무릎 모임 $badCount회' : 'Knee cave x$badCount';
+      trailingText = isKo ? '교정 $badCount회' : 'Fix x$badCount';
       trailingColor = AppColors.pink;
     }
 
