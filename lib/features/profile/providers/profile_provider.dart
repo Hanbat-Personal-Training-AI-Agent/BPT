@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../features/auth/providers/auth_provider.dart';
 import '../../../models/user_model.dart';
+import '../../../services/local_storage_service.dart';
 
 // Delegates to auth — keeps a single source of truth for the current user.
 final profileUserProvider = Provider<UserModel?>((ref) {
@@ -19,6 +21,15 @@ final notificationsEnabledProvider = Provider<bool>((ref) {
 final koriReminderTimeProvider = Provider<TimeOfDay>((ref) {
   return parseReminderTime(ref.watch(profileUserProvider)?.notificationTime) ??
       const TimeOfDay(hour: 7, minute: 0);
+});
+
+/// 로그인한 사용자의 알림 예약 설정 (켜짐, 시각). 로그아웃 상태면 null.
+final reminderScheduleProvider = Provider<(bool, TimeOfDay)?>((ref) {
+  if (ref.watch(profileUserProvider) == null) return null;
+  return (
+    ref.watch(notificationsEnabledProvider),
+    ref.watch(koriReminderTimeProvider),
+  );
 });
 
 /// "HH:mm" → TimeOfDay. 형식이 맞지 않으면 null.
@@ -47,4 +58,21 @@ void saveNotificationSettings(WidgetRef ref, {bool? enabled, TimeOfDay? time}) {
 }
 
 // 광고성 정보(혜택/이벤트) 수신 동의 — 기본값은 옵트인 관례에 따라 꺼짐.
-final marketingConsentEnabledProvider = StateProvider<bool>((ref) => false);
+// 서버에 저장할 필드가 아직 없어서 기기에 저장한다.
+final marketingConsentEnabledProvider =
+    StateNotifierProvider<MarketingConsentNotifier, bool>((ref) {
+  return MarketingConsentNotifier(ref.watch(sharedPreferencesProvider));
+});
+
+class MarketingConsentNotifier extends StateNotifier<bool> {
+  MarketingConsentNotifier(this._prefs)
+      : super(_prefs.getBool(_key) ?? false);
+
+  static const _key = 'bpt_marketing_consent';
+  final SharedPreferences _prefs;
+
+  Future<void> set(bool enabled) async {
+    state = enabled;
+    await _prefs.setBool(_key, enabled);
+  }
+}

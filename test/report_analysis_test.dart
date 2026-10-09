@@ -9,7 +9,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-WorkoutRecordModel _record(String exerciseId, {double weightKg = 0}) =>
+WorkoutRecordModel _record(String exerciseId,
+        {double weightKg = 0, Map<String, int> feedbackCounts = const {}}) =>
     WorkoutRecordModel(
       id: '$exerciseId-${_seq++}',
       exerciseId: exerciseId,
@@ -22,6 +23,7 @@ WorkoutRecordModel _record(String exerciseId, {double weightKg = 0}) =>
       durationSeconds: 60,
       postureScore: 0,
       feedbackNotes: const [],
+      feedbackCounts: feedbackCounts,
     );
 var _seq = 0;
 
@@ -53,6 +55,19 @@ void main() {
     expect(data.ratios.map((r) => r.percent), [50, 33, 17]);
     expect(data.ratios.fold<int>(0, (a, r) => a + r.percent), 100);
     expect(data.insight(true), contains('스쿼트를 가장 많이 했어'));
+  });
+
+  test('mistakes add up feedback counts across records, most frequent first', () {
+    final data = buildReportAnalysis([
+      _record('squat', feedbackCounts: {'squat_knee_valgus': 2, 'squat_shallow': 1}),
+      _record('squat', feedbackCounts: {'squat_knee_valgus': 3}),
+      _record('pushup', feedbackCounts: {'pushup_hip_sag': 2, 'unknown_key': 9}),
+    ]);
+    expect(data.mistakes.map((m) => m.labelKo),
+        ['무릎 안쪽 모임 · 스쿼트', '엉덩이 처짐 · 푸쉬업', '앉는 깊이 부족 · 스쿼트']);
+    expect(data.mistakes.map((m) => m.count), [5, 2, 1]);
+    expect(data.totalMistakes, 8);
+    expect(data.insight(true), contains('무릎 안쪽 모임이 가장 자주 보였어'));
   });
 
   test('no records → empty ratios, no mistakes, waiting message', () {

@@ -326,7 +326,7 @@ class _MarketingConsentCard extends ConsumerWidget {
             child: Switch(
               value: enabled,
               onChanged: (v) =>
-                  ref.read(marketingConsentEnabledProvider.notifier).state = v,
+                  ref.read(marketingConsentEnabledProvider.notifier).set(v),
               materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
               activeTrackColor: AppColors.green,
               thumbColor: const WidgetStatePropertyAll(AppColors.black),
