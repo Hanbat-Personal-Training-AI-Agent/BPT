@@ -125,6 +125,27 @@ class UserModel {
         'joinedAt': joinedAt.toIso8601String(),
       };
 
+  /// PUT /users/me 요청 본문 (서버 UserUpdateRequestDto 필드 이름·형식).
+  /// toJson 은 기기 저장용이라 서버와 이름(phone)·날짜 형식이 다르다.
+  /// 체형 측정일은 POST /users/me/body-scans 로만 바꾸므로 보내지 않는다.
+  Map<String, dynamic> toUpdateJson() => {
+        'username': username,
+        'email': email,
+        'name': name,
+        if (phone != null && phone!.isNotEmpty) 'phoneNumber': phone,
+        if (birthDate != null) 'birthDate': _dateOnly(birthDate!),
+        'gender': gender,
+        'heightCm': heightCm,
+        'weightKg': weightKg,
+        'workoutGoal': workoutGoal,
+        'weeklyFrequency': weeklyFrequency,
+        'notificationEnabled': notificationEnabled,
+        'notificationTime': notificationTime,
+      };
+
+  static String _dateOnly(DateTime d) =>
+      '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
   factory UserModel.fromJson(Map<String, dynamic> json) => UserModel(
         id: json['id'] as String? ?? '',
         username: json['username'] as String? ?? '',
