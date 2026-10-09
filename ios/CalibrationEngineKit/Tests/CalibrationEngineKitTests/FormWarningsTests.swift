@@ -241,4 +241,27 @@ final class FormWarningsTests: XCTestCase {
         }
         XCTAssertEqual(tracker.drainEvents().map(\.key), ["tracking_lost"])
     }
+
+    func testAngleWrap() {
+        XCTAssertEqual(FormGeometry.wrapDegrees(358), -2, accuracy: 1e-9)
+        XCTAssertEqual(FormGeometry.wrapDegrees(-181), 179, accuracy: 1e-9)
+        XCTAssertEqual(FormGeometry.wrapDegrees(-180), 180)
+        XCTAssertEqual(FormGeometry.wrapDegrees(180), 180)
+        XCTAssertEqual(FormGeometry.unwrapDegrees([170, 179, -179, -170]), [170, 179, 181, 190])
+        XCTAssertEqual(FormGeometry.unwrapDegrees([-170, -179, 179]), [-170, -179, -181])
+    }
+
+    func testTorsoSwingAcrossPlusMinus180() throws {
+        // Trunk pointing almost straight down crosses ±180 frame to frame: a 20° swing, not ~359°.
+        let tracker = FormWarningTracker(exercise: .barbellRow)
+        let frames = [170.0, 179, -179, -170].enumerated().map { i, t in
+            var f = FormFrameSample(frame: i, phase: "", side: .left)
+            f.torso = t
+            return f
+        }
+        let m = tracker.metrics2D(frames, isFirstRep: false)
+        XCTAssertEqual(try XCTUnwrap(m["torso_max"]) - (try XCTUnwrap(m["torso_min"])), 20, accuracy: 1e-9)
+        XCTAssertEqual(try XCTUnwrap(m["torso_mean"]), 180, accuracy: 1e-9)
+        XCTAssertFalse(tracker.judge(m, history: [], repIndex: 1).contains("row_torso_swing"))
+    }
 }

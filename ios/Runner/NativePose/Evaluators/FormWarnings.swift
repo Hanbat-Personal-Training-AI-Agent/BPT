@@ -183,6 +183,20 @@ enum FormGeometry {
         return acos(min(max((ux * vx + uy * vy) / (nu * nv), -1), 1)) * 180 / .pi
     }
 
+    /// Angle difference wrapped to (-180, 180].
+    static func wrapDegrees(_ d: Double) -> Double {
+        let r = remainder(d, 360)
+        return r == -180 ? 180 : r
+    }
+
+    /// Angles in (-180, 180] made continuous (each step wrapped), so max − min / mean stay right
+    /// when a sequence crosses ±180 (e.g. 179 → -179 is a 2° step, not 358°).
+    static func unwrapDegrees(_ a: [Double]) -> [Double] {
+        var out: [Double] = []
+        for v in a { out.append(out.last.map { $0 + wrapDegrees(v - $0) } ?? v) }
+        return out
+    }
+
     /// Trunk (hip → shoulder) vs image vertical, deg. 0 upright, > 0 leaning towards `facing`
     /// (+1 = nose on the +x side of the ear), < 0 leaning back. Image y is down.
     static func signedTorsoAngle2D(shoulder: PoseKeypoint, hip: PoseKeypoint, facing: Double) -> Double? {
@@ -635,10 +649,10 @@ final class FormWarningTracker {
         put("knee_min", vals(\.knee).min())
         put("knee_max", vals(\.knee).max())
         put("hip_angle_max", vals(\.hipAngle).max())
-        let torso = vals(\.torso)
+        let torso = FormGeometry.unwrapDegrees(vals(\.torso))
         put("torso_min", torso.min())
         put("torso_max", torso.max())
-        put("torso_mean", torso.isEmpty ? nil : torso.reduce(0, +) / Double(torso.count))
+        put("torso_mean", torso.isEmpty ? nil : FormGeometry.wrapDegrees(torso.reduce(0, +) / Double(torso.count)))
         put("hip_dev_min", vals(\.hipDeviation).min())
         put("hip_dev_max", vals(\.hipDeviation).max())
         if let head0 = firstValue(\.headDeviation) {
@@ -659,7 +673,9 @@ final class FormWarningTracker {
                 let bottom = frames[b]
                 put("torso_at_bottom", bottom.torso)
                 let window = frames[b...].prefix(squat.hipsFirstWindowFrames + 1)
-                if let t0 = bottom.torso, let t1 = vals(\.torso, window).max() { put("hips_first_torso_rise", t1 - t0) }
+                if let t0 = bottom.torso, let rise = vals(\.torso, window).map({ FormGeometry.wrapDegrees($0 - t0) }).max() {
+                    put("hips_first_torso_rise", rise)
+                }
                 if let end = window.last(where: { $0.hipY != nil && $0.shoulderY != nil }),
                    let h0 = bottom.hipY, let s0 = bottom.shoulderY, let length = bottom.torsoLength,
                    end.frame > bottom.frame {
@@ -679,7 +695,7 @@ final class FormWarningTracker {
                let start = e0.earShoulder, start > 1e-8 {
                 let kept = frames.filter {
                     guard let a = $0.headAngle, $0.earShoulder != nil else { return false }
-                    let d = abs(remainder(a - e0.headAngle!, 360))
+                    let d = abs(FormGeometry.wrapDegrees(a - e0.headAngle!))
                     return d <= row.shrugMaxHeadAngleChangeDegrees
                 }
                 if let low = kept.compactMap(\.earShoulder).min() { put("ear_shoulder_drop", 1 - low / start) }
@@ -690,11 +706,11 @@ final class FormWarningTracker {
 
     static func metrics3D(_ frames: [FormFrameSample]) -> [String: Double] {
         var m: [String: Double] = [:]
-        let torso = frames.compactMap(\.torso3D), hip = frames.compactMap(\.hipDeviation3D)
+        let torso = FormGeometry.unwrapDegrees(frames.compactMap(\.torso3D)), hip = frames.compactMap(\.hipDeviation3D)
         if !torso.isEmpty {
             m["torso_min"] = torso.min()
             m["torso_max"] = torso.max()
-            m["torso_mean"] = torso.reduce(0, +) / Double(torso.count)
+            m["torso_mean"] = FormGeometry.wrapDegrees(torso.reduce(0, +) / Double(torso.count))
         }
         if !hip.isEmpty {
             m["hip_dev_min"] = hip.min()
@@ -781,7 +797,7 @@ final class FormWarningTracker {
             // More upright = smaller forward torso angle.
             if let v = m["torso_mean"], history.count >= common.baselineRepCount,
                let b = Self.median(history.prefix(common.baselineRepCount).compactMap { $0["torso_mean"] }) {
-                fire("row_standing_up", b - v > c.standingUpDegrees)
+                fire("row_standing_up", FormGeometry.wrapDegrees(b - v) > c.standingUpDegrees)
             }
             if let v = m["elbow_behind_max"], history.count >= common.baselineRepCount,
                let b = Self.median(history.prefix(common.baselineRepCount).compactMap { $0["elbow_behind_max"] }) {
