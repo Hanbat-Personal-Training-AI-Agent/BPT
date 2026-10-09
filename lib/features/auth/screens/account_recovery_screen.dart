@@ -260,12 +260,13 @@ class _AccountRecoveryScreenState extends ConsumerState<AccountRecoveryScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           AuthPillButton(
-            label: _resetMode ? '비밀번호 재설정하기' : '이 아이디로 로그인',
+            label: _resetMode ? '비밀번호 재설정하기' : '로그인하러 가기',
             onTap: !state.verified
                 ? null
                 : _resetMode
                     ? _previewReset
-                    : () => _back(email: state.email),
+                    // 로그인은 아이디로만 돼서 이메일을 아이디 칸에 채워 보내지 않는다.
+                    : () => _back(),
             background: AppColors.white,
             foreground: AppColors.black,
             disabledBackground: AppColors.grey,
@@ -315,7 +316,7 @@ class _AccountRecoveryScreenState extends ConsumerState<AccountRecoveryScreen> {
         decoration: BoxDecoration(
             color: AppColors.green, borderRadius: BorderRadius.circular(28)),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Text('인증된 로그인 이메일',
+          const Text('인증된 이메일',
               style: TextStyle(
                   color: Color(0xFF536E29),
                   fontSize: 13,
@@ -327,7 +328,7 @@ class _AccountRecoveryScreenState extends ConsumerState<AccountRecoveryScreen> {
                   fontSize: 26,
                   fontWeight: FontWeight.w900)),
           const SizedBox(height: 8),
-          const Text('아이디 대신 이 이메일로 로그인할 수 있어.',
+          const Text('아이디 찾기는 곧 지원할게. 지금은 가입할 때 만든 아이디로 로그인해줘.',
               style: TextStyle(color: Color(0xFF536E29), fontSize: 12)),
         ]),
       );
