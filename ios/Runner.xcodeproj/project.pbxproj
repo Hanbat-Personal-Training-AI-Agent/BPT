@@ -31,6 +31,7 @@
 		74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74858FAE1ED2DC5600515810 /* AppDelegate.swift */; };
 		78A318202AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage in Frameworks */ = {isa = PBXBuildFile; productRef = 78A3181F2AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage */; };
 		8A47468CE23144E7FE449BEB /* SimCCDecoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7C4940B99ECEFA823DD8EB1 /* SimCCDecoder.swift */; };
+		6A2C1B8D3E4F5A6B7C8D9E01 /* BoneLengthConstraint.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A2C1B8D3E4F5A6B7C8D9E02 /* BoneLengthConstraint.swift */; };
 		97C146FC1CF9000F007C117D /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FA1CF9000F007C117D /* Main.storyboard */; };
 		97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FD1CF9000F007C117D /* Assets.xcassets */; };
 		97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */; };
@@ -120,6 +121,7 @@
 		C1ACABEF752B807EA9D21EAB /* CameraPosePreview.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CameraPosePreview.swift; sourceTree = "<group>"; };
 		C22663292A168CDCAD307E66 /* PoseCoordinateTransforms.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PoseCoordinateTransforms.swift; sourceTree = "<group>"; };
 		C7C4940B99ECEFA823DD8EB1 /* SimCCDecoder.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SimCCDecoder.swift; sourceTree = "<group>"; };
+		6A2C1B8D3E4F5A6B7C8D9E02 /* BoneLengthConstraint.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BoneLengthConstraint.swift; sourceTree = "<group>"; };
 		D0DB04261F1D80726AD0AF58 /* rtmpose_s_forward.mlpackage */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = folder.mlpackage; path = rtmpose_s_forward.mlpackage; sourceTree = "<group>"; };
 		5B2E8D3FAC4E6F7081920314 /* rtmpose_s_halpe26_forward.mlpackage */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = folder.mlpackage; path = rtmpose_s_halpe26_forward.mlpackage; sourceTree = "<group>"; };
 		D167FF3D21F692A8C806B807 /* Pods-RunnerTests.profile.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-RunnerTests.profile.xcconfig"; path = "Target Support Files/Pods-RunnerTests/Pods-RunnerTests.profile.xcconfig"; sourceTree = "<group>"; };
@@ -252,6 +254,7 @@
 				9C26CE42DA3E61208CE01EF8 /* PosePreprocess.swift */,
 				BCF4F40DCF7F2B98E0095348 /* RTMPoseInputTensor.swift */,
 				C7C4940B99ECEFA823DD8EB1 /* SimCCDecoder.swift */,
+				6A2C1B8D3E4F5A6B7C8D9E02 /* BoneLengthConstraint.swift */,
 			);
 			path = PosePipeline;
 			sourceTree = "<group>";
@@ -591,6 +594,7 @@
 				21CDBC22A214628A2C924DA7 /* PosePreprocess.swift in Sources */,
 				F6385859DC9CD45597CCF40F /* RTMPoseInputTensor.swift in Sources */,
 				8A47468CE23144E7FE449BEB /* SimCCDecoder.swift in Sources */,
+				6A2C1B8D3E4F5A6B7C8D9E01 /* BoneLengthConstraint.swift in Sources */,
 				223CDB2759C9124390D74E5F /* BundledVideoHandFrameProcessor.swift in Sources */,
 				08C943D98F2961D3E7FD292C /* HandCropBuilder.swift in Sources */,
 				05A1975E6E323360F6D4A55A /* HandLandmarkTypes.swift in Sources */,
