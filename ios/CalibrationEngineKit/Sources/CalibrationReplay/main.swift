@@ -1,7 +1,14 @@
 // calibration-replay: feeds a recorded video through the app's own calibration code
 // (CalibrationFrameAnalyzer + CalibrationEngine, symlinked from ios/Runner) on macOS.
 //
-//   swift run -c release --package-path ios/CalibrationEngineKit calibration-replay [--lenient-pose] [--overlay] [--output-dir PATH] <video.mp4>...
+//   swift run -c release --package-path ios/CalibrationEngineKit calibration-replay [--lenient-pose] [--overlay]
+//       [--output-dir PATH] [--user-height-cm CM] [--intrinsics fx,fy,cx,cy] <video.mp4>...
+//
+// Captures are written exactly as the app writes them (CalibrationStore, same best-of-hold frame
+// choice as CalibrationSession) to session_<name>/: view_*.jpg + manifest.json, ready to upload.
+// A file has no user height or camera: --user-height-cm (default 170) is a test value, and
+// --intrinsics sets the pinhole camera of the video in pixels (source "attachment"); without it
+// the manifest gets the app's no-camera fallback (fx = fy = 0, centre, "fov_estimate").
 //
 // --overlay also writes overlay_<name>.mp4: keypoints, the RTMPose crop, the face box, every gate
 // with its value and limits, and the engine's final decision drawn on each frame.
@@ -27,6 +34,8 @@ let repoRoot = URL(fileURLWithPath: #filePath)
 var outputDir = repoRoot.appendingPathComponent("outputs/calibration_replay")
 var lenientPose = false
 var drawOverlayVideo = false
+var userHeightCm = 170.0
+var videoIntrinsics: CalibrationStore.Intrinsics?
 var videos: [URL] = []
 var arguments = CommandLine.arguments.dropFirst().makeIterator()
 while let argument = arguments.next() {
@@ -39,6 +48,20 @@ while let argument = arguments.next() {
             exit(2)
         }
         outputDir = URL(fileURLWithPath: path, isDirectory: true)
+    case "--user-height-cm":
+        guard let value = arguments.next().flatMap(Double.init), value > 0 else {
+            print("--user-height-cm requires a positive number")
+            exit(2)
+        }
+        userHeightCm = value
+    case "--intrinsics":
+        let values = (arguments.next() ?? "").split(separator: ",").compactMap { Double($0) }
+        guard values.count == 4, values[0] > 0, values[1] > 0 else {
+            print("--intrinsics requires fx,fy,cx,cy in pixels")
+            exit(2)
+        }
+        videoIntrinsics = CalibrationStore.Intrinsics(fx: values[0], fy: values[1], cx: values[2], cy: values[3],
+                                                      source: "attachment")
     default:
         guard !argument.hasPrefix("--") else {
             print("unknown option: \(argument)")
@@ -66,12 +89,20 @@ if lenientPose {
     config.aPose.minAnkleGapOverHipWidth = 0.5
 }
 
-func writeJPEG(_ image: CIImage, to url: URL) -> Bool {
-    guard let cgImage = context.createCGImage(image, from: image.extent),
-          let destination = CGImageDestinationCreateWithURL(url as CFURL, UTType.jpeg.identifier as CFString, 1, nil)
-    else { return false }
-    CGImageDestinationAddImage(destination, cgImage, nil)
-    return CGImageDestinationFinalize(destination)
+/// UIImage.jpegData(compressionQuality:) as the app calls it, via ImageIO.
+func jpegData(_ image: CGImage, quality: Double) -> Data? {
+    let data = NSMutableData()
+    guard let destination = CGImageDestinationCreateWithData(data, UTType.jpeg.identifier as CFString, 1, nil)
+    else { return nil }
+    CGImageDestinationAddImage(destination, image, [kCGImageDestinationLossyCompressionQuality: quality] as CFDictionary)
+    return CGImageDestinationFinalize(destination) ? data as Data : nil
+}
+
+/// CalibrationSession.SelectedFrame: the best-confidence frame of the current hold.
+struct SelectedFrame {
+    let image: CGImage
+    let snapshot: CalibrationStore.Snapshot
+    let holdStartedAt: TimeInterval
 }
 
 func f(_ value: Double?) -> String { value.map { String(format: "%.3f", $0) } ?? "" }
@@ -125,6 +156,12 @@ for video in videos {
     let analyzer = try CalibrationFrameAnalyzer(model: model, context: context,
                                             minConfidence: config.framing.minKeypointConfidence)
     let engine = CalibrationEngine(config: config)
+    let sessionRoot = outputDir.appendingPathComponent("session_\(name)", isDirectory: true)
+    try? FileManager.default.removeItem(at: sessionRoot)
+    let store = try CalibrationStore(sessionId: "replay_" + name.replacingOccurrences(of: "[^A-Za-z0-9_-]", with: "-",
+                                                                                      options: .regularExpression),
+                                     rootDirectory: sessionRoot)
+    var bestHoldFrame: SelectedFrame?
     var csv = "i,t,guidance,classified,target,hold,pass,faceDetected,faceYaw,r,delta,bodyH,midX,feet,"
         + "wristDropL,wristDropR,elbowL,elbowR,wristReach,ankleGap,meanConf,"
         + "swT,hwT,nose,rtmFace,earL,earR,analyzeMs,cropMeanReq,cropAllReq,stretchMeanReq,stretchAllReq,"
@@ -154,8 +191,41 @@ for video in videos {
             aspect: width / height, timestamp: t, device: .still, face: analysis.face)
         var result = engine.process(calibrationFrame)
 
+        // CalibrationSession.trackBestFrame
+        if result.isPassing, let measurement = result.measurement, let holdStartedAt = result.holdStartedAt {
+            if !(bestHoldFrame.map { $0.holdStartedAt == holdStartedAt
+                    && $0.snapshot.measurement.meanRequiredConfidence >= measurement.meanRequiredConfidence } ?? false),
+               let cgImage = context.createCGImage(image, from: image.extent) {
+                let w = Double(cgImage.width), h = Double(cgImage.height)
+                bestHoldFrame = SelectedFrame(image: cgImage, snapshot: CalibrationStore.Snapshot(
+                    frame: calibrationFrame, measurement: measurement, imageWidth: cgImage.width,
+                    imageHeight: cgImage.height,
+                    intrinsics: videoIntrinsics ?? CalibrationStore.Intrinsics(cx: w / 2, cy: h / 2)),
+                    holdStartedAt: holdStartedAt)
+            }
+        } else if result.capture == nil {
+            bestHoldFrame = nil
+        }
+
         if let capture = result.capture {
-            let saved = writeJPEG(image, to: outputDir.appendingPathComponent("\(name)_\(capture.view.rawValue).jpg"))
+            // CalibrationSession.writeCapture
+            var saved = false
+            if let chosen = bestHoldFrame, chosen.holdStartedAt == capture.holdStartedAt,
+               chosen.snapshot.frame.timestamp >= capture.holdStartedAt,
+               let jpeg = jpegData(chosen.image, quality: config.capture.jpegQuality) {
+                let record = CalibrationStore.ViewRecord(
+                    label: capture.view, snapshot: chosen.snapshot,
+                    r: engine.rValue(chosen.snapshot.measurement, relativeTo: capture.reference),
+                    delta: engine.delta(chosen.snapshot.measurement, relativeTo: capture.reference))
+                do {
+                    try store.writeCapture(jpeg: jpeg, record: record, userHeightCm: userHeightCm,
+                                           reference: capture.reference)
+                    saved = true
+                } catch {
+                    print("capture persistence failed: \(error)")
+                }
+            }
+            bestHoldFrame = nil
             if let resolved = engine.resolveCapture(id: capture.id, saved: saved) { result = resolved }
             if saved { captures.append((capture.view, t)) }
         }
@@ -206,4 +276,5 @@ for video in videos {
     print("  captured: " + (captures.isEmpty ? "none"
         : captures.map { String(format: "%@ @%.2fs", $0.view.rawValue, $0.t) }.joined(separator: ", ")))
     print("  finished: \(engine.isFinished)")
+    print("  bundle: \(store.directory.path)")
 }
