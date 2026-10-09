@@ -19,6 +19,10 @@ class UserModel {
 
   /// 마지막 체형 측정일. 서버 /users/me 의 lastBodyScanDate, 측정 전이면 null.
   final DateTime? lastBodyScanDate;
+
+  /// 알림 켜짐 여부와 코리 잔소리 시각("HH:mm"). 서버 값이 없으면 null.
+  final bool? notificationEnabled;
+  final String? notificationTime;
   final int totalWorkouts;
   final int streakDays;
   final DateTime joinedAt;
@@ -38,6 +42,8 @@ class UserModel {
     this.phone,
     this.weeklyFrequency,
     this.lastBodyScanDate,
+    this.notificationEnabled,
+    this.notificationTime,
     this.totalWorkouts = 0,
     this.streakDays = 0,
     required this.joinedAt,
@@ -69,6 +75,8 @@ class UserModel {
     String? phone,
     int? weeklyFrequency,
     DateTime? lastBodyScanDate,
+    bool? notificationEnabled,
+    String? notificationTime,
     int? totalWorkouts,
     int? streakDays,
   }) {
@@ -87,6 +95,8 @@ class UserModel {
       phone: phone ?? this.phone,
       weeklyFrequency: weeklyFrequency ?? this.weeklyFrequency,
       lastBodyScanDate: lastBodyScanDate ?? this.lastBodyScanDate,
+      notificationEnabled: notificationEnabled ?? this.notificationEnabled,
+      notificationTime: notificationTime ?? this.notificationTime,
       totalWorkouts: totalWorkouts ?? this.totalWorkouts,
       streakDays: streakDays ?? this.streakDays,
       joinedAt: joinedAt,
@@ -108,6 +118,8 @@ class UserModel {
         'phone': phone,
         'weeklyFrequency': weeklyFrequency,
         'lastBodyScanDate': lastBodyScanDate?.toIso8601String(),
+        'notificationEnabled': notificationEnabled,
+        'notificationTime': notificationTime,
         'totalWorkouts': totalWorkouts,
         'streakDays': streakDays,
         'joinedAt': joinedAt.toIso8601String(),
@@ -133,6 +145,8 @@ class UserModel {
         lastBodyScanDate: json['lastBodyScanDate'] != null
             ? DateTime.tryParse(json['lastBodyScanDate'].toString())
             : null,
+        notificationEnabled: json['notificationEnabled'] as bool?,
+        notificationTime: json['notificationTime'] as String?,
         totalWorkouts: (json['totalWorkouts'] as num?)?.toInt() ?? 0,
         streakDays: (json['streakDays'] as num?)?.toInt() ?? 0,
         joinedAt: json['joinedAt'] != null

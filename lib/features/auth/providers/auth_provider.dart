@@ -46,14 +46,13 @@ class AuthNotifier extends ChangeNotifier {
     // Try background refresh from Spring Boot server
     try {
       final freshUser = await _authService.fetchUserProfile();
-      // 사용자 정보 응답에는 주간 목표가 없으니 기기에 있던 값을 유지한다.
+      // 서버에 주간 목표가 아직 없으면 기기에 있던 값을 유지한다.
       _currentUser = freshUser.copyWith(
           weeklyFrequency:
               freshUser.weeklyFrequency ?? cachedUser.weeklyFrequency);
       await _storage.saveUser(_currentUser!);
       _isOfflineMode = false;
       notifyListeners();
-      unawaited(_refreshWeeklyGoal());
     } on UnauthorizedException {
       // 토큰이 만료됐거나 서버에서 거절됨 → 저장된 세션을 지우고 로그인 화면으로
       await logout();
@@ -84,7 +83,6 @@ class AuthNotifier extends ChangeNotifier {
       await _storage.saveAutoLogin(rememberMe);
       _isOfflineMode = false;
       _error = null;
-      unawaited(_refreshWeeklyGoal());
     } on NetworkException {
       // Spring Boot backend not running or unreachable -> Fallback to Offline Local Login
       _currentUser = _createLocalFallbackUser(username: email);
@@ -186,18 +184,6 @@ class AuthNotifier extends ChangeNotifier {
     }
   }
 
-  /// 서버의 주간 목표를 읽어 현재 사용자에 반영한다. 실패해도 조용히 넘어간다.
-  Future<void> _refreshWeeklyGoal() async {
-    try {
-      final goal = await _authService.fetchWeeklyGoal();
-      final user = _currentUser;
-      if (goal == null || user == null) return;
-      _currentUser = user.copyWith(weeklyFrequency: goal);
-      await _storage.saveUser(_currentUser!);
-      notifyListeners();
-    } catch (_) {}
-  }
-
   /// TEST ONLY: 백엔드 호출 없이 로컬 오프라인 유저로 즉시 로그인 처리한다.
   /// 디버그 빌드에서 로그인 화면 UI 확인용으로만 쓰고, 배포 전 제거할 것.
   void debugSkipLogin() {
@@ -265,6 +251,22 @@ class AuthNotifier extends ChangeNotifier {
     _currentUser = null;
     _error = null;
     _isOfflineMode = false;
+    notifyListeners();
+  }
+
+  /// 체형 촬영 완료를 서버에 기록하고, 오늘 날짜를 마지막 측정일로 반영한다.
+  /// 서버에 못 보내도 기기에는 측정일을 남겨 재측정 알림이 바로 사라지게 한다.
+  Future<void> recordBodyScan({String? sessionPath}) async {
+    final user = _currentUser;
+    if (user == null) return;
+    try {
+      final fresh = await _authService.recordBodyScan(sessionPath: sessionPath);
+      _currentUser = fresh.copyWith(
+          weeklyFrequency: fresh.weeklyFrequency ?? user.weeklyFrequency);
+    } catch (_) {
+      _currentUser = user.copyWith(lastBodyScanDate: DateTime.now());
+    }
+    await _storage.saveUser(_currentUser!);
     notifyListeners();
   }
 

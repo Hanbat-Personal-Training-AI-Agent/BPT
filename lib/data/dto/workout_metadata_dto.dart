@@ -19,6 +19,20 @@ class WorkoutMetadataRequestDto {
   final int targetSets;
   final Map<String, dynamic>? poseMetricsSummary; // On-device joint angles/metrics metadata summary
 
+  /// 세트별 기록. 서버 setsDetail: {setNumber, reps, weightKg}
+  final List<WorkoutSetDetail> setsDetail;
+
+  /// 자세 피드백 키별 횟수 (kori_feedback_lines.dart 키). 실제 판정에서 나온 것만 담는다.
+  final Map<String, int> feedbackCounts;
+
+  /// 실제로 수행한 세트 수. setsDetail 이 있으면 그 개수.
+  int get totalSets => setsDetail.isNotEmpty ? setsDetail.length : targetSets;
+
+  /// 총 볼륨(kg × 회). setsDetail 이 없으면 대표 무게 × 총 반복.
+  int get totalVolume => setsDetail.isNotEmpty
+      ? setsDetail.fold(0, (sum, s) => sum + (s.weightKg * s.reps).round())
+      : (weightKg * totalReps).round();
+
   const WorkoutMetadataRequestDto({
     required this.clientRecordId,
     required this.exerciseId,
@@ -34,6 +48,8 @@ class WorkoutMetadataRequestDto {
     this.targetReps = 0,
     this.targetSets = 1,
     this.poseMetricsSummary,
+    this.setsDetail = const [],
+    this.feedbackCounts = const {},
   });
 
   Map<String, dynamic> toJson() => {
@@ -51,6 +67,10 @@ class WorkoutMetadataRequestDto {
         'targetReps': targetReps,
         'targetSets': targetSets,
         'poseMetricsSummary': poseMetricsSummary ?? {},
+        'totalSets': totalSets,
+        'totalVolume': totalVolume,
+        'setsDetail': setsDetail.map((s) => s.toJson()).toList(),
+        'feedbackCounts': feedbackCounts,
       };
 
   factory WorkoutMetadataRequestDto.fromJson(Map<String, dynamic> json) {
@@ -71,6 +91,14 @@ class WorkoutMetadataRequestDto {
       targetReps: (json['targetReps'] as num?)?.toInt() ?? 0,
       targetSets: (json['targetSets'] as num?)?.toInt() ?? 1,
       poseMetricsSummary: json['poseMetricsSummary'] as Map<String, dynamic>?,
+      setsDetail: (json['setsDetail'] as List?)
+              ?.whereType<Map>()
+              .map((m) => WorkoutSetDetail.fromJson(m.cast<String, dynamic>()))
+              .toList() ??
+          const [],
+      feedbackCounts: (json['feedbackCounts'] as Map?)?.map(
+              (k, v) => MapEntry(k.toString(), (v as num?)?.toInt() ?? 0)) ??
+          const {},
     );
   }
 
@@ -111,4 +139,30 @@ class WorkoutMetadataResponseDto {
           : DateTime.now(),
     );
   }
+}
+
+/// 세트 하나의 기록 (서버 WorkoutSetRecordDto).
+class WorkoutSetDetail {
+  const WorkoutSetDetail({
+    required this.setNumber,
+    required this.reps,
+    required this.weightKg,
+  });
+
+  final int setNumber;
+  final int reps;
+  final double weightKg;
+
+  Map<String, dynamic> toJson() => {
+        'setNumber': setNumber,
+        'reps': reps,
+        'weightKg': weightKg,
+      };
+
+  factory WorkoutSetDetail.fromJson(Map<String, dynamic> json) =>
+      WorkoutSetDetail(
+        setNumber: (json['setNumber'] as num?)?.toInt() ?? 0,
+        reps: (json['reps'] as num?)?.toInt() ?? 0,
+        weightKg: (json['weightKg'] as num?)?.toDouble() ?? 0,
+      );
 }
