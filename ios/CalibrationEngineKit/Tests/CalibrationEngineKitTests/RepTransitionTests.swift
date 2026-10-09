@@ -86,4 +86,32 @@ final class RepTransitionTests: XCTestCase {
         XCTAssertTrue(run.tracker.reports.isEmpty)
         XCTAssertEqual(run.tracker.drainEvents().map(\.key), ["setup_side_view"])
     }
+
+    func testReadyPoseGate() {
+        var gate = ReadyPoseGate(holdFrames: 3, tolerance: 0.1)
+        for v in [0.0, 0.5, 0.55] { gate.update(atStartPose: true, value: v) }
+        XCTAssertFalse(gate.armed, "moved at frame 2: run restarts")
+        gate.update(atStartPose: false, value: 0.5)
+        for _ in 0..<2 { gate.update(atStartPose: true, value: 0.5) }
+        XCTAssertFalse(gate.armed)
+        gate.update(atStartPose: true, value: 0.52)
+        XCTAssertTrue(gate.armed)
+        XCTAssertTrue(ReadyPoseGate(holdFrames: 0, tolerance: 0).armed, "0 = off")
+    }
+
+    func testSquatReadyPoseSkipsPreSetMotion() {
+        let top = squatPose(hip: kp(0, 0), knee: kp(0, 200))
+        let bottom = squatPose(hip: kp(-150, 220), knee: kp(50, 250))
+        // Pick up the bar (down and straight back up, no pause), then hold 1 s, then one rep.
+        let poses = Array(repeating: top, count: 10) + Array(repeating: bottom, count: 20) + Array(repeating: top, count: 40)
+            + Array(repeating: bottom, count: 20) + Array(repeating: top, count: 20)
+        var config = SquatEvaluatorConfig()
+        XCTAssertEqual(config.readyPoseHoldFrames, 0, "off by default")
+        XCTAssertEqual(squatReps(poses), 2)
+        config.readyPoseHoldFrames = 30
+        let evaluator = SquatEvaluator(config: config)
+        var rep = 0
+        for (i, pose) in poses.enumerated() { rep = evaluator.evaluate(frameIndex: i, coco17: pose).rep }
+        XCTAssertEqual(rep, 1)
+    }
 }

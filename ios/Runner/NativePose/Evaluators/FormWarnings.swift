@@ -880,3 +880,39 @@ final class WorkoutFormLog {
         }
     }
 }
+
+// MARK: - Ready pose (first rep)
+
+/// Pre-set motion guard: the first rep may start only after the start pose has been held still —
+/// stable status = start pose and the evaluator's motion signal within `tolerance` of where the run
+/// began — for `holdFrames` frames (~1 s; scale with the frame rate). Stays armed afterwards.
+/// `holdFrames == 0` = off (armed from the start).
+struct ReadyPoseGate {
+    var holdFrames: Int
+    var tolerance: Double
+    private var anchor: Double?
+    private var run = 0
+    private(set) var armed: Bool
+
+    init(holdFrames: Int, tolerance: Double) {
+        self.holdFrames = holdFrames
+        self.tolerance = tolerance
+        armed = holdFrames <= 0
+    }
+
+    mutating func update(atStartPose: Bool, value: Double?) {
+        guard !armed else { return }
+        guard atStartPose, let value else {
+            anchor = nil
+            run = 0
+            return
+        }
+        if let anchor, abs(value - anchor) <= tolerance {
+            run += 1
+        } else {
+            anchor = value
+            run = 1
+        }
+        armed = run >= holdFrames
+    }
+}

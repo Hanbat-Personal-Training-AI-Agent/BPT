@@ -36,6 +36,12 @@ struct PushUpEvaluatorConfig {
     var depthWindowSize = 30
     var depthRangeReliableThreshold = 0.04
     var maxStoredRepSummaries = 100
+    /// Ready pose: frames the start pose must be held still before the first rep (0 = off) and the
+    /// allowed drift of the motion signal meanwhile. OFF: on Exercise3D (sets start within ~1 s)
+    /// 30 frames lost reps in every exercise; 15 frames with 2× tolerance kept squat/row but still
+    /// lost push-ups (outputs/rep_validation/G_ready_pose.md). 임시값 — 테스트 영상으로 조정
+    var readyPoseHoldFrames = 0
+    var readyPoseTolerance = 5.0  // elbow angle (deg)
 }
 
 final class PushUpEvaluator {
@@ -105,6 +111,7 @@ final class PushUpEvaluator {
     private var currentRepDepthSignalReliable = false
     private var completedRepCount = 0
     private(set) var completedRepSummaries: [PushUpRepSummary] = []
+    private lazy var readyPose = ReadyPoseGate(holdFrames: config.readyPoseHoldFrames, tolerance: config.readyPoseTolerance)
 
     var sessionSummary: PushUpSessionSummary {
         makeSessionSummary()
@@ -148,6 +155,7 @@ final class PushUpEvaluator {
         completedRepCount = 0
         completedRepSummaries = []
         formTracker.reset()
+        readyPose = ReadyPoseGate(holdFrames: config.readyPoseHoldFrames, tolerance: config.readyPoseTolerance)
     }
 
     /// `pose3D`: MotionAGFormer H36M17 selected3D when available (form metrics only; nil in the live app).
@@ -158,6 +166,7 @@ final class PushUpEvaluator {
         var status = updateStableStatus(rawCandidate: rawCandidate, measurements: measurements)
         updateTopBaselineIfNeeded(status: status, measurements: measurements)
         formTracker.observe(frameIndex: frameIndex, coco17: coco17, pose3D: pose3D, phase: status.rawValue)
+        readyPose.update(atStartPose: status == .top, value: measurements.avgElbowAngleDegrees)
         let repUpdate = updateRepState(
             frameIndex: frameIndex,
             previousStatus: previousStatus,
@@ -484,7 +493,7 @@ final class PushUpEvaluator {
         status: PushUpStatus,
         measurements: Measurements
     ) -> (done: Bool, statusOverride: PushUpStatus?) {
-        if status == .descending && (previousStatus == .top || previousStatus == .unknown) {
+        if readyPose.armed, status == .descending && (previousStatus == .top || previousStatus == .unknown) {
             startRep(frameIndex: frameIndex)
         }
 

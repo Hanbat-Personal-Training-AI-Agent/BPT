@@ -15,6 +15,12 @@ struct SquatEvaluatorConfig {
     var minRepDepthNorm = 0.16
     var validRepBottomKneeAngleThreshold = 130.0
     var maxStoredRepSummaries = 100
+    /// Ready pose: frames the start pose must be held still before the first rep (0 = off) and the
+    /// allowed drift of the motion signal meanwhile. OFF: on Exercise3D (sets start within ~1 s)
+    /// 30 frames lost reps in every exercise; 15 frames with 2× tolerance kept squat/row but still
+    /// lost push-ups (outputs/rep_validation/G_ready_pose.md). 임시값 — 테스트 영상으로 조정
+    var readyPoseHoldFrames = 0
+    var readyPoseTolerance = 0.03  // squat depth (leg lengths)
 }
 
 final class SquatEvaluator {
@@ -50,6 +56,7 @@ final class SquatEvaluator {
     private var didInitializeStableStatus = false
     private var unknownFramesWithValidDepth = 0
     private var topHipYBaseline: Double?
+    private lazy var readyPose = ReadyPoseGate(holdFrames: config.readyPoseHoldFrames, tolerance: config.readyPoseTolerance)
 
     private var repStarted = false
     private var sawDescending = false
@@ -92,6 +99,7 @@ final class SquatEvaluator {
         currentRepMinKneeAngleDegrees = nil
         completedRepSummaries = []
         formTracker.reset()
+        readyPose = ReadyPoseGate(holdFrames: config.readyPoseHoldFrames, tolerance: config.readyPoseTolerance)
     }
 
     /// `pose3D`: MotionAGFormer H36M17 selected3D when available (form metrics only; nil in the live app).
@@ -109,6 +117,7 @@ final class SquatEvaluator {
 
         updateTopBaselineIfNeeded(status: status, measurements: measurements)
         formTracker.observe(frameIndex: frameIndex, coco17: coco17, pose3D: pose3D, feet: feet, phase: status.rawValue)
+        readyPose.update(atStartPose: status == .top, value: measurements.squatDepthNorm)
         let done = updateRepState(
             frameIndex: frameIndex,
             previousStatus: previousStatus,
@@ -349,6 +358,7 @@ final class SquatEvaluator {
         // A fast descent can reach `bottom` straight from `top` (forced transition) without a
         // stable `descending`; it still starts the rep.
         if !repStarted,
+           readyPose.armed,
            status == .descending || status == .bottom,
            previousStatus == .top || previousStatus == .unknown {
             startRep(frameIndex: frameIndex)

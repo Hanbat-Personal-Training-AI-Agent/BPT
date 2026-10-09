@@ -15,6 +15,12 @@ struct BarbellRowEvaluatorConfig {
     var minRepRowDepthNorm = 0.06
     var validRepTopElbowAngleThreshold = 130.0
     var maxStoredRepSummaries = 100
+    /// Ready pose: frames the start pose must be held still before the first rep (0 = off) and the
+    /// allowed drift of the motion signal meanwhile. OFF: on Exercise3D (sets start within ~1 s)
+    /// 30 frames lost reps in every exercise; 15 frames with 2× tolerance kept squat/row but still
+    /// lost push-ups (outputs/rep_validation/G_ready_pose.md). 임시값 — 테스트 영상으로 조정
+    var readyPoseHoldFrames = 0
+    var readyPoseTolerance = 0.05  // row depth (torso lengths)
 }
 
 final class BarbellRowEvaluator {
@@ -49,6 +55,7 @@ final class BarbellRowEvaluator {
     private var didInitializeStableStatus = false
     private var unknownFramesWithValidDepth = 0
     private var bottomWristDistanceBaseline: Double?
+    private lazy var readyPose = ReadyPoseGate(holdFrames: config.readyPoseHoldFrames, tolerance: config.readyPoseTolerance)
 
     private var repStarted = false
     private var sawPulling = false
@@ -90,6 +97,7 @@ final class BarbellRowEvaluator {
         completedRepCount = 0
         completedRepSummaries = []
         formTracker.reset()
+        readyPose = ReadyPoseGate(holdFrames: config.readyPoseHoldFrames, tolerance: config.readyPoseTolerance)
     }
 
     /// `pose3D`: MotionAGFormer H36M17 selected3D when available (form metrics only; nil in the live app).
@@ -109,6 +117,7 @@ final class BarbellRowEvaluator {
 
         updateBottomBaselineIfNeeded(status: status, measurements: measurements)
         formTracker.observe(frameIndex: frameIndex, coco17: coco17, pose3D: pose3D, phase: status.rawValue)
+        readyPose.update(atStartPose: status == .bottom, value: measurements.rowDepthNorm)
         var done = false
         if sideView {
             done = updateRepState(
@@ -354,6 +363,7 @@ final class BarbellRowEvaluator {
         var done = false
 
         if !repStarted,
+           readyPose.armed,
            status == .pulling,
            previousStatus == .bottom || previousStatus == .unknown {
             startRep(frameIndex: frameIndex)
