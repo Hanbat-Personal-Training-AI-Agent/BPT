@@ -111,7 +111,10 @@ final class FormWarningsTests: XCTestCase {
     func testFeedbackOffByDefaultPerKeyFlag() {
         XCTAssertEqual(RTMPoseModel.active, .coco17)
         let tracker = FormWarningTracker(exercise: .pushUp)
-        XCTAssertTrue(tracker.common.enabledFeedbackKeys.isEmpty)
+        XCTAssertEqual(tracker.common.enabledFeedbackKeys, ["setup_full_body", "tracking_lost"])
+        XCTAssertEqual(FormWarningTracker(exercise: .squat).common.enabledFeedbackKeys, ["setup_full_body", "tracking_lost"])
+        XCTAssertEqual(FormWarningTracker(exercise: .barbellRow).common.enabledFeedbackKeys,
+                       ["setup_full_body", "tracking_lost", "setup_side_view"])
         _ = pushUpRep(tracker, hipDrop: 0, frame: 0)
         let sag = pushUpRep(tracker, hipDrop: 70, frame: 2)
         XCTAssertEqual(sag.warnings, ["pushup_hip_sag"], "still judged and logged")

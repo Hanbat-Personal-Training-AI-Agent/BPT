@@ -16,8 +16,8 @@ import simd
 // (highest grade), a spoken key is not repeated for `cooldownReps` reps, praise_fixed once when the
 // key spoken on the previous rep is gone.
 //
-// Nothing reaches Flutter unless its key is in `FormCommonConfig.enabledFeedbackKeys` (default
-// empty = log only): rules still run and every would-be warning stays in `FormRepReport.warnings`,
+// Nothing reaches Flutter unless its key is in `FormCommonConfig.enabledFeedbackKeys` (default:
+// setup_full_body, tracking_lost, plus setup_side_view for the row; every form warning is log only): rules still run and every would-be warning stays in `FormRepReport.warnings`,
 // the session log and pose-replay (which enables every key).
 //
 // Every threshold is TEMPORARY (임시값 — 테스트 영상으로 조정); tune with
@@ -48,8 +48,10 @@ struct FormCommonConfig {
     /// Forward/back (nose x vs ear x) flips only after this many agreeing frames. 임시값 — 테스트 영상으로 조정
     var facingFlipFrames = 5
     /// onFeedback keys sent to Flutter (spoken or silent), per key, e.g. ["pushup_hip_sag", "praise_fixed"].
-    /// Default none: warnings are judged and logged only. `FormWarningTracker.allKeys` turns everything on.
-    var enabledFeedbackKeys: Set<String> = []
+    /// Default: only the tracking guidance (setup_full_body, tracking_lost); form warnings are judged
+    /// and logged only. The barbell row tracker also adds setup_side_view (its side-view gate).
+    /// `FormWarningTracker.allKeys` turns everything on.
+    var enabledFeedbackKeys: Set<String> = ["setup_full_body", "tracking_lost"]
 }
 
 /// Push-up (side view).
@@ -367,6 +369,7 @@ final class FormWarningTracker {
     /// `sideViewMinFrames` frames. Other exercises leave it nil.
     private(set) var sideView: Bool?
     private var shoulderRatios: [Double] = []
+    private var sideViewGuided = false
 
     private var facing: Double?
     private var facingCandidateRun = 0
@@ -382,6 +385,7 @@ final class FormWarningTracker {
 
     init(exercise: FormExercise) {
         self.exercise = exercise
+        if exercise == .barbellRow { common.enabledFeedbackKeys.insert("setup_side_view") }
     }
 
     func reset() {
@@ -392,6 +396,7 @@ final class FormWarningTracker {
         side = nil
         sideView = nil
         shoulderRatios = []
+        sideViewGuided = false
         facing = nil
         facingCandidateRun = 0
         current = nil
@@ -439,8 +444,8 @@ final class FormWarningTracker {
         if exercise == .barbellRow { updateSideView(sample) }
     }
 
-    /// Rolling-median shoulder ratio vs the cutoff, with hysteresis. Turning "not side" queues
-    /// setup_side_view (sent only if enabled, like every key).
+    /// Rolling-median shoulder ratio vs the cutoff, with hysteresis. The first "not side" queues
+    /// setup_side_view once per session (셋업: said once, like the per-rep setup rule).
     private func updateSideView(_ sample: FormFrameSample) {
         guard let ratio = sample.shoulderRatio else { return }
         shoulderRatios.append(ratio)
@@ -452,7 +457,10 @@ final class FormWarningTracker {
         case true?: median <= cut + h
         case false?: median < cut - h
         }
-        if next == false && sideView != false { emit(FormFeedbackEvent(key: "setup_side_view", n: nil, silent: false)) }
+        if next == false, !sideViewGuided, reports.isEmpty {
+            sideViewGuided = true
+            emit(FormFeedbackEvent(key: "setup_side_view", n: nil, silent: false))
+        }
         sideView = next
     }
 

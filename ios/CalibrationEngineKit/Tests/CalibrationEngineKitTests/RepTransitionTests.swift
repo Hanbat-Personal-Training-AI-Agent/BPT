@@ -60,7 +60,6 @@ final class RepTransitionTests: XCTestCase {
 
     private func rowRun(spread: Double, farArmConfidence: Double = 0.9) -> (reps: Int, tracker: FormWarningTracker) {
         let evaluator = BarbellRowEvaluator()
-        evaluator.formTracker.common.enabledFeedbackKeys = ["setup_side_view"]
         let ramp = (0...12).map { Double($0) / 12 }
         let pulls = Array(repeating: 0.0, count: 40)
             + Array(repeating: Array(repeating: 0.0, count: 20) + ramp + Array(repeating: 1.0, count: 10) + ramp.reversed(), count: 3).flatMap { $0 }
