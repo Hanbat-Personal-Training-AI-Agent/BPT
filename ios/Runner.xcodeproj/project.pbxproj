@@ -13,6 +13,7 @@
 		1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */ = {isa = PBXBuildFile; fileRef = 1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */; };
 		1C9ADEA9E52E2A4B29397F47 /* Pods_RunnerTests.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 200979D0AF7396451B08CFB3 /* Pods_RunnerTests.framework */; };
 		21CDBC22A214628A2C924DA7 /* PosePreprocess.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C26CE42DA3E61208CE01EF8 /* PosePreprocess.swift */; };
+		5E1B0A7C2F3D4E6A8B9C0D11 /* KneeHingeLimit.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E1B0A7C2F3D4E6A8B9C0D12 /* KneeHingeLimit.swift */; };
 		223CDB2759C9124390D74E5F /* BundledVideoHandFrameProcessor.swift in Sources */ = {isa = PBXBuildFile; fileRef = E07DF17BCEE460AC05367CFD /* BundledVideoHandFrameProcessor.swift */; };
 		331C808B294A63AB00263BE5 /* RunnerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 331C807B294A618700263BE5 /* RunnerTests.swift */; };
 		35264BC5B5803A97A73D826C /* rtmpose_s_forward.mlpackage in Resources */ = {isa = PBXBuildFile; fileRef = D0DB04261F1D80726AD0AF58 /* rtmpose_s_forward.mlpackage */; };
@@ -109,6 +110,7 @@
 		97C147001CF9000F007C117D /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		97C147021CF9000F007C117D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		9C26CE42DA3E61208CE01EF8 /* PosePreprocess.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PosePreprocess.swift; sourceTree = "<group>"; };
+		5E1B0A7C2F3D4E6A8B9C0D12 /* KneeHingeLimit.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = KneeHingeLimit.swift; sourceTree = "<group>"; };
 		9D268645DA5180A69D8BBB08 /* PushUpEvaluator.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PushUpEvaluator.swift; sourceTree = "<group>"; };
 		A199D13B5A15F6E1558FDC78 /* Pods-Runner.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.release.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.release.xcconfig"; sourceTree = "<group>"; };
 		AD715C08999EC86EA56E8795 /* PushUpTypes.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PushUpTypes.swift; sourceTree = "<group>"; };
@@ -242,6 +244,7 @@
 		92501709A50AEC307A693E8B /* PosePipeline */ = {
 			isa = PBXGroup;
 			children = (
+				5E1B0A7C2F3D4E6A8B9C0D12 /* KneeHingeLimit.swift */,
 				C22663292A168CDCAD307E66 /* PoseCoordinateTransforms.swift */,
 				9C26CE42DA3E61208CE01EF8 /* PosePreprocess.swift */,
 				BCF4F40DCF7F2B98E0095348 /* RTMPoseInputTensor.swift */,
@@ -579,6 +582,7 @@
 				74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */,
 				1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */,
 				FEEDD62DEEFAEFF0804DBBBC /* CameraPosePreview.swift in Sources */,
+				5E1B0A7C2F3D4E6A8B9C0D11 /* KneeHingeLimit.swift in Sources */,
 				A7DD801D7BE99E90AD97FF07 /* PoseCoordinateTransforms.swift in Sources */,
 				21CDBC22A214628A2C924DA7 /* PosePreprocess.swift in Sources */,
 				F6385859DC9CD45597CCF40F /* RTMPoseInputTensor.swift in Sources */,
