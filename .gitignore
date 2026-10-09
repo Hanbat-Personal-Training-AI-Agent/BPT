@@ -115,3 +115,7 @@ BPT_v1.0/
 dist/
 fit3d_test.tar.gz
 SMPL_python_v.1.1.0.zip
+
+# Own side-view workout videos: only the label template is committed
+/data/side_videos/*
+!/data/side_videos/labels_template.csv

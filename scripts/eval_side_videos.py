@@ -1,7 +1,8 @@
 """Evaluate rep counting, the side-view gate and form warnings on your own workout videos.
 
 Drives pose-replay (the app's pose path + evaluators, ios/CalibrationEngineKit) on every video in a
-folder for COCO17 and Halpe26, then writes one Markdown report.
+folder for COCO17 and Halpe26, with the ready-pose check off (app default) and with its preset
+(squat/row: hold the start pose 0.5 s before the first rep; push-up: off), then writes one Markdown report.
 
 Ground-truth CSV (one row per video, header required):
     file,exercise,angle_deg,form,wrong_key,reps
@@ -14,6 +15,7 @@ Ground-truth CSV (one row per video, header required):
   form       normal | wrong
   wrong_key  for form=wrong: the warning key the set is meant to trigger (e.g. pushup_hip_sag); else empty
   reps       true rep count
+Rows with an empty file are skipped, so data/side_videos/labels_template.csv can be filled in place.
 
 Usage:
     swift build -c release --package-path ios/CalibrationEngineKit --product pose-replay
@@ -21,7 +23,8 @@ Usage:
 
 Report (<out>/report.md): rep accuracy per video and per exercise × angle × model; shoulder width ÷
 torso length (side-view gate metric, cutoff 0.56) per angle; per-key warning rate (fraction of counted
-reps) normal vs wrong, and how often a wrong set's wrong_key fired. pytest tests/test_eval_side_videos.py
+reps) normal vs wrong, and how often a wrong set's wrong_key fired; setup_full_body / tracking_lost
+counts per set (and how many fired inside a counted rep). pytest tests/test_eval_side_videos.py
 checks the parsing/aggregation without videos.
 """
 import argparse
@@ -38,12 +41,16 @@ MODELS = ("coco17", "halpe26")
 EXERCISE_FILE = {"squat": "squat", "pushup": "pushup", "row": "barbell_row"}
 SIDE_CUTOFF = 0.56  # BarbellRowFormConfig.sideViewMaxShoulderRatio
 COLUMNS = ["file", "exercise", "angle_deg", "form", "wrong_key", "reps"]
+SETUP_KEYS = ("setup_full_body", "tracking_lost")
 
 
 def read_truth(path):
-    rows = list(csv.DictReader(open(path, newline="")))
-    if not rows or set(COLUMNS) - set(rows[0]):
+    reader = csv.DictReader(open(path, newline=""))
+    if set(COLUMNS) - set(reader.fieldnames or []):
         raise SystemExit(f"{path}: need columns {','.join(COLUMNS)}")
+    rows = [r for r in reader if (r["file"] or "").strip()]  # empty file = unfilled template row
+    if not rows:
+        raise SystemExit(f"{path}: no rows with a file name")
     for r in rows:
         assert r["exercise"] in EXERCISE_FILE, r
         assert r["form"] in ("normal", "wrong"), r
@@ -66,13 +73,23 @@ def shoulder_ratios(csv_path, min_conf=0.30):
     return out
 
 
-def run(binary, video, exercise, model, out_dir):
+def run(binary, video, exercise, model, ready, out_dir):
     out_dir.mkdir(parents=True, exist_ok=True)
     base = out_dir / f"{Path(video).stem}_{EXERCISE_FILE[exercise]}_{model}"
     if not base.with_suffix(".json").exists():
-        subprocess.run([str(binary), "--exercise", exercise, "--model", model, "--motion3d", "none",
+        subprocess.run([str(binary), "--exercise", exercise, "--model", model, "--motion3d", "none", "--ready-pose", ready,
                         "--output-dir", str(out_dir), str(video)], check=True, stdout=subprocess.DEVNULL)
     return json.load(open(base.with_suffix(".json"))), base.with_suffix(".csv")
+
+
+def setup_key_counts(j):
+    """{key: (sent, sent inside a counted rep)} for the tracking guidance keys."""
+    reps = [(r["start_frame"], r["end_frame"]) for r in j["reps"]]
+    out = {}
+    for key in SETUP_KEYS:
+        frames = [e["frame"] for e in j["events"] if e["key"] == key]
+        out[key] = (len(frames), sum(any(a <= f <= b for a, b in reps) for f in frames))
+    return out
 
 
 def pct(values, q):
@@ -82,23 +99,29 @@ def pct(values, q):
 
 def summarize(results):
     """results: dicts with truth row fields + model, counted, warnings (list per rep), side_view_event, ratios."""
-    lines = ["## 렙 카운트 (영상별)", "", "| 파일 | 운동 | 각도 | 자세 | 모델 | 정답 | 셈 | 오차 | 측면 아님 안내 |", "|---|---|---|---|---|---|---|---|---|"]
+    lines = ["## 렙 카운트 (영상별)", "",
+             "| 파일 | 운동 | 각도 | 자세 | 모델 | 준비자세 | 정답 | 셈 | 오차 | 측면 아님 안내 | setup_full_body (렙 중) | tracking_lost (렙 중) |",
+             "|---|---|---|---|---|---|---|---|---|---|---|---|"]
     for r in results:
-        lines.append(f"| {r['file']} | {r['exercise']} | {r['angle_deg']} | {r['form']} | {r['model']} | {r['reps']} | "
-                     f"{r['counted']} | {r['counted'] - r['reps']:+d} | {'예' if r['side_view_event'] else ''} |")
-    lines += ["", "## 렙 카운트 (운동 × 각도 × 모델)", "",
-              "| 운동 | 각도 | 모델 | 세트 | 정확 일치 | 정답 렙 | 센 렙 | 절대오차 합 |", "|---|---|---|---|---|---|---|---|"]
+        sk = r.get("setup_keys", {})
+        cell = lambda k: "{} ({})".format(*sk[k]) if k in sk else "-"
+        lines.append(f"| {r['file']} | {r['exercise']} | {r['angle_deg']} | {r['form']} | {r['model']} | {r['ready']} | {r['reps']} | "
+                     f"{r['counted']} | {r['counted'] - r['reps']:+d} | {'예' if r['side_view_event'] else ''} | "
+                     f"{cell('setup_full_body')} | {cell('tracking_lost')} |")
+    lines += ["", "## 렙 카운트 (운동 × 각도 × 모델 × 준비자세)", "",
+              "| 운동 | 각도 | 모델 | 준비자세 | 세트 | 정확 일치 | 정답 렙 | 센 렙 | 절대오차 합 |", "|---|---|---|---|---|---|---|---|---|"]
     groups = defaultdict(list)
     for r in results:
-        groups[(r["exercise"], r["angle_deg"], r["model"])].append(r)
-    for (ex, ang, m), g in sorted(groups.items()):
-        lines.append(f"| {ex} | {ang} | {m} | {len(g)} | {sum(r['counted'] == r['reps'] for r in g)} | "
+        groups[(r["exercise"], r["angle_deg"], r["model"], r["ready"])].append(r)
+    for (ex, ang, m, ready), g in sorted(groups.items()):
+        lines.append(f"| {ex} | {ang} | {m} | {ready} | {len(g)} | {sum(r['counted'] == r['reps'] for r in g)} | "
                      f"{sum(r['reps'] for r in g)} | {sum(r['counted'] for r in g)} | {sum(abs(r['counted'] - r['reps']) for r in g)} |")
 
     lines += ["", f"## 측면 지표 (어깨폭 ÷ 몸통 길이, 컷오프 {SIDE_CUTOFF})", "",
               "| 각도 | 모델 | 영상 | 프레임 | p10 | 중앙값 | p90 | 컷오프 이하 프레임 |", "|---|---|---|---|---|---|---|---|"]
+    base = [r for r in results if r["ready"] == "off"] or results  # pose and warnings: one condition
     by_angle = defaultdict(list)
-    for r in results:
+    for r in base:
         by_angle[(r["angle_deg"], r["model"])].append(r)
     for (ang, m), g in sorted(by_angle.items()):
         v = [x for r in g for x in r["ratios"]]
@@ -109,10 +132,10 @@ def summarize(results):
               "| 운동 | 모델 | 키 | 정상 렙 | 정상 발생률 | 잘못 렙 | 잘못 발생률 |", "|---|---|---|---|---|---|---|"]
     rates = defaultdict(lambda: {"normal": [0, 0], "wrong": [0, 0]})
     keys = defaultdict(set)
-    for r in results:
+    for r in base:
         for w in r["warnings"]:
             keys[(r["exercise"], r["model"])].update(w)
-    for r in results:
+    for r in base:
         for k in keys[(r["exercise"], r["model"])] | ({r["wrong_key"]} if r["wrong_key"] else set()):
             c = rates[(r["exercise"], r["model"], k)][r["form"]]
             c[0] += sum(k in w for w in r["warnings"])
@@ -122,7 +145,7 @@ def summarize(results):
         lines.append(f"| {ex} | {m} | {k} | {c['normal'][1]} | {f(c['normal'])} | {c['wrong'][1]} | {f(c['wrong'])} |")
 
     lines += ["", "## 잘못된 자세 세트: 의도한 키 적중", "", "| 파일 | 모델 | wrong_key | 그 키가 나온 렙 / 센 렙 |", "|---|---|---|---|"]
-    for r in results:
+    for r in base:
         if r["form"] == "wrong" and r["wrong_key"]:
             lines.append(f"| {r['file']} | {r['model']} | {r['wrong_key']} | {sum(r['wrong_key'] in w for w in r['warnings'])}/{len(r['warnings'])} |")
     return "\n".join(lines) + "\n"
@@ -134,6 +157,7 @@ def main():
     ap.add_argument("--truth", required=True, type=Path)
     ap.add_argument("--out", required=True, type=Path)
     ap.add_argument("--models", default=",".join(MODELS))
+    ap.add_argument("--ready-pose", default="off,preset", help="off, preset or both (off,preset)")
     ap.add_argument("--pose-replay", default=DEFAULT_BINARY, type=Path)
     a = ap.parse_args()
     if not a.pose_replay.exists():
@@ -141,12 +165,13 @@ def main():
     results = []
     for t in read_truth(a.truth):
         for m in a.models.split(","):
-            j, csv_path = run(a.pose_replay, a.videos / t["file"], t["exercise"], m, a.out / m)
-            results.append({**t, "model": m, "counted": j["session"]["rep_count"],
-                            "warnings": [rep["warnings"] for rep in j["reps"]],
-                            "side_view_event": any(e["key"] == "setup_side_view" for e in j["events"]),
-                            "ratios": shoulder_ratios(csv_path)})
-            print(t["file"], m, j["session"]["rep_count"], "/", t["reps"], flush=True)
+            for ready in a.ready_pose.split(","):
+                j, csv_path = run(a.pose_replay, a.videos / t["file"], t["exercise"], m, ready, a.out / ready / m)
+                results.append({**t, "model": m, "ready": ready, "counted": j["session"]["rep_count"],
+                                "warnings": [rep["warnings"] for rep in j["reps"]],
+                                "side_view_event": any(e["key"] == "setup_side_view" for e in j["events"]),
+                                "setup_keys": setup_key_counts(j), "ratios": shoulder_ratios(csv_path)})
+                print(t["file"], m, ready, j["session"]["rep_count"], "/", t["reps"], flush=True)
     (a.out / "report.md").write_text(summarize(results))
     print(a.out / "report.md")
 
