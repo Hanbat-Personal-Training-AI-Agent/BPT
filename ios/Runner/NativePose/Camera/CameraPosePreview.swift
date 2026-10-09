@@ -197,7 +197,7 @@ final class CameraPoseViewModel: ObservableObject {
     private func setup() {
         let workspace: RTMPoseInputWorkspace
         do {
-            rtmpose = try loadModel(named: "rtmpose_s_forward")
+            rtmpose = try loadModel(named: RTMPoseModel.active.rawValue)
             workspace = try RTMPoseInputWorkspace()
         } catch {
             statusText = "Failed to load RTMPose: \(error.localizedDescription)"

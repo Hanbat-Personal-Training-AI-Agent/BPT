@@ -2,7 +2,9 @@
 // (CalibrationFrameAnalyzer + CalibrationEngine, symlinked from ios/Runner) on macOS.
 //
 //   swift run -c release --package-path ios/CalibrationEngineKit calibration-replay [--lenient-pose] [--overlay]
-//       [--output-dir PATH] [--user-height-cm CM] [--intrinsics fx,fy,cx,cy] <video.mp4>...
+//       [--model coco17|halpe26] [--output-dir PATH] [--user-height-cm CM] [--intrinsics fx,fy,cx,cy] <video.mp4>...
+//
+// --model picks the RTMPose-s mlpackage (default: RTMPoseModel.active, what the app ships).
 //
 // Captures are written exactly as the app writes them (CalibrationStore, same best-of-hold frame
 // choice as CalibrationSession) to session_<name>/: view_*.jpg + manifest.json, ready to upload.
@@ -36,12 +38,20 @@ var lenientPose = false
 var drawOverlayVideo = false
 var userHeightCm = 170.0
 var videoIntrinsics: CalibrationStore.Intrinsics?
+var poseModel = RTMPoseModel.active
 var videos: [URL] = []
 var arguments = CommandLine.arguments.dropFirst().makeIterator()
 while let argument = arguments.next() {
     switch argument {
     case "--lenient-pose": lenientPose = true
     case "--overlay": drawOverlayVideo = true
+    case "--model":
+        guard let name = arguments.next(),
+              let picked = RTMPoseModel.allCases.first(where: { "\($0)" == name }) else {
+            print("--model requires coco17 or halpe26")
+            exit(2)
+        }
+        poseModel = picked
     case "--output-dir":
         guard let path = arguments.next(), !path.hasPrefix("--") else {
             print("--output-dir requires a directory path")
@@ -71,12 +81,13 @@ while let argument = arguments.next() {
     }
 }
 guard !videos.isEmpty else {
-    print("usage: calibration-replay [--lenient-pose] [--overlay] [--output-dir PATH] <video.mp4>...")
+    print("usage: calibration-replay [--lenient-pose] [--overlay] [--model coco17|halpe26] [--output-dir PATH] [--user-height-cm CM] [--intrinsics fx,fy,cx,cy] <video.mp4>...")
     exit(2)
 }
 try FileManager.default.createDirectory(at: outputDir, withIntermediateDirectories: true)
 
-let modelURL = repoRoot.appendingPathComponent("ios/Runner/NativePose/Models/rtmpose_s_forward.mlpackage")
+let modelURL = repoRoot.appendingPathComponent("ios/Runner/NativePose/Models/\(poseModel.rawValue).mlpackage")
+print("model: \(poseModel.rawValue)")
 let configuration = MLModelConfiguration()
 configuration.computeUnits = .all
 let model = try MLModel(contentsOf: try MLModel.compileModel(at: modelURL), configuration: configuration)

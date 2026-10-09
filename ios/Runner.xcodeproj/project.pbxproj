@@ -16,6 +16,7 @@
 		223CDB2759C9124390D74E5F /* BundledVideoHandFrameProcessor.swift in Sources */ = {isa = PBXBuildFile; fileRef = E07DF17BCEE460AC05367CFD /* BundledVideoHandFrameProcessor.swift */; };
 		331C808B294A63AB00263BE5 /* RunnerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 331C807B294A618700263BE5 /* RunnerTests.swift */; };
 		35264BC5B5803A97A73D826C /* rtmpose_s_forward.mlpackage in Resources */ = {isa = PBXBuildFile; fileRef = D0DB04261F1D80726AD0AF58 /* rtmpose_s_forward.mlpackage */; };
+		4A1F7C2E9B3D5E6F70819203 /* rtmpose_s_halpe26_forward.mlpackage in Resources */ = {isa = PBXBuildFile; fileRef = 5B2E8D3FAC4E6F7081920314 /* rtmpose_s_halpe26_forward.mlpackage */; };
 		3B3967161E833CAA004F5970 /* AppFrameworkInfo.plist in Resources */ = {isa = PBXBuildFile; fileRef = 3B3967151E833CAA004F5970 /* AppFrameworkInfo.plist */; };
 		3C9255FE7D789FFFC415E3C9 /* hand_landmarker.task in Resources */ = {isa = PBXBuildFile; fileRef = EF0D70169B810C7825FAE8DD /* hand_landmarker.task */; };
 		3EAE5785BD00E55356394216 /* NativePoseRegistration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28CF067E5302E66D43049D22 /* NativePoseRegistration.swift */; };
@@ -118,6 +119,7 @@
 		C22663292A168CDCAD307E66 /* PoseCoordinateTransforms.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PoseCoordinateTransforms.swift; sourceTree = "<group>"; };
 		C7C4940B99ECEFA823DD8EB1 /* SimCCDecoder.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SimCCDecoder.swift; sourceTree = "<group>"; };
 		D0DB04261F1D80726AD0AF58 /* rtmpose_s_forward.mlpackage */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = folder.mlpackage; path = rtmpose_s_forward.mlpackage; sourceTree = "<group>"; };
+		5B2E8D3FAC4E6F7081920314 /* rtmpose_s_halpe26_forward.mlpackage */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = folder.mlpackage; path = rtmpose_s_halpe26_forward.mlpackage; sourceTree = "<group>"; };
 		D167FF3D21F692A8C806B807 /* Pods-RunnerTests.profile.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-RunnerTests.profile.xcconfig"; path = "Target Support Files/Pods-RunnerTests/Pods-RunnerTests.profile.xcconfig"; sourceTree = "<group>"; };
 		D17BBF73154938F9C729D2C4 /* BarbellRowEvaluator.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BarbellRowEvaluator.swift; sourceTree = "<group>"; };
 		DF445DF3E9EBB7E4F712C747 /* BenchPressTypes.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BenchPressTypes.swift; sourceTree = "<group>"; };
@@ -226,6 +228,7 @@
 			children = (
 				EF0D70169B810C7825FAE8DD /* hand_landmarker.task */,
 				D0DB04261F1D80726AD0AF58 /* rtmpose_s_forward.mlpackage */,
+				5B2E8D3FAC4E6F7081920314 /* rtmpose_s_halpe26_forward.mlpackage */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -463,6 +466,7 @@
 				97C146FC1CF9000F007C117D /* Main.storyboard in Resources */,
 				3C9255FE7D789FFFC415E3C9 /* hand_landmarker.task in Resources */,
 				35264BC5B5803A97A73D826C /* rtmpose_s_forward.mlpackage in Resources */,
+				4A1F7C2E9B3D5E6F70819203 /* rtmpose_s_halpe26_forward.mlpackage in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
