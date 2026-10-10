@@ -17,6 +17,9 @@ private enum CameraPreviewOptions {
         }
     }()
     static let enableMotion3DForCamera = false
+    /// RTMPose input: 3:4 person crop from the previous frame's keypoints (RTMPoseCropTracker).
+    /// false = old input, whole frame stretched to 192×256 every frame.
+    static let personCropInput = true
     static let handCropSize = 256.0
     static let wristConfidenceThreshold = 0.3
     static let useMediaPipeWristFor2DBodyOverlay = true
@@ -175,6 +178,9 @@ final class CameraPoseViewModel: ObservableObject {
     private var barbellRowEvaluator: BarbellRowEvaluator?
     private var pushUpEvaluator: PushUpEvaluator?
 
+    /// Only touched on the capture processing queue (one frame at a time), like the workspace.
+    nonisolated(unsafe) private var cropTracker = RTMPoseCropTracker()
+
     init(exercise: NativePoseExercise,
          onUpdate: ((Int, String, Bool) -> Void)? = nil,
          onFeedback: ((String, Int?, Bool) -> Void)? = nil) {
@@ -279,7 +285,14 @@ final class CameraPoseViewModel: ObservableObject {
             do {
                 let timestampMs = Self.timestampMs(sampleBuffer, fallback: frameIdx)
                 let cgImage = try Self.cgImageFromSampleBuffer(sampleBuffer, ciContext: ciContext)
-                let preprocess = try PosePreprocess.preprocessFullImage(cgImage, workspace: workspace)
+                let inputRect = CameraPreviewOptions.personCropInput
+                    ? cropTracker.inputRect(imageWidth: cgImage.width, imageHeight: cgImage.height)
+                    : CGRect(x: 0, y: 0, width: cgImage.width, height: cgImage.height)
+                let inverseAffine = try PosePreprocess.drawRegion(cgImage, rect: inputRect, into: &workspace.pixels)
+                try PosePreprocess.normalizeRGBAIntoRTMPoseInput(
+                    workspace.pixels, input: workspace.input,
+                    width: PoseCoordinateTransforms.rtmposeInputWidth,
+                    height: PoseCoordinateTransforms.rtmposeInputHeight)
                 let rtmposeOutput = try rtmpose.prediction(from: workspace.provider)
 
                 guard let simccX = rtmposeOutput.featureValue(for: "simcc_x")?.multiArrayValue,
@@ -290,8 +303,9 @@ final class CameraPoseViewModel: ObservableObject {
                 let decoded = try SimCCDecoder.decodeToInputCoordinates(simccX: simccX, simccY: simccY)
                 let rawCoco17 = PoseCoordinateTransforms.applyInverseAffine(
                     decoded: decoded,
-                    inverseAffine: preprocess.inverseAffine
+                    inverseAffine: inverseAffine
                 )
+                if CameraPreviewOptions.personCropInput { cropTracker.update(rawCoco17) }
 
                 // Hand branch
                 let handResults: [HandLandmarkResult]
@@ -302,8 +316,8 @@ final class CameraPoseViewModel: ObservableObject {
                     let handFrame = BundledVideoHandFrameProcessor.runWristCropHands(
                         image: handImage,
                         rawCoco17: rawCoco17,
-                        imageWidth: Double(preprocess.imageWidth),
-                        imageHeight: Double(preprocess.imageHeight),
+                        imageWidth: Double(cgImage.width),
+                        imageHeight: Double(cgImage.height),
                         timestampMs: timestampMs,
                         handLandmarkers: handLandmarkers,
                         cropSize: CameraPreviewOptions.handCropSize,
@@ -327,13 +341,13 @@ final class CameraPoseViewModel: ObservableObject {
 
                 let result = CameraProcessingResult(
                     frameIndex: frameIdx,
-                    imageWidth: Double(preprocess.imageWidth),
-                    imageHeight: Double(preprocess.imageHeight),
+                    imageWidth: Double(cgImage.width),
+                    imageHeight: Double(cgImage.height),
                     visualCoco17: visualCoco17,
                     rawCoco17: rawCoco17,
                     feet: PoseCoordinateTransforms.applyInverseAffineToFeet(
                         decoded: decoded,
-                        inverseAffine: preprocess.inverseAffine
+                        inverseAffine: inverseAffine
                     ),
                     handResults: handResults
                 )
