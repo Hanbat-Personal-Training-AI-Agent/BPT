@@ -18,6 +18,7 @@
 		35264BC5B5803A97A73D826C /* rtmpose_s_forward.mlpackage in Resources */ = {isa = PBXBuildFile; fileRef = D0DB04261F1D80726AD0AF58 /* rtmpose_s_forward.mlpackage */; };
 		3B3967161E833CAA004F5970 /* AppFrameworkInfo.plist in Resources */ = {isa = PBXBuildFile; fileRef = 3B3967151E833CAA004F5970 /* AppFrameworkInfo.plist */; };
 		3C9255FE7D789FFFC415E3C9 /* hand_landmarker.task in Resources */ = {isa = PBXBuildFile; fileRef = EF0D70169B810C7825FAE8DD /* hand_landmarker.task */; };
+		4B0A1C2D3E4F5A6B7C8D9E02 /* KoriSpeaker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B0A1C2D3E4F5A6B7C8D9E01 /* KoriSpeaker.swift */; };
 		3EAE5785BD00E55356394216 /* NativePoseRegistration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28CF067E5302E66D43049D22 /* NativePoseRegistration.swift */; };
 		40E3761BDF18FECA75D4155D /* BarbellRowEvaluator.swift in Sources */ = {isa = PBXBuildFile; fileRef = D17BBF73154938F9C729D2C4 /* BarbellRowEvaluator.swift */; };
 		511C8B1A5E3231BB606B95BE /* SquatTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66A9249975D25A56873258E4 /* SquatTypes.swift */; };
@@ -83,6 +84,7 @@
 		1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GeneratedPluginRegistrant.m; sourceTree = "<group>"; };
 		1CCE7980CB9E4B502305AFFA /* MediaPipeHandLandmarkerRunner.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MediaPipeHandLandmarkerRunner.swift; sourceTree = "<group>"; };
 		200979D0AF7396451B08CFB3 /* Pods_RunnerTests.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_RunnerTests.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		4B0A1C2D3E4F5A6B7C8D9E01 /* KoriSpeaker.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = KoriSpeaker.swift; sourceTree = "<group>"; };
 		28CF067E5302E66D43049D22 /* NativePoseRegistration.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NativePoseRegistration.swift; sourceTree = "<group>"; };
 		2A1FD033181BAA88DDC1B0E9 /* BarbellRowTypes.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BarbellRowTypes.swift; sourceTree = "<group>"; };
 		331C807B294A618700263BE5 /* RunnerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunnerTests.swift; sourceTree = "<group>"; };
@@ -201,6 +203,7 @@
 				FCEB665660D0A67B817FFAB4 /* NativePoseCameraPlatformView.swift */,
 				F3C7BDC341C048CCF624916D /* NativePoseCameraPlatformViewFactory.swift */,
 				28CF067E5302E66D43049D22 /* NativePoseRegistration.swift */,
+				4B0A1C2D3E4F5A6B7C8D9E01 /* KoriSpeaker.swift */,
 			);
 			path = Bridge;
 			sourceTree = "<group>";
@@ -602,6 +605,7 @@
 				622CB33062458ACA0B781D8B /* NativePoseCameraPlatformView.swift in Sources */,
 				C4CC1F25A32E8EDA3BF8D0D3 /* NativePoseCameraPlatformViewFactory.swift in Sources */,
 				3EAE5785BD00E55356394216 /* NativePoseRegistration.swift in Sources */,
+				4B0A1C2D3E4F5A6B7C8D9E02 /* KoriSpeaker.swift in Sources */,
 				86AB2F1D28559673AEFB3414 /* CalibrationConfig.swift in Sources */,
 				5A078BAFDB04ACF07057A2B7 /* CalibrationTypes.swift in Sources */,
 				0769990B245BA6D1840230A1 /* CalibrationEngine.swift in Sources */,

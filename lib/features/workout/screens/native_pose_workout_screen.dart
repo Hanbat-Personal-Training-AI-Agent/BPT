@@ -13,6 +13,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_toast.dart';
 import '../../../data/mock_data.dart';
 import '../../home/providers/home_provider.dart';
+import '../../../services/kori_voice_service.dart';
 import '../data/kori_feedback_lines.dart';
 
 /// Preparation phases shown before the native camera PlatformView appears.
@@ -209,6 +210,30 @@ class _NativePoseWorkoutScreenState
             ifAbsent: () => count ?? 1);
       }
     });
+    _speakFeedback();
+  }
+
+  bool get _isKo => ref.read(appStringsProvider).locale == 'ko';
+
+  /// 지금 말풍선에 뜬 코리 대사를 코리 목소리로 말한다.
+  void _speakFeedback() {
+    final line = koriFeedbackLines[_feedbackKey];
+    if (line == null) return;
+    final isKo = _isKo;
+    KoriVoiceService.speak(line.render(isKo: isKo, n: _feedbackCount),
+        isKo: isKo);
+  }
+
+  /// 방금 끝낸 세트에 대한 코멘트 (_KoriBreakMessage 와 같은 대사)를 말한다.
+  void _speakSetSummary() {
+    final result = _setResults.last;
+    final line = result.fixCount == 0
+        ? koriFeedbackLines['praise_clean_set']!
+        : koriFeedbackLines['set_summary']!;
+    final isKo = _isKo;
+    KoriVoiceService.speak(
+        line.render(isKo: isKo, reps: result.reps, k: result.fixCount),
+        isKo: isKo);
   }
 
   /// 네이티브 피드백 연동 전 임시 동작: rep마다 칭찬 ↔ 운동별 대표 경고.
@@ -231,6 +256,8 @@ class _NativePoseWorkoutScreenState
 
   void _onNativeUpdate(int rep) {
     if (!mounted || _isPaused) return;
+    final keyBefore = _feedbackKey;
+    final setCompleteBefore = _setComplete;
     setState(() {
       final repIncreased = rep > _latestNativeRep;
       _latestNativeRep = rep;
@@ -255,6 +282,11 @@ class _NativePoseWorkoutScreenState
         }
       }
     });
+    if (_setComplete && !setCompleteBefore) {
+      _speakSetSummary();
+    } else if (_feedbackKey != keyBefore && !_nativeFeedbackActive) {
+      _speakFeedback();
+    }
   }
 
   void _togglePause() {
@@ -398,6 +430,7 @@ class _NativePoseWorkoutScreenState
     _elapsedTimer?.cancel();
     _restTimer?.cancel();
     _channel?.setMethodCallHandler(null);
+    KoriVoiceService.stop();
     super.dispose();
   }
 

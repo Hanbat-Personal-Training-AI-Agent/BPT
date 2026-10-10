@@ -1,13 +1,14 @@
 import AVFoundation
 import Foundation
 
-/// Korean speech, the capture chime and the proximity beep. Main thread only.
+/// Korean speech (Kori's ElevenLabs voice, see [KoriSpeaker]), the capture chime and the
+/// proximity beep. Main thread only.
 ///
 /// The user cannot see the screen while showing their back, so for that view this is the only
 /// channel. It therefore runs on a `.playback` audio session: system sounds and the default
 /// session go quiet on silent mode, and a phone propped up for calibration is often on silent.
-final class CalibrationVoice: NSObject, AVSpeechSynthesizerDelegate {
-    private let synthesizer = AVSpeechSynthesizer()
+final class CalibrationVoice: NSObject {
+    private let speaker = KoriSpeaker()
     private let config: CalibrationConfig.Voice
     private let tick = CalibrationVoice.tone(frequency: 880, duration: 0.06)
     private let chime = CalibrationVoice.tone(frequency: 1320, duration: 0.16)
@@ -20,7 +21,7 @@ final class CalibrationVoice: NSObject, AVSpeechSynthesizerDelegate {
     init(config: CalibrationConfig.Voice = CalibrationConfig.default.voice) {
         self.config = config
         super.init()
-        synthesizer.delegate = self
+        speaker.onFinish = { [weak self] in self?.speakerDidFinish() }
     }
 
     func activate() {
@@ -36,15 +37,10 @@ final class CalibrationVoice: NSObject, AVSpeechSynthesizerDelegate {
         let changed = message != lastSpokenMessage
         guard changed || now - lastSpokenAt >= repeatInterval(for: message) else { return }
 
-        if guidance.interrupts {
-            synthesizer.stopSpeaking(at: .immediate)
-        } else if synthesizer.isSpeaking {
+        if !guidance.interrupts, speaker.isSpeaking {
             return
         }
-        let utterance = AVSpeechUtterance(string: message)
-        utterance.voice = AVSpeechSynthesisVoice(language: "ko-KR")
-        utterance.rate = AVSpeechUtteranceDefaultSpeechRate * 0.95
-        synthesizer.speak(utterance)
+        speaker.speak(message)
         lastSpokenMessage = message
         lastSpokenAt = now
     }
@@ -66,22 +62,22 @@ final class CalibrationVoice: NSObject, AVSpeechSynthesizerDelegate {
 
     /// Stops at once (the user backed out).
     func stop() {
-        synthesizer.stopSpeaking(at: .immediate)
+        speaker.stop()
         lastSpokenMessage = nil
         deactivate()
     }
 
     /// Lets the current line finish, then hands audio back to other apps.
     func deactivateWhenDone() {
-        if synthesizer.isSpeaking {
+        if speaker.isSpeaking {
             releaseWhenIdle = true
         } else {
             deactivate()
         }
     }
 
-    func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
-        if releaseWhenIdle, !synthesizer.isSpeaking {
+    private func speakerDidFinish() {
+        if releaseWhenIdle, !speaker.isSpeaking {
             releaseWhenIdle = false
             deactivate()
         }
