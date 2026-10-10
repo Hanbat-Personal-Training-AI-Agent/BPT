@@ -1,0 +1,33 @@
+# On-device Core ML latency of RTMPose candidates without a camera or a person in front of it.
+#   cp -R <candidate>.mlpackage Tests/PoseModelBenchTests/Models/   (git-ignored)
+#   xcodegen generate
+#   xcodebuild test -project PoseModelBench.xcodeproj -scheme PoseModelBenchHost \
+#     -destination 'platform=iOS,id=<device udid>' DEVELOPMENT_TEAM=<team> -allowProvisioningUpdates | grep BENCH
+name: PoseModelBench
+options:
+  bundleIdPrefix: com.bpt.posebench
+  deploymentTarget: {iOS: "16.0"}
+targets:
+  PoseModelBenchHost:
+    type: application
+    platform: iOS
+    sources: [Host]
+    settings:
+      GENERATE_INFOPLIST_FILE: YES
+      CODE_SIGN_STYLE: Automatic
+  PoseModelBenchTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: Tests/PoseModelBenchTests/PoseModelBenchTests.swift
+      - path: Tests/PoseModelBenchTests/Models
+        type: folder
+        buildPhase: resources
+    dependencies: [{target: PoseModelBenchHost}]
+    settings:
+      GENERATE_INFOPLIST_FILE: YES
+      CODE_SIGN_STYLE: Automatic
+schemes:
+  PoseModelBenchHost:
+    build: {targets: {PoseModelBenchHost: all}}
+    test: {targets: [PoseModelBenchTests]}

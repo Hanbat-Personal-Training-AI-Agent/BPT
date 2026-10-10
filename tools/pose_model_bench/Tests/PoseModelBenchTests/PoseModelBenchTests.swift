@@ -3,7 +3,7 @@ import XCTest
 
 final class PoseModelBenchTests: XCTestCase {
     func testLatency() throws {
-        let dir = Bundle.module.resourceURL!.appendingPathComponent("Models")
+        let dir = Bundle(for: Self.self).resourceURL!.appendingPathComponent("Models")
         let packages = try FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil)
             .filter { $0.pathExtension == "mlpackage" }.sorted { $0.lastPathComponent < $1.lastPathComponent }
         XCTAssertFalse(packages.isEmpty, "copy candidate .mlpackage files into Models/")
