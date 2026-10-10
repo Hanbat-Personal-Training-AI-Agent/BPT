@@ -52,6 +52,11 @@ struct FormCommonConfig {
     /// and logged only. The barbell row tracker also adds setup_side_view (its side-view gate).
     /// `FormWarningTracker.allKeys` turns everything on.
     var enabledFeedbackKeys: Set<String> = ["setup_full_body", "tracking_lost"]
+    /// Side-view gate (row, push-up): once decided, the side flips only past the exercise's cutoff ± this. 임시값 — 테스트 영상으로 조정
+    var sideViewHysteresis = 0.03
+    /// Side-view gate: rolling window (frames, ~5 s) / frames needed before the first decision (nil until then).
+    var sideViewWindowFrames = 150
+    var sideViewMinFrames = 30
 }
 
 /// Push-up (side view).
@@ -74,6 +79,11 @@ struct PushUpFormConfig {
     var handForwardRatio = 0.35
     /// pushup_hand_position (셋업): or behind the shoulder (towards the feet) by more than this × arm length. 임시값 — 테스트 영상으로 조정
     var handBackwardRatio = 0.35
+    /// Side-view gate for rep judging (median shoulder width / torso length <= this = side; same
+    /// window and hysteresis as the row). Push-up-specific: the row's 0.56 does not split push-up
+    /// views (Exercise3D medians: 10–35° 0.06–0.53, 40° 0.50–0.75, 48° 0.44–0.48, 70–88° 1.8–2.8 —
+    /// the torso foreshortens towards a front camera). 1.0 = every cam ≤ 48° side, every cam ≥ 70° not.
+    var sideViewMaxShoulderRatio = 1.0
     /// pushup_depth_fade (참고): mean min elbow angle of the last N reps − first N reps above this (deg). 임시값 — 테스트 영상으로 조정
     var depthFadeDegrees = 15.0
 }
@@ -116,11 +126,6 @@ struct BarbellRowFormConfig {
     /// `sideViewWindowFrames` frames <= this = side. Exercise3D rows: cams 20–36° from side 0.11–0.51,
     /// rear cams 76–81° 0.66–0.84; 0.56 = the widest 36° subject (0.509) scaled to 40° (× sin40/sin36).
     var sideViewMaxShoulderRatio = 0.56
-    /// Once decided, the side flips only past the cutoff ± this. 임시값 — 테스트 영상으로 조정
-    var sideViewHysteresis = 0.03
-    /// Rolling window (frames, ~5 s) / frames needed before the first decision (nil until then).
-    var sideViewWindowFrames = 150
-    var sideViewMinFrames = 30
     /// row_shrug (개선, 실험): off until normal vs shrug footage separates it. 임시값 — 테스트 영상으로 조정
     var shrugEnabled = false
     /// row_shrug: ear–shoulder distance shrinks by more than this fraction of its rep-start value. 임시값 — 테스트 영상으로 조정
@@ -365,8 +370,8 @@ final class FormWarningTracker {
     private(set) var warningRepCounts: [String: Int] = [:]
     private(set) var reports: [FormRepReport] = []
     private(set) var side: FormSide?
-    /// Barbell row side-view gate (see `BarbellRowFormConfig.sideViewMaxShoulderRatio`); nil until
-    /// `sideViewMinFrames` frames. Other exercises leave it nil.
+    /// Side-view gate (row: `BarbellRowFormConfig.sideViewMaxShoulderRatio`, push-up:
+    /// `PushUpFormConfig.sideViewMaxShoulderRatio`); nil until `sideViewMinFrames` frames. Squat leaves it nil.
     private(set) var sideView: Bool?
     private var shoulderRatios: [Double] = []
     private var sideViewGuided = false
@@ -441,23 +446,24 @@ final class FormWarningTracker {
         }
         current = sample
         updateTracking(sample)
-        if exercise == .barbellRow { updateSideView(sample) }
+        if exercise != .squat { updateSideView(sample) }
     }
 
-    /// Rolling-median shoulder ratio vs the cutoff, with hysteresis. The first "not side" queues
-    /// setup_side_view once per session (셋업: said once, like the per-rep setup rule).
+    /// Rolling-median shoulder ratio vs the cutoff, with hysteresis. For the row the first "not
+    /// side" queues setup_side_view once per session (셋업: said once, like the per-rep setup rule).
     private func updateSideView(_ sample: FormFrameSample) {
         guard let ratio = sample.shoulderRatio else { return }
         shoulderRatios.append(ratio)
-        if shoulderRatios.count > row.sideViewWindowFrames { shoulderRatios.removeFirst() }
-        guard shoulderRatios.count >= row.sideViewMinFrames, let median = Self.median(shoulderRatios) else { return }
-        let cut = row.sideViewMaxShoulderRatio, h = row.sideViewHysteresis
+        if shoulderRatios.count > common.sideViewWindowFrames { shoulderRatios.removeFirst() }
+        guard shoulderRatios.count >= common.sideViewMinFrames, let median = Self.median(shoulderRatios) else { return }
+        let cut = exercise == .pushUp ? pushUp.sideViewMaxShoulderRatio : row.sideViewMaxShoulderRatio
+        let h = common.sideViewHysteresis
         let next = switch sideView {
         case nil: median <= cut
         case true?: median <= cut + h
         case false?: median < cut - h
         }
-        if next == false, !sideViewGuided, reports.isEmpty {
+        if exercise == .barbellRow, next == false, !sideViewGuided, reports.isEmpty {
             sideViewGuided = true
             emit(FormFeedbackEvent(key: "setup_side_view", n: nil, silent: false))
         }

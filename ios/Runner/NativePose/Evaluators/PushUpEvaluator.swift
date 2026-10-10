@@ -1,6 +1,20 @@
 import Foundation
 
+/// Which arm gives the elbow angle in a side view when both arms pass the confidence check.
+enum PushUpSideArm {
+    /// The arm whose shoulder+elbow+wrist confidence sum is higher, frame by frame.
+    case confident
+    /// The form tracker's camera-near side (whole-body confidence with hysteresis).
+    case trackerSide
+}
+
 struct PushUpEvaluatorConfig {
+    /// Side view only (formTracker.sideView, push-up cutoff): a fast descent may start the rep at
+    /// top → bottom without a stable `descending`, and the elbow angle comes from one arm
+    /// (`sideViewArm`) instead of the two-arm average the occluded far arm spoils.
+    /// false = old behaviour everywhere. outputs/rep_validation/H_pushup_failures.md
+    var sideViewRepFixes = true
+    var sideViewArm = PushUpSideArm.trackerSide
     var pushUpMinJointConfidence = 0.30
     var descendDepthDeltaThreshold = 0.010
     var ascendDepthDeltaThreshold = -0.010
@@ -111,6 +125,8 @@ final class PushUpEvaluator {
     private var currentRepDepthSignalReliable = false
     private var completedRepCount = 0
     private(set) var completedRepSummaries: [PushUpRepSummary] = []
+    /// `config.sideViewRepFixes` and the side-view gate (nil = undecided → side), set per frame.
+    private var sideViewFixes = false
     private lazy var readyPose = ReadyPoseGate(holdFrames: config.readyPoseHoldFrames, tolerance: config.readyPoseTolerance)
 
     var sessionSummary: PushUpSessionSummary {
@@ -160,6 +176,7 @@ final class PushUpEvaluator {
 
     /// `pose3D`: MotionAGFormer H36M17 selected3D when available (form metrics only; nil in the live app).
     func evaluate(frameIndex: Int, coco17: [PoseKeypoint], pose3D: [SIMD3<Double>]? = nil) -> PushUpFrameResult {
+        sideViewFixes = config.sideViewRepFixes && formTracker.sideView != false
         let measurements = computeMeasurements(coco17: coco17)
         let rawCandidate = classifyRawStatusCandidate(measurements)
         let previousStatus = stableStatus
@@ -248,8 +265,20 @@ final class PushUpEvaluator {
 
         // Side view: the far arm/leg is often occluded. With both sides confident this is the
         // old two-side average; otherwise the confident (camera-near) side alone.
-        let leftArm = sideConfident(coco17, [COCO17.leftShoulder, COCO17.leftElbow, COCO17.leftWrist])
-        let rightArm = sideConfident(coco17, [COCO17.rightShoulder, COCO17.rightElbow, COCO17.rightWrist])
+        var leftArm = sideConfident(coco17, [COCO17.leftShoulder, COCO17.leftElbow, COCO17.leftWrist])
+        var rightArm = sideConfident(coco17, [COCO17.rightShoulder, COCO17.rightElbow, COCO17.rightWrist])
+        if sideViewFixes && leftArm && rightArm {
+            let useLeft: Bool
+            switch (config.sideViewArm, formTracker.side) {
+            case (.trackerSide, let side?):
+                useLeft = side == .left
+            default:
+                let score = { (ids: [Int]) in ids.map { coco17[$0].confidence }.reduce(0, +) }
+                useLeft = score([COCO17.leftShoulder, COCO17.leftElbow, COCO17.leftWrist])
+                    >= score([COCO17.rightShoulder, COCO17.rightElbow, COCO17.rightWrist])
+            }
+            if useLeft { rightArm = false } else { leftArm = false }
+        }
         let shoulderCenter = pair(leftShoulder, rightShoulder)
         let wristCenter = pair(leftWrist, rightWrist)
         let hipCenter = pair(leftHip, rightHip)
@@ -469,7 +498,7 @@ final class PushUpEvaluator {
         case .unknown:
             return next == .top || next == .descending || next == .bottom
         case .top:
-            return next == .descending
+            return next == .descending || (sideViewFixes && next == .bottom)
         case .descending:
             return next == .bottom || next == .ascending
         case .bottom:
@@ -493,7 +522,8 @@ final class PushUpEvaluator {
         status: PushUpStatus,
         measurements: Measurements
     ) -> (done: Bool, statusOverride: PushUpStatus?) {
-        if readyPose.armed, status == .descending && (previousStatus == .top || previousStatus == .unknown) {
+        let startsRep = status == .descending || (sideViewFixes && status == .bottom && previousStatus == .top)
+        if readyPose.armed, startsRep && (previousStatus == .top || previousStatus == .unknown) {
             startRep(frameIndex: frameIndex)
         }
 

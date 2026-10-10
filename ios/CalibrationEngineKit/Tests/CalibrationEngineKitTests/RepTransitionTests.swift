@@ -121,4 +121,44 @@ final class RepTransitionTests: XCTestCase {
         for (i, pose) in poses.enumerated() { rep = evaluator.evaluate(frameIndex: i, coco17: pose).rep }
         XCTAssertEqual(rep, 1)
     }
+
+    /// Side-view push-up facing +x; `bend` moves both elbows down (0 = locked out ~180°).
+    /// The far (right) arm is less confident.
+    private func pushUpPose(bend: Double) -> [PoseKeypoint] {
+        var k = [PoseKeypoint](repeating: kp(0, 0, 0.5), count: 17)
+        let pts: [(Int, Double, Double)] = [(0, 580, 395 + bend / 2), (3, 560, 390 + bend / 2), (5, 500, 400 + bend / 2),
+                                            (7, 500 - bend, 480), (9, 500, 560), (11, 300, 450 + bend / 3), (13, 200, 475), (15, 100, 500)]
+        for (i, x, y) in pts {
+            k[i] = kp(x, y)
+            if i != 0 { k[i + 1] = kp(x, y, [7, 9].contains(i) ? 0.6 : 0.9) }
+        }
+        return k
+    }
+
+    private func pushUpReps(_ bends: [Double], fixes: Bool) -> Int {
+        var config = PushUpEvaluatorConfig()
+        config.sideViewRepFixes = fixes
+        let evaluator = PushUpEvaluator(config: config)
+        var rep = 0
+        for (i, b) in bends.enumerated() { rep = evaluator.evaluate(frameIndex: i, coco17: pushUpPose(bend: b)).rep }
+        return rep
+    }
+
+    func testPushUpSideViewFixesKeepNormalRepsAndCountFastDescent() {
+        XCTAssertTrue(PushUpEvaluatorConfig().sideViewRepFixes, "on by default (side view only)")
+        // Slow reps (gradual down/up): every rep still counted with the side-view fixes.
+        let ramp = (0...15).map { Double($0) * 6 }
+        let slow = Array(repeating: 0.0, count: 40)
+            + Array(repeating: Array(repeating: 0.0, count: 10) + ramp + ramp.reversed(), count: 4).flatMap { $0 } + Array(repeating: 0.0, count: 20)
+        // Without the fixes the first rep (still on the fixed fallback thresholds) is missed.
+        XCTAssertEqual(pushUpReps(slow, fixes: false), 3)
+        XCTAssertEqual(pushUpReps(slow, fixes: true), 4, "no correct-rep loss")
+        // Fast descent: top straight to bottom (no descending frames), slow way up.
+        let fast = Array(repeating: 0.0, count: 40)
+            + Array(repeating: Array(repeating: 0.0, count: 12) + Array(repeating: 90.0, count: 12) + ramp.reversed(), count: 4).flatMap { $0 }
+            + Array(repeating: 0.0, count: 20)
+        let fastOn = pushUpReps(fast, fixes: true)
+        XCTAssertEqual(fastOn, 4)
+        XCTAssertLessThan(pushUpReps(fast, fixes: false), fastOn)
+    }
 }
