@@ -384,7 +384,14 @@ final class CameraPoseViewModel: ObservableObject {
                     decoded: decoded,
                     inverseAffine: inverseAffine
                 )
-                if CameraPreviewOptions.personCropInput { cropTracker.update(rawCoco17) }
+                if CameraPreviewOptions.personCropInput {
+                    cropTracker.update(rawCoco17)
+                    // Every ~1 s one extra whole-frame pass, so a bystander locked in at the start is dropped
+                    // for the (bigger) user. Runs after this frame's keypoints are taken from the workspace.
+                    if cropTracker.wholeFrameRecheckDue {
+                        try cropTracker.recheckWholeFrame(cgImage, model: rtmpose, workspace: workspace)
+                    }
+                }
 
                 // Hand branch
                 let handResults: [HandLandmarkResult]

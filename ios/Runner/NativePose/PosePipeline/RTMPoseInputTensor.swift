@@ -102,6 +102,11 @@ enum PosePreprocess {
 /// with hysteresis so keypoint jitter does not move it. Too few confident joints = person lost: the next
 /// frame goes back to the whole frame (stretched to 192×256, the old input) to find them again.
 /// Same idea as CalibrationFrameAnalyzer.updateCrop, without its calibration-only joint requirements.
+///
+/// Wrong-person lock: the first whole-frame pass can pick a bystander, and the crop then only ever sees
+/// them. So every `recheckInterval` tracked frames the caller also runs the whole frame and passes it to
+/// `offerWholeFrame`; a person there who is clearly bigger (`switchAreaRatio`) and mostly outside the
+/// tracked one takes over the crop.
 struct RTMPoseCropTracker {
     var minConfidence = 0.3
     /// COCO joints at or above `minConfidence` needed to keep tracking.
@@ -111,30 +116,75 @@ struct RTMPoseCropTracker {
     /// The crop is kept while its height is within [minRatio, maxRatio] × a fresh target's.
     var minRatio = 0.8
     var maxRatio = 1.35
+    /// Tracked frames between whole-frame rechecks (30 ≈ 1 s; one extra inference each).
+    var recheckInterval = 30
+    /// A whole-frame person replaces the tracked one when its keypoint box area is this many times larger
+    /// and at most `switchMaxOverlap` of it lies inside the current crop.
+    var switchAreaRatio = 1.5
+    var switchMaxOverlap = 0.3
+    /// ...and only if the whole-frame pass saw that person clearly: at least this many joints at
+    /// `minConfidence`, with this mean confidence. Stretched whole frames can mix two people into one
+    /// box (Exercise3D: wrong switches 6–12 joints, mean 0.33–0.38; right ones 15–17 joints, 0.46–0.71).
+    var switchMinJoints = 12
+    var switchMinMeanConfidence = 0.42
     /// Top-left frame pixels; nil = whole frame.
     private(set) var crop: CGRect?
+    /// Confident-keypoint box of the tracked person (frame pixels).
+    private(set) var person: CGRect?
+    private var framesSinceRecheck = 0
+
+    /// True when the caller should also run the whole frame this frame and call `offerWholeFrame`.
+    var wholeFrameRecheckDue: Bool { crop != nil && framesSinceRecheck >= recheckInterval }
 
     func inputRect(imageWidth: Int, imageHeight: Int) -> CGRect {
         crop ?? CGRect(x: 0, y: 0, width: imageWidth, height: imageHeight)
     }
 
-    mutating func reset() { crop = nil }
+    mutating func reset() {
+        crop = nil
+        person = nil
+        framesSinceRecheck = 0
+    }
+
+    /// Whole-frame keypoints from a recheck. Switches the crop to that person if they are a different,
+    /// clearly bigger person; otherwise keeps tracking.
+    @discardableResult
+    mutating func offerWholeFrame(_ keypoints: [PoseKeypoint]) -> Bool {
+        framesSinceRecheck = 0
+        let seen = keypoints.prefix(17).filter { $0.confidence >= minConfidence }
+        guard seen.count >= switchMinJoints,
+              seen.map(\.confidence).reduce(0, +) / Double(seen.count) >= switchMinMeanConfidence,
+              let current = person, let tracked = crop, let candidate = box(keypoints) else { return false }
+        let area = { (r: CGRect) in max(r.width, 1) * max(r.height, 1) }
+        // Overlap with the crop, not the keypoint box: a half-seen user (only legs confident) has a small
+        // box, but the crop still covers them.
+        let overlap = candidate.intersection(tracked)
+        let inside = overlap.isNull ? 0 : area(overlap) / area(candidate)
+        guard area(candidate) >= switchAreaRatio * area(current), inside <= switchMaxOverlap else { return false }
+        crop = nil
+        update(keypoints)
+        return true
+    }
+
+    private func box(_ keypoints: [PoseKeypoint]) -> CGRect? {
+        let points = keypoints.prefix(17).filter { $0.confidence >= minConfidence }
+        guard points.count >= minJoints else { return nil }
+        let x0 = points.map(\.x).min()!, x1 = points.map(\.x).max()!
+        let y0 = points.map(\.y).min()!, y1 = points.map(\.y).max()!
+        guard x1 - x0 > 1 || y1 - y0 > 1 else { return nil }
+        return CGRect(x: x0, y: y0, width: x1 - x0, height: y1 - y0)
+    }
 
     /// Feed the frame's COCO-17 keypoints in full-frame pixels (extra Halpe joints are ignored).
     mutating func update(_ keypoints: [PoseKeypoint]) {
-        let points = keypoints.prefix(17).filter { $0.confidence >= minConfidence }
-        guard points.count >= minJoints else {
-            crop = nil
+        guard let box = box(keypoints) else {
+            reset()
             return
         }
-        let x0 = points.map(\.x).min()!, x1 = points.map(\.x).max()!
-        let y0 = points.map(\.y).min()!, y1 = points.map(\.y).max()!
-        guard x1 - x0 > 1 || y1 - y0 > 1 else {
-            crop = nil
-            return
-        }
+        self.person = box
+        framesSinceRecheck += 1
         // Keypoints stop at the eyes and ankles; leave room for the head top and the soles.
-        let person = CGRect(x: x0, y: y0, width: x1 - x0, height: y1 - y0).insetBy(dx: 0, dy: -0.08 * (y1 - y0))
+        let person = box.insetBy(dx: 0, dy: -0.08 * box.height)
         let target = Self.fitToInputAspect(person.insetBy(dx: -margin * person.width, dy: -margin * person.height))
         if let current = crop, current.contains(person),
            current.height > minRatio * target.height, current.height < maxRatio * target.height {
@@ -183,5 +233,23 @@ extension PosePreprocess {
                                            width: Double(image.width) * sx, height: Double(image.height) * sy))
         }
         return Affine2x3(a: 1 / sx, b: 0, c: rect.minX, d: 0, e: 1 / sy, f: rect.minY)
+    }
+}
+
+extension RTMPoseCropTracker {
+    /// The recheck pass: RTMPose on the whole frame (stretched, like a lost-person frame), COCO-17 in frame
+    /// pixels, offered to the tracker. Returns true if the crop switched person. Reuses `workspace`.
+    @discardableResult
+    mutating func recheckWholeFrame(_ image: CGImage, model: MLModel, workspace: RTMPoseInputWorkspace) throws -> Bool {
+        let whole = CGRect(x: 0, y: 0, width: image.width, height: image.height)
+        let back = try PosePreprocess.drawRegion(image, rect: whole, into: &workspace.pixels)
+        try PosePreprocess.normalizeRGBAIntoRTMPoseInput(workspace.pixels, input: workspace.input,
+                                                          width: PoseCoordinateTransforms.rtmposeInputWidth,
+                                                          height: PoseCoordinateTransforms.rtmposeInputHeight)
+        let output = try model.prediction(from: workspace.provider)
+        guard let x = output.featureValue(for: "simcc_x")?.multiArrayValue,
+              let y = output.featureValue(for: "simcc_y")?.multiArrayValue else { return false }
+        let decoded = try SimCCDecoder.decodeToInputCoordinates(simccX: x, simccY: y)
+        return offerWholeFrame(PoseCoordinateTransforms.applyInverseAffine(decoded: decoded, inverseAffine: back))
     }
 }
