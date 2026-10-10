@@ -1,3 +1,4 @@
+import CoreGraphics
 import CoreML
 import Foundation
 
@@ -91,5 +92,96 @@ enum PosePreprocess {
             output[greenBase + pixelIndex] = (Float(pixels[byteIndex + 1]) - meanG) * invStdG
             output[blueBase + pixelIndex] = (Float(pixels[byteIndex + 2]) - meanB) * invStdB
         }
+    }
+}
+
+// MARK: - Top-down person crop (workout camera and pose-replay)
+
+/// Where RTMPose looks in the next frame. RTMPose is top-down: it was trained on a 3:4 box around one
+/// person, so the box comes from this frame's keypoints (plus margin), keeps the 3:4 aspect, and is held
+/// with hysteresis so keypoint jitter does not move it. Too few confident joints = person lost: the next
+/// frame goes back to the whole frame (stretched to 192×256, the old input) to find them again.
+/// Same idea as CalibrationFrameAnalyzer.updateCrop, without its calibration-only joint requirements.
+struct RTMPoseCropTracker {
+    var minConfidence = 0.3
+    /// COCO joints at or above `minConfidence` needed to keep tracking.
+    var minJoints = 6
+    /// Added on every side, as a fraction of the person box.
+    var margin = 0.125
+    /// The crop is kept while its height is within [minRatio, maxRatio] × a fresh target's.
+    var minRatio = 0.8
+    var maxRatio = 1.35
+    /// Top-left frame pixels; nil = whole frame.
+    private(set) var crop: CGRect?
+
+    func inputRect(imageWidth: Int, imageHeight: Int) -> CGRect {
+        crop ?? CGRect(x: 0, y: 0, width: imageWidth, height: imageHeight)
+    }
+
+    mutating func reset() { crop = nil }
+
+    /// Feed the frame's COCO-17 keypoints in full-frame pixels (extra Halpe joints are ignored).
+    mutating func update(_ keypoints: [PoseKeypoint]) {
+        let points = keypoints.prefix(17).filter { $0.confidence >= minConfidence }
+        guard points.count >= minJoints else {
+            crop = nil
+            return
+        }
+        let x0 = points.map(\.x).min()!, x1 = points.map(\.x).max()!
+        let y0 = points.map(\.y).min()!, y1 = points.map(\.y).max()!
+        guard x1 - x0 > 1 || y1 - y0 > 1 else {
+            crop = nil
+            return
+        }
+        // Keypoints stop at the eyes and ankles; leave room for the head top and the soles.
+        let person = CGRect(x: x0, y: y0, width: x1 - x0, height: y1 - y0).insetBy(dx: 0, dy: -0.08 * (y1 - y0))
+        let target = Self.fitToInputAspect(person.insetBy(dx: -margin * person.width, dy: -margin * person.height))
+        if let current = crop, current.contains(person),
+           current.height > minRatio * target.height, current.height < maxRatio * target.height {
+            return
+        }
+        crop = target
+    }
+
+    /// Grows `rect` around its centre to the RTMPose input aspect (3:4).
+    static func fitToInputAspect(_ rect: CGRect) -> CGRect {
+        let aspect = Double(PoseCoordinateTransforms.rtmposeInputWidth) / Double(PoseCoordinateTransforms.rtmposeInputHeight)
+        var width = rect.width, height = rect.height
+        if width / max(height, 1e-9) > aspect {
+            height = width / aspect
+        } else {
+            width = height * aspect
+        }
+        return CGRect(x: rect.midX - width / 2, y: rect.midY - height / 2, width: width, height: height)
+    }
+}
+
+extension PosePreprocess {
+    /// Draws `rect` of `image` (top-left frame pixels, may reach past the frame) into the 192×256 RGBA
+    /// buffer; outside the frame is black, like RTMPose's zero-border affine crop. A 3:4 rect keeps the
+    /// aspect; the whole frame is stretched as before. Returns input pixel → frame pixel.
+    static func drawRegion(_ image: CGImage, rect: CGRect, into pixels: inout [UInt8]) throws -> Affine2x3 {
+        let width = PoseCoordinateTransforms.rtmposeInputWidth
+        let height = PoseCoordinateTransforms.rtmposeInputHeight
+        let sx = Double(width) / rect.width, sy = Double(height) / rect.height
+        try pixels.withUnsafeMutableBytes { buffer in
+            guard let context = CGContext(data: buffer.baseAddress, width: width, height: height,
+                                          bitsPerComponent: 8, bytesPerRow: width * 4,
+                                          space: CGColorSpaceCreateDeviceRGB(),
+                                          bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+                                              | CGBitmapInfo.byteOrder32Big.rawValue) else {
+                throw PosePreprocessError.couldNotCreateBitmapContext
+            }
+            context.interpolationQuality = .high
+            // The bitmap is reused: overwrite, never blend over the last frame.
+            context.setBlendMode(.copy)
+            context.setFillColor(CGColor(red: 0, green: 0, blue: 0, alpha: 1))
+            context.fill(CGRect(x: 0, y: 0, width: width, height: height))
+            // Core Graphics is bottom-left based; bitmap rows still come out top to bottom.
+            context.draw(image, in: CGRect(x: -rect.minX * sx,
+                                           y: Double(height) - (Double(image.height) - rect.minY) * sy,
+                                           width: Double(image.width) * sx, height: Double(image.height) * sy))
+        }
+        return Affine2x3(a: 1 / sx, b: 0, c: rect.minX, d: 0, e: 1 / sy, f: rect.minY)
     }
 }

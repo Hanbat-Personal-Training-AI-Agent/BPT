@@ -22,7 +22,7 @@ Usage:
     python scripts/eval_side_videos.py --videos ~/bpt_videos --truth ~/bpt_videos/truth.csv --out outputs/side_eval
 
 Report (<out>/report.md): rep accuracy per video and per exercise × angle × model; shoulder width ÷
-torso length (side-view gate metric, cutoff 0.56) per angle; per-key warning rate (fraction of counted
+torso length (side-view gate metric, cutoff 0.66) per angle; per-key warning rate (fraction of counted
 reps) normal vs wrong, and how often a wrong set's wrong_key fired; setup_full_body / tracking_lost
 counts per set (and how many fired inside a counted rep). pytest tests/test_eval_side_videos.py
 checks the parsing/aggregation without videos.
@@ -39,7 +39,7 @@ REPO = Path(__file__).resolve().parents[1]
 DEFAULT_BINARY = REPO / "ios/CalibrationEngineKit/.build/release/pose-replay"
 MODELS = ("coco17", "halpe26")
 EXERCISE_FILE = {"squat": "squat", "pushup": "pushup", "row": "barbell_row"}
-SIDE_CUTOFF = 0.56  # BarbellRowFormConfig.sideViewMaxShoulderRatio
+SIDE_CUTOFF = 0.66  # BarbellRowFormConfig.sideViewMaxShoulderRatio
 COLUMNS = ["file", "exercise", "angle_deg", "form", "wrong_key", "reps"]
 SETUP_KEYS = ("setup_full_body", "tracking_lost")
 

@@ -1,0 +1,120 @@
+import CoreGraphics
+import XCTest
+@testable import CalibrationEngineKit
+
+final class RTMPoseCropInputTests: XCTestCase {
+    /// Standing person: 17 COCO joints in a 200×600 box at (400, 500) in a 1080×1920 frame.
+    private func person(dx: Double = 0, dy: Double = 0, confidence: Double = 0.9) -> [PoseKeypoint] {
+        (0..<17).map { j in
+            PoseKeypoint(x: 400 + dx + Double(j % 3) * 100, y: 500 + dy + Double(j) * 37.5, confidence: confidence)
+        }
+    }
+
+    func testFitToInputAspectIsThreeByFourAroundTheSameCentre() {
+        for rect in [CGRect(x: 10, y: 20, width: 100, height: 600), CGRect(x: 0, y: 0, width: 900, height: 200)] {
+            let fitted = RTMPoseCropTracker.fitToInputAspect(rect)
+            XCTAssertEqual(fitted.width / fitted.height, 0.75, accuracy: 1e-9)
+            XCTAssertTrue(fitted.contains(rect))
+            XCTAssertEqual(fitted.midX, rect.midX, accuracy: 1e-9)
+            XCTAssertEqual(fitted.midY, rect.midY, accuracy: 1e-9)
+        }
+    }
+
+    func testCropFollowsPersonWithMarginAndHoldsThroughJitter() throws {
+        var tracker = RTMPoseCropTracker()
+        XCTAssertEqual(tracker.inputRect(imageWidth: 1080, imageHeight: 1920), CGRect(x: 0, y: 0, width: 1080, height: 1920))
+        tracker.update(person())
+        let crop = try XCTUnwrap(tracker.crop)
+        XCTAssertEqual(crop.width / crop.height, 0.75, accuracy: 1e-9)
+        // Every joint inside, with room above the eyes and below the ankles.
+        for p in person() { XCTAssertTrue(crop.insetBy(dx: 10, dy: 40).contains(CGPoint(x: p.x, y: p.y))) }
+        XCTAssertEqual(tracker.inputRect(imageWidth: 1080, imageHeight: 1920), crop)
+
+        tracker.update(person(dx: 3, dy: -2))
+        XCTAssertEqual(tracker.crop, crop, "a few pixels of jitter must not move the crop")
+        tracker.update(person(dx: 300))
+        XCTAssertNotEqual(tracker.crop, crop, "a person leaving the crop moves it")
+        XCTAssertTrue(tracker.crop!.contains(CGPoint(x: 1000, y: 500)))
+    }
+
+    func testCropShrinksOnlyPastTheHysteresisBand() throws {
+        var tracker = RTMPoseCropTracker()
+        tracker.update(person())
+        let standing = try XCTUnwrap(tracker.crop)
+        // Squat bottom: same width, 0.8× the height — still within maxRatio, crop held.
+        let bottom = person().map { PoseKeypoint(x: $0.x, y: 500 + ($0.y - 500) * 0.8 + 100, confidence: $0.confidence) }
+        tracker.update(bottom)
+        XCTAssertEqual(tracker.crop, standing)
+        // Half the size: re-cropped tighter.
+        let small = person().map { PoseKeypoint(x: 450 + ($0.x - 400) * 0.5, y: 650 + ($0.y - 500) * 0.5, confidence: $0.confidence) }
+        tracker.update(small)
+        XCTAssertLessThan(try XCTUnwrap(tracker.crop).height, standing.height * 0.8)
+    }
+
+    func testLostPersonFallsBackToWholeFrame() {
+        var tracker = RTMPoseCropTracker()
+        tracker.update(person())
+        XCTAssertNotNil(tracker.crop)
+        var lost = person(confidence: 0.1)
+        for j in 0..<5 { lost[j].confidence = 0.9 }  // 5 < minJoints
+        tracker.update(lost)
+        XCTAssertNil(tracker.crop)
+        XCTAssertEqual(tracker.inputRect(imageWidth: 1080, imageHeight: 1920), CGRect(x: 0, y: 0, width: 1080, height: 1920))
+        tracker.update(person())
+        XCTAssertNotNil(tracker.crop, "found again on the whole frame → crop again")
+        tracker.reset()
+        XCTAssertNil(tracker.crop)
+    }
+
+    // MARK: - Pixels and coordinates
+
+    /// Black 1080×1920 frame with one white 10×10 square whose top-left is (x, y).
+    private func frame(dotAt x: Int, _ y: Int) -> CGImage {
+        let width = 1080, height = 1920
+        let context = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: width * 4,
+                                space: CGColorSpaceCreateDeviceRGB(),
+                                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+        context.setFillColor(CGColor(red: 0, green: 0, blue: 0, alpha: 1))
+        context.fill(CGRect(x: 0, y: 0, width: width, height: height))
+        context.setFillColor(CGColor(red: 1, green: 1, blue: 1, alpha: 1))
+        context.fill(CGRect(x: x, y: height - y - 10, width: 10, height: 10))  // bottom-left origin
+        return context.makeImage()!
+    }
+
+    /// Brightness-weighted centroid of the red channel in the 192×256 buffer (input pixel centres).
+    private func centroid(_ pixels: [UInt8]) -> PosePoint {
+        var sx = 0.0, sy = 0.0, sw = 0.0
+        for y in 0..<256 {
+            for x in 0..<192 {
+                let w = Double(pixels[(y * 192 + x) * 4])
+                sx += w * (Double(x) + 0.5); sy += w * (Double(y) + 0.5); sw += w
+            }
+        }
+        return PosePoint(x: sx / sw, y: sy / sw)
+    }
+
+    func testCropRoundTripMapsInputPixelsBackToFramePixels() throws {
+        let image = frame(dotAt: 600, 900)  // centre (605, 905)
+        var pixels = [UInt8](repeating: 0, count: 192 * 256 * 4)
+        for rect in [CGRect(x: 450, y: 700, width: 300, height: 400),      // inside the frame
+                     CGRect(x: 0, y: 0, width: 1080, height: 1920),         // whole frame, stretched
+                     CGRect(x: 500, y: 800, width: 750, height: 1000)] {    // reaches past the right edge
+            let back = try PosePreprocess.drawRegion(image, rect: rect, into: &pixels)
+            let p = back.apply(centroid(pixels))
+            let tolerance = max(rect.width / 192, rect.height / 256)  // one input pixel
+            XCTAssertEqual(p.x, 605, accuracy: tolerance, "\(rect)")
+            XCTAssertEqual(p.y, 905, accuracy: tolerance, "\(rect)")
+        }
+    }
+
+    func testOutsideTheFrameIsBlackAndOldPixelsAreOverwritten() throws {
+        var pixels = [UInt8](repeating: 255, count: 192 * 256 * 4)
+        let image = frame(dotAt: 0, 0)
+        // Left half of the crop lies outside the frame.
+        _ = try PosePreprocess.drawRegion(image, rect: CGRect(x: -300, y: 1000, width: 600, height: 800), into: &pixels)
+        for y in stride(from: 0, to: 256, by: 16) {
+            XCTAssertEqual(pixels[(y * 192 + 10) * 4], 0)
+            XCTAssertEqual(pixels[(y * 192 + 10) * 4 + 3], 255, "opaque black, not left-over or transparent")
+        }
+    }
+}
