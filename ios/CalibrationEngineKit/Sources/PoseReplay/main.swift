@@ -4,8 +4,11 @@
 // FormWarningTracker — all symlinked from ios/Runner) to tune the form-warning thresholds.
 //
 //   swift run -c release --package-path ios/CalibrationEngineKit pose-replay \
-//       [--exercise squat|pushup|row] [--model coco17|halpe26] [--motion3d PATH|none] [--lookahead N] \
+//       [--exercise squat|pushup|row] [--model coco17|halpe26] [--model-path PATH] [--motion3d PATH|none] [--lookahead N] \
 //       [--row-shrug] [--ready-pose off|preset] [--output-dir PATH] <video.mp4>...
+//
+// --model-path: another RTMPose .mlpackage with the same 256x192 input and SimCC outputs (17 or 26 joints;
+// pass --model halpe26 for 26) — candidate models are compared on the same videos without replacing the bundled one.
 //
 // halpe26 also feeds the decoded toes/heels to SquatEvaluator (heel_rise_max; squat_heel_rise is off). --row-shrug turns on
 // the experimental row_shrug rule (off in the app).
@@ -27,6 +30,7 @@ let repoRoot = URL(fileURLWithPath: #filePath)
     .deletingLastPathComponent().deletingLastPathComponent()
 var outputDir = repoRoot.appendingPathComponent("outputs/pose_replay")
 var poseModel = RTMPoseModel.active
+var poseModelPath: String?
 var exercise = FormExercise.squat
 var motion3DPath: String? = {
     let path = repoRoot.appendingPathComponent("assets/coreml/motionagformer_xs.mlpackage").path
@@ -37,7 +41,7 @@ var rowShrug = false
 var readyPosePreset = false
 var videos: [URL] = []
 var arguments = CommandLine.arguments.dropFirst().makeIterator()
-let usage = "usage: pose-replay [--exercise squat|pushup|row] [--model coco17|halpe26] [--motion3d PATH|none] [--lookahead N] [--row-shrug] [--ready-pose off|preset] [--output-dir PATH] <video.mp4>..."
+let usage = "usage: pose-replay [--exercise squat|pushup|row] [--model coco17|halpe26] [--model-path PATH] [--motion3d PATH|none] [--lookahead N] [--row-shrug] [--ready-pose off|preset] [--output-dir PATH] <video.mp4>..."
 while let argument = arguments.next() {
     switch argument {
     case "--model":
@@ -47,6 +51,9 @@ while let argument = arguments.next() {
             exit(2)
         }
         poseModel = picked
+    case "--model-path":
+        guard let path = arguments.next() else { exit(2) }
+        poseModelPath = path
     case "--exercise":
         switch arguments.next() {
         case "squat": exercise = .squat
@@ -91,7 +98,8 @@ func loadModel(_ url: URL) throws -> MLModel {
     return try MLModel(contentsOf: try MLModel.compileModel(at: url), configuration: configuration)
 }
 
-let model = try loadModel(repoRoot.appendingPathComponent("ios/Runner/NativePose/Models/\(poseModel.rawValue).mlpackage"))
+let model = try loadModel(poseModelPath.map { URL(fileURLWithPath: $0) }
+    ?? repoRoot.appendingPathComponent("ios/Runner/NativePose/Models/\(poseModel.rawValue).mlpackage"))
 let motion3D = try motion3DPath.map { try loadModel(URL(fileURLWithPath: $0)) }
 let context = CIContext(options: [.cacheIntermediates: false])
 let workspace = try RTMPoseInputWorkspace()

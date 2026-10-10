@@ -22,11 +22,36 @@ VARIANTS = {
         "rtmpose-s_simcc-body7_pt-body7-halpe26_700e-256x192-7f134165_20230605.pth",
         "rtmpose_s_halpe26",
     ),
+    # Track C candidates (same 256x192 input and SimCC head; weights from
+    # https://download.openmmlab.com/mmpose/v1/projects/rtmposev1/, Apache-2.0 code/weights).
+    "s_body7_coco17": (
+        "rtmpose-s_8xb256-420e_body8-256x192.py",
+        "rtmpose-s_simcc-body7_pt-body7_420e-256x192-acd4a1ef_20230504.pth",
+        "rtmpose_s_body7",
+    ),
+    "m_coco17": (
+        "rtmpose-m_8xb256-420e_coco-256x192.py",
+        "rtmpose-m_coco.pth",
+        "rtmpose_m",
+    ),
+    "m_body7_coco17": (
+        "rtmpose-m_8xb256-420e_body8-256x192.py",
+        "rtmpose-m_simcc-body7_pt-body7_420e-256x192-e48f03d0_20230504.pth",
+        "rtmpose_m_body7",
+    ),
+    "m_halpe26": (
+        "rtmpose-m_8xb512-700e_body8-halpe26-256x192.py",
+        "rtmpose-m_simcc-body7_pt-body7-halpe26_700e-256x192-4d3e73dd_20230605.pth",
+        "rtmpose_m_halpe26",
+    ),
 }
 VARIANT = os.environ.get("BPT_RTMPOSE_VARIANT", "coco17")
 _config_name, _checkpoint_name, _stem = VARIANTS[VARIANT]
 CONFIG_PATH = ROOT / "models/rtmpose" / _config_name
-CHECKPOINT_PATH = ROOT / "models/rtmpose" / _checkpoint_name
+# BPT_RTMPOSE_CHECKPOINT overrides the weights (fine-tuned checkpoints, same config).
+CHECKPOINT_PATH = Path(os.environ.get("BPT_RTMPOSE_CHECKPOINT", ROOT / "models/rtmpose" / _checkpoint_name))
+if "BPT_RTMPOSE_STEM" in os.environ:
+    _stem = os.environ["BPT_RTMPOSE_STEM"]
 VIDEO_PATH = ROOT / "assets/smoke/vedio_1.mp4"
 COREML_DIR = ROOT / "assets/coreml"
 # Trace and mlpackage are per variant so a cached trace never leaks into the other model.
