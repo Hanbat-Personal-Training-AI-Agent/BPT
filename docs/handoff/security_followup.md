@@ -22,7 +22,13 @@ Modal 캘리브레이션 서버는 Spring 백엔드가 발급한 토큰을 같�
 - [ ] e2e·디버깅에 쓴 로그인 토큰: 셸 기록(`~/.zsh_history`)·`.env`·노트에 남았으면 지움. 토큰은 만료(1시간)되지만 refresh 토큰(14일)이 있으면 그것도.
 - [ ] e2e용 테스트 계정이 운영 DB에 있으면 삭제 또는 비밀번호 변경. (누가: 사용자 — 운영 데이터 삭제는 사용자 결정)
 - [ ] R2 버킷의 e2e 업로드(`e2e-…` 세션)와 Modal job 상태 정리 여부 결정. (누가: 사용자)
-- [ ] ElevenLabs 키: 생성 후 셸에서 `unset ELEVENLABS_API_KEY`, 키는 저장소·로그에 넣지 않음.
+- [ ] ElevenLabs 키(생성 스크립트): 생성 후 셸에서 `unset ELEVENLABS_API_KEY`, 키는 저장소·로그에 넣지 않음.
+
+## 3-1. ElevenLabs 키가 앱 번들에 들어감 (main `0d00676`, #40)
+- 키 파일 `ios/Flutter/Secrets.xcconfig`는 .gitignore라 **git에는 없음**(main 트리 확인). 하지만 Debug·Release 둘 다 `Info.plist`의 `ElevenLabsApiKey = $(ELEVENLABS_API_KEY)`로 넣어서, **빌드된 앱(.ipa/.app) 안 Info.plist에 평문으로 들어감**. 앱 파일을 받은 사람은 누구나 꺼낼 수 있고, 그 키로 사용자 요금제 크레딧을 쓸 수 있음.
+- [ ] 결정: 캡스톤 시연 기기 안에서만 쓸지, 외부 배포(TestFlight 등)를 할지. 외부 배포라면 번들에서 키를 빼고 미리 만든 mp3(`scripts/generate_kori_voice.py`) + 기기 TTS, 또는 서버 경유 합성. (누가: 사용자 + 앱 담당 팀원)
+- [ ] ElevenLabs 대시보드에서 키 권한을 TTS만으로 제한, 월 사용량 한도 설정. 키가 들어간 빌드를 남에게 준 적 있으면 키 재발급. (누가: 사용자)
+- [ ] 디버그 로그 `[TTS] 요청: <문장>`은 키를 찍지 않음(확인함). 오류 응답 본문을 찍으므로 키가 응답에 반사되지 않는지만 유지.
 
 ## 4. 그 밖에 확인할 것
 - [ ] Modal secret `bpt-r2`(R2 키)·`bpt-hf`(HF 토큰) 권한 최소화: R2 키는 해당 버킷 읽기/쓰기만.

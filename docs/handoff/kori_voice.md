@@ -14,6 +14,7 @@
 | `assets/kori_voice/<key>_<n>.mp3` | `{n}`·`{reps}`·`{k}` 대사, n = 1..20 (`--max-n`) | WorkoutVoice: `<key>_<n>` → 없으면 TTS |
 | `assets/kori_voice/calibration_<case>.mp3` | 캘리브레이션 안내, `<case>` = Swift case 이름 (예: `calibration_holdPhoneUpright`) | CalibrationVoice (아직 TTS만 씀 — 연결 필요) |
 | `assets/kori_voice/calibration_captured_<view>.mp3` | 촬영 완료 (`front`, `rightfront`, `back`, `leftfront`) | 같음 |
+| `assets/kori_voice/manifest.json` | {앱이 띄우는 문장(숫자는 `3번`처럼 숫자): 파일 이름} | 문장만 받는 main의 `KoriSpeaker`(#40)용 |
 
 - 숫자는 세는 말로 읽힘: `{n}번` → "세 번", `{reps}개` → "열 개" (`native_count`).
 - `praise_clean_set`(`{reps}`)·`set_summary`(`{k}`)도 `<key>_<n>`으로 만듦. 앱이 이 키에 숫자를 n으로 넘기지 않으면 TTS로 떨어짐(트랙 E와 맞출 것).
@@ -25,12 +26,14 @@
 # 키 없이 목록·글자 수만 (네트워크 안 씀)
 conda run -n bpt-eval python scripts/generate_kori_voice.py --dry-run
 # 생성: 키는 환경변수로만. 이미 있는 파일은 건너뜀(--overwrite로 다시)
-ELEVENLABS_API_KEY=... conda run -n bpt-eval python scripts/generate_kori_voice.py --voice-id <voice id>
+ELEVENLABS_API_KEY=... conda run -n bpt-eval python scripts/generate_kori_voice.py
 ```
-- 옵션: `--set workout|calibration`, `--only key1,key2`(키 또는 접두사), `--max-n 20`, `--model-id eleven_multilingual_v2`, `--out`.
+- 기본 목소리·모델은 main의 KoriSpeaker와 같음(voice "manbo" `ZZ4xhVcc83kZBfNIlIIz`, `eleven_flash_v2_5`) → 파일과 실시간 대사가 같은 목소리. 바꾸려면 `--voice-id`(또는 `ELEVENLABS_VOICE_ID`), `--model-id`.
+- 옵션: `--set workout|calibration`, `--only key1,key2`(키 또는 접두사), `--max-n 20`, `--out`.
+- 실시간 TTS와의 관계·권장 재생 순서(파일 → 실시간 → 기기 TTS): `docs/decisions.md` D-H-01.
 - 키는 인자로 받지 않고 출력·로그에 찍지 않음. 셸 기록에 남지 않게 `read -s ELEVENLABS_API_KEY; export ELEVENLABS_API_KEY` 권장.
 
 ## 비용
 - 전체(운동 28키, 숫자 1..20 + 캘리브레이션 27줄): **188파일, 5,623자**(`--dry-run` 출력).
 - ElevenLabs는 글자 수로 크레딧을 씀. Starter 월 크레딧(약 30,000자, 추정 — 가격 페이지 확인 필요) 안에 여러 번 다시 만들 수 있는 양.
-- 결제·키 발급·목소리(voice id) 선택은 사용자 몫. 상업 이용 조건은 요금제 약관 확인(Free 요금제는 출처 표기 필요, 추정).
+- 결제·키 발급은 사용자 몫(main #40의 실시간 TTS도 같은 계정 키를 씀). 상업 이용 조건은 요금제 약관 확인(Free 요금제는 출처 표기 필요, 추정).
