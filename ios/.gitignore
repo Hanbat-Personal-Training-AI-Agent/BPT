@@ -32,3 +32,6 @@ Runner/GeneratedPluginRegistrant.*
 !default.mode2v3
 !default.pbxuser
 !default.perspectivev3
+
+# ElevenLabs API 키 (코리 음성). 커밋 금지
+Flutter/Secrets.xcconfig
