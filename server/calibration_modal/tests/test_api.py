@@ -4,8 +4,11 @@ Photos go up with the presigned URLs exactly like the app does: PUT, raw bytes,
 Content-Type and Content-Length, no Authorization header.
 """
 import threading
+import uuid
+import time
 
 import httpx
+import numpy as np
 import pytest
 from fastapi.testclient import TestClient
 from moto.server import ThreadedMotoServer
@@ -13,6 +16,7 @@ from moto.server import ThreadedMotoServer
 import service
 import worker
 from conftest import SECRET, bundle, jpeg_bytes, token
+from test_body import joints_t_pose
 from storage import Bucket, BucketState
 
 
@@ -26,11 +30,23 @@ def s3_endpoint():
 
 
 @pytest.fixture
-def bucket(s3_endpoint, request):
-    b = Bucket(s3_endpoint, f"bpt-{request.node.name.lower().replace('_', '-')[:40]}", "test", "test",
+def bucket(s3_endpoint):
+    b = Bucket(s3_endpoint, f"bpt-{uuid.uuid4().hex}", "test", "test",
                region="us-east-1")
     b.client.create_bucket(Bucket=b.bucket)
     return b
+
+
+def fake_fit(manifest, photos, progress):
+    """A real-shaped result (what fitting.Fitter returns), without the GPU."""
+    progress(50)
+    return worker.build_result(manifest, beta=np.linspace(-0.5, 0.5, 10), joints=joints_t_pose(),
+                               mesh_height_m=1.72) | {"modelGlb": b"glTF-fake"}
+
+
+class Call:
+    def __init__(self, object_id):
+        self.object_id = object_id
 
 
 class Spawner:
@@ -41,8 +57,9 @@ class Spawner:
 
     def __call__(self, job):
         self.jobs.append(job)
+        return Call(f"fc-{len(self.jobs)}")
 
-    def run(self, fit=worker.stub_fit):
+    def run(self, fit=fake_fit):
         for job in self.jobs:
             worker.run(job, self.bucket, self.state, fit)
 
@@ -107,10 +124,16 @@ def test_end_to_end(env):
     assert done.json() == {"status": "accepted", "jobId": job_id}
 
     job = client.get(f"/v1/calibrations/jobs/{job_id}", headers=headers())
-    assert job.json() == {"status": "queued"}
+    assert job.json() == {"status": "queued", "progressRate": 0}
     spawner.run()
     job = client.get(f"/v1/calibrations/jobs/{job_id}", headers=headers()).json()
-    assert job["status"] == "done" and job["result"]["stub"] is True
+    assert job["status"] == "done" and job["progressRate"] == 100 and job["result"]["stub"] is False
+    result = job["result"]
+    assert len(result["smplBeta"]) == 10 and result["boneLengthData"]["segments"]
+    assert result["calibratedAt"].endswith("Z") and 0 < len(result["coachComment"]) <= 255
+    assert "modelGlb" not in result and f"/models/{job_id}.glb" in result["modelGlbUrl"]
+    assert len(result["modelGlbUrl"]) <= 500  # UserCalibration.modelGlbUrl column
+    assert httpx.get(result["modelGlbUrl"]).content == b"glTF-fake"
     assert bucket.head(f"results/42/session-1/{job_id}.json")
 
     # The app retrying prepare after a lost response gets the acceptance back, no new upload.
@@ -236,10 +259,75 @@ def test_failed_fit_reports_its_code(env):
     client, _, _, spawner = env
     _, response = upload(client)
 
-    def no_person(manifest, photos):
+    def no_person(manifest, photos, progress):
         raise worker.FitFailed("person_not_found")
 
     with pytest.raises(worker.FitFailed):
         spawner.run(no_person)
     job = client.get(f"/v1/calibrations/jobs/{response.json()['jobId']}", headers=headers()).json()
-    assert job == {"status": "failed", "error": "person_not_found"}
+    assert job == {"status": "failed", "progressRate": 5, "error": "person_not_found"}
+
+
+@pytest.mark.parametrize("fake", [
+    lambda m, p, progress: worker.build_result(m, beta=np.zeros(10), joints=joints_t_pose()) | {"stub": True},
+    lambda m, p, progress: worker.build_result(m, beta=[float("nan")] * 10, joints=joints_t_pose()),
+    lambda m, p, progress: worker.build_result(m, beta=np.zeros(3), joints=joints_t_pose()),
+])
+def test_a_stub_or_broken_result_never_becomes_done(env, fake):
+    client, bucket, _, spawner = env
+    _, response = upload(client)
+    with pytest.raises(worker.FitFailed):
+        spawner.run(fake)
+    job_id = response.json()["jobId"]
+    assert client.get(f"/v1/calibrations/jobs/{job_id}", headers=headers()).json()["status"] == "failed"
+    assert not bucket.head(f"results/42/session-1/{job_id}.json")
+
+
+def test_progress_is_reported_while_running(env):
+    client, _, _, spawner = env
+    _, response = upload(client)
+    seen = []
+
+    def watching(manifest, photos, progress):
+        progress(30)
+        seen.append(client.get(f"/v1/calibrations/jobs/{response.json()['jobId']}", headers=headers()).json())
+        return fake_fit(manifest, photos, progress)
+
+    spawner.run(watching)
+    assert seen == [{"status": "running", "progressRate": 30}]
+
+
+def test_a_crashed_worker_turns_the_job_failed(bucket):
+    state = BucketState(bucket)
+    spawner = Spawner(bucket, state)
+    crashed = {"fc-1"}
+    client = TestClient(service.create_app(bucket, state, spawner, SECRET,
+                                           call_failure=lambda call_id: "internal_error" if call_id in crashed else None))
+    _, response = upload(client)
+    job_id = response.json()["jobId"]
+    state.put(f"job:{job_id}", state.get(f"job:{job_id}") | {"status": "running"})  # then the container died
+    job = client.get(f"/v1/calibrations/jobs/{job_id}", headers=headers()).json()
+    assert job["status"] == "failed" and job["error"] == "internal_error"
+    assert state.get(f"job:{job_id}")["status"] == "failed"  # recorded, not only reported
+
+
+def test_a_job_past_the_deadline_times_out(env, monkeypatch):
+    client, _, state, spawner = env
+    _, response = upload(client)
+    job_id = response.json()["jobId"]
+    assert client.get(f"/v1/calibrations/jobs/{job_id}", headers=headers()).json()["status"] == "queued"
+    monkeypatch.setattr(time, "time", lambda real=time.time: real() + service.JOB_DEADLINE_SECONDS + 1)
+    assert client.get(f"/v1/calibrations/jobs/{job_id}", headers=headers()).json() == {
+        "status": "failed", "progressRate": 0, "error": "timeout"}
+    # A worker that still finishes afterwards does not flip it back to done.
+    spawner.run()
+    assert client.get(f"/v1/calibrations/jobs/{job_id}", headers=headers()).json()["status"] == "failed"
+
+
+def test_a_finished_job_ignores_the_watchdog(bucket):
+    state = BucketState(bucket)
+    spawner = Spawner(bucket, state)
+    client = TestClient(service.create_app(bucket, state, spawner, SECRET, call_failure=lambda _: "internal_error"))
+    _, response = upload(client)
+    spawner.run()
+    assert client.get(f"/v1/calibrations/jobs/{response.json()['jobId']}", headers=headers()).json()["status"] == "done"

@@ -67,3 +67,16 @@ def bone_lengths_cm(joints):
 
 def app_definition_differs(segment):
     return any(part in APP_SYNTHESIZED for part in segment.split("-"))
+
+
+def glb(vertices, faces):
+    """Binary glTF of one mesh, feet on y = 0 and centred on x/z (SMPL: metres, y up, like glTF).
+
+    The mesh is an SMPL-derived artefact: served only to its owner, non-commercial use (docs/decisions.md).
+    """
+    import trimesh
+
+    v = np.asarray(vertices, dtype=float).copy()
+    v[:, 1] -= v[:, 1].min()
+    v[:, [0, 2]] -= v[:, [0, 2]].mean(0)
+    return trimesh.Trimesh(v, np.asarray(faces), process=False).export(file_type="glb")

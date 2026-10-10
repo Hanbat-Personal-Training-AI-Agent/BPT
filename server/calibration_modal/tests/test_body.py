@@ -94,7 +94,21 @@ def test_result_schema_keeps_debug_apart():
     assert not any(k in result for k in ("body_pose", "global_orient", "transl", "per_view"))
 
 
-def test_stub_result_has_the_schema_and_no_body():
-    result = worker.stub_fit(manifest_dict(), {})
-    assert result["stub"] is True and result["smplBeta"] is None and result["boneLengthData"] is None
-    assert set(result["debug"]["per_view"]) == {"front", "rightfront", "back", "leftfront"}
+def test_coach_comment_follows_the_thigh_ratio():
+    m = manifest_dict()
+    result = worker.build_result(m, beta=np.zeros(10), joints=joints_t_pose())
+    thigh = result["boneLengthData"]["segments"]["right_hip-right_knee"]
+    for ratio, word in ((1.1, "긴 편"), (0.9, "짧은 편"), (1.0, "저장했어")):
+        result["userHeightCm"] = thigh / (worker.MEAN_THIGH_RATIO * ratio)
+        comment = worker.coach_comment(result)
+        assert word in comment and len(comment) <= 255
+
+
+def test_glb_is_a_binary_gltf_standing_on_the_floor():
+    import trimesh
+
+    v = np.array([[0.0, 1.0, 0.0], [1.0, 1.0, 0.0], [0.0, 2.0, 1.0]])
+    data = body.glb(v, np.array([[0, 1, 2]]))
+    assert data[:4] == b"glTF"
+    mesh = trimesh.load(trimesh.util.wrap_as_stream(data), file_type="glb", force="mesh")
+    assert mesh.vertices[:, 1].min() == pytest.approx(0) and len(mesh.faces) == 1

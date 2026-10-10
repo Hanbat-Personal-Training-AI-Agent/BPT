@@ -7,8 +7,11 @@
 `state` is storage.BucketState (anything with get / put(skip_if_exists) / pop); entries:
     upload:{uploadId}             who may complete it, for which session, declared sizes
     session:{userId}:{sessionId}  {"jobId"}  - written once, atomically, by the first accepted complete
-    job:{jobId}                   owner, inputs, status ("queued" | "running" | "done" | "failed"), result/error
+    job:{jobId}                   owner, inputs, status ("queued" | "running" | "done" | "failed"),
+                                  progressRate, result/error, queuedAt, modelKey
+    call:{jobId}                  {"callId"} of the spawned worker, for the watchdog
 """
+import time
 import uuid
 from typing import Any
 
@@ -23,8 +26,14 @@ def object_key(user_id, session, upload_id, name):
     return f"calibrations/{user_id}/{session}/{upload_id}/{name}"
 
 
-def create_app(bucket, state, spawn, jwt_secret):
-    """`spawn(job)` queues the fitting worker (fit_body.spawn in production)."""
+# Longer than fit_body's 15 min timeout plus a GPU queue wait and a cold start.
+JOB_DEADLINE_SECONDS = 30 * 60
+
+
+def create_app(bucket, state, spawn, jwt_secret, call_failure=lambda call_id: None):
+    """`spawn(job)` queues the fitting worker (fit_body.spawn in production) and may return the
+    call (anything with .object_id). `call_failure(call_id)` returns an error code when that call
+    ended without the worker recording it (crash, OOM, Modal timeout), else None."""
     app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
 
     @app.exception_handler(Rejected)
@@ -73,20 +82,41 @@ def create_app(bucket, state, spawn, jwt_secret):
 
         job_id = f"job-{uuid.uuid4().hex}"
         job = {"jobId": job_id, "userId": user_id, "sessionId": session, "uploadId": upload_id,
-               "prefix": object_key(user_id, session, upload_id, ""), "status": "queued"}
+               "prefix": object_key(user_id, session, upload_id, ""), "status": "queued", "progressRate": 0,
+               "queuedAt": time.time()}
         state.put(f"job:{job_id}", job)
         # The atomic step: only the first complete for this user and session gets to queue work.
         if not state.put(f"session:{user_id}:{session}", {"jobId": job_id}, skip_if_exists=True):
             state.pop(f"job:{job_id}", None)
             return {"status": "accepted", "jobId": accepted_job(user_id, session)}
         try:
-            spawn(job)
+            call = spawn(job)
         except Exception:
             # Release the claim so the app's retry can queue it; never report accepted without a job.
             state.pop(f"session:{user_id}:{session}", None)
             state.pop(f"job:{job_id}", None)
             raise
+        if getattr(call, "object_id", None):  # own key: never races the worker's job writes
+            state.put(f"call:{job_id}", {"callId": call.object_id})
         return {"status": "accepted", "jobId": job_id}
+
+    def watchdog(job):
+        """A queued/running job whose worker is gone becomes failed instead of running forever."""
+        if job["status"] not in ("queued", "running"):
+            return job
+        code = None
+        if time.time() - job.get("queuedAt", time.time()) > JOB_DEADLINE_SECONDS:
+            code = "timeout"
+        elif call := state.get(f"call:{job['jobId']}"):
+            code = call_failure(call["callId"])
+        if not code:
+            return job
+        current = state.get(f"job:{job['jobId']}", job)
+        if current["status"] not in ("queued", "running"):  # the worker finished meanwhile
+            return current
+        current = current | {"status": "failed", "error": code}
+        state.put(f"job:{job['jobId']}", current)
+        return current
 
     @app.get("/v1/calibrations/jobs/{job_id}")
     def job_status(job_id: str, authorization: str = Header(None)):
@@ -95,7 +125,14 @@ def create_app(bucket, state, spawn, jwt_secret):
         job = state.get(f"job:{job_id}")
         if not job or job["userId"] != user_id:
             raise Rejected(404, "job_not_found")
-        return {key: job[key] for key in ("status", "result", "error") if key in job}
+        job = watchdog(job)
+        body = {"status": job["status"], "progressRate": job.get("progressRate", 100 if job["status"] == "done" else 0)}
+        if job["status"] == "done":
+            model = job.get("modelKey")
+            body["result"] = job["result"] | {"modelGlbUrl": bucket.presign_get(model) if model else None}
+        if job["status"] == "failed":
+            body["error"] = job.get("error", "internal_error")
+        return body
 
     return app
 
