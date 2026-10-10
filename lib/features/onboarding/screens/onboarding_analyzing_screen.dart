@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -8,8 +10,9 @@ import '../../../core/constants/route_constants.dart';
 import '../../../core/theme/app_colors.dart';
 import '../services/calibration_upload_service.dart';
 
-/// Upload the native four-view bundle; analysis results are not connected yet.
-/// Never substitute a timer or a demo body for a real server acknowledgement.
+/// Upload the native four-view bundle, then poll the server's body fit.
+/// Never substitute a timer or a demo body for a real server acknowledgement
+/// or result: only a `done` job with a real fit counts as analysed.
 class OnboardingAnalyzingScreen extends ConsumerStatefulWidget {
   const OnboardingAnalyzingScreen({super.key, this.sessionPath});
 
@@ -28,6 +31,47 @@ class _OnboardingAnalyzingScreenState
   CalibrationUploadReceipt? _receipt;
   String? _error;
   bool _busy = false;
+  CalibrationJob? _job;
+  String? _jobError;
+  bool _polling = false;
+  static const pollInterval = Duration(seconds: 3);
+
+  static String failureText(String? code) => switch (code) {
+        'person_not_found' => '사진에서 사람을 찾지 못했어요. 전신이 보이게 다시 촬영해 주세요.',
+        'low_keypoint_confidence' => '관절이 잘 보이지 않았어요. 밝은 곳에서 다시 촬영해 주세요.',
+        'fit_diverged' => '체형을 맞추지 못했어요. 자세를 바르게 하고 다시 촬영해 주세요.',
+        'timeout' => '분석 시간이 초과됐어요. 잠시 뒤 다시 촬영해 주세요.',
+        _ => '분석 중 오류가 났어요. 잠시 뒤 다시 시도해 주세요.',
+      };
+
+  Timer? _pollTimer;
+
+  /// One status request; schedules the next one until done/failed.
+  Future<void> _poll(String jobId) async {
+    if (_polling) return;
+    setState(() {
+      _polling = true;
+      _jobError = null;
+    });
+    try {
+      final job = await ref
+          .read(calibrationUploadServiceProvider)
+          .fetchJob(jobId, cancelToken: _cancelToken);
+      if (!mounted) return;
+      setState(() => _job = job);
+      if (!job.finished) {
+        _pollTimer = Timer(pollInterval, () => _poll(jobId));
+      }
+    } on CalibrationUploadException catch (error) {
+      if (mounted) setState(() => _jobError = error.message);
+    } on DioException catch (error) {
+      if (mounted && !CancelToken.isCancel(error)) {
+        setState(() => _jobError = '분석 상태를 확인하지 못했어요.');
+      }
+    } finally {
+      if (mounted) setState(() => _polling = false);
+    }
+  }
 
   Future<void> _upload() async {
     final path = widget.sessionPath;
@@ -50,7 +94,10 @@ class _OnboardingAnalyzingScreenState
           }
         },
       );
-      if (mounted) setState(() => _receipt = receipt);
+      if (mounted) {
+        setState(() => _receipt = receipt);
+        _poll(receipt.jobId);
+      }
     } on CalibrationUploadException catch (error) {
       if (mounted) setState(() => _error = error.message);
     } on DioException catch (error) {
@@ -69,6 +116,7 @@ class _OnboardingAnalyzingScreenState
 
   @override
   void dispose() {
+    _pollTimer?.cancel();
     _cancelToken?.cancel();
     super.dispose();
   }
@@ -120,9 +168,13 @@ class _OnboardingAnalyzingScreenState
                         fontSize: 24, fontWeight: FontWeight.w900)),
                 const SizedBox(height: 16),
                 Text(
-                  accepted
-                      ? '사진과 메타데이터가 서버에 접수됐어요.\n3D 체형 분석 결과 연동은 아직 준비 중이에요.'
-                      : '정면·양쪽 사선·뒷면 사진 4장과\n키, 관절 좌표, 카메라 정보를 전송해요.',
+                  !accepted
+                      ? '정면·양쪽 사선·뒷면 사진 4장과\n키, 관절 좌표, 카메라 정보를 전송해요.'
+                      : _job?.status == 'done'
+                          ? '3D 체형 분석이 끝났어요.'
+                          : _job?.status == 'failed'
+                              ? failureText(_job!.error)
+                              : '사진과 메타데이터가 서버에 접수됐어요.\n3D 체형을 분석하고 있어요.',
                   textAlign: TextAlign.center,
                   style: const TextStyle(height: 1.5),
                 ),
@@ -149,7 +201,36 @@ class _OnboardingAnalyzingScreenState
                         : _busy
                             ? '진행 중'
                             : '대기'),
-                const _UploadStep(label: '3D 체형 분석 결과', status: '미연결'),
+                _UploadStep(
+                    label: '3D 체형 분석 결과',
+                    status: switch (_job?.status) {
+                      'queued' => '대기 중',
+                      'running' => '분석 중 ${_job!.progressRate}%',
+                      'done' => '완료',
+                      'failed' => '실패',
+                      _ => accepted ? '확인 중' : '대기',
+                    }),
+                if (_job?.result case final result?) ...[
+                  _ResultSummary(result: result),
+                  const SizedBox(height: 12),
+                  FilledButton(
+                    key: const Key('show-calibration-result'),
+                    onPressed: () => context.go(RouteConstants.onboardingResult,
+                        extra: result),
+                    child: const Text('3D 체형 결과 보기'),
+                  ),
+                ],
+                if (_jobError != null) ...[
+                  Text(_jobError!,
+                      key: const Key('job-error'),
+                      style: const TextStyle(color: AppColors.red)),
+                  TextButton(
+                    key: const Key('retry-job-status'),
+                    onPressed:
+                        _polling ? null : () => _poll(_receipt!.jobId),
+                    child: const Text('분석 상태 다시 확인'),
+                  ),
+                ],
                 const SizedBox(height: 16),
                 if (!hasSession) const Text('촬영 데이터가 없어요. 먼저 사진 4장을 촬영해 주세요.'),
                 if (issue != null)
@@ -205,6 +286,39 @@ class _OnboardingAnalyzingScreenState
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Height and the leg/arm lengths the app's 3D checks use, from the real result.
+class _ResultSummary extends StatelessWidget {
+  const _ResultSummary({required this.result});
+  final Map<String, dynamic> result;
+
+  @override
+  Widget build(BuildContext context) {
+    final segments = (result['boneLengthData'] as Map)['segments'];
+    String cm(String a, String b) {
+      final values = [segments?[a], segments?[b]].whereType<num>();
+      return values.isEmpty
+          ? '-'
+          : (values.reduce((x, y) => x + y) / values.length).toStringAsFixed(1);
+    }
+
+    final comment = result['coachComment'];
+    return Column(
+      key: const Key('calibration-summary'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text('키 ${result['userHeightCm']}cm 기준 · 허벅지 '
+            '${cm('right_hip-right_knee', 'left_hip-left_knee')}cm · 정강이 '
+            '${cm('right_knee-right_ankle', 'left_knee-left_ankle')}cm · 위팔 '
+            '${cm('right_shoulder-right_elbow', 'left_shoulder-left_elbow')}cm'),
+        if (comment is String && comment.isNotEmpty) ...[
+          const SizedBox(height: 6),
+          Text(comment, style: const TextStyle(color: AppColors.green)),
+        ],
+      ],
     );
   }
 }
