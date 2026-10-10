@@ -1,6 +1,6 @@
 # 캘리브레이션 서버리스 업로드 연동
 
-이 문서는 BPT 앱 개발자와 서버리스 API 구현 담당자를 위한 연결 계약이다. 앱은 네이티브 캘리브레이션에서 저장한 사진 4장과 메타데이터를 검증하고, 사용자 동의 후 임시 URL로 저장소에 전송한 다음 서버 접수를 확인한다. **앱의 전송 경로와 Modal 서버 코드(`server/calibration_modal/`, 1단계: 업로드·검증·접수·작업 조회와 고정 결과 스텁)는 구현했지만 배포, 실서버 연결, 실제 체형 fitting, 앱의 결과 수신은 아직 하지 않았다.** 이 문서의 URL은 예시이며 운영 서버가 아니다.
+이 문서는 BPT 앱 개발자와 서버리스 API 구현 담당자를 위한 연결 계약이다. 앱은 네이티브 캘리브레이션에서 저장한 사진 4장과 메타데이터를 검증하고, 사용자 동의 후 임시 URL로 저장소에 전송한 다음 서버 접수를 확인한다. **앱의 전송 경로, Modal 서버(`server/calibration_modal/`: 업로드·검증·접수, L4 GPU 체형 fitting, 작업 조회), 앱의 결과 polling은 구현·배포했다(2026-10-10).** 실제 주소와 팀원용 요약은 [팀원 연동 안내](../handoff/teammate_calibration.md)에 있다. 이 문서의 URL은 예시다.
 
 ## 구현 범위
 
@@ -153,11 +153,13 @@ Content-Type: application/json
 헤더는 `Authorization: Bearer <로그인 토큰>`만 보낸다. 작업을 만든 사용자만 조회할 수 있고, 다른 사용자의 작업은 없는 작업과 같은 404다.
 
 ```json
-{"status": "queued"}
-{"status": "running"}
-{"status": "done", "result": {"...": "체형 fitting 결과"}}
-{"status": "failed", "error": "person_not_found"}
+{"status": "queued", "progressRate": 0}
+{"status": "running", "progressRate": 30}
+{"status": "done", "progressRate": 100, "result": {"...": "체형 fitting 결과"}}
+{"status": "failed", "progressRate": 5, "error": "person_not_found"}
 ```
+
+`progressRate`(0~100 정수, 백엔드 `UserCalibration.progressRate`)는 2026-10-10에 추가했다. 이전 응답과 호환되도록 앱은 이 필드가 없으면 `done` 100, 그 외 0으로 읽는다. 30분 안에 끝나지 않거나 worker가 비정상 종료한 작업은 다음 조회 때 `failed`(`timeout` 또는 `internal_error`)로 바뀐다.
 
 `done`의 `result` 형식(schemaVersion 1). `smplBeta`·`boneLengthData`는 백엔드 `UserCalibration` 열 이름과 같다.
 
@@ -175,16 +177,20 @@ Content-Type: application/json
   },
   "jointsH36m": {"order": ["pelvis", "right_hip", "..."], "unit": "m", "pose": "rest", "positions": [[0, 0, 0], "... 17개"]},
   "quality": {"heightErrorCm": 0.0, "perView": {"front": {"reprojectionErrorPx": 3.1}, "...": {}}},
-  "debug": {"per_view": {"front": {"body_pose": ["69개"], "global_orient": [0, 0, 0], "transl": [0, 0, 0], "camera": {"fx": 0, "fy": 0, "cx": 0, "cy": 0, "source": "attachment"}}}}
+  "debug": {"per_view": {"front": {"body_pose": ["69개"], "global_orient": [0, 0, 0], "transl": [0, 0, 0], "camera": {"fx": 0, "fy": 0, "cx": 0, "cy": 0, "source": "attachment"}}}},
+  "coachComment": "체형 정보를 저장했어. 이제 네 몸에 맞춰 자세를 더 정확하게 봐 줄게!",
+  "calibratedAt": "2026-10-10T13:23:29Z",
+  "modelGlbUrl": "https://private-photos.example.com/models/job-1.glb?signature=example"
 }
 ```
 
 - 관절 순서는 [이미지→포즈 파이프라인 §12](rtmpose_motionagformer_image_to_pose_pipeline.md)의 H36M 17관절이다. 뼈 길이는 휴식 자세(T-pose) 메시에서 `J_regressor_h36m`으로 뽑은 관절 사이 거리이고, 16개 부모-자식 구간과 `shoulder_width`(좌우 어깨), `hip_width`(좌우 엉덩이)다.
 - `appDefinitionDiffers`의 구간은 앱이 COCO 평균으로 합성하는 spine·thorax·neck·head 관절이 끼어 있어 앱 측정값과 정의가 다르다. H36M 엉덩이·어깨 관절도 COCO 관절과 위치가 달라 `hip_width`·`shoulder_width`를 앱 2D 값과 직접 비교하지 않는다.
 - `debug.per_view`는 사진별 SMPL 자세·전역 회전·이동과 사용한 카메라 값이며 앱 기능에 쓰지 않는다.
-- 1단계 스텁은 같은 형식에 `"stub": true`, 체형 필드는 `null`이다.
+- `coachComment`(255자 이하, 규칙 기반), `calibratedAt`(UTC ISO 8601), `modelGlbUrl`은 백엔드 `UserCalibration` 열 이름과 같다. `modelGlbUrl`은 사용자 본인의 GLB(SMPL 메시, 비상업 용도) 임시 GET 주소로 1시간 뒤 만료되며, 같은 조회를 다시 하면 새 주소가 온다.
+- `stub`은 항상 `false`다. 1단계 스텁 경로는 없앴고, 서버는 β 10개와 뼈 길이가 없는 결과를 `done`으로 내지 않는다(`failed internal_error`).
 
-`accepted`(완료 API)는 접수만 뜻하고, 체형 결과는 이 API가 `done`을 반환할 때만 있다. 실패 코드는 `person_not_found`, `low_keypoint_confidence`, `fit_diverged`, `internal_error` 등이다. 1단계 서버의 `result`는 입력 검증 뒤 반환하는 고정 값(`"stub": true`)이며 실제 체형 측정이 아니다. 앱의 결과 polling은 아직 구현하지 않았다.
+`accepted`(완료 API)는 접수만 뜻하고, 체형 결과는 이 API가 `done`을 반환할 때만 있다. 실패 코드는 `person_not_found`, `low_keypoint_confidence`, `fit_diverged`, `timeout`, `internal_error` 등이다. 앱은 접수 뒤 3초마다 이 API를 조회한다(`CalibrationUploadService.fetchJob`).
 
 ## 실패와 재시도
 
@@ -206,7 +212,7 @@ API 연결 제한 시간은 10초, API 송수신 제한은 각각 30초다. 저�
 2. 사용자별 private 저장소 경로, 최소 권한의 짧은 유효 기간 PUT URL, 암호화·접근 제어.
 3. 멱등성 상태 저장, 완료 파일 검증, 단 한 번의 분석 작업 등록.
 4. 요청 제한, 용량 제한, 만료된 부분 업로드 정리, 사진 보관·삭제 정책과 동의 문구.
-5. 별도 분석 worker와 작업 상태·결과 API. 앱의 결과 polling 또는 notification과 실제 3D 결과 화면은 후속 구현.
+5. 별도 분석 worker와 작업 상태·결과 API(구현됨). 실제 3D 결과 화면은 팀원 코드라 브랜치 `ai/calibration-result-screen`에 준비만 했다.
 
 서버리스 선택만으로 체형 fitting의 실행 환경이나 비용이 결정되는 것은 아니다. 이 문서는 클라우드 리소스를 생성하거나 GPU 작업을 배포하지 않는다. 자동 삭제를 보장할 구현이 없으므로 기존 화면의 “분석 끝나면 바로 삭제” 문구도 사용하지 않는다.
 
