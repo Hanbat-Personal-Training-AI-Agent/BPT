@@ -1,11 +1,12 @@
 // pose-replay: feeds a recorded workout video through the app's workout pose path on macOS
-// (whole frame stretched to 192×256 like PosePreprocess.preprocessFullImageFast, RTMPose-s,
-// SimCCDecoder, then SquatEvaluator / PushUpEvaluator / BarbellRowEvaluator with their
+// (RTMPose input like CameraPosePreview: a 3:4 person crop from the previous frame's keypoints,
+// whole frame stretched to 192×256 when the person is lost — `--input full` = always whole frame, the
+// old input; RTMPose-s, SimCCDecoder, then SquatEvaluator / PushUpEvaluator / BarbellRowEvaluator with their
 // FormWarningTracker — all symlinked from ios/Runner) to tune the form-warning thresholds.
 //
 //   swift run -c release --package-path ios/CalibrationEngineKit pose-replay \
 //       [--exercise squat|pushup|row] [--model coco17|halpe26] [--model-path PATH] [--motion3d PATH|none] [--lookahead N] \
-//       [--row-shrug] [--ready-pose off|preset] [--output-dir PATH] <video.mp4>...
+//       [--row-shrug] [--ready-pose off|preset] [--input crop|full] [--output-dir PATH] <video.mp4>...
 //
 // --model-path: another RTMPose .mlpackage with the same 256x192 input and SimCC outputs (17 or 26 joints;
 // pass --model halpe26 for 26) — candidate models are compared on the same videos without replacing the bundled one.
@@ -39,9 +40,10 @@ var motion3DPath: String? = {
 var lookahead = 5
 var rowShrug = false
 var readyPosePreset = false
+var personCrop = true
 var videos: [URL] = []
 var arguments = CommandLine.arguments.dropFirst().makeIterator()
-let usage = "usage: pose-replay [--exercise squat|pushup|row] [--model coco17|halpe26] [--model-path PATH] [--motion3d PATH|none] [--lookahead N] [--row-shrug] [--ready-pose off|preset] [--output-dir PATH] <video.mp4>..."
+let usage = "usage: pose-replay [--exercise squat|pushup|row] [--model coco17|halpe26] [--model-path PATH] [--motion3d PATH|none] [--lookahead N] [--row-shrug] [--ready-pose off|preset] [--input crop|full] [--output-dir PATH] <video.mp4>..."
 while let argument = arguments.next() {
     switch argument {
     case "--model":
@@ -79,6 +81,14 @@ while let argument = arguments.next() {
             print("--ready-pose requires off or preset")
             exit(2)
         }
+    case "--input":
+        switch arguments.next() {
+        case "crop": personCrop = true
+        case "full": personCrop = false
+        default:
+            print("--input requires crop or full")
+            exit(2)
+        }
     case "--output-dir":
         guard let path = arguments.next() else { exit(2) }
         outputDir = URL(fileURLWithPath: path, isDirectory: true)
@@ -106,19 +116,6 @@ let workspace = try RTMPoseInputWorkspace()
 let inputWidth = PoseCoordinateTransforms.rtmposeInputWidth
 let inputHeight = PoseCoordinateTransforms.rtmposeInputHeight
 let window = 27
-
-/// Same bitmap draw as PosePreprocess.drawResizedRGBA (UIKit-free copy).
-func drawResized(_ image: CGImage) {
-    workspace.pixels.withUnsafeMutableBytes { buffer in
-        let bitmap = CGContext(data: buffer.baseAddress, width: inputWidth, height: inputHeight,
-                               bitsPerComponent: 8, bytesPerRow: inputWidth * 4,
-                               space: CGColorSpaceCreateDeviceRGB(),
-                               bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue | CGBitmapInfo.byteOrder32Big.rawValue)!
-        bitmap.interpolationQuality = .high
-        bitmap.setBlendMode(.copy)
-        bitmap.draw(image, in: CGRect(x: 0, y: 0, width: inputWidth, height: inputHeight))
-    }
-}
 
 func f(_ value: Double?) -> String { value.map { String(format: "%.4f", $0) } ?? "" }
 
@@ -163,22 +160,30 @@ for video in videos {
     var feetFrames: [FootKeypoints?] = []
     var times: [Double] = []
     var imageWidth = 0, imageHeight = 0
+    var cropTracker = RTMPoseCropTracker()
+    var fullFrameInputs = 0
+    var poseSeconds = 0.0
     while let sampleBuffer = output.copyNextSampleBuffer() {
         guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { continue }
         let image = CIImage(cvPixelBuffer: pixelBuffer)
         guard let cgImage = context.createCGImage(image, from: image.extent) else { continue }
         imageWidth = cgImage.width
         imageHeight = cgImage.height
-        drawResized(cgImage)
+        let poseStart = Date()
+        let rect = personCrop ? cropTracker.inputRect(imageWidth: cgImage.width, imageHeight: cgImage.height)
+            : CGRect(x: 0, y: 0, width: cgImage.width, height: cgImage.height)
+        if cropTracker.crop == nil { fullFrameInputs += 1 }
+        let back = try PosePreprocess.drawRegion(cgImage, rect: rect, into: &workspace.pixels)
         try PosePreprocess.normalizeRGBAIntoRTMPoseInput(workspace.pixels, input: workspace.input,
                                                           width: inputWidth, height: inputHeight)
         let prediction = try model.prediction(from: workspace.provider)
         let decoded = try SimCCDecoder.decodeToInputCoordinates(
             simccX: prediction.featureValue(for: "simcc_x")!.multiArrayValue!,
             simccY: prediction.featureValue(for: "simcc_y")!.multiArrayValue!)
-        let back = Affine2x3(a: Double(cgImage.width) / Double(inputWidth), b: 0, c: 0,
-                             d: 0, e: Double(cgImage.height) / Double(inputHeight), f: 0)
-        coco17Frames.append(PoseCoordinateTransforms.applyInverseAffine(decoded: decoded, inverseAffine: back))
+        let coco17 = PoseCoordinateTransforms.applyInverseAffine(decoded: decoded, inverseAffine: back)
+        if personCrop { cropTracker.update(coco17) }
+        poseSeconds += Date().timeIntervalSince(poseStart)
+        coco17Frames.append(coco17)
         extraFrames.append(zip(decoded.extraInputCoordinates, decoded.extraConfidences).map { point, confidence in
             let p = back.apply(point)
             return PoseKeypoint(x: p.x, y: p.y, confidence: confidence)
@@ -214,6 +219,8 @@ for video in videos {
         tracker = evaluator.formTracker
         tracker.row.shrugEnabled = rowShrug
         step = { i, k, p, _ in let r = evaluator.evaluate(frameIndex: i, coco17: k, pose3D: p); return (r.status.rawValue, r.rep) }
+    case .benchPress, .deadlift:
+        fatalError("--exercise accepts squat, pushup or row only")
     }
     // Every key on (the app sends none by default) so `spoken` and `events` show what would be said.
     tracker.common.enabledFeedbackKeys = FormWarningTracker.allKeys
@@ -227,7 +234,7 @@ for video in videos {
         let result = step(i, coco17Frames[i], pose3D?[i], feetFrames[i])
         rep = result.rep
         for event in tracker.drainEvents() {
-            var entry: [String: Any] = ["frame": i, "time": times[i], "key": event.key, "silent": event.silent]
+            var entry: [String: Any] = ["frame": i, "time": times[i], "key": event.key, "scope": event.scope.rawValue]
             if let n = event.n { entry["n"] = n }
             events.append(entry)
         }
@@ -240,6 +247,14 @@ for video in videos {
             .joined(separator: ",") + "\n"
     }
 
+    // One video = one set: the app's set-end summary (scope "set") at the last frame.
+    tracker.endSet()
+    for event in tracker.drainEvents() {
+        var entry: [String: Any] = ["frame": max(coco17Frames.count - 1, 0), "time": times.last ?? 0,
+                                    "key": event.key, "scope": event.scope.rawValue]
+        if let n = event.n { entry["n"] = n }
+        events.append(entry)
+    }
     let reps: [[String: Any]] = tracker.reports.map { report in
         var entry = report.dictionary
         entry["start_time"] = times.indices.contains(report.startFrame) ? times[report.startFrame] : NSNull()
@@ -253,6 +268,9 @@ for video in videos {
         "motion3d": motion3DPath.map { $0 as Any } ?? NSNull(),
         "lookahead": lookahead,
         "ready_pose": readyPosePreset ? "preset" : "off",
+        "input": personCrop ? "crop" : "full",
+        "full_frame_inputs": fullFrameInputs,
+        "pose_ms_per_frame": coco17Frames.isEmpty ? 0 : poseSeconds * 1000 / Double(coco17Frames.count),
         "frames": coco17Frames.count,
         "image_size": [imageWidth, imageHeight],
         "reps": reps,
@@ -271,6 +289,7 @@ for video in videos {
     try csv.write(to: outputDir.appendingPathComponent("\(base).csv"), atomically: true, encoding: .utf8)
 
     print("== \(name) exercise=\(exercise.rawValue) model=\(poseModel) frames=\(coco17Frames.count) reps=\(rep) "
+          + "input=\(personCrop ? "crop" : "full") full_frame_inputs=\(fullFrameInputs) "
           + "3d=\(motion3D != nil) bad3d=\(tracker.sessionBad3DFrames)/\(tracker.sessionFrames3D)")
     print("  transitions: " + transitions.joined(separator: " "))
     for report in tracker.reports {
