@@ -206,6 +206,8 @@ for video in videos {
         tracker = evaluator.formTracker
         tracker.row.shrugEnabled = rowShrug
         step = { i, k, p, _ in let r = evaluator.evaluate(frameIndex: i, coco17: k, pose3D: p); return (r.status.rawValue, r.rep) }
+    case .benchPress, .deadlift:
+        fatalError("--exercise accepts squat, pushup or row only")
     }
     // Every key on (the app sends none by default) so `spoken` and `events` show what would be said.
     tracker.common.enabledFeedbackKeys = FormWarningTracker.allKeys
@@ -219,7 +221,7 @@ for video in videos {
         let result = step(i, coco17Frames[i], pose3D?[i], feetFrames[i])
         rep = result.rep
         for event in tracker.drainEvents() {
-            var entry: [String: Any] = ["frame": i, "time": times[i], "key": event.key, "silent": event.silent]
+            var entry: [String: Any] = ["frame": i, "time": times[i], "key": event.key, "scope": event.scope.rawValue]
             if let n = event.n { entry["n"] = n }
             events.append(entry)
         }
@@ -232,6 +234,14 @@ for video in videos {
             .joined(separator: ",") + "\n"
     }
 
+    // One video = one set: the app's set-end summary (scope "set") at the last frame.
+    tracker.endSet()
+    for event in tracker.drainEvents() {
+        var entry: [String: Any] = ["frame": max(coco17Frames.count - 1, 0), "time": times.last ?? 0,
+                                    "key": event.key, "scope": event.scope.rawValue]
+        if let n = event.n { entry["n"] = n }
+        events.append(entry)
+    }
     let reps: [[String: Any]] = tracker.reports.map { report in
         var entry = report.dictionary
         entry["start_time"] = times.indices.contains(report.startFrame) ? times[report.startFrame] : NSNull()

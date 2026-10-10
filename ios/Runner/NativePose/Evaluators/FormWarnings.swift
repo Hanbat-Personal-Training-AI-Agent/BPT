@@ -12,9 +12,10 @@ import simd
 // from 2D only; 3D is logged.
 //
 // Delivery (spec 등급): 우선 = right after the rep, 개선 = only when the same key also fired on the
-// previous rep, 셋업 = first rep only, 참고 = set summary only (sent `silent`). One spoken key per rep
-// (highest grade), a spoken key is not repeated for `cooldownReps` reps, praise_fixed once when the
-// key spoken on the previous rep is gone.
+// previous rep, 셋업 = first rep only, 참고 = once at set end (`endSet`, scope "set", n = reps in the
+// set). One key per rep (scope "rep", highest grade), a spoken key is not repeated for `cooldownReps`
+// reps, praise_fixed once when the key spoken on the previous rep is gone. Fired keys that were not
+// chosen stay in the report / log / set counts (worstJoint) only.
 //
 // Nothing reaches Flutter unless its key is in `FormCommonConfig.enabledFeedbackKeys` (default:
 // setup_full_body, tracking_lost, plus setup_side_view for the row; every form warning is log only): rules still run and every would-be warning stays in `FormRepReport.warnings`,
@@ -50,7 +51,7 @@ struct FormCommonConfig {
     var trackingLostFrames = 30
     /// Forward/back (nose x vs ear x) flips only after this many agreeing frames. 임시값 — 테스트 영상으로 조정
     var facingFlipFrames = 5
-    /// onFeedback keys sent to Flutter (spoken or silent), per key, e.g. ["pushup_hip_sag", "praise_fixed"].
+    /// onFeedback keys sent to Flutter (scope "rep" or "set"), per key, e.g. ["pushup_hip_sag", "praise_fixed"].
     /// Default: only the tracking guidance (setup_full_body, tracking_lost); form warnings are judged
     /// and logged only. The barbell row tracker also adds setup_side_view (its side-view gate).
     /// `FormWarningTracker.allKeys` turns everything on.
@@ -141,6 +142,9 @@ enum FormExercise: String {
     case pushUp = "pushup"
     case squat
     case barbellRow = "barbell_row"
+    /// No form rules yet (only setup_full_body / tracking_lost / praise); driven by `StatusDrivenFormTracker`.
+    case benchPress = "bench_press"
+    case deadlift
 }
 
 enum FormSide: String {
@@ -158,11 +162,16 @@ enum FormGrade: Int, Comparable {
     var name: String { ["priority", "improve", "setup", "reference"][rawValue] }
 }
 
-/// One onFeedback call: `silent` = record for the set summary only (참고 / not chosen this rep).
+/// onFeedback `scope`: "rep" = said right after a rep (or a setup / tracking line), "set" = set summary at set end.
+enum FormFeedbackScope: String {
+    case rep, set
+}
+
+/// One onFeedback call {key, n?, scope}.
 struct FormFeedbackEvent: Equatable {
     let key: String
     let n: Int?
-    let silent: Bool
+    var scope: FormFeedbackScope = .rep
 }
 
 // MARK: - Geometry
@@ -350,6 +359,9 @@ final class FormWarningTracker {
             ("setup_side_view", .setup), ("row_torso_swing", .priority), ("row_standing_up", .improve),
             ("row_short_pull", .improve), ("row_shrug", .improve), ("row_head_up", .reference),
         ],
+        // Bench press / deadlift: no validated form keys yet (track G); setup / tracking / praise only.
+        .benchPress: [],
+        .deadlift: [],
     ]
 
     /// Every key the tracker can send: the rules plus praise_fixed, setup_full_body, tracking_lost.
@@ -371,6 +383,8 @@ final class FormWarningTracker {
     private(set) var sessionBad3DFrames = 0
     /// Reps per warning key this session (the `n` sent with onFeedback).
     private(set) var warningRepCounts: [String: Int] = [:]
+    /// Reps per warning key in the current set (cleared by `endSet`; worstJoint and set-scope `n`).
+    private(set) var setWarningRepCounts: [String: Int] = [:]
     private(set) var reports: [FormRepReport] = []
     private(set) var side: FormSide?
     /// Side-view gate (row: `BarbellRowFormConfig.sideViewMaxShoulderRatio`, push-up:
@@ -402,6 +416,7 @@ final class FormWarningTracker {
         sessionFrames3D = 0
         sessionBad3DFrames = 0
         warningRepCounts = [:]
+        setWarningRepCounts = [:]
         reports = []
         side = nil
         sideView = nil
@@ -453,7 +468,7 @@ final class FormWarningTracker {
         }
         current = sample
         updateTracking(sample)
-        if exercise != .squat { updateSideView(sample) }
+        if exercise == .pushUp || exercise == .barbellRow { updateSideView(sample) }
     }
 
     /// Rolling-median shoulder ratio vs the cutoff, with hysteresis. For the row the first "not
@@ -472,7 +487,7 @@ final class FormWarningTracker {
         }
         if exercise == .barbellRow, next == false, !sideViewGuided, reports.isEmpty {
             sideViewGuided = true
-            emit(FormFeedbackEvent(key: "setup_side_view", n: nil, silent: false))
+            emit(FormFeedbackEvent(key: "setup_side_view", n: nil))
         }
         sideView = next
     }
@@ -500,7 +515,10 @@ final class FormWarningTracker {
         let fired = judge(metrics, history: repMetrics, repIndex: repIndex)
         repMetrics.append(metrics)
         if repMetrics.count > 100 { repMetrics.removeFirst() }
-        for key in fired { warningRepCounts[key, default: 0] += 1 }
+        for key in fired {
+            warningRepCounts[key, default: 0] += 1
+            setWarningRepCounts[key, default: 0] += 1
+        }
         let spoken = deliver(fired, repIndex: repIndex)
         let sides = frames.map(\.side)
         let report = FormRepReport(
@@ -523,7 +541,19 @@ final class FormWarningTracker {
 
     // MARK: Delivery
 
-    /// Picks the one spoken key, queues it and every other fired key as `silent`.
+    /// Set end (Flutter `endSet`): queues one scope "set" event per 참고 key that fired in the set
+    /// (n = its reps in the set, rule order) and returns the set's per-key rep counts, then clears them.
+    @discardableResult
+    func endSet() -> [String: Int] {
+        let counts = setWarningRepCounts
+        setWarningRepCounts = [:]
+        for (key, grade) in Self.rules[exercise] ?? [] where grade == .reference {
+            if let n = counts[key] { emit(FormFeedbackEvent(key: key, n: n, scope: .set)) }
+        }
+        return counts
+    }
+
+    /// Picks the one key said after this rep and queues it (scope "rep").
     private func deliver(_ fired: [String], repIndex: Int) -> String? {
         let eligible = fired.filter { key in
             let grade = Self.grade(of: key)
@@ -534,13 +564,11 @@ final class FormWarningTracker {
         var spoken = eligible.min { Self.grade(of: $0) < Self.grade(of: $1) }  // stable: first in rule order
         if let key = spoken {
             lastSpokenRep[key] = repIndex
-            emit(FormFeedbackEvent(key: key, n: warningRepCounts[key], silent: false))
+            // n only for set scope: rep-scope lines have no {n}, and the app adds `n ?? 1` per event to feedbackCounts.
+            emit(FormFeedbackEvent(key: key, n: nil))
         } else if let last = previousSpoken, !fired.contains(last), common.enabledFeedbackKeys.contains("praise_fixed") {
             spoken = "praise_fixed"
-            emit(FormFeedbackEvent(key: "praise_fixed", n: nil, silent: false))
-        }
-        for key in fired where key != spoken {
-            emit(FormFeedbackEvent(key: key, n: warningRepCounts[key], silent: true))
+            emit(FormFeedbackEvent(key: "praise_fixed", n: nil))
         }
         previousFired = Set(fired)
         previousSpoken = spoken == "praise_fixed" ? nil : spoken
@@ -562,10 +590,10 @@ final class FormWarningTracker {
         if started {
             if missingRun >= common.trackingLostFrames, !trackingLostSent, !inRep {
                 trackingLostSent = true
-                emit(FormFeedbackEvent(key: "tracking_lost", n: nil, silent: false))
+                emit(FormFeedbackEvent(key: "tracking_lost", n: nil))
             }
         } else if missingRun == common.setupFullBodyFrames {
-            emit(FormFeedbackEvent(key: "setup_full_body", n: nil, silent: false))
+            emit(FormFeedbackEvent(key: "setup_full_body", n: nil))
         }
     }
 
@@ -598,6 +626,9 @@ final class FormWarningTracker {
         case .pushUp: [j.shoulder, j.elbow, j.wrist, j.hip, j.ankle]
         case .squat: [j.shoulder, j.hip, j.knee, j.ankle]
         case .barbellRow: [j.shoulder, j.elbow, j.wrist, j.hip]
+        // Bench: lying, the bench hides the legs. Deadlift: same chain as the squat. 임시값 — 테스트 영상으로 조정
+        case .benchPress: [j.shoulder, j.elbow, j.wrist]
+        case .deadlift: [j.shoulder, j.hip, j.knee, j.ankle]
         }
         s.requiredOK = required.allSatisfy { p($0) != nil }
 
@@ -729,6 +760,8 @@ final class FormWarningTracker {
                 }
                 if let low = kept.compactMap(\.earShoulder).min() { put("ear_shoulder_drop", 1 - low / start) }
             }
+        case .benchPress, .deadlift:
+            break
         }
         return m
     }
@@ -834,6 +867,8 @@ final class FormWarningTracker {
             }
             if c.shrugEnabled { fire("row_shrug", over("ear_shoulder_drop", c.shrugEarShoulderDrop)) }
             fire("row_head_up", under("head_dev_change_min", -c.headUpDeviation))
+        case .benchPress, .deadlift:
+            break
         }
         return (Self.rules[exercise] ?? []).map(\.key).filter(fired.contains)
     }

@@ -4,7 +4,7 @@ import UIKit
 
 final class NativePoseCameraPlatformView: NSObject, FlutterPlatformView {
     private let hostingController: UIHostingController<AnyView>
-    private let channel: FlutterMethodChannel
+    private let workoutChannel: WorkoutChannel
 
     init(
         frame: CGRect,
@@ -13,29 +13,16 @@ final class NativePoseCameraPlatformView: NSObject, FlutterPlatformView {
         exercise: NativePoseExercise?,
         exerciseId: String?
     ) {
-        let channel = FlutterMethodChannel(
+        let workoutChannel = WorkoutChannel(channel: FlutterMethodChannel(
             name: "bpt/native_pose_camera/\(viewId)",
             binaryMessenger: messenger
-        )
-        self.channel = channel
+        ))
+        self.workoutChannel = workoutChannel
 
         let rootView: AnyView
         if let exercise {
-            rootView = AnyView(
-                CameraPosePreview(exercise: exercise, onUpdate: { rep, status, done in
-                    channel.invokeMethod(
-                        "onPoseUpdate",
-                        arguments: ["rep": rep, "status": status, "done": done]
-                    )
-                }, onFeedback: { key, n, silent in
-                    // native_pose_workout_screen.dart `onFeedback`: { key, n?, silent? }
-                    // silent = set-summary only (참고 grade, or not the one key said this rep).
-                    var arguments: [String: Any] = ["key": key]
-                    if let n { arguments["n"] = n }
-                    if silent { arguments["silent"] = true }
-                    channel.invokeMethod("onFeedback", arguments: arguments)
-                })
-            )
+            // Channel contract: WorkoutSessionBridge.swift (onPoseUpdate, onFeedback, onSetEnd ←→ setVoiceMuted, startSet, endSet).
+            rootView = AnyView(CameraPosePreview(exercise: exercise, bridge: workoutChannel))
         } else {
             rootView = AnyView(UnsupportedNativePoseExerciseView(exerciseId: exerciseId))
         }
@@ -50,6 +37,10 @@ final class NativePoseCameraPlatformView: NSObject, FlutterPlatformView {
 
     func view() -> UIView {
         hostingController.view
+    }
+
+    deinit {
+        workoutChannel.close()
     }
 }
 

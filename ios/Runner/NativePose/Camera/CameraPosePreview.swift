@@ -59,6 +59,22 @@ private final class CameraCaptureManager: NSObject, AVCaptureVideoDataOutputSamp
     nonisolated(unsafe) private var isProcessingFrame = false
     nonisolated(unsafe) private var frameIndex = 0
     nonisolated(unsafe) var onFrame: (@Sendable (CMSampleBuffer, Int) -> Void)?
+    // Per-set recording of the processed frames + perf counters (WorkoutSessionBridge.swift). Processing queue.
+    nonisolated(unsafe) private var recorder: WorkoutSetRecorder?
+    nonisolated(unsafe) var perfLog: WorkoutPerfLog?
+
+    func startRecording(to url: URL) {
+        processingQueue.async { [weak self] in self?.recorder = WorkoutSetRecorder(url: url) }
+    }
+
+    /// Closes the current set file; completion (any thread) gets its URL or nil.
+    func finishRecording(_ completion: @escaping @Sendable (URL?) -> Void) {
+        processingQueue.async { [weak self] in
+            guard let recorder = self?.recorder else { return completion(nil) }
+            self?.recorder = nil
+            recorder.finish(completion)
+        }
+    }
 
     func configure() throws {
         session.beginConfiguration()
@@ -126,12 +142,19 @@ private final class CameraCaptureManager: NSObject, AVCaptureVideoDataOutputSamp
         didOutput sampleBuffer: CMSampleBuffer,
         from connection: AVCaptureConnection
     ) {
-        guard !isProcessingFrame else { return }
+        guard !isProcessingFrame else { perfLog?.frameDropped(); return }
         isProcessingFrame = true
         let idx = frameIndex
         frameIndex += 1
         onFrame?(sampleBuffer, idx)
+        recorder?.append(sampleBuffer)
+        perfLog?.frameProcessed()
         isProcessingFrame = false
+    }
+
+    nonisolated func captureOutput(_ output: AVCaptureOutput, didDrop sampleBuffer: CMSampleBuffer,
+                                   from connection: AVCaptureConnection) {
+        perfLog?.frameDropped()
     }
 }
 
@@ -155,14 +178,17 @@ final class CameraPoseViewModel: ObservableObject {
         captureManager.isFrontCamera
     }
 
-    // Reports rep/status changes to Flutter (HUD is rendered on the Flutter side).
-    private let onUpdate: ((Int, String, Bool) -> Void)?
+    // Flutter channel: rep/status (HUD is rendered on the Flutter side), onFeedback {key, n?, scope}
+    // (kori_feedback_lines.dart), onSetEnd; startSet / endSet / setVoiceMuted come back.
+    private let bridge: WorkoutChannel?
     private var lastReportedRep: Int?
     private var lastReportedStatus: String?
     private var lastReportedDone: Bool?
-    // Form feedback → Flutter `onFeedback` {key, n?, silent?} (kori_feedback_lines.dart).
-    private let onFeedback: ((String, Int?, Bool) -> Void)?
     private var formLog: WorkoutFormLog?
+    private var statusFormTracker: StatusDrivenFormTracker?  // bench press / deadlift
+    private var betweenSets = false
+    private var recording = false
+    private var perfTimer: Timer?
 
     // Models (loaded once)
     private var rtmpose: MLModel?
@@ -175,12 +201,9 @@ final class CameraPoseViewModel: ObservableObject {
     private var barbellRowEvaluator: BarbellRowEvaluator?
     private var pushUpEvaluator: PushUpEvaluator?
 
-    init(exercise: NativePoseExercise,
-         onUpdate: ((Int, String, Bool) -> Void)? = nil,
-         onFeedback: ((String, Int?, Bool) -> Void)? = nil) {
+    init(exercise: NativePoseExercise, bridge: WorkoutChannel? = nil) {
         self.exercise = exercise
-        self.onUpdate = onUpdate
-        self.onFeedback = onFeedback
+        self.bridge = bridge
     }
 
     func requestCameraAndStart() {
@@ -199,19 +222,67 @@ final class CameraPoseViewModel: ObservableObject {
 
     func stopCamera() {
         captureManager.stop()
+        captureManager.finishRecording { _ in }
         if let tracker = formTracker { formLog?.close(tracker) }
         formLog = nil
+        perfTimer?.invalidate()
+        perfTimer = nil
+        captureManager.perfLog?.close()
+        captureManager.perfLog = nil
+        bridge?.voice.stop()
     }
 
     private var formTracker: FormWarningTracker? {
         squatEvaluator?.formTracker ?? pushUpEvaluator?.formTracker ?? barbellRowEvaluator?.formTracker
+            ?? statusFormTracker?.tracker
     }
 
     /// Every frame: forward the tracker's feedback events; after a counted rep also log its report.
     private func reportForm(done: Bool) {
         guard let tracker = formTracker else { return }
         if done, let report = tracker.reports.last { formLog?.append(report) }
-        for event in tracker.drainEvents() { onFeedback?(event.key, event.n, event.silent) }
+        for event in tracker.drainEvents() { bridge?.sendFeedback(event) }
+    }
+
+    // MARK: Sets (Flutter startSet / endSet)
+
+    private func startSet(_ index: Int) {
+        betweenSets = false
+        guard WorkoutDebugFlags.setRecording, let directory = WorkoutSetRecorder.directory() else { return }
+        recording = true
+        WorkoutSetRecorder.prune(directory: directory, keep: WorkoutSetRecorder.keepFiles - 1)
+        let name = WorkoutSetRecorder.fileName(exercise: exercise.rawValue, setIndex: index)
+        captureManager.startRecording(to: directory.appendingPathComponent(name))
+    }
+
+    /// Set-scope feedback (참고 keys, n = reps in the set), then onSetEnd once the file is closed.
+    private func endSet(_ index: Int) {
+        guard !betweenSets else { return }
+        betweenSets = true
+        recording = false
+        let tracker = formTracker
+        let worstJoint = tracker.flatMap {
+            FeedbackJoint.worst(setCounts: $0.endSet(), enabled: $0.common.enabledFeedbackKeys,
+                                ruleOrder: (FormWarningTracker.rules[$0.exercise] ?? []).map(\.key))
+        }
+        for event in tracker?.drainEvents() ?? [] { bridge?.sendFeedback(event) }
+        captureManager.finishRecording { [weak self] url in
+            Task { @MainActor in
+                self?.bridge?.sendSetEnd(setIndex: index, videoLocalPath: url?.path, worstJoint: worstJoint)
+            }
+        }
+    }
+
+    private func startPerfLog() {
+        guard WorkoutDebugFlags.perfLog, let log = WorkoutPerfLog(exercise: exercise.rawValue) else { return }
+        captureManager.perfLog = log
+        UIDevice.current.isBatteryMonitoringEnabled = true
+        perfTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                guard let self else { return }
+                log.flush(battery: UIDevice.current.batteryLevel, recording: self.recording)
+            }
+        }
     }
 
     private func setup() {
@@ -225,8 +296,12 @@ final class CameraPoseViewModel: ObservableObject {
         }
 
         switch exercise {
-        case .deadlift: deadliftEvaluator = DeadliftEvaluator()
-        case .benchPress: benchPressEvaluator = BenchPressEvaluator()
+        case .deadlift:
+            deadliftEvaluator = DeadliftEvaluator()
+            statusFormTracker = StatusDrivenFormTracker(exercise: .deadlift)
+        case .benchPress:
+            benchPressEvaluator = BenchPressEvaluator()
+            statusFormTracker = StatusDrivenFormTracker(exercise: .benchPress)
         case .squat: squatEvaluator = SquatEvaluator()
         case .barbellRow: barbellRowEvaluator = BarbellRowEvaluator()
         case .pushUp: pushUpEvaluator = PushUpEvaluator()
@@ -262,6 +337,10 @@ final class CameraPoseViewModel: ObservableObject {
             )
         }
 
+        bridge?.onStartSet = { [weak self] in self?.startSet($0) }
+        bridge?.onEndSet = { [weak self] in self?.endSet($0) }
+        startSet(1)
+        startPerfLog()
         captureManager.start()
         statusText = "Running"
         print("CameraPosePreview started exercise=\(exercise.rawValue) hand=\(handEnabled) 3d=\(CameraPreviewOptions.enableMotion3DForCamera)")
@@ -375,7 +454,7 @@ final class CameraPoseViewModel: ObservableObject {
             lastReportedRep = rep
             lastReportedStatus = statusText
             lastReportedDone = done
-            onUpdate?(rep, statusText, done)
+            bridge?.sendUpdate(rep: rep, status: statusText, done: done)
         }
 
         if result.frameIndex % CameraPreviewOptions.debugLogEveryNFrames == 0 {
@@ -389,11 +468,15 @@ final class CameraPoseViewModel: ObservableObject {
         case .deadlift:
             if let eval = deadliftEvaluator {
                 let r = eval.evaluate(frameIndex: frameIndex, coco17: rawCoco17)
+                statusFormTracker?.update(frameIndex: frameIndex, coco17: rawCoco17, status: r.status.rawValue, rep: r.rep)
+                reportForm(done: r.done)
                 return (r.status.rawValue, r.rep, r.done)
             }
         case .benchPress:
             if let eval = benchPressEvaluator {
                 let r = eval.evaluate(frameIndex: frameIndex, coco17: rawCoco17)
+                statusFormTracker?.update(frameIndex: frameIndex, coco17: rawCoco17, status: r.status.rawValue, rep: r.rep)
+                reportForm(done: r.done)
                 return (r.status.rawValue, r.rep, r.done)
             }
         case .squat:
@@ -458,12 +541,9 @@ struct CameraPosePreview: View {
     let exercise: NativePoseExercise
     @StateObject private var model: CameraPoseViewModel
 
-    init(exercise: NativePoseExercise,
-         onUpdate: ((Int, String, Bool) -> Void)? = nil,
-         onFeedback: ((String, Int?, Bool) -> Void)? = nil) {
+    init(exercise: NativePoseExercise, bridge: WorkoutChannel? = nil) {
         self.exercise = exercise
-        _model = StateObject(wrappedValue: CameraPoseViewModel(exercise: exercise, onUpdate: onUpdate,
-                                                               onFeedback: onFeedback))
+        _model = StateObject(wrappedValue: CameraPoseViewModel(exercise: exercise, bridge: bridge))
     }
 
     var body: some View {
