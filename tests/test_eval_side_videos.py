@@ -78,3 +78,11 @@ def test_pose_replay_rejects_bad_ready_pose():
         pytest.skip("pose-replay not built")
     r = subprocess.run([str(ev.DEFAULT_BINARY), "--ready-pose", "bogus", "x.mp4"], capture_output=True, text=True)
     assert r.returncode == 2 and "off or preset" in r.stdout
+
+
+def test_pose_replay_rejects_bad_input_mode():
+    import subprocess, pytest
+    if not ev.DEFAULT_BINARY.exists():
+        pytest.skip("pose-replay not built")
+    r = subprocess.run([str(ev.DEFAULT_BINARY), "--input", "bogus", "x.mp4"], capture_output=True, text=True)
+    assert r.returncode == 2 and "crop or full" in r.stdout
