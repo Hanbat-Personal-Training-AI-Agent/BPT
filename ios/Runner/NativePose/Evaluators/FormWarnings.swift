@@ -126,9 +126,12 @@ struct BarbellRowFormConfig {
     /// row_head_up (참고): ear moves above the shoulder–hip line, vs the rep start, by more than this × torso length. 임시값 — 테스트 영상으로 조정
     var headUpDeviation = 0.15
     /// Side-view gate (rep counting + warnings): median shoulder width / torso length over the last
-    /// `sideViewWindowFrames` frames <= this = side. Exercise3D rows: cams 20–36° from side 0.11–0.51,
-    /// rear cams 76–81° 0.66–0.84; 0.56 = the widest 36° subject (0.509) scaled to 40° (× sin40/sin36).
-    var sideViewMaxShoulderRatio = 0.56
+    /// `sideViewWindowFrames` frames <= this = side. Depends on the RTMPose input: with the person crop
+    /// (CameraPreviewOptions.personCropInput) Exercise3D rows give, as 150-frame rolling medians, cams
+    /// 20–36° from side 0.16–0.63 and rear cams 76–81° 0.69–1.27; 0.66 = midway between the tuning
+    /// subject's side max (0.62) and rear min (0.71). The old stretched input needs 0.56 (side 0.10–0.57,
+    /// rear 0.64–1.82). docs/decisions.md 2026-10-10 트랙 B.
+    var sideViewMaxShoulderRatio = 0.66
     /// row_shrug (개선, 실험): off until normal vs shrug footage separates it. 임시값 — 테스트 영상으로 조정
     var shrugEnabled = false
     /// row_shrug: ear–shoulder distance shrinks by more than this fraction of its rep-start value. 임시값 — 테스트 영상으로 조정
