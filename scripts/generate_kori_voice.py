@@ -10,8 +10,12 @@ Output names (what WorkoutVoice / CalibrationVoice look up, see docs/handoff/kor
   assets/kori_voice/calibration_<case>.mp3    calibration guidance (e.g. calibration_holdPhoneUpright)
   assets/kori_voice/calibration_captured_<view>.mp3
 
-Key: env ELEVENLABS_API_KEY only (never an argument, never printed). Voice: --voice-id or env
-ELEVENLABS_VOICE_ID. --dry-run lists files and character count without touching the network.
+  assets/kori_voice/manifest.json              {text the app shows/sends: file name} for text-keyed
+                                              players (main's KoriSpeaker gets text, not keys)
+
+Key: env ELEVENLABS_API_KEY only (never an argument, never printed). Voice/model default to the
+ones main's KoriSpeaker uses, so files and realtime lines sound the same. --dry-run lists files and
+character count without touching the network.
 
   conda run -n bpt-eval python scripts/generate_kori_voice.py --dry-run
   ELEVENLABS_API_KEY=... conda run -n bpt-eval python scripts/generate_kori_voice.py --voice-id <id>
@@ -72,15 +76,18 @@ def _block(text: str, header: str) -> str:
 
 
 def expand(lines: dict[str, str], max_n: int) -> dict[str, str]:
-    """File stem → spoken text. Placeholder lines become <key>_1..<key>_<max_n>."""
+    """File stem → (text as the app renders it, text sent to TTS).
+
+    Placeholder lines become <key>_1..<key>_<max_n>; the app renders digits ("3번", KoriFeedbackLine.render)
+    but the voice reads the counting form ("세 번")."""
     out = {}
     for key, ko in lines.items():
         if PLACEHOLDER.search(ko):
             for n in range(1, max_n + 1):
-                # Every placeholder is followed by a counter (번/개): "{n}번" → "세 번".
-                out[f"{key}_{n}"] = PLACEHOLDER.sub(native_count(n) + " ", ko)
+                # Every placeholder is followed by a counter (번/개).
+                out[f"{key}_{n}"] = (PLACEHOLDER.sub(str(n), ko), PLACEHOLDER.sub(native_count(n) + " ", ko))
         else:
-            out[key] = ko
+            out[key] = (ko, ko)
     return out
 
 
@@ -97,8 +104,9 @@ def synthesize(text: str, voice_id: str, model_id: str, api_key: str) -> bytes:
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--out", type=Path, default=ROOT / "assets/kori_voice")
-    p.add_argument("--voice-id", default=os.environ.get("ELEVENLABS_VOICE_ID"))
-    p.add_argument("--model-id", default="eleven_multilingual_v2")
+    # Same voice ("manbo") and model as KoriSpeaker.swift on main (0d00676). Not secrets.
+    p.add_argument("--voice-id", default=os.environ.get("ELEVENLABS_VOICE_ID", "ZZ4xhVcc83kZBfNIlIIz"))
+    p.add_argument("--model-id", default="eleven_flash_v2_5")
     p.add_argument("--max-n", type=int, default=20, help="numbered files 1..N for {n}/{reps}/{k} lines")
     p.add_argument("--only", help="comma-separated file stems or key prefixes to generate")
     p.add_argument("--set", choices=["all", "workout", "calibration"], default="all")
@@ -106,32 +114,41 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--dry-run", action="store_true")
     a = p.parse_args(argv)
 
-    lines: dict[str, str] = {}
+    lines: dict[str, tuple[str, str]] = {}
     if a.set in ("all", "workout"):
         lines |= expand(workout_lines(DART.read_text()), a.max_n)
     if a.set in ("all", "calibration"):
-        lines |= calibration_lines(SWIFT.read_text())
+        lines |= {k: (v, v) for k, v in calibration_lines(SWIFT.read_text()).items()}
     if a.only:
         wanted = a.only.split(",")
         lines = {k: v for k, v in lines.items() if any(k == w or k.startswith(w + "_") for w in wanted)}
     todo = {k: v for k, v in lines.items() if a.overwrite or not (a.out / f"{k}.mp3").exists()}
 
     print(f"{len(todo)} files to generate ({len(lines) - len(todo)} already exist), "
-          f"{sum(len(v) for v in todo.values())} characters")
+          f"{sum(len(v[1]) for v in todo.values())} characters")
     if a.dry_run:
         for k, v in todo.items():
-            print(f"  {k}.mp3\t{v}")
+            print(f"  {k}.mp3\t{v[1]}")
         return 0
 
     api_key = os.environ.get("ELEVENLABS_API_KEY")
-    if not api_key or not a.voice_id:
-        print("ELEVENLABS_API_KEY (env) and --voice-id / ELEVENLABS_VOICE_ID are required", file=sys.stderr)
+    if not api_key:
+        print("ELEVENLABS_API_KEY (env) is required", file=sys.stderr)
         return 2
     a.out.mkdir(parents=True, exist_ok=True)
     for i, (k, v) in enumerate(todo.items(), 1):
-        (a.out / f"{k}.mp3").write_bytes(synthesize(v, a.voice_id, a.model_id, api_key))
+        (a.out / f"{k}.mp3").write_bytes(synthesize(v[1], a.voice_id, a.model_id, api_key))
         print(f"[{i}/{len(todo)}] {k}.mp3")
+    write_manifest(a.out, lines)
     return 0
+
+
+def write_manifest(out: Path, lines: dict[str, tuple[str, str]]) -> None:
+    """Merge {shown text: file} for every file present, so a partial run never drops older entries."""
+    path = out / "manifest.json"
+    manifest = json.loads(path.read_text()) if path.exists() else {}
+    manifest |= {shown: f"{k}.mp3" for k, (shown, _) in lines.items() if (out / f"{k}.mp3").exists()}
+    path.write_text(json.dumps(manifest, ensure_ascii=False, indent=1, sort_keys=True) + "\n")
 
 
 if __name__ == "__main__":
