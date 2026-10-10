@@ -119,9 +119,14 @@ struct RTMPoseCropTracker {
     /// Tracked frames between whole-frame rechecks (30 ≈ 1 s; one extra inference each).
     var recheckInterval = 30
     /// A whole-frame person replaces the tracked one when its keypoint box area is this many times larger
-    /// and at most `switchMaxOverlap` of it lies inside the tracked box.
+    /// and at most `switchMaxOverlap` of it lies inside the current crop.
     var switchAreaRatio = 1.5
     var switchMaxOverlap = 0.3
+    /// ...and only if the whole-frame pass saw that person clearly: at least this many joints at
+    /// `minConfidence`, with this mean confidence. Stretched whole frames can mix two people into one
+    /// box (Exercise3D: wrong switches 6–12 joints, mean 0.33–0.38; right ones 15–17 joints, 0.46–0.71).
+    var switchMinJoints = 12
+    var switchMinMeanConfidence = 0.42
     /// Top-left frame pixels; nil = whole frame.
     private(set) var crop: CGRect?
     /// Confident-keypoint box of the tracked person (frame pixels).
@@ -146,9 +151,14 @@ struct RTMPoseCropTracker {
     @discardableResult
     mutating func offerWholeFrame(_ keypoints: [PoseKeypoint]) -> Bool {
         framesSinceRecheck = 0
-        guard let current = person, let candidate = box(keypoints) else { return false }
+        let seen = keypoints.prefix(17).filter { $0.confidence >= minConfidence }
+        guard seen.count >= switchMinJoints,
+              seen.map(\.confidence).reduce(0, +) / Double(seen.count) >= switchMinMeanConfidence,
+              let current = person, let tracked = crop, let candidate = box(keypoints) else { return false }
         let area = { (r: CGRect) in max(r.width, 1) * max(r.height, 1) }
-        let overlap = candidate.intersection(current)
+        // Overlap with the crop, not the keypoint box: a half-seen user (only legs confident) has a small
+        // box, but the crop still covers them.
+        let overlap = candidate.intersection(tracked)
         let inside = overlap.isNull ? 0 : area(overlap) / area(candidate)
         guard area(candidate) >= switchAreaRatio * area(current), inside <= switchMaxOverlap else { return false }
         crop = nil

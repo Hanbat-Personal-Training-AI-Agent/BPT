@@ -109,6 +109,30 @@ final class RTMPoseCropInputTests: XCTestCase {
         XCTAssertEqual(tracker.crop, user)
     }
 
+    func testRecheckComparesOverlapWithTheCropNotTheKeypointBox() throws {
+        var tracker = RTMPoseCropTracker()
+        tracker.update(person())  // box 400–600 × 500–1100, crop ≈ 174–826 × 365–1235
+        let crop = try XCTUnwrap(tracker.crop)
+        // Whole frame: 3× the box area, only 28% inside the keypoint box but all inside the crop
+        // (e.g. a half-seen user, or two people mixed into one box) — no switch.
+        let wide = (0..<17).map { j in PoseKeypoint(x: 200 + Double(j % 5) * 150, y: 400 + Double(j) * 37.5, confidence: 0.9) }
+        XCTAssertFalse(tracker.offerWholeFrame(wide))
+        XCTAssertEqual(tracker.crop, crop)
+    }
+
+    func testRecheckIgnoresAWeakWholeFrameDetection() throws {
+        var tracker = RTMPoseCropTracker()
+        tracker.update(person())
+        let bystander = try XCTUnwrap(tracker.crop)
+        // Big box but seen weakly (mean 0.35): stretched whole frames can mix two people — no switch.
+        XCTAssertFalse(tracker.offerWholeFrame(lyingUser(confidence: 0.35)))
+        // Big box but only 8 joints: no switch.
+        var partial = lyingUser()
+        for j in 8..<17 { partial[j].confidence = 0.1 }
+        XCTAssertFalse(tracker.offerWholeFrame(partial))
+        XCTAssertEqual(tracker.crop, bystander)
+    }
+
     // MARK: - Pixels and coordinates
 
     /// Black 1080×1920 frame with one white 10×10 square whose top-left is (x, y).
