@@ -70,7 +70,7 @@ integration/ai는 main보다 팀원 커밋 6개가 뒤처져 있습니다(2026-1
 | 파일 | main | integration/ai | 처리 |
 |---|---|---|---|
 | `lib/features/workout/screens/native_pose_workout_screen.dart` | #37·#38 세트 기록·피드백 횟수, #40 `_speakFeedback`/`_speakSetSummary`(대사 읽기) | 경고 기본 끔·셋업 키, 트랙 E의 onFeedback·음소거·onSetEnd | 줄 단위 충돌 가능성 높음. **음성 이중 재생**: #40 Flutter 읽기와 트랙 E 네이티브 WorkoutVoice 중 하나만 남김(decisions D-H-01) |
-| `lib/features/workout/data/kori_feedback_lines.dart` | #38 `koriMistakeLabels`, `koriMistakeExerciseId` 추가(파일 끝) | 임시 데모 경고 맵 삭제 등 | 다른 위치라 자동 병합 가능성 높음. 대사 원문은 그대로라 음성 스크립트 영향 없음 |
+| `lib/features/workout/data/kori_feedback_lines.dart` | #38 `koriMistakeLabels`, `koriMistakeExerciseId`를 파일 끝에 추가 | 바로 앞의 `koriDemoWarningKeyByExercise`(임시 데모 경고) 삭제 | 붙어 있는 부분이라 충돌 가능. 맵 삭제 + main 추가분 유지로 해결하고, main 화면 코드가 삭제된 맵을 아직 쓰는지 확인. 대사 원문은 그대로라 음성 스크립트 영향 없음 |
 | `ios/Runner.xcodeproj/project.pbxproj` | #40 `KoriSpeaker.swift` 추가 | Halpe26 모델·평가기·트랙 E 파일 추가 | 파일 목록 충돌 가능. 양쪽 항목 다 남기고 xcodebuild로 확인 |
 
 의미상 겹침(같은 파일은 아님):
