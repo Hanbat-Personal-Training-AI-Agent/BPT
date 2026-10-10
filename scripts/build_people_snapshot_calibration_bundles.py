@@ -15,8 +15,6 @@ import json
 import pickle
 from pathlib import Path
 
-import cv2
-import h5py
 import numpy as np
 
 OPENPOSE18_TO_COCO17 = [0, 15, 14, 17, 16, 5, 2, 6, 3, 7, 4, 11, 8, 12, 9, 13, 10]
@@ -24,7 +22,13 @@ VIEWS = (("front", 0), ("rightfront", 60), ("back", 180), ("leftfront", -60))
 
 
 def rodrigues(axis_angle):
-    return cv2.Rodrigues(np.asarray(axis_angle, dtype=np.float64))[0]
+    v = np.asarray(axis_angle, dtype=np.float64)
+    angle = np.linalg.norm(v)
+    if angle < 1e-12:
+        return np.eye(3)
+    k = v / angle
+    K = np.array([[0, -k[2], k[1]], [k[2], 0, -k[0]], [-k[1], k[0], 0]])
+    return np.eye(3) + np.sin(angle) * K + (1 - np.cos(angle)) * K @ K
 
 
 def yaw_deg(pose):
@@ -44,6 +48,9 @@ def pick_frames(poses):
 
 
 def build(subject_dir, out_dir):
+    import cv2  # opencv-python-headless, h5py: only for building (conda env bpt-calib)
+    import h5py
+
     name = subject_dir.name
     cam = pickle.load(open(subject_dir / "camera.pkl", "rb"), encoding="latin1")
     poses = h5py.File(subject_dir / "reconstructed_poses.hdf5")["pose"][:]
