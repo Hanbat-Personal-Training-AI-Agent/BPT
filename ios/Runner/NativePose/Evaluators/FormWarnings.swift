@@ -43,8 +43,11 @@ struct FormCommonConfig {
     var cooldownReps = 3
     /// setup_full_body: required joints missing this many frames in a row before the first rep. 임시값 — 테스트 영상으로 조정
     var setupFullBodyFrames = 45
-    /// tracking_lost: required joints missing this many frames in a row once the set has started. 임시값 — 테스트 영상으로 조정
-    var trackingLostFrames = 15
+    /// tracking_lost: required joints missing this many frames in a row (1.0 s at 30 fps) once the set
+    /// has started; never said inside a rep — deferred to the first frame after it while the loss lasts.
+    /// Halpe26 push-up hips/ankles sit around 0.22–0.30 confidence for 15–112 frames mid-rep on normal
+    /// Exercise3D sets (outputs/rep_validation/I_setup_keys.md). 임시값 — 테스트 영상으로 조정
+    var trackingLostFrames = 30
     /// Forward/back (nose x vs ear x) flips only after this many agreeing frames. 임시값 — 테스트 영상으로 조정
     var facingFlipFrames = 5
     /// onFeedback keys sent to Flutter (spoken or silent), per key, e.g. ["pushup_hip_sag", "praise_fixed"].
@@ -383,6 +386,8 @@ final class FormWarningTracker {
     private var repMetrics: [[String: Double]] = []
     private var lastRecordedFrame = Int.min
     private var missingRun = 0
+    private var repOpen = false
+    private var trackingLostSent = false
     private var lastSpokenRep: [String: Int] = [:]
     private var previousFired: Set<String> = []
     private var previousSpoken: String?
@@ -409,6 +414,8 @@ final class FormWarningTracker {
         repMetrics = []
         lastRecordedFrame = .min
         missingRun = 0
+        repOpen = false
+        trackingLostSent = false
         lastSpokenRep = [:]
         previousFired = []
         previousSpoken = nil
@@ -471,6 +478,7 @@ final class FormWarningTracker {
     }
 
     func beginRep() {
+        repOpen = true
         repFrames = []
         recordCurrentFrame()
     }
@@ -485,6 +493,7 @@ final class FormWarningTracker {
     @discardableResult
     func finishRep(repIndex: Int) -> FormRepReport {
         recordCurrentFrame()
+        repOpen = false
         let frames = repFrames
         repFrames = []
         let metrics = metrics2D(frames, isFirstRep: reports.isEmpty)
@@ -539,17 +548,23 @@ final class FormWarningTracker {
     }
 
     /// setup_full_body before the first rep, tracking_lost once the set has started: once per run of
-    /// frames missing a required joint.
+    /// frames missing a required joint. tracking_lost waits until no rep is open (an abandoned rep
+    /// stops recording frames, so it no longer counts as open).
     private func updateTracking(_ sample: FormFrameSample) {
         guard !sample.requiredOK else {
             missingRun = 0
+            trackingLostSent = false
             return
         }
         missingRun += 1
-        let started = !reports.isEmpty || lastRecordedFrame == sample.frame - 1
-        if started, missingRun == common.trackingLostFrames {
-            emit(FormFeedbackEvent(key: "tracking_lost", n: nil, silent: false))
-        } else if !started, missingRun == common.setupFullBodyFrames {
+        let inRep = repOpen && lastRecordedFrame == sample.frame - 1
+        let started = !reports.isEmpty || inRep
+        if started {
+            if missingRun >= common.trackingLostFrames, !trackingLostSent, !inRep {
+                trackingLostSent = true
+                emit(FormFeedbackEvent(key: "tracking_lost", n: nil, silent: false))
+            }
+        } else if missingRun == common.setupFullBodyFrames {
             emit(FormFeedbackEvent(key: "setup_full_body", n: nil, silent: false))
         }
     }

@@ -243,6 +243,24 @@ final class FormWarningsTests: XCTestCase {
             tracker.observe(frameIndex: f, coco17: missing, phase: "unknown")
         }
         XCTAssertEqual(tracker.drainEvents().map(\.key), ["tracking_lost"])
+
+        // Never inside a rep: a loss during an open rep waits for the rep to end, and only if it lasts.
+        tracker.observe(frameIndex: 300, coco17: sidePushUp(hipDrop: 0), phase: "top")
+        tracker.beginRep()
+        for f in 301..<(301 + tracker.common.trackingLostFrames + 10) {
+            tracker.observe(frameIndex: f, coco17: missing, phase: "bottom")
+            tracker.recordCurrentFrame()
+        }
+        XCTAssertEqual(tracker.drainEvents().map(\.key), [], "mid-rep: deferred")
+        tracker.finishRep(repIndex: 2)
+        _ = tracker.drainEvents()
+        tracker.observe(frameIndex: 400, coco17: missing, phase: "top")
+        XCTAssertEqual(tracker.drainEvents().map(\.key), ["tracking_lost"], "said right after the rep")
+        // A short loss (< trackingLostFrames) says nothing.
+        tracker.observe(frameIndex: 401, coco17: sidePushUp(hipDrop: 0), phase: "top")
+        for f in 402..<(402 + tracker.common.trackingLostFrames - 1) { tracker.observe(frameIndex: f, coco17: missing, phase: "top") }
+        tracker.observe(frameIndex: 500, coco17: sidePushUp(hipDrop: 0), phase: "top")
+        XCTAssertEqual(tracker.drainEvents().map(\.key), [])
     }
 
     func testAngleWrap() {
