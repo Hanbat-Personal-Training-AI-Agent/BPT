@@ -119,8 +119,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: RouteConstants.onboardingResult,
-        pageBuilder: (context, state) =>
-            _slidePage(state, const OnboardingResultScreen()),
+        pageBuilder: (context, state) => _slidePage(
+            state,
+            OnboardingResultScreen(
+                result: state.extra as Map<String, dynamic>?)),
       ),
       ShellRoute(
         builder: (context, state, child) => MainShell(child: child),

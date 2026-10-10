@@ -1,19 +1,23 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/route_constants.dart';
 import '../../../core/theme/app_colors.dart';
 
-/// Placeholder shell for the "체형 측정 결과 (3D)" screen shown after
-/// analysis finishes. The skeleton is a flat 2D drawing faked into looking
-/// 3D by applying a perspective Y-rotation as the user drags — there's no
-/// real 3D model or backend result wired up yet.
+/// "체형 측정 결과 (3D)": the server's real body fit (GET calibrations/jobs
+/// `done` result). The skeleton is the result's rest-pose H36M joints in 3D,
+/// rotated about the vertical axis as the user drags — not a flat drawing.
+/// Without a result nothing is drawn: no demo body.
 class OnboardingResultScreen extends StatefulWidget {
-  const OnboardingResultScreen({super.key});
+  const OnboardingResultScreen({super.key, this.result});
+
+  /// The `result` object of a `done` calibration job.
+  final Map<String, dynamic>? result;
 
   @override
-  State<OnboardingResultScreen> createState() =>
-      _OnboardingResultScreenState();
+  State<OnboardingResultScreen> createState() => _OnboardingResultScreenState();
 }
 
 class _OnboardingResultScreenState extends State<OnboardingResultScreen> {
@@ -21,6 +25,8 @@ class _OnboardingResultScreenState extends State<OnboardingResultScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final joints = BodyJoints.fromResult(widget.result);
+    final comment = widget.result?['coachComment'];
     return Theme(
       data: ThemeData.dark().copyWith(
         textTheme: ThemeData.dark().textTheme.apply(fontFamily: 'Pretendard'),
@@ -39,8 +45,8 @@ class _OnboardingResultScreenState extends State<OnboardingResultScreen> {
                   child: Stack(
                     alignment: Alignment.center,
                     children: [
-                      const Text('측정 끝!',
-                          style: TextStyle(
+                      Text(joints == null ? '체형 결과 없음' : '측정 끝!',
+                          style: const TextStyle(
                               color: AppColors.white,
                               fontSize: 17,
                               fontWeight: FontWeight.w800)),
@@ -49,8 +55,7 @@ class _OnboardingResultScreenState extends State<OnboardingResultScreen> {
                         child: GestureDetector(
                           onTap: () =>
                               ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content: Text('공유 기능은 아직 준비 중이야.')),
+                            const SnackBar(content: Text('공유 기능은 아직 준비 중이야.')),
                           ),
                           child: const Text('공유',
                               style: TextStyle(
@@ -82,69 +87,76 @@ class _OnboardingResultScreenState extends State<OnboardingResultScreen> {
                                   fontWeight: FontWeight.w700,
                                   letterSpacing: 1)),
                         ),
-                        Center(
-                          child: GestureDetector(
-                            onHorizontalDragUpdate: (details) => setState(
-                                () => _angle += details.delta.dx * 0.012),
-                            child: Transform(
-                              alignment: Alignment.center,
-                              transform: Matrix4.identity()
-                                ..setEntry(3, 2, 0.0009)
-                                ..rotateY(_angle),
+                        if (joints == null)
+                          const Center(
+                            child: Text(
+                              '아직 분석 결과가 없어요.\n사진 4장을 전송하고 분석이 끝나면 볼 수 있어요.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(height: 1.5),
+                            ),
+                          )
+                        else ...[
+                          Center(
+                            child: GestureDetector(
+                              key: const Key('body-3d'),
+                              onHorizontalDragUpdate: (details) => setState(
+                                  () => _angle += details.delta.dx * 0.012),
                               child: SizedBox(
-                                width: 180,
-                                height: 320,
+                                width: 220,
+                                height: 340,
                                 child: CustomPaint(
-                                  painter: _ResultSkeletonPainter(),
+                                  painter: BodySkeletonPainter(joints, _angle),
                                 ),
                               ),
                             ),
                           ),
-                        ),
-                        Align(
-                          alignment: Alignment.bottomCenter,
-                          child: Padding(
-                            padding: const EdgeInsets.only(bottom: 8),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 16, vertical: 10),
-                              decoration: BoxDecoration(
-                                color: Colors.black54,
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: const Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(Icons.refresh_rounded,
-                                      color: AppColors.white, size: 16),
-                                  SizedBox(width: 6),
-                                  Text('드래그해서 360° 돌려봐',
-                                      style: TextStyle(
-                                          color: AppColors.white,
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w600)),
-                                ],
+                          Align(
+                            alignment: Alignment.bottomCenter,
+                            child: Padding(
+                              padding: const EdgeInsets.only(bottom: 8),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 16, vertical: 10),
+                                decoration: BoxDecoration(
+                                  color: Colors.black54,
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.refresh_rounded,
+                                        color: AppColors.white, size: 16),
+                                    SizedBox(width: 6),
+                                    Text('드래그해서 360° 돌려봐',
+                                        style: TextStyle(
+                                            color: AppColors.white,
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w600)),
+                                  ],
+                                ),
                               ),
                             ),
                           ),
-                        ),
+                        ],
                       ],
                     ),
                   ),
                 ),
                 const SizedBox(height: 16),
-                const Row(
-                  children: [
-                    Expanded(child: _DoneChip(label: '정면')),
-                    SizedBox(width: 10),
-                    Expanded(child: _DoneChip(label: '왼쪽')),
-                    SizedBox(width: 10),
-                    Expanded(child: _DoneChip(label: '뒷면')),
-                    SizedBox(width: 10),
-                    Expanded(child: _DoneChip(label: '오른쪽')),
-                  ],
-                ),
-                const SizedBox(height: 16),
+                if (joints != null) ...[
+                  const Row(
+                    children: [
+                      Expanded(child: _DoneChip(label: '정면')),
+                      SizedBox(width: 10),
+                      Expanded(child: _DoneChip(label: '왼쪽')),
+                      SizedBox(width: 10),
+                      Expanded(child: _DoneChip(label: '뒷면')),
+                      SizedBox(width: 10),
+                      Expanded(child: _DoneChip(label: '오른쪽')),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                ],
                 Container(
                   width: double.infinity,
                   padding:
@@ -163,9 +175,14 @@ class _OnboardingResultScreenState extends State<OnboardingResultScreen> {
                         excludeFromSemantics: true,
                       ),
                       const SizedBox(width: 12),
-                      const Expanded(
-                        child: Text('이 체형 정보로 앞으로 자세를\n더 정확하게 봐줄게!',
-                            style: TextStyle(
+                      Expanded(
+                        child: Text(
+                            comment is String && comment.isNotEmpty
+                                ? comment
+                                : joints == null
+                                    ? '체형을 측정하면 자세를\n더 정확하게 봐줄게!'
+                                    : '이 체형 정보로 앞으로 자세를\n더 정확하게 봐줄게!',
+                            style: const TextStyle(
                                 color: AppColors.black,
                                 fontWeight: FontWeight.w800,
                                 fontSize: 14,
@@ -230,69 +247,92 @@ class _DoneChip extends StatelessWidget {
       );
 }
 
-/// Flat stick-figure body outline, drawn once and then faked into 3D by
-/// the caller's [Transform] + drag handling.
-class _ResultSkeletonPainter extends CustomPainter {
+/// The result's `jointsH36m`: 17 rest-pose joints in metres, SMPL axes
+/// (x = the person's left, y = up, z = forward).
+class BodyJoints {
+  BodyJoints(this.positions);
+  final List<List<double>> positions;
+
+  /// H36M parents (server body.H36M_PARENTS): pelvis is the root.
+  static const parents = [
+    -1,
+    0,
+    1,
+    2,
+    0,
+    4,
+    5,
+    0,
+    7,
+    8,
+    9,
+    8,
+    11,
+    12,
+    8,
+    14,
+    15
+  ];
+  static const head = 10;
+
+  static BodyJoints? fromResult(Map<String, dynamic>? result) {
+    final joints = result?['jointsH36m'];
+    final positions = joints is Map ? joints['positions'] : null;
+    if (result?['stub'] != false ||
+        positions is! List ||
+        positions.length != 17 ||
+        positions.any((p) =>
+            p is! List ||
+            p.length != 3 ||
+            p.any((v) => v is! num || !v.isFinite))) {
+      return null;
+    }
+    return BodyJoints([
+      for (final p in positions)
+        [for (final v in p as List) (v as num).toDouble()]
+    ]);
+  }
+
+  /// Screen points after turning the body by [angle] about the vertical axis,
+  /// fitted into [size] with the same scale at every angle (height fills 90%).
+  List<Offset> project(double angle, Size size) {
+    final ys = positions.map((p) => p[1]);
+    final top = ys.reduce(math.max), bottom = ys.reduce(math.min);
+    // The head joint sits below the crown; leave room for the head circle.
+    final scale = size.height * 0.8 / (top - bottom);
+    final c = math.cos(angle), s = math.sin(angle);
+    return [
+      for (final p in positions)
+        Offset(size.width / 2 + (p[0] * c + p[2] * s) * scale,
+            size.height * 0.92 - (p[1] - bottom) * scale)
+    ];
+  }
+}
+
+class BodySkeletonPainter extends CustomPainter {
+  BodySkeletonPainter(this.joints, this.angle);
+  final BodyJoints joints;
+  final double angle;
+
   @override
   void paint(Canvas canvas, Size size) {
-    final w = size.width;
-    final h = size.height;
-
-    Offset p(double fx, double fy) => Offset(fx * w, fy * h);
-
-    final headCenter = p(0.5, 0.12);
-    final headRadius = h * 0.07;
-    final neck = Offset(headCenter.dx, headCenter.dy + headRadius);
-    final leftShoulder = p(0.28, 0.28);
-    final rightShoulder = p(0.72, 0.28);
-    final leftHip = p(0.34, 0.55);
-    final rightHip = p(0.66, 0.55);
-    final leftKnee = p(0.32, 0.76);
-    final rightKnee = p(0.68, 0.76);
-    final leftAnkle = p(0.30, 0.98);
-    final rightAnkle = p(0.70, 0.98);
-    final hipCenter = Offset(
-        (leftHip.dx + rightHip.dx) / 2, (leftHip.dy + rightHip.dy) / 2);
-
+    final points = joints.project(angle, size);
     final line = Paint()
       ..color = AppColors.green
       ..style = PaintingStyle.stroke
       ..strokeWidth = 4
       ..strokeCap = StrokeCap.round;
-
-    canvas.drawCircle(headCenter, headRadius, line);
-    canvas.drawLine(neck, hipCenter, line);
-    canvas.drawLine(leftShoulder, rightShoulder, line);
-    canvas.drawLine(leftShoulder, leftHip, line);
-    canvas.drawLine(rightShoulder, rightHip, line);
-    canvas.drawLine(leftHip, rightHip, line);
-    canvas.drawLine(leftHip, leftKnee, line);
-    canvas.drawLine(leftKnee, leftAnkle, line);
-    canvas.drawLine(rightHip, rightKnee, line);
-    canvas.drawLine(rightKnee, rightAnkle, line);
-
-    final joint = Paint()..color = AppColors.white;
-    for (final j in [
-      leftShoulder,
-      rightShoulder,
-      leftHip,
-      rightHip,
-      leftKnee,
-      rightKnee,
-    ]) {
-      canvas.drawCircle(j, 5, joint);
+    for (var i = 1; i < points.length; i++) {
+      canvas.drawLine(points[BodyJoints.parents[i]], points[i], line);
     }
-
-    final glow = Paint()
-      ..color = AppColors.green.withValues(alpha: 0.25)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 18);
-    canvas.drawOval(
-      Rect.fromCenter(
-          center: Offset(w / 2, h * 0.985), width: w * 0.6, height: h * 0.03),
-      glow,
-    );
+    canvas.drawCircle(points[BodyJoints.head], size.height * 0.05, line);
+    final joint = Paint()..color = AppColors.white;
+    for (final p in points) {
+      canvas.drawCircle(p, 4, joint);
+    }
   }
 
   @override
-  bool shouldRepaint(covariant _ResultSkeletonPainter oldDelegate) => false;
+  bool shouldRepaint(covariant BodySkeletonPainter oldDelegate) =>
+      oldDelegate.angle != angle || oldDelegate.joints != joints;
 }
