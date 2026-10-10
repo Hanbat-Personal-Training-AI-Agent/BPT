@@ -162,6 +162,7 @@ for video in videos {
     var imageWidth = 0, imageHeight = 0
     var cropTracker = RTMPoseCropTracker()
     var fullFrameInputs = 0
+    var rechecks = 0, switches = 0
     var poseSeconds = 0.0
     while let sampleBuffer = output.copyNextSampleBuffer() {
         guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { continue }
@@ -181,7 +182,13 @@ for video in videos {
             simccX: prediction.featureValue(for: "simcc_x")!.multiArrayValue!,
             simccY: prediction.featureValue(for: "simcc_y")!.multiArrayValue!)
         let coco17 = PoseCoordinateTransforms.applyInverseAffine(decoded: decoded, inverseAffine: back)
-        if personCrop { cropTracker.update(coco17) }
+        if personCrop {
+            cropTracker.update(coco17)
+            if cropTracker.wholeFrameRecheckDue {  // same extra pass as CameraPosePreview
+                rechecks += 1
+                if try cropTracker.recheckWholeFrame(cgImage, model: model, workspace: workspace) { switches += 1 }
+            }
+        }
         poseSeconds += Date().timeIntervalSince(poseStart)
         coco17Frames.append(coco17)
         extraFrames.append(zip(decoded.extraInputCoordinates, decoded.extraConfidences).map { point, confidence in
@@ -270,6 +277,8 @@ for video in videos {
         "ready_pose": readyPosePreset ? "preset" : "off",
         "input": personCrop ? "crop" : "full",
         "full_frame_inputs": fullFrameInputs,
+        "whole_frame_rechecks": rechecks,
+        "person_switches": switches,
         "pose_ms_per_frame": coco17Frames.isEmpty ? 0 : poseSeconds * 1000 / Double(coco17Frames.count),
         "frames": coco17Frames.count,
         "image_size": [imageWidth, imageHeight],
@@ -289,7 +298,7 @@ for video in videos {
     try csv.write(to: outputDir.appendingPathComponent("\(base).csv"), atomically: true, encoding: .utf8)
 
     print("== \(name) exercise=\(exercise.rawValue) model=\(poseModel) frames=\(coco17Frames.count) reps=\(rep) "
-          + "input=\(personCrop ? "crop" : "full") full_frame_inputs=\(fullFrameInputs) "
+          + "input=\(personCrop ? "crop" : "full") full_frame_inputs=\(fullFrameInputs) switches=\(switches)/\(rechecks) "
           + "3d=\(motion3D != nil) bad3d=\(tracker.sessionBad3DFrames)/\(tracker.sessionFrames3D)")
     print("  transitions: " + transitions.joined(separator: " "))
     for report in tracker.reports {

@@ -66,6 +66,49 @@ final class RTMPoseCropInputTests: XCTestCase {
         XCTAssertNil(tracker.crop)
     }
 
+    // MARK: - Wrong-person recheck
+
+    /// Standing bystander (person(): 200×600 box) vs the user lying on the floor (880×300 box, 2.2× the area).
+    private func lyingUser(confidence: Double = 0.9) -> [PoseKeypoint] {
+        (0..<17).map { j in PoseKeypoint(x: 100 + Double(j) * 55, y: 1300 + Double(j % 4) * 100, confidence: confidence) }
+    }
+
+    func testRecheckIsDueEveryIntervalOfTrackedFrames() {
+        var tracker = RTMPoseCropTracker()
+        tracker.recheckInterval = 3
+        XCTAssertFalse(tracker.wholeFrameRecheckDue, "nothing tracked yet: the whole frame already runs")
+        tracker.update(person())
+        tracker.update(person())
+        XCTAssertFalse(tracker.wholeFrameRecheckDue)
+        tracker.update(person())
+        XCTAssertTrue(tracker.wholeFrameRecheckDue)
+        tracker.offerWholeFrame(person(confidence: 0.1))  // nobody found: keep tracking, restart the count
+        XCTAssertFalse(tracker.wholeFrameRecheckDue)
+        XCTAssertNotNil(tracker.crop)
+    }
+
+    func testRecheckSwitchesFromBystanderToClearlyBiggerPersonElsewhere() throws {
+        var tracker = RTMPoseCropTracker()
+        tracker.update(person())
+        let bystander = try XCTUnwrap(tracker.crop)
+        XCTAssertTrue(tracker.offerWholeFrame(lyingUser()))
+        let crop = try XCTUnwrap(tracker.crop)
+        XCTAssertNotEqual(crop, bystander)
+        for p in lyingUser() { XCTAssertTrue(crop.contains(CGPoint(x: p.x, y: p.y))) }
+        XCTAssertEqual(crop.width / crop.height, 0.75, accuracy: 1e-9)
+    }
+
+    func testRecheckKeepsTrackedPersonWhenWholeFrameSeesTheSameOrASmallerOne() throws {
+        var tracker = RTMPoseCropTracker()
+        tracker.update(lyingUser())
+        let user = try XCTUnwrap(tracker.crop)
+        // Same person, stretched input jitter: overlaps → kept.
+        XCTAssertFalse(tracker.offerWholeFrame(lyingUser().map { PoseKeypoint(x: $0.x + 20, y: $0.y - 15, confidence: $0.confidence) }))
+        // Smaller bystander elsewhere → kept.
+        XCTAssertFalse(tracker.offerWholeFrame(person()))
+        XCTAssertEqual(tracker.crop, user)
+    }
+
     // MARK: - Pixels and coordinates
 
     /// Black 1080×1920 frame with one white 10×10 square whose top-left is (x, y).
