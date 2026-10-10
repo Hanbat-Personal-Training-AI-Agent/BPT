@@ -28,6 +28,10 @@ AI 쪽 작업(캘리브레이션 서버, 2D/3D 포즈, 자세 경고, 렙 카운
 **평가 도구**
 - `scripts/eval_side_videos.py` + `data/side_videos/labels_template.csv`: 직접 찍은 영상으로 렙 정확도, 측면 비율 분포, 경고 발생률, 셋업 키 집계
 
+**음성·문서**
+- `scripts/generate_kori_voice.py`: ElevenLabs로 코리 음성 mp3 생성(운동 28키 + 숫자 1..20, 캘리브레이션 27줄 = 188파일, 5,623자). 대사는 dart/Swift 원문을 파싱, 키는 환경변수만, `--dry-run`. 이름 규칙 `docs/handoff/kori_voice.md`
+- `docs/decisions.md`(결정 기록), `docs/results/summary.md`(발표용 결과표), `docs/handoff/security_followup.md`(JWT 교체·HTTPS·테스트 토큰 정리 체크리스트, 실행 안 함), `docs/progress/`
+
 ## 기본 꺼짐(플래그)
 | 항목 | 기본 | 비고 |
 |---|---|---|
@@ -54,7 +58,7 @@ AI 쪽 작업(캘리브레이션 서버, 2D/3D 포즈, 자세 경고, 렙 카운
 
 ## 테스트
 - `swift test --package-path ios/CalibrationEngineKit`: 57 통과
-- `pytest tests/`: 160 통과
+- `pytest tests/`: 163 통과
 - 서버 `pytest tests` (server/calibration_modal): 68 통과, 1 건너뜀
 - `flutter test`: 67 통과
 - `xcodebuild` Runner, iOS Simulator Debug, `CODE_SIGNING_ALLOWED=NO`: 성공
