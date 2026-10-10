@@ -19,24 +19,13 @@ import os
 import subprocess
 
 from eval_pose2d import GT_JSON, MAIN
+from pose_feedback.body.pose2d_data import match_reps as match
 
 EXERCISE = {'squat': 'squat', 'pushup': 'pushup', 'barbellrow': 'row'}
 DUMMIES = sorted(glob.glob(str(MAIN / 'outputs/calibration_dummy_videos/dummy_0*.mp4')))
 SQUAT_03 = MAIN / 'assets/coreml_pipeline/videos/squat_03.mp4'
 # Shared lock per video so other tracks' builds/tests interleave (BRIEF coordination protocol).
 HEAVY = os.environ.get('BPT_HEAVY_SH')
-
-
-def match(troughs, ends):
-    credited, extra, last = {}, [], -1
-    for i, e in enumerate(ends):
-        cand = [k for k, t in enumerate(troughs) if t <= e + 5 and k > last]
-        if cand:
-            last = cand[-1]
-            credited[last] = i
-        else:
-            extra.append(i)
-    return credited, extra
 
 
 def run(binary, model, model_path, exercise, video, out):

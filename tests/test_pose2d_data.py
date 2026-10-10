@@ -2,7 +2,7 @@ import numpy as np
 
 from pose_feedback.body.pose2d_data import (
     FLIP_PERM, INPUT_H, INPUT_W, apply_affine, box_to_center_scale, crop_affine, decode_simcc, flip_keypoints,
-    invert_affine, pck, project_fit3d, simcc_targets,
+    invert_affine, match_reps, pck, project_fit3d, simcc_targets,
 )
 
 
@@ -68,3 +68,14 @@ def test_pck_counts_only_valid_joints_within_alpha_box():
     gt = np.zeros((1, 3, 2))
     pred = np.array([[[4, 0], [6, 0], [100, 0]]], float)
     assert pck(pred, gt, [[True, True, False]], [100], 0.05) == 0.5
+
+
+def test_match_reps_counts_missed_and_extra():
+    troughs = [100, 200, 300]
+    # rep ending before any trough = extra; the 300 trough is never reached = missed;
+    # a late rep credits the latest trough so one rep covering two troughs misses one
+    credited, extra = match_reps(troughs, [50, 210])
+    assert credited == {1: 1} and extra == [0]
+    assert len(troughs) - len(credited) == 2
+    credited, extra = match_reps(troughs, [104, 205, 298])  # within 5-frame slack
+    assert credited == {0: 0, 1: 1, 2: 2} and extra == []

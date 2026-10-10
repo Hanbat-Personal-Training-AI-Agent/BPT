@@ -125,3 +125,18 @@ def flip_keypoints(keypoints, width, pairs=FLIP_PAIRS):
     for a, b in pairs:
         kp[[a, b]] = kp[[b, a]]
     return kp
+
+
+def match_reps(troughs, ends, slack=5):
+    """outputs/rep_validation/analyze.py matching: each app rep end (in order) credits the latest
+    uncredited truth trough at or before end + slack that comes after the previously credited one.
+    Returns ({trough index: rep index}, [unmatched rep indices]); missed = len(troughs) - len(credited)."""
+    credited, extra, last = {}, [], -1
+    for i, e in enumerate(ends):
+        cand = [k for k, t in enumerate(troughs) if t <= e + slack and k > last]
+        if cand:
+            last = cand[-1]
+            credited[last] = i
+        else:
+            extra.append(i)
+    return credited, extra
