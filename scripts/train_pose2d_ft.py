@@ -3,7 +3,8 @@
 Mac (MPS) only: Fit3D data must not leave this machine. Loss = mmpose KLDiscretLoss (beta 10,
 label softmax, target weights); aug = scale 0.75-1.25, rotation +-30 deg (p 0.6), shift, flip, colour; BatchNorm statistics frozen.
 Face joints 0-4: --face pseudo (current model's prediction, weight 1 where its confidence > 0.5)
-or --face zero (weight 0). Selection: lowest body-12 error on --val subjects.
+or --face zero (weight 0). --hips-shoulders pseudo keeps COCO's hip/shoulder definition (Fit3D's are
+joint centres, ~5% of the box away) by training those on the current model's prediction too. Selection: lowest body-12 error on --val subjects.
 
 usage: train_pose2d_ft.py --data DIR --train s03,s04 --val s08 --face pseudo|zero --out CKPT
 """
@@ -26,14 +27,22 @@ from pose_feedback.body.pose2d_data import (
 FACE_CONF = 0.5
 
 
-def load_split(data, subjects, face):
+HIPS_SHOULDERS = [5, 6, 11, 12]
+
+
+def load_split(data, subjects, face, hips_shoulders='fit3d'):
     items = []
     for s in subjects:
         d = np.load(f'{data}/{s}/labels.npz')
         kp = d['keypoints'].copy()
         w = np.ones((len(kp), 17), np.float32)
-        kp[:, :5] = d['face']
-        w[:, :5] = (d['face_conf'] > FACE_CONF) if face == 'pseudo' else 0
+        kp[:, :5] = d['pseudo'][:, :5]
+        w[:, :5] = (d['pseudo_conf'][:, :5] > FACE_CONF) if face == 'pseudo' else 0
+        if hips_shoulders == 'pseudo':
+            kp[:, HIPS_SHOULDERS] = d['pseudo'][:, HIPS_SHOULDERS]
+            w[:, HIPS_SHOULDERS] = d['pseudo_conf'][:, HIPS_SHOULDERS] > FACE_CONF
+        if 'weights' in d:  # COCO replay: only labelled joints
+            w *= d['weights']
         items += [(f'{data}/{s}/{n}', k, ww) for n, k, ww in zip(d['names'], kp, w)]
     return items
 
@@ -100,6 +109,7 @@ def main():
     ap.add_argument('--train', required=True)
     ap.add_argument('--val', required=True)
     ap.add_argument('--face', choices=('pseudo', 'zero'), default='pseudo')
+    ap.add_argument('--hips-shoulders', choices=('fit3d', 'pseudo'), default='fit3d')
     ap.add_argument('--variant', default='coco17')
     ap.add_argument('--epochs', type=int, default=8)
     ap.add_argument('--lr', type=float, default=1e-4)
@@ -108,8 +118,8 @@ def main():
     a = ap.parse_args()
     torch.manual_seed(0)
     rng = np.random.default_rng(0)
-    train = load_split(a.data, a.train.split(','), a.face)
-    val = load_split(a.data, a.val.split(','), a.face)[::3]
+    train = load_split(a.data, a.train.split(','), a.face, a.hips_shoulders)
+    val = load_split(a.data, a.val.split(','), a.face, a.hips_shoulders)[::3]
     model = load_model(a.variant)
     opt = torch.optim.AdamW(model.parameters(), lr=a.lr, weight_decay=0.05)
     steps = a.epochs * ((len(train) + a.bs - 1) // a.bs)

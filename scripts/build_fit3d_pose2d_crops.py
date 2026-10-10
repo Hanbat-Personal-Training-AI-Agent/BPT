@@ -2,9 +2,9 @@
 
 Per sampled frame: a loose square crop around the projected joints (box padded 1.6, longer side
 resized to 320 px, JPEG) + COCO17 keypoints in crop pixels. Body joints 5-16 come from Fit3D mocap
-(projected with the distorted camera model); face joints 0-4 have no Fit3D counterpart and are stored
-as pseudo labels from the current app model (RTMPose-s COCO17) on the standard 1.25 crop, with
-its confidence, so the trainer can pick pseudo vs zero weight.
+(projected with the distorted camera model). All 17 joints are also stored as pseudo labels from the
+current app model (RTMPose-s COCO17) on the standard 1.25 crop, with confidence: face joints 0-4 have
+no Fit3D counterpart, and hips/shoulders are Fit3D joint centres (a different definition from COCO's).
 
 usage: build_fit3d_pose2d_crops.py --subjects s03,s04 --out DIR [--stride 5]
 """
@@ -40,7 +40,7 @@ def main():
         if os.path.exists(f'{out}/labels.npz'):
             continue
         os.makedirs(out, exist_ok=True)
-        names, kps, face, face_conf = [], [], [], []
+        names, kps, pseudo, pseudo_conf = [], [], [], []
         for video in sorted(glob.glob(f'{a.root}/{subj}/videos/*/*.mp4')):
             cam, ex = video.split('/')[-2], os.path.basename(video)[:-4]
             jf, cf = f'{a.root}/{subj}/joints3d_25/{ex}.npy', f'{a.root}/{subj}/camera_parameters/{cam}/{ex}.json'
@@ -75,10 +75,10 @@ def main():
                 continue
             pk, pc = predict(model, std_crops)
             for b, q, cf_, lm in zip(std_back, pk, pc, loose):
-                face.append(apply_affine(lm, apply_affine(b, q[:5]))); face_conf.append(cf_[:5])
+                pseudo.append(apply_affine(lm, apply_affine(b, q))); pseudo_conf.append(cf_)
             print(subj, ex, cam, len(std_crops), flush=True)
         np.savez(f'{out}/labels.npz', names=np.array(names), keypoints=np.array(kps, np.float32),
-                 face=np.array(face, np.float32), face_conf=np.array(face_conf, np.float32))
+                 pseudo=np.array(pseudo, np.float32), pseudo_conf=np.array(pseudo_conf, np.float32))
 
 
 if __name__ == '__main__':

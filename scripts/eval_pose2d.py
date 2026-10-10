@@ -110,9 +110,9 @@ def ex3d(model, stride=15):
                     fr = frames.get(int(lab['frame_index'][t]))
                     if fr is None:
                         continue
-                    # labels are in 720-wide pixels (Sapiens run on a 720x1280 copy): similarity fit to
-                    # app keypoints over all 39 videos gives scale 1.40-1.56 around 1080/720 = 1.5, offset ~0
-                    lab_scale = fr.shape[1] / 720.0
+                    # labels are in pixels of a 1280-long-side copy (Sapiens run on 720x1280): similarity fit
+                    # to app keypoints over all 39 videos gives scale 1.40-1.56 around 1920/1280 = 1.5, offset ~0
+                    lab_scale = max(fr.shape[:2]) / 1280.0
                     k = lab['keypoints_xy'][t][SAPIENS_COCO17] * lab_scale
                     v = lab['valid_mask'][t][SAPIENS_COCO17] & (lab['confidence'][t][SAPIENS_COCO17] > 0.5)
                     box = bbox_from_points(k[5:], v[5:])
