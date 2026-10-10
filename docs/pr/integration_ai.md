@@ -22,6 +22,8 @@ AI 쪽 작업(캘리브레이션 서버, 2D/3D 포즈, 자세 경고, 렙 카운
 - 스쿼트: 빠른 하강/상승(top↔bottom 직행)도 렙 시작·종료로 인정
 - 바벨로우: 측면 판정 게이트(어깨폭 ÷ 몸통 길이 150프레임 중앙값 ≤ 0.56). 측면일 때만 휴식 자세 우선 판정, 한쪽 팔만 보여도 판정.
   측면 아니면 렙을 세지 않고 setup_side_view 안내
+- 푸시업: 측면일 때만(푸시업 전용 컷오프 1.0) top→bottom 직행도 렙 시작, 근측 팔 하나로 팔꿈치 각도(`sideViewRepFixes`, 끄면 이전 동작)
+- tracking_lost: 렙 도중에는 말하지 않고 1.0초 이상 이어지면 렙이 끝난 뒤 전달
 
 **평가 도구**
 - `scripts/eval_side_videos.py` + `data/side_videos/labels_template.csv`: 직접 찍은 영상으로 렙 정확도, 측면 비율 분포, 경고 발생률, 셋업 키 집계
@@ -44,26 +46,24 @@ AI 쪽 작업(캘리브레이션 서버, 2D/3D 포즈, 자세 경고, 렙 카운
 |---|---|---|
 | 스쿼트 | 48.8% / 38.8% | 100% / 100% |
 | 바벨로우 | 62.1% / 63.5% | 97.6% / 94.0% |
-| 푸시업 | 84.8% / 81.1% | 변경 없음 |
+| 푸시업 | 84.8% / 81.1% | 97.8% / 100% |
 
 - 진단에 안 쓴 squat_03(정답 2렙): 1/2 → 2/2
 - 움직임 없음(서서 흔들림 합성 88건, 더미 영상 6개): 추가 렙 0
 - 후면 카메라 로우는 모두 측면 아님으로 판정
 
 ## 테스트
-- `swift test --package-path ios/CalibrationEngineKit`: 56 통과
-- `pytest tests/`: 157 통과
+- `swift test --package-path ios/CalibrationEngineKit`: 57 통과
+- `pytest tests/`: 160 통과
 - 서버 `pytest tests` (server/calibration_modal): 68 통과, 1 건너뜀
 - `flutter test`: 67 통과
 - `xcodebuild` Runner, iOS Simulator Debug, `CODE_SIGNING_ALLOWED=NO`: 성공
 
 ## 알려진 한계
-- **푸시업 렙 정확도**: 측면에서 COCO17 84.8%, Halpe26 81.1%. 원측 팔 혼입과 빠른 하강이 원인.
-  후보(근측 팔만 사용 + top→bottom 시작)는 분석만 했고 미반영(outputs/rep_validation/H_pushup_failures.md).
+- **푸시업 측면 컷오프 1.0**은 Exercise3D에서 40°와 48°를 가르지 못함(48°도 측면으로 판정). 정면(70°+)만 확실히 걸러짐.
 - **Fit3D에 측면 카메라 없음**(전부 58–74° 사선): 측면 정확도 검증에는 못 쓰고 회귀 확인만 함.
 - **측면 컷오프 0.56은 40° 근처에서 미검증**: 데이터가 20–36°와 76–81°뿐이라 0.51–0.66 사이 어떤 값이든 같은 결과.
   주말 촬영 영상(0/30/40°, 정면·후면)으로 확인 예정.
-- Exercise3D 푸시업 Halpe26에서 `tracking_lost`가 렙 도중 6회 울림(정상 수행 데이터).
 - 준비 자세 확인은 Exercise3D처럼 바로 시작하는 세트에서 렙을 잃어 기본 꺼짐.
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
