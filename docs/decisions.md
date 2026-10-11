@@ -132,7 +132,7 @@
   - 연결 방법(팀원 코드라 직접 안 고침): `KoriSpeaker.speak`에서 `cache[text]` 확인 전에 `manifest[text]` 번들 파일을 재생. 캘리브레이션은 문장이 전부 고정이라 27줄 모두 파일로 커버 → 캘리브레이션은 네트워크 불필요.
   - 출시/외부 배포 빌드에서는 앱 번들의 키를 빼고(실시간 끔) 파일 + 기기 TTS만 쓰거나, 서버(Modal 등)를 거쳐 합성하는 것을 권장.
 - **기각**: (a) 실시간만 — 위 지연·오프라인·키 노출. (b) 파일만 — 영어·21렙 이상 숫자 등 빈칸이 생김(그 부분은 기기 TTS로 충분할 수도 있음, 추정).
-- **같이 정해야 할 것(충돌)**: main #40의 Flutter `_speakFeedback`(onFeedback 때 `KoriVoiceService.speak`)과 트랙 E의 네이티브 WorkoutVoice(onFeedback 답으로 받은 대사를 말함)가 합쳐지면 **같은 대사를 두 번 말함**. main 병합 때 하나만 남겨야 함 — 음소거(`setVoiceMuted`)·대기열·★ 끊기 규칙이 있는 WorkoutVoice를 남기고 그 재생 엔진으로 KoriSpeaker(파일→실시간→기기 TTS)를 쓰는 것을 제안.
+- **같이 정해야 할 것(충돌)**: 트랙 E 설계(E7)상 WorkoutVoice는 Flutter가 onFeedback에 대사를 답할 때만 말하므로, main 코드 그대로(답 null)나 integration 코드 그대로(Flutter 자체 TTS 없음)에서는 이중 재생이 없다. `native_pose_workout_screen.dart`를 수동 병합하면서 main #40의 `_speakFeedback`과 integration의 답 반환을 **둘 다 남기면** 같은 대사를 두 번 말한다 → 한쪽 선택. E7 (a)안(WorkoutVoice 유지 + 음원 엔진을 KoriSpeaker로, Flutter `_speakFeedback` 제거)에 동의하며, 그 엔진에 이 항목의 재생 순서(파일 → 실시간 → 기기 TTS)를 넣는 것을 제안.
 - **되돌리기**: 앱 쪽은 아직 반영 전. 스크립트는 독립(`--voice-id`, `--model-id`로 다른 목소리).
 
 ## 트랙 E — 앱 연결 (onFeedback·WorkoutVoice·onSetEnd·세트별 녹화) — 2026-10-10
