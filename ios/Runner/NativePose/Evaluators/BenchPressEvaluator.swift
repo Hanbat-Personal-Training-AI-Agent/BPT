@@ -5,7 +5,9 @@ struct BenchPressEvaluatorConfig {
     var topElbowAngleThreshold = 145.0
     var bottomElbowAngleThreshold = 110.0
     var validBottomElbowAngleThreshold = 125.0
-    var minRequiredElbowRange = 20.0
+    /// Adaptive top/bottom only once the elbow has moved this much. Was 20: fidgeting with the racked
+    /// bar before the set (91–126°) made 117° a "top" and counted it (Exercise3D bench).
+    var minRequiredElbowRange = 50.0
     var adaptiveTopRangeFraction = 0.75
     var adaptiveBottomRangeFraction = 0.30
     var elbowAngleDeltaThreshold = 1.5
@@ -20,6 +22,18 @@ struct BenchPressEvaluatorConfig {
     var depthWindowSize = 30
     var depthRangeReliableThreshold = 0.04
     var maxStoredRepSummaries = 100
+    /// A rep may start only after a stable top (lockout) has been seen this set. Off = the old behaviour,
+    /// where the first frames (hands on the racked bar, elbows bent) or the unrack could open a rep
+    /// (Exercise3D bench: 8 of 10 extra reps, outputs/rep_validation/K_bench_deadlift.md).
+    var repStartRequiresTop = true
+    /// The rep is counted when the top is reached, but the form tracker keeps recording this many
+    /// more frames (0.5 s at 30 fps) before judging it, so the lockout (max elbow angle) is inside the
+    /// judged frames: the top state starts at ~75% of the elbow range, well before full extension.
+    var lockoutWindowFrames = 15
+    /// Measure from one arm when only that arm's shoulder/elbow/wrist are confident. Side view hides
+    /// the far arm: on Exercise3D side push-ups (the closest RTMPose data to a lying lifter) the
+    /// both-arms gate fails on 1–76% of frames per camera (outputs/rep_validation/K_bench_deadlift.md).
+    var allowOneArm = true
 }
 
 final class BenchPressEvaluator {
@@ -73,10 +87,15 @@ final class BenchPressEvaluator {
     private var currentRepDepthSignalReliable = false
     private var completedRepCount = 0
     private(set) var completedRepSummaries: [BenchPressRepSummary] = []
+    /// setup_full_body / tracking_lost and the (off) bench_* warnings; see FormWarnings.swift.
+    let formTracker = FormWarningTracker(exercise: .benchPress)
 
     private var hadElbowExtensionDuringRep = false
     private var lastNonUnknownStableStatus: BenchPressStatus = .unknown
     private var sawBottom = false
+    private var sawTop = false
+    /// Counted rep whose form report waits for the lockout window: (rep index, frames recorded since).
+    private var pendingFormRep: (index: Int, frames: Int)?
 
     var sessionSummary: BenchPressSessionSummary {
         makeSessionSummary()
@@ -117,6 +136,9 @@ final class BenchPressEvaluator {
         hadElbowExtensionDuringRep = false
         lastNonUnknownStableStatus = .unknown
         sawBottom = false
+        sawTop = false
+        pendingFormRep = nil
+        formTracker.reset()
     }
 
     func evaluate(frameIndex: Int, coco17: [PoseKeypoint]) -> BenchPressFrameResult {
@@ -125,6 +147,7 @@ final class BenchPressEvaluator {
         let lastStable = stableStatus
         var status = updateStableStatus(rawCandidate: rawCandidate, measurements: measurements)
         updateTopBaselineIfNeeded(status: status, measurements: measurements)
+        formTracker.observe(frameIndex: frameIndex, coco17: coco17, phase: status.rawValue)
         
         let transitionedToTop = (lastStable != .top && status == .top)
         
@@ -142,6 +165,13 @@ final class BenchPressEvaluator {
 
         if status != .unknown {
             lastNonUnknownStableStatus = status
+        }
+        if repStarted {
+            formTracker.recordCurrentFrame()
+        } else if let pending = pendingFormRep, !repUpdate.done {
+            formTracker.recordCurrentFrame()
+            pendingFormRep = (pending.index, pending.frames + 1)
+            if pending.frames + 1 >= config.lockoutWindowFrames { finishPendingFormRep() }
         }
 
         let shouldComplete = shouldCompleteBenchPressRep(measurements: measurements, transitionedToTop: transitionedToTop, lastStable: lastStable)
@@ -194,7 +224,9 @@ final class BenchPressEvaluator {
     }
 
     private func computeMeasurements(coco17: [PoseKeypoint]) -> Measurements {
-        guard coco17.count == 17, jointsAreConfident(coco17) else {
+        let leftOK = coco17.count == 17 && armIsConfident(COCO17.leftShoulder, COCO17.leftElbow, COCO17.leftWrist, coco17)
+        let rightOK = coco17.count == 17 && armIsConfident(COCO17.rightShoulder, COCO17.rightElbow, COCO17.rightWrist, coco17)
+        guard leftOK && rightOK || config.allowOneArm && (leftOK || rightOK) else {
             return Measurements(
                 pressDepthNorm: nil,
                 pressDepthDeltaNorm: nil,
@@ -216,9 +248,11 @@ final class BenchPressEvaluator {
         let leftWrist = coco17[COCO17.leftWrist]
         let rightWrist = coco17[COCO17.rightWrist]
 
-        let shoulderCenter = average(leftShoulder, rightShoulder)
-        let wristCenter = average(leftWrist, rightWrist)
-        let armLength = max(averageArmLength(coco17), 1.0)
+        let shoulderCenter = leftOK && rightOK ? average(leftShoulder, rightShoulder) : leftOK ? leftShoulder : rightShoulder
+        let wristCenter = leftOK && rightOK ? average(leftWrist, rightWrist) : leftOK ? leftWrist : rightWrist
+        let leftArm = distance(leftShoulder, leftElbow) + distance(leftElbow, leftWrist)
+        let rightArm = distance(rightShoulder, rightElbow) + distance(rightElbow, rightWrist)
+        let armLength = max(leftOK && rightOK ? (leftArm + rightArm) * 0.5 : leftOK ? leftArm : rightArm, 1.0)
         let wristShoulderDeltaY = wristCenter.y - shoulderCenter.y
         provisionalMinWristShoulderDeltaY = min(provisionalMinWristShoulderDeltaY ?? wristShoulderDeltaY, wristShoulderDeltaY)
         let baseline = topWristShoulderDeltaBaseline ?? provisionalMinWristShoulderDeltaY ?? wristShoulderDeltaY
@@ -227,8 +261,8 @@ final class BenchPressEvaluator {
         updateDepthWindow(pressDepthNorm)
         let depthSignalReliable = currentDepthRange() >= config.depthRangeReliableThreshold
 
-        let leftElbowAngle = Self.angle2D(a: leftShoulder, b: leftElbow, c: leftWrist)
-        let rightElbowAngle = Self.angle2D(a: rightShoulder, b: rightElbow, c: rightWrist)
+        let leftElbowAngle = leftOK ? Self.angle2D(a: leftShoulder, b: leftElbow, c: leftWrist) : nil
+        let rightElbowAngle = rightOK ? Self.angle2D(a: rightShoulder, b: rightElbow, c: rightWrist) : nil
         let avgElbowAngle = averageValid(leftElbowAngle, rightElbowAngle)
         updateElbowCalibrationAndEffectiveThresholds(avgElbowAngle)
         let elbowDelta = updateElbowAngleHistoryAndDelta(avgElbowAngle)
@@ -439,7 +473,11 @@ final class BenchPressEvaluator {
         measurements: Measurements,
         transitionedToTop: Bool
     ) -> (done: Bool, statusOverride: BenchPressStatus?) {
-        if status == .bottom && !repStarted {
+        if status == .top { sawTop = true }
+        let mayStart = sawTop || !config.repStartRequiresTop
+        if status == .bottom && !repStarted && mayStart {
+            finishPendingFormRep()
+            formTracker.beginRep()
             repStarted = true
             sawBottom = true
             sawLowering = true
@@ -456,7 +494,7 @@ final class BenchPressEvaluator {
             currentRepDepthSignalReliable = currentRepDepthSignalReliable || measurements.depthSignalReliable
         }
 
-        if status == .lowering && (previousStatus == .top || previousStatus == .unknown) {
+        if status == .lowering && (previousStatus == .top || previousStatus == .unknown) && mayStart {
             startRep(frameIndex: frameIndex)
         }
 
@@ -513,6 +551,8 @@ final class BenchPressEvaluator {
     }
 
     private func startRep(frameIndex: Int) {
+        finishPendingFormRep()
+        formTracker.beginRep()
         repStarted = true
         sawLowering = true
         sawPressing = false
@@ -594,11 +634,23 @@ final class BenchPressEvaluator {
         )
         completedRepSummaries.append(summary)
         trimCompletedRepSummaries()
+        pendingFormRep = (completedRepCount, 0)
+        if config.lockoutWindowFrames <= 0 { finishPendingFormRep() }
         let minElbowText = currentRepMinElbowAngleDegrees.map { String(format: "%.1f", $0) } ?? "-"
         let depthText = currentRepMaxDepthNorm.map { String(format: "%.3f", $0) } ?? "-"
         print("Bench press rep completed: rep=\(completedRepCount) frame=\(frameIndex) maxDepth=\(depthText) minElbow=\(minElbowText) done=true")
         resetCurrentRep()
         return true
+    }
+
+    /// Judges the counted rep (its frames + the lockout window) and stores the warnings in its summary.
+    private func finishPendingFormRep() {
+        guard let pending = pendingFormRep else { return }
+        pendingFormRep = nil
+        let warnings = formTracker.finishRep(repIndex: pending.index).warnings
+        if let i = completedRepSummaries.lastIndex(where: { $0.repIndex == pending.index }) {
+            completedRepSummaries[i].warnings = warnings
+        }
     }
 
     private func resetCurrentRep() {
@@ -631,17 +683,8 @@ final class BenchPressEvaluator {
         )
     }
 
-    private func jointsAreConfident(_ coco17: [PoseKeypoint]) -> Bool {
-        [
-            COCO17.leftShoulder,
-            COCO17.rightShoulder,
-            COCO17.leftElbow,
-            COCO17.rightElbow,
-            COCO17.leftWrist,
-            COCO17.rightWrist,
-        ].allSatisfy { index in
-            coco17.indices.contains(index) && coco17[index].confidence >= config.benchPressMinJointConfidence
-        }
+    private func armIsConfident(_ shoulder: Int, _ elbow: Int, _ wrist: Int, _ coco17: [PoseKeypoint]) -> Bool {
+        [shoulder, elbow, wrist].allSatisfy { coco17[$0].confidence >= config.benchPressMinJointConfidence }
     }
 
     private func updateDepthWindow(_ value: Double) {
@@ -654,14 +697,6 @@ final class BenchPressEvaluator {
     private func currentDepthRange() -> Double {
         guard let minValue = depthWindow.min(), let maxValue = depthWindow.max() else { return 0.0 }
         return maxValue - minValue
-    }
-
-    private func averageArmLength(_ coco17: [PoseKeypoint]) -> Double {
-        let left = distance(coco17[COCO17.leftShoulder], coco17[COCO17.leftElbow])
-            + distance(coco17[COCO17.leftElbow], coco17[COCO17.leftWrist])
-        let right = distance(coco17[COCO17.rightShoulder], coco17[COCO17.rightElbow])
-            + distance(coco17[COCO17.rightElbow], coco17[COCO17.rightWrist])
-        return max((left + right) * 0.5, 1.0)
     }
 
     private func updateElbowCalibrationAndEffectiveThresholds(_ angle: Double?) {

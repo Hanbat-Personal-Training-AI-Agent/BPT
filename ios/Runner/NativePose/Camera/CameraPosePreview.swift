@@ -205,6 +205,7 @@ final class CameraPoseViewModel: ObservableObject {
 
     private var formTracker: FormWarningTracker? {
         squatEvaluator?.formTracker ?? pushUpEvaluator?.formTracker ?? barbellRowEvaluator?.formTracker
+            ?? benchPressEvaluator?.formTracker ?? deadliftEvaluator?.formTracker
     }
 
     /// Every frame: forward the tracker's feedback events; after a counted rep also log its report.
@@ -389,11 +390,13 @@ final class CameraPoseViewModel: ObservableObject {
         case .deadlift:
             if let eval = deadliftEvaluator {
                 let r = eval.evaluate(frameIndex: frameIndex, coco17: rawCoco17)
+                reportForm(done: r.done)
                 return (r.status.rawValue, r.rep, r.done)
             }
         case .benchPress:
             if let eval = benchPressEvaluator {
                 let r = eval.evaluate(frameIndex: frameIndex, coco17: rawCoco17)
+                reportForm(done: r.done)
                 return (r.status.rawValue, r.rep, r.done)
             }
         case .squat:

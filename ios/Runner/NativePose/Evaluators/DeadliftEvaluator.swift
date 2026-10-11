@@ -2,7 +2,9 @@ import Foundation
 
 struct DeadliftEvaluatorConfig {
     var minJointConfidence = 0.30
-    var wristLowerShinRatio = 0.50
+    /// Bar back down = wrist below this point between knee (0) and ankle (1). Was 0.50: Exercise3D
+    /// (bar on blocks) and Fit3D side-cam pulls stop at 0.10–0.36, so no rep ever ended.
+    var wristLowerShinRatio = 0.0
     var elbowHipBlockToleranceRatio = 0.05
     var conservativeBottomProgressThreshold = 0.10
 
@@ -11,7 +13,8 @@ struct DeadliftEvaluatorConfig {
     // top/lockout = larger
     var initialBottomProgressThreshold = 0.12
     var loweringBottomProgressThreshold = 0.22
-    var topProgressThreshold = 0.28
+    /// Was 0.28: Exercise3D / Fit3D lockouts sit 0.14–0.25 leg lengths above the bottom.
+    var topProgressThreshold = 0.10
 
     // Direction thresholds
     var risingProgressDeltaThreshold = 0.006
@@ -52,6 +55,11 @@ struct DeadliftEvaluatorConfig {
     var armProxyBottomTolerance = 0.25
 
     var maxStoredRepSummaries = 100
+
+    /// A stable bottom → top step with no `rising` in between (slow or short pulls: the hip-height
+    /// range is only 0.14–0.25 leg lengths, so raw `rising` between the 0.12 bottom band and the top
+    /// rarely shows) starts the rep there. Off = such reps are never started (old behaviour).
+    var directBottomToTopStartsRep = true
 }
 
 final class DeadliftEvaluator {
@@ -163,6 +171,8 @@ final class DeadliftEvaluator {
 
     private var completedRepCount = 0
     private(set) var completedRepSummaries: [DeadliftRepSummary] = []
+    /// setup_full_body / tracking_lost and the (off) deadlift_* warnings; see FormWarnings.swift.
+    let formTracker = FormWarningTracker(exercise: .deadlift)
 
     var sessionSummary: DeadliftSessionSummary {
         makeSessionSummary()
@@ -210,6 +220,7 @@ final class DeadliftEvaluator {
 
         completedRepCount = 0
         completedRepSummaries.removeAll(keepingCapacity: true)
+        formTracker.reset()
     }
 
     func evaluate(
@@ -229,12 +240,14 @@ final class DeadliftEvaluator {
             measurements: measurements
         )
 
+        formTracker.observe(frameIndex: frameIndex, coco17: coco17, phase: status.rawValue)
         let done = updateRepState(
             frameIndex: frameIndex,
             previousStatus: previousStatus,
             status: status,
             measurements: measurements
         )
+        if repStarted { formTracker.recordCurrentFrame() }
 
         if frameIndex % 30 == 0 {
             printDebugSample(
@@ -998,6 +1011,13 @@ final class DeadliftEvaluator {
             startRep(frameIndex: frameIndex)
         }
 
+        if config.directBottomToTopStartsRep,
+           status == .top,
+           !repStarted,
+           previousStatus == .bottom || previousStatus == .unknown || previousStatus == .idle {
+            startRep(frameIndex: frameIndex)
+        }
+
         if repStarted && (status == .rising || status == .top) {
             updateCurrentRep(measurements)
         }
@@ -1071,6 +1091,7 @@ final class DeadliftEvaluator {
             return
         }
 
+        formTracker.beginRep()
         repStarted = true
         sawRising = true
         reachedTop = false
@@ -1158,7 +1179,7 @@ final class DeadliftEvaluator {
             maxLiftDepthNorm: maxProgress,
             maxHipAngleDegrees: maxHipAngle,
             maxKneeAngleDegrees: maxKneeAngle,
-            warnings: []
+            warnings: formTracker.finishRep(repIndex: completedRepCount).warnings
         )
 
         completedRepSummaries.append(summary)
