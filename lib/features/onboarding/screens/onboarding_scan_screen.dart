@@ -133,7 +133,7 @@ class _OnboardingScanScreenState extends ConsumerState<OnboardingScanScreen> {
                     fontSize: 18,
                     fontWeight: FontWeight.w900)),
             SizedBox(height: 16),
-            _HelpTip('폰은 세로로 똑바로 세워서 고정해 줘'),
+            _HelpTip('폰은 세로로 세워 고정해 줘. 바닥에 둘 땐 살짝 뒤로 기대도 돼'),
             SizedBox(height: 10),
             _HelpTip('머리부터 발끝까지 화면에 다 나오게 서 줘'),
             SizedBox(height: 10),
