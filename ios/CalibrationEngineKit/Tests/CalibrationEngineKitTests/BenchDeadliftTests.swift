@@ -142,11 +142,27 @@ final class BenchDeadliftTests: XCTestCase {
         XCTAssertEqual(FormWarningTracker.grade(of: "deadlift_lean_back"), .reference)
     }
 
+    func testDeadliftSetupFullBodyWithoutLegsAndTrackingLostAfterTheRep() {
+        let evaluator = DeadliftEvaluator()
+        var noLegs = deadliftPose(lift: 0)
+        for j in 13...16 { noLegs[j] = kp(noLegs[j].x, noLegs[j].y, 0.1) }
+        var i = 0
+        for _ in 0..<evaluator.formTracker.common.setupFullBodyFrames { _ = evaluator.evaluate(frameIndex: i, coco17: noLegs); i += 1 }
+        XCTAssertEqual(evaluator.formTracker.drainEvents().map(\.key), ["setup_full_body"])
+        // One rep, then the lower body drops out for 1.5 s: tracking_lost once.
+        for l in Array(repeating: 0.0, count: 20) + ramp(25) + Array(repeating: 1.0, count: 15) + ramp(25).reversed() + Array(repeating: 0.0, count: 20) {
+            _ = evaluator.evaluate(frameIndex: i, coco17: deadliftPose(lift: l)); i += 1
+        }
+        XCTAssertEqual(evaluator.formTracker.reports.count, 1)
+        for _ in 0..<45 { _ = evaluator.evaluate(frameIndex: i, coco17: noLegs); i += 1 }
+        XCTAssertEqual(evaluator.formTracker.drainEvents().map(\.key), ["tracking_lost"])
+    }
+
     func testBenchSetupFullBodyWhenArmsHidden() {
         let evaluator = BenchPressEvaluator()
         var hidden = benchPose(press: 1)
         for j in [7, 8, 9, 10] { hidden[j] = kp(hidden[j].x, hidden[j].y, 0.1) }
         for i in 0..<60 { _ = evaluator.evaluate(frameIndex: i, coco17: hidden) }
-        XCTAssertEqual(evaluator.formTracker.drainEvents(), [FormFeedbackEvent(key: "setup_full_body", n: nil, silent: false)])
+        XCTAssertEqual(evaluator.formTracker.drainEvents(), [FormFeedbackEvent(key: "setup_full_body", n: nil)])
     }
 }

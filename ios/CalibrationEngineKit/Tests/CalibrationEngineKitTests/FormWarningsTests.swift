@@ -123,7 +123,7 @@ final class FormWarningsTests: XCTestCase {
         // Only the enabled key is sent; pike stays log-only.
         tracker.common.enabledFeedbackKeys = ["pushup_hip_sag"]
         _ = pushUpRep(tracker, hipDrop: 70, frame: 4)
-        XCTAssertEqual(tracker.drainEvents(), [FormFeedbackEvent(key: "pushup_hip_sag", n: 2, silent: false)])
+        XCTAssertEqual(tracker.drainEvents(), [FormFeedbackEvent(key: "pushup_hip_sag", n: nil)])
         let pike = pushUpRep(tracker, hipDrop: -50, frame: 6)
         XCTAssertEqual(pike.warnings, ["pushup_hip_pike"])
         XCTAssertEqual(tracker.drainEvents(), [], "praise_fixed and pike not enabled")
@@ -141,14 +141,14 @@ final class FormWarningsTests: XCTestCase {
         let sag = pushUpRep(tracker, hipDrop: 70, frame: 2)
         XCTAssertEqual(sag.warnings, ["pushup_hip_sag"], "\(sag.metrics2D)")
         XCTAssertEqual(sag.spoken, "pushup_hip_sag")
-        XCTAssertEqual(tracker.drainEvents(), [FormFeedbackEvent(key: "pushup_hip_sag", n: 1, silent: false)])
+        XCTAssertEqual(tracker.drainEvents(), [FormFeedbackEvent(key: "pushup_hip_sag", n: nil)])
 
-        // 개선 (pike): silent the first time, and praise_fixed because the sag is gone.
+        // 개선 (pike): not said the first time, and praise_fixed because the sag is gone.
         let pike1 = pushUpRep(tracker, hipDrop: -50, frame: 4)
         XCTAssertEqual(pike1.warnings, ["pushup_hip_pike"], "\(pike1.metrics2D)")
         XCTAssertEqual(pike1.spoken, "praise_fixed")
-        XCTAssertEqual(tracker.drainEvents(), [FormFeedbackEvent(key: "praise_fixed", n: nil, silent: false),
-                                               FormFeedbackEvent(key: "pushup_hip_pike", n: 1, silent: true)])
+        XCTAssertEqual(tracker.drainEvents(), [FormFeedbackEvent(key: "praise_fixed", n: nil)],
+                       "the unchosen pike is not sent (report / set counts only)")
         // Second rep in a row: spoken.
         let pike2 = pushUpRep(tracker, hipDrop: -50, frame: 6)
         XCTAssertEqual(pike2.spoken, "pushup_hip_pike")
@@ -171,7 +171,7 @@ final class FormWarningsTests: XCTestCase {
         XCTAssertEqual(shallow.warnings, ["pushup_shallow"], "\(shallow.metrics2D)")
         _ = pushUpRep(tracker, hipDrop: 0, frame: 8, bend: 15)
         let fade = pushUpRep(tracker, hipDrop: 0, frame: 10, bend: 15)
-        XCTAssertEqual(fade.warnings, ["pushup_shallow", "pushup_depth_fade"])  // 참고: silent
+        XCTAssertEqual(fade.warnings, ["pushup_shallow", "pushup_depth_fade"])  // 참고: set end only
         XCTAssertNotEqual(fade.spoken, "pushup_depth_fade")
     }
 
@@ -261,6 +261,40 @@ final class FormWarningsTests: XCTestCase {
         for f in 402..<(402 + tracker.common.trackingLostFrames - 1) { tracker.observe(frameIndex: f, coco17: missing, phase: "top") }
         tracker.observe(frameIndex: 500, coco17: sidePushUp(hipDrop: 0), phase: "top")
         XCTAssertEqual(tracker.drainEvents().map(\.key), [])
+    }
+
+    /// 참고 keys go out once at set end (scope "set", n = reps in the set); per-set counts reset.
+    func testSetEndSummaryScope() {
+        let tracker = FormWarningTracker(exercise: .pushUp)
+        tracker.common.enabledFeedbackKeys = FormWarningTracker.allKeys
+        func rep(_ frame: Int, topBend: Double) {
+            tracker.observe(frameIndex: frame, coco17: sidePushUp(hipDrop: 0, elbowBend: topBend), phase: "top")
+            tracker.beginRep()
+            tracker.observe(frameIndex: frame + 1, coco17: sidePushUp(hipDrop: 0, elbowBend: 60), phase: "bottom")
+            tracker.recordCurrentFrame()
+            tracker.finishRep(repIndex: frame / 2 + 1)
+        }
+        for i in 0..<3 { rep(i * 2, topBend: 0) }
+        rep(6, topBend: 30)  // top elbow ≈139° vs set max 180°: no lockout
+        rep(8, topBend: 30)
+        XCTAssertEqual(tracker.reports.last?.warnings, ["pushup_no_lockout"])
+        XCTAssertEqual(tracker.drainEvents(), [], "참고 is not sent per rep")
+        let counts = tracker.endSet()
+        XCTAssertEqual(counts, ["pushup_no_lockout": 2])
+        XCTAssertEqual(tracker.drainEvents(), [FormFeedbackEvent(key: "pushup_no_lockout", n: 2, scope: .set)])
+        XCTAssertEqual(tracker.endSet(), [:], "counts are per set")
+        XCTAssertEqual(tracker.drainEvents(), [])
+        XCTAssertEqual(tracker.warningRepCounts["pushup_no_lockout"], 2, "session counts stay")
+        // Default keys: judged and counted, but nothing is sent.
+        let quiet = FormWarningTracker(exercise: .pushUp)
+        for i in 0..<3 { _ = pushUpRep(quiet, hipDrop: 0, frame: i * 2) }
+        quiet.observe(frameIndex: 6, coco17: sidePushUp(hipDrop: 0, elbowBend: 30), phase: "top")
+        quiet.beginRep()
+        quiet.observe(frameIndex: 7, coco17: sidePushUp(hipDrop: 0, elbowBend: 60), phase: "bottom")
+        quiet.recordCurrentFrame()
+        quiet.finishRep(repIndex: 4)
+        XCTAssertEqual(quiet.endSet(), ["pushup_no_lockout": 1])
+        XCTAssertEqual(quiet.drainEvents(), [])
     }
 
     func testAngleWrap() {
