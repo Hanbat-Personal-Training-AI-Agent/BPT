@@ -96,10 +96,10 @@ AI 쪽 작업(캘리브레이션 서버, 2D/3D 포즈, 사람 crop 입력, 자�
 - 후면 카메라 로우는 모두 측면 아님으로 판정
 
 ## 테스트
-- `swift test --package-path ios/CalibrationEngineKit`: 84 통과
+- `swift test --package-path ios/CalibrationEngineKit`: 86 통과
 - `pytest tests/`: 178 통과
-- 서버 `pytest tests` (server/calibration_modal): 81 통과, 1 건너뜀
-- `flutter test`: 77 통과
+- 서버 `pytest tests` (server/calibration_modal): 82 통과, 1 건너뜀
+- `flutter test`: 79 통과
 - `xcodebuild` Runner, iOS Simulator Debug, `CODE_SIGNING_ALLOWED=NO`: 성공
 
 ## main과의 차이 (병합 전 확인)
