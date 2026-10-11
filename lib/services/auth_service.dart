@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/network/api_client.dart';
 import '../models/user_model.dart';
@@ -85,12 +86,18 @@ class AuthService {
     await _apiClient.post(
       '/auth/verify-email/request',
       data: {'email': email.trim()},
+      // 서버가 메일을 다 보낸 뒤에 응답해서 3~4초 넘게 걸린다. 기본 5초로 끊으면
+      // 메일은 가는데 앱은 연결 실패로 보이므로 이 요청만 길게 기다린다.
+      options: Options(receiveTimeout: _emailSendTimeout),
     );
   }
 
+  static const Duration _emailSendTimeout = Duration(seconds: 30);
+
   /// 인증번호 확인. 응답: {"success": bool, "message": String}
   /// (예전 서버 응답의 "verified" 도 같이 받는다)
-  Future<bool> confirmEmailVerification({
+  /// [token]: 비밀번호 재설정에 쓰는 일회용 인증 토큰 (서버가 아직 안 주면 null).
+  Future<({bool verified, String? token})> confirmEmailVerification({
     required String email,
     required String code,
   }) async {
@@ -99,7 +106,30 @@ class AuthService {
       data: {'email': email.trim(), 'code': code.trim()},
     );
     final data = response.data;
-    return data is Map && (data['success'] ?? data['verified']) == true;
+    final verified =
+        data is Map && (data['success'] ?? data['verified']) == true;
+    final token = data is Map ? data['verificationToken'] : null;
+    return (verified: verified, token: token is String ? token : null);
+  }
+
+  /// 비밀번호 재설정. 아이디와 인증된 이메일이 같은 계정일 때만 바뀐다.
+  /// 아이디·이메일이 같은 계정이 아니면 서버가 404 `USER_NOT_FOUND`를 준다.
+  /// (서버 미구현 — 백엔드 요청 문서 1번 계정 찾기 API)
+  Future<void> resetPassword({
+    required String username,
+    required String email,
+    required String newPassword,
+    String? verificationToken,
+  }) async {
+    await _apiClient.post(
+      '/auth/reset-password',
+      data: {
+        'username': username.trim(),
+        'email': email.trim(),
+        if (verificationToken != null) 'verificationToken': verificationToken,
+        'newPassword': newPassword,
+      },
+    );
   }
 
   /// 온보딩에서 입력한 성별·키·몸무게·목표·주간 운동 횟수 저장

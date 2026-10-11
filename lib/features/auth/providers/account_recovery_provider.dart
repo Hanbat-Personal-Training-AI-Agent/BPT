@@ -10,6 +10,8 @@ class AccountRecoveryState {
     this.sent = false,
     this.verifying = false,
     this.verified = false,
+    this.verificationToken,
+    this.resetting = false,
     this.error,
   });
 
@@ -18,6 +20,10 @@ class AccountRecoveryState {
   final bool sent;
   final bool verifying;
   final bool verified;
+
+  /// 인증 확인 응답의 일회용 토큰. 비밀번호 재설정 요청에 같이 보낸다.
+  final String? verificationToken;
+  final bool resetting;
   final String? error;
 
   AccountRecoveryState copyWith({
@@ -25,6 +31,8 @@ class AccountRecoveryState {
     bool? sent,
     bool? verifying,
     bool? verified,
+    String? verificationToken,
+    bool? resetting,
     String? error,
   }) =>
       AccountRecoveryState(
@@ -33,6 +41,8 @@ class AccountRecoveryState {
         sent: sent ?? this.sent,
         verifying: verifying ?? this.verifying,
         verified: verified ?? this.verified,
+        verificationToken: verificationToken ?? this.verificationToken,
+        resetting: resetting ?? this.resetting,
         error: error,
       );
 }
@@ -75,16 +85,48 @@ class AccountRecoveryNotifier extends StateNotifier<AccountRecoveryState> {
     final email = state.email;
     state = state.copyWith(verifying: true);
     bool verified = false;
+    String? token;
     String? error;
     try {
-      verified = await _authService.confirmEmailVerification(
+      final result = await _authService.confirmEmailVerification(
           email: email, code: code);
+      verified = result.verified;
+      token = result.token;
       if (!verified) error = '인증 코드가 맞지 않아. 다시 확인해줘.';
     } on ApiException catch (e) {
       error = _message(e);
     }
     if (!mounted || state.email != email) return;
-    state = state.copyWith(verifying: false, verified: verified, error: error);
+    state = state.copyWith(
+        verifying: false,
+        verified: verified,
+        verificationToken: token,
+        error: error);
+  }
+
+  /// 인증된 이메일 + [username]으로 비밀번호를 바꾼다.
+  /// 실패하면 화면에 띄울 문구를, 성공하면 null을 돌려준다.
+  Future<String?> resetPassword({
+    required String username,
+    required String newPassword,
+  }) async {
+    if (!state.verified || state.resetting) return null;
+    state = state.copyWith(resetting: true, error: state.error);
+    String? error;
+    try {
+      await _authService.resetPassword(
+        username: username,
+        email: state.email,
+        newPassword: newPassword,
+        verificationToken: state.verificationToken,
+      );
+    } on ApiException catch (e) {
+      error = e.code == 'USER_NOT_FOUND'
+          ? '아이디와 이메일이 맞지 않아. 다시 확인해줘.'
+          : _message(e);
+    }
+    if (mounted) state = state.copyWith(resetting: false, error: state.error);
+    return error;
   }
 
   String _message(ApiException e) => e is NetworkException

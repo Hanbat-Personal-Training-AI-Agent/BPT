@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/route_constants.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/app_toast.dart';
 import '../providers/account_recovery_provider.dart';
 import '../widgets/auth_dark_form.dart';
 
@@ -19,10 +20,12 @@ class AccountRecoveryScreen extends ConsumerStatefulWidget {
 class _AccountRecoveryScreenState extends ConsumerState<AccountRecoveryScreen> {
   final _email = TextEditingController();
   final _code = TextEditingController();
+  final _username = TextEditingController();
   final _password = TextEditingController();
   final _confirmation = TextEditingController();
   final _emailFocus = FocusNode();
   final _codeFocus = FocusNode();
+  final _usernameFocus = FocusNode();
   final _passwordFocus = FocusNode();
   final _confirmationFocus = FocusNode();
   bool _resetMode = false;
@@ -32,12 +35,19 @@ class _AccountRecoveryScreenState extends ConsumerState<AccountRecoveryScreen> {
 
   @override
   void dispose() {
-    for (final controller in [_email, _code, _password, _confirmation]) {
+    for (final controller in [
+      _email,
+      _code,
+      _username,
+      _password,
+      _confirmation
+    ]) {
       controller.dispose();
     }
     for (final focus in [
       _emailFocus,
       _codeFocus,
+      _usernameFocus,
       _passwordFocus,
       _confirmationFocus
     ]) {
@@ -88,8 +98,14 @@ class _AccountRecoveryScreenState extends ConsumerState<AccountRecoveryScreen> {
     }
   }
 
-  void _previewReset() {
-    if (!ref.read(accountRecoveryProvider).verified) return;
+  Future<void> _resetPassword() async {
+    final state = ref.read(accountRecoveryProvider);
+    if (!state.verified || state.resetting) return;
+    if (_username.text.trim().isEmpty) {
+      _usernameFocus.requestFocus();
+      showAppToast(context, '아이디를 입력해줘.', type: AppToastType.error);
+      return;
+    }
     setState(() {
       _passwordError = _password.text.length < 6
           ? '비밀번호를 6자 이상 입력해줘.'
@@ -99,11 +115,19 @@ class _AccountRecoveryScreenState extends ConsumerState<AccountRecoveryScreen> {
     });
     if (_passwordError != null) return;
     FocusScope.of(context).unfocus();
+    final error = await ref
+        .read(accountRecoveryProvider.notifier)
+        .resetPassword(username: _username.text, newPassword: _password.text);
+    if (!mounted) return;
+    if (error != null) {
+      // 아이디·이메일이 같은 계정이 아니면 USER_NOT_FOUND → 토스트로 알린다.
+      showAppToast(context, error, type: AppToastType.error);
+      return;
+    }
     _password.clear();
     _confirmation.clear();
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-      content: Text('비밀번호 재설정은 아직 서버에서 지원하지 않아. 실제로 바뀌지 않았어.'),
-    ));
+    showAppToast(context, '비밀번호를 바꿨어. 새 비밀번호로 로그인해줘.');
+    _back();
   }
 
   @override
@@ -225,6 +249,18 @@ class _AccountRecoveryScreenState extends ConsumerState<AccountRecoveryScreen> {
           Text(state.error!,
               style: const TextStyle(color: AppColors.red, fontSize: 13)),
         ],
+        if (_resetMode) ...[
+          const SizedBox(height: 14),
+          const AuthFieldLabel('아이디'),
+          AuthTextField(
+            controller: _username,
+            focus: _usernameFocus,
+            hint: '아이디를 입력해줘',
+            // visiblePassword: iOS에서 영문(ASCII) 키보드로 열린다.
+            keyboard: TextInputType.visiblePassword,
+            formatters: idInputFormatters,
+          ),
+        ],
         const SizedBox(height: 20),
         if (!_resetMode && state.verified) _result(state),
         if (_resetMode && state.verified) ...[
@@ -261,10 +297,10 @@ class _AccountRecoveryScreenState extends ConsumerState<AccountRecoveryScreen> {
         children: [
           AuthPillButton(
             label: _resetMode ? '비밀번호 재설정하기' : '로그인하러 가기',
-            onTap: !state.verified
+            onTap: !state.verified || state.resetting
                 ? null
                 : _resetMode
-                    ? _previewReset
+                    ? _resetPassword
                     // 로그인은 아이디로만 돼서 이메일을 아이디 칸에 채워 보내지 않는다.
                     : () => _back(),
             background: AppColors.white,
