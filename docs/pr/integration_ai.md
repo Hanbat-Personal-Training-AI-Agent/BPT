@@ -22,6 +22,14 @@ AI 쪽 작업(캘리브레이션 서버, 2D/3D 포즈, 사람 crop 입력, 자�
 - RTMPose-s Halpe26 모델 추가와 모델 선택 상수(기본 COCO17, `BPT_POSE_MODEL=halpe26`으로 전환)
 - MotionAGFormer 3D: 사람 중심 정사각형 crop 입력(기본), 캘리브레이션 뼈 길이 제약, 무릎 과신전 감지("3D 불량" 표시)
 
+**3D 평가 (트랙 D, 앱 동작 변경 없음)**
+- 사선(30–75°)에서 3D 각도는 2D보다 낫지만(Fit3D 스쿼트 무릎 오차 21–36° → 7–11°) 측면 수준이 아니고 측면 스쿼트 몸통은 오히려 나빠짐 → 측면 요구 유지(D-D-01)
+- 라이브 카메라 3D는 계속 끔, 3D 지표는 경고에 안 씀(D-D-02). 사선 렙 카운트도 2D가 나음(Fit3D 스쿼트 2D 8/8, 3D 4/8, D-D-04)
+- 무릎 "3D 불량" 감지는 품질 신호로 믿지 않음(감지 유지·보정 끔, D-D-03)
+- iPhone 17 라이브 3D 비용: 30 fps 안에 들어가지만 프레임당 +17 ms(9.4 → 26.2 ms), CPU 23 → 36%(D-D-05, `tools/ios_live3d_cost`)
+- Fit3D 미세조정 MotionAGFormer-XS: 학습 안 한 피험자 MPJPE 160–163 → 50–67 mm, 사선 무릎은 크게 좋아지나 몸통은 나빠져 앱 미반영(다음 단계 1순위, D-D-06). Fit3D 학습 가중치는 비상업(캡스톤) 전용, 학습은 사용자 PC(Home GPU)
+- 도구: `scripts/count_reps_3d_vs_2d.py`, `scripts/finetune_motionagformer_fit3d.py`, 2D·3D 각도 오차 평가
+
 **자세 경고 (FormWarnings.swift)**
 - 푸시업·스쿼트·바벨로우 공통 경고 기반, 렙별 판정, 세션 로그, pose-replay 도구
 - 임계값: pushup_hip_sag 0.140, pushup_head_drop 0.376, row_torso_swing 39.9° (Exercise3D 정상 렙 p99). 나머지는 임시값
