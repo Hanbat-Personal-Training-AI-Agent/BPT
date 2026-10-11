@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/route_constants.dart';
 import '../../../core/theme/app_colors.dart';
 import '../providers/onboarding_provider.dart';
+import '../services/calibration_upload_service.dart';
 import '../widgets/calibration_silhouette.dart';
 
 /// Full-screen body calibration capture: shown after the user taps "카메라 켜기"
@@ -54,6 +55,8 @@ class _OnboardingScanScreenState extends ConsumerState<OnboardingScanScreen> {
   @override
   void initState() {
     super.initState();
+    // The GPU container starts while the user is being photographed (~65 s cold start).
+    ref.read(calibrationUploadServiceProvider).warmUp();
     CalibrationSilhouettes.load().then((value) {
       if (mounted) setState(() => _silhouettes = value);
     });
