@@ -8,6 +8,13 @@ AI 쪽 작업(캘리브레이션 서버, 2D/3D 포즈, 사람 crop 입력, 자�
 - Modal 업로드 서버 1단계: 버킷 조건부 쓰기로 접수 상태 관리, 패딩 없는 JWT secret 허용, 카메라 정보 없음 기록 접수
 - L4 GPU 체형 fitting(SAM 3D Body → MHR→SMPL 공유 β → 재투영 보정 → 키 사영), 결과 스키마
 - 재생 도구가 앱과 같은 업로드 묶음 사용
+- 계약 정리(트랙 F): 상태 값은 계약 문서의 소문자 `queued|running|done|failed` 유지, 백엔드 `UserCalibration`과 같은 이름의 필드만 추가(`progressRate`, `result.coachComment`·`calibratedAt`·`modelGlbUrl`). 팀원 인계 `docs/handoff/teammate_calibration.md`
+- 작업 감시: worker가 죽어도 `running`에 안 남음 — 조회 때 Modal 호출 상태 확인 + 접수 후 30분 기한 → `failed timeout/internal_error`, `retries=0`
+- 스텁·가짜 결과는 `done`이 될 수 없음(서버 `require_real`, 앱 `fetchJob`도 거부)
+- β≈0 수정: 재투영 보정에서 β를 움직이지 않고 MHR→SMPL 변환기 β 유지(`Fitter(refine_beta=False)`). People Snapshot 12명 팔다리 길이 오차(보류 6명) 4.16% → **2.83%** ("키만" 4.25%)
+- GLB: 서버에서 SMPL 메시를 만들어 R2에 두고 조회 때 1시간 presigned GET(`result.modelGlbUrl`, 본인만). SMPL 모델 파일은 배포 안 함(비상업 라이선스)
+- 앱 분석 화면: polling·진행률·실패 문구·결과 요약. 실제 3D 결과 화면은 팀원 파일이라 브랜치 `ai/calibration-result-screen`에만(병합 안 함)
+- 운동 3D에 캘리브레이션 뼈 길이 연결은 보류(라이브 3D 꺼짐)
 
 **포즈 (iOS NativePose)**
 - RTMPose-s Halpe26 모델 추가와 모델 선택 상수(기본 COCO17, `BPT_POSE_MODEL=halpe26`으로 전환)
@@ -80,9 +87,9 @@ AI 쪽 작업(캘리브레이션 서버, 2D/3D 포즈, 사람 crop 입력, 자�
 
 ## 테스트
 - `swift test --package-path ios/CalibrationEngineKit`: 77 통과
-- `pytest tests/`: 175 통과
-- 서버 `pytest tests` (server/calibration_modal): 68 통과, 1 건너뜀
-- `flutter test`: 70 통과
+- `pytest tests/`: 178 통과
+- 서버 `pytest tests` (server/calibration_modal): 81 통과, 1 건너뜀
+- `flutter test`: 77 통과
 - `xcodebuild` Runner, iOS Simulator Debug, `CODE_SIGNING_ALLOWED=NO`: 성공
 
 ## main과의 차이 (병합 전 확인)
@@ -100,11 +107,14 @@ integration/ai는 main보다 팀원 커밋 6개가 뒤처져 있습니다(2026-1
 - `ios/Runner/Info.plist`: main #40이 `ElevenLabsApiKey` 추가 → 빌드된 앱에 키가 평문으로 들어감(`docs/handoff/security_followup.md` 3-1). integration/ai의 ATS 설정(`NSAllowsArbitraryLoads`)과 같은 파일.
 - 백엔드: #37·#38이 세트 기록·피드백 횟수 API를 씀. 트랙 E의 `onSetEnd {videoLocalPath, worstJoint}`가 그 세트 기록에 들어가야 함(서버는 경로만 저장).
 
+- 백엔드(Spring)와: 캘리브레이션 상태 값 대소문자(서버 소문자 vs 엔티티 기본 `COMPLETED`), main 엔티티에 `coachComment` 열 없음, 결과 저장 API 없음 — 제안만(`teammate_calibration.md` 6절), 백엔드 코드는 안 고침.
+
 ## 알려진 한계
 - **푸시업 측면 컷오프 1.0**은 Exercise3D에서 40°와 48°를 가르지 못함(48°도 측면으로 판정). 정면(70°+)만 확실히 걸러짐.
 - **Fit3D에 측면 카메라 없음**(전부 58–74° 사선): 측면 정확도 검증에는 못 쓰고 회귀 확인만 함.
 - **로우 측면 컷오프 0.66(crop 입력)은 40° 근처에서 미검증**: 데이터가 20–36°와 76–81°뿐. 정면 스쿼트 영상(squat_03)의 비율이 0.64–0.67이라 정면 촬영이 측면으로 판정될 수 있음.
   주말 촬영 영상(0/30/40°, 정면·후면)으로 확인 예정.
+- 캘리브레이션 체형 평가 기준은 People Snapshot의 consensus 메시(정답 아님, 단안 추정 키)이고 실제 사용자 줄자 실측 검증은 없음.
 - 준비 자세 확인은 Exercise3D처럼 바로 시작하는 세트에서 렙을 잃어 기본 꺼짐.
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
