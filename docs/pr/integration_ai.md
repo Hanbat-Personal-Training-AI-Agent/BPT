@@ -1,6 +1,6 @@
 # integration/ai → main
 
-AI 쪽 작업(캘리브레이션 서버, 2D/3D 포즈, 자세 경고, 렙 카운트)을 main에 합친다.
+AI 쪽 작업(캘리브레이션 서버, 2D/3D 포즈, 사람 crop 입력, 자세 경고, 렙 카운트, 앱 연결·음성)을 main에 합친다.
 
 ## 변경 요약
 
@@ -8,6 +8,13 @@ AI 쪽 작업(캘리브레이션 서버, 2D/3D 포즈, 자세 경고, 렙 카운
 - Modal 업로드 서버 1단계: 버킷 조건부 쓰기로 접수 상태 관리, 패딩 없는 JWT secret 허용, 카메라 정보 없음 기록 접수
 - L4 GPU 체형 fitting(SAM 3D Body → MHR→SMPL 공유 β → 재투영 보정 → 키 사영), 결과 스키마
 - 재생 도구가 앱과 같은 업로드 묶음 사용
+- 계약 정리(트랙 F): 상태 값은 계약 문서의 소문자 `queued|running|done|failed` 유지, 백엔드 `UserCalibration`과 같은 이름의 필드만 추가(`progressRate`, `result.coachComment`·`calibratedAt`·`modelGlbUrl`). 팀원 인계 `docs/handoff/teammate_calibration.md`
+- 작업 감시: worker가 죽어도 `running`에 안 남음 — 조회 때 Modal 호출 상태 확인 + 접수 후 30분 기한 → `failed timeout/internal_error`, `retries=0`
+- 스텁·가짜 결과는 `done`이 될 수 없음(서버 `require_real`, 앱 `fetchJob`도 거부)
+- β≈0 수정: 재투영 보정에서 β를 움직이지 않고 MHR→SMPL 변환기 β 유지(`Fitter(refine_beta=False)`). People Snapshot 12명 팔다리 길이 오차(보류 6명) 4.16% → **2.83%** ("키만" 4.25%)
+- GLB: 서버에서 SMPL 메시를 만들어 R2에 두고 조회 때 1시간 presigned GET(`result.modelGlbUrl`, 본인만). SMPL 모델 파일은 배포 안 함(비상업 라이선스)
+- 앱 분석 화면: polling·진행률·실패 문구·결과 요약. 실제 3D 결과 화면은 팀원 파일이라 브랜치 `ai/calibration-result-screen`에만(병합 안 함)
+- 운동 3D에 캘리브레이션 뼈 길이 연결은 보류(라이브 3D 꺼짐)
 
 **포즈 (iOS NativePose)**
 - RTMPose-s Halpe26 모델 추가와 모델 선택 상수(기본 COCO17, `BPT_POSE_MODEL=halpe26`으로 전환)
@@ -29,6 +36,18 @@ AI 쪽 작업(캘리브레이션 서버, 2D/3D 포즈, 자세 경고, 렙 카운
 - 이전 프레임 키포인트로 사람 3:4 crop(여백 포함, 비율 유지), 놓치면 전체 프레임. 라이브 카메라·pose-replay 같은 코드(`RTMPoseCropTracker`, `PosePreprocess.drawRegion`). 끄기 `CameraPreviewOptions.personCropInput = false` / `--input full`
 - 측면 렙 정확도 푸시업 COCO17 97.8→100%, 로우 97.6/94.0→98.8/98.8%, 정지 구간 키포인트 흔들림 17–49% 감소
 - 바벨로우 측면 컷오프 0.56 → 0.66 (crop에서 측면 비율이 커짐; crop을 끄면 0.56으로 되돌림)
+- 사람 재확인: 30프레임(≈1초)마다 전체 프레임을 한 번 더 보고, 뚜렷하고(관절 12개·평균 신뢰도 0.42) 1.5배 이상 크며 crop과 30% 이하로 겹치는 다른 사람이면 옮김(추론 +3.3%). 현재 모델 수치는 그대로, 뒤에 다른 사람이 있던 영상에서 m Halpe26 푸시업 81.1→100%. 끄기 `RTMPoseCropTracker.recheckInterval = Int.max`
+
+**2D 모델 평가 도구 (트랙 C, 앱 동작 변경 없음)**
+- `scripts/eval_pose2d.py`(COCO val·Exercise3D·Fit3D PCK), `scripts/eval_pose2d_reps.py`(후보 모델 렙 정확도), `pose-replay --model-path`, 후보 Core ML 변환(`rtmpose_s_coreml_common.py`: s body7, m COCO17/body7/Halpe26), Fit3D 미세조정 도구(Mac 전용), `tools/pose_model_bench`(iPhone 지연 XCTest)
+- 결론: 기본 RTMPose-s COCO17 유지. Fit3D 미세조정 기각(독립 세트에서 나빠짐), m COCO17은 기기 속도 확인 후 후보, Halpe26 전환은 사용자 결정(decisions D-C-01–04)
+
+**앱 연결 (트랙 E)**
+- onFeedback `{key, n?, scope: "rep"|"set"}`: 참고 등급 키는 세트 끝(`endSet`)에 scope "set"으로 1번. 기본값에서 나가는 키는 그대로
+- 네이티브 WorkoutVoice: Flutter가 onFeedback에 답으로 준 대사만 말함(대사 원문은 dart에만), 우선 등급 키 끼어들기, 대기 3초 넘으면 버림, `setVoiceMuted`. 음원 `assets/kori_voice/<key>[_<n>].mp3` → 없으면 기기 TTS
+- `startSet`/`endSet` ↔ `onSetEnd {setIndex, videoLocalPath, worstJoint}`, worstJoint는 켜진 키만(지금은 null)
+- 벤치·데드: 폼 키 없이 setup_full_body·tracking_lost만
+- 세트별 녹화(720p H.264, 최근 20개) 기본 꺼짐(`BPT_SET_RECORDING=1`), perf 로그 `BPT_PERF_LOG=1`, `scripts/compare_perf_logs.py`
 
 **평가 도구**
 - `scripts/eval_side_videos.py` + `data/side_videos/labels_template.csv`: 직접 찍은 영상으로 렙 정확도, 측면 비율 분포, 경고 발생률, 셋업 키 집계
@@ -45,27 +64,32 @@ AI 쪽 작업(캘리브레이션 서버, 2D/3D 포즈, 자세 경고, 렙 카운
 | squat_heel_rise | 끔 | 지표는 기록 |
 | row_shrug | 끔 | 실험 |
 | 무릎 과신전 보정 | 끔 | 감지("3D 불량" 표시)만 켜짐 |
+| 세트별 녹화 | 끔 | `BPT_SET_RECORDING=1` 또는 UserDefaults `BPTSetRecording`. 실기기 FPS 감소 ≤10% 확인 후 켬 |
+| (켜짐) 사람 3:4 crop 입력 | 켬 | 끄기 `CameraPreviewOptions.personCropInput = false` — 끄면 로우 컷오프도 0.56으로 |
 
 ## 기본으로 켜진 키
 - 모든 운동: `setup_full_body`, `tracking_lost`
 - 바벨로우만: `setup_side_view` (측면 아님 판정 시 첫 렙 전 세션당 1회)
 
 ## 검증 (Exercise3D, 측면 ±40° 카메라, COCO17 / Halpe26)
-| 운동 | 렙 정확도 수정 전 | 수정 후 |
-|---|---|---|
-| 스쿼트 | 48.8% / 38.8% | 100% / 100% |
-| 바벨로우 | 62.1% / 63.5% | 97.6% / 94.0% |
-| 푸시업 | 84.8% / 81.1% | 97.8% / 100% |
+| 운동 | 렙 정확도 수정 전 | 렙 규칙 수정 후 | + crop 입력 (현재) | 검증 피험자(P2·P3) |
+|---|---|---|---|---|
+| 스쿼트 | 48.8% / 38.8% | 100% / 100% | 100% / 100% | 100% / 100% (2/2) |
+| 바벨로우 | 62.1% / 63.5% | 97.6% / 94.0% | 98.8% / 98.8% | 100% / 100% (4/4) |
+| 푸시업 | 84.8% / 81.1% | 97.8% / 100% | 100% / 100% | 없음(푸시업은 P1 한 명) |
+
+- 피험자 ID가 없어 영상을 보고 사람을 나눔(추정). 사람 재확인 경계값은 검증 영상까지 보고 정해서 그 부분은 검증 수치가 아님
+- 셋업 키 오경보(측면): crop 뒤 COCO17 3→0, Halpe26 2→0
 
 - 진단에 안 쓴 squat_03(정답 2렙): 1/2 → 2/2
 - 움직임 없음(서서 흔들림 합성 88건, 더미 영상 6개): 추가 렙 0
 - 후면 카메라 로우는 모두 측면 아님으로 판정
 
 ## 테스트
-- `swift test --package-path ios/CalibrationEngineKit`: 57 통과
-- `pytest tests/`: 164 통과
-- 서버 `pytest tests` (server/calibration_modal): 68 통과, 1 건너뜀
-- `flutter test`: 67 통과
+- `swift test --package-path ios/CalibrationEngineKit`: 77 통과
+- `pytest tests/`: 178 통과
+- 서버 `pytest tests` (server/calibration_modal): 81 통과, 1 건너뜀
+- `flutter test`: 77 통과
 - `xcodebuild` Runner, iOS Simulator Debug, `CODE_SIGNING_ALLOWED=NO`: 성공
 
 ## main과의 차이 (병합 전 확인)
@@ -74,7 +98,7 @@ integration/ai는 main보다 팀원 커밋 6개가 뒤처져 있습니다(2026-1
 양쪽에서 고친 파일(충돌 가능):
 | 파일 | main | integration/ai | 처리 |
 |---|---|---|---|
-| `lib/features/workout/screens/native_pose_workout_screen.dart` | #37·#38 세트 기록·피드백 횟수, #40 `_speakFeedback`/`_speakSetSummary`(대사 읽기) | 경고 기본 끔·셋업 키, 트랙 E의 onFeedback·음소거·onSetEnd | 줄 단위 충돌 가능성 높음. **음성 이중 재생**: #40 Flutter 읽기와 트랙 E 네이티브 WorkoutVoice 중 하나만 남김(decisions D-H-01) |
+| `lib/features/workout/screens/native_pose_workout_screen.dart` | #37·#38 세트 기록·피드백 횟수, #40 `_speakFeedback`/`_speakSetSummary`(대사 읽기) | 경고 기본 끔·셋업 키, 트랙 E의 onFeedback·음소거·onSetEnd | 줄 단위 충돌 가능성 높음. **음성**: 트랙 E 화면은 onFeedback에 대사를 답하고(WorkoutVoice가 말함) 자체 TTS 호출이 없음, main #40 화면은 `_speakFeedback`으로 직접 말하고 답은 null. 수동 병합 때 둘을 섞으면 이중 재생 → 한쪽 선택(decisions E7, D-H-01) |
 | `lib/features/workout/data/kori_feedback_lines.dart` | #38 `koriMistakeLabels`, `koriMistakeExerciseId`를 파일 끝에 추가 | 바로 앞의 `koriDemoWarningKeyByExercise`(임시 데모 경고) 삭제 | 붙어 있는 부분이라 충돌 가능. 맵 삭제 + main 추가분 유지로 해결하고, main 화면 코드가 삭제된 맵을 아직 쓰는지 확인. 대사 원문은 그대로라 음성 스크립트 영향 없음 |
 | `ios/Runner.xcodeproj/project.pbxproj` | #40 `KoriSpeaker.swift` 추가 | Halpe26 모델·평가기·트랙 E 파일 추가 | 파일 목록 충돌 가능. 양쪽 항목 다 남기고 xcodebuild로 확인 |
 
@@ -83,11 +107,14 @@ integration/ai는 main보다 팀원 커밋 6개가 뒤처져 있습니다(2026-1
 - `ios/Runner/Info.plist`: main #40이 `ElevenLabsApiKey` 추가 → 빌드된 앱에 키가 평문으로 들어감(`docs/handoff/security_followup.md` 3-1). integration/ai의 ATS 설정(`NSAllowsArbitraryLoads`)과 같은 파일.
 - 백엔드: #37·#38이 세트 기록·피드백 횟수 API를 씀. 트랙 E의 `onSetEnd {videoLocalPath, worstJoint}`가 그 세트 기록에 들어가야 함(서버는 경로만 저장).
 
+- 백엔드(Spring)와: 캘리브레이션 상태 값 대소문자(서버 소문자 vs 엔티티 기본 `COMPLETED`), main 엔티티에 `coachComment` 열 없음, 결과 저장 API 없음 — 제안만(`teammate_calibration.md` 6절), 백엔드 코드는 안 고침.
+
 ## 알려진 한계
 - **푸시업 측면 컷오프 1.0**은 Exercise3D에서 40°와 48°를 가르지 못함(48°도 측면으로 판정). 정면(70°+)만 확실히 걸러짐.
 - **Fit3D에 측면 카메라 없음**(전부 58–74° 사선): 측면 정확도 검증에는 못 쓰고 회귀 확인만 함.
 - **로우 측면 컷오프 0.66(crop 입력)은 40° 근처에서 미검증**: 데이터가 20–36°와 76–81°뿐. 정면 스쿼트 영상(squat_03)의 비율이 0.64–0.67이라 정면 촬영이 측면으로 판정될 수 있음.
   주말 촬영 영상(0/30/40°, 정면·후면)으로 확인 예정.
+- 캘리브레이션 체형 평가 기준은 People Snapshot의 consensus 메시(정답 아님, 단안 추정 키)이고 실제 사용자 줄자 실측 검증은 없음.
 - 준비 자세 확인은 Exercise3D처럼 바로 시작하는 세트에서 렙을 잃어 기본 꺼짐.
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
