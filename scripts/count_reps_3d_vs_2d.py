@@ -74,9 +74,7 @@ def main():
             for cam, v in g['views'].items():
                 csv = Path(a.ex3d_replay) / seq / f'{cam}_{exname[g["exercise"]]}_coco17.csv'
                 if not csv.exists(): continue
-                w, h = (int(x) for x in os.popen(
-                    f'ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=p=0 '
-                    f'{O}/exercise3d_synced/{g["exercise"]}/{seq}/{cam}.mp4').read().strip().split(','))
+                w, h = json.load(open(str(csv)[:-4] + '.json'))['image_size']
                 r2, r3 = one(read_csv(csv), w, h, runner, g['exercise'])
                 out.append(dict(source='ex3d', subject=seq, exercise=g['exercise'], cam=cam, view_deg=v['angle_deg'],
                                 truth=g['truth_reps'], reps_2d=r2, reps_3d=r3, app_reps=app_reps(csv)))

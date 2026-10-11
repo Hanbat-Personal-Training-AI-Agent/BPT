@@ -188,8 +188,7 @@ def run_ex3d(a, runner):
             csv = csv if csv.exists() else Path(f'{csv}.gz')
             if not csv.exists(): continue
             K = read_csv(csv); n = min(len(K), len(J))
-            w, h = (int(x) for x in os.popen(f'ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=p=0 '
-                                            f'{O}/exercise3d_synced/{g["exercise"]}/{seq}/{cam}.mp4').read().strip().split(','))
+            w, h = json.load(open(str(csv).removesuffix('.gz')[:-4] + '.json'))['image_size']
             side = near_side(K)
             r = evaluate(K[:n], J[:n], up, side, w, h, runner, seg)
             r.update(source='ex3d', subject=seq, exercise=g['exercise'], cam=cam, view_deg=v['angle_deg'], side=side)
