@@ -145,7 +145,7 @@ PCK@0.05 = 예측 관절이 정답에서 사람 박스 긴 변의 5% 안에 든 
 6. **GPU 서버 접근**: `ssh Home` 연결 시간 초과.
 7. **서버 공개 포트 확인**(서버 담당 팀원): 8080, 80(Swagger), HTTPS 전환, 운영 `JWT_SECRET` 설정 여부(`application.yml`에 기본값이 git에 있음). JWT 교체는 Spring·Modal `bpt-jwt` 동시에(체크리스트 1).
 8. **캘리브레이션(트랙 F)**: People Snapshot 평가를 Modal·R2(임대 컴퓨팅·저장소)에서 돌린 것이 라이선스 "자기가 통제하는 컴퓨터" 범위인지 확인(F8). R2에 남은 이전 e2e 객체 `calibrations/999999`, `results/999999` 삭제 여부. 팀원 화면 파일을 고친 실제 3D 결과 화면 브랜치 `ai/calibration-result-screen` 병합 승인(팀원 협의). 백엔드 변경 제안(상태 값 대응, main 엔티티 `coachComment` 열, 결과 저장 API — `teammate_calibration.md` 6절)은 팀원 결정. 가능하면 본인 체형 줄자 실측 몇 군데(팔·다리 길이)로 검증.
-8-1. **캘리브레이션 촬영 거리(F10–F12)**: 새 빌드로 실기기 촬영 1회(혼자, 폰을 바닥·탁자에 기대고 1–1.5 m) → 4장 완주 여부, manifest의 `camera.deviceType`가 초광각인지와 `intrinsics.source`(attachment인지), 서버 결과(재투영 오차·키 오차) 확인. 후면 초광각 0.5x(1.70 m 기준 0.80–1.60 m까지 가까워짐, 대신 화면을 못 봐서 음성만으로 안내) 쓸지 결정.
-9. **벤치·데드(트랙 G) — 미룸, 세 운동 뒤**: 측면 벤치·데드 영상(폰 세로, 몸 옆 ±15°) — 정상 세트와 틀린 자세별 세트(벤치: 엉덩이 들기·가슴까지 안 내리기·팔 덜 펴기 / 데드: 엉덩이 먼저·덜 일어서기·뒤로 젖히기), 데드는 바닥에서 드는 것과 블록·RDL식 둘 다. Exercise3D 벤치·데드 원본 MOV(origin/benchpress, origin/deadlift) — 앱 RTMPose로 다시 재려면 필요. 새 키 6개 대사 초안을 `kori_feedback_lines.dart`에 넣을지 팀원 결정(리포트용 `koriMistakeLabels`도 같이).
-10. **Sapiens2 라이선스 — 평가에 쓰는 것**: Exercise3D 2D 라벨(Sapiens2 출력)을 모델 비교(트랙 C)와 벤치·데드 대리 입력(트랙 G)에 쓰고 있음. 라이선스 §1.b의 생체정보 처리·민감정보 추론 금지가 운동 자세 평가에 해당하는지 확인(학습에 쓰는 것은 3번).
-11. **main PR 열기·병합**(integration/ai → main): main보다 팀원 커밋 #35–#40이 앞서 있음. 충돌 예상 파일은 `docs/pr/integration_ai.md`.
+9. **캘리브레이션 촬영 거리(F10–F12)**: 새 빌드로 실기기 촬영 1회(혼자, 폰을 바닥·탁자에 기대고 1–1.5 m) → 4장 완주 여부, manifest의 `camera.deviceType`가 초광각인지와 `intrinsics.source`(attachment인지), 서버 결과(재투영 오차·키 오차) 확인. 후면 초광각 0.5x(1.70 m 기준 0.80–1.60 m까지 가까워짐, 대신 화면을 못 봐서 음성만으로 안내) 쓸지 결정.
+10. **벤치·데드(트랙 G) — 미룸, 세 운동 뒤**: 측면 벤치·데드 영상(폰 세로, 몸 옆 ±15°) — 정상 세트와 틀린 자세별 세트(벤치: 엉덩이 들기·가슴까지 안 내리기·팔 덜 펴기 / 데드: 엉덩이 먼저·덜 일어서기·뒤로 젖히기), 데드는 바닥에서 드는 것과 블록·RDL식 둘 다. Exercise3D 벤치·데드 원본 MOV(origin/benchpress, origin/deadlift) — 앱 RTMPose로 다시 재려면 필요. 새 키 6개 대사 초안을 `kori_feedback_lines.dart`에 넣을지 팀원 결정(리포트용 `koriMistakeLabels`도 같이).
+11. **Sapiens2 라이선스 — 평가에 쓰는 것**: Exercise3D 2D 라벨(Sapiens2 출력)을 모델 비교(트랙 C)와 벤치·데드 대리 입력(트랙 G)에 쓰고 있음. 라이선스 §1.b의 생체정보 처리·민감정보 추론 금지가 운동 자세 평가에 해당하는지 확인(학습에 쓰는 것은 3번).
+12. **main PR 열기·병합**(integration/ai → main): main보다 팀원 커밋 #35–#45(11개)가 앞서 있음. 충돌 예상 파일은 `docs/pr/integration_ai.md`.
