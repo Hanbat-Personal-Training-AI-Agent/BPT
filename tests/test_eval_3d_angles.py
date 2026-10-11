@@ -39,3 +39,10 @@ def test_lift_uses_app_window():
 def test_near_side_is_higher_confidence_side():
     K = np.zeros((3, 17, 3)); K[:, ev.SIDE_JOINTS['R'], 2] = .9; K[:, ev.SIDE_JOINTS['L'], 2] = .4
     assert ev.near_side(K) == 'R'
+
+
+def test_rep_counter_counts_dips():
+    from scripts import count_reps_3d_vs_2d as cr
+    t = np.linspace(0, 5 * 2 * np.pi, 500)
+    assert cr.count(170 - 40 * (1 - np.cos(t)) / 2) == 5  # five knee bends from standing
+    assert cr.count(np.full(200, 170.)) == 0
