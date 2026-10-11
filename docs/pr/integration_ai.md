@@ -39,7 +39,7 @@ AI 쪽 작업(캘리브레이션 서버, 2D/3D 포즈, 사람 crop 입력, 자�
 - 사람 재확인: 30프레임(≈1초)마다 전체 프레임을 한 번 더 보고, 뚜렷하고(관절 12개·평균 신뢰도 0.42) 1.5배 이상 크며 crop과 30% 이하로 겹치는 다른 사람이면 옮김(추론 +3.3%). 현재 모델 수치는 그대로, 뒤에 다른 사람이 있던 영상에서 m Halpe26 푸시업 81.1→100%. 끄기 `RTMPoseCropTracker.recheckInterval = Int.max`
 
 **2D 모델 평가 도구 (트랙 C, 앱 동작 변경 없음)**
-- `scripts/eval_pose2d.py`(COCO val·Exercise3D·Fit3D PCK), `scripts/eval_pose2d_reps.py`(후보 모델 렙 정확도), `pose-replay --model-path`, 후보 Core ML 변환(`rtmpose_s_coreml_common.py`: s body7, m COCO17/body7/Halpe26), Fit3D 미세조정 도구(Mac 전용), `tools/pose_model_bench`(iPhone 지연 XCTest)
+- `scripts/eval_pose2d.py`(COCO val·Exercise3D·Fit3D PCK), `scripts/eval_pose2d_reps.py`(후보 모델 렙 정확도), `pose-replay --model-path`, 후보 Core ML 변환(`rtmpose_s_coreml_common.py`: s body7, m COCO17/body7/Halpe26), Fit3D 미세조정 도구(Mac 전용), `tools/pose_model_bench`(iPhone 지연 XCTest, 연속 실행·발열·Vision 참고 포함; iPhone 17 결과 s 2.0 ms · m 3.3 ms, D-C-05)
 - 결론: 기본 RTMPose-s COCO17 유지. Fit3D 미세조정 기각(독립 세트에서 나빠짐), m COCO17은 기기 속도 확인 후 후보, Halpe26 전환은 사용자 결정(decisions D-C-01–04)
 
 **앱 연결 (트랙 E)**
