@@ -8,6 +8,8 @@ from botocore.config import Config
 from botocore.exceptions import ClientError
 
 URL_TTL_SECONDS = 15 * 60
+# The app re-polls the job API for a fresh one; the backend must not keep it as a permanent link.
+MODEL_URL_TTL_SECONDS = 60 * 60
 
 
 class Bucket:
@@ -41,6 +43,13 @@ class Bucket:
             Params={"Bucket": self.bucket, "Key": key, "ContentType": content_type, "ContentLength": size},
             ExpiresIn=URL_TTL_SECONDS,
         )
+
+    def presign_get(self, key, ttl=MODEL_URL_TTL_SECONDS):
+        return self.client.generate_presigned_url("get_object", Params={"Bucket": self.bucket, "Key": key},
+                                                  ExpiresIn=ttl)
+
+    def put_bytes(self, key, data, content_type):
+        self.client.put_object(Bucket=self.bucket, Key=key, Body=data, ContentType=content_type)
 
     def head(self, key):
         """(size, content type) or None when the object is missing."""

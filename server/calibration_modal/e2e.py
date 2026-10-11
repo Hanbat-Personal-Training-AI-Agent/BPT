@@ -6,7 +6,7 @@
 The token comes from BPT_TOKEN (a backend login token); it is never printed. Requests match
 lib/features/onboarding/services/calibration_upload_service.dart: same headers and bodies, storage
 PUTs with only Content-Type and Content-Length, no redirects, and the app's storage URL rules.
-Without --session-dir a synthetic bundle is sent (fine for stage 1, the stub accepts it).
+Without --session-dir a synthetic bundle is sent: it checks the upload path only, the fit itself fails on it.
 Also checks: duplicate complete -> same job, bad token -> 401, missing file -> rejected.
 """
 import argparse
@@ -111,14 +111,28 @@ def main():
 
     job_url = f"{api}/calibrations/jobs/{first.json()['jobId']}"
     deadline = time.time() + opts.wait
+    rates = []
     while True:
         job = client.get(job_url, headers={"Authorization": f"Bearer {token}"}).json()
+        rates.append((job["status"], job.get("progressRate")))
         if job["status"] in ("done", "failed") or time.time() > deadline:
             break
         time.sleep(3)
-    print(f"      job {job['status']} after {time.time() - started:.1f}s")
-    print(json.dumps(job, indent=2, ensure_ascii=False)[:2000])
-    check("job finished", job["status"] == "done")
+    print(f"      job {job['status']} after {time.time() - started:.1f}s, polls {sorted(set(rates))}")
+    check("progressRate on every poll", all(isinstance(r, int) for _, r in rates))
+    result = job.get("result") or {}
+    glb_url = result.get("modelGlbUrl")
+    shown = dict(job, result=dict(result, modelGlbUrl=glb_url and glb_url.split("?")[0] + "?<signature>",
+                                  debug="<omitted>", jointsH36m="<omitted>")) if result else job
+    print(json.dumps(shown, indent=2, ensure_ascii=False)[:3000])  # signed URLs never printed
+    check("job finished", job["status"] == "done", job.get("error", ""))
+    check("real fit, not a stub", result.get("stub") is False and len(result.get("smplBeta") or []) == 10)
+    check("backend fields", all(k in result for k in ("smplBeta", "boneLengthData", "coachComment", "calibratedAt")))
+    if glb_url:
+        check("GLB URL fits UserCalibration.modelGlbUrl (500)", len(glb_url) <= 500, len(glb_url))
+        check("GLB URL passes the app's storage host rules", app_allows_storage(glb_url, hosts))
+        glb = client.get(glb_url)
+        check("GLB downloads", glb.status_code == 200 and glb.content[:4] == b"glTF", f"{len(glb.content)} bytes")
 
 
 if __name__ == "__main__":

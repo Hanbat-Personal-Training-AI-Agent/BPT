@@ -181,6 +181,25 @@ class CalibrationUploadReceipt {
   final String jobId;
 }
 
+/// GET calibrations/jobs/{jobId}: the server-side body fit, polled after acceptance.
+class CalibrationJob {
+  const CalibrationJob(this.status, this.progressRate,
+      {this.result, this.error});
+  static const statuses = {'queued', 'running', 'done', 'failed'};
+
+  /// queued | running | done | failed (docs/handoff/teammate_calibration.md).
+  final String status;
+  final int progressRate;
+
+  /// Only for `done`: a real body fit (stub false, smplBeta, boneLengthData...).
+  final Map<String, dynamic>? result;
+
+  /// Only for `failed`: person_not_found, low_keypoint_confidence, fit_diverged,
+  /// timeout, internal_error, ...
+  final String? error;
+  bool get finished => status == 'done' || status == 'failed';
+}
+
 /// Prepare (small JSON) → signed storage PUTs → acknowledge/queue analysis.
 /// This does NOT claim the server-side body reconstruction has completed.
 class CalibrationUploadService {
@@ -344,6 +363,70 @@ class CalibrationUploadService {
     } on FileSystemException {
       throw const CalibrationUploadException(
           '로컬 전송 기록을 저장하지 못했어요. 다시 시도해 주세요.');
+    }
+  }
+
+  Future<CalibrationJob> fetchJob(String jobId,
+      {CancelToken? cancelToken}) async {
+    final issue = config.configurationIssue;
+    if (issue != null) throw CalibrationUploadException(issue);
+    final token = await tokenProvider();
+    if (token == null || token.isEmpty) {
+      throw const CalibrationUploadException('로그인 후 분석 결과를 확인해 주세요.');
+    }
+    try {
+      _api.options.connectTimeout = const Duration(seconds: 10);
+      final response = await _api.getUri<dynamic>(
+        config.api('calibrations/jobs/${_id(jobId)}'),
+        options: Options(
+          headers: {'Authorization': 'Bearer $token'},
+          followRedirects: false,
+          receiveTimeout: const Duration(seconds: 30),
+          validateStatus: (status) =>
+              status != null && status >= 200 && status < 300,
+        ),
+        cancelToken: cancelToken,
+      );
+      final body = _object(response.data);
+      final status = body['status'];
+      if (status is! String || !CalibrationJob.statuses.contains(status)) {
+        throw const FormatException('Invalid job status');
+      }
+      final rate = body['progressRate'];
+      final progress = rate is num && rate.isFinite
+          ? rate.clamp(0, 100).toInt()
+          : (status == 'done' ? 100 : 0);
+      if (status == 'done') {
+        final result = _object(body['result']);
+        // Never show a stub or a result without a body as an analysis.
+        if (result['stub'] != false ||
+            result['smplBeta'] is! List ||
+            result['boneLengthData'] is! Map) {
+          throw const FormatException('Not a body fit');
+        }
+        return CalibrationJob(status, 100, result: result);
+      }
+      final error = body['error'];
+      return CalibrationJob(status, progress,
+          error: status == 'failed'
+              ? (error is String ? error : 'internal_error')
+              : null);
+    } on DioException catch (error) {
+      if (CancelToken.isCancel(error)) rethrow;
+      final status = error.response?.statusCode;
+      if (status == 401) {
+        throw const CalibrationUploadException(
+            '로그인이 만료됐어요. 다시 로그인한 뒤 확인해 주세요.');
+      }
+      if (status == 404) {
+        throw const CalibrationUploadException(
+            '분석 작업을 찾을 수 없어요. 사진을 다시 전송해 주세요.');
+      }
+      throw const CalibrationUploadException(
+          '분석 상태를 확인하지 못했어요. 연결을 확인하고 다시 시도해 주세요.');
+    } on FormatException {
+      throw const CalibrationUploadException(
+          '분석 서버 응답 형식이 올바르지 않아요. API 명세를 확인해 주세요.');
     }
   }
 

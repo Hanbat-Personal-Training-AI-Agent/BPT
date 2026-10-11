@@ -4,10 +4,12 @@
 2. SAM 3D Body on each photo alone (box + the photo's intrinsics when known) -> MHR mesh.
 3. MHR -> SMPL with MHR's official converter, one shared β across the four photos
    (convert_mhr2smpl(single_identity=True, is_tracking=False)).
-4. Joint refinement: shared β + per-photo pose / orientation / translation against the 2D
-   keypoints, reprojected with each photo's own camera. No masks, no silhouette loss (v1).
+4. Refinement of per-photo pose / orientation / translation against the 2D keypoints, reprojected
+   with each photo's own camera; β stays the converter's (refine_beta=False: refining β under the
+   1e-3 prior shrank it to ≈0, limb error 4.96 % vs 2.98 %, docs/decisions.md). No masks (v1).
 5. β projected onto the user's height (body.project_to_height), then poses refined with β fixed.
-6. Result: β, rest-pose H36M joints and bone lengths, per-photo reprojection error, height error.
+6. Result: β, rest-pose H36M joints and bone lengths, per-photo reprojection error, height error,
+   and a GLB of the user's own standing pose (front photo, upright).
 
 Coordinates: SAM 3D Body's vertices + pred_cam_t are in an OpenCV camera frame (x right, y down,
 z forward, metres; see sam3d_body.py's keypoint projection), and the converter keeps that frame.
@@ -40,7 +42,7 @@ REQUIRED = list(range(5, 17))  # shoulders .. ankles
 class Fitter:
     """Models load once per container."""
 
-    def __init__(self, device="cuda"):
+    def __init__(self, device="cuda", beta_reg=1e-3, refine_beta=False):
         # Any value disables sam-3d-body's pymomentum MHR (it segfaults loading the FBX rig with
         # pymomentum-cpu 0.1.114); it then uses the TorchScript MHR shipped with the checkpoint.
         os.environ["MOMENTUM_ENABLED"] = "0"
@@ -49,12 +51,16 @@ class Fitter:
         import smplx
 
         self.device = device
+        # β prior weight in the reprojection refine, and whether the refine may move β at all
+        # (False keeps the MHR->SMPL converter's β). Evaluated in eval_fit.py.
+        self.beta_reg, self.refine_beta = beta_reg, refine_beta
         model, cfg = load_sam_3d_body(f"{SAM3DB_DIR}/model.ckpt", device=device,
                                       mhr_path=f"{SAM3DB_DIR}/assets/mhr_model.pt")
         self.estimator = SAM3DBodyEstimator(sam_3d_body_model=model, model_cfg=cfg, human_detector=None,
                                             human_segmentor=None, fov_estimator=None)
         arrays = dict(np.load(SMPL_NPZ))
         self.v_template, self.shapedirs = arrays["v_template"], arrays["shapedirs"]
+        self.faces = arrays["f"]
         self.j_regressor_h36m = arrays["J_regressor_h36m"]
         pkl = "/tmp/smpl_neutral.pkl"  # smplx reads SMPL from a chumpy-free pickle
         if not os.path.exists(pkl):
@@ -73,7 +79,7 @@ class Fitter:
                                         smpl_model=self.smpl, method="pytorch")
         return self.converter
 
-    def __call__(self, manifest, photos):
+    def __call__(self, manifest, photos, progress=lambda rate: None):
         timing, started = {}, time.perf_counter()
         torch.cuda.reset_peak_memory_stats()
         views = manifest["views"]
@@ -106,6 +112,7 @@ class Fitter:
             focal[label] = (cam["fx"], cam["fy"], cam["cx"], cam["cy"]) if known else (
                 float(out[0]["focal_length"]), float(out[0]["focal_length"]), w / 2, h / 2)
         timing["sam3d_body_s"] = time.perf_counter() - started
+        progress(30)
 
         # 3. MHR -> SMPL, one shared identity
         t = time.perf_counter()
@@ -119,6 +126,7 @@ class Fitter:
                                    dtype=torch.float32, device=self.device)
                 for k, v in converted.result_parameters.items()}
         timing["mhr_to_smpl_s"] = time.perf_counter() - t
+        progress(50)
 
         # 4-5. refine against the 2D keypoints, put the height in, refine poses again
         t = time.perf_counter()
@@ -138,14 +146,17 @@ class Fitter:
             w = target[..., 2] * (target[..., 2] >= MIN_CONFIDENCE) * torch.as_tensor(COCO_WEIGHTS, device=self.device)
             err = ((uv - target[..., :2]).norm(dim=-1) / scale[:, None])
             data = (w * torch.nn.functional.huber_loss(err, torch.zeros_like(err), delta=0.05, reduction="none")).sum()
-            return data + 1e-3 * ((pose - pose0) ** 2).sum() + 1e-3 * (beta ** 2).sum(), uv
+            return data + 1e-3 * ((pose - pose0) ** 2).sum() + self.beta_reg * (beta ** 2).sum(), uv
 
-        optimise([betas, orient, pose, transl], lambda: loss_fn(betas)[0], steps=300)
+        beta_converter = betas.detach().cpu().numpy()[0].tolist()
+        optimise([betas, orient, pose, transl] if self.refine_beta else [orient, pose, transl],
+                 lambda: loss_fn(betas)[0], steps=300)
         beta_h = body.project_to_height(self.v_template, self.shapedirs, betas.detach().cpu().numpy()[0],
                                         manifest["userHeightCm"] / 100)
         fixed = torch.tensor(beta_h[None], dtype=torch.float32, device=self.device)
         optimise([orient, pose, transl], lambda: loss_fn(fixed)[0], steps=200)
         timing["refine_s"] = time.perf_counter() - t
+        progress(90)
 
         with torch.no_grad():
             _, uv = loss_fn(fixed)
@@ -173,7 +184,16 @@ class Fitter:
         result["debug"]["timing"] = {k: round(v, 2) for k, v in timing.items()}
         result["debug"]["gpu"] = {"name": torch.cuda.get_device_name(),
                                   "peakAllocatedGiB": round(torch.cuda.max_memory_allocated() / 2**30, 2)}
+        result["debug"]["betaConverter"] = beta_converter
         result["debug"]["betaBeforeHeight"] = betas.detach().cpu().numpy()[0].tolist()
+        # SAM 3D Body's own body size: vertical extent of each posed MHR mesh (metres)
+        result["debug"]["mhrHeightM"] = {l: round(float(np.ptp(sam_outputs[l]["pred_vertices"][:, 1])), 3)
+                                         for l in labels}
+        with torch.no_grad():  # the user's own standing pose from the front photo, upright
+            front = labels.index("front") if "front" in labels else 0
+            posed = self.smpl(betas=fixed, body_pose=pose[front:front + 1],
+                              global_orient=torch.zeros(1, 3, device=self.device)).vertices[0].cpu().numpy()
+        result["modelGlb"] = body.glb(posed, self.faces)
         return result
 
 

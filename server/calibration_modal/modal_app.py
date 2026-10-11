@@ -54,7 +54,7 @@ fit_image = (
 
 
 @app.function(image=fit_image, gpu="L4", volumes={"/weights": weights}, secrets=secrets[:1],
-              timeout=15 * 60, min_containers=0)
+              timeout=15 * 60, min_containers=0, retries=0)
 def fit_body(job):
     import fitting
     import storage
@@ -93,4 +93,18 @@ def api():
         state=storage.BucketState(bucket),
         spawn=fit_body.spawn,
         jwt_secret=os.environ["JWT_SECRET"],
+        call_failure=call_failure,
     )
+
+
+def call_failure(call_id):
+    """Error code for a fit_body call that ended without the worker writing it down, else None."""
+    try:
+        modal.FunctionCall.from_id(call_id).get(timeout=0)
+    except modal.exception.FunctionTimeoutError:
+        return "timeout"
+    except (TimeoutError, modal.exception.TimeoutError):  # builtin TimeoutError: still queued or running
+        return None
+    except Exception:  # the worker raised (it already wrote its code) or its container died
+        return "internal_error"
+    return None
