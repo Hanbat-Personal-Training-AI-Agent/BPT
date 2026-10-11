@@ -39,8 +39,8 @@ AI 쪽 작업(캘리브레이션 서버, 2D/3D 포즈, 사람 crop 입력, 자�
 - 사람 재확인: 30프레임(≈1초)마다 전체 프레임을 한 번 더 보고, 뚜렷하고(관절 12개·평균 신뢰도 0.42) 1.5배 이상 크며 crop과 30% 이하로 겹치는 다른 사람이면 옮김(추론 +3.3%). 현재 모델 수치는 그대로, 뒤에 다른 사람이 있던 영상에서 m Halpe26 푸시업 81.1→100%. 끄기 `RTMPoseCropTracker.recheckInterval = Int.max`
 
 **2D 모델 평가 도구 (트랙 C, 앱 동작 변경 없음)**
-- `scripts/eval_pose2d.py`(COCO val·Exercise3D·Fit3D PCK), `scripts/eval_pose2d_reps.py`(후보 모델 렙 정확도), `pose-replay --model-path`, 후보 Core ML 변환(`rtmpose_s_coreml_common.py`: s body7, m COCO17/body7/Halpe26), Fit3D 미세조정 도구(Mac 전용), `tools/pose_model_bench`(iPhone 지연 XCTest)
-- 결론: 기본 RTMPose-s COCO17 유지. Fit3D 미세조정 기각(독립 세트에서 나빠짐), m COCO17은 기기 속도 확인 후 후보, Halpe26 전환은 사용자 결정(decisions D-C-01–04)
+- `scripts/eval_pose2d.py`(COCO val·Exercise3D·Fit3D PCK), `scripts/eval_pose2d_reps.py`(후보 모델 렙 정확도), `pose-replay --model-path`, 후보 Core ML 변환(`rtmpose_s_coreml_common.py`: s body7, m COCO17/body7/Halpe26), Fit3D 미세조정 도구(Mac 전용), `tools/pose_model_bench`(iPhone 지연 XCTest, 연속 실행·발열·Vision 참고 포함; iPhone 17 결과 s 2.0 ms · m 3.3 ms, D-C-05)
+- 결론: 기본 RTMPose-s COCO17 유지. Fit3D 미세조정 기각(독립 세트에서 나빠짐), m COCO17은 iPhone 17 속도 조건 만족(3.3 ms, D-C-05). m COCO17·Halpe26 전환 여부는 세 운동 트랙(스쿼트·푸시업·로우)의 검증용(held-out) 비교로 정함 — 검증용이 좋아지고 다른 것이 나빠지지 않을 때만 플래그로 m COCO17 전환
 
 **앱 연결 (트랙 E)**
 - onFeedback `{key, n?, scope: "rep"|"set"}`: 참고 등급 키는 세트 끝(`endSet`)에 scope "set"으로 1번. 기본값에서 나가는 키는 그대로
@@ -61,7 +61,7 @@ AI 쪽 작업(캘리브레이션 서버, 2D/3D 포즈, 사람 crop 입력, 자�
 - `scripts/eval_side_videos.py` + `data/side_videos/labels_template.csv`: 직접 찍은 영상으로 렙 정확도, 측면 비율 분포, 경고 발생률, 셋업 키 집계
 
 **음성·문서**
-- `scripts/generate_kori_voice.py`: ElevenLabs로 코리 음성 mp3 생성(운동 28키 + 숫자 1..20, 캘리브레이션 27줄 = 188파일, 5,623자). 대사는 dart/Swift 원문을 파싱, 키는 환경변수만, `--dry-run`. 이름 규칙 `docs/handoff/kori_voice.md`
+- 코리 음성 mp3는 팀원이 직접 생성해 넣음. 파일 이름 규칙 `docs/handoff/kori_voice.md`(생성 스크립트는 삭제, D-H-02)
 - `docs/decisions.md`(결정 기록), `docs/results/summary.md`(발표용 결과표), `docs/handoff/security_followup.md`(JWT 교체·HTTPS·테스트 토큰 정리 체크리스트, 실행 안 함), `docs/progress/`
 
 ## 기본 꺼짐(플래그)
@@ -101,17 +101,18 @@ AI 쪽 작업(캘리브레이션 서버, 2D/3D 포즈, 사람 crop 입력, 자�
 - `xcodebuild` Runner, iOS Simulator Debug, `CODE_SIGNING_ALLOWED=NO`: 성공
 
 ## main과의 차이 (병합 전 확인)
-integration/ai는 main보다 팀원 커밋 6개가 뒤처져 있습니다(2026-10-11 기준): #35 `a03fd9e` 계정 찾기 이메일 인증, #36 `d780665` 계정 찾기 안내, #37 `8017c09` 체형 측정일·세트 기록·피드백 횟수·알림 백엔드 연동, #38 `374ef52` 리포트 자주 나온 실수·코리 잔소리 알림, #39 `becec54` 프로필 저장 수정, #40 `0d00676` 코리 음성 ElevenLabs 실시간 TTS.
+integration/ai는 main보다 팀원 커밋 11개가 뒤처져 있습니다(2026-10-11 기준): #35 `a03fd9e` 계정 찾기 이메일 인증, #36 `d780665` 계정 찾기 안내, #37 `8017c09` 체형 측정일·세트 기록·피드백 횟수·알림 백엔드 연동, #38 `374ef52` 리포트 자주 나온 실수·코리 잔소리 알림, #39 `becec54` 프로필 저장 수정, #40 `0d00676` 코리 음성 ElevenLabs 실시간 TTS. 이어서 #41 `7c3270e` 체형 촬영 후 전송 대기 페이지 제거·로딩 화면에서 자동 전송, #42 `62abda4` 계정 찾기 인증 대기·비밀번호 재설정, #43 `8848fd7` 토스트 위치, #44 `293468e` 체형 촬영 코리 음성 반복 수정(`CalibrationVoice.swift`), #45 `24bc396` 리포트 분석 탭 위치.
 
 양쪽에서 고친 파일(충돌 가능):
 | 파일 | main | integration/ai | 처리 |
 |---|---|---|---|
 | `lib/features/workout/screens/native_pose_workout_screen.dart` | #37·#38 세트 기록·피드백 횟수, #40 `_speakFeedback`/`_speakSetSummary`(대사 읽기) | 경고 기본 끔·셋업 키, 트랙 E의 onFeedback·음소거·onSetEnd | 줄 단위 충돌 가능성 높음. **음성**: 트랙 E 화면은 onFeedback에 대사를 답하고(WorkoutVoice가 말함) 자체 TTS 호출이 없음, main #40 화면은 `_speakFeedback`으로 직접 말하고 답은 null. 수동 병합 때 둘을 섞으면 이중 재생 → 한쪽 선택(decisions E7, D-H-01) |
 | `lib/features/workout/data/kori_feedback_lines.dart` | #38 `koriMistakeLabels`, `koriMistakeExerciseId`를 파일 끝에 추가 | 바로 앞의 `koriDemoWarningKeyByExercise`(임시 데모 경고) 삭제 | 붙어 있는 부분이라 충돌 가능. 맵 삭제 + main 추가분 유지로 해결하고, main 화면 코드가 삭제된 맵을 아직 쓰는지 확인. 대사 원문은 그대로라 음성 스크립트 영향 없음 |
+| `lib/features/onboarding/screens/onboarding_analyzing_screen.dart`, `test/onboarding_analyzing_test.dart` | #41이 화면을 크게 바꿈(+505줄 변경, 전송 대기 페이지 제거, 로딩 화면에서 자동 전송) | 트랙 F의 작업 상태 polling·진행률·실패 문구·결과 요약 | **충돌 가능성 높음**. #41의 자동 전송 흐름 위에 트랙 F의 polling(`fetchJob`, `progressRate`, 스텁 결과 거부)을 다시 얹고 두 테스트를 다 통과시킬 것 |
 | `ios/Runner.xcodeproj/project.pbxproj` | #40 `KoriSpeaker.swift` 추가 | Halpe26 모델·평가기·트랙 E 파일 추가 | 파일 목록 충돌 가능. 양쪽 항목 다 남기고 xcodebuild로 확인 |
 
 의미상 겹침(같은 파일은 아님):
-- `ios/Runner/NativePose/Calibration/CalibrationVoice.swift`: main #40이 AVSpeech → KoriSpeaker로 바꿈. integration/ai는 이 파일을 안 고쳐서 충돌은 없지만, 미리 만든 mp3(`scripts/generate_kori_voice.py`)를 쓰려면 KoriSpeaker에 파일 우선 재생을 붙여야 함.
+- `ios/Runner/NativePose/Calibration/CalibrationVoice.swift`: main #40이 AVSpeech → KoriSpeaker로 바꿈. integration/ai는 이 파일을 안 고쳐서 충돌은 없지만, 미리 만든 mp3를 쓰려면 KoriSpeaker에 파일 우선 재생을 붙여야 함.
 - `ios/Runner/Info.plist`: main #40이 `ElevenLabsApiKey` 추가 → 빌드된 앱에 키가 평문으로 들어감(`docs/handoff/security_followup.md` 3-1). integration/ai의 ATS 설정(`NSAllowsArbitraryLoads`)과 같은 파일.
 - 백엔드: #37·#38이 세트 기록·피드백 횟수 API를 씀. 트랙 E의 `onSetEnd {videoLocalPath, worstJoint}`가 그 세트 기록에 들어가야 함(서버는 경로만 저장).
 
