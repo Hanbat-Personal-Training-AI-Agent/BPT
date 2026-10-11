@@ -63,7 +63,7 @@ AI 쪽 작업(캘리브레이션 서버, 2D/3D 포즈, 자세 경고, 렙 카운
 
 ## 테스트
 - `swift test --package-path ios/CalibrationEngineKit`: 57 통과
-- `pytest tests/`: 163 통과
+- `pytest tests/`: 164 통과
 - 서버 `pytest tests` (server/calibration_modal): 68 통과, 1 건너뜀
 - `flutter test`: 67 통과
 - `xcodebuild` Runner, iOS Simulator Debug, `CODE_SIGNING_ALLOWED=NO`: 성공
