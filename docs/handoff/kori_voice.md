@@ -6,7 +6,7 @@
 - 운동: `lib/features/workout/data/kori_feedback_lines.dart`의 `key`·`ko` (28키)
 - 캘리브레이션: `ios/Runner/NativePose/Calibration/CalibrationTypes.swift`의 `CalibrationGuidance.message` (27줄 = 고정 23 + 촬영 완료 4방향)
 - 대사를 바꾸면 해당 파일만 고치고 `--only <키> --overwrite`로 다시 생성.
-- 벤치·데드 경고 키 6개(트랙 G)는 dart 대사가 아직 없어 음성도 없음. 팀원이 대사를 넣으면 `--only bench_,deadlift_`로 생성(`--only`는 접두사도 받음).
+- 벤치·데드 경고 키 6개(트랙 G)는 dart 대사가 아직 없어 음성도 없음. 팀원이 대사를 넣으면 `--only bench,deadlift`로 생성(`--only`는 `<접두사>_`로 시작하는 키도 받음).
 
 ## 파일 이름
 | 파일 | 내용 | 찾는 쪽 |
