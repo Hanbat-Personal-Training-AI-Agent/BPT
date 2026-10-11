@@ -132,16 +132,15 @@ PCK@0.05 = 예측 관절이 정답에서 사람 박스 긴 변의 5% 안에 든 
 촬영·실기기
 1. **촬영** (`data/side_videos/labels_template.csv` 행마다 한 영상): 각 영상은 2초 정지 → 바 들기 → 5렙 → 내려놓기. 정상 자세는 0°/30°/40°/정면 또는 후면, 틀린 자세는 경고 키마다. 가능하면 2명 이상(사람 단위 검증). 이 영상으로 렙 정확도 "실제 영상" 칸, 경고 키 검출률, 측면 컷오프(0.66/1.0), 준비 자세 프리셋, 세트 전후 바 처리, 사람 재확인 경계값을 확인.
 2. **iPhone 성능 측정**: 세트별 녹화 켜고/끄고 FPS(`BPT_PERF_LOG=1`, `scripts/compare_perf_logs.py`, 절차 `docs/research/set_recording_perf.md`), crop 경로 FPS(사람이 카메라 앞에 있어야 함).
-3. **2D 모델 전환 결정**(트랙 C, D-C-05): iPhone 17에서 m COCO17도 추론 3.3 ms라 속도는 문제 없음. m COCO17(로우 렙 +1.2%p, 비측면 푸시업 −1렙, 앱 +26 MB)로 바꿀지, Halpe26(D-C-04)으로 바꿀지 결정.
 결정
-4. **2D 모델 Halpe26 전환 여부**(D-C-04: 조건은 만족, 캘리브레이션 영향 있음), RTMPose-m은 3번 측정 뒤.
-5. **Exercise3D(Sapiens2 라벨)로 2D 학습 허용 여부**: 라이선스가 출력으로 학습하는 것을 명시하지 않고 생체정보 처리 금지 조항 해석이 갈림(D-C-01).
-6. **코리 음성 방식**(D-H-01, E7): 미리 만든 mp3 우선 + 실시간 보조 권장. main 병합 때 Flutter `_speakFeedback`(main #40)과 네이티브 WorkoutVoice 중 하나 선택(팀원 합의). ★ = 우선 등급 키로 본 것 확인(E4).
+3. **2D 모델 전환 여부**(트랙 C): 기본 s COCO17 유지 중. 후보 둘 — m COCO17(D-C-03·05: iPhone 17 추론 3.3 ms로 속도 문제 없음, 로우 렙 +1.2%p, 비측면 푸시업 −1렙, 앱 +26 MB)과 s Halpe26(D-C-04: 조건 만족, 발뒤꿈치 있음, 캘리브레이션 영향 확인 필요).
+4. **Exercise3D(Sapiens2 라벨)로 2D 학습 허용 여부**: 라이선스가 출력으로 학습하는 것을 명시하지 않고 생체정보 처리 금지 조항 해석이 갈림(D-C-01).
+5. **코리 음성 방식**(D-H-01, E7): 미리 만든 mp3 우선 + 실시간 보조 권장. main 병합 때 Flutter `_speakFeedback`(main #40)과 네이티브 WorkoutVoice 중 하나 선택(팀원 합의). ★ = 우선 등급 키로 본 것 확인(E4).
 결제·키·서버
-7. **ElevenLabs 키 처리**: main #40은 키를 빌드된 앱에 넣음 → 외부 배포 여부 결정, 키 권한·한도 설정(`docs/handoff/security_followup.md` 3-1).
-8. **GPU 서버 접근**: `ssh Home` 연결 시간 초과.
-9. **서버 공개 포트 확인**(서버 담당 팀원): 8080, 80(Swagger), HTTPS 전환, 운영 `JWT_SECRET` 설정 여부(`application.yml`에 기본값이 git에 있음). JWT 교체는 Spring·Modal `bpt-jwt` 동시에(체크리스트 1).
-10. **캘리브레이션(트랙 F)**: People Snapshot 평가를 Modal·R2(임대 컴퓨팅·저장소)에서 돌린 것이 라이선스 "자기가 통제하는 컴퓨터" 범위인지 확인(F8). R2에 남은 이전 e2e 객체 `calibrations/999999`, `results/999999` 삭제 여부. 팀원 화면 파일을 고친 실제 3D 결과 화면 브랜치 `ai/calibration-result-screen` 병합 승인(팀원 협의). 백엔드 변경 제안(상태 값 대응, main 엔티티 `coachComment` 열, 결과 저장 API — `teammate_calibration.md` 6절)은 팀원 결정. 가능하면 본인 체형 줄자 실측 몇 군데(팔·다리 길이)로 검증.
-11. **벤치·데드(트랙 G)**: 측면 벤치·데드 영상(폰 세로, 몸 옆 ±15°) — 정상 세트와 틀린 자세별 세트(벤치: 엉덩이 들기·가슴까지 안 내리기·팔 덜 펴기 / 데드: 엉덩이 먼저·덜 일어서기·뒤로 젖히기), 데드는 바닥에서 드는 것과 블록·RDL식 둘 다. Exercise3D 벤치·데드 원본 MOV(origin/benchpress, origin/deadlift) — 앱 RTMPose로 다시 재려면 필요. 새 키 6개 대사 초안을 `kori_feedback_lines.dart`에 넣을지 팀원 결정(리포트용 `koriMistakeLabels`도 같이).
-12. **Sapiens2 라이선스 — 평가에 쓰는 것**: Exercise3D 2D 라벨(Sapiens2 출력)을 모델 비교(트랙 C)와 벤치·데드 대리 입력(트랙 G)에 쓰고 있음. 라이선스 §1.b의 생체정보 처리·민감정보 추론 금지가 운동 자세 평가에 해당하는지 확인(학습에 쓰는 것은 5번).
-13. **main PR 열기·병합**(integration/ai → main): main보다 팀원 커밋 #35–#40이 앞서 있음. 충돌 예상 파일은 `docs/pr/integration_ai.md`.
+6. **ElevenLabs 키 처리**: main #40은 키를 빌드된 앱에 넣음 → 외부 배포 여부 결정, 키 권한·한도 설정(`docs/handoff/security_followup.md` 3-1).
+7. **GPU 서버 접근**: `ssh Home` 연결 시간 초과.
+8. **서버 공개 포트 확인**(서버 담당 팀원): 8080, 80(Swagger), HTTPS 전환, 운영 `JWT_SECRET` 설정 여부(`application.yml`에 기본값이 git에 있음). JWT 교체는 Spring·Modal `bpt-jwt` 동시에(체크리스트 1).
+9. **캘리브레이션(트랙 F)**: People Snapshot 평가를 Modal·R2(임대 컴퓨팅·저장소)에서 돌린 것이 라이선스 "자기가 통제하는 컴퓨터" 범위인지 확인(F8). R2에 남은 이전 e2e 객체 `calibrations/999999`, `results/999999` 삭제 여부. 팀원 화면 파일을 고친 실제 3D 결과 화면 브랜치 `ai/calibration-result-screen` 병합 승인(팀원 협의). 백엔드 변경 제안(상태 값 대응, main 엔티티 `coachComment` 열, 결과 저장 API — `teammate_calibration.md` 6절)은 팀원 결정. 가능하면 본인 체형 줄자 실측 몇 군데(팔·다리 길이)로 검증.
+10. **벤치·데드(트랙 G)**: 측면 벤치·데드 영상(폰 세로, 몸 옆 ±15°) — 정상 세트와 틀린 자세별 세트(벤치: 엉덩이 들기·가슴까지 안 내리기·팔 덜 펴기 / 데드: 엉덩이 먼저·덜 일어서기·뒤로 젖히기), 데드는 바닥에서 드는 것과 블록·RDL식 둘 다. Exercise3D 벤치·데드 원본 MOV(origin/benchpress, origin/deadlift) — 앱 RTMPose로 다시 재려면 필요. 새 키 6개 대사 초안을 `kori_feedback_lines.dart`에 넣을지 팀원 결정(리포트용 `koriMistakeLabels`도 같이).
+11. **Sapiens2 라이선스 — 평가에 쓰는 것**: Exercise3D 2D 라벨(Sapiens2 출력)을 모델 비교(트랙 C)와 벤치·데드 대리 입력(트랙 G)에 쓰고 있음. 라이선스 §1.b의 생체정보 처리·민감정보 추론 금지가 운동 자세 평가에 해당하는지 확인(학습에 쓰는 것은 4번).
+12. **main PR 열기·병합**(integration/ai → main): main보다 팀원 커밋 #35–#40이 앞서 있음. 충돌 예상 파일은 `docs/pr/integration_ai.md`.

@@ -40,7 +40,7 @@ AI 쪽 작업(캘리브레이션 서버, 2D/3D 포즈, 사람 crop 입력, 자�
 
 **2D 모델 평가 도구 (트랙 C, 앱 동작 변경 없음)**
 - `scripts/eval_pose2d.py`(COCO val·Exercise3D·Fit3D PCK), `scripts/eval_pose2d_reps.py`(후보 모델 렙 정확도), `pose-replay --model-path`, 후보 Core ML 변환(`rtmpose_s_coreml_common.py`: s body7, m COCO17/body7/Halpe26), Fit3D 미세조정 도구(Mac 전용), `tools/pose_model_bench`(iPhone 지연 XCTest, 연속 실행·발열·Vision 참고 포함; iPhone 17 결과 s 2.0 ms · m 3.3 ms, D-C-05)
-- 결론: 기본 RTMPose-s COCO17 유지. Fit3D 미세조정 기각(독립 세트에서 나빠짐), m COCO17은 기기 속도 확인 후 후보, Halpe26 전환은 사용자 결정(decisions D-C-01–04)
+- 결론: 기본 RTMPose-s COCO17 유지. Fit3D 미세조정 기각(독립 세트에서 나빠짐), m COCO17은 iPhone 17 속도 조건 만족(3.3 ms) → 전환은 사용자 결정(D-C-05), Halpe26 전환은 사용자 결정(decisions D-C-01–04)
 
 **앱 연결 (트랙 E)**
 - onFeedback `{key, n?, scope: "rep"|"set"}`: 참고 등급 키는 세트 끝(`endSet`)에 scope "set"으로 1번. 기본값에서 나가는 키는 그대로
