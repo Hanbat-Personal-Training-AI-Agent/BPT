@@ -15,10 +15,20 @@ AI 쪽 작업(캘리브레이션 서버, 2D/3D 포즈, 사람 crop 입력, 자�
 - GLB: 서버에서 SMPL 메시를 만들어 R2에 두고 조회 때 1시간 presigned GET(`result.modelGlbUrl`, 본인만). SMPL 모델 파일은 배포 안 함(비상업 라이선스)
 - 앱 분석 화면: polling·진행률·실패 문구·결과 요약. 실제 3D 결과 화면은 팀원 파일이라 브랜치 `ai/calibration-result-screen`에만(병합 안 함)
 - 운동 3D에 캘리브레이션 뼈 길이 연결은 보류(라이브 3D 꺼짐)
+- 촬영 거리 단축(F10–F11): 전면 초광각(iPhone 17 84°) 우선, 몸 높이 0.40–0.85, 폰 앞뒤 기울기 25° → 키 1.70 m 기준 최소 거리 1.70 → 1.15 m(바닥에 기대면 0.75 m). manifest에 선택 필드 `camera`
+- 서버 예열(F13): 촬영 화면 진입 시 `POST /v1/calibrations/warmup`(사용자당 5분 1회), `fit_body` 대기 180초 — 첫 작업 258 → 33초. 배포됨(v10)
 
 **포즈 (iOS NativePose)**
 - RTMPose-s Halpe26 모델 추가와 모델 선택 상수(기본 COCO17, `BPT_POSE_MODEL=halpe26`으로 전환)
 - MotionAGFormer 3D: 사람 중심 정사각형 crop 입력(기본), 캘리브레이션 뼈 길이 제약, 무릎 과신전 감지("3D 불량" 표시)
+
+**3D 평가 (트랙 D, 앱 동작 변경 없음)**
+- 사선(30–75°)에서 3D 각도는 2D보다 낫지만(Fit3D 스쿼트 무릎 오차 21–36° → 7–11°) 측면 수준이 아니고 측면 스쿼트 몸통은 오히려 나빠짐 → 측면 요구 유지(D-D-01)
+- 라이브 카메라 3D는 계속 끔, 3D 지표는 경고에 안 씀(D-D-02). 사선 렙 카운트도 2D가 나음(Fit3D 스쿼트 2D 8/8, 3D 4/8, D-D-04)
+- 무릎 "3D 불량" 감지는 품질 신호로 믿지 않음(감지 유지·보정 끔, D-D-03)
+- iPhone 17 라이브 3D 비용: 30 fps 안에 들어가지만 프레임당 +17 ms(9.4 → 26.2 ms), CPU 23 → 36%(D-D-05, `tools/ios_live3d_cost`)
+- Fit3D 미세조정 MotionAGFormer-XS: 학습 안 한 피험자 MPJPE 160–163 → 50–67 mm, 사선 무릎은 크게 좋아지나 몸통은 나빠져 앱 미반영(다음 단계 1순위, D-D-06). Fit3D 학습 가중치는 비상업(캡스톤) 전용, 학습은 사용자 PC(Home GPU)
+- 도구: `scripts/count_reps_3d_vs_2d.py`, `scripts/finetune_motionagformer_fit3d.py`, 2D·3D 각도 오차 평가
 
 **자세 경고 (FormWarnings.swift)**
 - 푸시업·스쿼트·바벨로우 공통 경고 기반, 렙별 판정, 세션 로그, pose-replay 도구
@@ -94,10 +104,10 @@ AI 쪽 작업(캘리브레이션 서버, 2D/3D 포즈, 사람 crop 입력, 자�
 - 후면 카메라 로우는 모두 측면 아님으로 판정
 
 ## 테스트
-- `swift test --package-path ios/CalibrationEngineKit`: 84 통과
+- `swift test --package-path ios/CalibrationEngineKit`: 86 통과
 - `pytest tests/`: 178 통과
-- 서버 `pytest tests` (server/calibration_modal): 81 통과, 1 건너뜀
-- `flutter test`: 77 통과
+- 서버 `pytest tests` (server/calibration_modal): 82 통과, 1 건너뜀
+- `flutter test`: 79 통과
 - `xcodebuild` Runner, iOS Simulator Debug, `CODE_SIGNING_ALLOWED=NO`: 성공
 
 ## main과의 차이 (병합 전 확인)

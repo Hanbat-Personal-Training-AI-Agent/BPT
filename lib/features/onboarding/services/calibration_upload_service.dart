@@ -366,6 +366,28 @@ class CalibrationUploadService {
     }
   }
 
+  /// Asks the server to start a fitting container now, so the upload a minute later skips the
+  /// GPU cold start. Best effort: never throws, and does nothing without a config or a token.
+  /// The server allows one warm-up per user per 5 minutes.
+  Future<void> warmUp() async {
+    if (config.configurationIssue != null) return;
+    try {
+      final token = await tokenProvider();
+      if (token == null || token.isEmpty) return;
+      await _api.postUri<dynamic>(
+        config.api('calibrations/warmup'),
+        options: Options(
+          headers: {'Authorization': 'Bearer $token'},
+          followRedirects: false,
+          sendTimeout: const Duration(seconds: 10),
+          receiveTimeout: const Duration(seconds: 10),
+        ),
+      );
+    } catch (_) {
+      // An old server (404), no network or an expired token only cost the cold start.
+    }
+  }
+
   Future<CalibrationJob> fetchJob(String jobId,
       {CancelToken? cancelToken}) async {
     final issue = config.configurationIssue;
