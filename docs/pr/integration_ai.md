@@ -46,8 +46,16 @@ AI 쪽 작업(캘리브레이션 서버, 2D/3D 포즈, 사람 crop 입력, 자�
 - onFeedback `{key, n?, scope: "rep"|"set"}`: 참고 등급 키는 세트 끝(`endSet`)에 scope "set"으로 1번. 기본값에서 나가는 키는 그대로
 - 네이티브 WorkoutVoice: Flutter가 onFeedback에 답으로 준 대사만 말함(대사 원문은 dart에만), 우선 등급 키 끼어들기, 대기 3초 넘으면 버림, `setVoiceMuted`. 음원 `assets/kori_voice/<key>[_<n>].mp3` → 없으면 기기 TTS
 - `startSet`/`endSet` ↔ `onSetEnd {setIndex, videoLocalPath, worstJoint}`, worstJoint는 켜진 키만(지금은 null)
-- 벤치·데드: 폼 키 없이 setup_full_body·tracking_lost만
+- 벤치·데드: setup_full_body·tracking_lost만 전달(트랙 G에서 평가기 자체 트래커로 바뀜)
 - 세트별 녹화(720p H.264, 최근 20개) 기본 꺼짐(`BPT_SET_RECORDING=1`), perf 로그 `BPT_PERF_LOG=1`, `scripts/compare_perf_logs.py`
+
+**벤치프레스·데드리프트 (트랙 G)**
+- 벤치 렙: 락아웃을 본 뒤에만 렙 시작, 적응 임계값은 팔꿈치 범위 50° 이상부터(`repStartRequiresTop`, `minRequiredElbowRange`), 한쪽 팔만 보여도 측정(`allowOneArm`)
+- 데드 렙: 락아웃 진행도 0.28→0.10, 바 내림 = 손목이 무릎 아래, 바닥→top 직행도 렙 시작(`directBottomToTopStartsRep`). 이전엔 Exercise3D·Fit3D 전부 0렙
+- 측면(≤40°) 렙 정확도 조정 / 검증: 벤치 88.9/90.9% → **100/100%**, 데드 0/0% → **100/100%**, 데드 Fit3D 가상 측면 30렙 100%. 정지 합성 가짜 렙 벤치 73→0, 데드 0. 스쿼트·푸시업·로우 78영상 결과 동일
+  - 입력은 Exercise3D의 Sapiens2 2D 키포인트(**대리 입력**, 앱 RTMPose 아님 — 원본 영상 없음). 사람 단위 분리는 뼈 길이 비율 추정
+- 경고 키 6개 추가(`bench_hips_up`, `bench_shallow`, `bench_no_lockout`, `deadlift_hips_first`, `deadlift_no_lockout`, `deadlift_lean_back`), **전부 꺼짐**·dart 대사 없음(팀원 결정 대기). 평가기가 자기 `FormWarningTracker`를 가짐(트랙 E의 `StatusDrivenFormTracker` 대체)
+- pose-replay `--exercise bench|deadlift`, `--keypoints-csv`
 
 **평가 도구**
 - `scripts/eval_side_videos.py` + `data/side_videos/labels_template.csv`: 직접 찍은 영상으로 렙 정확도, 측면 비율 분포, 경고 발생률, 셋업 키 집계
@@ -86,7 +94,7 @@ AI 쪽 작업(캘리브레이션 서버, 2D/3D 포즈, 사람 crop 입력, 자�
 - 후면 카메라 로우는 모두 측면 아님으로 판정
 
 ## 테스트
-- `swift test --package-path ios/CalibrationEngineKit`: 77 통과
+- `swift test --package-path ios/CalibrationEngineKit`: 84 통과
 - `pytest tests/`: 178 통과
 - 서버 `pytest tests` (server/calibration_modal): 81 통과, 1 건너뜀
 - `flutter test`: 77 통과
@@ -114,6 +122,7 @@ integration/ai는 main보다 팀원 커밋 6개가 뒤처져 있습니다(2026-1
 - **Fit3D에 측면 카메라 없음**(전부 58–74° 사선): 측면 정확도 검증에는 못 쓰고 회귀 확인만 함.
 - **로우 측면 컷오프 0.66(crop 입력)은 40° 근처에서 미검증**: 데이터가 20–36°와 76–81°뿐. 정면 스쿼트 영상(squat_03)의 비율이 0.64–0.67이라 정면 촬영이 측면으로 판정될 수 있음.
   주말 촬영 영상(0/30/40°, 정면·후면)으로 확인 예정.
+- 벤치·데드 수치는 Sapiens2 대리 입력 기준이라 앱 RTMPose(특히 누운 자세 측면)로는 미검증. 데드는 정면 카메라 미지원.
 - 캘리브레이션 체형 평가 기준은 People Snapshot의 consensus 메시(정답 아님, 단안 추정 키)이고 실제 사용자 줄자 실측 검증은 없음.
 - 준비 자세 확인은 Exercise3D처럼 바로 시작하는 세트에서 렙을 잃어 기본 꺼짐.
 

@@ -48,9 +48,16 @@
 | 나머지 (pushup_shallow·hand_position·depth_fade, squat_hips_first·shallow·no_lockout·lean_drift·depth_fade, row_standing_up·short_pull) | 끔 | 0–1% | 대기 | 임시값 |
 | squat_heel_rise | 끔 | Halpe26 전용. 발뒤꿈치 위치 PCK 0.940(s)·0.974(m)라 쓸 수는 있음 | 대기 | — |
 | squat_knee_valgus | 끔 | 측면에서 판정 불가(정면 키) | 대기 | — |
+| bench_hips_up (우선) | 끔, 대사 없음 | 0/60렙 ※ | 대기 | — |
+| bench_shallow (개선) | 끔, 대사 없음 | 0/60렙 ※ | 대기 | — |
+| bench_no_lockout (참고) | 끔, 대사 없음 | 9/60렙 ※ | 대기 | — |
+| deadlift_hips_first (우선) | 끔, 대사 없음 | 0/80렙 ※ | 대기 | — |
+| deadlift_no_lockout (참고) | 끔, 대사 없음 | 3/80렙 ※ | 대기 | — |
+| deadlift_lean_back (참고) | 끔, 대사 없음 | 3/80렙 ※ | 대기 | — |
 
 - 오경보율 근거: `outputs/rep_validation/E_warning_dist_coco17.md`(전체 프레임 입력, 정상 렙 80–84개/운동). crop 입력의 p99(D-C-04): pushup_hip_sag 0.093, pushup_head_drop 0.308, row_torso_swing 17.1°(COCO17) — 임계값이 crop 기준보다 느슨해 정상 렙 초과 0%. 틀린 자세 영상이 오면 crop 기준으로 다시 맞춰야 함.
 - 꺼진 경고 키가 켜졌다면 났을 횟수(측면, crop): COCO17 12, Halpe26 9.
+- ※ 벤치·데드 키(D-G-04): Exercise3D Sapiens2 대리 입력의 정상 렙. 대사(kori_feedback_lines.dart)가 아직 없어 켜도 말할 문장이 없음 — 초안은 진행 기록 트랙 G.
 - 키를 켜는 조건: 틀린 자세 영상에서 렙별 검출률, 정상 영상 오경보율을 재고 decisions.md에 기록.
 
 ## 3. 2D 모델 비교 (트랙 C, crop 입력, D-C-03·04)
@@ -85,6 +92,7 @@ PCK@0.05 = 예측 관절이 정답에서 사람 박스 긴 변의 5% 안에 든 
 - onFeedback `{key, n?, scope:"rep"|"set"}`: 기본값에서 실제로 나가는 키는 그대로(setup_full_body, tracking_lost, 로우 setup_side_view).
 - 음성: 네이티브 WorkoutVoice가 Flutter가 답으로 준 대사만 말함(mp3 `assets/kori_voice/<key>[_<n>].mp3` → 없으면 기기 TTS). mp3는 `scripts/generate_kori_voice.py`로 생성(키 필요).
 - onSetEnd `{setIndex, videoLocalPath, worstJoint}`: worstJoint는 켜진 경고 키만 보므로 지금은 항상 null.
+- 벤치·데드: 평가기가 자기 경고 트래커를 가짐(트랙 G) — setup_full_body·tracking_lost만 전달, 새 키 6개는 판정·로그만.
 - 세트별 녹화(720p H.264, 최근 20개 보관)는 **기본 꺼짐** — 실기기 FPS 감소 ≤10% 확인 후 켬.
 
 ## 6. 체형 캘리브레이션 (트랙 F, F4)
@@ -105,6 +113,7 @@ PCK@0.05 = 예측 관절이 정답에서 사람 박스 긴 변의 5% 안에 든 
 - **측면 컷오프**: 로우 0.66(crop)은 40° 근처 데이터가 없어 미검증이고, 정면 스쿼트 영상 비율이 0.64–0.67이라 정면 촬영이 측면으로 판정될 수 있음. 푸시업 1.0은 40°와 48°를 못 가름.
 - **자세 경고 꺼짐**: 틀린 자세 데이터가 없어 검출률을 모름. 임계값은 전체 프레임 입력 p99라 crop 입력에는 느슨함.
 - **기기 속도 미측정**: crop·큰 모델·녹화의 iPhone FPS를 아직 못 잼.
+- **벤치·데드는 대리 입력**: 원본 영상이 없어 앱 RTMPose가 아니라 Sapiens2 2D 키포인트로 잼. 누운 자세 측면 RTMPose(한쪽 팔 허용, D-G-02)는 미검증. 데드는 정면 카메라 지원 안 함(정면 9.1%), 마지막 렙은 바를 내려놓을 때 셈.
 - **2D로 안 보이는 것**: 허리 굽힘, 버트윙크, 견갑 후인, 벤치 바 경로·아치는 다루지 않음.
 - **Fit3D**: 측면 카메라 없음(58–74°), 비상업·단일 사용자 라이선스 → 학습 가중치는 캡스톤 용도만(미세조정 모델은 채택 안 함).
 - **준비 자세 확인 꺼짐**: 세트 전 바 들기로 1렙이 더 셀 수 있음(Exercise3D 1건).
@@ -124,4 +133,6 @@ PCK@0.05 = 예측 관절이 정답에서 사람 박스 긴 변의 5% 안에 든 
 8. **GPU 서버 접근**: `ssh Home` 연결 시간 초과.
 9. **서버 공개 포트 확인**(서버 담당 팀원): 8080, 80(Swagger), HTTPS 전환, 운영 `JWT_SECRET` 설정 여부(`application.yml`에 기본값이 git에 있음). JWT 교체는 Spring·Modal `bpt-jwt` 동시에(체크리스트 1).
 10. **캘리브레이션(트랙 F)**: People Snapshot 평가를 Modal·R2(임대 컴퓨팅·저장소)에서 돌린 것이 라이선스 "자기가 통제하는 컴퓨터" 범위인지 확인(F8). R2에 남은 이전 e2e 객체 `calibrations/999999`, `results/999999` 삭제 여부. 팀원 화면 파일을 고친 실제 3D 결과 화면 브랜치 `ai/calibration-result-screen` 병합 승인(팀원 협의). 백엔드 변경 제안(상태 값 대응, main 엔티티 `coachComment` 열, 결과 저장 API — `teammate_calibration.md` 6절)은 팀원 결정. 가능하면 본인 체형 줄자 실측 몇 군데(팔·다리 길이)로 검증.
-11. **main PR 열기·병합**(integration/ai → main): main보다 팀원 커밋 #35–#40이 앞서 있음. 충돌 예상 파일은 `docs/pr/integration_ai.md`.
+11. **벤치·데드(트랙 G)**: 측면 벤치·데드 영상(폰 세로, 몸 옆 ±15°) — 정상 세트와 틀린 자세별 세트(벤치: 엉덩이 들기·가슴까지 안 내리기·팔 덜 펴기 / 데드: 엉덩이 먼저·덜 일어서기·뒤로 젖히기), 데드는 바닥에서 드는 것과 블록·RDL식 둘 다. Exercise3D 벤치·데드 원본 MOV(origin/benchpress, origin/deadlift) — 앱 RTMPose로 다시 재려면 필요. 새 키 6개 대사 초안을 `kori_feedback_lines.dart`에 넣을지 팀원 결정(리포트용 `koriMistakeLabels`도 같이).
+12. **Sapiens2 라이선스 — 평가에 쓰는 것**: Exercise3D 2D 라벨(Sapiens2 출력)을 모델 비교(트랙 C)와 벤치·데드 대리 입력(트랙 G)에 쓰고 있음. 라이선스 §1.b의 생체정보 처리·민감정보 추론 금지가 운동 자세 평가에 해당하는지 확인(학습에 쓰는 것은 5번).
+13. **main PR 열기·병합**(integration/ai → main): main보다 팀원 커밋 #35–#40이 앞서 있음. 충돌 예상 파일은 `docs/pr/integration_ai.md`.
