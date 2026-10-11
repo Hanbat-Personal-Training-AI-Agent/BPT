@@ -90,7 +90,7 @@ PCK@0.05 = 예측 관절이 정답에서 사람 박스 긴 변의 5% 안에 든 
 
 ## 5. 앱 연결 (트랙 E)
 - onFeedback `{key, n?, scope:"rep"|"set"}`: 기본값에서 실제로 나가는 키는 그대로(setup_full_body, tracking_lost, 로우 setup_side_view).
-- 음성: 네이티브 WorkoutVoice가 Flutter가 답으로 준 대사만 말함(mp3 `assets/kori_voice/<key>[_<n>].mp3` → 없으면 기기 TTS). mp3는 `scripts/generate_kori_voice.py`로 생성(키 필요).
+- 음성: 네이티브 WorkoutVoice가 Flutter가 답으로 준 대사만 말함(mp3 `assets/kori_voice/<key>[_<n>].mp3` → 없으면 기기 TTS). mp3는 팀원이 직접 생성해 넣음(이름 규칙 `docs/handoff/kori_voice.md`).
 - onSetEnd `{setIndex, videoLocalPath, worstJoint}`: worstJoint는 켜진 경고 키만 보므로 지금은 항상 null.
 - 벤치·데드: 평가기가 자기 경고 트래커를 가짐(트랙 G) — setup_full_body·tracking_lost만 전달, 새 키 6개는 판정·로그만.
 - 세트별 녹화(720p H.264, 최근 20개 보관)는 **기본 꺼짐** — 실기기 FPS 감소 ≤10% 확인 후 켬.
@@ -129,7 +129,7 @@ PCK@0.05 = 예측 관절이 정답에서 사람 박스 긴 변의 5% 안에 든 
 5. **Exercise3D(Sapiens2 라벨)로 2D 학습 허용 여부**: 라이선스가 출력으로 학습하는 것을 명시하지 않고 생체정보 처리 금지 조항 해석이 갈림(D-C-01).
 6. **코리 음성 방식**(D-H-01, E7): 미리 만든 mp3 우선 + 실시간 보조 권장. main 병합 때 Flutter `_speakFeedback`(main #40)과 네이티브 WorkoutVoice 중 하나 선택(팀원 합의). ★ = 우선 등급 키로 본 것 확인(E4).
 결제·키·서버
-7. **ElevenLabs 결제 + API 키**: `ELEVENLABS_API_KEY=… python scripts/generate_kori_voice.py`(188파일, 5,623자). main #40은 키를 빌드된 앱에 넣음 → 외부 배포 여부 결정, 키 권한·한도 설정(`docs/handoff/security_followup.md` 3-1).
+7. **ElevenLabs 키 처리**: main #40은 키를 빌드된 앱에 넣음 → 외부 배포 여부 결정, 키 권한·한도 설정(`docs/handoff/security_followup.md` 3-1).
 8. **GPU 서버 접근**: `ssh Home` 연결 시간 초과.
 9. **서버 공개 포트 확인**(서버 담당 팀원): 8080, 80(Swagger), HTTPS 전환, 운영 `JWT_SECRET` 설정 여부(`application.yml`에 기본값이 git에 있음). JWT 교체는 Spring·Modal `bpt-jwt` 동시에(체크리스트 1).
 10. **캘리브레이션(트랙 F)**: People Snapshot 평가를 Modal·R2(임대 컴퓨팅·저장소)에서 돌린 것이 라이선스 "자기가 통제하는 컴퓨터" 범위인지 확인(F8). R2에 남은 이전 e2e 객체 `calibrations/999999`, `results/999999` 삭제 여부. 팀원 화면 파일을 고친 실제 3D 결과 화면 브랜치 `ai/calibration-result-screen` 병합 승인(팀원 협의). 백엔드 변경 제안(상태 값 대응, main 엔티티 `coachComment` 열, 결과 저장 API — `teammate_calibration.md` 6절)은 팀원 결정. 가능하면 본인 체형 줄자 실측 몇 군데(팔·다리 길이)로 검증.

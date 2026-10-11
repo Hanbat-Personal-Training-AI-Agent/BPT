@@ -121,7 +121,7 @@
 ## D-H-01 코리 음성: 미리 만든 mp3를 먼저, 실시간 ElevenLabs TTS는 파일이 없을 때만 (2026-10-11, 제안 — 앱 코드 반영은 팀원·사용자 결정)
 - **상황**: main에 팀원 커밋 `0d00676`(#40)이 들어옴 — `KoriSpeaker.swift`가 대사를 그때그때 ElevenLabs로 합성(voice "manbo" `ZZ4xhVcc83kZBfNIlIIz`, 모델 `eleven_flash_v2_5`, 타임아웃 8초, 실패 시 iOS 기본 음성, 실행 중 메모리 캐시 64줄, 파일 저장 없음). 캘리브레이션(`CalibrationVoice`)과 운동 피드백(Flutter `KoriVoiceService` → 채널 `bpt/kori_voice`) 모두 이걸 씀. integration/ai에는 아직 없음.
 - **비교**:
-  | 항목 | 실시간 TTS (main #40) | 미리 만든 mp3 (`scripts/generate_kori_voice.py`) |
+  | 항목 | 실시간 TTS (main #40) | 미리 만든 mp3 (팀원 직접 생성) |
   |---|---|---|
   | 비용 | 앱을 켤 때마다 새로 합성(메모리 캐시는 재시작하면 사라짐). 사용자·세션 수에 비례 | 한 번 188파일 5,623자. 대사 바꿀 때만 다시 |
   | 지연 | 네트워크 왕복 + 합성(측정 없음, 수백 ms로 추정). "렙 직후 바로" 경고가 늦어질 수 있음 | 0 (로컬 재생) |
@@ -406,3 +406,8 @@
 - 근거: 틀린 자세 영상 없음 → 켤 수 없음(BRIEF §4). 정상 렙 발동(대리 입력): hips_up 0/60, shallow 0/60, bench_no_lockout 9/60, hips_first 0/80, deadlift_no_lockout 3/80, lean_back 3/80. 2D로 못 보는 허리 굽음·바 경로·아치·견갑은 만들지 않음.
 - 대사: `kori_feedback_lines.dart`는 팀원 파일이라 손대지 않고 초안을 진행 기록에 둠. 테스트(`WorkoutSessionBridgeTests.keysAwaitingDartLines`)가 이 6개를 "대사 대기 + 꺼짐"으로 확인.
 - 되돌리기: 키를 `enabledFeedbackKeys`에 넣지 않으면 동작 변화 없음. 트래커 연결 되돌리기는 `437644f`.
+
+## D-H-02 음성 생성 스크립트 삭제 (2026-10-11)
+- 결정: `scripts/generate_kori_voice.py`와 테스트를 지운다. mp3는 팀원이 ElevenLabs에서 직접 뽑아 넣는다(사용자 지시).
+- 남긴 것: 파일 이름 규칙(`docs/handoff/kori_voice.md`). WorkoutVoice의 mp3 우선 재생 → 없으면 기기 TTS 동작은 그대로.
+- 되돌리기: 커밋 `af70acc`의 스크립트·테스트 복원.

@@ -61,7 +61,7 @@ AI 쪽 작업(캘리브레이션 서버, 2D/3D 포즈, 사람 crop 입력, 자�
 - `scripts/eval_side_videos.py` + `data/side_videos/labels_template.csv`: 직접 찍은 영상으로 렙 정확도, 측면 비율 분포, 경고 발생률, 셋업 키 집계
 
 **음성·문서**
-- `scripts/generate_kori_voice.py`: ElevenLabs로 코리 음성 mp3 생성(운동 28키 + 숫자 1..20, 캘리브레이션 27줄 = 188파일, 5,623자). 대사는 dart/Swift 원문을 파싱, 키는 환경변수만, `--dry-run`. 이름 규칙 `docs/handoff/kori_voice.md`
+- 코리 음성 mp3는 팀원이 직접 생성해 넣음. 파일 이름 규칙 `docs/handoff/kori_voice.md`(생성 스크립트는 삭제, D-H-02)
 - `docs/decisions.md`(결정 기록), `docs/results/summary.md`(발표용 결과표), `docs/handoff/security_followup.md`(JWT 교체·HTTPS·테스트 토큰 정리 체크리스트, 실행 안 함), `docs/progress/`
 
 ## 기본 꺼짐(플래그)
@@ -111,7 +111,7 @@ integration/ai는 main보다 팀원 커밋 6개가 뒤처져 있습니다(2026-1
 | `ios/Runner.xcodeproj/project.pbxproj` | #40 `KoriSpeaker.swift` 추가 | Halpe26 모델·평가기·트랙 E 파일 추가 | 파일 목록 충돌 가능. 양쪽 항목 다 남기고 xcodebuild로 확인 |
 
 의미상 겹침(같은 파일은 아님):
-- `ios/Runner/NativePose/Calibration/CalibrationVoice.swift`: main #40이 AVSpeech → KoriSpeaker로 바꿈. integration/ai는 이 파일을 안 고쳐서 충돌은 없지만, 미리 만든 mp3(`scripts/generate_kori_voice.py`)를 쓰려면 KoriSpeaker에 파일 우선 재생을 붙여야 함.
+- `ios/Runner/NativePose/Calibration/CalibrationVoice.swift`: main #40이 AVSpeech → KoriSpeaker로 바꿈. integration/ai는 이 파일을 안 고쳐서 충돌은 없지만, 미리 만든 mp3를 쓰려면 KoriSpeaker에 파일 우선 재생을 붙여야 함.
 - `ios/Runner/Info.plist`: main #40이 `ElevenLabsApiKey` 추가 → 빌드된 앱에 키가 평문으로 들어감(`docs/handoff/security_followup.md` 3-1). integration/ai의 ATS 설정(`NSAllowsArbitraryLoads`)과 같은 파일.
 - 백엔드: #37·#38이 세트 기록·피드백 횟수 API를 씀. 트랙 E의 `onSetEnd {videoLocalPath, worstJoint}`가 그 세트 기록에 들어가야 함(서버는 경로만 저장).
 
