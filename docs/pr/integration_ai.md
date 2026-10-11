@@ -15,10 +15,20 @@ AI 쪽 작업(캘리브레이션 서버, 2D/3D 포즈, 사람 crop 입력, 자�
 - GLB: 서버에서 SMPL 메시를 만들어 R2에 두고 조회 때 1시간 presigned GET(`result.modelGlbUrl`, 본인만). SMPL 모델 파일은 배포 안 함(비상업 라이선스)
 - 앱 분석 화면: polling·진행률·실패 문구·결과 요약. 실제 3D 결과 화면은 팀원 파일이라 브랜치 `ai/calibration-result-screen`에만(병합 안 함)
 - 운동 3D에 캘리브레이션 뼈 길이 연결은 보류(라이브 3D 꺼짐)
+- 촬영 거리 단축(F10–F11): 전면 초광각(iPhone 17 84°) 우선, 몸 높이 0.40–0.85, 폰 앞뒤 기울기 25° → 키 1.70 m 기준 최소 거리 1.70 → 1.15 m(바닥에 기대면 0.75 m). manifest에 선택 필드 `camera`
+- 서버 예열(F13): 촬영 화면 진입 시 `POST /v1/calibrations/warmup`(사용자당 5분 1회), `fit_body` 대기 180초 — 첫 작업 258 → 33초. 배포됨(v10)
 
 **포즈 (iOS NativePose)**
 - RTMPose-s Halpe26 모델 추가와 모델 선택 상수(기본 COCO17, `BPT_POSE_MODEL=halpe26`으로 전환)
 - MotionAGFormer 3D: 사람 중심 정사각형 crop 입력(기본), 캘리브레이션 뼈 길이 제약, 무릎 과신전 감지("3D 불량" 표시)
+
+**3D 평가 (트랙 D, 앱 동작 변경 없음)**
+- 사선(30–75°)에서 3D 각도는 2D보다 낫지만(Fit3D 스쿼트 무릎 오차 21–36° → 7–11°) 측면 수준이 아니고 측면 스쿼트 몸통은 오히려 나빠짐 → 측면 요구 유지(D-D-01)
+- 라이브 카메라 3D는 계속 끔, 3D 지표는 경고에 안 씀(D-D-02). 사선 렙 카운트도 2D가 나음(Fit3D 스쿼트 2D 8/8, 3D 4/8, D-D-04)
+- 무릎 "3D 불량" 감지는 품질 신호로 믿지 않음(감지 유지·보정 끔, D-D-03)
+- iPhone 17 라이브 3D 비용: 30 fps 안에 들어가지만 프레임당 +17 ms(9.4 → 26.2 ms), CPU 23 → 36%(D-D-05, `tools/ios_live3d_cost`)
+- Fit3D 미세조정 MotionAGFormer-XS: 학습 안 한 피험자 MPJPE 160–163 → 50–67 mm, 사선 무릎은 크게 좋아지나 몸통은 나빠져 앱 미반영(다음 단계 1순위, D-D-06). Fit3D 학습 가중치는 비상업(캡스톤) 전용, 학습은 사용자 PC(Home GPU)
+- 도구: `scripts/count_reps_3d_vs_2d.py`, `scripts/finetune_motionagformer_fit3d.py`, 2D·3D 각도 오차 평가
 
 **자세 경고 (FormWarnings.swift)**
 - 푸시업·스쿼트·바벨로우 공통 경고 기반, 렙별 판정, 세션 로그, pose-replay 도구
@@ -39,8 +49,8 @@ AI 쪽 작업(캘리브레이션 서버, 2D/3D 포즈, 사람 crop 입력, 자�
 - 사람 재확인: 30프레임(≈1초)마다 전체 프레임을 한 번 더 보고, 뚜렷하고(관절 12개·평균 신뢰도 0.42) 1.5배 이상 크며 crop과 30% 이하로 겹치는 다른 사람이면 옮김(추론 +3.3%). 현재 모델 수치는 그대로, 뒤에 다른 사람이 있던 영상에서 m Halpe26 푸시업 81.1→100%. 끄기 `RTMPoseCropTracker.recheckInterval = Int.max`
 
 **2D 모델 평가 도구 (트랙 C, 앱 동작 변경 없음)**
-- `scripts/eval_pose2d.py`(COCO val·Exercise3D·Fit3D PCK), `scripts/eval_pose2d_reps.py`(후보 모델 렙 정확도), `pose-replay --model-path`, 후보 Core ML 변환(`rtmpose_s_coreml_common.py`: s body7, m COCO17/body7/Halpe26), Fit3D 미세조정 도구(Mac 전용), `tools/pose_model_bench`(iPhone 지연 XCTest)
-- 결론: 기본 RTMPose-s COCO17 유지. Fit3D 미세조정 기각(독립 세트에서 나빠짐), m COCO17은 기기 속도 확인 후 후보, Halpe26 전환은 사용자 결정(decisions D-C-01–04)
+- `scripts/eval_pose2d.py`(COCO val·Exercise3D·Fit3D PCK), `scripts/eval_pose2d_reps.py`(후보 모델 렙 정확도), `pose-replay --model-path`, 후보 Core ML 변환(`rtmpose_s_coreml_common.py`: s body7, m COCO17/body7/Halpe26), Fit3D 미세조정 도구(Mac 전용), `tools/pose_model_bench`(iPhone 지연 XCTest, 연속 실행·발열·Vision 참고 포함; iPhone 17 결과 s 2.0 ms · m 3.3 ms, D-C-05)
+- 결론: 기본 RTMPose-s COCO17 유지. Fit3D 미세조정 기각(독립 세트에서 나빠짐), m COCO17은 iPhone 17 속도 조건 만족(3.3 ms, D-C-05). m COCO17·Halpe26 전환 여부는 세 운동 트랙(스쿼트·푸시업·로우)의 검증용(held-out) 비교로 정함 — 검증용이 좋아지고 다른 것이 나빠지지 않을 때만 플래그로 m COCO17 전환
 
 **앱 연결 (트랙 E)**
 - onFeedback `{key, n?, scope: "rep"|"set"}`: 참고 등급 키는 세트 끝(`endSet`)에 scope "set"으로 1번. 기본값에서 나가는 키는 그대로
@@ -72,7 +82,7 @@ AI 쪽 작업(캘리브레이션 서버, 2D/3D 포즈, 사람 crop 입력, 자�
 | squat_heel_rise | 끔 | 지표는 기록 |
 | row_shrug | 끔 | 실험 |
 | 무릎 과신전 보정 | 끔 | 감지("3D 불량" 표시)만 켜짐 |
-| 세트별 녹화 | 끔 | `BPT_SET_RECORDING=1` 또는 UserDefaults `BPTSetRecording`. 실기기 FPS 감소 ≤10% 확인 후 켬 |
+| 세트별 녹화 | 끔 | `BPT_SET_RECORDING=1` 또는 UserDefaults `BPTSetRecording`. iPhone 17 측정(D-E-08): FPS −5.4%지만 30 fps에서 놓친 프레임 3→9라 OFF 유지 |
 | (켜짐) 사람 3:4 crop 입력 | 켬 | 끄기 `CameraPreviewOptions.personCropInput = false` — 끄면 로우 컷오프도 0.56으로 |
 
 ## 기본으로 켜진 키
@@ -94,10 +104,10 @@ AI 쪽 작업(캘리브레이션 서버, 2D/3D 포즈, 사람 crop 입력, 자�
 - 후면 카메라 로우는 모두 측면 아님으로 판정
 
 ## 테스트
-- `swift test --package-path ios/CalibrationEngineKit`: 84 통과
+- `swift test --package-path ios/CalibrationEngineKit`: 86 통과
 - `pytest tests/`: 178 통과
-- 서버 `pytest tests` (server/calibration_modal): 81 통과, 1 건너뜀
-- `flutter test`: 77 통과
+- 서버 `pytest tests` (server/calibration_modal): 82 통과, 1 건너뜀
+- `flutter test`: 79 통과
 - `xcodebuild` Runner, iOS Simulator Debug, `CODE_SIGNING_ALLOWED=NO`: 성공
 
 ## main과의 차이 (병합 전 확인)

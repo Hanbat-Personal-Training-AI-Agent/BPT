@@ -331,3 +331,19 @@ def test_a_finished_job_ignores_the_watchdog(bucket):
     _, response = upload(client)
     spawner.run()
     assert client.get(f"/v1/calibrations/jobs/{response.json()['jobId']}", headers=headers()).json()["status"] == "done"
+
+
+def test_warmup_rate_limited_per_user(bucket, monkeypatch):
+    warmed = []
+    client = TestClient(service.create_app(bucket, BucketState(bucket), Spawner(bucket, None), SECRET,
+                                           warm=lambda: warmed.append(1)))
+    auth = lambda user: {"Authorization": f"Bearer {token(sub=user)}"}
+    assert client.post("/v1/calibrations/warmup").status_code == 401
+    assert client.post("/v1/calibrations/warmup", headers=auth("42")).json() == {"status": "warming"}
+    assert client.post("/v1/calibrations/warmup", headers=auth("42")).json() == {"status": "skipped"}
+    assert client.post("/v1/calibrations/warmup", headers=auth("43")).json() == {"status": "warming"}
+    assert len(warmed) == 2
+    later = time.time() + service.WARMUP_INTERVAL_SECONDS + 1
+    monkeypatch.setattr(service.time, "time", lambda: later)
+    assert client.post("/v1/calibrations/warmup", headers=auth("42")).json() == {"status": "warming"}
+    assert len(warmed) == 3

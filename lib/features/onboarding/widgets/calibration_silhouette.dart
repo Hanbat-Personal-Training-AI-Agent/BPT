@@ -60,8 +60,8 @@ class CalibrationSilhouette {
 class CalibrationGuide {
   const CalibrationGuide({
     this.bodyHeight = 0.62,
-    this.minBodyHeight = 0.55,
-    this.maxBodyHeight = 0.69,
+    this.minBodyHeight = 0.40,
+    this.maxBodyHeight = 0.85,
     this.maxCentreOffset = 0.06,
     this.bufferAspect = 9 / 16,
   });
@@ -79,8 +79,8 @@ class CalibrationGuide {
     double read(String key, double fallback) => (map[key] as num?)?.toDouble() ?? fallback;
     return CalibrationGuide(
       bodyHeight: read('bodyHeight', 0.62),
-      minBodyHeight: read('minBodyHeight', 0.55),
-      maxBodyHeight: read('maxBodyHeight', 0.69),
+      minBodyHeight: read('minBodyHeight', 0.40),
+      maxBodyHeight: read('maxBodyHeight', 0.85),
       maxCentreOffset: read('maxCentreOffset', 0.06),
       bufferAspect: read('bufferAspect', 9 / 16),
     );

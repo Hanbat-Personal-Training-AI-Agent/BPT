@@ -62,6 +62,48 @@ final class RTMPoseWorkspaceTests: XCTestCase {
         XCTAssertTrue(observedChange, "Reused provider must see new pixels, not a cached first frame")
     }
 
+    /// `RTMPoseCropTracker.estimate` (the live per-frame step shared by the camera, pose-replay and the device
+    /// bench) gives the same keypoints as the steps done by hand, and only touches the tracker with personCrop.
+    func testEstimateMatchesTheManualPoseStep() throws {
+        var root = URL(fileURLWithPath: #filePath)
+        for _ in 0..<5 { root.deleteLastPathComponent() }
+        let package = root.appendingPathComponent("ios/Runner/NativePose/Models/\(RTMPoseModel.active.rawValue).mlpackage")
+        guard FileManager.default.fileExists(atPath: package.path) else { throw XCTSkip("Local RTMPose model absent") }
+        let compiled = try MLModel.compileModel(at: package)
+        defer { try? FileManager.default.removeItem(at: compiled) }
+        let config = MLModelConfiguration()
+        config.computeUnits = .cpuOnly
+        let model = try MLModel(contentsOf: compiled, configuration: config)
+        let (w, h) = (360, 640)
+        var rgba = (0..<(w * h * 4)).map { UInt8(($0 * 7 + $0 / (w * 4) * 3) % 256) }
+        let image = try XCTUnwrap(rgba.withUnsafeMutableBytes {
+            CGContext(data: $0.baseAddress, width: w, height: h, bitsPerComponent: 8, bytesPerRow: w * 4,
+                      space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue)?.makeImage()
+        })
+        let workspace = try RTMPoseInputWorkspace()
+        let back = try PosePreprocess.drawRegion(image, rect: CGRect(x: 0, y: 0, width: w, height: h), into: &workspace.pixels)
+        try PosePreprocess.normalizeRGBAIntoRTMPoseInput(workspace.pixels, input: workspace.input, width: 192, height: 256)
+        let output = try model.prediction(from: workspace.provider)
+        let expected = PoseCoordinateTransforms.applyInverseAffine(
+            decoded: try SimCCDecoder.decodeToInputCoordinates(simccX: output.featureValue(for: "simcc_x")!.multiArrayValue!,
+                                                               simccY: output.featureValue(for: "simcc_y")!.multiArrayValue!),
+            inverseAffine: back)
+        for personCrop in [false, true] {
+            var tracker = RTMPoseCropTracker()
+            let estimate = try XCTUnwrap(tracker.estimate(image, model: model, workspace: workspace, personCrop: personCrop))
+            XCTAssertEqual(estimate.coco17.count, 17)
+            for (a, b) in zip(estimate.coco17, expected) {
+                XCTAssertEqual(a.x, b.x, accuracy: 1e-6)
+                XCTAssertEqual(a.y, b.y, accuracy: 1e-6)
+                XCTAssertEqual(a.confidence, b.confidence, accuracy: 1e-6)
+            }
+            XCTAssertNil(estimate.recheckSwitched)  // whole frame in, no crop yet → no recheck
+            var updated = RTMPoseCropTracker()
+            if personCrop { updated.update(expected) }
+            XCTAssertEqual(tracker.crop, updated.crop)
+        }
+    }
+
     func testHalpe26DecodeKeepsCOCO17AndSplitsOffFeet() throws {
         let x = try MLMultiArray(shape: [1, 26, 384], dataType: .float32)
         let y = try MLMultiArray(shape: [1, 26, 512], dataType: .float32)

@@ -389,4 +389,28 @@ void main() {
           throwsA(isA<CalibrationUploadException>()));
     });
   });
+
+  group('warmUp', () {
+    test('posts once with only the bearer token', () async {
+      await service().warmUp();
+      expect(apiCalls.single.method, 'POST');
+      expect(apiCalls.single.uri.toString(),
+          'https://calibration.example.test/v1/calibrations/warmup');
+      expect(apiCalls.single.headers['Authorization'], 'Bearer user-token');
+      expect(storageCalls, isEmpty);
+    });
+
+    test('no token, no config or a server error: no throw', () async {
+      await service(token: null).warmUp();
+      await service(config: const CalibrationUploadConfig()).warmUp();
+      expect(apiCalls, isEmpty);
+      api = Dio()
+        ..httpClientAdapter = _Adapter((options, _) async {
+          apiCalls.add(options);
+          return _json({'detail': 'Not Found'}, 404);
+        });
+      await service().warmUp();
+      expect(apiCalls, hasLength(1));
+    });
+  });
 }

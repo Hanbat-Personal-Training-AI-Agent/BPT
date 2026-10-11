@@ -11,7 +11,7 @@ final class CalibrationEngineTests: XCTestCase {
     private let aspect = 1080.0 / 1920.0
 
     /// Torso 0.20 tall: head top 0.21, feet 0.872, so the body is 0.66 of the frame,
-    /// inside the guide's 0.62 ± 0.07.
+    /// inside the accepted 0.40–0.85.
     private struct Body {
         var shoulderY = 0.36
         var hipY = 0.56
@@ -112,6 +112,43 @@ final class CalibrationEngineTests: XCTestCase {
     }
 
     private func face(yaw: Double) -> CalibrationFace { CalibrationFace(isDetected: true, yawDeg: yaw) }
+
+    /// The same body `k` times as tall in the frame, scaled about the frame centre.
+    private func scaled(_ k: Double) -> Body {
+        var b = Body()
+        for path in [\Body.shoulderY, \Body.hipY, \Body.ankleY] { b[keyPath: path] = 0.5 + (b[keyPath: path] - 0.5) * k }
+        b.shoulderWidth *= k
+        b.hipWidth *= k
+        return b
+    }
+
+    // MARK: - Framing and phone tilt
+
+    func testBodySizeBandLetsTheUserStandCloserOrFurther() {
+        // Body() is 0.662 of the frame, so scaled(k) is 0.662 k.
+        let guidance = { (k: Double) -> CalibrationGuidance in
+            let e = CalibrationEngine()
+            return e.process(self.frame(self.scaled(k), .frontal, at: 0)).guidance
+        }
+        // Accepted at both ends: the first frame only starts the hold.
+        XCTAssertEqual(guidance(0.62), .holdStill)  // 0.41
+        XCTAssertEqual(guidance(1.27), .holdStill)  // 0.84
+        XCTAssertEqual(guidance(0.57), .stepForward)  // 0.38: RTMPose starts losing joints
+        XCTAssertEqual(guidance(1.33), .stepBack)  // 0.88
+    }
+
+    func testPhoneMayLeanBackUpTo25Degrees() {
+        func guidance(pitch: Double, roll: Double = 0) -> CalibrationGuidance {
+            var f = frame(Body(), .frontal, at: 0)
+            f.device.pitchDeg = pitch
+            f.device.rollDeg = roll
+            return CalibrationEngine().process(f).guidance
+        }
+        XCTAssertEqual(guidance(pitch: 20), .holdStill)
+        XCTAssertEqual(guidance(pitch: -24), .holdStill)
+        XCTAssertEqual(guidance(pitch: 26), .holdPhoneUpright)
+        XCTAssertEqual(guidance(pitch: 0, roll: 4), .holdPhoneUpright)  // roll is unchanged
+    }
 
     // MARK: - Front
 
@@ -431,6 +468,7 @@ final class CalibrationEngineTests: XCTestCase {
                 (failJPEG && url.pathExtension == "jpg") { throw CocoaError(.fileWriteOutOfSpace) }
             try data.write(to: url, options: .atomic)
         }
+        store.camera = ["deviceType": "AVCaptureDeviceTypeBuiltInUltraWideCamera", "fieldOfViewDeg": 84.08]
         let engine = CalibrationEngine()
         let pending = try request(engine)
         var selected = frame(Body(), .frontal, at: 0.2)
@@ -465,6 +503,7 @@ final class CalibrationEngineTests: XCTestCase {
         XCTAssertEqual((view["intrinsics"] as? [String: Any])?["fx"] as? Double, 1111)
         XCTAssertEqual((view["keypoints"] as? [[Double]])?[0], [selected.keypoints[0].x * 1000, selected.keypoints[0].y * 2000, 0.8])
         XCTAssertEqual(json["isComplete"] as? Bool, false)
+        XCTAssertEqual((json["camera"] as? [String: Any])?["fieldOfViewDeg"] as? Double, 84.08)
         XCTAssertThrowsError(try store.writeCapture(jpeg: jpeg, record: record, userHeightCm: 175, reference: pending.reference))
         let next = CalibrationStore.ViewRecord(label: .rightfront, snapshot: snapshot, r: 0.5, delta: 0.3)
         failManifest = true
