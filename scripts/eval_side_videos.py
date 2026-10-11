@@ -1,7 +1,7 @@
 """Evaluate rep counting, the side-view gate and form warnings on your own workout videos.
 
 Drives pose-replay (the app's pose path + evaluators, ios/CalibrationEngineKit) on every video in a
-folder for COCO17 and Halpe26, with the ready-pose check off (app default) and with its preset
+folder for RTMPose-m COCO17 (app workout default), s COCO17 and s Halpe26, with the ready-pose check off (app default) and with its preset
 (squat/row: hold the start pose 0.5 s before the first rep; push-up: off), then writes one Markdown report.
 
 Ground-truth CSV (one row per video, header required):
@@ -37,7 +37,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
 DEFAULT_BINARY = REPO / "ios/CalibrationEngineKit/.build/release/pose-replay"
-MODELS = ("coco17", "halpe26")
+MODELS = ("mcoco17", "coco17", "halpe26")  # mcoco17 = app workout default (D-T3-05)
 EXERCISE_FILE = {"squat": "squat", "pushup": "pushup", "row": "barbell_row"}
 SIDE_CUTOFF = 0.66  # BarbellRowFormConfig.sideViewMaxShoulderRatio
 COLUMNS = ["file", "exercise", "angle_deg", "form", "wrong_key", "reps"]

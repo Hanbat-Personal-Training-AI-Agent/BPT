@@ -225,4 +225,11 @@ final class RepTransitionTests: XCTestCase {
         config.requireAnkleForRep = true
         XCTAssertEqual(pushUpReps(bends, config: config, pose: noAnkles), 0)
     }
+
+    func testWorkoutUsesMediumModelCalibrationKeepsSmall() throws {
+        try XCTSkipIf(ProcessInfo.processInfo.environment["BPT_POSE_MODEL"] != nil, "overridden by BPT_POSE_MODEL")
+        XCTAssertEqual(RTMPoseModel.workout, .mcoco17)
+        XCTAssertEqual(RTMPoseModel.workout.rawValue, "rtmpose_m_forward")
+        XCTAssertEqual(RTMPoseModel.active, .coco17, "calibration capture unchanged")
+    }
 }

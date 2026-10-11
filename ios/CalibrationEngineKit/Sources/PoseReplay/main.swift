@@ -5,7 +5,7 @@
 // FormWarningTracker — all symlinked from ios/Runner) to tune the form-warning thresholds.
 //
 //   swift run -c release --package-path ios/CalibrationEngineKit pose-replay \
-//       [--exercise squat|pushup|row|bench|deadlift] [--model coco17|halpe26] [--model-path PATH] [--motion3d PATH|none] [--lookahead N] \
+//       [--exercise squat|pushup|row|bench|deadlift] [--model coco17|halpe26|mcoco17] [--model-path PATH] [--motion3d PATH|none] [--lookahead N] \
 //       [--row-shrug] [--side-cutoff R] [--row-offside off] [--pushup-ankle on|off] [--pushup-wrist-conf C] [--pushup-min-frames N] [--ready-pose off|preset] [--input crop|full] [--keypoints-csv PATH] [--output-dir PATH] <video.mp4>...
 //
 // --model-path: another RTMPose .mlpackage with the same 256x192 input and SimCC outputs (17 or 26 joints;
@@ -37,7 +37,7 @@ let repoRoot = URL(fileURLWithPath: #filePath)
     .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
     .deletingLastPathComponent().deletingLastPathComponent()
 var outputDir = repoRoot.appendingPathComponent("outputs/pose_replay")
-var poseModel = RTMPoseModel.active
+var poseModel = RTMPoseModel.workout
 var poseModelPath: String?
 var exercise = FormExercise.squat
 var keypointsCSV: String?
@@ -56,13 +56,13 @@ var readyPosePreset = false
 var personCrop = true
 var videos: [URL] = []
 var arguments = CommandLine.arguments.dropFirst().makeIterator()
-let usage = "usage: pose-replay [--exercise squat|pushup|row|bench|deadlift] [--model coco17|halpe26] [--model-path PATH] [--motion3d PATH|none] [--lookahead N] [--row-shrug] [--side-cutoff R] [--row-offside off] [--pushup-ankle on|off] [--pushup-wrist-conf C] [--pushup-min-frames N] [--ready-pose off|preset] [--input crop|full] [--keypoints-csv PATH] [--output-dir PATH] <video.mp4>..."
+let usage = "usage: pose-replay [--exercise squat|pushup|row|bench|deadlift] [--model coco17|halpe26|mcoco17] [--model-path PATH] [--motion3d PATH|none] [--lookahead N] [--row-shrug] [--side-cutoff R] [--row-offside off] [--pushup-ankle on|off] [--pushup-wrist-conf C] [--pushup-min-frames N] [--ready-pose off|preset] [--input crop|full] [--keypoints-csv PATH] [--output-dir PATH] <video.mp4>..."
 while let argument = arguments.next() {
     switch argument {
     case "--model":
         guard let name = arguments.next(),
               let picked = RTMPoseModel.allCases.first(where: { "\($0)" == name }) else {
-            print("--model requires coco17 or halpe26")
+            print("--model requires coco17, halpe26 or mcoco17")
             exit(2)
         }
         poseModel = picked
