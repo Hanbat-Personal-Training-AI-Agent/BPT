@@ -902,7 +902,8 @@ final class FormWarningTracker {
             }
             if c.heelRiseEnabled { fire("squat_heel_rise", over("heel_rise_max", c.heelRiseShinRatio)) }
         case .barbellRow:
-            fire("setup_side_view", firstRep && !sideView)
+            // The gate already said it (updateSideView) when it decided before this first rep.
+            fire("setup_side_view", firstRep && !sideView && !sideViewGuided)
             guard sideView else { break }
             let c = row
             if let lo = m["torso_min"], let hi = m["torso_max"] { fire("row_torso_swing", hi - lo > c.torsoSwingRangeDegrees) }

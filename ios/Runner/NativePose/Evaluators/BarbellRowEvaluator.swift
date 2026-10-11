@@ -14,6 +14,11 @@ struct BarbellRowEvaluatorConfig {
     var maxUnknownFramesWithValidDepth = 10
     var minRepRowDepthNorm = 0.06
     var validRepTopElbowAngleThreshold = 130.0
+    /// Count reps with the side-view rules even when the side-view gate says "not side" (the gate then
+    /// only sends setup_side_view and keeps form warnings off). Fit3D diagonal cams (61–71°) count
+    /// 95–98% this way but the gate's shoulder ratio cannot tell them from rear cams (76–81°), where the
+    /// rules miss reps but never added one. false = old behaviour (no reps off the side view). D-T3-01
+    var countOffSideView = true
     var maxStoredRepSummaries = 100
     /// Ready pose: frames the start pose must be held still before the first rep (0 = off) and the
     /// allowed drift of the motion signal meanwhile. OFF: on Exercise3D (sets start within ~1 s)
@@ -108,11 +113,11 @@ final class BarbellRowEvaluator {
     }
 
     /// `pose3D`: MotionAGFormer H36M17 selected3D when available (form metrics only; nil in the live app).
-    /// Side-view gate (formTracker.sideView, nil = not decided yet → side). Not side: the status
-    /// machine still runs (and is reported/logged) but no rep is started or counted, so no warnings;
-    /// the tracker queues setup_side_view instead.
+    /// Side-view gate (formTracker.sideView, nil = not decided yet → side). Not side: the tracker queues
+    /// setup_side_view and judges no form warnings; reps are still counted with the side-view rules
+    /// (config.countOffSideView; false = the status machine runs but no rep is started or counted).
     func evaluate(frameIndex: Int, coco17: [PoseKeypoint], pose3D: [SIMD3<Double>]? = nil) -> BarbellRowFrameResult {
-        let sideView = formTracker.sideView != false
+        let sideView = formTracker.sideView != false || config.countOffSideView
         let measurements = computeMeasurements(coco17: coco17, sideView: sideView)
         let rawCandidate = classifyRawStatusCandidate(measurements, sideView: sideView)
         let previousStatus = stableStatus

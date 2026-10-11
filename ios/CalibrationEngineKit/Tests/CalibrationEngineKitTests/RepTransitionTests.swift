@@ -58,8 +58,9 @@ final class RepTransitionTests: XCTestCase {
         return k
     }
 
-    private func rowRun(spread: Double, farArmConfidence: Double = 0.9) -> (reps: Int, tracker: FormWarningTracker) {
-        let evaluator = BarbellRowEvaluator()
+    private func rowRun(spread: Double, farArmConfidence: Double = 0.9,
+                        config: BarbellRowEvaluatorConfig = BarbellRowEvaluatorConfig()) -> (reps: Int, tracker: FormWarningTracker) {
+        let evaluator = BarbellRowEvaluator(config: config)
         let ramp = (0...12).map { Double($0) / 12 }
         let pulls = Array(repeating: 0.0, count: 40)
             + Array(repeating: Array(repeating: 0.0, count: 20) + ramp + Array(repeating: 1.0, count: 10) + ramp.reversed(), count: 3).flatMap { $0 }
@@ -79,12 +80,26 @@ final class RepTransitionTests: XCTestCase {
     }
 
     func testRowRearViewIsGatedWithSetupGuidance() {
-        // Shoulder width / torso length ≈ 0.8 (Exercise3D rear cams: 0.66–0.84).
-        let run = rowRun(spread: 85)
+        // Shoulder width / torso length ≈ 0.8 (Exercise3D rear cams: 0.66–0.84). Old behaviour
+        // (countOffSideView = false): no reps, setup_side_view once.
+        var config = BarbellRowEvaluatorConfig()
+        config.countOffSideView = false
+        let run = rowRun(spread: 85, config: config)
         XCTAssertEqual(run.tracker.sideView, false)
         XCTAssertEqual(run.reps, 0)
         XCTAssertTrue(run.tracker.reports.isEmpty)
         XCTAssertEqual(run.tracker.drainEvents().map(\.key), ["setup_side_view"])
+    }
+
+    func testRowOffSideViewStillCountsWithoutFormWarningsOrRepeatedGuidance() {
+        // Default: a diagonal/rear camera (gate "not side") still counts with the side-view rules,
+        // says setup_side_view once (not again on the first rep) and judges no form warnings.
+        XCTAssertTrue(BarbellRowEvaluatorConfig().countOffSideView)
+        let run = rowRun(spread: 85)
+        XCTAssertEqual(run.tracker.sideView, false)
+        XCTAssertEqual(run.reps, 3)
+        XCTAssertEqual(run.tracker.drainEvents().map(\.key), ["setup_side_view"])
+        XCTAssertTrue(run.tracker.reports.allSatisfy { $0.warnings.isEmpty })
     }
 
     func testReadyPoseGate() {
@@ -160,5 +175,42 @@ final class RepTransitionTests: XCTestCase {
         let fastOn = pushUpReps(fast, fixes: true)
         XCTAssertEqual(fastOn, 4)
         XCTAssertLessThan(pushUpReps(fast, fixes: false), fastOn)
+    }
+
+    private func pushUpReps(_ bends: [Double], config: PushUpEvaluatorConfig, pose: (Double) -> [PoseKeypoint]) -> Int {
+        let evaluator = PushUpEvaluator(config: config)
+        var rep = 0
+        for (i, b) in bends.enumerated() { rep = evaluator.evaluate(frameIndex: i, coco17: pose(b)).rep }
+        return rep
+    }
+
+    func testPushUpFlickerRepShorterThanMinRepFramesIsDropped() {
+        // Two real reps calibrate the elbow range, then a 6-frame flicker (0.2 s at 30 fps) to the bottom.
+        let ramp = (0...15).map { Double($0) * 6 }
+        let real = Array(repeating: 0.0, count: 10) + ramp + ramp.reversed()
+        let flicker = Array(repeating: 0.0, count: 20) + [90, 90, 90, 90, 0, 0] + Array(repeating: 0.0, count: 20)
+        let bends = Array(repeating: 0.0, count: 40) + real + real + flicker
+        var config = PushUpEvaluatorConfig()
+        XCTAssertEqual(config.minRepFrames, 10)
+        XCTAssertEqual(pushUpReps(bends, config: config, pose: pushUpPose), 2)
+        config.minRepFrames = 0
+        XCTAssertEqual(pushUpReps(bends, config: config, pose: pushUpPose), 3, "the flicker counts without the minimum")
+    }
+
+    func testPushUpCountsWithAnklesLostOnlyWhenAnkleNotRequired() {
+        // Off-side cameras lose the ankles first; the elbow angle alone drives the rep.
+        let ramp = (0...15).map { Double($0) * 6 }
+        let bends = Array(repeating: 0.0, count: 40)
+            + Array(repeating: Array(repeating: 0.0, count: 10) + ramp + ramp.reversed(), count: 3).flatMap { $0 } + Array(repeating: 0.0, count: 20)
+        let noAnkles = { (b: Double) -> [PoseKeypoint] in
+            var k = self.pushUpPose(bend: b)
+            k[15].confidence = 0.1; k[16].confidence = 0.1
+            return k
+        }
+        var config = PushUpEvaluatorConfig()
+        XCTAssertFalse(config.requireAnkleForRep, "default")
+        XCTAssertEqual(pushUpReps(bends, config: config, pose: noAnkles), 3)
+        config.requireAnkleForRep = true
+        XCTAssertEqual(pushUpReps(bends, config: config, pose: noAnkles), 0)
     }
 }

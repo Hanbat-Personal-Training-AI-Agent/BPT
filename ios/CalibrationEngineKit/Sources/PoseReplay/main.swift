@@ -6,13 +6,16 @@
 //
 //   swift run -c release --package-path ios/CalibrationEngineKit pose-replay \
 //       [--exercise squat|pushup|row|bench|deadlift] [--model coco17|halpe26] [--model-path PATH] [--motion3d PATH|none] [--lookahead N] \
-//       [--row-shrug] [--ready-pose off|preset] [--input crop|full] [--keypoints-csv PATH] [--output-dir PATH] <video.mp4>...
+//       [--row-shrug] [--side-cutoff R] [--row-offside off] [--pushup-ankle on|off] [--pushup-wrist-conf C] [--pushup-min-frames N] [--ready-pose off|preset] [--input crop|full] [--keypoints-csv PATH] [--output-dir PATH] <video.mp4>...
 //
 // --model-path: another RTMPose .mlpackage with the same 256x192 input and SimCC outputs (17 or 26 joints;
 // pass --model halpe26 for 26) — candidate models are compared on the same videos without replacing the bundled one.
 //
 // halpe26 also feeds the decoded toes/heels to SquatEvaluator (heel_rise_max; squat_heel_rise is off). --row-shrug turns on
-// the experimental row_shrug rule (off in the app).
+// the experimental row_shrug rule (off in the app). --side-cutoff: row/push-up side-view gate cutoff (shoulder width ÷
+// torso length) instead of the app's value, to measure counting with the gate moved (e.g. 99 = gate off).
+// --pushup-ankle / --pushup-wrist-conf / --pushup-min-frames: PushUpEvaluatorConfig.requireAnkleForRep / wristMinJointConfidence / minRepFrames.
+// --row-offside off: no row reps off the side view (old gate behaviour; BarbellRowEvaluatorConfig.countOffSideView).
 //
 // --keypoints-csv: skip decoding and RTMPose, read the 2D keypoints (j0..j16 x/y/c, extra columns
 // ignored) from a CSV in the format this tool writes; the video path then only names the outputs (no 3D).
@@ -44,11 +47,16 @@ var motion3DPath: String? = {
 }()
 var lookahead = 5
 var rowShrug = false
+var sideCutoff: Double?
+var rowNonSide: String?
+var pushUpAnkle: Bool?
+var pushUpWristConf: Double?
+var pushUpMinFrames: Int?
 var readyPosePreset = false
 var personCrop = true
 var videos: [URL] = []
 var arguments = CommandLine.arguments.dropFirst().makeIterator()
-let usage = "usage: pose-replay [--exercise squat|pushup|row|bench|deadlift] [--model coco17|halpe26] [--model-path PATH] [--motion3d PATH|none] [--lookahead N] [--row-shrug] [--ready-pose off|preset] [--input crop|full] [--keypoints-csv PATH] [--output-dir PATH] <video.mp4>..."
+let usage = "usage: pose-replay [--exercise squat|pushup|row|bench|deadlift] [--model coco17|halpe26] [--model-path PATH] [--motion3d PATH|none] [--lookahead N] [--row-shrug] [--side-cutoff R] [--row-offside off] [--pushup-ankle on|off] [--pushup-wrist-conf C] [--pushup-min-frames N] [--ready-pose off|preset] [--input crop|full] [--keypoints-csv PATH] [--output-dir PATH] <video.mp4>..."
 while let argument = arguments.next() {
     switch argument {
     case "--model":
@@ -80,6 +88,17 @@ while let argument = arguments.next() {
         lookahead = value
     case "--row-shrug":
         rowShrug = true
+    case "--pushup-ankle":
+        pushUpAnkle = arguments.next() != "off"
+    case "--pushup-min-frames":
+        pushUpMinFrames = arguments.next().flatMap(Int.init)
+    case "--pushup-wrist-conf":
+        pushUpWristConf = arguments.next().flatMap(Double.init)
+    case "--row-offside":
+        rowNonSide = arguments.next()
+    case "--side-cutoff":
+        guard let value = arguments.next().flatMap(Double.init) else { exit(2) }
+        sideCutoff = value
     case "--ready-pose":
         switch arguments.next() {
         case "off": readyPosePreset = false
@@ -244,15 +263,22 @@ for video in videos {
         tracker = evaluator.formTracker
         step = { let r = evaluator.evaluate(frameIndex: $0, coco17: $1, pose3D: $2, feet: $3); return (r.status.rawValue, r.rep) }
     case .pushUp:
-        let evaluator = PushUpEvaluator()
+        var config = PushUpEvaluatorConfig()
+        if let pushUpAnkle { config.requireAnkleForRep = pushUpAnkle }
+        if let pushUpWristConf { config.wristMinJointConfidence = pushUpWristConf }
+        if let pushUpMinFrames { config.minRepFrames = pushUpMinFrames }
+        let evaluator = PushUpEvaluator(config: config)
         tracker = evaluator.formTracker
+        if let sideCutoff { tracker.pushUp.sideViewMaxShoulderRatio = sideCutoff }
         step = { i, k, p, _ in let r = evaluator.evaluate(frameIndex: i, coco17: k, pose3D: p); return (r.status.rawValue, r.rep) }
     case .barbellRow:
         var config = BarbellRowEvaluatorConfig()
         if readyPosePreset { config.applyReadyPosePreset(fps: fps) }
+        if rowNonSide == "off" { config.countOffSideView = false }
         let evaluator = BarbellRowEvaluator(config: config)
         tracker = evaluator.formTracker
         tracker.row.shrugEnabled = rowShrug
+        if let sideCutoff { tracker.row.sideViewMaxShoulderRatio = sideCutoff }
         step = { i, k, p, _ in let r = evaluator.evaluate(frameIndex: i, coco17: k, pose3D: p); return (r.status.rawValue, r.rep) }
     case .benchPress:
         let evaluator = BenchPressEvaluator()

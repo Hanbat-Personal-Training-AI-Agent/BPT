@@ -16,6 +16,18 @@ struct PushUpEvaluatorConfig {
     var sideViewRepFixes = true
     var sideViewArm = PushUpSideArm.trackerSide
     var pushUpMinJointConfidence = 0.30
+    /// Frame gate: one whole side (shoulder, elbow, wrist, hip + ankle when true) must pass the
+    /// confidence check. The rep signal is the elbow angle; hip/ankle only feed depth and body-line
+    /// metrics. Off-side cameras lose the ankles first (Fit3D 62–70°: ankle 0.1–0.25 at the top).
+    /// true = old gate. docs/decisions.md D-T3-02
+    var requireAnkleForRep = false
+    /// Wrist confidence for the arm checks (elbow angle) — wrists planted on the floor score lower
+    /// than other joints off the side view. Defaults to pushUpMinJointConfidence.
+    var wristMinJointConfidence = 0.30
+    /// A rep shorter than this (start → lockout, frames; 10 = 0.33 s at 30 fps) is dropped as a flicker,
+    /// not counted. Exercise3D push-ups take ≥ 24 frames; Fit3D 62–70° cams added 1–9-frame reps from
+    /// noisy elbow angles while getting down/up. 0 = off. docs/decisions.md D-T3-02
+    var minRepFrames = 10
     var descendDepthDeltaThreshold = 0.010
     var ascendDepthDeltaThreshold = -0.010
     var topDepthThreshold = 0.06
@@ -621,6 +633,10 @@ final class PushUpEvaluator {
     private func completeRep(frameIndex: Int, measurements: Measurements) -> Bool {
         updateCurrentRep(measurements)
         guard isCurrentRepValid(), let startFrame = currentRepStartFrame else { return false }
+        guard frameIndex - startFrame >= config.minRepFrames else {
+            resetCurrentRep()
+            return false
+        }
         let maxDepth = currentRepMaxDepthNorm ?? 0.0
         let minElbow = currentRepMinElbowAngleDegrees
         completedRepCount += 1
@@ -676,12 +692,17 @@ final class PushUpEvaluator {
 
     /// One whole side (shoulder, elbow, wrist, hip, ankle) is enough in a side view.
     private func jointsAreConfident(_ coco17: [PoseKeypoint]) -> Bool {
-        sideConfident(coco17, [COCO17.leftShoulder, COCO17.leftElbow, COCO17.leftWrist, COCO17.leftHip, COCO17.leftAnkle])
-            || sideConfident(coco17, [COCO17.rightShoulder, COCO17.rightElbow, COCO17.rightWrist, COCO17.rightHip, COCO17.rightAnkle])
+        let ankle = config.requireAnkleForRep
+        return sideConfident(coco17, [COCO17.leftShoulder, COCO17.leftElbow, COCO17.leftWrist, COCO17.leftHip] + (ankle ? [COCO17.leftAnkle] : []))
+            || sideConfident(coco17, [COCO17.rightShoulder, COCO17.rightElbow, COCO17.rightWrist, COCO17.rightHip] + (ankle ? [COCO17.rightAnkle] : []))
     }
 
     private func sideConfident(_ coco17: [PoseKeypoint], _ indices: [Int]) -> Bool {
-        indices.allSatisfy { coco17.indices.contains($0) && coco17[$0].confidence >= config.pushUpMinJointConfidence }
+        indices.allSatisfy { index in
+            let wrist = index == COCO17.leftWrist || index == COCO17.rightWrist
+            return coco17.indices.contains(index)
+                && coco17[index].confidence >= (wrist ? config.wristMinJointConfidence : config.pushUpMinJointConfidence)
+        }
     }
 
     /// Two-side average when both are confident, else the confident one.
