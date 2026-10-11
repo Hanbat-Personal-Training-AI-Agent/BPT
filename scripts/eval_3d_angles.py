@@ -105,7 +105,10 @@ def evaluate(coco, ref, ref_up, side, w, h, runner, segments, cam_up=np.array([0
     a2, a3, ar = angles_2d(coco, side), angles_3d(P, cam_up, side), angles_3d(ref, ref_up, side)
     inside = np.zeros(len(coco), bool)
     for s, e in segments: inside[s:e + 1] = True
-    res = {'frames': int(inside.sum()), 'bad3d_frames': int((bad & inside).sum())}
+    res = {'frames': int(inside.sum()), 'bad3d_frames': int((bad & inside).sum()),
+           # knee hinge check: flagged mask and the 3D knee error on every frame (flagged ones included), and how
+           # many reference frames are themselves hyperextended past the limit (true hyperextension, ~0 expected)
+           'bad_mask': bad[inside].tolist(), 'ref_bad_frames': int((bad3d(ref) & inside).sum())}
     for k in ar:
         e2 = np.abs(a2[k] - ar[k])[inside]; e3 = np.abs(a3[k] - ar[k])[inside & ~bad]
         r2, r3 = [], []
@@ -115,6 +118,7 @@ def evaluate(coco, ref, ref_up, side, w, h, runner, segments, cam_up=np.array([0
             ok = ~bad[s:e + 1]
             if ok.any(): r3.append(abs(EXTREME[k](a3[k][s:e + 1][ok]) - g))
         res[k] = {'frame_err_2d': e2.tolist(), 'frame_err_3d': e3.tolist(), 'rep_err_2d': r2, 'rep_err_3d': r3,
+                  'frame_err_3d_all': np.abs(a3[k] - ar[k])[inside].tolist(),
                   'ref_range': float(np.ptp(ar[k][inside]))}
     return res
 
