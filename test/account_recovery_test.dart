@@ -20,14 +20,91 @@ class _FakeAuthService extends AuthService {
       requested.add(email);
 
   @override
-  Future<bool> confirmEmailVerification({
+  Future<({bool verified, String? token})> confirmEmailVerification({
     required String email,
     required String code,
   }) async =>
-      code == _validCode;
+      (verified: code == _validCode, token: code == _validCode ? 'vt_1' : null);
+
+  final resets = <Map<String, String?>>[];
+
+  /// 'jihoon' 만 jihoon@bpt.app 의 아이디로 취급한다.
+  @override
+  Future<void> resetPassword({
+    required String username,
+    required String email,
+    required String newPassword,
+    String? verificationToken,
+  }) async {
+    resets.add({
+      'username': username,
+      'email': email,
+      'token': verificationToken,
+    });
+    if (username != 'jihoon' || email != 'jihoon@bpt.app') {
+      throw ServerException('User not found', 404, 'USER_NOT_FOUND');
+    }
+  }
 }
 
 void main() {
+  test('password reset sends id, verified email and token; mismatch explains',
+      () async {
+    final auth = _FakeAuthService();
+    final notifier = AccountRecoveryNotifier(auth);
+    addTearDown(notifier.dispose);
+    expect(
+        await notifier.resetPassword(username: 'jihoon', newPassword: 'pw1234'),
+        isNull);
+    expect(auth.resets, isEmpty); // 인증 전에는 보내지 않는다
+    notifier.changeEmail('jihoon@bpt.app');
+    await notifier.sendCode();
+    await notifier.verifyCode(_validCode);
+    expect(
+        await notifier.resetPassword(username: 'other', newPassword: 'pw1234'),
+        '아이디와 이메일이 맞지 않아. 다시 확인해줘.');
+    expect(
+        await notifier.resetPassword(username: 'jihoon', newPassword: 'pw1234'),
+        isNull);
+    expect(auth.resets.last,
+        {'username': 'jihoon', 'email': 'jihoon@bpt.app', 'token': 'vt_1'});
+  });
+
+  testWidgets('reset page has id field under code and toasts a mismatch',
+      (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(ProviderScope(
+        overrides: [authServiceProvider.overrideWithValue(_FakeAuthService())],
+        child: const MaterialApp(home: AccountRecoveryScreen())));
+    await tester.tap(find.text('비밀번호 재설정').first);
+    await tester.pumpAndSettle();
+    final fields = find.byType(TextField);
+    expect(find.text('아이디'), findsOneWidget);
+    expect(tester.getTopLeft(find.text('아이디')).dy,
+        greaterThan(tester.getTopLeft(find.text('인증 코드')).dy));
+    await tester.enterText(fields.at(0), 'jihoon@bpt.app');
+    await tester.tap(find.text('인증하기').first);
+    await tester.pumpAndSettle();
+    await tester.enterText(fields.at(1), _validCode);
+    await tester.pump();
+    await tester.tap(find.text('인증하기'));
+    await tester.pumpAndSettle();
+    await tester.enterText(fields.at(2), 'other');
+    await tester.enterText(fields.at(3), 'pw1234');
+    await tester.enterText(fields.at(4), 'pw1234');
+    await tester.tap(find.text('비밀번호 재설정하기').last);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('아이디와 이메일이 맞지 않아. 다시 확인해줘.'), findsOneWidget);
+    // 토스트가 올라왔다 내려갈 때까지 (320ms + 2.2s + 320ms) 프레임을 돌린다.
+    for (var i = 0; i < 40; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+  });
+
   test('verification requires send and changing email invalidates proof',
       () async {
     final auth = _FakeAuthService();
