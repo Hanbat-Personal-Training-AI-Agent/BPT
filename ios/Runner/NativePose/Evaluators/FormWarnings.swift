@@ -1,7 +1,8 @@
 import Foundation
 import simd
 
-// Form warnings shared by PushUpEvaluator, SquatEvaluator and BarbellRowEvaluator, following
+// Form warnings shared by PushUpEvaluator, SquatEvaluator, BarbellRowEvaluator, BenchPressEvaluator and
+// DeadliftEvaluator, following
 // docs/research/form_feedback_spec.md (keys = lib/features/workout/data/kori_feedback_lines.dart).
 //
 // The evaluator calls `observe` every frame (once its stable status is known), `beginRep` when it
@@ -141,11 +142,35 @@ struct BarbellRowFormConfig {
     var shrugMaxHeadAngleChangeDegrees = 15.0
 }
 
+/// Bench press (side view: camera beside the bench). Every key here is off (no wrong-form footage yet;
+/// docs/research/form_feedback_spec.md). Bar path, arch and scapular retraction are not judged (not
+/// observable in 2D).
+struct BenchPressFormConfig {
+    /// bench_shallow (개선): rep min elbow angle larger than the baseline by more than this (deg). 임시값 — 테스트 영상으로 조정
+    var shallowOverBaselineDegrees = 15.0
+    /// bench_no_lockout (참고): rep max elbow angle smaller than the set max by more than this (deg). 임시값 — 테스트 영상으로 조정
+    var noLockoutBelowSetMaxDegrees = 10.0
+    /// bench_hips_up (우선): hip rises above its rep-start height by more than this × torso length. 임시값 — 테스트 영상으로 조정
+    var hipLiftRatio = 0.10
+}
+
+/// Deadlift (side view). Every key here is off (no wrong-form footage yet). Lumbar flexion and bar
+/// path are not judged (not observable in 2D).
+struct DeadliftFormConfig {
+    /// deadlift_hips_first (우선): pull window after the lowest hip frame (frames). 임시값 — 테스트 영상으로 조정
+    var hipsFirstWindowFrames = 10
+    /// deadlift_hips_first (우선): torso angle grows by more than this in that window (deg), and the hip rises faster than the shoulder. 임시값 — 테스트 영상으로 조정
+    var hipsFirstTorsoRiseDegrees = 8.0
+    /// deadlift_no_lockout (참고): rep max hip or knee angle smaller than the set max by more than this (deg). 임시값 — 테스트 영상으로 조정
+    var noLockoutBelowSetMaxDegrees = 10.0
+    /// deadlift_lean_back (참고): torso leans back past vertical by more than this at any frame (deg). 임시값 — 테스트 영상으로 조정
+    var leanBackDegrees = 15.0
+}
+
 enum FormExercise: String {
     case pushUp = "pushup"
     case squat
     case barbellRow = "barbell_row"
-    /// No form rules yet (only setup_full_body / tracking_lost / praise); driven by `StatusDrivenFormTracker`.
     case benchPress = "bench_press"
     case deadlift
 }
@@ -362,9 +387,14 @@ final class FormWarningTracker {
             ("setup_side_view", .setup), ("row_torso_swing", .priority), ("row_standing_up", .improve),
             ("row_short_pull", .improve), ("row_shrug", .improve), ("row_head_up", .reference),
         ],
-        // Bench press / deadlift: no validated form keys yet (track G); setup / tracking / praise only.
-        .benchPress: [],
-        .deadlift: [],
+        .benchPress: [
+            ("setup_side_view", .setup), ("bench_hips_up", .priority), ("bench_shallow", .improve),
+            ("bench_no_lockout", .reference),
+        ],
+        .deadlift: [
+            ("setup_side_view", .setup), ("deadlift_hips_first", .priority), ("deadlift_no_lockout", .reference),
+            ("deadlift_lean_back", .reference),
+        ],
     ]
 
     /// Every key the tracker can send: the rules plus praise_fixed, setup_full_body, tracking_lost.
@@ -380,6 +410,8 @@ final class FormWarningTracker {
     var pushUp = PushUpFormConfig()
     var squat = SquatFormConfig()
     var row = BarbellRowFormConfig()
+    var bench = BenchPressFormConfig()
+    var deadlift = DeadliftFormConfig()
 
     /// Every frame given a 3D pose / of those, "3D 불량" (knee hinge θ < −limit), whole session.
     private(set) var sessionFrames3D = 0
@@ -724,6 +756,22 @@ final class FormWarningTracker {
         }
         put("elbow_behind_max", vals(\.elbowBehind).max())
 
+        /// Hips-first: torso angle rise and hip vs shoulder rise speed over `windowFrames` after frames[b].
+        func putHipsFirst(from b: Int, windowFrames: Int) {
+            let bottom = frames[b]
+            let window = frames[b...].prefix(windowFrames + 1)
+            if let t0 = bottom.torso, let rise = vals(\.torso, window).map({ FormGeometry.wrapDegrees($0 - t0) }).max() {
+                put("hips_first_torso_rise", rise)
+            }
+            if let end = window.last(where: { $0.hipY != nil && $0.shoulderY != nil }),
+               let h0 = bottom.hipY, let s0 = bottom.shoulderY, let length = bottom.torsoLength,
+               end.frame > bottom.frame {
+                let dt = Double(end.frame - bottom.frame)
+                put("hips_first_hip_rise_speed", (h0 - end.hipY!) / length / dt)
+                put("hips_first_shoulder_rise_speed", (s0 - end.shoulderY!) / length / dt)
+            }
+        }
+
         switch exercise {
         case .pushUp:
             // pushup_hand_position: first rep, most extended (top) frame.
@@ -733,19 +781,8 @@ final class FormWarningTracker {
         case .squat:
             let kneeMin = vals(\.knee).min()
             if let b = frames.firstIndex(where: { $0.knee != nil && $0.knee == kneeMin }) {
-                let bottom = frames[b]
-                put("torso_at_bottom", bottom.torso)
-                let window = frames[b...].prefix(squat.hipsFirstWindowFrames + 1)
-                if let t0 = bottom.torso, let rise = vals(\.torso, window).map({ FormGeometry.wrapDegrees($0 - t0) }).max() {
-                    put("hips_first_torso_rise", rise)
-                }
-                if let end = window.last(where: { $0.hipY != nil && $0.shoulderY != nil }),
-                   let h0 = bottom.hipY, let s0 = bottom.shoulderY, let length = bottom.torsoLength,
-                   end.frame > bottom.frame {
-                    let dt = Double(end.frame - bottom.frame)
-                    put("hips_first_hip_rise_speed", (h0 - end.hipY!) / length / dt)
-                    put("hips_first_shoulder_rise_speed", (s0 - end.shoulderY!) / length / dt)
-                }
+                put("torso_at_bottom", frames[b].torso)
+                putHipsFirst(from: b, windowFrames: squat.hipsFirstWindowFrames)
             }
             // Front view: bottom = lowest hip, then through the ascent.
             let hipYMax = vals(\.hipY).max()
@@ -763,8 +800,18 @@ final class FormWarningTracker {
                 }
                 if let low = kept.compactMap(\.earShoulder).min() { put("ear_shoulder_drop", 1 - low / start) }
             }
-        case .benchPress, .deadlift:
-            break
+        case .benchPress:
+            // bench_hips_up: hip rise vs the rep start (image y down), over the rep-start torso length.
+            if let start = frames.first(where: { $0.hipY != nil && $0.torsoLength != nil }), let top = vals(\.hipY).min() {
+                put("hip_lift_max", (start.hipY! - top) / start.torsoLength!)
+            }
+        case .deadlift:
+            // Lowest hip before the lockout (max hip angle) = start of the pull.
+            let lockout = frames.indices.filter { frames[$0].hipAngle != nil }.max { frames[$0].hipAngle! < frames[$1].hipAngle! }
+            let pull = frames[..<(lockout ?? frames.endIndex)]
+            if let b = pull.indices.filter({ pull[$0].hipY != nil }).max(by: { pull[$0].hipY! < pull[$1].hipY! }) {
+                putHipsFirst(from: b, windowFrames: deadlift.hipsFirstWindowFrames)
+            }
         }
         return m
     }
@@ -870,8 +917,24 @@ final class FormWarningTracker {
             }
             if c.shrugEnabled { fire("row_shrug", over("ear_shoulder_drop", c.shrugEarShoulderDrop)) }
             fire("row_head_up", under("head_dev_change_min", -c.headUpDeviation))
-        case .benchPress, .deadlift:
-            break
+        case .benchPress:
+            fire("setup_side_view", firstRep && !sideView)
+            guard sideView else { break }
+            let c = bench
+            fire("bench_hips_up", over("hip_lift_max", c.hipLiftRatio))
+            fire("bench_shallow", overBaseline("elbow_min", c.shallowOverBaselineDegrees))
+            fire("bench_no_lockout", belowSetMax("elbow_max", c.noLockoutBelowSetMaxDegrees))
+        case .deadlift:
+            fire("setup_side_view", firstRep && !sideView)
+            guard sideView else { break }
+            let c = deadlift
+            if let rise = m["hips_first_torso_rise"], let hip = m["hips_first_hip_rise_speed"],
+               let shoulder = m["hips_first_shoulder_rise_speed"] {
+                fire("deadlift_hips_first", rise > c.hipsFirstTorsoRiseDegrees && hip > shoulder)
+            }
+            fire("deadlift_no_lockout", belowSetMax("hip_angle_max", c.noLockoutBelowSetMaxDegrees) == true
+                 || belowSetMax("knee_max", c.noLockoutBelowSetMaxDegrees) == true)
+            fire("deadlift_lean_back", under("torso_min", -c.leanBackDegrees))
         }
         return (Self.rules[exercise] ?? []).map(\.key).filter(fired.contains)
     }

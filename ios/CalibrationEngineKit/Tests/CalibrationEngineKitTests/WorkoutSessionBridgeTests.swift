@@ -19,17 +19,27 @@ final class WorkoutSessionBridgeTests: XCTestCase {
         return lines
     }
 
+    /// Bench press / deadlift keys (track G, all off): their lines are drafted in
+    /// docs/progress/2026-10-10.md for the teammate who owns kori_feedback_lines.dart. Remove a key from
+    /// here once its line is in the dart file; it must stay off (`enabledFeedbackKeys`) until then.
+    static let keysAwaitingDartLines: Set<String> = [
+        "bench_hips_up", "bench_shallow", "bench_no_lockout",
+        "deadlift_hips_first", "deadlift_no_lockout", "deadlift_lean_back",
+    ]
+
     func testSwiftKeysMatchDartLines() throws {
         let dart = try dartLines()
-        // Every key native can send has a line in the dart file.
-        XCTAssertEqual(FormWarningTracker.allKeys.subtracting(dart.keys), [])
+        let pending = Self.keysAwaitingDartLines
+        // Every key native can send has a line in the dart file (pending keys: not yet, and off).
+        XCTAssertEqual(FormWarningTracker.allKeys.subtracting(dart.keys), pending.subtracting(dart.keys))
+        XCTAssertEqual(pending.intersection(FormCommonConfig().enabledFeedbackKeys), [])
         // Every rule key is a warning there, every warning has a joint and nothing else does.
         for (exercise, rules) in FormWarningTracker.rules {
-            for rule in rules where rule.key != "setup_side_view" {
+            for rule in rules where rule.key != "setup_side_view" && (dart[rule.key] != nil || !pending.contains(rule.key)) {
                 XCTAssertEqual(dart[rule.key], "warning", "\(exercise) \(rule.key)")
             }
         }
-        XCTAssertEqual(Set(FeedbackJoint.byKey.keys), Set(dart.filter { $0.value == "warning" }.keys))
+        XCTAssertEqual(Set(FeedbackJoint.byKey.keys), Set(dart.filter { $0.value == "warning" }.keys).union(pending))
         XCTAssertEqual(Set(FeedbackJoint.byKey.values).subtracting(["knee", "hip", "back", "elbow", "shoulder", "head"]), [])
     }
 

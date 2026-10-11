@@ -297,43 +297,6 @@ final class FormWarningsTests: XCTestCase {
         XCTAssertEqual(quiet.drainEvents(), [])
     }
 
-    /// Bench / deadlift: no form keys; tracking_lost still waits for the rep (status-driven) to end.
-    func testStatusDrivenBenchDeadlift() {
-        XCTAssertEqual(FormWarningTracker.rules[.benchPress]?.count, 0)
-        XCTAssertEqual(FormWarningTracker.rules[.deadlift]?.count, 0)
-        let bench = StatusDrivenFormTracker(exercise: .benchPress)
-        let good = sidePushUp(hipDrop: 0)
-        var missing = good
-        for i in 5...10 { missing[i].confidence = 0.1 }  // shoulders, elbows, wrists
-        var f = 0
-        func step(_ pose: [PoseKeypoint], _ status: String, _ rep: Int, _ count: Int = 1) {
-            for _ in 0..<count { bench.update(frameIndex: f, coco17: pose, status: status, rep: rep); f += 1 }
-        }
-        step(good, "top", 0, 5)
-        step(good, "lowering", 0, 5)
-        step(good, "pressing", 0, 5)
-        step(good, "top", 1)
-        XCTAssertEqual(bench.tracker.reports.count, 1)
-        XCTAssertEqual(bench.tracker.reports[0].warnings, [])
-        XCTAssertEqual(bench.tracker.reports[0].startFrame, 5)
-        step(good, "lowering", 1)
-        step(missing, "unknown", 1, bench.tracker.common.trackingLostFrames + 10)
-        XCTAssertEqual(bench.tracker.drainEvents(), [], "mid-rep: deferred")
-        step(missing, "top", 2)
-        step(missing, "top", 2)
-        XCTAssertEqual(bench.tracker.drainEvents(), [FormFeedbackEvent(key: "tracking_lost", n: nil)])
-        XCTAssertEqual(bench.tracker.reports.count, 2)
-
-        // Deadlift: setup_full_body before the first rep (legs required).
-        let dead = StatusDrivenFormTracker(exercise: .deadlift)
-        var noLegs = good
-        for i in 13...16 { noLegs[i].confidence = 0.1 }
-        for i in 0..<dead.tracker.common.setupFullBodyFrames {
-            dead.update(frameIndex: i, coco17: noLegs, status: "bottom", rep: 0)
-        }
-        XCTAssertEqual(dead.tracker.drainEvents().map(\.key), ["setup_full_body"])
-    }
-
     func testAngleWrap() {
         XCTAssertEqual(FormGeometry.wrapDegrees(358), -2, accuracy: 1e-9)
         XCTAssertEqual(FormGeometry.wrapDegrees(-181), 179, accuracy: 1e-9)

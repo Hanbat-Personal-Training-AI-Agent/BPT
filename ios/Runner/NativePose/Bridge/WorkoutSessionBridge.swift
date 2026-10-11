@@ -43,6 +43,12 @@ enum FeedbackJoint {
         "row_short_pull": "elbow",
         "row_head_up": "head",
         "row_shrug": "shoulder",
+        "bench_hips_up": "hip",
+        "bench_shallow": "elbow",
+        "bench_no_lockout": "elbow",
+        "deadlift_hips_first": "hip",
+        "deadlift_no_lockout": "hip",
+        "deadlift_lean_back": "back",
     ]
 
     /// Joint of the set's most frequent warning key (reps it fired in), counting only keys that are
@@ -54,39 +60,6 @@ enum FeedbackJoint {
             if let count = setCounts[key], count > 0, count > (best?.count ?? 0) { best = (key, count) }
         }
         return best.flatMap { byKey[$0.key] }
-    }
-}
-
-// MARK: - Bench press / deadlift form tracking
-
-/// Bench press and deadlift have no form rules yet, only setup_full_body / tracking_lost (and
-/// praise_fixed, which needs a spoken warning first). Their evaluators have no tracker hooks, so
-/// this drives a `FormWarningTracker` from each frame's status and rep count: a rep opens when the
-/// status leaves the start pose, stays open through `unknown`, and is finished when the count rises.
-final class StatusDrivenFormTracker {
-    let tracker: FormWarningTracker
-    private let inRepStatuses: Set<String>
-    private var lastRep = 0
-    private var open = false
-
-    init(exercise: FormExercise) {
-        tracker = FormWarningTracker(exercise: exercise)
-        inRepStatuses = exercise == .benchPress ? ["lowering", "bottom", "pressing"] : ["rising", "top", "lowering"]
-    }
-
-    func update(frameIndex: Int, coco17: [PoseKeypoint], status: String, rep: Int) {
-        tracker.observe(frameIndex: frameIndex, coco17: coco17, phase: status)
-        if rep > lastRep {
-            if !open { tracker.beginRep() }
-            tracker.finishRep(repIndex: rep)
-            lastRep = rep
-            open = false
-        } else if inRepStatuses.contains(status) || (open && status == "unknown") {
-            if open { tracker.recordCurrentFrame() } else { tracker.beginRep() }
-            open = true
-        } else {
-            open = false  // back at the start pose without a count: abandoned
-        }
     }
 }
 

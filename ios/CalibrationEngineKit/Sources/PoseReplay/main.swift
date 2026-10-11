@@ -5,14 +5,18 @@
 // FormWarningTracker — all symlinked from ios/Runner) to tune the form-warning thresholds.
 //
 //   swift run -c release --package-path ios/CalibrationEngineKit pose-replay \
-//       [--exercise squat|pushup|row] [--model coco17|halpe26] [--model-path PATH] [--motion3d PATH|none] [--lookahead N] \
-//       [--row-shrug] [--ready-pose off|preset] [--input crop|full] [--output-dir PATH] <video.mp4>...
+//       [--exercise squat|pushup|row|bench|deadlift] [--model coco17|halpe26] [--model-path PATH] [--motion3d PATH|none] [--lookahead N] \
+//       [--row-shrug] [--ready-pose off|preset] [--input crop|full] [--keypoints-csv PATH] [--output-dir PATH] <video.mp4>...
 //
 // --model-path: another RTMPose .mlpackage with the same 256x192 input and SimCC outputs (17 or 26 joints;
 // pass --model halpe26 for 26) — candidate models are compared on the same videos without replacing the bundled one.
 //
 // halpe26 also feeds the decoded toes/heels to SquatEvaluator (heel_rise_max; squat_heel_rise is off). --row-shrug turns on
 // the experimental row_shrug rule (off in the app).
+//
+// --keypoints-csv: skip decoding and RTMPose, read the 2D keypoints (j0..j16 x/y/c, extra columns
+// ignored) from a CSV in the format this tool writes; the video path then only names the outputs (no 3D).
+// bench/deadlift: BenchPressEvaluator / DeadliftEvaluator (2D only; their bench_* / deadlift_* keys are off in the app).
 //
 // --motion3d: MotionAGFormer-XS Core ML package (default <repo>/assets/coreml/motionagformer_xs.mlpackage
 // if present). With it every frame also gets selected3D (27-frame window, `lookahead` future frames,
@@ -33,6 +37,7 @@ var outputDir = repoRoot.appendingPathComponent("outputs/pose_replay")
 var poseModel = RTMPoseModel.active
 var poseModelPath: String?
 var exercise = FormExercise.squat
+var keypointsCSV: String?
 var motion3DPath: String? = {
     let path = repoRoot.appendingPathComponent("assets/coreml/motionagformer_xs.mlpackage").path
     return FileManager.default.fileExists(atPath: path) ? path : nil
@@ -43,7 +48,7 @@ var readyPosePreset = false
 var personCrop = true
 var videos: [URL] = []
 var arguments = CommandLine.arguments.dropFirst().makeIterator()
-let usage = "usage: pose-replay [--exercise squat|pushup|row] [--model coco17|halpe26] [--model-path PATH] [--motion3d PATH|none] [--lookahead N] [--row-shrug] [--ready-pose off|preset] [--input crop|full] [--output-dir PATH] <video.mp4>..."
+let usage = "usage: pose-replay [--exercise squat|pushup|row|bench|deadlift] [--model coco17|halpe26] [--model-path PATH] [--motion3d PATH|none] [--lookahead N] [--row-shrug] [--ready-pose off|preset] [--input crop|full] [--keypoints-csv PATH] [--output-dir PATH] <video.mp4>..."
 while let argument = arguments.next() {
     switch argument {
     case "--model":
@@ -61,8 +66,10 @@ while let argument = arguments.next() {
         case "squat": exercise = .squat
         case "pushup": exercise = .pushUp
         case "row": exercise = .barbellRow
+        case "bench": exercise = .benchPress
+        case "deadlift": exercise = .deadlift
         default:
-            print("--exercise requires squat, pushup or row")
+            print("--exercise requires squat, pushup, row, bench or deadlift")
             exit(2)
         }
     case "--motion3d":
@@ -89,6 +96,9 @@ while let argument = arguments.next() {
             print("--input requires crop or full")
             exit(2)
         }
+    case "--keypoints-csv":
+        guard let path = arguments.next() else { exit(2) }
+        keypointsCSV = path
     case "--output-dir":
         guard let path = arguments.next() else { exit(2) }
         outputDir = URL(fileURLWithPath: path, isDirectory: true)
@@ -143,16 +153,9 @@ func lift3D(_ coco17: [[PoseKeypoint]], width: Int, height: Int, model: MLModel)
     }
 }
 
+var readers: [AVAssetReader] = []
 for video in videos {
     let name = video.deletingPathExtension().lastPathComponent
-    let asset = AVURLAsset(url: video)
-    guard let track = asset.tracks(withMediaType: .video).first else { continue }
-    let reader = try AVAssetReader(asset: asset)
-    let output = AVAssetReaderTrackOutput(track: track, outputSettings: [
-        kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA,
-    ])
-    reader.add(output)
-    reader.startReading()
 
     // Pass 1: 2D keypoints for every frame.
     var coco17Frames: [[PoseKeypoint]] = []
@@ -164,7 +167,32 @@ for video in videos {
     var fullFrameInputs = 0
     var rechecks = 0, switches = 0
     var poseSeconds = 0.0
-    while let sampleBuffer = output.copyNextSampleBuffer() {
+    if let keypointsCSV {
+        for line in try String(contentsOfFile: keypointsCSV, encoding: .utf8).split(whereSeparator: \.isNewline).dropFirst() {
+            let cells = line.split(separator: ",", omittingEmptySubsequences: false)
+            guard cells.count >= 4 + 17 * 3 else { continue }
+            let v = cells.map { Double($0) ?? 0 }
+            times.append(v[1])
+            coco17Frames.append((0..<17).map { PoseKeypoint(x: v[4 + $0 * 3], y: v[5 + $0 * 3], confidence: v[6 + $0 * 3]) })
+            extraFrames.append([])
+            feetFrames.append(nil)
+        }
+    }
+    let output: AVAssetReaderTrackOutput? = try {
+        guard keypointsCSV == nil else { return nil }
+        let asset = AVURLAsset(url: video)
+        guard let track = asset.tracks(withMediaType: .video).first else { return nil }
+        let reader = try AVAssetReader(asset: asset)
+        let output = AVAssetReaderTrackOutput(track: track, outputSettings: [
+            kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA,
+        ])
+        reader.add(output)
+        reader.startReading()
+        readers.append(reader)  // must outlive the loop below
+        return output
+    }()
+    guard keypointsCSV != nil || output != nil else { continue }
+    while let sampleBuffer = output?.copyNextSampleBuffer() {
         guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { continue }
         let image = CIImage(cvPixelBuffer: pixelBuffer)
         guard let cgImage = context.createCGImage(image, from: image.extent) else { continue }
@@ -200,7 +228,7 @@ for video in videos {
     }
 
     // Pass 2: 3D (optional).
-    let pose3D = try motion3D.map { try lift3D(coco17Frames, width: imageWidth, height: imageHeight, model: $0) }
+    let pose3D = keypointsCSV != nil ? nil : try motion3D.map { try lift3D(coco17Frames, width: imageWidth, height: imageHeight, model: $0) }
 
     // Pass 3: evaluator + form tracker, frame by frame like the app.
     let tracker: FormWarningTracker
@@ -226,8 +254,14 @@ for video in videos {
         tracker = evaluator.formTracker
         tracker.row.shrugEnabled = rowShrug
         step = { i, k, p, _ in let r = evaluator.evaluate(frameIndex: i, coco17: k, pose3D: p); return (r.status.rawValue, r.rep) }
-    case .benchPress, .deadlift:
-        fatalError("--exercise accepts squat, pushup or row only")
+    case .benchPress:
+        let evaluator = BenchPressEvaluator()
+        tracker = evaluator.formTracker
+        step = { i, k, _, _ in let r = evaluator.evaluate(frameIndex: i, coco17: k); return (r.status.rawValue, r.rep) }
+    case .deadlift:
+        let evaluator = DeadliftEvaluator()
+        tracker = evaluator.formTracker
+        step = { i, k, _, _ in let r = evaluator.evaluate(frameIndex: i, coco17: k); return (r.status.rawValue, r.rep) }
     }
     // Every key on (the app sends none by default) so `spoken` and `events` show what would be said.
     tracker.common.enabledFeedbackKeys = FormWarningTracker.allKeys
@@ -237,8 +271,10 @@ for video in videos {
     var lastStatus: String?
     var events: [[String: Any]] = []
     var rep = 0
+    var repEndFrames: [Int] = []
     for i in coco17Frames.indices {
         let result = step(i, coco17Frames[i], pose3D?[i], feetFrames[i])
+        if result.rep > rep { repEndFrames.append(i) }
         rep = result.rep
         for event in tracker.drainEvents() {
             var entry: [String: Any] = ["frame": i, "time": times[i], "key": event.key, "scope": event.scope.rawValue]
@@ -288,6 +324,7 @@ for video in videos {
             "frames_3d": tracker.sessionFrames3D,
             "bad_3d_frames": tracker.sessionBad3DFrames,
             "warning_rep_counts": tracker.warningRepCounts,
+            "rep_end_frames": repEndFrames,
         ],
         "transitions": transitions,
         "events": events,
@@ -299,7 +336,7 @@ for video in videos {
 
     print("== \(name) exercise=\(exercise.rawValue) model=\(poseModel) frames=\(coco17Frames.count) reps=\(rep) "
           + "input=\(personCrop ? "crop" : "full") full_frame_inputs=\(fullFrameInputs) switches=\(switches)/\(rechecks) "
-          + "3d=\(motion3D != nil) bad3d=\(tracker.sessionBad3DFrames)/\(tracker.sessionFrames3D)")
+          + "3d=\(pose3D != nil) bad3d=\(tracker.sessionBad3DFrames)/\(tracker.sessionFrames3D)")
     print("  transitions: " + transitions.joined(separator: " "))
     for report in tracker.reports {
         let m2 = report.metrics2D.sorted { $0.key < $1.key }.map { "\($0.key)=\(f($0.value))" }.joined(separator: " ")
