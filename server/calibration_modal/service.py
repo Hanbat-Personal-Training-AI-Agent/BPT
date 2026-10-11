@@ -3,6 +3,7 @@
     POST /v1/calibrations/uploads                     issue presigned PUT URLs
     POST /v1/calibrations/uploads/{uploadId}/complete verify the files, accept once, queue fitting
     GET  /v1/calibrations/jobs/{jobId}                fitting status and result
+    POST /v1/calibrations/warmup                      start a GPU container ahead of the upload
 
 `state` is storage.BucketState (anything with get / put(skip_if_exists) / pop); entries:
     upload:{uploadId}             who may complete it, for which session, declared sizes
@@ -10,6 +11,7 @@
     job:{jobId}                   owner, inputs, status ("queued" | "running" | "done" | "failed"),
                                   progressRate, result/error, queuedAt, modelKey
     call:{jobId}                  {"callId"} of the spawned worker, for the watchdog
+    warmup:{userId}               {"at"} of the user's last warm-up that started a container
 """
 import time
 import uuid
@@ -28,12 +30,15 @@ def object_key(user_id, session, upload_id, name):
 
 # Longer than fit_body's 15 min timeout plus a GPU queue wait and a cold start.
 JOB_DEADLINE_SECONDS = 30 * 60
+# At most one container warm-up per user in this window (each costs up to a cold start + idle window).
+WARMUP_INTERVAL_SECONDS = 5 * 60
 
 
-def create_app(bucket, state, spawn, jwt_secret, call_failure=lambda call_id: None):
+def create_app(bucket, state, spawn, jwt_secret, call_failure=lambda call_id: None, warm=lambda: None):
     """`spawn(job)` queues the fitting worker (fit_body.spawn in production) and may return the
     call (anything with .object_id). `call_failure(call_id)` returns an error code when that call
-    ended without the worker recording it (crash, OOM, Modal timeout), else None."""
+    ended without the worker recording it (crash, OOM, Modal timeout), else None. `warm()` starts
+    a fitting container without a job (fit_body.spawn({"warmup": True}) in production)."""
     app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
 
     @app.exception_handler(Rejected)
@@ -99,6 +104,18 @@ def create_app(bucket, state, spawn, jwt_secret, call_failure=lambda call_id: No
         if getattr(call, "object_id", None):  # own key: never races the worker's job writes
             state.put(f"call:{job_id}", {"callId": call.object_id})
         return {"status": "accepted", "jobId": job_id}
+
+    @app.post("/v1/calibrations/warmup", status_code=202)
+    def warmup(authorization: str = Header(None)):
+        """Best effort: the app calls this when the capture screen opens and ignores the answer."""
+        user_id = checks.user_id_from_token(authorization, jwt_secret)
+        last = state.get(f"warmup:{user_id}")
+        if last and time.time() - last["at"] < WARMUP_INTERVAL_SECONDS:
+            return {"status": "skipped"}
+        # ponytail: two simultaneous first calls can both warm; one extra container, no harm.
+        state.put(f"warmup:{user_id}", {"at": time.time()})
+        warm()
+        return {"status": "warming"}
 
     def watchdog(job):
         """A queued/running job whose worker is gone becomes failed instead of running forever."""

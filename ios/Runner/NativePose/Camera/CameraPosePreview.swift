@@ -188,7 +188,7 @@ final class CameraPoseViewModel: ObservableObject {
     private var lastReportedStatus: String?
     private var lastReportedDone: Bool?
     private var formLog: WorkoutFormLog?
-    private var statusFormTracker: StatusDrivenFormTracker?  // bench press / deadlift
+    private var lastLoggedRep = 0
     private var betweenSets = false
     private var recording = false
     private var perfTimer: Timer?
@@ -240,13 +240,17 @@ final class CameraPoseViewModel: ObservableObject {
 
     private var formTracker: FormWarningTracker? {
         squatEvaluator?.formTracker ?? pushUpEvaluator?.formTracker ?? barbellRowEvaluator?.formTracker
-            ?? statusFormTracker?.tracker
+            ?? benchPressEvaluator?.formTracker ?? deadliftEvaluator?.formTracker
     }
 
-    /// Every frame: forward the tracker's feedback events; after a counted rep also log its report.
-    private func reportForm(done: Bool) {
+    /// Every frame: forward the tracker's feedback events and log each newly closed rep report.
+    private func reportForm() {
         guard let tracker = formTracker else { return }
-        if done, let report = tracker.reports.last { formLog?.append(report) }
+        // Bench press closes a rep's report 0.5 s after the count (lockout window), so log by rep index.
+        for report in tracker.reports where report.repIndex > lastLoggedRep {
+            formLog?.append(report)
+            lastLoggedRep = report.repIndex
+        }
         for event in tracker.drainEvents() { bridge?.sendFeedback(event) }
     }
 
@@ -302,12 +306,8 @@ final class CameraPoseViewModel: ObservableObject {
         }
 
         switch exercise {
-        case .deadlift:
-            deadliftEvaluator = DeadliftEvaluator()
-            statusFormTracker = StatusDrivenFormTracker(exercise: .deadlift)
-        case .benchPress:
-            benchPressEvaluator = BenchPressEvaluator()
-            statusFormTracker = StatusDrivenFormTracker(exercise: .benchPress)
+        case .deadlift: deadliftEvaluator = DeadliftEvaluator()
+        case .benchPress: benchPressEvaluator = BenchPressEvaluator()
         case .squat: squatEvaluator = SquatEvaluator()
         case .barbellRow: barbellRowEvaluator = BarbellRowEvaluator()
         case .pushUp: pushUpEvaluator = PushUpEvaluator()
@@ -489,33 +489,31 @@ final class CameraPoseViewModel: ObservableObject {
         case .deadlift:
             if let eval = deadliftEvaluator {
                 let r = eval.evaluate(frameIndex: frameIndex, coco17: rawCoco17)
-                statusFormTracker?.update(frameIndex: frameIndex, coco17: rawCoco17, status: r.status.rawValue, rep: r.rep)
-                reportForm(done: r.done)
+                reportForm()
                 return (r.status.rawValue, r.rep, r.done)
             }
         case .benchPress:
             if let eval = benchPressEvaluator {
                 let r = eval.evaluate(frameIndex: frameIndex, coco17: rawCoco17)
-                statusFormTracker?.update(frameIndex: frameIndex, coco17: rawCoco17, status: r.status.rawValue, rep: r.rep)
-                reportForm(done: r.done)
+                reportForm()
                 return (r.status.rawValue, r.rep, r.done)
             }
         case .squat:
             if let eval = squatEvaluator {
                 let r = eval.evaluate(frameIndex: frameIndex, coco17: rawCoco17, feet: feet)
-                reportForm(done: r.done)
+                reportForm()
                 return (r.status.rawValue, r.rep, r.done)
             }
         case .barbellRow:
             if let eval = barbellRowEvaluator {
                 let r = eval.evaluate(frameIndex: frameIndex, coco17: rawCoco17)
-                reportForm(done: r.done)
+                reportForm()
                 return (r.status.rawValue, r.rep, r.done)
             }
         case .pushUp:
             if let eval = pushUpEvaluator {
                 let r = eval.evaluate(frameIndex: frameIndex, coco17: rawCoco17)
-                reportForm(done: r.done)
+                reportForm()
                 return (r.status.rawValue, r.rep, r.done)
             }
         }

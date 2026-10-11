@@ -7,7 +7,10 @@ import Foundation
 struct CalibrationConfig {
     struct Device {
         var maxRollDeg: Double = 3.0
-        var maxPitchDeg: Double = 12.0
+        /// 25° (was 12°) lets a phone lean back on the floor or a table and still see the head.
+        /// The server fits each photo's own orientation and camera, and the manifest keeps each
+        /// photo's gravity, so camera tilt is not lost (docs/decisions.md, 2026-10-11 framing).
+        var maxPitchDeg: Double = 25.0
         var maxUserAccelerationG: Double = 0.04
         var maxRotationRateRadPerSec: Double = 0.08
     }
@@ -19,9 +22,12 @@ struct CalibrationConfig {
         /// Passing the size and centre gates means the user fills the outline, so the screen
         /// never says "good" while the outline and the body disagree.
         var guideBodyHeight: Double = 0.62
-        var bodyHeightTolerance: Double = 0.07
-        var minBodyHeight: Double { guideBodyHeight - bodyHeightTolerance }
-        var maxBodyHeight: Double { guideBodyHeight + bodyHeightTolerance }
+        /// Accepted body sizes (was 0.55–0.69, the outline ± 0.07, which forced ~2 m distance).
+        /// The bottom is where RTMPose still finds all 12 body joints: replays of rescaled
+        /// full-body videos kept them in 84–99% of frames down to ~0.39 and lost them at ≤ 0.28.
+        /// The top leaves room for the head-top and feet margins below.
+        var minBodyHeight: Double = 0.40
+        var maxBodyHeight: Double = 0.85
         var minHeadTop: Double = 0.02
         var maxFeet: Double = 0.98
         var maxCentreOffset: Double = 0.06

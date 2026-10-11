@@ -1,8 +1,12 @@
-# On-device Core ML latency of RTMPose candidates without a camera or a person in front of it.
+# On-device Core ML latency of RTMPose candidates (+ Apple Vision reference) without a person in front of the camera.
 #   cp -R <candidate>.mlpackage Tests/PoseModelBenchTests/Models/   (git-ignored)
+#   ffmpeg -ss 3 -i <720x1280 video> -frames:v 1 Tests/PoseModelBenchTests/Models/frame.jpg   (git-ignored)
 #   xcodegen generate
-#   xcodebuild test -project PoseModelBench.xcodeproj -scheme PoseModelBenchHost \
-#     -destination 'platform=iOS,id=<device udid>' DEVELOPMENT_TEAM=<team> -allowProvisioningUpdates | grep BENCH
+#   xcodebuild build-for-testing -project PoseModelBench.xcodeproj -scheme PoseModelBenchHost -derivedDataPath $BPT_DD \
+#     -destination 'platform=iOS,id=<device udid>' DEVELOPMENT_TEAM=<team> -allowProvisioningUpdates
+#   xcodebuild test-without-building <same args> | grep BENCH                     # latency (ALL / CPU+NE / CPU+GPU) + Vision
+#   TEST_RUNNER_BENCH_SUSTAIN_MODEL=rtmpose_m_forward TEST_RUNNER_BENCH_SECONDS=150 \
+#     xcodebuild test-without-building <same args> -only-testing:PoseModelBenchTests/PoseModelBenchTests/testSustained | grep BENCH
 name: PoseModelBench
 options:
   bundleIdPrefix: com.bpt.posebench

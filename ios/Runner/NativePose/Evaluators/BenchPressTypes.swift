@@ -93,7 +93,9 @@ struct BenchPressRepSummary {
     let endFrame: Int?
     let maxDepthNorm: Double?
     let minElbowAngleDegrees: Double?
-    let warnings: [String]
+    /// Filled when the form tracker closes the rep (after the lockout window, see
+    /// `BenchPressEvaluatorConfig.lockoutWindowFrames`).
+    var warnings: [String]
 
     var dictionary: [String: Any] {
         [

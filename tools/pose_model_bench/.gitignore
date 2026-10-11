@@ -1,2 +1,3 @@
 Tests/PoseModelBenchTests/Models/*.mlpackage
 PoseModelBench.xcodeproj/
+Tests/PoseModelBenchTests/Models/*.jpg

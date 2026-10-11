@@ -15,6 +15,8 @@ AI 쪽 작업(캘리브레이션 서버, 2D/3D 포즈, 사람 crop 입력, 자�
 - GLB: 서버에서 SMPL 메시를 만들어 R2에 두고 조회 때 1시간 presigned GET(`result.modelGlbUrl`, 본인만). SMPL 모델 파일은 배포 안 함(비상업 라이선스)
 - 앱 분석 화면: polling·진행률·실패 문구·결과 요약. 실제 3D 결과 화면은 팀원 파일이라 브랜치 `ai/calibration-result-screen`에만(병합 안 함)
 - 운동 3D에 캘리브레이션 뼈 길이 연결은 보류(라이브 3D 꺼짐)
+- 촬영 거리 단축(F10–F11): 전면 초광각(iPhone 17 84°) 우선, 몸 높이 0.40–0.85, 폰 앞뒤 기울기 25° → 키 1.70 m 기준 최소 거리 1.70 → 1.15 m(바닥에 기대면 0.75 m). manifest에 선택 필드 `camera`
+- 서버 예열(F13): 촬영 화면 진입 시 `POST /v1/calibrations/warmup`(사용자당 5분 1회), `fit_body` 대기 180초 — 첫 작업 258 → 33초. 배포됨(v10)
 
 **포즈 (iOS NativePose)**
 - RTMPose-s Halpe26 모델 추가와 모델 선택 상수(기본 COCO17, `BPT_POSE_MODEL=halpe26`으로 전환)
@@ -39,21 +41,29 @@ AI 쪽 작업(캘리브레이션 서버, 2D/3D 포즈, 사람 crop 입력, 자�
 - 사람 재확인: 30프레임(≈1초)마다 전체 프레임을 한 번 더 보고, 뚜렷하고(관절 12개·평균 신뢰도 0.42) 1.5배 이상 크며 crop과 30% 이하로 겹치는 다른 사람이면 옮김(추론 +3.3%). 현재 모델 수치는 그대로, 뒤에 다른 사람이 있던 영상에서 m Halpe26 푸시업 81.1→100%. 끄기 `RTMPoseCropTracker.recheckInterval = Int.max`
 
 **2D 모델 평가 도구 (트랙 C, 앱 동작 변경 없음)**
-- `scripts/eval_pose2d.py`(COCO val·Exercise3D·Fit3D PCK), `scripts/eval_pose2d_reps.py`(후보 모델 렙 정확도), `pose-replay --model-path`, 후보 Core ML 변환(`rtmpose_s_coreml_common.py`: s body7, m COCO17/body7/Halpe26), Fit3D 미세조정 도구(Mac 전용), `tools/pose_model_bench`(iPhone 지연 XCTest)
-- 결론: 기본 RTMPose-s COCO17 유지. Fit3D 미세조정 기각(독립 세트에서 나빠짐), m COCO17은 기기 속도 확인 후 후보, Halpe26 전환은 사용자 결정(decisions D-C-01–04)
+- `scripts/eval_pose2d.py`(COCO val·Exercise3D·Fit3D PCK), `scripts/eval_pose2d_reps.py`(후보 모델 렙 정확도), `pose-replay --model-path`, 후보 Core ML 변환(`rtmpose_s_coreml_common.py`: s body7, m COCO17/body7/Halpe26), Fit3D 미세조정 도구(Mac 전용), `tools/pose_model_bench`(iPhone 지연 XCTest, 연속 실행·발열·Vision 참고 포함; iPhone 17 결과 s 2.0 ms · m 3.3 ms, D-C-05)
+- 결론: 기본 RTMPose-s COCO17 유지. Fit3D 미세조정 기각(독립 세트에서 나빠짐), m COCO17은 iPhone 17 속도 조건 만족(3.3 ms, D-C-05). m COCO17·Halpe26 전환 여부는 세 운동 트랙(스쿼트·푸시업·로우)의 검증용(held-out) 비교로 정함 — 검증용이 좋아지고 다른 것이 나빠지지 않을 때만 플래그로 m COCO17 전환
 
 **앱 연결 (트랙 E)**
 - onFeedback `{key, n?, scope: "rep"|"set"}`: 참고 등급 키는 세트 끝(`endSet`)에 scope "set"으로 1번. 기본값에서 나가는 키는 그대로
 - 네이티브 WorkoutVoice: Flutter가 onFeedback에 답으로 준 대사만 말함(대사 원문은 dart에만), 우선 등급 키 끼어들기, 대기 3초 넘으면 버림, `setVoiceMuted`. 음원 `assets/kori_voice/<key>[_<n>].mp3` → 없으면 기기 TTS
 - `startSet`/`endSet` ↔ `onSetEnd {setIndex, videoLocalPath, worstJoint}`, worstJoint는 켜진 키만(지금은 null)
-- 벤치·데드: 폼 키 없이 setup_full_body·tracking_lost만
+- 벤치·데드: setup_full_body·tracking_lost만 전달(트랙 G에서 평가기 자체 트래커로 바뀜)
 - 세트별 녹화(720p H.264, 최근 20개) 기본 꺼짐(`BPT_SET_RECORDING=1`), perf 로그 `BPT_PERF_LOG=1`, `scripts/compare_perf_logs.py`
+
+**벤치프레스·데드리프트 (트랙 G)**
+- 벤치 렙: 락아웃을 본 뒤에만 렙 시작, 적응 임계값은 팔꿈치 범위 50° 이상부터(`repStartRequiresTop`, `minRequiredElbowRange`), 한쪽 팔만 보여도 측정(`allowOneArm`)
+- 데드 렙: 락아웃 진행도 0.28→0.10, 바 내림 = 손목이 무릎 아래, 바닥→top 직행도 렙 시작(`directBottomToTopStartsRep`). 이전엔 Exercise3D·Fit3D 전부 0렙
+- 측면(≤40°) 렙 정확도 조정 / 검증: 벤치 88.9/90.9% → **100/100%**, 데드 0/0% → **100/100%**, 데드 Fit3D 가상 측면 30렙 100%. 정지 합성 가짜 렙 벤치 73→0, 데드 0. 스쿼트·푸시업·로우 78영상 결과 동일
+  - 입력은 Exercise3D의 Sapiens2 2D 키포인트(**대리 입력**, 앱 RTMPose 아님 — 원본 영상 없음). 사람 단위 분리는 뼈 길이 비율 추정
+- 경고 키 6개 추가(`bench_hips_up`, `bench_shallow`, `bench_no_lockout`, `deadlift_hips_first`, `deadlift_no_lockout`, `deadlift_lean_back`), **전부 꺼짐**·dart 대사 없음(팀원 결정 대기). 평가기가 자기 `FormWarningTracker`를 가짐(트랙 E의 `StatusDrivenFormTracker` 대체)
+- pose-replay `--exercise bench|deadlift`, `--keypoints-csv`
 
 **평가 도구**
 - `scripts/eval_side_videos.py` + `data/side_videos/labels_template.csv`: 직접 찍은 영상으로 렙 정확도, 측면 비율 분포, 경고 발생률, 셋업 키 집계
 
 **음성·문서**
-- `scripts/generate_kori_voice.py`: ElevenLabs로 코리 음성 mp3 생성(운동 28키 + 숫자 1..20, 캘리브레이션 27줄 = 188파일, 5,623자). 대사는 dart/Swift 원문을 파싱, 키는 환경변수만, `--dry-run`. 이름 규칙 `docs/handoff/kori_voice.md`
+- 코리 음성 mp3는 팀원이 직접 생성해 넣음. 파일 이름 규칙 `docs/handoff/kori_voice.md`(생성 스크립트는 삭제, D-H-02)
 - `docs/decisions.md`(결정 기록), `docs/results/summary.md`(발표용 결과표), `docs/handoff/security_followup.md`(JWT 교체·HTTPS·테스트 토큰 정리 체크리스트, 실행 안 함), `docs/progress/`
 
 ## 기본 꺼짐(플래그)
@@ -86,24 +96,25 @@ AI 쪽 작업(캘리브레이션 서버, 2D/3D 포즈, 사람 crop 입력, 자�
 - 후면 카메라 로우는 모두 측면 아님으로 판정
 
 ## 테스트
-- `swift test --package-path ios/CalibrationEngineKit`: 77 통과
+- `swift test --package-path ios/CalibrationEngineKit`: 86 통과
 - `pytest tests/`: 178 통과
-- 서버 `pytest tests` (server/calibration_modal): 81 통과, 1 건너뜀
-- `flutter test`: 77 통과
+- 서버 `pytest tests` (server/calibration_modal): 82 통과, 1 건너뜀
+- `flutter test`: 79 통과
 - `xcodebuild` Runner, iOS Simulator Debug, `CODE_SIGNING_ALLOWED=NO`: 성공
 
 ## main과의 차이 (병합 전 확인)
-integration/ai는 main보다 팀원 커밋 6개가 뒤처져 있습니다(2026-10-11 기준): #35 `a03fd9e` 계정 찾기 이메일 인증, #36 `d780665` 계정 찾기 안내, #37 `8017c09` 체형 측정일·세트 기록·피드백 횟수·알림 백엔드 연동, #38 `374ef52` 리포트 자주 나온 실수·코리 잔소리 알림, #39 `becec54` 프로필 저장 수정, #40 `0d00676` 코리 음성 ElevenLabs 실시간 TTS.
+integration/ai는 main보다 팀원 커밋 11개가 뒤처져 있습니다(2026-10-11 기준): #35 `a03fd9e` 계정 찾기 이메일 인증, #36 `d780665` 계정 찾기 안내, #37 `8017c09` 체형 측정일·세트 기록·피드백 횟수·알림 백엔드 연동, #38 `374ef52` 리포트 자주 나온 실수·코리 잔소리 알림, #39 `becec54` 프로필 저장 수정, #40 `0d00676` 코리 음성 ElevenLabs 실시간 TTS. 이어서 #41 `7c3270e` 체형 촬영 후 전송 대기 페이지 제거·로딩 화면에서 자동 전송, #42 `62abda4` 계정 찾기 인증 대기·비밀번호 재설정, #43 `8848fd7` 토스트 위치, #44 `293468e` 체형 촬영 코리 음성 반복 수정(`CalibrationVoice.swift`), #45 `24bc396` 리포트 분석 탭 위치.
 
 양쪽에서 고친 파일(충돌 가능):
 | 파일 | main | integration/ai | 처리 |
 |---|---|---|---|
 | `lib/features/workout/screens/native_pose_workout_screen.dart` | #37·#38 세트 기록·피드백 횟수, #40 `_speakFeedback`/`_speakSetSummary`(대사 읽기) | 경고 기본 끔·셋업 키, 트랙 E의 onFeedback·음소거·onSetEnd | 줄 단위 충돌 가능성 높음. **음성**: 트랙 E 화면은 onFeedback에 대사를 답하고(WorkoutVoice가 말함) 자체 TTS 호출이 없음, main #40 화면은 `_speakFeedback`으로 직접 말하고 답은 null. 수동 병합 때 둘을 섞으면 이중 재생 → 한쪽 선택(decisions E7, D-H-01) |
 | `lib/features/workout/data/kori_feedback_lines.dart` | #38 `koriMistakeLabels`, `koriMistakeExerciseId`를 파일 끝에 추가 | 바로 앞의 `koriDemoWarningKeyByExercise`(임시 데모 경고) 삭제 | 붙어 있는 부분이라 충돌 가능. 맵 삭제 + main 추가분 유지로 해결하고, main 화면 코드가 삭제된 맵을 아직 쓰는지 확인. 대사 원문은 그대로라 음성 스크립트 영향 없음 |
+| `lib/features/onboarding/screens/onboarding_analyzing_screen.dart`, `test/onboarding_analyzing_test.dart` | #41이 화면을 크게 바꿈(+505줄 변경, 전송 대기 페이지 제거, 로딩 화면에서 자동 전송) | 트랙 F의 작업 상태 polling·진행률·실패 문구·결과 요약 | **충돌 가능성 높음**. #41의 자동 전송 흐름 위에 트랙 F의 polling(`fetchJob`, `progressRate`, 스텁 결과 거부)을 다시 얹고 두 테스트를 다 통과시킬 것 |
 | `ios/Runner.xcodeproj/project.pbxproj` | #40 `KoriSpeaker.swift` 추가 | Halpe26 모델·평가기·트랙 E 파일 추가 | 파일 목록 충돌 가능. 양쪽 항목 다 남기고 xcodebuild로 확인 |
 
 의미상 겹침(같은 파일은 아님):
-- `ios/Runner/NativePose/Calibration/CalibrationVoice.swift`: main #40이 AVSpeech → KoriSpeaker로 바꿈. integration/ai는 이 파일을 안 고쳐서 충돌은 없지만, 미리 만든 mp3(`scripts/generate_kori_voice.py`)를 쓰려면 KoriSpeaker에 파일 우선 재생을 붙여야 함.
+- `ios/Runner/NativePose/Calibration/CalibrationVoice.swift`: main #40이 AVSpeech → KoriSpeaker로 바꿈. integration/ai는 이 파일을 안 고쳐서 충돌은 없지만, 미리 만든 mp3를 쓰려면 KoriSpeaker에 파일 우선 재생을 붙여야 함.
 - `ios/Runner/Info.plist`: main #40이 `ElevenLabsApiKey` 추가 → 빌드된 앱에 키가 평문으로 들어감(`docs/handoff/security_followup.md` 3-1). integration/ai의 ATS 설정(`NSAllowsArbitraryLoads`)과 같은 파일.
 - 백엔드: #37·#38이 세트 기록·피드백 횟수 API를 씀. 트랙 E의 `onSetEnd {videoLocalPath, worstJoint}`가 그 세트 기록에 들어가야 함(서버는 경로만 저장).
 
@@ -114,6 +125,7 @@ integration/ai는 main보다 팀원 커밋 6개가 뒤처져 있습니다(2026-1
 - **Fit3D에 측면 카메라 없음**(전부 58–74° 사선): 측면 정확도 검증에는 못 쓰고 회귀 확인만 함.
 - **로우 측면 컷오프 0.66(crop 입력)은 40° 근처에서 미검증**: 데이터가 20–36°와 76–81°뿐. 정면 스쿼트 영상(squat_03)의 비율이 0.64–0.67이라 정면 촬영이 측면으로 판정될 수 있음.
   주말 촬영 영상(0/30/40°, 정면·후면)으로 확인 예정.
+- 벤치·데드 수치는 Sapiens2 대리 입력 기준이라 앱 RTMPose(특히 누운 자세 측면)로는 미검증. 데드는 정면 카메라 미지원.
 - 캘리브레이션 체형 평가 기준은 People Snapshot의 consensus 메시(정답 아님, 단안 추정 키)이고 실제 사용자 줄자 실측 검증은 없음.
 - 준비 자세 확인은 Exercise3D처럼 바로 시작하는 세트에서 렙을 잃어 기본 꺼짐.
 
