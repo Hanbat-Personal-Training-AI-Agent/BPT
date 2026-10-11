@@ -1,0 +1,1 @@
+../../../Runner/NativePose/Bridge/WorkoutSessionBridge.swift
