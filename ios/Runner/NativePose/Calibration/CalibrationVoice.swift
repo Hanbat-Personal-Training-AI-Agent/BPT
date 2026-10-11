@@ -1,5 +1,6 @@
 import AVFoundation
 import Foundation
+import QuartzCore
 
 /// Korean speech (Kori's ElevenLabs voice, see [KoriSpeaker]), the capture chime and the
 /// proximity beep. Main thread only.
@@ -31,7 +32,7 @@ final class CalibrationVoice: NSObject {
         try? session.setActive(true)
     }
 
-    /// Speaks when the guidance changes, and repeats the same line every few seconds.
+    /// Speaks when the guidance changes, and repeats the same line a few seconds after it ends.
     func speak(_ guidance: CalibrationGuidance, now: TimeInterval) {
         let message = guidance.message
         let changed = message != lastSpokenMessage
@@ -77,6 +78,9 @@ final class CalibrationVoice: NSObject {
     }
 
     private func speakerDidFinish() {
+        // Count the repeat gap from the end of the line: Kori's voice takes a few seconds to
+        // fetch and say, so counting from the start left almost no pause between repeats.
+        lastSpokenAt = CACurrentMediaTime()
         if releaseWhenIdle, !speaker.isSpeaking {
             releaseWhenIdle = false
             deactivate()
