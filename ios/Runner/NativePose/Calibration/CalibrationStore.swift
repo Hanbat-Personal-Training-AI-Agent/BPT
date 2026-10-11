@@ -34,6 +34,9 @@ final class CalibrationStore {
 
     let sessionId: String
     let directory: URL
+    /// Which camera took the photos (device type, field of view, format), written as the
+    /// manifest's optional "camera" object. Informational: the per-view intrinsics stay authoritative.
+    var camera: [String: Any] = [:]
     private let fileManager = FileManager.default
     private var records: [ViewRecord] = []
     private let writeData: (Data, URL) throws -> Void
@@ -90,6 +93,7 @@ final class CalibrationStore {
             "imageHeight": front.imageHeight,
             "intrinsics": intrinsicsDictionary(front.intrinsics),
             "perViewCameraMetadata": true,
+            "camera": camera,
             "keypointFormat": "coco17_pixel_unmirrored",
             "yawConvention": "ccw_from_above_positive_user_turns_left; 0=facing_camera",
             "reference": [

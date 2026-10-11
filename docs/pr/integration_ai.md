@@ -15,6 +15,8 @@ AI 쪽 작업(캘리브레이션 서버, 2D/3D 포즈, 사람 crop 입력, 자�
 - GLB: 서버에서 SMPL 메시를 만들어 R2에 두고 조회 때 1시간 presigned GET(`result.modelGlbUrl`, 본인만). SMPL 모델 파일은 배포 안 함(비상업 라이선스)
 - 앱 분석 화면: polling·진행률·실패 문구·결과 요약. 실제 3D 결과 화면은 팀원 파일이라 브랜치 `ai/calibration-result-screen`에만(병합 안 함)
 - 운동 3D에 캘리브레이션 뼈 길이 연결은 보류(라이브 3D 꺼짐)
+- 촬영 거리 단축(F10–F11): 전면 초광각(iPhone 17 84°) 우선, 몸 높이 0.40–0.85, 폰 앞뒤 기울기 25° → 키 1.70 m 기준 최소 거리 1.70 → 1.15 m(바닥에 기대면 0.75 m). manifest에 선택 필드 `camera`
+- 서버 예열(F13): 촬영 화면 진입 시 `POST /v1/calibrations/warmup`(사용자당 5분 1회), `fit_body` 대기 180초 — 첫 작업 258 → 33초. 배포됨(v10)
 
 **포즈 (iOS NativePose)**
 - RTMPose-s Halpe26 모델 추가와 모델 선택 상수(기본 COCO17, `BPT_POSE_MODEL=halpe26`으로 전환)
@@ -94,10 +96,10 @@ AI 쪽 작업(캘리브레이션 서버, 2D/3D 포즈, 사람 crop 입력, 자�
 - 후면 카메라 로우는 모두 측면 아님으로 판정
 
 ## 테스트
-- `swift test --package-path ios/CalibrationEngineKit`: 84 통과
+- `swift test --package-path ios/CalibrationEngineKit`: 86 통과
 - `pytest tests/`: 178 통과
-- 서버 `pytest tests` (server/calibration_modal): 81 통과, 1 건너뜀
-- `flutter test`: 77 통과
+- 서버 `pytest tests` (server/calibration_modal): 82 통과, 1 건너뜀
+- `flutter test`: 79 통과
 - `xcodebuild` Runner, iOS Simulator Debug, `CODE_SIGNING_ALLOWED=NO`: 성공
 
 ## main과의 차이 (병합 전 확인)

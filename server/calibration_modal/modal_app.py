@@ -53,8 +53,13 @@ fit_image = (
 )
 
 
+# Idle seconds a fitting container stays up (Modal's default is 60). Long enough that a container
+# warmed when the capture screen opens (~65 s cold start) is still there when the upload lands.
+SCALEDOWN_SECONDS = 180
+
+
 @app.function(image=fit_image, gpu="L4", volumes={"/weights": weights}, secrets=secrets[:1],
-              timeout=15 * 60, min_containers=0, retries=0)
+              timeout=15 * 60, min_containers=0, scaledown_window=SCALEDOWN_SECONDS, retries=0)
 def fit_body(job):
     import fitting
     import storage
@@ -63,6 +68,8 @@ def fit_body(job):
     global _fitter
     if "_fitter" not in globals():  # models load once per container
         _fitter = fitting.Fitter()
+    if job.get("warmup"):  # POST /v1/calibrations/warmup: the models are loaded, nothing else to do
+        return {"warm": True}
     bucket = storage.Bucket.from_env()
     return worker.run(job, bucket, storage.BucketState(bucket), _fitter)
 
@@ -94,6 +101,7 @@ def api():
         spawn=fit_body.spawn,
         jwt_secret=os.environ["JWT_SECRET"],
         call_failure=call_failure,
+        warm=lambda: fit_body.spawn({"warmup": True}),
     )
 
 

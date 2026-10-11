@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/route_constants.dart';
 import '../../../core/theme/app_colors.dart';
 import '../providers/onboarding_provider.dart';
+import '../services/calibration_upload_service.dart';
 import '../widgets/calibration_silhouette.dart';
 
 /// Full-screen body calibration capture: shown after the user taps "카메라 켜기"
@@ -54,6 +55,8 @@ class _OnboardingScanScreenState extends ConsumerState<OnboardingScanScreen> {
   @override
   void initState() {
     super.initState();
+    // The GPU container starts while the user is being photographed (~65 s cold start).
+    ref.read(calibrationUploadServiceProvider).warmUp();
     CalibrationSilhouettes.load().then((value) {
       if (mounted) setState(() => _silhouettes = value);
     });
@@ -130,7 +133,7 @@ class _OnboardingScanScreenState extends ConsumerState<OnboardingScanScreen> {
                     fontSize: 18,
                     fontWeight: FontWeight.w900)),
             SizedBox(height: 16),
-            _HelpTip('폰은 세로로 똑바로 세워서 고정해 줘'),
+            _HelpTip('폰은 세로로 세워 고정해 줘. 바닥에 둘 땐 살짝 뒤로 기대도 돼'),
             SizedBox(height: 10),
             _HelpTip('머리부터 발끝까지 화면에 다 나오게 서 줘'),
             SizedBox(height: 10),

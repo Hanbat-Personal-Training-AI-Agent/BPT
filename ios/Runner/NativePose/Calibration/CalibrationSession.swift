@@ -130,6 +130,7 @@ final class CalibrationSession: NSObject {
                     self.handle(sampleBuffer, device: device)
                 }
             }
+            store.camera = captureManager.cameraInfo
         } catch {
             teardown(discardUnfinished: true)
             let message = "setup_failed: \(error.localizedDescription)"
@@ -392,12 +393,14 @@ enum CalibrationSessionError: LocalizedError {
 
 // MARK: - Capture manager
 
-/// Front camera, highest resolution available, portrait, unmirrored, with intrinsics delivery.
+/// Widest front camera, highest resolution available, portrait, unmirrored, with intrinsics delivery.
 final class CalibrationCaptureManager: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate, @unchecked Sendable {
     let session = AVCaptureSession()
     private let queue = DispatchQueue(label: "com.bpt.calibration.camera", qos: .userInitiated)
     private var rotationCoordinator: AnyObject?
     private(set) var horizontalFieldOfView: Float = 0
+    /// Written into the manifest's "camera" object (CalibrationStore.camera).
+    private(set) var cameraInfo: [String: Any] = [:]
 
     // Handler/configuration are confined to queue; in-flight gate is locked across queues.
     nonisolated(unsafe) private var onFrame: ((CMSampleBuffer) -> Void)?
@@ -429,7 +432,11 @@ final class CalibrationCaptureManager: NSObject, AVCaptureVideoDataOutputSampleB
         session.inputs.forEach { session.removeInput($0) }
         session.outputs.forEach { session.removeOutput($0) }
 
-        guard let device = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .front) else {
+        // The widest front camera: on iPhone 17 the front ultra-wide sees 84° on the long side
+        // against the wide camera's 73° (both from the same square sensor), so the user can
+        // stand ~18% closer. Older phones have no front ultra-wide and keep the wide camera.
+        guard let device = AVCaptureDevice.default(.builtInUltraWideCamera, for: .video, position: .front)
+                ?? AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .front) else {
             throw CalibrationSessionError.noCamera
         }
         let input = try AVCaptureDeviceInput(device: device)
@@ -441,8 +448,14 @@ final class CalibrationCaptureManager: NSObject, AVCaptureVideoDataOutputSampleB
             break
         }
         horizontalFieldOfView = device.activeFormat.videoFieldOfView
+        let dimensions = CMVideoFormatDescriptionGetDimensions(device.activeFormat.formatDescription)
+        cameraInfo = ["deviceType": device.deviceType.rawValue,
+                      "fieldOfViewDeg": Double(horizontalFieldOfView),
+                      "formatWidth": Int(dimensions.width), "formatHeight": Int(dimensions.height)]
 
         if (try? device.lockForConfiguration()) != nil {
+            // Keep the picture close to a pinhole camera; the server projects with plain intrinsics.
+            if device.isGeometricDistortionCorrectionSupported { device.isGeometricDistortionCorrectionEnabled = true }
             if device.isFocusModeSupported(.continuousAutoFocus) { device.focusMode = .continuousAutoFocus }
             if device.isExposureModeSupported(.continuousAutoExposure) { device.exposureMode = .continuousAutoExposure }
             device.unlockForConfiguration()
