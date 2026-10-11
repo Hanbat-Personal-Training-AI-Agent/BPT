@@ -102,7 +102,7 @@ def main():
     p.add_argument('--out', required=True)
     a = p.parse_args()
     torch.manual_seed(0); np.random.seed(0)
-    dev = 'mps' if torch.backends.mps.is_available() else 'cpu'
+    dev = 'cuda' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is_available() else 'cpu'
     model, cfg = load(a.mag_repo, a.checkpoint or f'{a.mag_repo}/checkpoint/motionagformer-xs-h36m.pth.tr', dev)
     from loss.pose3d import loss_mpjpe, n_mpjpe, loss_velocity  # after load() put the repo on sys.path
     ex = a.exercises.split(',')
