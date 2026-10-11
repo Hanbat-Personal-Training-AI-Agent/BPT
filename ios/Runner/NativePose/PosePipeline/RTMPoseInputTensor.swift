@@ -253,3 +253,41 @@ extension RTMPoseCropTracker {
         return offerWholeFrame(PoseCoordinateTransforms.applyInverseAffine(decoded: decoded, inverseAffine: back))
     }
 }
+
+/// One frame of the live pose step: decoded output, input → frame transform, COCO-17 in frame pixels, and
+/// whether the whole-frame recheck ran (nil) or switched person (true/false).
+struct RTMPoseFrameEstimate {
+    let decoded: SimCCDecodeResult
+    let inverseAffine: Affine2x3
+    let coco17: [PoseKeypoint]
+    let recheckSwitched: Bool?
+}
+
+extension RTMPoseCropTracker {
+    /// The per-frame body pose step of the live camera path: RTMPose on the tracked 3:4 crop (whole frame
+    /// when the person is lost, or always when `personCrop` is false), keypoints back to frame pixels, tracker
+    /// update, then the ~1 s whole-frame recheck. CameraPosePreview, pose-replay and the on-device pipeline
+    /// bench (tools/pose_model_bench) all call this. nil when the model has no SimCC outputs.
+    mutating func estimate(_ image: CGImage, model: MLModel, workspace: RTMPoseInputWorkspace,
+                           personCrop: Bool = true) throws -> RTMPoseFrameEstimate? {
+        let rect = personCrop ? inputRect(imageWidth: image.width, imageHeight: image.height)
+            : CGRect(x: 0, y: 0, width: image.width, height: image.height)
+        let back = try PosePreprocess.drawRegion(image, rect: rect, into: &workspace.pixels)
+        try PosePreprocess.normalizeRGBAIntoRTMPoseInput(workspace.pixels, input: workspace.input,
+                                                          width: PoseCoordinateTransforms.rtmposeInputWidth,
+                                                          height: PoseCoordinateTransforms.rtmposeInputHeight)
+        let output = try model.prediction(from: workspace.provider)
+        guard let x = output.featureValue(for: "simcc_x")?.multiArrayValue,
+              let y = output.featureValue(for: "simcc_y")?.multiArrayValue else { return nil }
+        let decoded = try SimCCDecoder.decodeToInputCoordinates(simccX: x, simccY: y)
+        let coco17 = PoseCoordinateTransforms.applyInverseAffine(decoded: decoded, inverseAffine: back)
+        var switched: Bool?
+        if personCrop {
+            update(coco17)
+            // Every ~1 s one extra whole-frame pass, so a bystander locked in at the start is dropped for the
+            // (bigger) user. Runs after this frame's keypoints are taken from the workspace.
+            if wholeFrameRecheckDue { switched = try recheckWholeFrame(image, model: model, workspace: workspace) }
+        }
+        return RTMPoseFrameEstimate(decoded: decoded, inverseAffine: back, coco17: coco17, recheckSwitched: switched)
+    }
+}

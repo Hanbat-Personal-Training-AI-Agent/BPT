@@ -72,7 +72,7 @@ AI 쪽 작업(캘리브레이션 서버, 2D/3D 포즈, 사람 crop 입력, 자�
 | squat_heel_rise | 끔 | 지표는 기록 |
 | row_shrug | 끔 | 실험 |
 | 무릎 과신전 보정 | 끔 | 감지("3D 불량" 표시)만 켜짐 |
-| 세트별 녹화 | 끔 | `BPT_SET_RECORDING=1` 또는 UserDefaults `BPTSetRecording`. 실기기 FPS 감소 ≤10% 확인 후 켬 |
+| 세트별 녹화 | 끔 | `BPT_SET_RECORDING=1` 또는 UserDefaults `BPTSetRecording`. iPhone 17 측정(D-E-08): FPS −5.4%지만 30 fps에서 놓친 프레임 3→9라 OFF 유지 |
 | (켜짐) 사람 3:4 crop 입력 | 켬 | 끄기 `CameraPreviewOptions.personCropInput = false` — 끄면 로우 컷오프도 0.56으로 |
 
 ## 기본으로 켜진 키

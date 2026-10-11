@@ -432,3 +432,40 @@
 - **기각**: 지금 기본을 m으로 전환(정확도 장단점이 섞여 사용자 결정 사항, BRIEF), CPU+GPU로 변경(앱 조건 미측정, 이득 1 ms 미만), Vision 복귀(6배 느리고 2D 정확도 비교 근거 없음).
 - **한계**: 추론 단독 수치. 앱 전체(crop·평가기·3D·녹화) FPS는 사람이 카메라 앞에 있어야 해서 따로 측정 필요. 프레임 1장(모델 지연은 입력 내용과 거의 무관, Vision은 사람 수에 따라 다를 수 있음).
 - **되돌리기/다시 재기**: 앱 코드 변경 없음(문서·측정 도구만). 재측정은 `tools/pose_model_bench/project.yml` 머리말 명령, 연속 실행 사이 휴식은 `TEST_RUNNER_BENCH_COOLDOWN`(앱이 앞에 있어 기기가 안 잠김). m 전환 방법은 D-C-03.
+
+## 실기기 전체 파이프라인 측정 (ai/device-pipeline) — 2026-10-11
+**측정 방법**: `tools/pose_model_bench` 호스트 앱의 "영상 입력 라이브" 모드(`Host/PipelineBench.swift`, `run_pipeline.sh`). 사람 없이 Exercise3D 측면 영상 13개(세트마다 가장 측면인 카메라, 각도 10–32°, 720p로 줄임: 스쿼트·로우 720×1280 세로, 푸시업 1280×720 가로)를 AVAssetReader로 기기에서 디코딩해 카메라 대신 넣음. 프레임마다 라이브 카메라와 **같은 코드**: 처리 큐에서 `RTMPoseCropTracker.estimate`(사람 crop·RTMPose·디코딩·1초 재확인, 이번에 CameraPosePreview·pose-replay·벤치가 함께 쓰도록 뽑아냄) [+ MotionAGFormer-XS] [+ `WorkoutSetRecorder.append`], 메인 스레드에서 평가기·`FormWarningTracker`·브리지 변경 감지(Flutter 채널 제외). 영상 1개 = 1세트(endSet·녹화 파일 닫기 포함). Release 빌드(앱과 같음 → 폼 로그 꺼짐).
+- **들어가지 않은 것**: 카메라 캡처, 미리보기 그리기, 푸시업·로우의 손 분기(MediaPipe, 화면 표시용). 그래서 실제 앱보다 가벼움 → 여유를 두고 판단.
+- 변형마다 30 fps 속도 맞춤 180초("페이스") + 쉬지 않고 180초("무제한"), 각 실행 앞에 앱 안에서 60초 휴식. iPhone 17, 순서 a→b→c→d.
+- 용어: 지연 = 프레임이 "도착"한 때부터 평가기 처리 끝까지(ms). 놓친 프레임 = 30 fps 시계에서 앞 프레임 처리가 안 끝나 버려진 프레임(카메라 `alwaysDiscardsLateVideoFrames`와 같은 규칙). 발열 = `thermalState`(nominal 정상 < fair 약간 따뜻 < serious 뜨거움 < critical).
+
+| 변형 | 페이스 30 fps 지연 p50 / p95 / 최대 | 놓친 프레임 (5,400개 중) | 무제한 FPS (a 대비) | 무제한 지연 p50 / p95 | 발열 (페이스 / 무제한, 시작→끝) | 배터리 |
+|---|---|---|---|---|---|---|
+| a 기본 (s COCO17) | 23.7 / 26.7 / 75.8 | 3 (0.06%) | 131.0 | 7.3 / 8.2 | fair→nominal / nominal→fair | 측정 불가(충전 중) |
+| b + 세트 녹화 | 23.8 / 27.7 / 51.8 | 9 (0.17%) | 124.0 (−5.4%) | 7.8 / 8.6 | serious→fair / fair→serious | 측정 불가 |
+| c + 실시간 3D | 24.4 / 33.2 / 175.3 | 7 (0.13%) | 79.0 (−39.7%) | 12.5 / 13.3 | serious 내내 / fair→serious | 측정 불가 |
+| d m COCO17 | 24.2 / 29.6 / 45.9 | 0 | 107.1 (−18.3%) | 8.9 / 10.6 | serious 내내 / fair→serious | 측정 불가 |
+
+- 페이스 지연이 무제한보다 3배 큼(a: 모델 단계 16.6 vs 5.1 ms, 이미지 변환 4.4 vs 2.2 ms). 프레임 사이 쉬는 동안 CPU·Neural Engine이 저전력으로 내려가서(추정, 3D를 더 돌리는 c는 모델 단계가 9.9 ms로 오히려 빠름). 30 fps 예산 33 ms 중 실제 여유는 p95 기준 약 6 ms(a) — 추론만 잰 D-C-05(2 ms)보다 훨씬 적음.
+- 배터리: 폰이 충전기에 연결돼 있어(`batteryState` 충전 중/완충) 내내 100% → 분당 소모량 못 잼. 충전 열 때문에 발열도 실제보다 불리할 수 있음(추정).
+- 순서 효과: 휴식 60초로는 식지 않아 b·c·d는 serious로 시작한 실행이 있음 → 뒤 변형에 불리.
+
+**렙 수 일치 확인**(무제한 첫 바퀴, 13개 영상, 정답 렙 = 10×12 + 12):
+- 기기 키포인트를 Mac pose-replay(`--keypoints-csv`)에 넣으면 렙 수 13/13 같음 → 기기의 평가기·경고 트래커 경로는 Mac과 동일.
+- Mac이 직접 포즈 추정까지 한 결과와: s 12/13 같음(barbellrow_0002 기기 9 / Mac 11 / 정답 12), m 13/13 같음(전부 정답). 차이는 Core ML 수치 차이(기기 vs Mac 키포인트 거리 영상별 중앙값 0–3.2 px, p95 2–10 px; Neural Engine fp16) — 경로 차이는 아님.
+- 변형 c(3D 켬)의 렙 수는 a와 같음(3D는 지표·경고용). 페이스 실행에서는 놓친 프레임 때문에 b의 barbellrow_0002가 12로 바뀜.
+
+## D-E-08 세트별 녹화는 기본 OFF 유지 (2026-10-11)
+- **규칙**(트랙 E, E6 + 이번 여유 조건): 녹화가 FPS를 10% 넘게 깎으면 OFF. 아니어도 카메라·미리보기가 빠진 측정이라, 30 fps 페이스 실행에서 녹화를 켜고도 놓친 프레임 0일 때만 ON.
+- **근거**: 무제한 FPS 131.0 → 124.0(−5.4%, 10% 조건은 통과). 페이스 실행 놓친 프레임 3 → **9**(0.17%), p95 지연 26.7 → 27.7 ms → 0 조건 실패 → **OFF 유지**(`WorkoutDebugFlags.setRecording` 기본 false, 코드 변경 없음).
+- 덧붙임: 놓친 프레임은 가끔 오는 끊김에서 몰려 나오고(기본값 a도 3개), b는 serious로 시작함. 녹화 비용 자체는 작음(추정) — 충전기 뺀 상태·실제 카메라에서 다시 재면 ON 가능성 있음.
+- **기각**: 10% 규칙만 보고 ON(카메라 캡처·미리보기·손 분기가 안 들어간 측정이라 여유 없음), 놓친 프레임을 a와의 차이로 보고 ON(요청 조건은 0).
+- **되돌리기/다시 재기**: 켜기는 기존 플래그 `BPT_SET_RECORDING=1` / UserDefaults `BPTSetRecording`. 기본 ON 전환은 `WorkoutDebugFlags.setRecording`의 기본값 한 줄. 재측정 `tools/pose_model_bench/run_pipeline.sh b paced`, 실제 앱은 `BPT_PERF_LOG=1` + `scripts/compare_perf_logs.py`(docs/research/set_recording_perf.md).
+
+## D-C-06 전체 파이프라인으로도 m COCO17 실시간 가능, 기본은 s 유지 · 실시간 3D는 켜지 않음 (2026-10-11)
+- **결정**: 기본 모델 RTMPose-s 유지(전환은 D-C-05대로 사용자 결정 — 이번 측정으로 속도 조건 "전체 파이프라인에서 30 fps 유지"는 확인됨). 실시간 3D(`enableMotion3DForCamera`)는 계속 끔.
+- **근거**: m은 페이스 30 fps에서 놓친 프레임 0, p95 29.6 ms(예산 33 ms의 90%), 무제한 107 FPS(s 대비 −18%), 렙 수는 Mac과 13/13 같고 정답과도 13/13. 3D는 무제한 −40%(79 FPS), 페이스 p95 33.2 ms로 예산 끝, 놓친 프레임 7 — 카메라·미리보기까지 더하면 30 fps를 못 지킬 가능성이 큼(추정). 또 앱의 `enableMotion3DForCamera`는 지금 실제 3D 코드가 없는 상수(로그용)라, c는 pose-replay의 lift3D와 같은 27프레임 창을 과거 프레임만으로 돌린 비용임.
+- **바뀐 코드**: 프레임당 포즈 단계(crop → RTMPose → 디코딩 → 원래 좌표 → 추적기 갱신 → 1초 재확인)를 `RTMPoseCropTracker.estimate`로 뽑아 CameraPosePreview·pose-replay·기기 벤치가 같은 함수를 부름(동작 변화 없음, `testEstimateMatchesTheManualPoseStep`).
+- **기각**: m으로 지금 전환(정확도 장단점이 섞여 사용자 결정), 3D 실시간 켜기(예산 끝·놓친 프레임, 화면 표시용 이득만).
+- **한계**: 카메라·미리보기·손 분기 제외, 충전 중(배터리 미측정), 실행 순서 열 누적, 720p로 줄인 Exercise3D 영상(푸시업은 가로 1280×720 — 앱 카메라는 세로).
+- **되돌리기**: `estimate` 추출은 커밋 revert(이전 인라인 코드로). 결정은 문서만.

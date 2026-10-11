@@ -1,0 +1,274 @@
+import AVFoundation
+import CoreImage
+import CoreML
+import UIKit
+
+/// Device "video-fed live" run (launch env BENCH_PIPELINE=1): Exercise3D clips decoded with AVAssetReader stand
+/// in for the camera, and every frame goes through the live camera path's per-frame code from ios/Runner/NativePose:
+/// on a serial processing queue `RTMPoseCropTracker.estimate` (person crop, RTMPose, decode, reacquire recheck)
+/// [+ MotionAGFormer-XS] [+ WorkoutSetRecorder.append], then on the main thread the evaluator, its
+/// FormWarningTracker and the bridge's change detection (CameraPoseViewModel.handleProcessingResult minus Flutter).
+/// One clip = one set (new evaluator, tracker reset, recorder per set, endSet at the clip end).
+/// Not included: camera capture, preview rendering, the hand branch (push-up/row overlay, MediaPipe).
+///
+/// Env: BENCH_MODEL=rtmpose_s_forward|rtmpose_m_forward, BENCH_RECORD=1, BENCH_3D=1, BENCH_PACED=1 (30 fps camera
+/// clock; a frame is dropped when the next one is already due, like alwaysDiscardsLateVideoFrames) or unpaced,
+/// BENCH_SECONDS (180; unpaced also finishes the first pass over all clips, up to 270 s), BENCH_COOLDOWN (idle
+/// seconds first, inside the foreground app), BENCH_DUMP=1 (Documents/pipeline_csv/<clip>.csv: per-frame COCO-17 in
+/// pose-replay's CSV format, so `pose-replay --keypoints-csv` replays the device keypoints on the Mac). Prints BENCH lines.
+final class PipelineBench {
+    private let env = ProcessInfo.processInfo.environment
+    private let processing = DispatchQueue(label: "bench.processing", qos: .userInitiated)
+    private let assets = Bundle.main.resourceURL!.appendingPathComponent("PipelineAssets")
+    private let context = CIContext(options: nil)
+
+    // Main thread only.
+    private var latencies: [Double] = []
+    private var lastRep = 0
+    private var lastStatus: String?
+    private var bridgeUpdates = 0
+    private var feedbackEvents = 0
+
+    private func loadModel(_ name: String) throws -> MLModel {
+        let configuration = MLModelConfiguration()
+        configuration.computeUnits = .all
+        let compiled = try MLModel.compileModel(at: assets.appendingPathComponent("\(name).mlpackage"))
+        return try MLModel(contentsOf: compiled, configuration: configuration)
+    }
+
+    private static func now() -> Double { CACurrentMediaTime() }
+    private static func thermal() -> String { WorkoutPerfLog.thermalName(ProcessInfo.processInfo.thermalState) }
+    private static func battery() -> (Float, Int) {
+        DispatchQueue.main.sync { (UIDevice.current.batteryLevel, UIDevice.current.batteryState.rawValue) }
+    }
+
+    func run() throws {
+        let model = env["BENCH_MODEL"] ?? "rtmpose_s_forward"
+        let record = env["BENCH_RECORD"] == "1", lift3D = env["BENCH_3D"] == "1", paced = env["BENCH_PACED"] == "1"
+        let seconds = Double(env["BENCH_SECONDS"] ?? "") ?? 180
+        let dumpDir: URL? = env["BENCH_DUMP"] == "1"
+            ? FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("pipeline_csv") : nil
+        if let dumpDir {
+            try? FileManager.default.removeItem(at: dumpDir)
+            try FileManager.default.createDirectory(at: dumpDir, withIntermediateDirectories: true)
+        }
+        let label = "model=\(model) record=\(record) 3d=\(lift3D) paced=\(paced)"
+        DispatchQueue.main.sync { UIDevice.current.isBatteryMonitoringEnabled = true }
+        let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        for dir in ["workout_videos", "workout_form_logs"] { try? FileManager.default.removeItem(at: documents.appendingPathComponent(dir)) }
+        Thread.sleep(forTimeInterval: Double(env["BENCH_COOLDOWN"] ?? "") ?? 0)
+
+        let rtmpose = try loadModel(model)
+        let motion3D = lift3D ? try loadModel("motionagformer_xs") : nil
+        let workspace = try RTMPoseInputWorkspace()
+        let clips = try FileManager.default.contentsOfDirectory(at: assets.appendingPathComponent("clips"),
+                                                                includingPropertiesForKeys: nil)
+            .filter { $0.pathExtension == "mp4" }.sorted { $0.lastPathComponent < $1.lastPathComponent }
+        let perfLog = WorkoutPerfLog(exercise: "bench")
+        let (battery0, batteryState) = Self.battery()
+        print("BENCH start \(label) clips=\(clips.count) thermal=\(Self.thermal()) battery=\(battery0) battery_state=\(batteryState)")
+
+        // Warm-up (not measured): first predictions load the model onto the ANE.
+        if let first = clips.first, let image = try firstImage(first) {
+            var tracker = RTMPoseCropTracker()
+            for _ in 0..<20 { _ = try tracker.estimate(image, model: rtmpose, workspace: workspace) }
+        }
+
+        let start = Self.now()
+        var cameraFrame = 0, processed = 0, dropped = 0
+        var processingMs: [Double] = [], convertMs: [Double] = [], estimateMs: [Double] = []
+        var lastLog = start, logProcessed = 0, logDropped = 0
+        var completedFirstPass = false
+        var thermalTrace: [String] = []
+        var clipIndex = 0
+        func timeUp() -> Bool {
+            let elapsed = Self.now() - start
+            return paced ? elapsed >= seconds : (elapsed >= seconds && completedFirstPass) || elapsed >= seconds * 1.5
+        }
+
+        while !timeUp() {
+            let clip = clips[clipIndex % clips.count]
+            let name = clip.deletingPathExtension().lastPathComponent
+            let session = SetSession(exercise: name.hasPrefix("squat") ? .squat : name.hasPrefix("pushup") ? .pushUp : .barbellRow)
+            DispatchQueue.main.sync { lastRep = 0; lastStatus = nil }
+            var cropTracker = RTMPoseCropTracker()
+            var normalizer = MotionAGFormerInputNormalizer()
+            var window: [[[Float]]] = []
+            let recorder = record ? WorkoutSetRecorder.directory().map {
+                WorkoutSetRecorder.prune(directory: $0, keep: WorkoutSetRecorder.keepFiles - 1)
+                return WorkoutSetRecorder(url: $0.appendingPathComponent(
+                    WorkoutSetRecorder.fileName(exercise: session.exercise.rawValue, setIndex: clipIndex + 1)))
+            } : nil
+            let asset = AVURLAsset(url: clip)
+            let reader = try AVAssetReader(asset: asset)
+            let output = AVAssetReaderTrackOutput(track: asset.tracks(withMediaType: .video)[0], outputSettings: [
+                kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA])
+            output.alwaysCopiesSampleData = false
+            reader.add(output)
+            reader.startReading()
+            var frameIndex = 0, clipFrames = 0, clipDrops = 0
+            var csv = "frame,time,status,rep," + (0..<17).map { "j\($0)_x,j\($0)_y,j\($0)_c" }.joined(separator: ",") + "\n"
+            var finished = true
+            while let sampleBuffer = output.copyNextSampleBuffer() {
+                if timeUp() { finished = false; break }
+                cameraFrame += 1
+                clipFrames += 1
+                var arrival = Self.now()
+                if paced {
+                    let due = start + Double(cameraFrame) / 30
+                    if arrival >= due + 1.0 / 30 {
+                        dropped += 1; clipDrops += 1; perfLog?.frameDropped()
+                        continue
+                    }
+                    if due > arrival { Thread.sleep(forTimeInterval: due - arrival) }
+                    arrival = due
+                }
+                let idx = frameIndex
+                frameIndex += 1
+                // CameraCaptureManager.captureOutput → CameraPoseViewModel.processFrame (processing queue).
+                let step: (coco17: [PoseKeypoint], feet: FootKeypoints?, pose3D: [SIMD3<Double>]?)? = try processing.sync {
+                    try autoreleasepool {
+                        guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return nil }
+                        let t0 = Self.now()
+                        let ciImage = CIImage(cvPixelBuffer: pixelBuffer)
+                        guard let cgImage = context.createCGImage(ciImage, from: ciImage.extent) else { return nil }
+                        let t1 = Self.now()
+                        guard let estimate = try cropTracker.estimate(cgImage, model: rtmpose, workspace: workspace) else { return nil }
+                        convertMs.append((t1 - t0) * 1000)
+                        estimateMs.append((Self.now() - t1) * 1000)
+                        var pose3D: [SIMD3<Double>]?
+                        if let motion3D {
+                            // Causal 27-frame window (the newest frame's row), like pose-replay's lift3D with lookahead 0.
+                            let frame = try PoseCoordinateTransforms.normalizedMotionAGFormerFrame(
+                                fromCOCO17: estimate.coco17, imageWidth: cgImage.width, imageHeight: cgImage.height,
+                                normalizer: &normalizer)
+                            window.append(frame)
+                            if window.count > 27 { window.removeFirst() }
+                            pose3D = try Self.predict3D(window, model: motion3D)
+                        }
+                        recorder?.append(sampleBuffer)
+                        perfLog?.frameProcessed()
+                        if dumpDir != nil {
+                            let t = CMTimeGetSeconds(CMSampleBufferGetPresentationTimeStamp(sampleBuffer))
+                            csv += (["\(idx)", String(format: "%.4f", t), "", ""] + estimate.coco17.flatMap {
+                                [String(format: "%.4f", $0.x), String(format: "%.4f", $0.y), String(format: "%.4f", $0.confidence)]
+                            }).joined(separator: ",") + "\n"
+                        }
+                        return (estimate.coco17, PoseCoordinateTransforms.applyInverseAffineToFeet(
+                            decoded: estimate.decoded, inverseAffine: estimate.inverseAffine), pose3D)
+                    }
+                }
+                processed += 1
+                processingMs.append((Self.now() - arrival) * 1000)
+                guard let step else { continue }
+                // handleProcessingResult (main): evaluator + form tracker + bridge change detection.
+                DispatchQueue.main.async { [self] in
+                    let (status, rep) = session.evaluate(frameIndex: idx, coco17: step.coco17, feet: step.feet, pose3D: step.pose3D)
+                    feedbackEvents += session.tracker.drainEvents().count
+                    if rep != lastRep || status != lastStatus { bridgeUpdates += 1 }
+                    lastRep = rep
+                    lastStatus = status
+                    latencies.append((Self.now() - arrival) * 1000)
+                }
+                if Self.now() - lastLog >= 10 {
+                    let (level, _) = Self.battery()
+                    let line = String(format: "t=%.0f fps=%.1f drops=%d thermal=%@ battery=%.2f", Self.now() - start,
+                                      Double(processed - logProcessed) / (Self.now() - lastLog), dropped - logDropped,
+                                      Self.thermal(), level)
+                    print("BENCH window \(line)")
+                    thermalTrace.append("\(Int(Self.now() - start)):\(Self.thermal())")
+                    perfLog?.flush(battery: level, recording: record)
+                    lastLog = Self.now(); logProcessed = processed; logDropped = dropped
+                }
+            }
+            reader.cancelReading()
+            if let dumpDir, finished { try csv.write(to: dumpDir.appendingPathComponent("\(name).csv"), atomically: true, encoding: .utf8) }
+            // endSet: set-scope feedback, close the set file (processing queue, like finishRecording).
+            let reps = DispatchQueue.main.sync { () -> Int in
+                session.tracker.endSet()
+                feedbackEvents += session.tracker.drainEvents().count
+                return lastRep
+            }
+            if let recorder { processing.sync { recorder.finish { _ in } } }
+            print("BENCH clip \(name) reps=\(reps) frames=\(clipFrames) drops=\(clipDrops) complete=\(finished)")
+            clipIndex += 1
+            if clipIndex == clips.count { completedFirstPass = true }
+        }
+        let wall = Self.now() - start
+        DispatchQueue.main.sync {}  // drain the evaluator steps
+        let (battery1, _) = Self.battery()
+        let lat = DispatchQueue.main.sync { latencies.sorted() }
+        func pct(_ s: [Double], _ q: Double) -> Double { s.isEmpty ? 0 : s[min(s.count - 1, Int(Double(s.count) * q))] }
+        let proc = processingMs.sorted()
+        print(String(format: "BENCH result %@ wall=%.1f camera_frames=%d processed=%d fps=%.2f drops=%d drop_pct=%.2f "
+                     + "e2e_p50=%.2f e2e_p95=%.2f e2e_max=%.2f proc_p50=%.2f proc_p95=%.2f battery0=%.2f battery1=%.2f "
+                     + "battery_pct_per_min=%.3f thermal_end=%@ bridge_updates=%d feedback_events=%d convert_p50=%.2f estimate_p50=%.2f estimate_p95=%.2f",
+                     label, wall, cameraFrame, processed, Double(processed) / wall, dropped,
+                     cameraFrame == 0 ? 0 : 100 * Double(dropped) / Double(cameraFrame),
+                     pct(lat, 0.5), pct(lat, 0.95), lat.last ?? 0, pct(proc, 0.5), pct(proc, 0.95),
+                     battery0, battery1, Double(battery0 - battery1) * 100 / (wall / 60), Self.thermal(),
+                     DispatchQueue.main.sync { bridgeUpdates }, DispatchQueue.main.sync { feedbackEvents },
+                     pct(convertMs.sorted(), 0.5), pct(estimateMs.sorted(), 0.5), pct(estimateMs.sorted(), 0.95)))
+        print("BENCH thermal_trace " + thermalTrace.joined(separator: " "))
+        perfLog?.close()
+        let documents2 = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        for dir in ["workout_videos", "workout_form_logs"] { try? FileManager.default.removeItem(at: documents2.appendingPathComponent(dir)) }
+    }
+
+    private func firstImage(_ clip: URL) throws -> CGImage? {
+        let asset = AVURLAsset(url: clip)
+        let reader = try AVAssetReader(asset: asset)
+        let output = AVAssetReaderTrackOutput(track: asset.tracks(withMediaType: .video)[0], outputSettings: [
+            kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA])
+        reader.add(output)
+        reader.startReading()
+        defer { reader.cancelReading() }
+        guard let sample = output.copyNextSampleBuffer(), let pixelBuffer = CMSampleBufferGetImageBuffer(sample) else { return nil }
+        let image = CIImage(cvPixelBuffer: pixelBuffer)
+        return context.createCGImage(image, from: image.extent)
+    }
+
+    /// MotionAGFormer-XS on the window (edge-clamped to 27 frames), the newest frame's H36M17 3D row.
+    private static func predict3D(_ frames: [[[Float]]], model: MLModel) throws -> [SIMD3<Double>] {
+        let count = 27
+        let input = try MLMultiArray(shape: [1, NSNumber(value: count), 17, 3], dataType: .float32)
+        let pointer = input.dataPointer.bindMemory(to: Float.self, capacity: count * 17 * 3)
+        for t in 0..<count {
+            let source = frames[max(0, frames.count - count + t)]
+            for j in 0..<17 { for c in 0..<3 { pointer[(t * 17 + j) * 3 + c] = source[j][c] } }
+        }
+        let output = try model.prediction(from: MLDictionaryFeatureProvider(dictionary: ["input_2d_sequence": input]))
+        let pred = output.featureValue(for: "pred_3d_sequence")!.multiArrayValue!
+        let row = NSNumber(value: count - 1)
+        return (0..<17).map { j in SIMD3((0..<3).map { pred[[0, row, NSNumber(value: j), NSNumber(value: $0)]].doubleValue }) }
+    }
+}
+
+/// One set's evaluator (CameraPoseViewModel.setup / runEvaluator). Main thread only.
+private final class SetSession {
+    let exercise: FormExercise
+    let tracker: FormWarningTracker
+    let evaluate: (Int, [PoseKeypoint], FootKeypoints?, [SIMD3<Double>]?) -> (String, Int)
+
+    init(exercise: FormExercise) {
+        self.exercise = exercise
+        switch exercise {
+        case .squat:
+            let e = SquatEvaluator()
+            tracker = e.formTracker
+            evaluate = { let r = e.evaluate(frameIndex: $0, coco17: $1, pose3D: $3, feet: $2); return (r.status.rawValue, r.rep) }
+        case .pushUp:
+            let e = PushUpEvaluator()
+            tracker = e.formTracker
+            evaluate = { i, k, _, p in let r = e.evaluate(frameIndex: i, coco17: k, pose3D: p); return (r.status.rawValue, r.rep) }
+        default:
+            let e = BarbellRowEvaluator()
+            tracker = e.formTracker
+            evaluate = { i, k, _, p in let r = e.evaluate(frameIndex: i, coco17: k, pose3D: p); return (r.status.rawValue, r.rep) }
+        }
+    }
+
+    func evaluate(frameIndex: Int, coco17: [PoseKeypoint], feet: FootKeypoints?, pose3D: [SIMD3<Double>]?) -> (String, Int) {
+        evaluate(frameIndex, coco17, feet, pose3D)
+    }
+}

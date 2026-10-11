@@ -7,6 +7,7 @@
 #   xcodebuild test-without-building <same args> | grep BENCH                     # latency (ALL / CPU+NE / CPU+GPU) + Vision
 #   TEST_RUNNER_BENCH_SUSTAIN_MODEL=rtmpose_m_forward TEST_RUNNER_BENCH_SECONDS=150 \
 #     xcodebuild test-without-building <same args> -only-testing:PoseModelBenchTests/PoseModelBenchTests/testSustained | grep BENCH
+# Video-fed live pipeline (Host/PipelineBench.swift): ./run_pipeline.sh setup, then ./run_pipeline.sh <variant> <paced|unpaced>.
 name: PoseModelBench
 options:
   bundleIdPrefix: com.bpt.posebench
@@ -15,7 +16,16 @@ targets:
   PoseModelBenchHost:
     type: application
     platform: iOS
-    sources: [Host]
+    sources:
+      - path: Host
+        excludes: [PipelineAssets]
+      - path: Host/PipelineAssets
+        type: folder
+        buildPhase: resources
+      # The live camera path's per-frame code (Flutter-free files only), for PipelineBench.
+      - ../../ios/Runner/NativePose/PosePipeline
+      - ../../ios/Runner/NativePose/Evaluators
+      - ../../ios/Runner/NativePose/Bridge/WorkoutSessionBridge.swift
     settings:
       GENERATE_INFOPLIST_FILE: YES
       CODE_SIGN_STYLE: Automatic

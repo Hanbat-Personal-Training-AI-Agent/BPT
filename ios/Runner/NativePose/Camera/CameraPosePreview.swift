@@ -364,34 +364,12 @@ final class CameraPoseViewModel: ObservableObject {
             do {
                 let timestampMs = Self.timestampMs(sampleBuffer, fallback: frameIdx)
                 let cgImage = try Self.cgImageFromSampleBuffer(sampleBuffer, ciContext: ciContext)
-                let inputRect = CameraPreviewOptions.personCropInput
-                    ? cropTracker.inputRect(imageWidth: cgImage.width, imageHeight: cgImage.height)
-                    : CGRect(x: 0, y: 0, width: cgImage.width, height: cgImage.height)
-                let inverseAffine = try PosePreprocess.drawRegion(cgImage, rect: inputRect, into: &workspace.pixels)
-                try PosePreprocess.normalizeRGBAIntoRTMPoseInput(
-                    workspace.pixels, input: workspace.input,
-                    width: PoseCoordinateTransforms.rtmposeInputWidth,
-                    height: PoseCoordinateTransforms.rtmposeInputHeight)
-                let rtmposeOutput = try rtmpose.prediction(from: workspace.provider)
-
-                guard let simccX = rtmposeOutput.featureValue(for: "simcc_x")?.multiArrayValue,
-                      let simccY = rtmposeOutput.featureValue(for: "simcc_y")?.multiArrayValue else {
+                guard let estimate = try cropTracker.estimate(cgImage, model: rtmpose, workspace: workspace,
+                                                              personCrop: CameraPreviewOptions.personCropInput) else {
                     return
                 }
-
-                let decoded = try SimCCDecoder.decodeToInputCoordinates(simccX: simccX, simccY: simccY)
-                let rawCoco17 = PoseCoordinateTransforms.applyInverseAffine(
-                    decoded: decoded,
-                    inverseAffine: inverseAffine
-                )
-                if CameraPreviewOptions.personCropInput {
-                    cropTracker.update(rawCoco17)
-                    // Every ~1 s one extra whole-frame pass, so a bystander locked in at the start is dropped
-                    // for the (bigger) user. Runs after this frame's keypoints are taken from the workspace.
-                    if cropTracker.wholeFrameRecheckDue {
-                        try cropTracker.recheckWholeFrame(cgImage, model: rtmpose, workspace: workspace)
-                    }
-                }
+                let decoded = estimate.decoded, inverseAffine = estimate.inverseAffine
+                let rawCoco17 = estimate.coco17
 
                 // Hand branch
                 let handResults: [HandLandmarkResult]

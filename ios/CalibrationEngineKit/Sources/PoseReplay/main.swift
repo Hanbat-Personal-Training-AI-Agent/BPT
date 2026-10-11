@@ -123,8 +123,6 @@ let model = try loadModel(poseModelPath.map { URL(fileURLWithPath: $0) }
 let motion3D = try motion3DPath.map { try loadModel(URL(fileURLWithPath: $0)) }
 let context = CIContext(options: [.cacheIntermediates: false])
 let workspace = try RTMPoseInputWorkspace()
-let inputWidth = PoseCoordinateTransforms.rtmposeInputWidth
-let inputHeight = PoseCoordinateTransforms.rtmposeInputHeight
 let window = 27
 
 func f(_ value: Double?) -> String { value.map { String(format: "%.4f", $0) } ?? "" }
@@ -199,23 +197,15 @@ for video in videos {
         imageWidth = cgImage.width
         imageHeight = cgImage.height
         let poseStart = Date()
-        let rect = personCrop ? cropTracker.inputRect(imageWidth: cgImage.width, imageHeight: cgImage.height)
-            : CGRect(x: 0, y: 0, width: cgImage.width, height: cgImage.height)
         if cropTracker.crop == nil { fullFrameInputs += 1 }
-        let back = try PosePreprocess.drawRegion(cgImage, rect: rect, into: &workspace.pixels)
-        try PosePreprocess.normalizeRGBAIntoRTMPoseInput(workspace.pixels, input: workspace.input,
-                                                          width: inputWidth, height: inputHeight)
-        let prediction = try model.prediction(from: workspace.provider)
-        let decoded = try SimCCDecoder.decodeToInputCoordinates(
-            simccX: prediction.featureValue(for: "simcc_x")!.multiArrayValue!,
-            simccY: prediction.featureValue(for: "simcc_y")!.multiArrayValue!)
-        let coco17 = PoseCoordinateTransforms.applyInverseAffine(decoded: decoded, inverseAffine: back)
-        if personCrop {
-            cropTracker.update(coco17)
-            if cropTracker.wholeFrameRecheckDue {  // same extra pass as CameraPosePreview
-                rechecks += 1
-                if try cropTracker.recheckWholeFrame(cgImage, model: model, workspace: workspace) { switches += 1 }
-            }
+        // The live camera path's pose step (crop, RTMPose, decode, tracker, ~1 s whole-frame recheck).
+        guard let estimate = try cropTracker.estimate(cgImage, model: model, workspace: workspace, personCrop: personCrop) else {
+            fatalError("model has no simcc_x / simcc_y outputs")
+        }
+        let decoded = estimate.decoded, back = estimate.inverseAffine, coco17 = estimate.coco17
+        if let switched = estimate.recheckSwitched {
+            rechecks += 1
+            if switched { switches += 1 }
         }
         poseSeconds += Date().timeIntervalSince(poseStart)
         coco17Frames.append(coco17)
