@@ -191,7 +191,7 @@ final class RepTransitionTests: XCTestCase {
         let flicker = Array(repeating: 0.0, count: 20) + [90, 90, 90, 90, 0, 0] + Array(repeating: 0.0, count: 20)
         let bends = Array(repeating: 0.0, count: 40) + real + real + flicker
         var config = PushUpEvaluatorConfig()
-        XCTAssertEqual(config.minRepFrames, 10)
+        XCTAssertEqual(config.minRepFrames, 15)
         XCTAssertEqual(pushUpReps(bends, config: config, pose: pushUpPose), 2)
         config.minRepFrames = 0
         XCTAssertEqual(pushUpReps(bends, config: config, pose: pushUpPose), 3, "the flicker counts without the minimum")

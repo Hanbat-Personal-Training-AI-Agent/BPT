@@ -24,10 +24,11 @@ struct PushUpEvaluatorConfig {
     /// Wrist confidence for the arm checks (elbow angle) — wrists planted on the floor score lower
     /// than other joints off the side view. Defaults to pushUpMinJointConfidence.
     var wristMinJointConfidence = 0.30
-    /// A rep shorter than this (start → lockout, frames; 10 = 0.33 s at 30 fps) is dropped as a flicker,
+    /// A rep shorter than this (start → lockout, frames; 15 = 0.5 s at 30 fps) is dropped as a flicker,
     /// not counted. Exercise3D push-ups take ≥ 24 frames; Fit3D 62–70° cams added 1–9-frame reps from
-    /// noisy elbow angles while getting down/up. 0 = off. docs/decisions.md D-T3-02
-    var minRepFrames = 10
+    /// noisy elbow angles while getting down/up, and iPhone keypoints a 14-frame one at the set start
+    /// (pushup_0001 70°). 0 = off. docs/decisions.md D-T3-02
+    var minRepFrames = 15
     var descendDepthDeltaThreshold = 0.010
     var ascendDepthDeltaThreshold = -0.010
     var topDepthThreshold = 0.06
