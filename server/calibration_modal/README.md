@@ -15,6 +15,7 @@
 | `body.py` | β 키 사영, H36M 관절, 뼈 길이 (fitting 없이 가능한 부분) |
 | `prepare_weights.py` | SMPL 중립 모델 + `J_regressor_h36m`(좌우 순서 교정)을 npz로 만들어 Volume `bpt-weights`에 업로드 |
 | `e2e.py` | 배포된 서버에 앱과 같은 요청을 보내는 점검 스크립트 |
+| `eval_fit.py` | 로컬 묶음(People Snapshot 등)으로 fitting 변형을 비교하는 별도 임시 앱(`modal run eval_fit.py`) |
 
 ## 준비
 
@@ -86,5 +87,7 @@ SAM 3D Body 체크포인트(`facebook/sam-3d-body-dinov3`, 접근 승인 필요)
 
 - 상태는 사진 버킷의 `state/` 아래 작은 JSON 객체다(`storage.BucketState`). 업로드 URL은 `calibrations/` 키에만 발급되므로 앱이 `state/`를 쓸 수 없다.
 - 사용자·세션당 한 번만 접수되는 것은 버킷 조건부 쓰기(`If-None-Match: *`)로 보장한다. S3와 R2 모두 지원하며 만료되지 않는다. 동시 조건부 쓰기 충돌(409)은 짧게 재시도한다.
-- 결과 JSON은 `results/<userId>/<sessionId>/<jobId>.json`에도 남는다.
+- 결과 JSON은 `results/<userId>/<sessionId>/<jobId>.json`에도 남는다. GLB는 `models/<jobId>.glb`, 조회 때마다 1시간짜리 presigned GET을 새로 만든다.
+- 작업 감시(`service.watchdog`): `queued`/`running`인 작업을 조회할 때 접수 후 30분이 지났으면 `failed timeout`, `fit_body` 호출이 이미 끝났는데 기록이 없으면(컨테이너 비정상 종료) `failed internal_error`로 바꾼다. 늦게 끝난 worker는 `failed`를 덮어쓰지 않는다.
+- 진행률 `progressRate`: 0 접수, 5 시작, 30 3D 추정, 50 SMPL 변환, 90 보정, 100 완료.
 - 사진 자동 삭제, 부분 업로드 만료 정리, 요청 제한은 아직 없다. 버킷 수명 주기 규칙으로 따로 설정해야 한다.

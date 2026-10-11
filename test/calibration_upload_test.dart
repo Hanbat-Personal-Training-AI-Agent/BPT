@@ -322,4 +322,71 @@ void main() {
         throwsA(isA<CalibrationUploadException>()));
     expect(storageCalls, isEmpty);
   });
+
+  group('fetchJob', () {
+    Dio jobApi(Object body, [int status = 200]) => Dio()
+      ..httpClientAdapter = _Adapter((options, _) async {
+        apiCalls.add(options);
+        return _json(body, status);
+      });
+
+    test('running job reports progress and sends only the bearer token',
+        () async {
+      api = jobApi({'status': 'running', 'progressRate': 30});
+      final job = await service().fetchJob('job-1');
+      expect(job.status, 'running');
+      expect(job.progressRate, 30);
+      expect(job.finished, isFalse);
+      expect(apiCalls.single.method, 'GET');
+      expect(apiCalls.single.uri.toString(),
+          'https://calibration.example.test/v1/calibrations/jobs/job-1');
+      expect(apiCalls.single.headers['Authorization'], 'Bearer user-token');
+    });
+
+    test('done carries the real result', () async {
+      api = jobApi({
+        'status': 'done',
+        'progressRate': 100,
+        'result': {
+          'stub': false,
+          'smplBeta': List.filled(10, 0.0),
+          'boneLengthData': {'segments': {}},
+          'modelGlbUrl': 'https://photos.example.test/models/job-1.glb?sig=x',
+        }
+      });
+      final job = await service().fetchJob('job-1');
+      expect(job.finished, isTrue);
+      expect(job.result!['modelGlbUrl'], contains('job-1.glb'));
+    });
+
+    test('a stub result is never accepted as done', () async {
+      api = jobApi({
+        'status': 'done',
+        'result': {'stub': true, 'smplBeta': null, 'boneLengthData': null}
+      });
+      expect(service().fetchJob('job-1'),
+          throwsA(isA<CalibrationUploadException>()));
+    });
+
+    test('failed keeps the error code; old servers without progressRate work',
+        () async {
+      api = jobApi({'status': 'failed', 'error': 'timeout'});
+      final job = await service().fetchJob('job-1');
+      expect(job.error, 'timeout');
+      expect(job.progressRate, 0);
+    });
+
+    test('unknown status, 404 and a bad job id are errors', () async {
+      api = jobApi({'status': 'COMPLETED'});
+      await expectLater(service().fetchJob('job-1'),
+          throwsA(isA<CalibrationUploadException>()));
+      api = jobApi({'error': 'job_not_found'}, 404);
+      await expectLater(
+          service().fetchJob('job-1'),
+          throwsA(isA<CalibrationUploadException>().having(
+              (e) => e.message, 'message', contains('찾을 수 없어요'))));
+      await expectLater(service().fetchJob('../uploads'),
+          throwsA(isA<CalibrationUploadException>()));
+    });
+  });
 }

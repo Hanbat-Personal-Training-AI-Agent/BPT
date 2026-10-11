@@ -35,7 +35,34 @@ class _Uploader extends CalibrationUploadService {
         totalBytes: 100));
     return result.future;
   }
+
+  /// Answers job polls in order; the last answer repeats.
+  final jobs = <CalibrationJob>[const CalibrationJob('queued', 0)];
+  int polls = 0;
+  @override
+  Future<CalibrationJob> fetchJob(String jobId,
+      {CancelToken? cancelToken}) async {
+    final job = jobs[polls.clamp(0, jobs.length - 1)];
+    polls++;
+    return job;
+  }
 }
+
+const _result = {
+  'schemaVersion': 1,
+  'stub': false,
+  'userHeightCm': 172.0,
+  'smplBeta': [0.1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  'boneLengthData': {
+    'segments': {
+      'right_hip-right_knee': 44.0,
+      'left_hip-left_knee': 44.2,
+      'right_knee-right_ankle': 42.0,
+      'left_knee-left_ankle': 42.0,
+    }
+  },
+  'coachComment': '체형 정보를 저장했어.',
+};
 
 void main() {
   void setPhoneSize(WidgetTester tester) {
@@ -61,13 +88,15 @@ void main() {
     await tester.pump(const Duration(seconds: 45));
     expect(find.byKey(const Key('upload-configuration-issue')), findsOneWidget);
     expect(find.text('사진 전송 대기'), findsOneWidget);
-    expect(find.text('미연결'), findsOneWidget);
+    expect(find.text('대기'), findsNWidgets(2)); // upload and analysis steps
+    expect(find.text('완료'), findsNothing);
     expect(
         tester
             .widget<FilledButton>(find.byKey(const Key('upload-calibration')))
             .onPressed,
         isNull);
     expect(service.calls, 0);
+    expect(service.polls, 0);
   });
 
   testWidgets(
@@ -86,12 +115,59 @@ void main() {
             .onPressed,
         isNull);
     service.result.complete(const CalibrationUploadReceipt('session', 'job-1'));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump();
     expect(find.text('사진 전송·접수 완료'), findsOneWidget);
     expect(find.text('접수 번호: job-1'), findsOneWidget);
-    expect(find.text('미연결'), findsOneWidget);
-    expect(find.text('3D 체형 만들기'), findsNothing);
+    expect(find.text('대기 중'), findsOneWidget); // accepted is not analysed
+    expect(find.byKey(const Key('show-calibration-result')), findsNothing);
     expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox()); // stop polling
+  });
+
+  testWidgets('polls the job until done and shows the real result',
+      (tester) async {
+    final service = _Uploader()
+      ..jobs.addAll(const [
+        CalibrationJob('running', 30),
+        CalibrationJob('done', 100, result: _result),
+      ]);
+    await show(tester, service);
+    await tester.tap(find.byKey(const Key('upload-calibration')));
+    await tester.pump();
+    service.result.complete(const CalibrationUploadReceipt('session', 'job-1'));
+    await tester.pump();
+    await tester.pump();
+    expect(find.text('대기 중'), findsOneWidget);
+    await tester.pump(const Duration(seconds: 3));
+    await tester.pump();
+    expect(find.text('분석 중 30%'), findsOneWidget);
+    await tester.pump(const Duration(seconds: 3));
+    await tester.pump();
+    expect(find.text('완료'), findsOneWidget);
+    expect(find.textContaining('허벅지 44.1cm'), findsOneWidget);
+    expect(find.text('체형 정보를 저장했어.'), findsOneWidget);
+    expect(find.byKey(const Key('show-calibration-result')), findsOneWidget);
+    final polls = service.polls;
+    await tester.pump(const Duration(seconds: 10));
+    expect(service.polls, polls); // stops once finished
+  });
+
+  testWidgets('a failed job shows its reason and no result', (tester) async {
+    final service = _Uploader()
+      ..jobs
+          .add(const CalibrationJob('failed', 5, error: 'person_not_found'));
+    await show(tester, service);
+    await tester.tap(find.byKey(const Key('upload-calibration')));
+    await tester.pump();
+    service.result.complete(const CalibrationUploadReceipt('session', 'job-1'));
+    await tester.pump();
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 3));
+    await tester.pump();
+    expect(find.text('실패'), findsOneWidget);
+    expect(find.textContaining('사람을 찾지 못했어요'), findsOneWidget);
+    expect(find.byKey(const Key('show-calibration-result')), findsNothing);
   });
 
   testWidgets('failure keeps screen retryable, no false success',
