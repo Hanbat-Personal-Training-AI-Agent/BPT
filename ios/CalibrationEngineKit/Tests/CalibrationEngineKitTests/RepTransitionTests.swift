@@ -91,6 +91,18 @@ final class RepTransitionTests: XCTestCase {
         XCTAssertEqual(run.tracker.drainEvents().map(\.key), ["setup_side_view"])
     }
 
+    func testRowFastLoweringStillEndsTheRep() {
+        // Pull up gradually, then drop straight to the hang (no lowering frames): each rep still ends at
+        // `bottom` instead of merging with the next one.
+        let evaluator = BarbellRowEvaluator()
+        let ramp = (0...12).map { Double($0) / 12 }
+        let pulls = Array(repeating: 0.0, count: 40)
+            + Array(repeating: ramp + Array(repeating: 1.0, count: 10) + Array(repeating: 0.0, count: 25), count: 3).flatMap { $0 }
+        var rep = 0
+        for (i, p) in pulls.enumerated() { rep = evaluator.evaluate(frameIndex: i, coco17: rowPose(pull: p, spread: 5)).rep }
+        XCTAssertEqual(rep, 3)
+    }
+
     func testRowOffSideViewStillCountsWithoutFormWarningsOrRepeatedGuidance() {
         // Default: a diagonal/rear camera (gate "not side") still counts with the side-view rules,
         // says setup_side_view once (not again on the first rep) and judges no form warnings.

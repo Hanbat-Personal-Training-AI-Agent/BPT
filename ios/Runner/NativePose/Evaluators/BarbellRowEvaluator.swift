@@ -399,8 +399,13 @@ final class BarbellRowEvaluator {
             currentRepTopFrame = frameIndex
         }
 
+        // A fast lowering reaches `bottom` straight from `top` (forced transition) without a stable
+        // `lowering`; it still ends the rep (else it merges with the next one — barbellrow_0002 cam1).
+        if repStarted && previousStatus == .top && status == .bottom {
+            sawLowering = true
+        }
         if repStarted,
-           previousStatus == .lowering,
+           previousStatus == .lowering || previousStatus == .top,
            status == .bottom {
             done = finalizeRepIfValid(frameIndex: frameIndex)
             resetCurrentRep()
