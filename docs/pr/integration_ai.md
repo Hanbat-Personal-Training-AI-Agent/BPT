@@ -136,5 +136,6 @@ integration/ai는 main보다 팀원 커밋 11개가 뒤처져 있습니다(2026-
 - 벤치·데드 수치는 Sapiens2 대리 입력 기준이라 앱 RTMPose(특히 누운 자세 측면)로는 미검증. 데드는 정면 카메라 미지원.
 - 캘리브레이션 체형 평가 기준은 People Snapshot의 consensus 메시(정답 아님, 단안 추정 키)이고 실제 사용자 줄자 실측 검증은 없음.
 - 준비 자세 확인은 Exercise3D처럼 바로 시작하는 세트에서 렙을 잃어 기본 꺼짐.
+- **측면 푸시업 100%는 P1 한 사람 값**: 다른 사람 실제 측면 영상(MM-Fit 약 15명, 65세트) 80.2%, Fit3D 가상 측면 합성 검증 61.4%(D-T3-08). 놓침 원인 후보 — crop이 몸 아래쪽에 고정, 먼 팔 선택, 팔꿈치를 옆으로 벌린 푸시업.
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
