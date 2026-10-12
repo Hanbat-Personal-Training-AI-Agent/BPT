@@ -1,6 +1,7 @@
 import AVFoundation
 import CoreImage
 import CoreML
+import MediaPipeTasksVision
 import UIKit
 
 /// Device "video-fed live" run (launch env BENCH_PIPELINE=1): Exercise3D clips decoded with AVAssetReader stand
@@ -11,13 +12,19 @@ import UIKit
 /// One clip = one set (new evaluator, tracker reset, recorder per set, endSet at the clip end).
 /// Not included: camera capture, preview rendering, the hand branch (push-up/row overlay, MediaPipe).
 ///
-/// Env: BENCH_MODEL=rtmpose_s_forward|rtmpose_m_forward, BENCH_RECORD=1, BENCH_3D=1, BENCH_PACED=1 (30 fps camera
+/// Env: BENCH_MODEL=rtmpose_s_forward|rtmpose_m_forward|pose_landmarker_{lite,full,heavy} (MediaPipe VIDEO mode on the
+/// BGRA pixel buffer in place of crop+RTMPose, its COCO-17 subset into the evaluator; BENCH_MP_DELEGATE=gpu|cpu), BENCH_RECORD=1, BENCH_3D=1, BENCH_PACED=1 (30 fps camera
 /// clock; a frame is dropped when the next one is already due, like alwaysDiscardsLateVideoFrames) or unpaced,
 /// BENCH_SECONDS (180; unpaced also finishes the first pass over all clips, up to 270 s), BENCH_COOLDOWN (idle
 /// seconds first, inside the foreground app), BENCH_DUMP=1 (Documents/pipeline_csv/<clip>.csv: per-frame COCO-17 in
 /// pose-replay's CSV format, so `pose-replay --keypoints-csv` replays the device keypoints on the Mac). Prints BENCH lines.
 final class PipelineBench {
-    private let env = ProcessInfo.processInfo.environment
+    private let env: [String: String]
+
+    /// `overrides` replace launch env keys (MediaPipeBench's back-to-back session).
+    init(overrides: [String: String] = [:]) {
+        env = ProcessInfo.processInfo.environment.merging(overrides) { $1 }
+    }
     private let processing = DispatchQueue(label: "bench.processing", qos: .userInitiated)
     private let assets = Bundle.main.resourceURL!.appendingPathComponent("PipelineAssets")
     private let context = CIContext(options: nil)
@@ -58,7 +65,9 @@ final class PipelineBench {
         for dir in ["workout_videos", "workout_form_logs"] { try? FileManager.default.removeItem(at: documents.appendingPathComponent(dir)) }
         Thread.sleep(forTimeInterval: Double(env["BENCH_COOLDOWN"] ?? "") ?? 0)
 
-        let rtmpose = try loadModel(model)
+        let mediaPipe = model.hasPrefix("pose_landmarker")
+            ? try MediaPipePose(model: model, gpu: env["BENCH_MP_DELEGATE"] != "cpu", video: true) : nil
+        let rtmpose = mediaPipe == nil ? try loadModel(model) : nil
         let motion3D = lift3D ? try loadModel("motionagformer_xs") : nil
         let workspace = try RTMPoseInputWorkspace()
         let clips = try FileManager.default.contentsOfDirectory(at: assets.appendingPathComponent("clips"),
@@ -71,7 +80,10 @@ final class PipelineBench {
         // Warm-up (not measured): first predictions load the model onto the ANE.
         if let first = clips.first, let image = try firstImage(first) {
             var tracker = RTMPoseCropTracker()
-            for _ in 0..<20 { _ = try tracker.estimate(image, model: rtmpose, workspace: workspace) }
+            let mpImage = try MPImage(pixelBuffer: MediaPipeBench.pixelBuffer(image))
+            for _ in 0..<20 {
+                if let mediaPipe { _ = try mediaPipe.detect(mpImage) } else { _ = try tracker.estimate(image, model: rtmpose!, workspace: workspace) }
+            }
         }
 
         let start = Self.now()
@@ -130,10 +142,17 @@ final class PipelineBench {
                     try autoreleasepool {
                         guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return nil }
                         let t0 = Self.now()
+                        if let mediaPipe {
+                            let coco17 = try mediaPipe.coco17(try MPImage(pixelBuffer: pixelBuffer), width: CVPixelBufferGetWidth(pixelBuffer),
+                                                              height: CVPixelBufferGetHeight(pixelBuffer))
+                            estimateMs.append((Self.now() - t0) * 1000)
+                            perfLog?.frameProcessed()
+                            return coco17.map { ($0, nil, nil) }
+                        }
                         let ciImage = CIImage(cvPixelBuffer: pixelBuffer)
                         guard let cgImage = context.createCGImage(ciImage, from: ciImage.extent) else { return nil }
                         let t1 = Self.now()
-                        guard let estimate = try cropTracker.estimate(cgImage, model: rtmpose, workspace: workspace) else { return nil }
+                        guard let estimate = try cropTracker.estimate(cgImage, model: rtmpose!, workspace: workspace) else { return nil }
                         convertMs.append((t1 - t0) * 1000)
                         estimateMs.append((Self.now() - t1) * 1000)
                         var pose3D: [SIMD3<Double>]?

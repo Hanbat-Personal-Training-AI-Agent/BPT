@@ -1,13 +1,14 @@
 # On-device Core ML latency of RTMPose candidates (+ Apple Vision reference) without a person in front of the camera.
 #   cp -R <candidate>.mlpackage Tests/PoseModelBenchTests/Models/   (git-ignored)
 #   ffmpeg -ss 3 -i <720x1280 video> -frames:v 1 Tests/PoseModelBenchTests/Models/frame.jpg   (git-ignored)
-#   xcodegen generate
-#   xcodebuild build-for-testing -project PoseModelBench.xcodeproj -scheme PoseModelBenchHost -derivedDataPath $BPT_DD \
+#   xcodegen generate && pod install   (MediaPipeTasksVision for the host; build the workspace from here on)
+#   xcodebuild build-for-testing -workspace PoseModelBench.xcworkspace -scheme PoseModelBenchHost -derivedDataPath $BPT_DD \
 #     -destination 'platform=iOS,id=<device udid>' DEVELOPMENT_TEAM=<team> -allowProvisioningUpdates
 #   xcodebuild test-without-building <same args> | grep BENCH                     # latency (ALL / CPU+NE / CPU+GPU) + Vision
 #   TEST_RUNNER_BENCH_SUSTAIN_MODEL=rtmpose_m_forward TEST_RUNNER_BENCH_SECONDS=150 \
 #     xcodebuild test-without-building <same args> -only-testing:PoseModelBenchTests/PoseModelBenchTests/testSustained | grep BENCH
 # Video-fed live pipeline (Host/PipelineBench.swift): ./run_pipeline.sh setup, then ./run_pipeline.sh <variant> <paced|unpaced>.
+# MediaPipe Pose Landmarker (Host/MediaPipeBench.swift): ./run_pipeline.sh mp <latency|sustain> ..., or variant e in the pipeline.
 name: PoseModelBench
 options:
   bundleIdPrefix: com.bpt.posebench
