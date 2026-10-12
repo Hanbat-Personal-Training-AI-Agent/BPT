@@ -108,7 +108,7 @@ AI 쪽 작업(캘리브레이션 서버, 2D/3D 포즈, 사람 crop 입력, 자�
 
 ## 테스트
 - `swift test --package-path ios/CalibrationEngineKit`: 96 통과
-- `pytest tests/`: 185 통과
+- `pytest tests/`: 189 통과
 - 서버 `pytest tests` (server/calibration_modal): 82 통과, 1 건너뜀
 - `flutter test`: 79 통과
 - `xcodebuild` Runner, iOS Simulator Debug, `CODE_SIGNING_ALLOWED=NO`: 성공
