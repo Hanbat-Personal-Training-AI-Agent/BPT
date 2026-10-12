@@ -15,6 +15,19 @@ struct SquatEvaluatorConfig {
     var minRepDepthNorm = 0.16
     var validRepBottomKneeAngleThreshold = 130.0
     var maxStoredRepSummaries = 100
+    /// D-T3-13: frames with no evidence (in-between depth while moving slowly, or briefly unconfident legs)
+    /// keep the current status instead of forcing `unknown` after forceTransitionFrames.
+    var holdStatusThroughUnknown = true
+    var maxLowConfidenceHoldFrames = 30
+    /// D-T3-13: when only one leg's hip/knee/ankle are all confident (side view), measure that leg alone.
+    var nearLegFallback = true
+    /// D-T3-13: legs straight this many frames in a row while not `top` → reset the standing hip baseline (0 = off).
+    var rebaselineStraightLegFrames = 30
+    /// D-T3-13: second rep signal = hip height above the ankles ÷ standing leg length (longest leg in the
+    /// last 90 frames, so a foreshortened thigh does not shrink it), counted by PushUpHeightCounter (range
+    /// of the last 90 frames). Reps = max(state-machine reps, height reps), like push-up D-T3-11.
+    var heightRepSignal = true
+    var heightCounter: PushUpHeightCounter = { var c = PushUpHeightCounter(); c.minRange = 0.25; return c }()
     /// Ready pose: frames the start pose must be held still before the first rep (0 = off) and the
     /// allowed drift of the motion signal meanwhile. OFF: on Exercise3D (sets start within ~1 s)
     /// 30 frames lost reps in every exercise; 15 frames with 2× tolerance kept squat/row but still
@@ -51,6 +64,7 @@ final class SquatEvaluator {
         let hipCenterY: Double?
         let kneeCenterY: Double?
         let ankleCenterY: Double?
+        var legLength: Double? = nil
         let validDepth: Bool
     }
 
@@ -63,6 +77,13 @@ final class SquatEvaluator {
     private var didInitializeStableStatus = false
     private var unknownFramesWithValidDepth = 0
     private var topHipYBaseline: Double?
+    private var straightLegFrames = 0
+    private var lowConfidenceFrames = 0
+    private lazy var heightCounter = config.heightCounter
+    private var recentLegLengths: [Double] = []
+    /// Reps the depth/knee state machine finished; `completedRepCount` = max(this, height reps).
+    private var stateRepCount = 0
+    private var formRepOpen = false
     private lazy var readyPose = ReadyPoseGate(holdFrames: config.readyPoseHoldFrames, tolerance: config.readyPoseTolerance)
 
     private var repStarted = false
@@ -95,6 +116,12 @@ final class SquatEvaluator {
         didInitializeStableStatus = false
         unknownFramesWithValidDepth = 0
         topHipYBaseline = nil
+        straightLegFrames = 0
+        lowConfidenceFrames = 0
+        heightCounter.reset()
+        recentLegLengths = []
+        stateRepCount = 0
+        formRepOpen = false
         repStarted = false
         sawDescending = false
         sawAscending = false
@@ -125,13 +152,30 @@ final class SquatEvaluator {
         updateTopBaselineIfNeeded(status: status, measurements: measurements)
         formTracker.observe(frameIndex: frameIndex, coco17: coco17, pose3D: pose3D, feet: feet, phase: status.rawValue)
         readyPose.update(atStartPose: status == .top, value: measurements.squatDepthNorm)
-        let done = updateRepState(
+        var done = updateRepState(
             frameIndex: frameIndex,
             previousStatus: previousStatus,
             status: status,
             measurements: measurements
         )
-        if repStarted { formTracker.recordCurrentFrame() }
+        if config.heightRepSignal, readyPose.armed {
+            switch heightCounter.update(frame: frameIndex, height: heightSample(measurements)) {
+            case .down?:
+                if !formRepOpen {
+                    formTracker.beginRep()
+                    formRepOpen = true
+                }
+            case .rep?:
+                if heightCounter.reps > completedRepCount {
+                    emitRep(frameIndex: frameIndex, startFrame: currentRepStartFrame ?? heightCounter.downFrame ?? frameIndex,
+                            maxDepth: currentRepMaxDepthNorm ?? measurements.squatDepthNorm ?? 0)
+                    done = true
+                }
+            case nil:
+                break
+            }
+        }
+        if repStarted || formRepOpen { formTracker.recordCurrentFrame() }
 
         if frameIndex % 30 == 0 {
             let depthText = measurements.squatDepthNorm.map { String(format: "%.3f", $0) } ?? "nil"
@@ -166,41 +210,49 @@ final class SquatEvaluator {
     }
 
     private func computeMeasurements(coco17: [PoseKeypoint]) -> Measurements {
-        guard coco17.count == 17,
-              jointsAreConfident(coco17) else {
-            return Measurements(
-                squatDepthNorm: nil,
-                squatDepthDeltaNorm: nil,
-                leftKneeAngleDegrees: nil,
-                rightKneeAngleDegrees: nil,
-                avgKneeAngleDegrees: nil,
-                hipCenterY: nil,
-                kneeCenterY: nil,
-                ankleCenterY: nil,
-                validDepth: false
-            )
+        let invalid = Measurements(
+            squatDepthNorm: nil,
+            squatDepthDeltaNorm: nil,
+            leftKneeAngleDegrees: nil,
+            rightKneeAngleDegrees: nil,
+            avgKneeAngleDegrees: nil,
+            hipCenterY: nil,
+            kneeCenterY: nil,
+            ankleCenterY: nil,
+            validDepth: false
+        )
+        guard coco17.count == 17 else { return invalid }
+        let left = (hip: coco17[COCO17.leftHip], knee: coco17[COCO17.leftKnee], ankle: coco17[COCO17.leftAnkle])
+        let right = (hip: coco17[COCO17.rightHip], knee: coco17[COCO17.rightKnee], ankle: coco17[COCO17.rightAnkle])
+        // Both legs (old rule), or — nearLegFallback — the one leg whose three joints are all confident
+        // (side view: the far leg is hidden behind the near one).
+        let legs: [(hip: PoseKeypoint, knee: PoseKeypoint, ankle: PoseKeypoint)]
+        let useLeft: Bool, useRight: Bool
+        if jointsAreConfident(coco17) {
+            legs = [left, right]; useLeft = true; useRight = true
+        } else if config.nearLegFallback, legConfident(left) || legConfident(right) {
+            // Not both legs, so exactly one is confident.
+            useLeft = legConfident(left); useRight = !useLeft
+            legs = [useLeft ? left : right]
+        } else {
+            return invalid
         }
 
-        let leftHip = coco17[COCO17.leftHip]
-        let rightHip = coco17[COCO17.rightHip]
-        let leftKnee = coco17[COCO17.leftKnee]
-        let rightKnee = coco17[COCO17.rightKnee]
-        let leftAnkle = coco17[COCO17.leftAnkle]
-        let rightAnkle = coco17[COCO17.rightAnkle]
-
-        let hipCenter = average(leftHip, rightHip)
-        let kneeCenter = average(leftKnee, rightKnee)
-        let ankleCenter = average(leftAnkle, rightAnkle)
-        let legLength = max(averageLegLength(coco17), 1.0)
+        let hipCenter = average(legs.map(\.hip))
+        let kneeCenter = average(legs.map(\.knee))
+        let ankleCenter = average(legs.map(\.ankle))
+        let legLength = max(legs.map { distance($0.hip, $0.knee) + distance($0.knee, $0.ankle) }.reduce(0, +) / Double(legs.count), 1.0)
         if topHipYBaseline == nil {
             topHipYBaseline = hipCenter.y
         }
 
+        let leftKneeAngle = useLeft ? Self.angle2D(a: left.hip, b: left.knee, c: left.ankle) : nil
+        let rightKneeAngle = useRight ? Self.angle2D(a: right.hip, b: right.knee, c: right.ankle) : nil
+        let avgKneeAngle = averageValid(leftKneeAngle, rightKneeAngle)
+        rebaselineIfStanding(hipY: hipCenter.y, kneeAngle: avgKneeAngle)
+
         let depthNorm = (hipCenter.y - (topHipYBaseline ?? hipCenter.y)) / legLength
         let depthDeltaNorm = optionalDiff(depthNorm, previousSquatDepthNorm)
-        let leftKneeAngle = Self.angle2D(a: leftHip, b: leftKnee, c: leftAnkle)
-        let rightKneeAngle = Self.angle2D(a: rightHip, b: rightKnee, c: rightAnkle)
-        let avgKneeAngle = averageValid(leftKneeAngle, rightKneeAngle)
 
         return Measurements(
             squatDepthNorm: depthNorm,
@@ -211,8 +263,25 @@ final class SquatEvaluator {
             hipCenterY: hipCenter.y,
             kneeCenterY: kneeCenter.y,
             ankleCenterY: ankleCenter.y,
+            legLength: legLength,
             validDepth: true
         )
+    }
+
+    /// rebaselineStraightLegFrames: legs straight (knee > topKneeAngleThreshold) for that many frames in a
+    /// row but not `top` → the standing hip height is stale (first confident frame was a false detection,
+    /// or the person moved closer/further); take the current hip height as the standing baseline.
+    private func rebaselineIfStanding(hipY: Double, kneeAngle: Double?) {
+        guard config.rebaselineStraightLegFrames > 0 else { return }
+        guard let kneeAngle, kneeAngle > config.topKneeAngleThreshold, stableStatus != .top else {
+            straightLegFrames = 0
+            return
+        }
+        straightLegFrames += 1
+        if straightLegFrames >= config.rebaselineStraightLegFrames {
+            topHipYBaseline = hipY
+            straightLegFrames = 0
+        }
     }
 
     private func classifyRawStatusCandidate(_ measurements: Measurements) -> SquatStatus {
@@ -267,11 +336,19 @@ final class SquatEvaluator {
             }
         }
 
-        let nextCandidate = rawCandidate
-        if nextCandidate == candidateStatus {
+        // holdStatusThroughUnknown: a frame that says nothing (between the top/bottom thresholds while moving
+        // slower than the delta thresholds, or — up to maxLowConfidenceHoldFrames in a row — legs not
+        // confident) votes for the current status, so 8 such frames can no longer force the stable status to
+        // `unknown` mid-rep (unknown → top does not finish a rep). It still breaks another candidate's streak
+        // (not voting at all let standing bob build descending streaks: +1 false rep on the sway synth).
+        if squatDepthNorm == nil { lowConfidenceFrames += 1 } else { lowConfidenceFrames = 0 }
+        let holds = config.holdStatusThroughUnknown && rawCandidate == .unknown && stableStatus != .unknown
+            && (squatDepthNorm != nil || lowConfidenceFrames <= config.maxLowConfidenceHoldFrames)
+        let vote = holds ? stableStatus : rawCandidate
+        if vote == candidateStatus {
             candidateStatusCount += 1
         } else {
-            candidateStatus = nextCandidate
+            candidateStatus = vote
             candidateStatusCount = 1
         }
 
@@ -413,7 +490,8 @@ final class SquatEvaluator {
         currentRepBottomFrame = nil
         currentRepMaxDepthNorm = nil
         currentRepMinKneeAngleDegrees = nil
-        formTracker.beginRep()
+        if !formRepOpen { formTracker.beginRep() }
+        formRepOpen = true
     }
 
     private func updateCurrentRep(_ measurements: Measurements) {
@@ -438,6 +516,16 @@ final class SquatEvaluator {
         let kneeValid = minKneeAngle.map { $0 <= config.validRepBottomKneeAngleThreshold } ?? false
         guard depthValid || kneeValid else { return false }
 
+        stateRepCount += 1
+        // The height signal already counted this rep.
+        guard stateRepCount > completedRepCount else { return false }
+        emitRep(frameIndex: frameIndex, startFrame: startFrame, maxDepth: maxDepth)
+        return true
+    }
+
+    /// Counts a rep (either signal): summary from the current state-machine rep, form report.
+    private func emitRep(frameIndex: Int, startFrame: Int, maxDepth: Double) {
+        let minKneeAngle = currentRepMinKneeAngleDegrees
         completedRepCount += 1
         let summary = SquatRepSummary(
             repIndex: completedRepCount,
@@ -448,12 +536,20 @@ final class SquatEvaluator {
             minKneeAngleDegrees: minKneeAngle,
             warnings: formTracker.finishRep(repIndex: completedRepCount).warnings
         )
+        formRepOpen = false
         completedRepSummaries.append(summary)
         trimCompletedRepSummaries()
         let maxDepthText = String(format: "%.3f", maxDepth)
         let minKneeText = minKneeAngle.map { String(format: "%.1f", $0) } ?? "-"
         print("Squat rep completed: rep=\(completedRepCount) frame=\(frameIndex) maxDepth=\(maxDepthText) minKnee=\(minKneeText) done=true")
-        return true
+    }
+
+    /// Hip height above the ankles in standing leg lengths (nil without confident legs).
+    private func heightSample(_ m: Measurements) -> Double? {
+        guard let hipY = m.hipCenterY, let ankleY = m.ankleCenterY, let leg = m.legLength else { return nil }
+        recentLegLengths.append(leg)
+        if recentLegLengths.count > heightCounter.windowFrames { recentLegLengths.removeFirst() }
+        return (ankleY - hipY) / max(recentLegLengths.max() ?? leg, 1.0)
     }
 
     private func trimCompletedRepSummaries() {
@@ -463,6 +559,7 @@ final class SquatEvaluator {
     }
 
     private func resetCurrentRep() {
+        if heightCounter.downFrame == nil || !config.heightRepSignal { formRepOpen = false }
         repStarted = false
         sawDescending = false
         sawAscending = false
@@ -496,12 +593,8 @@ final class SquatEvaluator {
         }
     }
 
-    private func averageLegLength(_ coco17: [PoseKeypoint]) -> Double {
-        let left = distance(coco17[COCO17.leftHip], coco17[COCO17.leftKnee])
-            + distance(coco17[COCO17.leftKnee], coco17[COCO17.leftAnkle])
-        let right = distance(coco17[COCO17.rightHip], coco17[COCO17.rightKnee])
-            + distance(coco17[COCO17.rightKnee], coco17[COCO17.rightAnkle])
-        return max((left + right) * 0.5, 1.0)
+    private func legConfident(_ leg: (hip: PoseKeypoint, knee: PoseKeypoint, ankle: PoseKeypoint)) -> Bool {
+        min(leg.hip.confidence, leg.knee.confidence, leg.ankle.confidence) >= config.squatMinJointConfidence
     }
 
     private func optionalDiff(_ value: Double?, _ previous: Double?) -> Double? {
@@ -527,11 +620,12 @@ final class SquatEvaluator {
         }
     }
 
-    private func average(_ a: PoseKeypoint, _ b: PoseKeypoint) -> PoseKeypoint {
-        PoseKeypoint(
-            x: (a.x + b.x) * 0.5,
-            y: (a.y + b.y) * 0.5,
-            confidence: (a.confidence + b.confidence) * 0.5
+    private func average(_ points: [PoseKeypoint]) -> PoseKeypoint {
+        let n = Double(points.count)
+        return PoseKeypoint(
+            x: points.map(\.x).reduce(0, +) / n,
+            y: points.map(\.y).reduce(0, +) / n,
+            confidence: points.map(\.confidence).reduce(0, +) / n
         )
     }
 

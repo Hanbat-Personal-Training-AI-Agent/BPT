@@ -12,8 +12,8 @@ final class RepTransitionTests: XCTestCase {
         return k
     }
 
-    private func squatReps(_ poses: [[PoseKeypoint]]) -> Int {
-        let evaluator = SquatEvaluator()
+    private func squatReps(_ poses: [[PoseKeypoint]], config: SquatEvaluatorConfig = SquatEvaluatorConfig()) -> Int {
+        let evaluator = SquatEvaluator(config: config)
         var rep = 0
         for (i, pose) in poses.enumerated() { rep = evaluator.evaluate(frameIndex: i, coco17: pose).rep }
         return rep
@@ -26,6 +26,66 @@ final class RepTransitionTests: XCTestCase {
         let bottom = squatPose(hip: kp(-150, 220), knee: kp(50, 250))
         let rep = Array(repeating: top, count: 10) + Array(repeating: bottom, count: 20) + Array(repeating: top, count: 20)
         XCTAssertEqual(squatReps(rep + rep), 2)
+    }
+
+    /// One D-T3-13 change at a time (all off = the rules before it).
+    private func squatConfig(hold: Bool = false, nearLeg: Bool = false, rebaseline: Int = 0, height: Bool = false) -> SquatEvaluatorConfig {
+        var config = SquatEvaluatorConfig()
+        config.heightRepSignal = height
+        config.holdStatusThroughUnknown = hold
+        config.nearLegFallback = nearLeg
+        config.rebaselineStraightLegFrames = rebaseline
+        return config
+    }
+
+    func testSquatPauseBetweenThresholdsKeepsTheRep() {
+        // D-T3-13: a 15-frame pause half way up (depth 0.17, knee 142°: neither top nor bottom, no motion)
+        // used to force `unknown`, and unknown → top does not finish a rep.
+        let top = squatPose(hip: kp(0, 0), knee: kp(0, 200))
+        let bottom = squatPose(hip: kp(-150, 220), knee: kp(50, 250))
+        let pause = squatPose(hip: kp(-40, 60), knee: kp(40, 230))
+        let rep = Array(repeating: bottom, count: 20) + Array(repeating: pause, count: 15) + Array(repeating: top, count: 20)
+        let poses = Array(repeating: top, count: 10) + rep + rep
+        XCTAssertEqual(squatReps(poses, config: squatConfig(hold: false)), 0)
+        XCTAssertEqual(squatReps(poses, config: squatConfig(hold: true)), 2)
+    }
+
+    func testSquatNearLegAloneCounts() {
+        // D-T3-13: side view, far (right) leg hidden (confidence 0.1) — the near leg alone is enough.
+        func hideRight(_ k: [PoseKeypoint]) -> [PoseKeypoint] {
+            var k = k
+            for i in [12, 14, 16] { k[i].confidence = 0.1 }
+            return k
+        }
+        let top = hideRight(squatPose(hip: kp(0, 0), knee: kp(0, 200)))
+        let bottom = hideRight(squatPose(hip: kp(-150, 220), knee: kp(50, 250)))
+        let rep = Array(repeating: top, count: 10) + Array(repeating: bottom, count: 20) + Array(repeating: top, count: 20)
+        XCTAssertEqual(squatReps(rep + rep, config: squatConfig(nearLeg: false)), 0)
+        XCTAssertEqual(squatReps(rep + rep, config: squatConfig(nearLeg: true)), 2)
+    }
+
+    func testSquatStaleStandingBaselineIsReset() {
+        // D-T3-13: the first confident frames are a false detection with the hip 100 px too high, so the
+        // real standing pose reads as depth 0.25 (bottom) forever; straight legs for 30 frames reset it.
+        let glitch = squatPose(hip: kp(0, -100), knee: kp(0, 150))
+        let top = squatPose(hip: kp(0, 0), knee: kp(0, 200))
+        let bottom = squatPose(hip: kp(-150, 220), knee: kp(50, 250))
+        let rep = Array(repeating: bottom, count: 20) + Array(repeating: top, count: 40)
+        let poses = Array(repeating: glitch, count: 3) + Array(repeating: top, count: 40) + rep + rep
+        XCTAssertEqual(squatReps(poses, config: squatConfig(rebaseline: 0)), 0)
+        XCTAssertEqual(squatReps(poses, config: squatConfig(rebaseline: 30)), 2)
+    }
+
+    func testSquatHeightSignalCountsRepsWithoutKneeLockout() {
+        // D-T3-13: the knees never open past 145° at the top (141°), so the state machine never sees
+        // `top`; the hip still rises 0.5 leg lengths each rep, which the height signal counts.
+        let high = squatPose(hip: kp(0, 0), knee: kp(70, 190))
+        let low = squatPose(hip: kp(-150, 220), knee: kp(50, 250))
+        let rep = Array(repeating: low, count: 20) + Array(repeating: high, count: 30)
+        let poses = Array(repeating: high, count: 30) + rep + rep + rep
+        XCTAssertEqual(squatReps(poses, config: squatConfig(hold: true, nearLeg: true, rebaseline: 30, height: false)), 0)
+        XCTAssertEqual(squatReps(poses, config: squatConfig(hold: true, nearLeg: true, rebaseline: 30, height: true)), 3)
+        XCTAssertEqual(squatReps(poses), 3)  // app default
     }
 
     func testSquatStandingSwayCountsNothing() {

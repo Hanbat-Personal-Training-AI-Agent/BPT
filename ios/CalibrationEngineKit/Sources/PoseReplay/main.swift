@@ -6,7 +6,7 @@
 //
 //   swift run -c release --package-path ios/CalibrationEngineKit pose-replay \
 //       [--exercise squat|pushup|row|bench|deadlift] [--model coco17|halpe26|mcoco17] [--model-path PATH] [--motion3d PATH|none] [--lookahead N] \
-//       [--row-shrug] [--side-cutoff R] [--row-offside off] [--pushup-ankle on|off] [--pushup-wrist-conf C] [--pushup-min-frames N] [--pushup-height on|off] [--ready-pose off|preset] [--input crop|full] [--crop-edge on|off] [--keypoints-csv PATH] [--output-dir PATH] <video.mp4>...
+//       [--row-shrug] [--side-cutoff R] [--row-offside off] [--pushup-ankle on|off] [--pushup-wrist-conf C] [--pushup-min-frames N] [--pushup-height on|off] [--squat-hold on|off] [--squat-near-leg on|off] [--squat-rebaseline N] [--squat-height on|off] [--squat-height-range R] [--ready-pose off|preset] [--input crop|full] [--crop-edge on|off] [--keypoints-csv PATH] [--keypoints-dir DIR] [--output-dir PATH] <video.mp4>...
 //
 // --crop-edge off: keep a crop whose border pins confident joints (RTMPoseCropTracker.refitAtCropEdge = false, old).
 // --model-path: another RTMPose .mlpackage with the same 256x192 input and SimCC outputs (17 or 26 joints;
@@ -16,10 +16,13 @@
 // the experimental row_shrug rule (off in the app). --side-cutoff: row/push-up side-view gate cutoff (shoulder width ÷
 // torso length) instead of the app's value, to measure counting with the gate moved (e.g. 99 = gate off).
 // --pushup-ankle / --pushup-wrist-conf / --pushup-min-frames / --pushup-height: PushUpEvaluatorConfig.requireAnkleForRep / wristMinJointConfidence / minRepFrames / heightRepSignal.
+// --squat-hold / --squat-near-leg / --squat-rebaseline / --squat-height / --squat-height-range: SquatEvaluatorConfig.holdStatusThroughUnknown /
+// nearLegFallback / rebaselineStraightLegFrames / heightRepSignal / heightCounter.minRange.
 // --row-offside off: no row reps off the side view (old gate behaviour; BarbellRowEvaluatorConfig.countOffSideView).
 //
 // --keypoints-csv: skip decoding and RTMPose, read the 2D keypoints (j0..j16 x/y/c, extra columns
 // ignored) from a CSV in the format this tool writes; the video path then only names the outputs (no 3D).
+// --keypoints-dir: the same, per video from DIR/<video>_<exercise>_<model>.csv (many clips in one run, no model load).
 // bench/deadlift: BenchPressEvaluator / DeadliftEvaluator (2D only; their bench_* / deadlift_* keys are off in the app).
 //
 // --motion3d: MotionAGFormer-XS Core ML package (default <repo>/assets/coreml/motionagformer_xs.mlpackage
@@ -42,6 +45,7 @@ var poseModel = RTMPoseModel.workout
 var poseModelPath: String?
 var exercise = FormExercise.squat
 var keypointsCSV: String?
+var keypointsDir: String?
 var motion3DPath: String? = {
     let path = repoRoot.appendingPathComponent("assets/coreml/motionagformer_xs.mlpackage").path
     return FileManager.default.fileExists(atPath: path) ? path : nil
@@ -54,12 +58,17 @@ var pushUpAnkle: Bool?
 var pushUpWristConf: Double?
 var pushUpMinFrames: Int?
 var pushUpHeight: Bool?
+var squatHold: Bool?
+var squatNearLeg: Bool?
+var squatRebaseline: Int?
+var squatHeight: Bool?
+var squatHeightRange: Double?
 var readyPosePreset = false
 var personCrop = true
 var cropEdgeRefit = true
 var videos: [URL] = []
 var arguments = CommandLine.arguments.dropFirst().makeIterator()
-let usage = "usage: pose-replay [--exercise squat|pushup|row|bench|deadlift] [--model coco17|halpe26|mcoco17] [--model-path PATH] [--motion3d PATH|none] [--lookahead N] [--row-shrug] [--side-cutoff R] [--row-offside off] [--pushup-ankle on|off] [--pushup-wrist-conf C] [--pushup-min-frames N] [--pushup-height on|off] [--ready-pose off|preset] [--input crop|full] [--crop-edge on|off] [--keypoints-csv PATH] [--output-dir PATH] <video.mp4>..."
+let usage = "usage: pose-replay [--exercise squat|pushup|row|bench|deadlift] [--model coco17|halpe26|mcoco17] [--model-path PATH] [--motion3d PATH|none] [--lookahead N] [--row-shrug] [--side-cutoff R] [--row-offside off] [--pushup-ankle on|off] [--pushup-wrist-conf C] [--pushup-min-frames N] [--pushup-height on|off] [--squat-hold on|off] [--squat-near-leg on|off] [--squat-rebaseline N] [--squat-height on|off] [--squat-height-range R] [--ready-pose off|preset] [--input crop|full] [--crop-edge on|off] [--keypoints-csv PATH] [--keypoints-dir DIR] [--output-dir PATH] <video.mp4>..."
 while let argument = arguments.next() {
     switch argument {
     case "--model":
@@ -97,6 +106,16 @@ while let argument = arguments.next() {
         pushUpMinFrames = arguments.next().flatMap(Int.init)
     case "--pushup-height":
         pushUpHeight = arguments.next() != "off"
+    case "--squat-hold":
+        squatHold = arguments.next() != "off"
+    case "--squat-near-leg":
+        squatNearLeg = arguments.next() != "off"
+    case "--squat-height":
+        squatHeight = arguments.next() != "off"
+    case "--squat-height-range":
+        squatHeightRange = arguments.next().flatMap(Double.init)
+    case "--squat-rebaseline":
+        squatRebaseline = arguments.next().flatMap(Int.init)
     case "--pushup-wrist-conf":
         pushUpWristConf = arguments.next().flatMap(Double.init)
     case "--row-offside":
@@ -125,6 +144,9 @@ while let argument = arguments.next() {
     case "--keypoints-csv":
         guard let path = arguments.next() else { exit(2) }
         keypointsCSV = path
+    case "--keypoints-dir":
+        guard let path = arguments.next() else { exit(2) }
+        keypointsDir = path
     case "--output-dir":
         guard let path = arguments.next() else { exit(2) }
         outputDir = URL(fileURLWithPath: path, isDirectory: true)
@@ -144,9 +166,10 @@ func loadModel(_ url: URL) throws -> MLModel {
     return try MLModel(contentsOf: try MLModel.compileModel(at: url), configuration: configuration)
 }
 
-let model = try loadModel(poseModelPath.map { URL(fileURLWithPath: $0) }
+let replayOnly = keypointsCSV != nil || keypointsDir != nil
+let model = replayOnly ? nil : try loadModel(poseModelPath.map { URL(fileURLWithPath: $0) }
     ?? repoRoot.appendingPathComponent("ios/Runner/NativePose/Models/\(poseModel.rawValue).mlpackage"))
-let motion3D = try motion3DPath.map { try loadModel(URL(fileURLWithPath: $0)) }
+let motion3D = replayOnly ? nil : try motion3DPath.map { try loadModel(URL(fileURLWithPath: $0)) }
 let context = CIContext(options: [.cacheIntermediates: false])
 let workspace = try RTMPoseInputWorkspace()
 let window = 27
@@ -180,6 +203,7 @@ func lift3D(_ coco17: [[PoseKeypoint]], width: Int, height: Int, model: MLModel)
 var readers: [AVAssetReader] = []
 for video in videos {
     let name = video.deletingPathExtension().lastPathComponent
+    let keypointsCSV = keypointsCSV ?? keypointsDir.map { "\($0)/\(name)_\(exercise.rawValue)_\(poseModel).csv" }
 
     // Pass 1: 2D keypoints for every frame.
     var coco17Frames: [[PoseKeypoint]] = []
@@ -193,6 +217,7 @@ for video in videos {
     var rechecks = 0, switches = 0
     var poseSeconds = 0.0
     if let keypointsCSV {
+        guard FileManager.default.fileExists(atPath: keypointsCSV) else { print("no keypoints: \(keypointsCSV)"); continue }
         for line in try String(contentsOfFile: keypointsCSV, encoding: .utf8).split(whereSeparator: \.isNewline).dropFirst() {
             let cells = line.split(separator: ",", omittingEmptySubsequences: false)
             guard cells.count >= 4 + 17 * 3 else { continue }
@@ -226,7 +251,7 @@ for video in videos {
         let poseStart = Date()
         if cropTracker.crop == nil { fullFrameInputs += 1 }
         // The live camera path's pose step (crop, RTMPose, decode, tracker, ~1 s whole-frame recheck).
-        guard let estimate = try cropTracker.estimate(cgImage, model: model, workspace: workspace, personCrop: personCrop) else {
+        guard let model, let estimate = try cropTracker.estimate(cgImage, model: model, workspace: workspace, personCrop: personCrop) else {
             fatalError("model has no simcc_x / simcc_y outputs")
         }
         let decoded = estimate.decoded, back = estimate.inverseAffine, coco17 = estimate.coco17
@@ -257,6 +282,11 @@ for video in videos {
     case .squat:
         var config = SquatEvaluatorConfig()
         if readyPosePreset { config.applyReadyPosePreset(fps: fps) }
+        if let squatHold { config.holdStatusThroughUnknown = squatHold }
+        if let squatNearLeg { config.nearLegFallback = squatNearLeg }
+        if let squatRebaseline { config.rebaselineStraightLegFrames = squatRebaseline }
+        if let squatHeight { config.heightRepSignal = squatHeight }
+        if let squatHeightRange { config.heightCounter.minRange = squatHeightRange }
         let evaluator = SquatEvaluator(config: config)
         tracker = evaluator.formTracker
         step = { let r = evaluator.evaluate(frameIndex: $0, coco17: $1, pose3D: $2, feet: $3); return (r.status.rawValue, r.rep) }
