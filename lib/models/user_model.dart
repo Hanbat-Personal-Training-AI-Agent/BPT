@@ -23,6 +23,10 @@ class UserModel {
   /// 알림 켜짐 여부와 코리 잔소리 시각("HH:mm"). 서버 값이 없으면 null.
   final bool? notificationEnabled;
   final String? notificationTime;
+
+  /// 광고성 정보 수신 동의와 동의 시각(서버 형식 "YYYY-MM-DDTHH:mm:ss"). 서버 값이 없으면 null.
+  final bool? marketingConsent;
+  final String? marketingConsentAt;
   final int totalWorkouts;
   final int streakDays;
   final DateTime joinedAt;
@@ -44,6 +48,8 @@ class UserModel {
     this.lastBodyScanDate,
     this.notificationEnabled,
     this.notificationTime,
+    this.marketingConsent,
+    this.marketingConsentAt,
     this.totalWorkouts = 0,
     this.streakDays = 0,
     required this.joinedAt,
@@ -77,6 +83,8 @@ class UserModel {
     DateTime? lastBodyScanDate,
     bool? notificationEnabled,
     String? notificationTime,
+    bool? marketingConsent,
+    String? marketingConsentAt,
     int? totalWorkouts,
     int? streakDays,
   }) {
@@ -97,6 +105,8 @@ class UserModel {
       lastBodyScanDate: lastBodyScanDate ?? this.lastBodyScanDate,
       notificationEnabled: notificationEnabled ?? this.notificationEnabled,
       notificationTime: notificationTime ?? this.notificationTime,
+      marketingConsent: marketingConsent ?? this.marketingConsent,
+      marketingConsentAt: marketingConsentAt ?? this.marketingConsentAt,
       totalWorkouts: totalWorkouts ?? this.totalWorkouts,
       streakDays: streakDays ?? this.streakDays,
       joinedAt: joinedAt,
@@ -120,6 +130,8 @@ class UserModel {
         'lastBodyScanDate': lastBodyScanDate?.toIso8601String(),
         'notificationEnabled': notificationEnabled,
         'notificationTime': notificationTime,
+        'marketingConsent': marketingConsent,
+        'marketingConsentAt': marketingConsentAt,
         'totalWorkouts': totalWorkouts,
         'streakDays': streakDays,
         'joinedAt': joinedAt.toIso8601String(),
@@ -141,6 +153,11 @@ class UserModel {
         'weeklyFrequency': weeklyFrequency,
         'notificationEnabled': notificationEnabled,
         'notificationTime': notificationTime,
+        // 동의 시각을 빼고 보내면 서버가 저장할 때마다 지금 시각으로 바꾸므로 같이 보낸다.
+        // 동의하지 않았으면 시각 없이 보내서 서버가 지우게 한다.
+        if (marketingConsent != null) 'marketingConsent': marketingConsent,
+        if (marketingConsent == true && marketingConsentAt != null)
+          'marketingConsentAt': marketingConsentAt,
       };
 
   static String _dateOnly(DateTime d) =>
@@ -168,6 +185,8 @@ class UserModel {
             : null,
         notificationEnabled: json['notificationEnabled'] as bool?,
         notificationTime: json['notificationTime'] as String?,
+        marketingConsent: json['marketingConsent'] as bool?,
+        marketingConsentAt: json['marketingConsentAt'] as String?,
         totalWorkouts: (json['totalWorkouts'] as num?)?.toInt() ?? 0,
         streakDays: (json['streakDays'] as num?)?.toInt() ?? 0,
         joinedAt: json['joinedAt'] != null

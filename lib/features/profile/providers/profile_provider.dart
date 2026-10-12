@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../features/auth/providers/auth_provider.dart';
 import '../../../models/user_model.dart';
-import '../../../services/local_storage_service.dart';
 
 // Delegates to auth — keeps a single source of truth for the current user.
 final profileUserProvider = Provider<UserModel?>((ref) {
@@ -57,22 +55,21 @@ void saveNotificationSettings(WidgetRef ref, {bool? enabled, TimeOfDay? time}) {
   ));
 }
 
-// 광고성 정보(혜택/이벤트) 수신 동의 — 기본값은 옵트인 관례에 따라 꺼짐.
-// 서버에 저장할 필드가 아직 없어서 기기에 저장한다.
-final marketingConsentEnabledProvider =
-    StateNotifierProvider<MarketingConsentNotifier, bool>((ref) {
-  return MarketingConsentNotifier(ref.watch(sharedPreferencesProvider));
+// 광고성 정보(혜택/이벤트) 수신 동의 — 서버 프로필(marketingConsent)에 저장한다.
+// 기본값은 옵트인 관례에 따라 꺼짐. 바꿀 때는 [saveMarketingConsent] 를 쓴다.
+final marketingConsentEnabledProvider = Provider<bool>((ref) {
+  return ref.watch(profileUserProvider)?.marketingConsent ?? false;
 });
 
-class MarketingConsentNotifier extends StateNotifier<bool> {
-  MarketingConsentNotifier(this._prefs)
-      : super(_prefs.getBool(_key) ?? false);
-
-  static const _key = 'bpt_marketing_consent';
-  final SharedPreferences _prefs;
-
-  Future<void> set(bool enabled) async {
-    state = enabled;
-    await _prefs.setBool(_key, enabled);
-  }
+/// 수신 동의를 현재 사용자에 반영하고 서버(PUT /users/me)에 저장한다.
+/// 동의하면 지금 시각을 동의 시각으로 같이 보낸다.
+void saveMarketingConsent(WidgetRef ref, bool enabled) {
+  final auth = ref.read(authNotifierProvider);
+  final user = auth.currentUser;
+  if (user == null) return;
+  auth.updateProfile(user.copyWith(
+    marketingConsent: enabled,
+    marketingConsentAt:
+        enabled ? DateTime.now().toIso8601String().split('.').first : null,
+  ));
 }
