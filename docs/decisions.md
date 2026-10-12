@@ -627,7 +627,7 @@
 - **렙 정확도**·**정확 일치 세트**는 맨 위 정의와 같음. 표의 "−놓침 +추가"는 정답 렙 저점과 앱 렙 끝을 순서대로 맞춰 센 놓친 렙·더 센 렙.
 - **시점**: 측면 = 카메라가 몸 옆 40° 이내, **사선** = 40–75°, **정면/후면** = 75° 이상(0° = 정측면). Fit3D 카메라는 54–78°(측면 없음).
 - **조정용 / 검증용**: Exercise3D는 D-B-01과 같음(P1 조정, P2·P3 검증, 푸시업은 P1뿐). **Fit3D는 결과를 보기 전에** s03·s04·s05 = 조정, s07·s08·s09·s10·s11 = 검증으로 고정(피험자 ID가 있어 사람 단위 분리가 확실함).
-- **s / m / Halpe26**: RTMPose-s COCO17(이전 기본), RTMPose-m COCO17, RTMPose-s Halpe26. **iPhone 키포인트**: iPhone 17에서 앱과 같은 포즈 단계(`RTMPoseCropTracker.estimate`)로 뽑은 키포인트(`BENCH_DUMP=1`, Exercise3D 2/3 크기 영상)를 Mac 평가기로 재생한 값.
+- **s / m / Halpe26**: RTMPose-s COCO17(이전 기본), RTMPose-m COCO17, RTMPose-s Halpe26. **iPhone 키포인트**: iPhone 17에서 앱과 같은 포즈 단계(`RTMPoseCropTracker.estimate`)로 뽑은 키포인트(`BENCH_DUMP=1`, Exercise3D 2/3 크기 영상)를 Mac 평가기로 재생한 값. 표의 값은 첫 실행(s 28영상); 2026-10-12 39영상 전부 m·s 재실행에서도 세트별 렙 수가 Mac과 39/39 같음(D-T3-05).
 - 측정: 영상마다 Core ML RTMPose(사람 crop 입력)로 키포인트를 한 번 뽑고(Mac pose-replay, Fit3D는 50 fps 원본 그대로), 규칙은 `pose-replay --keypoints-csv`로 다시 돌림. "수정 전"은 integration `675d3e5`로 빌드한 pose-replay, "수정 후"는 이 브랜치. Fit3D 정답 = `rep_ann.json`(5–6렙/세트, 3D 주기성과 46/46 세트 일치). 근거 파일·스크립트는 로컬 scratchpad(three-ex), Fit3D는 집계만 기록하고 영상은 피험자별로 Home에서 받아 키포인트만 뽑고 바로 지움.
 
 ### 전체 표 (렙 정확도, 정확 일치 세트, −놓침 +추가)
