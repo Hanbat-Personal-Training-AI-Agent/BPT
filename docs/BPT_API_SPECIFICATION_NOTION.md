@@ -4,7 +4,7 @@
 > **로컬 개발**: `http://localhost:8080/api/v1` (또는 `8081`)  
 > **Swagger UI**: `http://151.145.79.106:8080/api/v1/swagger-ui/index.html`  
 > **인증 방식**: HTTP Bearer JWT (`Authorization: Bearer <access_token>`)  
-> **최종 갱신일**: 2026년 10월 9일  
+> **최종 갱신일**: 2026년 10월 12일  
 
 ---
 
@@ -35,7 +35,7 @@
 ### 2.1 아이디 로그인
 - **Method / URL**: `POST /auth/login`
 - **인증 필요 여부**: ❌ 비인증
-- **설명**: 아이디(`username`)와 비밀번호로 로그인하여 JWT Access Token을 발급받습니다.
+- **설명**: 아이디(`username`)와 비밀번호로 로그인하여 JWT Access Token(1시간)과 Refresh Token(14일)을 발급받습니다.
 
 #### Request Body
 ```json
@@ -72,7 +72,9 @@
     "lastBodyScanDate": "2026-10-09",
     "totalWorkouts": 12,
     "streakDays": 3,
-    "joinedAt": "2026-09-30T16:30:00"
+    "joinedAt": "2026-09-30T16:30:00",
+    "marketingConsent": false,
+    "marketingConsentAt": null
   }
 }
 ```
@@ -117,17 +119,25 @@
 
 ---
 
-### 2.4 이메일 인증번호 발송 (Real SMTP)
+### 2.4 이메일 인증번호 발송 요청 (비동기 발송 & 1분 쿨다운)
 - **Method / URL**: `POST /auth/verify-email/request`
 - **인증 필요 여부**: ❌ 비인증
-- **설명**: 가입 또는 본인인증용으로 6자리 난수 코드를 실제 사용자의 이메일로 발송합니다 (유효시간: 5분).
+- **설명**: 
+  - 가입 또는 계정 찾기용으로 6자리 난수 코드를 이메일로 비동기 발송합니다 (유효시간: 5분).
+  - 인증번호 저장 즉시 응답하므로 응답 지연이 없습니다.
+  - 보안을 위해 서버 로그에 인증번호는 기록되지 않습니다.
+  - 동일 이메일로의 재발송은 **1분 간격**으로 제한됩니다 (1분 이내 재요청 시 `429 RESEND_COOLDOWN_ACTIVE`).
 
 #### Request Body
 ```json
 {
-  "email": "user123@edu.hanbat.ac.kr"
+  "email": "user123@bpt.app",
+  "purpose": "FIND_ACCOUNT"
 }
 ```
+> **purpose 옵션**:  
+> - `"SIGN_UP"` (기본값): *"회원가입 본인 인증을 위한"* 문구로 발송  
+> - `"FIND_ACCOUNT"`, `"FIND_USERNAME"`, `"RESET_PASSWORD"`: *"계정 찾기 본인 인증을 위한"* 문구로 발송
 
 #### Response Body (200 OK)
 ```json
@@ -139,15 +149,18 @@
 
 ---
 
-### 2.5 이메일 인증번호 확인
+### 2.5 이메일 인증번호 확인 (일회용 검증 토큰 발급)
 - **Method / URL**: `POST /auth/verify-email/confirm`
 - **인증 필요 여부**: ❌ 비인증
-- **설명**: 전송된 6자리 인증번호의 유효성을 검증합니다.
+- **설명**: 
+  - 전송된 6자리 인증번호의 유효성을 검증합니다.
+  - 인증에 성공하면 계정 찾기 및 비밀번호 재설정에 사용할 수 있는 **10분 유효 일회용 인증 토큰(`verificationToken`)**을 반환합니다.
+  - **무차별 대입 방지**: 5회 이상 오입력 시 해당 인증번호는 즉시 폐기됩니다 (`400 TOO_MANY_VERIFICATION_ATTEMPTS`).
 
 #### Request Body
 ```json
 {
-  "email": "user123@edu.hanbat.ac.kr",
+  "email": "user123@bpt.app",
   "code": "842109"
 }
 ```
@@ -155,10 +168,89 @@
 #### Response Body (200 OK)
 ```json
 {
+  "verified": true,
   "success": true,
-  "message": "이메일 인증이 완료되었습니다."
+  "message": "이메일 인증이 완료되었습니다.",
+  "verificationToken": "vt_a1b2c3d4e5f67890"
 }
 ```
+
+---
+
+### 2.6 토큰 갱신 (Refresh Token)
+- **Method / URL**: `POST /auth/refresh`
+- **인증 필요 여부**: ❌ 비인증
+- **설명**: 기존 발급받은 Refresh Token(14일)으로 새로운 Access Token과 Refresh Token을 재발급받습니다.
+
+#### Request Body
+```json
+{
+  "refreshToken": "eyJhbGciOiJIUzUxMiJ9..."
+}
+```
+
+#### Response Body (200 OK)
+```json
+{
+  "token": "eyJhbGciOiJIUzUxMiJ9...",
+  "accessToken": "eyJhbGciOiJIUzUxMiJ9...",
+  "refreshToken": "eyJhbGciOiJIUzUxMiJ9...",
+  "tokenType": "Bearer",
+  "expiresIn": 3600,
+  "user": { ... }
+}
+```
+
+---
+
+### 2.7 아이디 찾기
+- **Method / URL**: `POST /auth/find-username`
+- **인증 필요 여부**: ❌ 비인증
+- **설명**: 이메일 인증 확인 후 발급받은 일회용 `verificationToken`으로 가입된 아이디(마스킹 및 원본)를 조회합니다. 조회 후 토큰은 즉시 폐기됩니다.
+
+#### Request Body
+```json
+{
+  "verificationToken": "vt_a1b2c3d4e5f67890"
+}
+```
+
+#### Response Body (200 OK)
+```json
+{
+  "username": "jihoon_kim",
+  "maskedUsername": "jih***",
+  "success": true,
+  "message": "아이디 조회가 완료되었습니다."
+}
+```
+*(가입되지 않은 이메일인 경우 `404 USER_NOT_FOUND` 반환)*
+
+---
+
+### 2.8 비밀번호 재설정
+- **Method / URL**: `POST /auth/reset-password`
+- **인증 필요 여부**: ❌ 비인증
+- **설명**: 아이디(`username`), 이메일(`email`), 인증 완료된 일회용 `verificationToken`, 새 비밀번호(`newPassword`)를 전달하여 계정 비밀번호를 변경합니다. 아이디와 이메일이 일치하는 계정이어야만 변경되며, 토큰은 즉시 폐기됩니다.
+
+#### Request Body
+```json
+{
+  "username": "jihoon_kim",
+  "email": "jihoon@bpt.app",
+  "verificationToken": "vt_a1b2c3d4e5f67890",
+  "newPassword": "newPassword123!"
+}
+```
+
+#### Response Body (200 OK)
+```json
+{
+  "success": true,
+  "message": "비밀번호가 변경되었습니다."
+}
+```
+*(가입되지 않은 이메일이거나 아이디와 이메일이 불일치하는 경우 `404 USER_NOT_FOUND` 반환)*
 
 ---
 
@@ -189,7 +281,9 @@
   "lastBodyScanDate": "2026-10-09",
   "totalWorkouts": 12,
   "streakDays": 3,
-  "joinedAt": "2026-09-30T16:30:00"
+  "joinedAt": "2026-09-30T16:30:00",
+  "marketingConsent": true,
+  "marketingConsentAt": "2026-10-12T14:00:00"
 }
 ```
 > **Tip**: 한 번도 체형 측정을 진행하지 않은 신규 회원은 `lastBodyScanDate: null`로 내려옵니다.
@@ -199,7 +293,7 @@
 ### 3.2 내 프로필 수정
 - **Method / URL**: `PUT /users/me`
 - **인증 필요 여부**: 🔒 Bearer Token
-- **설명**: 프로필 정보, 주간 목표 운동 횟수(`weeklyFrequency`), 알림 설정, 체형 측정일(`lastBodyScanDate`)을 수정합니다.
+- **설명**: 프로필 정보, 주간 목표 운동 횟수(`weeklyFrequency`), 알림 설정, 마케팅 수신 동의(`marketingConsent`), 체형 측정일(`lastBodyScanDate`)을 수정합니다.
 
 #### Request Body
 ```json
@@ -208,6 +302,7 @@
   "weeklyFrequency": 4,
   "notificationEnabled": true,
   "notificationTime": "19:00",
+  "marketingConsent": true,
   "lastBodyScanDate": "2026-10-09",
   "weightKg": 72.5
 }
@@ -290,7 +385,9 @@
 ### 3.6 온보딩 정보 등록
 - **Method / URL**: `PUT /users/me/onboarding`
 - **인증 필요 여부**: 🔒 Bearer Token
-- **설명**: 가입 후 온보딩 화면에서 입력한 신체 스펙 및 목표를 저장하고 오늘 날짜를 체형 스캔일로 기록합니다.
+- **설명**: 가입 후 온보딩 화면에서 입력한 신체 스펙(성별, 키, 몸무게, 목표, 주간 횟수)을 저장합니다.
+> **체형 측정일 변경 정책**:  
+> 온보딩 정보 등록 시에는 `lastBodyScanDate`가 변경되지 않습니다. 사용자가 온보딩 또는 체형 측정 메뉴에서 실제 4장 사진 촬영을 완료하면 앱에서 `POST /users/me/body-scans`를 호출하여 체형 측정일을 갱신합니다.
 
 #### Request Body
 ```json
@@ -308,15 +405,16 @@
 
 ## 4. 운동 종목 마스터 (Exercises)
 
-현재 서버에 등록된 공식 운동 종목은 **5대 핵심 운동**입니다.
+현재 서버에 등록된 공식 운동 종목은 **5대 핵심 운동**입니다.  
+앱(기록/리포트)과의 매핑을 위해 응답에 **앱 ID (`appExerciseId`)**가 함께 제공됩니다.
 
-| ID | 코드 (`exerciseCode`) | 운동명 (`exerciseName`) | 타겟 부위 (`category`) | 표준 가동범위 (ROM) |
-| :---: | :---: | :---: | :---: | :---: |
-| **1** | `SQUAT` | 스쿼트 | `LEGS` | 80° ~ 110° |
-| **2** | `BENCH_PRESS` | 벤치프레스 | `CHEST` | 75° ~ 95° |
-| **3** | `DEADLIFT` | 데드리프트 | `BACK` | 60° ~ 100° |
-| **4** | `PUSH_UP` | 푸쉬업 | `CHEST` | 70° ~ 90° |
-| **5** | `BARBELL_ROW` | 바벨로우 | `BACK` | 60° ~ 100° |
+| ID | 코드 (`exerciseCode`) | 앱 ID (`appExerciseId`) | 운동명 (`exerciseName`) | 타겟 부위 (`category`) | 표준 가동범위 (ROM) |
+| :---: | :---: | :---: | :---: | :---: | :---: |
+| **1** | `SQUAT` | `squat` | 스쿼트 | `LEGS` | 80° ~ 110° |
+| **2** | `BENCH_PRESS` | `benchpress` | 벤치프레스 | `CHEST` | 75° ~ 95° |
+| **3** | `DEADLIFT` | `deadlift` | 데드리프트 | `BACK` | 60° ~ 100° |
+| **4** | `PUSH_UP` | `pushup` | 푸쉬업 | `CHEST` | 70° ~ 90° |
+| **5** | `BARBELL_ROW` | `barbell-row` | 바벨로우 | `BACK` | 60° ~ 100° |
 
 ### 4.1 전체 운동 종목 목록 조회
 - **Method / URL**: `GET /exercises` (또는 `GET /exercises?category=CHEST`)
@@ -328,6 +426,7 @@
   {
     "id": 1,
     "exerciseCode": "SQUAT",
+    "appExerciseId": "squat",
     "exerciseName": "스쿼트",
     "category": "LEGS",
     "standardRomMin": 80.0,
@@ -336,6 +435,7 @@
   {
     "id": 2,
     "exerciseCode": "BENCH_PRESS",
+    "appExerciseId": "benchpress",
     "exerciseName": "벤치프레스",
     "category": "CHEST",
     "standardRomMin": 75.0,
@@ -344,6 +444,7 @@
   {
     "id": 3,
     "exerciseCode": "DEADLIFT",
+    "appExerciseId": "deadlift",
     "exerciseName": "데드리프트",
     "category": "BACK",
     "standardRomMin": 60.0,
@@ -352,6 +453,7 @@
   {
     "id": 4,
     "exerciseCode": "PUSH_UP",
+    "appExerciseId": "pushup",
     "exerciseName": "푸쉬업",
     "category": "CHEST",
     "standardRomMin": 70.0,
@@ -360,6 +462,7 @@
   {
     "id": 5,
     "exerciseCode": "BARBELL_ROW",
+    "appExerciseId": "barbell-row",
     "exerciseName": "바벨로우",
     "category": "BACK",
     "standardRomMin": 60.0,
@@ -561,10 +664,16 @@ HTTP 상태 코드가 `4xx` 또는 `5xx`일 때 아래 형식의 공통 JSON 에
 | HTTP Status | Error Code | 설명 |
 | :---: | :--- | :--- |
 | `400` | `INVALID_INPUT_VALUE` | 필수 필드 누락 또는 형식 오류 (전화번호, 날짜 등) |
-| `401` | `INVALID_TOKEN` / `EXPIRED_TOKEN` | 인증 토큰 만료 또는 유효하지 않은 토큰 |
+| `400` | `EMAIL_NOT_VERIFIED` | 이메일 인증이 완료되지 않았거나 인증번호 불일치 |
+| `400` | `TOO_MANY_VERIFICATION_ATTEMPTS` | 인증번호 5회 오입력으로 인해 폐기됨 |
+| `400` | `INVALID_VERIFICATION_TOKEN` | 인증이 만료되었거나 유효하지 않은 일회용 인증 토큰 |
+| `401` | `INVALID_CREDENTIALS` | 아이디 또는 비밀번호 불일치 |
+| `401` | `TOKEN_EXPIRED` | 인증 토큰 만료 (새로 로그인 또는 `/auth/refresh` 필요) |
 | `403` | `FORBIDDEN` | 접근 권한 부족 |
-| `404` | `USER_NOT_FOUND` | 사용자를 찾을 수 없음 (탈퇴 계정 포함) |
+| `404` | `USER_NOT_FOUND` | 사용자를 찾을 수 없음 (아이디/이메일 불일치 포함) |
 | `404` | `EXERCISE_NOT_FOUND` | 요청한 운동 종목이 존재하지 않음 |
 | `409` | `USERNAME_ALREADY_EXISTS` | 이미 사용 중인 아이디 |
 | `409` | `EMAIL_ALREADY_EXISTS` | 이미 사용 중인 이메일 |
+| `429` | `RESEND_COOLDOWN_ACTIVE` | 인증번호 재발송 1분 쿨다운 미경과 |
 | `500` | `INTERNAL_SERVER_ERROR` | 서버 내부 처리 오류 |
+| `503` | `EMAIL_SEND_FAILED` | 인증 이메일 발송 실패 (SMTP 서버 통신 오류 등) |

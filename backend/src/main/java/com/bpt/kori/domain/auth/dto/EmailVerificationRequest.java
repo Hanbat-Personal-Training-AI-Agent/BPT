@@ -17,4 +17,7 @@ public class EmailVerificationRequest {
     @Email(message = "올바른 이메일 형식을 입력해 주세요.")
     @Schema(description = "인증번호를 발송할 이메일", example = "user@example.com")
     private String email;
+
+    @Schema(description = "인증 용도 (SIGN_UP, FIND_ACCOUNT, FIND_USERNAME, RESET_PASSWORD)", example = "FIND_ACCOUNT")
+    private String purpose;
 }

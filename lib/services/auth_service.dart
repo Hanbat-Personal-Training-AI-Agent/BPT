@@ -82,6 +82,87 @@ class AuthService {
     return (data['available'] ?? data['isAvailable']) == true;
   }
 
+  /// 이메일 인증번호 발송 요청 (purpose: SIGN_UP, FIND_ACCOUNT 등)
+  Future<Map<String, dynamic>> requestEmailVerification(String email, {String? purpose}) async {
+    final response = await _apiClient.post(
+      '/auth/verify-email/request',
+      data: {
+        'email': email.trim(),
+        if (purpose != null && purpose.isNotEmpty) 'purpose': purpose,
+      },
+    );
+    return response.data as Map<String, dynamic>;
+  }
+
+  /// 이메일 인증번호 확인 (verified/success 및 verificationToken 반환)
+  Future<Map<String, dynamic>> confirmEmailVerification(String email, String code) async {
+    final response = await _apiClient.post(
+      '/auth/verify-email/confirm',
+      data: {
+        'email': email.trim(),
+        'code': code.trim(),
+      },
+    );
+    final data = response.data as Map<String, dynamic>;
+    return data;
+  }
+
+  /// 아이디 찾기 (verificationToken 권장, email 호환 지원)
+  Future<Map<String, dynamic>> findUsername({
+    String? verificationToken,
+    String? email,
+    String? code,
+  }) async {
+    final response = await _apiClient.post(
+      '/auth/find-username',
+      data: {
+        if (verificationToken != null && verificationToken.isNotEmpty)
+          'verificationToken': verificationToken.trim(),
+        if (email != null && email.isNotEmpty) 'email': email.trim(),
+        if (code != null && code.isNotEmpty) 'code': code.trim(),
+      },
+    );
+    return response.data as Map<String, dynamic>;
+  }
+
+  /// 비밀번호 재설정 (아이디 + 이메일 + 일회용 verificationToken)
+  Future<void> resetPassword({
+    required String email,
+    required String newPassword,
+    String? username,
+    String? verificationToken,
+    String? code,
+  }) async {
+    final response = await _apiClient.post(
+      '/auth/reset-password',
+      data: {
+        'email': email.trim(),
+        'newPassword': newPassword,
+        if (username != null && username.isNotEmpty) 'username': username.trim(),
+        if (verificationToken != null && verificationToken.isNotEmpty)
+          'verificationToken': verificationToken.trim(),
+        if (code != null && code.isNotEmpty) 'code': code.trim(),
+      },
+    );
+    if (response.statusCode != 200) {
+      throw ApiException('Password reset failed', statusCode: response.statusCode);
+    }
+  }
+
+  /// 토큰 갱신 API (액세스 토큰 만료 시 새 accessToken / refreshToken 발급)
+  Future<Map<String, dynamic>> refreshToken(String refreshToken) async {
+    final response = await _apiClient.post(
+      '/auth/refresh',
+      data: {'refreshToken': refreshToken.trim()},
+    );
+    final data = response.data as Map<String, dynamic>;
+    final newAccessToken = data['accessToken'] ?? data['token'];
+    if (newAccessToken is String && newAccessToken.isNotEmpty) {
+      _apiClient.setAuthToken(newAccessToken);
+    }
+    return data;
+  }
+
   /// 온보딩에서 입력한 성별·키·몸무게·목표·주간 운동 횟수 저장
   Future<void> updateOnboarding({
     required String gender,

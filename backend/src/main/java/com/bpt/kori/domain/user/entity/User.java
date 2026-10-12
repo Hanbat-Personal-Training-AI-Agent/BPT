@@ -83,6 +83,12 @@ public class User {
     @Column(nullable = false)
     private Boolean termsAgreed = false;
 
+    @Builder.Default
+    @Column(nullable = false)
+    private Boolean marketingConsent = false;
+
+    private LocalDateTime marketingConsentAt;
+
     @CreatedDate
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -97,7 +103,6 @@ public class User {
         if (weightKg != null) this.weightKg = weightKg;
         if (workoutGoal != null) this.workoutGoal = workoutGoal;
         if (weeklyFrequency != null) this.weeklyFrequency = weeklyFrequency;
-        this.lastBodyScanDate = LocalDate.now();
         this.isOnboardingCompleted = true;
     }
 

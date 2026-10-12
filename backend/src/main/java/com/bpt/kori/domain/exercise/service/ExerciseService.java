@@ -22,16 +22,17 @@ public class ExerciseService {
     @PostConstruct
     @Transactional
     public void initExercises() {
-        upsertExercise("PUSH_UP", "푸쉬업", "CHEST", BigDecimal.valueOf(70.0), BigDecimal.valueOf(90.0));
-        upsertExercise("SQUAT", "스쿼트", "LEGS", BigDecimal.valueOf(80.0), BigDecimal.valueOf(110.0));
-        upsertExercise("BARBELL_ROW", "바벨로우", "BACK", BigDecimal.valueOf(60.0), BigDecimal.valueOf(100.0));
-        upsertExercise("BENCH_PRESS", "벤치프레스", "CHEST", BigDecimal.valueOf(75.0), BigDecimal.valueOf(95.0));
-        upsertExercise("DEADLIFT", "데드리프트", "BACK", BigDecimal.valueOf(60.0), BigDecimal.valueOf(100.0));
+        upsertExercise("PUSH_UP", "pushup", "푸쉬업", "CHEST", BigDecimal.valueOf(70.0), BigDecimal.valueOf(90.0));
+        upsertExercise("SQUAT", "squat", "스쿼트", "LEGS", BigDecimal.valueOf(80.0), BigDecimal.valueOf(110.0));
+        upsertExercise("BARBELL_ROW", "barbell-row", "바벨로우", "BACK", BigDecimal.valueOf(60.0), BigDecimal.valueOf(100.0));
+        upsertExercise("BENCH_PRESS", "benchpress", "벤치프레스", "CHEST", BigDecimal.valueOf(75.0), BigDecimal.valueOf(95.0));
+        upsertExercise("DEADLIFT", "deadlift", "데드리프트", "BACK", BigDecimal.valueOf(60.0), BigDecimal.valueOf(100.0));
     }
 
-    private void upsertExercise(String code, String name, String category, BigDecimal romMin, BigDecimal romMax) {
+    private void upsertExercise(String code, String appExerciseId, String name, String category, BigDecimal romMin, BigDecimal romMax) {
         Exercise ex = exerciseRepository.findByExerciseCode(code)
                 .orElse(Exercise.builder().exerciseCode(code).build());
+        ex.setAppExerciseId(appExerciseId);
         ex.setExerciseName(name);
         ex.setCategory(category);
         ex.setStandardRomMin(romMin);
