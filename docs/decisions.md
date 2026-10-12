@@ -740,3 +740,13 @@
 - **한계**: MM-Fit 라벨은 세트 렙 수뿐(놓침·추가가 상쇄될 수 있음), 사람 구분은 외모 추정. 합성은 카메라 한 설정(높이 0.5 m, 3.5 m), 오차 모델이 P1 한 사람에서 옴(추정: 다른 사람의 실제 검출 오차는 더 클 수 있음).
 - **라이선스**: Fit3D는 Home에서만 계산, 키포인트·합성 CSV는 Mac scratchpad에서 쓰고 삭제(집계만 문서에). MM-Fit 클립·출력도 측정 후 삭제.
 - **되돌리기**: 해당 없음(앱 변경 없음). 스크립트 `scripts/eval_pushup_virtual_side.py`, `scripts/eval_pushup_mmfit.py`, `scripts/fetch_zip_members.py`.
+
+## D-DATA-01 공개 평가 데이터 채택: Mendeley 7운동 멀티뷰(CC BY 4.0) + YouTube CC BY 구간, AI 2패스 라벨, 사람 단위 분할 — 측정만, 키는 계속 끔 (2026-10-12)
+- **결정**: 사용자가 검증 영상을 찍을 수 없어 공개 데이터로 대신한다. (1) Mendeley "Multi-View Raw Video Dataset of Seven Fitness Exercises with Good/Bad Form Labels" v3(doi:10.17632/kgbb3yn47p.3, CC BY 4.0, 26명, 정면·측면·사선, 스쿼트·푸시업·덤벨 로우 good/bad) 438클립, (2) YouTube에서 영상 자체 라이선스가 CC BY인 것만 133구간(43채널). **평가 전용(비상업 캡스톤)**, 영상은 Home `~/datasets/{mendeley_mv7,yt_cc}`에만, git에는 라벨·집계만. 장부 `docs/data/sources.md`, 결과 `docs/results/public_eval_data.md`.
+- **라벨**: 3 fps 접촉 시트를 AI 라벨러(Claude 서브에이전트) 두 개가 독립으로 봄. 렙 수 정확히 일치 + 자세 키 1개 이상 일치만 채택, 나머지 "uncertain" 제외(렙 386/544세트, 자세 429/544세트 채택). Mendeley md5 중복 13묶음 27클립 전부 제외.
+- **분할**: 평가 전에 `data/eval_sources/split.csv` 고정(사람 = Mendeley 피험자, YouTube 채널; seed 20261012, 약 50/50). 검증 목록은 NOTES.md "held-out only"로 pushup-fix 트랙에 전달.
+- **근거**(렙 정확도 조정 / 검증, 두 출처 합계): 스쿼트 측면 42.8 / 49.3%, 사선 76.9 / 66.0%, 정면 49.8 / 68.5%; 푸시업 측면 50.3 / 76.3%, 사선 91.8 / 85.8%, 정면 53.9 / 44.2%; 로우 측면 11.5 / 11.4%(Mendeley 덤벨 4–5%, YouTube 바벨 82.6 / 100%). 추가 렙은 386세트에서 +24뿐 — 문제는 놓침. 스쿼트 측면은 unknown ≥ 10% 세트(23/49)가 27.8%, < 10%는 60.9% → 추적 품질(역광·블러 데이터)이 주원인(추정). 셋업 키: 측면 스쿼트·로우 0회, 측면 푸시업 렙 도중 1회.
+- **자세 키(모두 끔 유지)**: pushup_hip_pike 측면만 후보 — 검출 3/6세트(17/33렙), 정상 측면 렙 오경보 2/211(1%). 표본 6세트·조정 1/3이라 켜지 않음. pushup_hip_sag 검출 2/13세트, head_drop 0/10, squat_shallow 1/32(규칙이 첫 렙 대비라 처음부터 얕은 세트는 못 잡음), squat_knee_valgus 정면 정상 렙 96–98% 오경보, row_torso_swing 측면 3/9세트(센 렙이 적음).
+- **기각**: Fitness-AQA(수동 승인 Google Form, 영상은 제3자 YouTube/Instagram), QEVD(Qualcomm ID 로그인 필요 — 사용자 계정으로 받을 것을 제안), EC3D(RGB 없음), FLAG3D·EgoExo-Fitness·MyoMechanix(서명·수동 승인), InfiniteRep(합성), PushUpBench(변형 동작), UCO/KIMORE/UI-PRMD(접근 불가·스쿼트 없음), Kaggle 모음(원본이 표준 라이선스 YouTube), YouTube 표준 라이선스 영상 전부. Home에서의 yt-dlp(봇 확인) → Mac에서 검색·다운로드.
+- **한계(추정 포함)**: Mendeley 15 fps를 프레임 복제로 30 fps, 얼굴·몸 블러와 역광으로 관절 신뢰도 0.4–0.6 → 실사용보다 나쁘게 나올 수 있음. 로우는 덤벨이라 바벨 규칙 평가로는 부적합. 라벨은 사람 검수 없음.
+- **되돌리기**: 앱 변경 없음. 데이터 폐기 = Home `rm -rf ~/datasets/mendeley_mv7 ~/datasets/yt_cc`, 리포의 `data/eval_sources/`·`scripts/data_collect/` 삭제.
