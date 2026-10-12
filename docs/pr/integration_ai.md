@@ -84,6 +84,8 @@ AI 쪽 작업(캘리브레이션 서버, 2D/3D 포즈, 사람 crop 입력, 자�
 | row_shrug | 끔 | 실험 |
 | 무릎 과신전 보정 | 끔 | 감지("3D 불량" 표시)만 켜짐 |
 | 세트별 녹화 | 끔 | `BPT_SET_RECORDING=1` 또는 UserDefaults `BPTSetRecording`. iPhone 17 측정(D-E-08): FPS −5.4%지만 30 fps에서 놓친 프레임 3→9라 OFF 유지 |
+| (켜짐) crop 경계 재맞춤 | 켬 | 관절이 crop 경계에 붙으면 crop을 다시 맞춤(모든 운동). 끄기 `RTMPoseCropTracker.refitAtCropEdge = false` (D-T3-10) |
+| (켜짐) 푸시업 어깨 높이 렙 신호 | 켬 | 측면에서 렙 수 = max(팔꿈치, 높이). 끄기 `PushUpEvaluatorConfig.heightRepSignal = false` (D-T3-11) |
 | (켜짐) 사람 3:4 crop 입력 | 켬 | 끄기 `CameraPreviewOptions.personCropInput = false` — 끄면 로우 컷오프도 0.56으로 |
 
 ## 기본으로 켜진 키
@@ -137,6 +139,6 @@ integration/ai는 main보다 팀원 커밋 11개가 뒤처져 있습니다(2026-
 - 벤치·데드 수치는 Sapiens2 대리 입력 기준이라 앱 RTMPose(특히 누운 자세 측면)로는 미검증. 데드는 정면 카메라 미지원.
 - 캘리브레이션 체형 평가 기준은 People Snapshot의 consensus 메시(정답 아님, 단안 추정 키)이고 실제 사용자 줄자 실측 검증은 없음.
 - 준비 자세 확인은 Exercise3D처럼 바로 시작하는 세트에서 렙을 잃어 기본 꺼짐.
-- **측면 푸시업 100%는 P1 한 사람 값**: 다른 사람 실제 측면 영상(MM-Fit 약 15명, 65세트) 80.2%, Fit3D 가상 측면 합성 검증 61.4%(D-T3-08). 놓침 원인 후보 — crop이 몸 아래쪽에 고정, 먼 팔 선택, 팔꿈치를 옆으로 벌린 푸시업.
+- **측면 푸시업, P1 아닌 사람**: 수정 전 MM-Fit 80.2%·Fit3D 가상 측면 검증 61.4%(D-T3-08) → crop 경계 재맞춤 + 어깨 높이 신호(D-T3-10·11) 후 MM-Fit 검증 6명 94.5%, Fit3D 가상 측면 검증 80.1%. 남은 것: 팔꿈치를 옆으로 벌린 사람의 정측면(0°), 세트 전 자세 잡기 추가 렙.
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
