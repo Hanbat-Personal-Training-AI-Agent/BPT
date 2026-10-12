@@ -12,6 +12,8 @@ class AccountRecoveryState {
     this.verified = false,
     this.verificationToken,
     this.resetting = false,
+    this.finding = false,
+    this.username,
     this.error,
   });
 
@@ -21,9 +23,13 @@ class AccountRecoveryState {
   final bool verifying;
   final bool verified;
 
-  /// 인증 확인 응답의 일회용 토큰. 비밀번호 재설정 요청에 같이 보낸다.
+  /// 인증 확인 응답의 일회용 토큰. 아이디 찾기·비밀번호 재설정 중 한 번만 쓸 수 있다.
   final String? verificationToken;
   final bool resetting;
+  final bool finding;
+
+  /// 아이디 찾기로 받은 가입 아이디.
+  final String? username;
   final String? error;
 
   AccountRecoveryState copyWith({
@@ -33,6 +39,9 @@ class AccountRecoveryState {
     bool? verified,
     String? verificationToken,
     bool? resetting,
+    bool? finding,
+    String? username,
+    bool clearToken = false,
     String? error,
   }) =>
       AccountRecoveryState(
@@ -41,8 +50,11 @@ class AccountRecoveryState {
         sent: sent ?? this.sent,
         verifying: verifying ?? this.verifying,
         verified: verified ?? this.verified,
-        verificationToken: verificationToken ?? this.verificationToken,
+        verificationToken:
+            clearToken ? null : verificationToken ?? this.verificationToken,
         resetting: resetting ?? this.resetting,
+        finding: finding ?? this.finding,
+        username: username ?? this.username,
         error: error,
       );
 }
@@ -59,8 +71,17 @@ class AccountRecoveryNotifier extends StateNotifier<AccountRecoveryState> {
     state = AccountRecoveryState(email: email.trim());
   }
 
+  /// 이메일은 두고 인증을 처음부터 다시 받게 한다.
+  /// 탭을 바꾸거나 비밀번호 재설정 아이디를 바꾸면 이전 인증은 쓸 수 없다
+  /// (재설정은 아이디 확인을 거쳐 보낸 인증번호여야 하고, 토큰도 한 번만 쓸 수 있다).
+  void restartVerification() {
+    if (!state.sent && state.error == null) return;
+    state = AccountRecoveryState(email: state.email);
+  }
+
   /// 서버에 인증번호 발송을 요청한다. 성공하면 true.
-  Future<bool> sendCode() async {
+  /// [username]을 주면 아이디·이메일이 같은 계정일 때만 보낸다.
+  Future<bool> sendCode({String? username}) async {
     if (state.sending) return false;
     if (!RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(state.email)) {
       state = state.copyWith(error: '올바른 이메일을 입력해줘.');
@@ -70,9 +91,11 @@ class AccountRecoveryNotifier extends StateNotifier<AccountRecoveryState> {
     state = state.copyWith(sending: true);
     String? error;
     try {
-      await _authService.requestEmailVerification(email);
+      await _authService.requestEmailVerification(email, username: username);
     } on ApiException catch (e) {
-      error = _message(e);
+      error = e.code == 'USER_NOT_FOUND'
+          ? '아이디와 이메일이 맞지 않아. 다시 확인해줘.'
+          : _message(e);
     }
     // 요청하는 사이에 이메일을 바꿨으면 결과를 버린다.
     if (!mounted || state.email != email) return false;
@@ -101,6 +124,33 @@ class AccountRecoveryNotifier extends StateNotifier<AccountRecoveryState> {
         verifying: false,
         verified: verified,
         verificationToken: token,
+        error: error);
+  }
+
+  /// 인증 토큰으로 가입 아이디를 찾는다. 토큰은 여기서 쓰이고 사라진다.
+  Future<void> findUsername() async {
+    final token = state.verificationToken;
+    if (!state.verified || state.finding || token == null) return;
+    final email = state.email;
+    state = state.copyWith(finding: true, error: state.error);
+    String? username;
+    String? error;
+    // 서버에 닿았으면 결과와 상관없이 토큰은 이미 폐기됐다.
+    var tokenUsed = true;
+    try {
+      username = await _authService.findUsername(verificationToken: token);
+      if (username == null) error = '아이디를 찾지 못했어. 다시 시도해줘.';
+    } on ApiException catch (e) {
+      tokenUsed = e is! NetworkException;
+      error = e.code == 'USER_NOT_FOUND'
+          ? '이 이메일로 가입한 아이디가 없어.'
+          : _message(e);
+    }
+    if (!mounted || state.email != email) return;
+    state = state.copyWith(
+        finding: false,
+        username: username,
+        clearToken: tokenUsed,
         error: error);
   }
 
