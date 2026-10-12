@@ -37,4 +37,24 @@ void main() {
     expect(json.containsKey('phoneNumber'), isFalse);
     expect(json.containsKey('birthDate'), isFalse);
   });
+
+  test('marketing consent keeps its time when agreed and drops it when not',
+      () {
+    final fromServer = UserModel.fromJson({
+      'username': 'jihoon',
+      'marketingConsent': true,
+      'marketingConsentAt': '2026-10-12T14:00:00',
+    });
+    expect(fromServer.marketingConsent, isTrue);
+    // 다른 프로필 값을 저장해도 동의 시각이 지금으로 바뀌지 않게 그대로 보낸다.
+    final agreed = fromServer.copyWith(name: '지훈').toUpdateJson();
+    expect(agreed['marketingConsent'], isTrue);
+    expect(agreed['marketingConsentAt'], '2026-10-12T14:00:00');
+    final declined =
+        fromServer.copyWith(marketingConsent: false).toUpdateJson();
+    expect(declined['marketingConsent'], isFalse);
+    expect(declined.containsKey('marketingConsentAt'), isFalse);
+    // 서버 값을 모르면 보내지 않아서 서버에 저장된 값을 지킨다.
+    expect(user.toUpdateJson().containsKey('marketingConsent'), isFalse);
+  });
 }
