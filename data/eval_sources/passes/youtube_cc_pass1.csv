@@ -1,0 +1,134 @@
+file,reps,partial,rep_conf,rep_times,form,wrong_keys,form_conf,view_check,people,notes
+yt_0KtrNQre5rQ_1,1,0,medium,5.0,normal,,low,front,1,"long paused bottom hold ~0.6-9.0s; coach beside (kneeling) adjusting, not squatting; small/low-res"
+yt_0KtrNQre5rQ_2,2,0,medium,2.3 7.0,normal,,low,front,1,slow coached reps with pauses; coach kneeling beside
+yt_0KtrNQre5rQ_3,1,0,medium,5.0,normal,,low,front,1,long paused bottom hold; coach kneeling beside
+yt_0KtrNQre5rQ_4,2,0,high,5.0 12.6,normal,,medium,side,1,arms forward bodyweight squat with long bottom holds; coach crouching behind
+yt_0KtrNQre5rQ_5,1,0,medium,4.6,normal,,medium,side,1,clip ends just as he reaches standing (7.6); coach crouching behind
+yt_0KtrNQre5rQ_6,0,2,medium,,wrong,other:excessive forward lean:all:medium,medium,side,1,"starts at bottom, second descent 5-13s with exaggerated forward torso lean, cut while rising; coach crouching behind"
+yt_0_c1I7GatDw_1,3,0,medium,2.6 10.6 15.6,normal,,low,diagonal,1,barbell back squat; body partly cropped at right edge and occluded by plate; strong forward lean at bottom hard to judge
+yt_0_c1I7GatDw_2,1,0,high,4.6,normal,,medium,front,1,0.0 is a different shot (presenter talking) then cut to barbell squat front view
+yt_0_c1I7GatDw_3,0,1,low,,wrong,squat_shallow:all:low;other:excessive forward lean:all:low,low,side,1,"0.0 presenter shot then cut to dark phone clip already mid-descent, stands at 3.3; red X overlay = shown as wrong example; lifter partly occluded"
+yt_0_c1I7GatDw_4,1,1,low,8.0,wrong,squat_shallow:all:low;other:excessive forward lean:all:low,low,side,1,"dark phone clip (same wrong example lifter); starts already squatting, stands 3.3-6.3, one rep 6.6-9.6; body occluded by plates/rack"
+yt_0xbZWGGEK3Q_1,0,2,medium,,wrong,pushup_hip_sag:all:medium,medium,side,1,"starts kneeling, lies flat on floor 1.3-3.0, pushes up chest-first with hips left low (3.3-4.0) to top ~4.6, lowers to floor again at end; no full top-bottom-top rep"
+yt_0xbZWGGEK3Q_2,2,1,high,7.3 10.0,wrong,other:knees down:all:high,high,side,1,"lies on floor setting hands 0-5.3, first push-up from floor not counted; knee push-ups with feet raised"
+yt_29-XfdGXqjw_1,3,0,medium,4.0 10.6 12.6,normal,,medium,diagonal,1,long hold at top 5-10s; drops to knees at end
+yt_2YCCekX2Umo_1,2,2,low,4.0 5.0,normal,,low,side,1,"0-2.6 lifting bar from floor (setup), then zoom cut at 3.0 mid-pull; fast rows ~1/s: pulls 4.0 5.0 full, pull at 3.0 and rising at end partial; small figure, needed zoom"
+yt_3nnzOvAAbP8_1,3,0,high,3.3 5.3 7.3,normal,,medium,front,1,text overlays
+yt_3nnzOvAAbP8_2,2,1,high,1.0 2.6,normal,,high,side,1,body-line overlay drawn; cut at bottom at end
+yt_4ALA64JLQoE_1,9,1,low,1.3 3.6 6.3 7.2 9.0 13.6 15.3 17.6 20.0,wrong,"pushup_hip_pike:all:medium;pushup_shallow:1,2,3,4,5:low",low,back,1,"camera low behind feet looking up the body (oblique back view); 'wrong vs right' demo, irregular reps with coach crouching behind touching/cueing; hips piked high at top; many reps ambiguous; ends low at 21-22s"
+yt_4ALA64JLQoE_2,5,1,medium,1.6 3.0 4.6 6.6 8.3,normal,,medium,side,1,first dip at 1.6 shallower than the rest; cut at bottom at end
+yt_4FV_oEgDkX0_1,3,0,high,0.6 2.6 4.6,normal,,medium,front,1,barbell back squat
+yt_4FV_oEgDkX0_2,4,0,high,4.6 8.0 11.0 14.3,normal,,medium,front,1,'controlling eccentric' caption; barbell back squat
+yt_4FV_oEgDkX0_3,2,0,high,2.0 7.0,wrong,squat_knee_valgus:all:medium,medium,front,1,'KNEE CAVE' caption = deliberate wrong demo; valgus subtle at sheet resolution
+yt_4FV_oEgDkX0_4,4,1,high,2.3 5.0 7.6 10.3,normal,,medium,front,1,'NO KNEE CAVE' caption (correct version); last rep cut while rising
+yt_98J9aiV69p8_1,2,0,medium,1.0 2.0,wrong,pushup_hip_sag:all:medium;pushup_head_up:all:low,medium,side,1,"red X overlay (wrong demo), grayscale; chest leads up with hips sagging, head looking forward; very short clip"
+yt_98J9aiV69p8_2,5,1,high,1.3 2.8 4.6 6.2 7.6,normal,,high,side,1,green check overlay (correct demo); starts from kneeling setup; cut descending at end
+yt_9Qc45eJQQTE_1,5,0,medium,29.7 31.2 32.9 34.5 36.2,wrong,row_torso_swing:all:medium,medium,diagonal,1,Pendlay row from floor; 0-29s bent over holding bar on floor without pulling (talking/setup); camera reframes ~29.5s then 5 fast pulls with torso rising from near-parallel each pull; stands at end
+yt_A1XZcaFRrBo_1,0,0,high,,normal,,low,side,1,"setup only: stands holding dumbbells, hinges, arms hang 1.0-3.6; no pull"
+yt_A1XZcaFRrBo_2,0,1,low,,normal,,low,side,1,two-dumbbell row; single pull at ~0.5 then held near the hips to end with only small movements (pause/hold demo?); no clear lower
+yt_A1XZcaFRrBo_3,3,2,low,1.6 2.8 3.8,wrong,row_standing_up:all:medium;row_short_pull:all:low,medium,side,1,"two-dumbbell row, quick short pulls with torso noticeably more upright than the other segments; starts and ends at top"
+yt_A1XZcaFRrBo_4,2,2,medium,3.2 5.5,normal,,medium,side,1,"two-dumbbell slow rows; starts at top, last pull 7.5-8.8 then stands up without lowering"
+yt_APNV5mki_V8_1,10,0,medium,0.6 2.5 4.5 6.5 8.6 11.2 13.5 15.8 18.3 20.7,normal,,medium,diagonal,1,barbell bent-over row; camera slowly orbits (diagonal to front-diagonal); steady near-parallel torso
+yt_APNV5mki_V8_2,5,0,medium,0.9 3.2 5.5 8.0 10.2,normal,,medium,diagonal,1,barbell bent-over row; camera orbiting
+yt_DCnDjdobuLk_1,5,0,medium,7.9 11.3 14.4 17.3 20.5,normal,,medium,side,1,"barbell row from the floor (dead-stop/Pendlay style), slow with pauses; 0-7.5 static setup holding bar; camera cut to a front-diagonal angle at ~16s"
+yt_DCnDjdobuLk_2,1,1,low,4.3,normal,,low,side,1,"demonstrating row motion with a light white stick/PVC (no load); 0-3.6 standing with slight hinge; one pull ~4.3, second pull ~6.0 held to end; torso fairly upright for a demo"
+yt_DCnDjdobuLk_3,0,1,low,,normal,,low,side,1,"light white stick demo; mostly hinged with arms hanging (talking) 0-6.3, one pull at ~6.5 held to end"
+yt_DCnDjdobuLk_4,0,0,high,,normal,,low,side,1,"setup only: hinged over barbell on floor gripping it, no pull in the clip"
+yt_DCnDjdobuLk_5,2,0,medium,5.0 7.0,wrong,row_torso_swing:all:low,low,side,1,barbell row from floor after static setup 0-4.6; torso appears to rise noticeably during each pull; stands up and talks from 8.6
+yt_DCnDjdobuLk_6,3,1,medium,11.8 14.5 17.2,normal,,medium,side,1,long static setup 0-11; rows from floor with pauses; camera cut ~16-18 to front-diagonal; last pull at 19.3-19.6 cut at top
+yt_DVGi7h0lL3A_1,2,0,high,1.6 4.8,normal,,high,side,1,
+yt_DVGi7h0lL3A_2,1,1,high,2.6,normal,,medium,side,1,"second descent bottom 5.6, cut while rising at end; red muscle highlight overlay 5.3-5.6"
+yt_DVGi7h0lL3A_3,3,0,high,1.6 4.8 6.8,wrong,"pushup_shallow:2,3:medium",medium,side,1,"first rep full depth, reps 2-3 only half-depth dips"
+yt_DVGi7h0lL3A_4,1,0,high,2.0,wrong,pushup_hip_pike:all:high,high,side,1,hips held high (pike) throughout; graphic overlay near hands at bottom
+yt_DVGi7h0lL3A_5,3,1,medium,0.8 4.1 7.6,wrong,pushup_hip_sag:all:high,high,side,1,"'worm' push-up: chest rises first while hips stay on/near floor (sag), then hips follow; last descent at 10.6-11.3 cut while rising"
+yt_Ds9yTAPwv00_1,2,0,high,2.6 5.2,normal,,medium,side,1,bodyweight squat arms forward; noticeable forward lean
+yt_Ds9yTAPwv00_2,2,0,high,2.0 7.2,normal,,medium,side,1,bodyweight squat arms forward; pause standing between reps
+yt_Ds9yTAPwv00_3,2,0,high,1.3 3.4,normal,,low,front,1,"bodyweight squat front view, arms out to sides"
+yt_Ds9yTAPwv00_4,1,0,high,1.3,normal,,medium,side,1,
+yt_Ds9yTAPwv00_5,2,0,high,1.3 5.2,normal,,low,front,1,bodyweight squat front view; second rep a bit quicker/shallower
+yt_Ds9yTAPwv00_6,2,0,high,1.2 3.3,normal,,low,front,1,text caption at end
+yt_EyAC8jSJIYQ_1,11,1,low,11.3 13.8 15.9 17.8 20.0 22.7 25.0 27.0 30.0 31.8 33.7,wrong,row_torso_swing:all:medium;row_standing_up:8:low,low,diagonal,1,"barbell row, dark backlit phone video; 0-7.5 setup at rack, unrack ~7.3; torso rises noticeably on pulls and he stands up mid-set (~26.5-27.7, ~34-35.3); last pull ~37.7 into standing/re-rack; counts uncertain"
+yt_F7umlBUzKVU_1,4,1,low,10.9 13.9 17.2 19.6,normal,,low,diagonal,1,"barbell row; 0-1.6 deadlifts bar up, stands talking 2-9, hinges ~9.3; pulls short and torso fairly upright (~45deg); purple/red lighting; ends near top at 23.0"
+yt_F7umlBUzKVU_2,6,1,low,4.3 5.8 7.3 9.0 10.5 12.0,normal,,low,front,1,"barbell row front view, judged from bar height; 0-2.3 deadlift to standing; dark purple lighting; ends at top 13.6"
+yt_HG542yssLsc_1,3,0,high,6.3 10.3 14.6,wrong,other:excessive forward lean (hip hinge):all:high;squat_shallow:all:medium,medium,side,1,"slow reps; torso near horizontal, hips pushed back, hips stay above knees"
+yt_HG542yssLsc_2,1,0,high,3.3,normal,,medium,side,1,"arms forward (holding light object?) upright torso, long bottom hold 2.0-5.0"
+yt_HG542yssLsc_3,2,0,high,4.0 12.8,wrong,other:excessive forward lean (hip hinge):all:high;squat_shallow:all:medium,medium,side,1,"same hinge-dominant pattern as segment 1; long bottom hold 2-6.3, stands 7.3-11.3"
+yt_HG542yssLsc_4,1,0,high,4.0,normal,,medium,side,1,"upright torso, deep, long bottom hold 1.6-6.3"
+yt_JklNoB4eyhw_1,3,1,medium,7.2 8.3 9.3,normal,,medium,diagonal,1,long top hold 0-6.6; last small dip ~10.3 then drops to knees
+yt_JklNoB4eyhw_2,1,1,medium,23.6,normal,,medium,diagonal,1,long plank hold 0.6-11.6; slow descent to floor 12-13.6 then rests on knees 14-21; second slow rep 21.6-25.3; holds top to end
+yt_JnwWdvwGmAU_1,2,1,high,9.3 11.6,normal,,medium,diagonal,1,starts at bottom and pushes up (partial); long top hold 0.6-8.0; logo overlay
+yt_JnwWdvwGmAU_2,0,1,medium,,normal,,low,diagonal,1,"starts at bottom and hovers near floor 0-6.0 (slow/paused), pushes to top 6.3-7.0, holds top to end; no full top-bottom-top rep"
+yt_JnwWdvwGmAU_3,6,1,medium,2.3 4.1 5.6 7.1 8.6 10.3,normal,,medium,diagonal,1,starts at bottom (first push-up partial)
+yt_Ka-yi9zHp2Q_1,2,0,high,6.6 8.4,normal,,medium,front,1,"0-4 setup over bar with text overlays, deadlifts bar to knees 4.3-5.3, then 2 rows with pauses"
+yt_Ka-yi9zHp2Q_2,2,1,high,1.0 3.3,normal,,high,side,1,"Pendlay-style rows with pause at bottom; text overlays (45-degree back, flat back); cut at top of 3rd pull at end"
+yt_LCBEioFGYq8_1,3,0,low,35.7 39.0 41.7,normal,,low,side,1,"empty barbell; mostly instruction: hinges into position and holds 1-10s and 27-34s, stands and talks 10.7-12 and 18-27; only ~3 slow pulls near the end; stands at 43.6"
+yt_M2fI9s51Q0E_1,5,0,medium,3.0 7.0 10.0 12.3 15.4,normal,,low,back,1,barbell back squat filmed from behind/back-diagonal with moving handheld camera; caption 'bend at hips first not knees'; coach standing in background (not exercising)
+yt_M2fI9s51Q0E_2,2,1,medium,4.0 7.8,normal,,low,back,1,"barbell back squat from back-diagonal, handheld; starts at bottom (partial); notable forward lean"
+yt_M2fI9s51Q0E_3,6,0,medium,2.8 4.1 5.4 6.8 8.1 9.4,normal,,low,back,1,"barbell back squat from back-diagonal, handheld camera moving; re-racks at end"
+yt_R1q-_wqz4sA_1,4,1,high,1.6 4.8 8.0 11.2,normal,,high,side,1,pauses at top between reps; starts descending at very end
+yt_R1q-_wqz4sA_2,4,0,high,1.0 3.0 5.0 7.6,normal,,low,front,1,"front view, depth looks full; hip line not judgeable"
+yt_SwIUivmPrQ8_1,4,1,medium,9.0 12.6 15.6 19.0,normal,,low,front,1,barbell row filmed from front/above; 0-8.6 setup hinge with bar hanging; last pull at 22.0 cut off; slow reps hard to read from front
+yt_SwIUivmPrQ8_2,4,0,medium,0.6 4.0 7.0 10.3,normal,,low,front,1,barbell row front/above view; first pull starts right at 0.0 (may be partial); last return at 11.0 barely in clip
+yt_T5J-Ao3DXE0_1,2,0,medium,1.6 11.0,normal,,low,diagonal,1,slow tutorial reps with long talking holds at bottom; rep 1 starts near top at 0.0 (already slightly bent); in rep 1 torso tips far forward during the hold (2.6-6.6) while gesturing
+yt_T5J-Ao3DXE0_2,0,1,medium,,normal,,low,diagonal,1,descends at 0-2.3 then holds/talks in squat bottom with small bounces for rest of clip; never stands back up before end
+yt_T5J-Ao3DXE0_3,1,0,high,4.0,wrong,squat_shallow:all:medium,low,diagonal,1,"one slow rep with a long talking hold (1.0-8.3); bottom looks like a half squat, thighs above parallel; rest of clip standing and gesturing"
+yt_TBNtGrr-owU_1,1,0,medium,8.0,normal,,low,side,1,"0-3.3 gets into plank from knees; lowers at 3.6 and holds/hovers near floor until 13.3 (possibly tiny pulses not counted), pushes up at 13.6"
+yt_TBNtGrr-owU_2,2,0,high,7.0 11.0,normal,,medium,side,1,"holds plank 0-5.3, slow first rep, then second rep; drops to knees at 12.6"
+yt_U267qtP0NSo_1,7,0,medium,2.0 4.0 5.6 7.0 9.0 10.6 12.4,normal,,low,diagonal,1,"barbell row, person small in frame (checked cropped 5fps sheet); torso ~45 deg, moderate range"
+yt_V9y7P9vbcME_1,6,0,low,12.0 13.1 16.6 17.6 18.6 20.6,normal,,low,side,1,"handheld camera pans/zooms; stands talking 0-6.6, hinges ~7.0; implement looks like a bar held by one end (landmine/T-bar style?) not a standard row; hands mostly cropped/blurred so pulls inferred from bar rising; 7-11 s small/unclear movements not counted"
+yt_WysdJhfVL3E_1,1,1,medium,0.6,wrong,squat_hips_first:all:high,high,side,1,"barbell back squat; 1.3-7.0 is a freeze-frame with HIPS RISING overlay (hips shoot up, chest tips forward); second rep at 8.6 cut off while rising (same hips-first pattern visible at 9.0-9.3)"
+yt_WysdJhfVL3E_2,3,0,medium,4.0 9.6 18.6,normal,,low,back,1,tile 0.0 is a cut to a talking-head shot; barbell back squat seen from behind; coach crouching at left watching (not performing); 3rd rep has a long pause at bottom; depth/hips not judgeable from back
+yt_WysdJhfVL3E_3,3,0,high,14.4 19.0 24.4,normal,,low,diagonal,1,tile 0.0 talking-head cut; unrack and walkout 0.3-10; view partly blocked by rack uprights and plates
+yt_WysdJhfVL3E_4,3,0,high,5.0 9.3 13.6,normal,,medium,front,1,"barbell back squat in rack, front view; knees track out, deep; re-racks bar at 16-18"
+yt_WysdJhfVL3E_5,1,0,medium,11.2,normal,,low,front,1,"tile 0.0 talking-head cut; walkout/standing 0.3-10; single rep, clip ends at 12.3 just as he nears full stand"
+yt_X8sRBteBCVQ_1,11,1,low,1.1 3.1 5.1 7.1 11.1 13.1 14.5 16.5 18.3 23.9 26.1,normal,,low,diagonal,1,"barbell row (Pendlay-style, overlay 222.5# 5x10 set 5) from front-diagonal, plate occludes torso on pulls; possible extra pulls at ~9.0 and ~20.5 unclear; last pull ~28.5 cut at end; torso stays near horizontal, some body english possible"
+yt_XOg81X0Tckw_1,2,1,medium,8.1 9.0,normal,,medium,side,1,"starts lying on floor and pushes up (partial); holds top 2-7.6; two quick reps at end, second returning to top at ~9.4-9.6 near clip end; standing grader in background (not performing)"
+yt_XOg81X0Tckw_2,4,2,medium,1.5 2.6 3.7 4.9,normal,,medium,side,1,fast reps (~1.1 s); clip starts mid-descent (bottom 0.4) and ends at bottom of another rep (~6.2); grader kneeling in background
+yt_XOg81X0Tckw_3,3,0,low,1.0 9.1 11.0,normal,,low,side,1,"tile 0.0 fade-in; between reps he rests in a high hip-pike (3.3-6.6 and again from 13.6 to end) - a rest position, not during reps; possible extra shallow rep ~12.5; grader in background"
+yt_YvXXlKVmMaw_1,0,2,medium,,normal,,low,diagonal,1,"very short clip (2.7 s): starts near bottom (bottom 0.3, stands 1.3) then descends again (bottom 2.3) and clip ends; bodyweight squat, depth ~parallel"
+yt_YvXXlKVmMaw_2,1,1,high,2.3,normal,,medium,side,1,"clip starts rising from a squat (partial), stands 0.6-1.3, one full rep bottom 2.3, standing at 3.3; beach stock footage"
+yt_d4l1BF0cY4U_1,1,0,high,4.6,normal,,medium,diagonal,1,"one slow rep with long hold at bottom (3.0-6.6), chest near floor; top hold before and after"
+yt_d4l1BF0cY4U_2,2,0,high,1.3 4.5,normal,,medium,diagonal,1,camera moves/low angle; full depth reps with pauses
+yt_dyLMJUOP3R4_1,2,0,high,1.1 4.8,normal,,low,diagonal,1,"Pendlay row from floor, bar returns to floor each rep; torso near parallel"
+yt_fW6-ykp1cjk_1,3,0,high,4.2 8.3 12.2,normal,,medium,side,1,"two-dumbbell bent-over row, both arms together; slow tempo; hangs 0-3.3 before first pull"
+yt_fY0jKtdVvzA_1,2,0,high,2.6 5.3,normal,,medium,side,1,"Pendlay row from floor, torso stays near horizontal; bar returns to floor each rep"
+yt_fv2PvU6Xzwk_1,8,0,high,4.3 5.6 7.0 8.6 10.0 11.6 13.3 15.0,wrong,row_torso_swing:all:low,low,diagonal,1,"Pendlay-style row, bar back to floor each rep; picks bar up 0-3 and stands at end; torso lifts somewhat on each pull (mild body english), uncertain"
+yt_gMJe6yeacsk_1,3,0,high,0.6 2.4 4.3,wrong,row_torso_swing:all:high;row_standing_up:all:medium,high,side,1,red X overlay (demonstrating wrong); torso heaves up nearly upright on each pull and drops back down; fast reps
+yt_gMJe6yeacsk_2,3,0,high,1.6 5.9 10.2,normal,,high,side,1,"green check overlay (correct version); slow controlled reps, torso stays bent ~45 deg, no swing (compare _1)"
+yt_gm4ln6PO4rc_1,5,0,medium,6.0 14.0 19.3 30.0 35.6,normal,,medium,diagonal,1,goblet squat tutorial with caption overlays; slow reps with long holds at bottom; 22-28 standing; first bottom 4.0-9.0 might hide a second rep; depth about parallel
+yt_gm4ln6PO4rc_2,2,0,medium,1.3 3.3,wrong,"squat_shallow:all:high;other:hip hinge instead of squat (torso folds forward, little knee bend):all:high",high,side,1,red X overlay: avoid just hinging back instead of proper squat; second dip (3.0-3.6) may be reaching for dumbbell; camera cut at 4.6
+yt_gm4ln6PO4rc_3,3,1,low,1.3 3.1 5.2,wrong,squat_shallow:all:high,high,front,1,red X overlay: avoid half and quarter reps; tiny quarter-squat dips are hard to separate at 3 fps; another dip starting ~7.0 at clip end
+yt_gm4ln6PO4rc_4,5,0,medium,2.0 6.0 7.3 10.0 16.0,normal,,medium,diagonal,1,"goblet squat; editing cuts/zoom changes (0-1.6 close-up, cut ~2.0); depth about parallel; standing pause 11-15"
+yt_h-TqBZlxszM_1,6,0,medium,6.8 8.8 10.6 12.4 14.8 16.8,normal,,low,diagonal,1,"Pendlay-style row from floor in power rack; lifter at left edge, partly cut off and seen from behind-side; 1-6.3 setup over bar; stands up at 18.6"
+yt_h5jTRrFQzJs_1,6,0,medium,9.8 17.0 18.0 19.0 20.1 21.3,wrong,"pushup_no_lockout:3,4,5,6:low",low,diagonal,1,feet cut off at right edge; holds plank 0-9 and 10.6-16.3 between reps; fast reps 17-21.5 where arms seem not fully straightened at top (checked 6 fps crop); gets up at ~22.5
+yt_h5jTRrFQzJs_2,3,0,medium,21.8 26.3 32.0,normal,,low,diagonal,1,feet cut off at right edge; long plank hold 0-20; each rep lowers all the way to lying on the floor (3rd rests flat 31-34.6) then pushes back up; looks like a struggling beginner
+yt_hO27xMs4wns_1,3,0,medium,0.8 4.6 8.6,wrong,row_torso_swing:all:low,low,diagonal,1,shaky handheld camera that swings around; Pendlay-style row from floor; torso seems to rise on each pull; person standing in background left (not performing)
+yt_hjNQPke32ww_1,4,0,high,1.3 3.0 5.0 6.8,wrong,other:elbows flared out to ~90 deg (T shape):all:medium;pushup_head_drop:all:low,medium,front,1,red X overlay; front view so hip line not judgeable; elbows flare straight out to the sides and head tucks down at bottom
+yt_hjNQPke32ww_2,4,1,high,2.5 4.2 6.0 8.0,normal,,medium,front,1,"thumbs-up overlay (correct version, compare _1): elbows tucked ~45 deg; last rep bottom 9.6 cut at clip end"
+yt_jxUoaZJxkVM_1,9,0,high,1.1 3.6 6.5 9.5 12.8 16.5 20.2 23.5 27.0,normal,,low,front,1,"barbell bent-over row, front view (checked cropped sheets); people partly visible at right edge in background, not performing"
+yt_ktKsQYqJthw_1,4,0,low,8.6 9.7 22.1 23.3,normal,,low,diagonal,1,"coaching clip: coach standing next to lifter and talking (not performing, not counted); Pendlay-style row with bar resting on plates; two quick pulls 8-10, long setup/coaching 11-21, two more pulls 21.5-23.8; pulls are fast and hard to separate even at 6 fps"
+yt_ktKsQYqJthw_2,4,0,medium,2.0 3.8 6.0 7.6,normal,,low,diagonal,1,"coach standing beside lifter, touching his back/talking (not performing); bar starts and ends on plates, does not return to floor between pulls"
+yt_m12ycyzTr5c_1,4,1,low,5.5 13.0 19.0 29.0,normal,,low,side,1,"barbell back squat with long paused/coached holds at bottom; lifter mostly hidden behind the plate (torso/hips occluded); coach standing and talking next to him, touching him at 16-18 (not counted); clip starts already low; form not judgeable"
+yt_m12ycyzTr5c_2,1,2,low,20.6,normal,,low,side,1,"same coached squat session as _1: clip starts in a long bottom hold 0-12 with coach bent over cueing (partial), full rep bottom ~20.6, another descent bottom ~26.6 still rising at clip end; lifter mostly hidden behind plate; coach not counted"
+yt_m12ycyzTr5c_3,2,0,high,3.6 9.0,normal,,medium,side,1,"bodyweight squat with arms forward, slow with holds at bottom; depth ~parallel; coach standing beside (not performing)"
+yt_m16KdkLHyrA_1,5,0,medium,3.0 4.4 6.0 7.0 8.2,normal,,low,back,1,"barbell squat in rack seen from behind/diagonal-back, camera moves; unrack 0-1.6; fast reps; another gym user passes in background 0.6-1.0"
+yt_m16KdkLHyrA_2,2,1,high,1.3 4.3,normal,,low,back,1,"barbell squat, back/diagonal-back view, handheld camera; third descent bottom ~7.6 then scene transition at 8.0; depth looks about parallel"
+yt_m16KdkLHyrA_3,6,0,high,2.2 4.3 7.0 9.8 12.3 15.0,normal,,low,back,1,"barbell back squat in rack, diagonal-back view with moving camera; deep reps; caption overlay; transition blur at 16.3"
+yt_mIG9SsVEvJg_1,18,0,medium,1.3 4.3 7.3 10.2 13.0 15.6 18.5 21.3 24.0 27.0 29.6 32.3 35.1 37.8 40.7 43.5 46.1 49.0,normal,,low,front,1,"50 s continuous set at ~2.8 s/rep, low front camera that slowly pans (checked 4 fps cropped sheets); chest gets close to floor; hip line not judgeable from front"
+yt_n9t5Q-mkQek_1,2,0,medium,2.0 4.8,normal,,low,side,1,"gets into position 0-0.6, first rep lowers to floor with a pause (1.0-2.6), second rep faster, then stands up from 6.6; person small in frame"
+yt_o-872ZN3NHs_1,7,0,medium,4.3 6.6 8.0 9.3 10.6 12.0 13.5,wrong,row_standing_up:all:low,low,diagonal,1,"barbell row from behind-diagonal, shaky handheld camera; unrack/setup 0-3; torso fairly upright (~45 deg or higher); people in background not performing"
+yt_p3a6iG_9kC0_1,0,1,low,,normal,,low,diagonal,1,mostly holds top plank 0-4.6 while camera shifts (subscribe overlay); lowers toward floor at 5.0-5.3 at clip end; no full rep visible
+yt_p3a6iG_9kC0_2,0,1,low,,wrong,pushup_hip_pike:all:medium,low,diagonal,1,"not a standard push-up: holds a high hip pike (pike/dive-bomber variation) 0.6-3.6, then swoops down at 4.0-4.6 as clip ends; tile 0.0 transition blur"
+yt_p3a6iG_9kC0_3,2,0,high,4.0 7.3,normal,,low,diagonal,1,slow reps with pauses at top; chest close to ground at bottom; camera slightly shifts
+yt_p3a6iG_9kC0_4,2,0,high,2.2 11.2,wrong,other:knees down:all:high,high,diagonal,1,knee push-up demonstration; long top hold 3.3-10.6
+yt_p3a6iG_9kC0_5,1,0,high,8.3,normal,,low,diagonal,1,"long top hold 0-6.3, one slow rep to near-floor (7.3-9.0), top hold to end"
+yt_pVJ_2lspIzA_1,3,1,low,1.7 7.4 23.8,normal,,low,diagonal,1,no weight: explanatory mimed bent-over row while talking; 8-23 rests with hands on knees talking; last pull at 26.5 cut off; not a real loaded set
+yt_qZYOjVzRHhc_1,4,1,medium,3.6 6.3 9.3 12.0,normal,,low,side,1,person small in frame; top hold 0-3.0; 4th rep bottom ~12.0-12.3 at clip end may not finish (could be partial)
+yt_qZYOjVzRHhc_2,1,1,high,4.3,normal,,low,front,1,clip starts at bottom (chest to a cone) and pushes up (partial); one full rep bottom ~4.0-4.6; low front view
+yt_s1EeH4nExEw_1,2,0,low,3.0 7.2,normal,,low,diagonal,1,no weight: mimed row explanation by same person as yt_pVJ_2lspIzA; 8-12.5 hands gesturing in front (not pulls); slow holds at top; not a real set
+yt_sO4dzMOmp5U_1,4,1,medium,0.6 3.0 5.8 8.3,normal,,low,side,1,"loaded dumbbell(s) row from side, slow tempo; small lift at ~9.6 near clip end counted as partial"
+yt_uPU2rgRtzLE_1,3,0,high,3.8 10.0 14.1,normal,,medium,diagonal,1,slow reps with long top holds (4.6-9.0); gets into plank 0-0.6 and goes to knees at 15.3
+yt_uPU2rgRtzLE_2,1,0,medium,2.2,normal,,low,diagonal,1,"starts on all fours, steps back into plank at 0.6-1.3, one rep, then back to knees at 3.0; short clip"
+yt_uVlVESedmU0_1,2,0,low,0.4 2.0,wrong,row_standing_up:2:low;row_torso_swing:all:low,low,diagonal,1,"shaky handheld, 4.6 s clip; Pendlay-style row from floor; on 2nd pull torso rises nearly upright (1.6-2.0); setting up again at end; people standing in background (not performing)"
+yt_v-UQLV_aMEk_1,14,0,low,9.6 11.3 13.3 15.3 17.5 19.8 21.8 23.8 25.4 27.8 29.5 31.5 33.5 35.6,normal,,low,side,1,"very dark backlit footage, lifter mostly a silhouette behind the plate; ~2 s/rep cadence inferred from plate height; 0-7 setup/camera fade-in and possibly hang; re-racks/stands at 37.6+"
+yt_zOztB9_kpXA_1,2,1,medium,1.4 2.3,wrong,row_standing_up:all:high;row_short_pull:all:low,high,diagonal,1,"caption: 1. STANDING WAY TOO HIGH (red X); torso nearly upright, short choppy pulls; 3.3 s clip, first pull at 0.3 already in progress; people in background not performing"
