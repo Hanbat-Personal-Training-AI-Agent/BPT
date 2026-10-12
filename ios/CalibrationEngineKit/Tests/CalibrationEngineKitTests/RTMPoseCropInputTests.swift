@@ -66,6 +66,31 @@ final class RTMPoseCropInputTests: XCTestCase {
         XCTAssertNil(tracker.crop)
     }
 
+    func testCropRefitsWhenJointsArePinnedToItsBorder() throws {
+        for refit in [true, false] {
+            var tracker = RTMPoseCropTracker()
+            tracker.refitAtCropEdge = refit
+            tracker.update(person())
+            let crop = try XCTUnwrap(tracker.crop)
+            // The person moved left past the crop: RTMPose can only put the head/arm joints on the crop's left
+            // edge (MM-Fit w02_s3: nose, shoulders, elbows, wrists all at one x for 120 frames).
+            var pinned = person()
+            for j in 0..<11 { pinned[j].x = crop.minX }
+            tracker.update(pinned)
+            if refit {
+                XCTAssertLessThan(try XCTUnwrap(tracker.crop).minX, crop.minX, "the crop grows toward the cut side")
+                XCTAssertEqual(tracker.edgeRefits, 1)
+            } else {
+                XCTAssertEqual(tracker.crop, crop, "old: held")
+                XCTAssertEqual(tracker.edgeRefits, 0)
+            }
+        }
+        var tracker = RTMPoseCropTracker()
+        tracker.update(person())
+        tracker.update(person(dx: 3, dy: -2))
+        XCTAssertEqual(tracker.edgeRefits, 0, "joints inside the crop never trigger it")
+    }
+
     // MARK: - Wrong-person recheck
 
     /// Standing bystander (person(): 200×600 box) vs the user lying on the floor (880×300 box, 2.2× the area).

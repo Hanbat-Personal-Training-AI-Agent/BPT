@@ -69,6 +69,71 @@ struct PushUpEvaluatorConfig {
     /// lost push-ups (outputs/rep_validation/G_ready_pose.md). 임시값 — 테스트 영상으로 조정
     var readyPoseHoldFrames = 0
     var readyPoseTolerance = 5.0  // elbow angle (deg)
+    /// Second rep signal (side view): shoulder height above the wrist ÷ torso length on the tracker side
+    /// (`PushUpHeightCounter`). The count is max(elbow-angle reps, height reps), so a rep the elbow angle
+    /// cannot see — elbows flared toward the camera, the near wrist below the confidence bar so the static
+    /// far arm is used, a first rep that never reaches the adaptive top — still counts. false = elbow only (old).
+    /// docs/decisions.md D-T3-11
+    var heightRepSignal = true
+    var heightCounter = PushUpHeightCounter()
+    /// Height samples need the side's shoulder and hip at pushUpMinJointConfidence, the wrist at this (a wrist
+    /// planted on the floor keeps a usable position at low confidence), and the shoulder–hip line within
+    /// this many degrees of horizontal (a plank; standing up / getting down is not a rep).
+    var heightWristMinConfidence = 0.10
+    var heightMaxTorsoTiltDegrees = 35.0
+}
+
+/// Rep counter on a 1-D height signal (push-up: shoulder above the wrist ÷ torso). Smoothed with a running
+/// median; thresholds from the min/max of the last `windowFrames` frames (a rolling range, so frames before
+/// the set — kneeling, getting down — stop mattering after ~3 s). Up = above min + topFraction × range,
+/// down = below min + bottomFraction × range; a rep = down then up, at least `minRepFrames` apart. Tuned on
+/// MM-Fit tuning people, Fit3D s03–s05 virtual side and Exercise3D P1 (docs/decisions.md D-T3-11).
+struct PushUpHeightCounter {
+    enum Event { case down, rep }
+    var topFraction = 0.70
+    var bottomFraction = 0.35
+    var minRange = 0.30
+    var windowFrames = 90
+    var medianFrames = 5
+    var minRepFrames = 15
+    private(set) var reps = 0
+    /// Frame the current rep started going down; nil while up or before the range is wide enough.
+    private(set) var downFrame: Int?
+    private var up: Bool?
+    private var recent: [Double] = []
+    private var window: [(frame: Int, value: Double)] = []
+
+    mutating func reset() { self = PushUpHeightCounter(topFraction: topFraction, bottomFraction: bottomFraction, minRange: minRange,
+                                                       windowFrames: windowFrames, medianFrames: medianFrames, minRepFrames: minRepFrames) }
+
+    mutating func update(frame: Int, height: Double?) -> Event? {
+        guard let height else { return nil }
+        recent.append(height)
+        if recent.count > medianFrames { recent.removeFirst() }
+        let sorted = recent.sorted()
+        let v = sorted.count % 2 == 1 ? sorted[sorted.count / 2] : (sorted[sorted.count / 2 - 1] + sorted[sorted.count / 2]) / 2
+        window.append((frame, v))
+        window.removeAll { $0.frame <= frame - windowFrames }
+        let lo = window.map(\.value).min()!, range = window.map(\.value).max()! - lo
+        guard range >= minRange else { return nil }
+        if up == nil, v <= lo + bottomFraction * range {
+            up = false
+            downFrame = frame
+            return .down
+        }
+        if v >= lo + topFraction * range {
+            defer { up = true; downFrame = nil }
+            if up == false, let start = downFrame, frame - start >= minRepFrames {
+                reps += 1
+                return .rep
+            }
+        } else if v <= lo + bottomFraction * range, up == true {
+            up = false
+            downFrame = frame
+            return .down
+        }
+        return nil
+    }
 }
 
 final class PushUpEvaluator {
@@ -137,6 +202,11 @@ final class PushUpEvaluator {
     private var currentRepMaxHipLineDeviationNorm: Double?
     private var currentRepDepthSignalReliable = false
     private var completedRepCount = 0
+    /// Reps the elbow-angle machine finished; `completedRepCount` = max(this, height reps).
+    private var elbowRepCount = 0
+    private lazy var heightCounter = config.heightCounter
+    /// A form-tracker rep is open (beginRep … finishRep), started by either signal.
+    private var formRepOpen = false
     private(set) var completedRepSummaries: [PushUpRepSummary] = []
     /// `config.sideViewRepFixes` and the side-view gate (nil = undecided → side), set per frame.
     private var sideViewFixes = false
@@ -182,6 +252,9 @@ final class PushUpEvaluator {
         currentRepMaxHipLineDeviationNorm = nil
         currentRepDepthSignalReliable = false
         completedRepCount = 0
+        elbowRepCount = 0
+        heightCounter.reset()
+        formRepOpen = false
         completedRepSummaries = []
         formTracker.reset()
         readyPose = ReadyPoseGate(holdFrames: config.readyPoseHoldFrames, tolerance: config.readyPoseTolerance)
@@ -203,7 +276,24 @@ final class PushUpEvaluator {
             status: status,
             measurements: measurements
         )
-        if repStarted { formTracker.recordCurrentFrame() }
+        var done = repUpdate.done
+        if config.heightRepSignal, sideViewFixes {
+            switch heightCounter.update(frame: frameIndex, height: heightSample(coco17)) {
+            case .down?:
+                if readyPose.armed, !formRepOpen {
+                    formTracker.beginRep()
+                    formRepOpen = true
+                }
+            case .rep?:
+                if heightCounter.reps > completedRepCount {
+                    emitRep(frameIndex: frameIndex, startFrame: currentRepStartFrame ?? heightCounter.downFrame ?? frameIndex)
+                    done = true
+                }
+            case nil:
+                break
+            }
+        }
+        if repStarted || formRepOpen { formTracker.recordCurrentFrame() }
         if let override = repUpdate.statusOverride {
             status = override
         }
@@ -222,7 +312,7 @@ final class PushUpEvaluator {
             candidateStatusCount: candidateStatusCount,
             statusFrameCount: statusFrameCount,
             rep: completedRepCount,
-            done: repUpdate.done,
+            done: done,
             cameraViewEstimate: Self.cameraViewEstimate,
             selectedDepthSignal: Self.selectedDepthSignal,
             depthSignalReliable: measurements.depthSignalReliable,
@@ -601,7 +691,9 @@ final class PushUpEvaluator {
         currentRepBodyLineAngleDegrees = nil
         currentRepMaxHipLineDeviationNorm = nil
         currentRepDepthSignalReliable = false
-        formTracker.beginRep()
+        // Keep the frames of a rep the height signal already opened.
+        if !(formRepOpen && heightCounter.downFrame != nil) { formTracker.beginRep() }
+        formRepOpen = true
     }
 
     private func updateCurrentRep(_ measurements: Measurements) {
@@ -638,6 +730,19 @@ final class PushUpEvaluator {
             resetCurrentRep()
             return false
         }
+        elbowRepCount += 1
+        // The height signal already counted this rep.
+        guard elbowRepCount > completedRepCount else {
+            resetCurrentRep()
+            return false
+        }
+        emitRep(frameIndex: frameIndex, startFrame: startFrame)
+        resetCurrentRep()
+        return true
+    }
+
+    /// Counts a rep (either signal): summary from the current elbow rep state, form report.
+    private func emitRep(frameIndex: Int, startFrame: Int) {
         let maxDepth = currentRepMaxDepthNorm ?? 0.0
         let minElbow = currentRepMinElbowAngleDegrees
         completedRepCount += 1
@@ -652,16 +757,16 @@ final class PushUpEvaluator {
             maxHipLineDeviationNorm: currentRepMaxHipLineDeviationNorm,
             warnings: formTracker.finishRep(repIndex: completedRepCount).warnings
         )
+        formRepOpen = false
         completedRepSummaries.append(summary)
         trimCompletedRepSummaries()
         let maxDepthText = String(format: "%.3f", maxDepth)
         let minElbowText = minElbow.map { String(format: "%.1f", $0) } ?? "-"
         print("Push-up rep completed: rep=\(completedRepCount) frame=\(frameIndex) maxDepth=\(maxDepthText) minElbow=\(minElbowText) done=true")
-        resetCurrentRep()
-        return true
     }
 
     private func resetCurrentRep() {
+        if heightCounter.downFrame == nil || !config.heightRepSignal { formRepOpen = false }
         repStarted = false
         sawDescending = false
         sawAscending = false
@@ -689,6 +794,19 @@ final class PushUpEvaluator {
             maxDepthNorm: depths.max(),
             minElbowAngleDegrees: completedRepSummaries.compactMap { $0.minElbowAngleDegrees }.min()
         )
+    }
+
+    /// Shoulder height above the wrist ÷ shoulder–hip length on the form tracker's side, in a plank only.
+    private func heightSample(_ k: [PoseKeypoint]) -> Double? {
+        guard k.count == 17, let side = formTracker.side else { return nil }
+        let (s, w, h) = side == .left ? (COCO17.leftShoulder, COCO17.leftWrist, COCO17.leftHip)
+            : (COCO17.rightShoulder, COCO17.rightWrist, COCO17.rightHip)
+        guard k[s].confidence >= config.pushUpMinJointConfidence, k[h].confidence >= config.pushUpMinJointConfidence,
+              k[w].confidence >= config.heightWristMinConfidence else { return nil }
+        let dx = k[s].x - k[h].x, dy = k[s].y - k[h].y
+        let torso = (dx * dx + dy * dy).squareRoot()
+        guard torso > 1, atan2(abs(dy), abs(dx)) * 180 / .pi <= config.heightMaxTorsoTiltDegrees else { return nil }
+        return (k[w].y - k[s].y) / torso
     }
 
     /// One whole side (shoulder, elbow, wrist, hip, ankle) is enough in a side view.

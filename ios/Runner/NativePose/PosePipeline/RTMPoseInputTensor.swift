@@ -127,6 +127,13 @@ struct RTMPoseCropTracker {
     /// box (Exercise3D: wrong switches 6–12 joints, mean 0.33–0.38; right ones 15–17 joints, 0.46–0.71).
     var switchMinJoints = 12
     var switchMinMeanConfidence = 0.42
+    /// A confident joint on the crop border (within one input pixel) is pinned there — SimCC cannot point
+    /// outside the crop — so the person reaches past it (MM-Fit push-ups: head, shoulders and arms stuck at
+    /// one x for 100+ frames, 0 reps). Then the crop is re-fitted around the keypoints (it grows a margin
+    /// toward the cut side each frame) instead of being kept. false = keep it (old). docs/decisions.md D-T3-10
+    var refitAtCropEdge = true
+    /// Frames where `refitAtCropEdge` re-fitted the crop (pose-replay reports it).
+    private(set) var edgeRefits = 0
     /// Top-left frame pixels; nil = whole frame.
     private(set) var crop: CGRect?
     /// Confident-keypoint box of the tracked person (frame pixels).
@@ -188,7 +195,10 @@ struct RTMPoseCropTracker {
         let target = Self.fitToInputAspect(person.insetBy(dx: -margin * person.width, dy: -margin * person.height))
         if let current = crop, current.contains(person),
            current.height > minRatio * target.height, current.height < maxRatio * target.height {
-            return
+            let tx = current.width / Double(PoseCoordinateTransforms.rtmposeInputWidth)
+            let ty = current.height / Double(PoseCoordinateTransforms.rtmposeInputHeight)
+            guard refitAtCropEdge, !current.insetBy(dx: tx, dy: ty).contains(box) else { return }
+            edgeRefits += 1
         }
         crop = target
     }

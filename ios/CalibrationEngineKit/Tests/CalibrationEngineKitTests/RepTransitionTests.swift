@@ -226,6 +226,65 @@ final class RepTransitionTests: XCTestCase {
         XCTAssertEqual(pushUpReps(bends, config: config, pose: noAnkles), 0)
     }
 
+    /// Side-view plank whose shoulders drop by `drop` px while the 2D elbow stays ~straight (elbows flared toward
+    /// the camera: the bend is along the line of sight). `tilt` raises the shoulders (torso off horizontal).
+    private func flaredPushUpPose(drop: Double, tilt: Double = 0) -> [PoseKeypoint] {
+        var k = [PoseKeypoint](repeating: kp(0, 0, 0.5), count: 17)
+        let sy = 400 + drop - tilt
+        let pts: [(Int, Double, Double)] = [(0, 580, sy - 5), (3, 560, sy - 10), (5, 500, sy), (7, 502, (sy + 560) / 2), (9, 500, 560),
+                                            (11, 300, 450), (13, 200, 475), (15, 100, 500)]
+        for (i, x, y) in pts {
+            k[i] = kp(x, y)
+            if i != 0 { k[i + 1] = kp(x, y, [7, 9].contains(i) ? 0.6 : 0.9) }
+        }
+        return k
+    }
+
+    func testPushUpHeightSignalCountsFlaredElbowReps() {
+        // 4 reps: shoulders drop 120 px (≈ 0.6 torso) and come back; the 2D elbow angle stays ≥ 170°.
+        let ramp = (0...15).map { Double($0) * 8 }
+        let bends = Array(repeating: 0.0, count: 40)
+            + Array(repeating: Array(repeating: 0.0, count: 10) + ramp + ramp.reversed(), count: 4).flatMap { $0 } + Array(repeating: 0.0, count: 20)
+        var config = PushUpEvaluatorConfig()
+        XCTAssertTrue(config.heightRepSignal, "on by default")
+        XCTAssertEqual(pushUpReps(bends, config: config, pose: { self.flaredPushUpPose(drop: $0) }), 4)
+        config.heightRepSignal = false
+        XCTAssertEqual(pushUpReps(bends, config: config, pose: { self.flaredPushUpPose(drop: $0) }), 0, "the elbow angle alone sees nothing")
+    }
+
+    func testPushUpHeightSignalIgnoresUprightTorsoAndKeepsElbowReps() {
+        let ramp = (0...15).map { Double($0) * 8 }
+        let bends = Array(repeating: 0.0, count: 40)
+            + Array(repeating: Array(repeating: 0.0, count: 10) + ramp + ramp.reversed(), count: 4).flatMap { $0 } + Array(repeating: 0.0, count: 20)
+        // Shoulders 400 px above the hips (torso ~63° from horizontal, e.g. standing up / kneeling): no height reps.
+        XCTAssertEqual(pushUpReps(bends, config: PushUpEvaluatorConfig(), pose: { self.flaredPushUpPose(drop: $0, tilt: 450) }), 0)
+        // Normal elbow reps are not double counted when both signals see them.
+        let elbow = (0...15).map { Double($0) * 6 }
+        let normal = Array(repeating: 0.0, count: 40)
+            + Array(repeating: Array(repeating: 0.0, count: 10) + elbow + elbow.reversed(), count: 4).flatMap { $0 } + Array(repeating: 0.0, count: 20)
+        let deeper = { (b: Double) -> [PoseKeypoint] in
+            var k = self.pushUpPose(bend: b)
+            for i in [0, 1, 2, 3, 4, 5, 6] { k[i].y += b * 1.2 }  // shoulders and head drop too (height range ≥ 0.3 torso)
+            return k
+        }
+        XCTAssertEqual(pushUpReps(normal, config: PushUpEvaluatorConfig(), pose: deeper), 4)
+    }
+
+    func testHeightCounterNeedsRangeAndMinimumRepLength() {
+        var counter = PushUpHeightCounter()
+        var events: [PushUpHeightCounter.Event] = []
+        // Sway of 0.1 torso: below minRange, nothing.
+        for i in 0..<120 { if let e = counter.update(frame: i, height: 0.8 + 0.1 * sin(Double(i) / 5)) { events.append(e) } }
+        XCTAssertTrue(events.isEmpty)
+        // Two slow reps 0.8 → 0.1 → 0.8 (40 frames each), then a 6-frame dip that is too short.
+        let rep = (0..<40).map { 0.45 + 0.35 * cos(Double($0) / 40 * 2 * .pi) }
+        let dip = [0.8, 0.1, 0.1, 0.1, 0.1, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8]
+        for (j, v) in (rep + rep + dip + Array(repeating: 0.8, count: 10)).enumerated() { _ = counter.update(frame: 120 + j, height: v) }
+        XCTAssertEqual(counter.reps, 2)
+        _ = counter.update(frame: 300, height: nil)
+        XCTAssertEqual(counter.reps, 2, "missing samples are skipped")
+    }
+
     func testWorkoutUsesMediumModelCalibrationKeepsSmall() throws {
         try XCTSkipIf(ProcessInfo.processInfo.environment["BPT_POSE_MODEL"] != nil, "overridden by BPT_POSE_MODEL")
         XCTAssertEqual(RTMPoseModel.workout, .mcoco17)
