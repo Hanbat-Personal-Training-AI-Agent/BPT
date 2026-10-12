@@ -1,0 +1,8 @@
+# MediaPipe Pose Landmarker for Host/MediaPipeBench.swift (same pod and version as ios/Podfile.lock). Bench host only.
+platform :ios, '16.0'
+project 'PoseModelBench.xcodeproj'
+
+target 'PoseModelBenchHost' do
+  use_frameworks!
+  pod 'MediaPipeTasksVision', '1.0.0'
+end

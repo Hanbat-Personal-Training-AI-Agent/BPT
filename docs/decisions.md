@@ -627,7 +627,7 @@
 - **렙 정확도**·**정확 일치 세트**는 맨 위 정의와 같음. 표의 "−놓침 +추가"는 정답 렙 저점과 앱 렙 끝을 순서대로 맞춰 센 놓친 렙·더 센 렙.
 - **시점**: 측면 = 카메라가 몸 옆 40° 이내, **사선** = 40–75°, **정면/후면** = 75° 이상(0° = 정측면). Fit3D 카메라는 54–78°(측면 없음).
 - **조정용 / 검증용**: Exercise3D는 D-B-01과 같음(P1 조정, P2·P3 검증, 푸시업은 P1뿐). **Fit3D는 결과를 보기 전에** s03·s04·s05 = 조정, s07·s08·s09·s10·s11 = 검증으로 고정(피험자 ID가 있어 사람 단위 분리가 확실함).
-- **s / m / Halpe26**: RTMPose-s COCO17(이전 기본), RTMPose-m COCO17, RTMPose-s Halpe26. **iPhone 키포인트**: iPhone 17에서 앱과 같은 포즈 단계(`RTMPoseCropTracker.estimate`)로 뽑은 키포인트(`BENCH_DUMP=1`, Exercise3D 2/3 크기 영상)를 Mac 평가기로 재생한 값.
+- **s / m / Halpe26**: RTMPose-s COCO17(이전 기본), RTMPose-m COCO17, RTMPose-s Halpe26. **iPhone 키포인트**: iPhone 17에서 앱과 같은 포즈 단계(`RTMPoseCropTracker.estimate`)로 뽑은 키포인트(`BENCH_DUMP=1`, Exercise3D 2/3 크기 영상)를 Mac 평가기로 재생한 값. 표의 값은 첫 실행(s 28영상); 2026-10-12 39영상 전부 m·s 재실행에서도 세트별 렙 수가 Mac과 39/39 같음(D-T3-05).
 - 측정: 영상마다 Core ML RTMPose(사람 crop 입력)로 키포인트를 한 번 뽑고(Mac pose-replay, Fit3D는 50 fps 원본 그대로), 규칙은 `pose-replay --keypoints-csv`로 다시 돌림. "수정 전"은 integration `675d3e5`로 빌드한 pose-replay, "수정 후"는 이 브랜치. Fit3D 정답 = `rep_ann.json`(5–6렙/세트, 3D 주기성과 46/46 세트 일치). 근거 파일·스크립트는 로컬 scratchpad(three-ex), Fit3D는 집계만 기록하고 영상은 피험자별로 Home에서 받아 키포인트만 뽑고 바로 지움.
 
 ### 전체 표 (렙 정확도, 정확 일치 세트, −놓침 +추가)
@@ -699,7 +699,8 @@
   - **잃은 것**: Exercise3D 정면 푸시업 pushup_0003 cam1(86°) 첫 렙 1개. 원인: 정면에서 2D 팔꿈치 범위가 좁고(179→108°) 첫 렙 동안 적응 임계값이 아직 고정값(130/105°)이라 bottom을 못 찍음. s가 이 렙을 센 것은 프레임 10–30에서 오른팔 키포인트가 8–28°로 튄 오류가 범위를 미리 넓혀 준 우연. 정면 푸시업은 앱이 측면 촬영을 안내하는 시점.
   - 셋업 안내 차이: 더미 영상(제자리 회전) 로우 setup_side_view s 1 → m 3, 서 있는 합성 0 → 11 — 정면이 보이는 영상에서 "측면으로" 안내가 더 잘 나옴(측면 영상에서는 0).
 - **기각**: s 유지(검증 사선이 낮고 기기 일치가 덜 안정적), Halpe26(캘리브레이션 영향, D-C-04 사용자 결정 대기).
-- **한계**: m의 iPhone 키포인트 재생은 기기가 잠겨 이번에 못 함(s만 28/39 영상). 배터리·발열 장시간 미측정.
+- **iPhone 확인(2026-10-12, 케이블 연결)**: Exercise3D 39영상 전부를 iPhone 17에서 m·s로 뽑아(`BENCH_DUMP=1`, 무제한 106 FPS로 끊김 없이) 새 규칙으로 재생 → 세트별 렙 수가 Mac과 **m 39/39, s 39/39 같음**. 정확도 표의 Exercise3D 값(측면 전부 100%, 후면 로우 m 86.4% / 50.0%, 정면 푸시업 m 97.5%)이 iPhone 키포인트에서도 그대로. 셋업 키도 같음(후면 barbellrow_0003 cam3 세트 끝 뒤 tracking_lost 1건).
+- **한계**: 배터리·발열 장시간 미측정.
 - **되돌리기**: `workoutUsesMediumModel = false`(또는 Xcode scheme `BPT_POSE_MODEL=coco17`).
 
 ## D-T3-06 자세 경고 키는 그대로 끈다 — Fit3D·Exercise3D에 틀린 자세 라벨이 없음 (2026-10-11)
@@ -740,6 +741,91 @@
 - **한계**: MM-Fit 라벨은 세트 렙 수뿐(놓침·추가가 상쇄될 수 있음), 사람 구분은 외모 추정. 합성은 카메라 한 설정(높이 0.5 m, 3.5 m), 오차 모델이 P1 한 사람에서 옴(추정: 다른 사람의 실제 검출 오차는 더 클 수 있음).
 - **라이선스**: Fit3D는 Home에서만 계산, 키포인트·합성 CSV는 Mac scratchpad에서 쓰고 삭제(집계만 문서에). MM-Fit 클립·출력도 측정 후 삭제.
 - **되돌리기**: 해당 없음(앱 변경 없음). 스크립트 `scripts/eval_pushup_virtual_side.py`, `scripts/eval_pushup_mmfit.py`, `scripts/fetch_zip_members.py`.
+
+## D-C-07 MediaPipe Pose Landmarker 재검토: 기본은 RTMPose-m 유지, 푸시업 전용 후보로만 추천 (2026-10-12)
+- **결정(추천만, 앱 변경 없음)**: 운동 카메라 기본 2D 모델은 RTMPose-m COCO17(D-T3-05) 그대로. MediaPipe Pose Landmarker **full**(CPU, VIDEO 모드)은 속도는 충분하고 측면 푸시업 키포인트가 크게 좋아서 **푸시업 전용 후보**로 다시 볼 가치가 있음. 전환 전에 MediaPipe 키포인트로 렙 정확도(측면 푸시업 Exercise3D + MM-Fit 검증 세트)를 먼저 잴 것. lite·heavy는 기각.
+- **측정 1 — iPhone 17 속도** (`tools/pose_model_bench` 호스트 앱, `run_pipeline.sh mp all` 한 번 실행으로 연달아, 사람 없이 D-C-05와 같은 720×1280 프레임 1장을 카메라처럼 BGRA 픽셀 버퍼로, `detect`만 잼, 워밍업 20회 뒤 300회, ms). MediaPipeTasksVision 1.0.0(앱 `ios/Podfile.lock`과 같은 pod·버전, 벤치 호스트에만 연결).
+  | 모델 | 델리게이트 | VIDEO p50 / p95 | IMAGE p50 / p95 | 로드 | 150초 연속(VIDEO, 빠른 쪽) FPS 처음 → 끝 (최저), 1회 p50 끝 | 발열 시작 → 끝 |
+  |---|---|---|---|---|---|---|
+  | lite | **CPU** | **6.87 / 7.59** | 15.51 / 16.07 | 67 ms | 131 → 93 (93), −29%, 10.8 ms | 2 → 2 |
+  | lite | GPU | 10.41 / 11.72 | 20.16 / 22.00 | 1020 ms(첫 GPU 초기화) | — | — |
+  | full | **CPU** | **8.56 / 9.04** | 17.18 / 19.74 | 71 ms | 91 → 73 (67), −20%, 13.7 ms | 2 → 2 |
+  | full | GPU | 12.56 / 14.02 | 22.56 / 24.24 | 157 ms | — | — |
+  | heavy | CPU | 19.39 / 20.31 | 35.76 / 38.76 | 78 ms | — | — |
+  | heavy | **GPU** | **12.21 / 13.33** | 16.81 / 19.69 | 331 ms | 82 → 35 (35), −58%, 28.2 ms (20초 뒤부터) | 2 → 2 |
+  | 참고 RTMPose-s COCO17 (D-C-05) | Core ML ALL | 1.97 / 2.11 (모델만) | | 541 ms | 593 → 547 (523) | 1 → 1 |
+  | 참고 RTMPose-m COCO17 (D-C-05, 현재 기본) | Core ML ALL | 3.31 / 4.05 (모델만) | | 1016 ms | 326 → 282 (218) | 2 → 2 |
+  | 참고 Apple Vision (D-C-05) | Vision | 12.17 / 16.76 | | | — | — |
+  - VIDEO 모드 = 앞 프레임 결과로 사람 위치를 추적해 검출기를 건너뜀(라이브 카메라와 같음), IMAGE 모드 = 매 프레임 사람 검출부터. 같은 프레임 반복이라 VIDEO는 추적이 항상 성공하는 가장 좋은 경우.
+  - MediaPipe 수치는 사람 검출·crop·랜드마크·후처리까지 포함한 `detect` 전체, RTMPose 수치는 모델 추론만(crop 그리기·디코딩 제외) → 직접 비교는 아래 전체 파이프라인 표로.
+  - lite·full은 CPU(XNNPACK)가 GPU보다 빠름, heavy만 GPU가 빠름. heavy GPU는 20초 뒤 GPU 클럭이 내려가 1회 28 ms(35 FPS)로 떨어짐 → 30 fps 파이프라인에 못 넣음.
+- **측정 2 — 30 fps 페이스 영상 입력 파이프라인** (`PipelineBench`, 같은 실행 안에서 60초 휴식 후 각 180초, Exercise3D 720×1280 영상 4개(스쿼트 2·로우 2) 반복, 5,400프레임). MediaPipe는 카메라 픽셀 버퍼를 바로 받고(CGImage 변환·사람 crop 없음) 33개 중 COCO-17 부분을 평가기에 넣음.
+  | 변형 | 지연 p50 / p95 / 최대 (ms) | 놓친 프레임 | 포즈 단계 p50 / p95 | 이미지 변환 p50 | 렙 수(영상 4개 첫 바퀴) | 발열 |
+  |---|---|---|---|---|---|---|
+  | MediaPipe full, CPU | **15.5 / 16.0 / 21.0** | **0** | 11.1 / 11.6 | 0(필요 없음) | 12·10·10·10 | serious 내내 |
+  | RTMPose-m COCO17 (현재 기본, 같은 세션) | 20.6 / 30.0 / 212.3 | 11 (0.20%, 한 번 멈춤) | 13.6 / 20.6 | 3.85 | 12·10·10·10 | serious 내내 |
+  | 참고 D-C-06 d (m, 이전 세션, 13영상) | 24.2 / 29.6 / 45.9 | 0 | | | | serious 내내 |
+  - 렙 수는 두 모델이 4/4 같음(row_0002 12, row_0003 10, squat_0001 10, squat_0002 10). 4개 영상뿐이라 정확도 근거는 아님.
+- **측정 3 — 키포인트 품질** (Mac, `scripts/eval_mediapipe_pose2d.py`, bpt-ft의 mediapipe 0.10.21 Python, IMAGE 모드). 지표는 §3과 같은 PCK@0.05 body12(어깨·팔꿈치·손목·엉덩이·무릎·발목이 정답에서 사람 박스 긴 변의 5% 안에 든 비율), Exercise3D 측면(≤40°) 25영상 1,312프레임(15프레임마다), 정답 = Sapiens2 의사 라벨. RTMPose-m은 앱 Core ML 모델을 같은 프레임의 정답 박스 crop에 돌림(§3의 "crop" 행과 같은 방식, 전체 0.877 = §3 0.873 재현).
+  | 모델 | 입력 | 전체 | 스쿼트 | 푸시업 | 바벨로우 | 사람 찾음 |
+  |---|---|---|---|---|---|---|
+  | RTMPose-m COCO17 (기본) | 정답 박스 crop | **0.877** | **0.917** | 0.708 | **0.961** | 100% |
+  | MediaPipe lite | 전체 프레임 | 0.709 | 0.779 | 0.697 | 0.609 | 99.9% |
+  | MediaPipe full | 전체 프레임 | 0.846 | 0.857 | **0.924** | 0.761 | 99.9% |
+  | MediaPipe full | 정답 박스 crop | 0.814 | 0.829 | 0.892 | 0.720 | 98.2% |
+  | MediaPipe heavy | 전체 프레임 | **0.890** | 0.878 | **0.943** | 0.860 | 99.9% |
+  | MediaPipe heavy | 정답 박스 crop | 0.876 | 0.854 | 0.932 | 0.861 | 98.0% |
+  - MediaPipe는 자기 검출기로 전체 프레임을 받을 때가 더 좋음(crop을 주면 검출기가 오히려 놓침). RTMPose는 정답 박스(앱보다 유리한 조건)라 RTMPose 쪽이 약간 유리.
+  - MediaPipe의 엉덩이·어깨 정의(BlazePose)가 COCO·Sapiens와 달라 일정한 오프셋이 있을 수 있음(추정) → 스쿼트·로우 점수가 실제보다 낮게 나왔을 수 있음.
+- **판단**:
+  1. 속도: full CPU VIDEO 8.6 ms(p95 9.0)로 RTMPose-m 모델만(3.3 ms)보다 느리지만 사람 검출·crop이 들어간 값이고, 앱과 같은 프레임 경로에서는 오히려 빠름(페이스 p95 16.0 vs 30.0 ms, 놓친 프레임 0 vs 11). 픽셀 버퍼를 바로 받아 CGImage 변환(3.9 ms)과 crop 그리기가 없어서. 30 fps 예산 33 ms의 약 절반.
+  2. 품질: 측면 푸시업 0.924 vs 0.708(+21.6%p) — RTMPose의 약점(D-T3-08 푸시업 측면 실제 80%)과 정확히 겹침. 스쿼트 −6.0%p, 로우 −20.0%p로 나쁨 → 전체 기본 교체는 안 됨.
+  3. 의존성: 앱은 이미 손 분기 때문에 MediaPipeTasksVision 1.0.0을 링크함 → 추가 비용은 모델 9.4 MB(full)뿐.
+  4. heavy는 품질 최고(0.890)지만 지속 실행에서 28 ms로 떨어져 기각, lite는 품질 0.709로 기각.
+- **기각**: 지금 기본 교체(스쿼트·로우 키포인트가 나쁨, 렙 정확도 미검증), 푸시업만 바로 전환(렙 수 검증 전 — BRIEF: 검증 없는 변경 금지), GPU 델리게이트(lite·full은 CPU가 빠름, 앱에서는 GPU를 미리보기와 나눠 씀).
+- **한계**: 폰이 충전 중이었고 앞 작업(three-ex 기기 실행) 직후라 처음부터 발열 serious(2) → 지속 FPS는 실제보다 불리할 수 있고 배터리 소모는 측정 불가. RTMPose 지연 표의 s·m·Vision 행은 D-C-05의 다른 세션(발열 1–2) 값. 프레임 1장 반복이라 VIDEO 추적은 항상 성공(실제 움직임에서는 추적 실패 시 검출기가 다시 돌아 IMAGE 쪽 값(17 ms)에 가까운 프레임이 섞임, 추정). 품질 정답은 Sapiens2 의사 라벨(사람 라벨 아님), 사람 P1–P3만.
+- **모델·라이선스**: `pose_landmarker_{lite,full,heavy}.task`(float16/latest, 2023-04-27/28) — https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_{lite,full,heavy}/float16/latest/pose_landmarker_{lite,full,heavy}.task (공식 페이지 https://ai.google.dev/edge/mediapipe/solutions/vision/pose_landmarker#models). Apache-2.0. 크기 5.8 / 9.4 / 30.7 MB, sha256 lite 59929e1d…574a, full 4eaa5eb7…c4ad, heavy 64437af8…c7b. 저장소에는 넣지 않음(벤치 자산은 git-ignored). 라이브러리 라이선스 텍스트는 pod 안 `Pods/MediaPipeTasksVision/LICENSE`(Apache-2.0).
+- **되돌리기/다시 재기**: 앱 코드 변경 없음(벤치 도구·평가 스크립트·문서만). 재측정 `BPT_MP_DIR=<task 3개 + frame.jpg> tools/pose_model_bench/run_pipeline.sh setup <clips> && run_pipeline.sh mp all`(지연 → 지속 3개 → 페이스 full·m, 한 번 실행이라 기기 자동 잠금 없음). 품질 `scripts/eval_mediapipe_pose2d.py pack|eval|rtmpose`.
+## 트랙 pushup-fix — 측면 푸시업 렙 카운트를 P1 아닌 사람에게 일반화 — 2026-10-11
+
+### D-T3-09 MM-Fit 사람 단위 조정/검증 분할 (수정 결과를 보기 전에 고정)
+- **분할**(사람 = D-T3-08의 외모 추정 A–O, 15명; 약 60/40):
+  - **검증(held-out) 6명 / 18세트**: 저자 "unseen test" 세션 w00(A)·w05(F)·w12(I)·w13(J)·w20(O) + 저자 val 분할에서만 나오는 사람 w19(N, 무릎 푸시업).
+  - **조정(tuning) 9명 / 47세트**: w01(B), w02·w09(C), w03·w06·w08·w14(D), w04·w15(E), w07·w10(G), w11(H), w16(K), w17(L), w18(M).
+- **규칙**: 저자 분할(train/val/test)을 따라 "train 세션에 한 번도 안 나오는 사람" = 검증. 수정 후 결과를 본 뒤 바꾸지 않는다.
+- **주의**: D-T3-08(측정만)에서 전체 65세트의 수정 전 결과는 이미 공개돼 있었다(이 분할은 그 뒤에 정함). 버그 후보 3의 예시 w00_s1은 검증 세트라 조정에 쓰지 않고 조정 세트에서 같은 현상을 따로 찾는다. 사람 구분은 외모 추정이라 "?" 세션(w06·w09·w10·w11·w14·w18)이 실제로는 다른 사람일 수 있음(추정).
+- Fit3D 가상 측면은 three-ex 분할 그대로(조정 s03–s05, 검증 s07–s11), Exercise3D는 P1 조정.
+
+### D-T3-10 crop이 관절을 경계에 붙이면 crop을 다시 맞춘다 (모든 운동) (2026-10-12)
+- **결정**: `RTMPoseCropTracker.refitAtCropEdge = true`. 신뢰도 0.3 이상 관절이 crop 경계에서 1 입력픽셀(crop 폭/192, 높이/256) 안에 있으면 crop을 유지하지 않고 키포인트로 다시 맞춘다(여백만큼 잘린 쪽으로 커짐, 몇 프레임 안에 몸 전체를 다시 덮음). pose-replay JSON `crop_edge_refits`에 횟수.
+- **원인**(버그 후보 1 확인): RTMPose(SimCC)는 crop 밖을 가리킬 수 없어 crop 밖으로 나간 머리·팔 관절을 crop 경계 x 하나에 붙여 냄(w02_s3 x=675.388). 기존 유지 조건 `crop.contains(person)`은 경계 위 점도 "안"으로 보고, 세로로만 8% 늘려 보는 사람 상자 때문에 가로(엎드린 몸) 방향 잘림을 못 봄. 1초 재확인은 "더 큰 다른 사람"만 바꿈.
+- **근거**(MM-Fit 조정 9명, 규칙 그대로·crop만): 80.2% → 89.3%(−91 +3 → −44 +7), w02_s3 0→10, w01_s2 7→10, w03_s1 4→10, w16_s3 5→10, w16_s4 0→11. 앱에서 켜진 셋업 키 setup_full_body 3→0, tracking_lost 8→0. 검증 6명은 crop만으로 80.4% → 80.1%(−34 +1 → −33 +3) — 검증 세트에는 crop 잘림 세트가 적음. 높이 신호(D-T3-11)와 같이 쓸 때 효과는 아래 표.
+- **회귀**(새 tracker로 키포인트를 다시 뽑아 이전 캐시와 비교, 규칙은 D-T3-11까지 켠 최종): Exercise3D 39영상 × m·s — refit은 푸시업 25/30, 로우 3/24(1–2회), 스쿼트 0. 렙 정확도 표는 전과 완전히 같음(측면 스쿼트·로우·푸시업 m·s 모두 100%, 사선·정면도 같은 값, 셋업 키 같은 수). Fit3D 실제 영상 사선(스쿼트·로우, s03–s07은 m·s, s08–s11은 m만 — 잠금 대기로 s 생략): refit 1회(s08 스쿼트 1대), 정확도 그대로 — m 스쿼트 조정 95.2%·검증 83.9%, 로우 조정 95.0%·검증 89.8%(D-T3 표와 같음). 흔들림 합성 44건·squat_03·더미 6개: 스쿼트·로우 추가 렙 0(squat_03 2/2), 표 전체가 전과 같음(서 있는 영상에 푸시업 평가기를 돌린 값도 50/59/8 그대로).
+- **iPhone**: iPhone 17에서 이 브랜치 bench host(`RTMPoseCropTracker.estimate`, m)로 Exercise3D 39영상 키포인트를 뽑아 같은 규칙으로 재생 → 렙 수 Mac과 **39/39 일치**, 측면 세 운동 100%.
+- **기각**: 1초 재확인에서 같은 사람의 더 큰 상자로 바꾸기 — 재확인 주기(1초)만큼 늦고, 전체 프레임(늘린 입력) 키포인트가 덜 정확함. 경계 허용 오차를 키우기(예: 5픽셀) — 정상 관절도 걸려 crop이 자주 흔들림(추정, 측정 안 함).
+- **되돌리기**: `refitAtCropEdge = false`(pose-replay `--crop-edge off`).
+
+### D-T3-11 측면 푸시업: 어깨 높이 신호를 두 번째 렙 신호로, 렙 수 = max(팔꿈치, 높이) (2026-10-12)
+- **결정**: `PushUpEvaluatorConfig.heightRepSignal = true`(측면 게이트가 "측면 아님"이면 안 씀). 신호 = (손목 y − 어깨 y) ÷ 어깨–엉덩이 길이, 폼 트래커가 고른 쪽(카메라 가까운 쪽) 관절. 어깨·엉덩이 신뢰도 0.30, 손목 0.10, 어깨–엉덩이 선이 수평에서 35° 이내(플랭크)인 프레임만. `PushUpHeightCounter`: 5프레임 중앙값, 최근 90프레임(3초) 최소/최대로 범위, 범위 ≥ 0.30 몸통일 때만, 위 = 최소 + 0.70×범위 이상, 아래 = 최소 + 0.35×범위 이하, 아래→위 15프레임 이상이면 1렙. 앱 렙 수는 팔꿈치 각도 렙과 높이 렙 중 큰 값(둘이 같은 렙을 세면 한 번).
+- **고친 것**: 버그 후보 2(가까운 손목 신뢰도 < 0.30이라 안 움직이는 먼 팔로 판정, w17), 3(첫 렙이 적응 탑 임계값까지 안 펴짐), 4(팔꿈치를 옆으로 벌린 푸시업 — 2D 팔꿈치 각도가 바닥에서도 169–174°, Fit3D s07·s10). 셋 다 "팔꿈치 각도 하나로 센다"가 원인이라 팔 선택·임계값을 따로 고치지 않고 팔꿈치와 무관한 신호를 하나 더함(손잡이 2개 대신 1개).
+- **조정 과정**(조정 데이터만: MM-Fit 조정 9명·Fit3D s03–s05 가상 측면·Exercise3D P1): Python 원형으로 높이 카운터 단독·max·합집합(±D프레임 중복 제거) 비교. 전체 기간 최소/최대(팔꿈치와 같은 방식)는 세트 전 자세 잡기가 범위를 오염시켜 MM-Fit 조정 78.1% → 최근 90프레임으로 97.9%(120: 97.2, 180: 94.5). 단독은 Exercise3D 측면 96.7%(−2 +1)라 팔꿈치(100%)를 대체 못 함 → max. 합집합은 Fit3D 추가가 늘어(82.5%) 기각. 수평 게이트 없음(90°)이면 Exercise3D 측면 m +1 → 45°·35° 모두 0, 35° 채택(서 있기·무릎 꿇기 배제 여유). 위 0.75 / 아래 0.30 / 최소 20프레임 / 범위 0.4는 MM-Fit 조정이 92.7–98.3%로 흔들려 중간값(0.70/0.35/15/0.30) 유지.
+- **근거**: 아래 전후 표(D-T3-09 분할, 검증은 조정이 끝난 뒤 한 번만 봄).
+- **남은 것**: Fit3D s07 0°(검증) 17.6% — 벌린 팔꿈치 + 0°에서 어깨가 내려가는 폭이 범위 0.30 몸통보다 작음(추정). MM-Fit 추가 +7(조정)·+3(검증)은 전부 라벨 시작 전(클립 22–61프레임, 라벨 시작 90) 자세 잡기 — 이전부터 있던 팔꿈치 신호 쪽(D-T3-02 남은 문제). 높이 신호는 폼 경고에 안 씀.
+- **되돌리기**: `heightRepSignal = false`(pose-replay `--pushup-height off`). 끄면 이전과 렙 끝 프레임까지 같음(조정 데이터 전부 비교).
+
+### D-T3-12 푸시업 전용 MediaPipe Pose full 키포인트는 넣지 않는다 (후보 비교, 조정으로 선택) (2026-10-12)
+- **배경**: D-C-07(integration 9a07dda) — MediaPipe Pose full(CPU, VIDEO)이 측면 푸시업 PCK body12 0.924(RTMPose-m 0.708), iPhone 30 fps p95 16 ms·드롭 0. 앱은 손용 MediaPipeTasksVision 1.0.0을 이미 링크.
+- **방법**: `scripts/mediapipe_pose_keypoints_csv.py`(VIDEO 모드, 전체 프레임, 1명, 33→COCO17 매핑과 신뢰도 = visibility는 D-C-07 iPhone 벤치와 같음)로 MM-Fit 65세트·Exercise3D 푸시업 15영상 키포인트를 Home(CPU, bpt-home mediapipe 0.10.21)에서 뽑고, 앱 푸시업 규칙(pose-replay `--keypoints-csv`)으로 재생. Fit3D 가상 측면은 검출기가 없어 규칙 비교만(MediaPipe 해당 없음).
+- **조정 데이터로 선택**(렙 정확도):
+  | 후보 | MM-Fit 조정 9명 | Exercise3D 측면(P1) | Exercise3D 사선 / 정면(P1) |
+  |---|---|---|---|
+  | RTMPose-m + crop 재맞춤 + 높이 신호(D-T3-10·11) | **98.1%** (−2 +7) | **100%** | 100% / 97.5% |
+  | MediaPipe full + 높이 신호 | 97.1% (−5 +9) | 100% | 55.0% / 61.0% |
+  | MediaPipe full, 팔꿈치만 | 93.9% (−21 +8) | 98.9% | 55.0% / 61.0% |
+  → 조정에서 RTMPose 경로가 최고 → 채택.
+- **검증(선택 뒤 한 번)**: MM-Fit 검증 6명 RTMPose 경로 94.5% (−7 +3) / MediaPipe + 높이 96.1% (−6 +1) / MediaPipe만 89.9%. 차이 2렙(18세트)이고, MediaPipe는 Exercise3D 사선·정면 푸시업이 크게 떨어지고(−9·−15렙), MM-Fit 검증 tracking_lost 0 → 4 → "회귀 없이 이김" 조건 불충족이라 앱에 넣지 않음.
+- **남은 가능성**: MediaPipe는 키포인트 자체는 더 정확(PCK) — 측면 게이트가 확실할 때만 MediaPipe로 바꾸는 혼합은 별도 트랙 후보(추정, 측정 안 함). 이번에 만든 키포인트 CSV는 삭제.
+- **되돌리기**: 해당 없음(앱 변경 없음).
 
 ## D-DATA-01 공개 평가 데이터 채택: Mendeley 7운동 멀티뷰(CC BY 4.0) + YouTube CC BY 구간, AI 2패스 라벨, 사람 단위 분할 — 측정만, 키는 계속 끔 (2026-10-12)
 - **결정**: 사용자가 검증 영상을 찍을 수 없어 공개 데이터로 대신한다. (1) Mendeley "Multi-View Raw Video Dataset of Seven Fitness Exercises with Good/Bad Form Labels" v3(doi:10.17632/kgbb3yn47p.3, CC BY 4.0, 26명, 정면·측면·사선, 스쿼트·푸시업·덤벨 로우 good/bad) 438클립, (2) YouTube에서 영상 자체 라이선스가 CC BY인 것만 133구간(43채널). **평가 전용(비상업 캡스톤)**, 영상은 Home `~/datasets/{mendeley_mv7,yt_cc}`에만, git에는 라벨·집계만. 장부 `docs/data/sources.md`, 결과 `docs/results/public_eval_data.md`.

@@ -51,6 +51,7 @@ AI 쪽 작업(캘리브레이션 서버, 2D/3D 포즈, 사람 crop 입력, 자�
 **2D 모델 평가 도구 (트랙 C, 앱 동작 변경 없음)**
 - `scripts/eval_pose2d.py`(COCO val·Exercise3D·Fit3D PCK), `scripts/eval_pose2d_reps.py`(후보 모델 렙 정확도), `pose-replay --model-path`, 후보 Core ML 변환(`rtmpose_s_coreml_common.py`: s body7, m COCO17/body7/Halpe26), Fit3D 미세조정 도구(Mac 전용), `tools/pose_model_bench`(iPhone 지연 XCTest, 연속 실행·발열·Vision 참고 포함; iPhone 17 결과 s 2.0 ms · m 3.3 ms, D-C-05)
 - 결론: 기본 RTMPose-s COCO17 유지. Fit3D 미세조정 기각(독립 세트에서 나빠짐), m COCO17은 iPhone 17 속도 조건 만족(3.3 ms, D-C-05). m COCO17·Halpe26 전환 여부는 세 운동 트랙(스쿼트·푸시업·로우)의 검증용(held-out) 비교로 정함 — 검증용이 좋아지고 다른 것이 나빠지지 않을 때만 플래그로 m COCO17 전환
+- MediaPipe Pose Landmarker 재검토(D-C-07): 벤치 호스트에만 MediaPipeTasksVision 1.0.0 연결(앱 타깃 변경 없음). iPhone 17 full CPU 8.6 ms, 30 fps 파이프라인 p95 16 ms·놓친 프레임 0, 측면 푸시업 PCK 0.924(m 0.708)지만 스쿼트·로우는 나쁨 → 기본 유지, 푸시업 전용 후보로 추천만
 
 **앱 연결 (트랙 E)**
 - onFeedback `{key, n?, scope: "rep"|"set"}`: 참고 등급 키는 세트 끝(`endSet`)에 scope "set"으로 1번. 기본값에서 나가는 키는 그대로
@@ -83,6 +84,8 @@ AI 쪽 작업(캘리브레이션 서버, 2D/3D 포즈, 사람 crop 입력, 자�
 | row_shrug | 끔 | 실험 |
 | 무릎 과신전 보정 | 끔 | 감지("3D 불량" 표시)만 켜짐 |
 | 세트별 녹화 | 끔 | `BPT_SET_RECORDING=1` 또는 UserDefaults `BPTSetRecording`. iPhone 17 측정(D-E-08): FPS −5.4%지만 30 fps에서 놓친 프레임 3→9라 OFF 유지 |
+| (켜짐) crop 경계 재맞춤 | 켬 | 관절이 crop 경계에 붙으면 crop을 다시 맞춤(모든 운동). 끄기 `RTMPoseCropTracker.refitAtCropEdge = false` (D-T3-10) |
+| (켜짐) 푸시업 어깨 높이 렙 신호 | 켬 | 측면에서 렙 수 = max(팔꿈치, 높이). 끄기 `PushUpEvaluatorConfig.heightRepSignal = false` (D-T3-11) |
 | (켜짐) 사람 3:4 crop 입력 | 켬 | 끄기 `CameraPreviewOptions.personCropInput = false` — 끄면 로우 컷오프도 0.56으로 |
 
 ## 기본으로 켜진 키
@@ -104,8 +107,8 @@ AI 쪽 작업(캘리브레이션 서버, 2D/3D 포즈, 사람 crop 입력, 자�
 - 후면 카메라 로우는 모두 측면 아님으로 판정
 
 ## 테스트
-- `swift test --package-path ios/CalibrationEngineKit`: 86 통과
-- `pytest tests/`: 178 통과
+- `swift test --package-path ios/CalibrationEngineKit`: 96 통과
+- `pytest tests/`: 185 통과
 - 서버 `pytest tests` (server/calibration_modal): 82 통과, 1 건너뜀
 - `flutter test`: 79 통과
 - `xcodebuild` Runner, iOS Simulator Debug, `CODE_SIGNING_ALLOWED=NO`: 성공
@@ -136,7 +139,7 @@ integration/ai는 main보다 팀원 커밋 11개가 뒤처져 있습니다(2026-
 - 벤치·데드 수치는 Sapiens2 대리 입력 기준이라 앱 RTMPose(특히 누운 자세 측면)로는 미검증. 데드는 정면 카메라 미지원.
 - 캘리브레이션 체형 평가 기준은 People Snapshot의 consensus 메시(정답 아님, 단안 추정 키)이고 실제 사용자 줄자 실측 검증은 없음.
 - 준비 자세 확인은 Exercise3D처럼 바로 시작하는 세트에서 렙을 잃어 기본 꺼짐.
-- **측면 푸시업 100%는 P1 한 사람 값**: 다른 사람 실제 측면 영상(MM-Fit 약 15명, 65세트) 80.2%, Fit3D 가상 측면 합성 검증 61.4%(D-T3-08). 놓침 원인 후보 — crop이 몸 아래쪽에 고정, 먼 팔 선택, 팔꿈치를 옆으로 벌린 푸시업.
+- **측면 푸시업, P1 아닌 사람**: 수정 전 MM-Fit 80.2%·Fit3D 가상 측면 검증 61.4%(D-T3-08) → crop 경계 재맞춤 + 어깨 높이 신호(D-T3-10·11) 후 MM-Fit 검증 6명 94.5%, Fit3D 가상 측면 검증 80.1%. 남은 것: 팔꿈치를 옆으로 벌린 사람의 정측면(0°), 세트 전 자세 잡기 추가 렙.
 
 - **공개 데이터 검증 세트(D-DATA-01)**: Mendeley 26명 + YouTube CC BY 43채널, 렙 합의 386세트. 측면 검증 렙 정확도 스쿼트 49.3%, 푸시업 76.3%, 바벨로우 100%(4세트) — 대부분 놓침. 자세 키는 켤 근거가 아직 없음(후보 pushup_hip_pike 측면, 검출 3/6세트).
 

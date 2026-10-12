@@ -13,6 +13,8 @@ acc = sum(truth - missed) / sum(truth + extra)  (project rep metric).
 import csv, json, os, pathlib, subprocess, sys
 
 PRE, POST, FPS = 3.0, 1.5, 30
+# D-T3-09 person split (fixed before any fix was measured): sessions of people never in the authors' train split.
+HELD_SESSIONS = {"w00", "w05", "w12", "w13", "w19", "w20"}
 ZENODO = "https://zenodo.org/api/records/7672767/files/{w}_rgb.mp4/content"
 HEAVY = os.environ.get("BPT_HEAVY", "")  # optional lock wrapper (scratchpad/shared/heavy.sh)
 REPLAY = os.environ.get("POSE_REPLAY", "/private/tmp/bpt-swiftpm-pushup-heldout/release/pose-replay")
@@ -64,12 +66,13 @@ def main(labels_root, clips, outdir, results, *flags):
                            stdout=subprocess.DEVNULL)
         sess = json.load(open(js))["session"]
         c = sess["rep_count"]
-        rows.append({"clip": cid, "workout": w, "label_start_frame": s, "label_end_frame": e,
+        rows.append({"clip": cid, "workout": w, "split": "held" if w in HELD_SESSIONS else "tune", "label_start_frame": s, "label_end_frame": e,
                      "clip_offset_frames": round(min(PRE * FPS, s)),
                      "truth": n, "counted": c, "missed": max(0, n - c), "extra": max(0, c - n),
                      "rep_end_frames": sess["rep_end_frames"]})
-    json.dump({"rows": rows, "total": score(rows)}, open(results, "w"), indent=1)
-    print(json.dumps(score(rows)))
+    by_split = {sp: score([r for r in rows if r["split"] == sp]) for sp in ("tune", "held")}
+    json.dump({"rows": rows, "total": score(rows), **by_split}, open(results, "w"), indent=1)
+    print(json.dumps({"total": score(rows), **by_split}))
 
 
 if __name__ == "__main__":

@@ -6,15 +6,16 @@
 //
 //   swift run -c release --package-path ios/CalibrationEngineKit pose-replay \
 //       [--exercise squat|pushup|row|bench|deadlift] [--model coco17|halpe26|mcoco17] [--model-path PATH] [--motion3d PATH|none] [--lookahead N] \
-//       [--row-shrug] [--side-cutoff R] [--row-offside off] [--pushup-ankle on|off] [--pushup-wrist-conf C] [--pushup-min-frames N] [--ready-pose off|preset] [--input crop|full] [--keypoints-csv PATH] [--output-dir PATH] <video.mp4>...
+//       [--row-shrug] [--side-cutoff R] [--row-offside off] [--pushup-ankle on|off] [--pushup-wrist-conf C] [--pushup-min-frames N] [--pushup-height on|off] [--ready-pose off|preset] [--input crop|full] [--crop-edge on|off] [--keypoints-csv PATH] [--output-dir PATH] <video.mp4>...
 //
+// --crop-edge off: keep a crop whose border pins confident joints (RTMPoseCropTracker.refitAtCropEdge = false, old).
 // --model-path: another RTMPose .mlpackage with the same 256x192 input and SimCC outputs (17 or 26 joints;
 // pass --model halpe26 for 26) — candidate models are compared on the same videos without replacing the bundled one.
 //
 // halpe26 also feeds the decoded toes/heels to SquatEvaluator (heel_rise_max; squat_heel_rise is off). --row-shrug turns on
 // the experimental row_shrug rule (off in the app). --side-cutoff: row/push-up side-view gate cutoff (shoulder width ÷
 // torso length) instead of the app's value, to measure counting with the gate moved (e.g. 99 = gate off).
-// --pushup-ankle / --pushup-wrist-conf / --pushup-min-frames: PushUpEvaluatorConfig.requireAnkleForRep / wristMinJointConfidence / minRepFrames.
+// --pushup-ankle / --pushup-wrist-conf / --pushup-min-frames / --pushup-height: PushUpEvaluatorConfig.requireAnkleForRep / wristMinJointConfidence / minRepFrames / heightRepSignal.
 // --row-offside off: no row reps off the side view (old gate behaviour; BarbellRowEvaluatorConfig.countOffSideView).
 //
 // --keypoints-csv: skip decoding and RTMPose, read the 2D keypoints (j0..j16 x/y/c, extra columns
@@ -52,11 +53,13 @@ var rowNonSide: String?
 var pushUpAnkle: Bool?
 var pushUpWristConf: Double?
 var pushUpMinFrames: Int?
+var pushUpHeight: Bool?
 var readyPosePreset = false
 var personCrop = true
+var cropEdgeRefit = true
 var videos: [URL] = []
 var arguments = CommandLine.arguments.dropFirst().makeIterator()
-let usage = "usage: pose-replay [--exercise squat|pushup|row|bench|deadlift] [--model coco17|halpe26|mcoco17] [--model-path PATH] [--motion3d PATH|none] [--lookahead N] [--row-shrug] [--side-cutoff R] [--row-offside off] [--pushup-ankle on|off] [--pushup-wrist-conf C] [--pushup-min-frames N] [--ready-pose off|preset] [--input crop|full] [--keypoints-csv PATH] [--output-dir PATH] <video.mp4>..."
+let usage = "usage: pose-replay [--exercise squat|pushup|row|bench|deadlift] [--model coco17|halpe26|mcoco17] [--model-path PATH] [--motion3d PATH|none] [--lookahead N] [--row-shrug] [--side-cutoff R] [--row-offside off] [--pushup-ankle on|off] [--pushup-wrist-conf C] [--pushup-min-frames N] [--pushup-height on|off] [--ready-pose off|preset] [--input crop|full] [--crop-edge on|off] [--keypoints-csv PATH] [--output-dir PATH] <video.mp4>..."
 while let argument = arguments.next() {
     switch argument {
     case "--model":
@@ -92,6 +95,8 @@ while let argument = arguments.next() {
         pushUpAnkle = arguments.next() != "off"
     case "--pushup-min-frames":
         pushUpMinFrames = arguments.next().flatMap(Int.init)
+    case "--pushup-height":
+        pushUpHeight = arguments.next() != "off"
     case "--pushup-wrist-conf":
         pushUpWristConf = arguments.next().flatMap(Double.init)
     case "--row-offside":
@@ -115,6 +120,8 @@ while let argument = arguments.next() {
             print("--input requires crop or full")
             exit(2)
         }
+    case "--crop-edge":
+        cropEdgeRefit = arguments.next() != "off"
     case "--keypoints-csv":
         guard let path = arguments.next() else { exit(2) }
         keypointsCSV = path
@@ -181,6 +188,7 @@ for video in videos {
     var times: [Double] = []
     var imageWidth = 0, imageHeight = 0
     var cropTracker = RTMPoseCropTracker()
+    cropTracker.refitAtCropEdge = cropEdgeRefit
     var fullFrameInputs = 0
     var rechecks = 0, switches = 0
     var poseSeconds = 0.0
@@ -257,6 +265,7 @@ for video in videos {
         if let pushUpAnkle { config.requireAnkleForRep = pushUpAnkle }
         if let pushUpWristConf { config.wristMinJointConfidence = pushUpWristConf }
         if let pushUpMinFrames { config.minRepFrames = pushUpMinFrames }
+        if let pushUpHeight { config.heightRepSignal = pushUpHeight }
         let evaluator = PushUpEvaluator(config: config)
         tracker = evaluator.formTracker
         if let sideCutoff { tracker.pushUp.sideViewMaxShoulderRatio = sideCutoff }
@@ -331,6 +340,7 @@ for video in videos {
         "full_frame_inputs": fullFrameInputs,
         "whole_frame_rechecks": rechecks,
         "person_switches": switches,
+        "crop_edge_refits": cropTracker.edgeRefits,
         "pose_ms_per_frame": coco17Frames.isEmpty ? 0 : poseSeconds * 1000 / Double(coco17Frames.count),
         "frames": coco17Frames.count,
         "image_size": [imageWidth, imageHeight],
