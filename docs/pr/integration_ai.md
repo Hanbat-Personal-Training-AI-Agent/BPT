@@ -51,6 +51,7 @@ AI 쪽 작업(캘리브레이션 서버, 2D/3D 포즈, 사람 crop 입력, 자�
 **2D 모델 평가 도구 (트랙 C, 앱 동작 변경 없음)**
 - `scripts/eval_pose2d.py`(COCO val·Exercise3D·Fit3D PCK), `scripts/eval_pose2d_reps.py`(후보 모델 렙 정확도), `pose-replay --model-path`, 후보 Core ML 변환(`rtmpose_s_coreml_common.py`: s body7, m COCO17/body7/Halpe26), Fit3D 미세조정 도구(Mac 전용), `tools/pose_model_bench`(iPhone 지연 XCTest, 연속 실행·발열·Vision 참고 포함; iPhone 17 결과 s 2.0 ms · m 3.3 ms, D-C-05)
 - 결론: 기본 RTMPose-s COCO17 유지. Fit3D 미세조정 기각(독립 세트에서 나빠짐), m COCO17은 iPhone 17 속도 조건 만족(3.3 ms, D-C-05). m COCO17·Halpe26 전환 여부는 세 운동 트랙(스쿼트·푸시업·로우)의 검증용(held-out) 비교로 정함 — 검증용이 좋아지고 다른 것이 나빠지지 않을 때만 플래그로 m COCO17 전환
+- MediaPipe Pose Landmarker 재검토(D-C-07): 벤치 호스트에만 MediaPipeTasksVision 1.0.0 연결(앱 타깃 변경 없음). iPhone 17 full CPU 8.6 ms, 30 fps 파이프라인 p95 16 ms·놓친 프레임 0, 측면 푸시업 PCK 0.924(m 0.708)지만 스쿼트·로우는 나쁨 → 기본 유지, 푸시업 전용 후보로 추천만
 
 **앱 연결 (트랙 E)**
 - onFeedback `{key, n?, scope: "rep"|"set"}`: 참고 등급 키는 세트 끝(`endSet`)에 scope "set"으로 1번. 기본값에서 나가는 키는 그대로
