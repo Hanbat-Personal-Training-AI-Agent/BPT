@@ -1,4 +1,4 @@
-"""Fine-tune MotionAGFormer-XS on Fit3D with the app's own 2D input (Mac-local only; Fit3D never leaves this Mac).
+"""Fine-tune MotionAGFormer-XS on Fit3D with the app's own 2D input (user's own Mac / Home only; Fit3D never leaves them).
 
 Input  : pose-replay CSV keypoints (RTMPose-s COCO17, the app's 2D path) sampled at the app's 30 fps, converted
          and person_crop-normalised exactly like the app (pose_feedback.body.live_motionagformer).
@@ -24,24 +24,32 @@ from pose_feedback.body.motionagformer_adapter import (  # noqa: E402
 FLIP_L, FLIP_R = [1, 2, 3, 14, 15, 16], [4, 5, 6, 11, 12, 13]
 
 
+def mag_input(K, w=900., h=900.):
+    """App 2D [N,17,3] -> MotionAGFormer input [N,17,3] (person_crop like the app) and the crops (cx, cy, side)."""
+    xy, conf = coco17_to_motionagformer_h36m17(K)
+    tr = PersonSquareCropTracker(); crops = []
+    for f, c in zip(xy, conf): crops.append(tr.update(f, c) or (w / 2, h / 2, max(w, h)))
+    x = np.stack([square_crop_normalize(f, c) for f, c in zip(xy, crops)])
+    return np.concatenate([x, conf[..., None]], -1).astype(np.float32), np.array(crops)
+
+
+def prep(root, subj, ex, cam, J, R, T, csv):
+    """One Fit3D video at the app's 30 fps: input x, target y (crop units, root-relative, camera frame, y down),
+    mm per crop unit, plus the picked frames and their app 2D keypoints K."""
+    K = read_csv(csv); n = min(len(K), len(J))
+    pick = np.round(np.arange(0, n, 50 / APP_FPS)).astype(int); pick = pick[pick < n]
+    x, crops = mag_input(K[pick])
+    c = json.load(open(f'{root}/train/{subj}/camera_parameters/{cam}/{ex}.json'))
+    fpx = float(np.mean(c['intrinsics_w_distortion']['f']))
+    Xc = (J[pick] - T) @ R.T  # metres, camera frame, y down
+    unit_m = crops[:, 2] / 2 * Xc[:, 0, 2] / fpx  # metres per crop unit
+    y = ((Xc - Xc[:, :1]) / unit_m[:, None, None]).astype(np.float32)
+    return dict(subj=subj, ex=ex, cam=cam, x=x, y=y, mm=(unit_m * 1000).astype(np.float32), pick=pick, K=K[pick])
+
+
 def sequences(root, replay, subjects, exercises):
-    out = []
-    for subj, ex, cam, J, R, T, ann, csv in fit3d_jobs(root, replay, subjects, exercises):
-        K = read_csv(csv); n = min(len(K), len(J))
-        pick = np.round(np.arange(0, n, 50 / APP_FPS)).astype(int); pick = pick[pick < n]
-        xy, conf = coco17_to_motionagformer_h36m17(K[pick])
-        tr = PersonSquareCropTracker(); crops = []
-        for f, c in zip(xy, conf): crops.append(tr.update(f, c) or (450., 450., 900.))
-        x = np.stack([square_crop_normalize(f, c) for f, c in zip(xy, crops)])
-        x = np.concatenate([x, conf[..., None]], -1).astype(np.float32)
-        c = json.load(open(f'{root}/train/{subj}/camera_parameters/{cam}/{ex}.json'))
-        fpx = float(np.mean(c['intrinsics_w_distortion']['f']))
-        Xc = (J[pick] - T) @ R.T  # metres, camera frame, y down
-        half = np.array([cr[2] for cr in crops]) / 2
-        unit_m = half * Xc[:, 0, 2] / fpx  # metres per crop unit
-        y = ((Xc - Xc[:, :1]) / unit_m[:, None, None]).astype(np.float32)
-        out.append(dict(subj=subj, ex=ex, cam=cam, x=x, y=y, mm=(unit_m * 1000).astype(np.float32)))
-    return out
+    return [prep(root, subj, ex, cam, J, R, T, csv)
+            for subj, ex, cam, J, R, T, ann, csv in fit3d_jobs(root, replay, subjects, exercises)]
 
 
 def train_windows(seqs, stride):

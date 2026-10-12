@@ -786,3 +786,22 @@
 - **한계**: 폰이 충전 중이었고 앞 작업(three-ex 기기 실행) 직후라 처음부터 발열 serious(2) → 지속 FPS는 실제보다 불리할 수 있고 배터리 소모는 측정 불가. RTMPose 지연 표의 s·m·Vision 행은 D-C-05의 다른 세션(발열 1–2) 값. 프레임 1장 반복이라 VIDEO 추적은 항상 성공(실제 움직임에서는 추적 실패 시 검출기가 다시 돌아 IMAGE 쪽 값(17 ms)에 가까운 프레임이 섞임, 추정). 품질 정답은 Sapiens2 의사 라벨(사람 라벨 아님), 사람 P1–P3만.
 - **모델·라이선스**: `pose_landmarker_{lite,full,heavy}.task`(float16/latest, 2023-04-27/28) — https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_{lite,full,heavy}/float16/latest/pose_landmarker_{lite,full,heavy}.task (공식 페이지 https://ai.google.dev/edge/mediapipe/solutions/vision/pose_landmarker#models). Apache-2.0. 크기 5.8 / 9.4 / 30.7 MB, sha256 lite 59929e1d…574a, full 4eaa5eb7…c4ad, heavy 64437af8…c7b. 저장소에는 넣지 않음(벤치 자산은 git-ignored). 라이브러리 라이선스 텍스트는 pod 안 `Pods/MediaPipeTasksVision/LICENSE`(Apache-2.0).
 - **되돌리기/다시 재기**: 앱 코드 변경 없음(벤치 도구·평가 스크립트·문서만). 재측정 `BPT_MP_DIR=<task 3개 + frame.jpg> tools/pose_model_bench/run_pipeline.sh setup <clips> && run_pipeline.sh mp all`(지연 → 지속 3개 → 페이스 full·m, 한 번 실행이라 기기 자동 잠금 없음). 품질 `scripts/eval_mediapipe_pose2d.py pack|eval|rtmpose`.
+
+## D-D-07 각도·경고에 쓸 만한 3D 소스: MediaPipe 월드 3D는 기각, Fit3D 미세조정 XS만 "사선 몸통(중력)·엉덩이" 후보 — 앱 기본은 그대로 (2026-10-12)
+- **결정(추천만, 앱 변경 없음)**: 라이브 3D 끔(D-D-02)·경고는 2D만 유지. 관절·시점별 판단(기준: 렙 극값 오차 중앙값 ≤ 5° **그리고** p90 ≤ 10°, 경고 문턱 15°대와 가를 수 있는 수준):
+
+  | 관절 | 측면(≤40°) | 사선(56–75°) |
+  |---|---|---|
+  | 몸통 기울기 | **2D 유지**(Ex3D 1–7°; 미세조정 XS 10–18°로 나쁨) | **미세조정 XS + 중력(가속도계)** 기준만 통과: 스쿼트 3.4 (p90 8.9) / 푸시업 2.7 (6.2) / 로우 4.6 (9.4)°. MediaPipe 13–19°, 원래 XS 14–20°, 2D 30–38° → 불가 |
+  | 엉덩이 각(스쿼트 깊이·푸시업 처짐·로우 힌지) | 2D 유지(정답으로 못 잼) | **미세조정 XS** 2.2–3.4° (p90 9–12) — 경계, 후보 |
+  | 무릎 | 2D 유지 | 아무것도 통과 못 함: 미세조정 6.1 (p90 17), MediaPipe full 11.9 (23), 2D 20.9 (95) |
+  | 팔꿈치 | 2D 유지(측면 푸시업·로우 2D 3–4°) | 통과 없음: 미세조정 6.8–6.9 (p90 16–19), MediaPipe 18–34 |
+
+- **근거**: `docs/results/eval_3d_mediapipe.md`. Fit3D 모캡 정답, **검증 피험자 s07–s11**(60영상, 학습·선택에 안 씀), 앱 2D = RTMPose-m crop.
+  - 3D 위치(검증): MPJPE / PA-MPJPE / 가속도 오차 — MediaPipe lite 168 / 104 / 20.3, full 151 / 98 / 17.4, heavy 150 / 101 / 18.5, XS 원래 148 / 89 / 8.6, **XS 미세조정 52 / 38 / 4.5** (mm, mm/프레임²). 조정 s03–s05: MediaPipe 143–155 / 96–100, XS 원래 148 / 95.
+  - MediaPipe 월드 3D는 정렬 후에도 관절당 ~10 cm, 떨림 2–4배, 렙 극값 9–36°(p90 20–60°); 팔꿈치는 2D보다 나쁨. lite·heavy가 full보다 낫지 않음. 엉덩이 정의 차이: MediaPipe 엉덩이 폭 0.70–0.76배·7–10 cm 아래, 어깨 폭 1.15–1.20배·3–5 cm 아래(오프셋 표).
+  - D-D-06의 "미세조정 몸통이 나빠짐"은 **카메라 위** 기준(사선 9–11°)이었고, **중력** 기준으로는 사선에서 가장 정확(3–5°). 측면(Ex3D)에서는 중력 기준으로도 10–18° → Fit3D에 측면 카메라가 없는 탓(추정).
+- **기각**: MediaPipe 월드 3D를 각도·경고에 쓰기(모든 관절·시점에서 기준 미달, D-C-07의 푸시업 2D 후보 판단과는 별개), 원래 XS(사선 엉덩이·로우 팔꿈치 5–6° 외 12–39°), 미세조정 XS를 지금 켜기 — (1) 틀린 자세 영상 검출률 미검증(브리프 4절), (2) 기기 가속도계 중력 경로 없음, (3) 측면 몸통이 나빠 시점별 소스 전환이 필요, (4) 프레임당 +17 ms(D-D-05), (5) Fit3D 유래 가중치 비상업.
+- **다음 단계(추천)**: 사선 전용으로 미세조정 XS + 가속도계 중력 몸통을 pose-replay에 붙여 틀린 자세 영상(Mendeley 검증 피험자 등)에서 `torso_swing`·`hip_sag` 검출률을 2D와 비교. 측면 카메라가 있는 3D 정답 데이터로 추가 학습해야 측면 몸통이 해결됨(추정).
+- **되돌리기**: 해당 없음(앱 변경 없음). 평가 스크립트만 추가(`scripts/eval_3d_mediapipe.py`).
+- **라이선스**: Fit3D(비상업·재배포 금지) — 사용자 본인 Mac·Home에서만, 영상·CSV·MediaPipe 출력·체크포인트 모두 측정 후 삭제, 집계값만 기록. MediaPipe 모델 Apache-2.0(D-C-07과 같은 파일), MotionAGFormer Apache-2.0.
