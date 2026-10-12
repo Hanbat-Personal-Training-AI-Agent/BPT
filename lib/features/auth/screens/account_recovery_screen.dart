@@ -58,6 +58,10 @@ class _AccountRecoveryScreenState extends ConsumerState<AccountRecoveryScreen> {
 
   void _changeMode(bool reset) {
     FocusScope.of(context).unfocus();
+    if (reset != _resetMode) {
+      ref.read(accountRecoveryProvider.notifier).restartVerification();
+      _code.clear();
+    }
     setState(() {
       _resetMode = reset;
       _passwordError = null;
@@ -75,8 +79,14 @@ class _AccountRecoveryScreenState extends ConsumerState<AccountRecoveryScreen> {
   }
 
   Future<void> _sendCode() async {
+    if (_resetMode && _username.text.trim().isEmpty) {
+      _usernameFocus.requestFocus();
+      showAppToast(context, '아이디를 입력해줘.', type: AppToastType.error);
+      return;
+    }
     final notifier = ref.read(accountRecoveryProvider.notifier);
-    final sent = await notifier.sendCode();
+    final sent =
+        await notifier.sendCode(username: _resetMode ? _username.text : null);
     if (!mounted) return;
     if (sent) {
       _code.clear();
@@ -91,10 +101,12 @@ class _AccountRecoveryScreenState extends ConsumerState<AccountRecoveryScreen> {
   }
 
   Future<void> _verifyCode() async {
-    await ref.read(accountRecoveryProvider.notifier).verifyCode(_code.text);
+    final notifier = ref.read(accountRecoveryProvider.notifier);
+    await notifier.verifyCode(_code.text);
     if (!mounted) return;
     if (ref.read(accountRecoveryProvider).verified) {
       FocusScope.of(context).unfocus();
+      if (!_resetMode) await notifier.findUsername();
     }
   }
 
@@ -185,6 +197,26 @@ class _AccountRecoveryScreenState extends ConsumerState<AccountRecoveryScreen> {
         const Text('테스트 서버 · 인증번호는 메일 대신 서버 로그에 찍혀.',
             style: TextStyle(color: Color(0xFF999999), fontSize: 11)),
         const SizedBox(height: 12),
+        // 비밀번호 재설정은 아이디·이메일이 같은 계정인지 먼저 맞춰본 뒤 인증번호를 보낸다.
+        if (_resetMode) ...[
+          const AuthFieldLabel('아이디'),
+          AuthTextField(
+            controller: _username,
+            focus: _usernameFocus,
+            hint: '아이디를 입력해줘',
+            // visiblePassword: iOS에서 영문(ASCII) 키보드로 열린다.
+            keyboard: TextInputType.visiblePassword,
+            formatters: idInputFormatters,
+            onChanged: (_) {
+              ref.read(accountRecoveryProvider.notifier).restartVerification();
+              _code.clear();
+              _password.clear();
+              _confirmation.clear();
+              setState(() => _passwordError = null);
+            },
+          ),
+          const SizedBox(height: 14),
+        ],
         const AuthFieldLabel('이메일'),
         Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Expanded(
@@ -249,18 +281,6 @@ class _AccountRecoveryScreenState extends ConsumerState<AccountRecoveryScreen> {
           Text(state.error!,
               style: const TextStyle(color: AppColors.red, fontSize: 13)),
         ],
-        if (_resetMode) ...[
-          const SizedBox(height: 14),
-          const AuthFieldLabel('아이디'),
-          AuthTextField(
-            controller: _username,
-            focus: _usernameFocus,
-            hint: '아이디를 입력해줘',
-            // visiblePassword: iOS에서 영문(ASCII) 키보드로 열린다.
-            keyboard: TextInputType.visiblePassword,
-            formatters: idInputFormatters,
-          ),
-        ],
         const SizedBox(height: 20),
         if (!_resetMode && state.verified) _result(state),
         if (_resetMode && state.verified) ...[
@@ -301,8 +321,8 @@ class _AccountRecoveryScreenState extends ConsumerState<AccountRecoveryScreen> {
                 ? null
                 : _resetMode
                     ? _resetPassword
-                    // 로그인은 아이디로만 돼서 이메일을 아이디 칸에 채워 보내지 않는다.
-                    : () => _back(),
+                    // 찾은 아이디를 로그인 화면 아이디 칸에 채운다.
+                    : () => _back(email: state.username),
             background: AppColors.white,
             foreground: AppColors.black,
             disabledBackground: AppColors.grey,
@@ -352,20 +372,17 @@ class _AccountRecoveryScreenState extends ConsumerState<AccountRecoveryScreen> {
         decoration: BoxDecoration(
             color: AppColors.green, borderRadius: BorderRadius.circular(28)),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Text('인증된 이메일',
+          const Text('내 아이디',
               style: TextStyle(
                   color: Color(0xFF536E29),
                   fontSize: 13,
                   fontWeight: FontWeight.w700)),
           const SizedBox(height: 8),
-          Text(state.email,
+          Text(state.username ?? (state.finding ? '찾는 중…' : '-'),
               style: const TextStyle(
                   color: AppColors.black,
                   fontSize: 26,
                   fontWeight: FontWeight.w900)),
-          const SizedBox(height: 8),
-          const Text('아이디 찾기는 곧 지원할게. 지금은 가입할 때 만든 아이디로 로그인해줘.',
-              style: TextStyle(color: Color(0xFF536E29), fontSize: 12)),
         ]),
       );
 }

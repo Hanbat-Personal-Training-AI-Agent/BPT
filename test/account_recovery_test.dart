@@ -15,9 +15,16 @@ class _FakeAuthService extends AuthService {
 
   final requested = <String>[];
 
+  /// 아이디를 같이 주면 jihoon / jihoon@bpt.app 만 같은 계정으로 취급한다.
   @override
-  Future<void> requestEmailVerification(String email) async =>
-      requested.add(email);
+  Future<void> requestEmailVerification(String email,
+      {String? username}) async {
+    if (username != null &&
+        (username != 'jihoon' || email != 'jihoon@bpt.app')) {
+      throw ServerException('User not found', 404, 'USER_NOT_FOUND');
+    }
+    requested.add(email);
+  }
 
   @override
   Future<({bool verified, String? token})> confirmEmailVerification({
@@ -25,6 +32,15 @@ class _FakeAuthService extends AuthService {
     required String code,
   }) async =>
       (verified: code == _validCode, token: code == _validCode ? 'vt_1' : null);
+
+  final finds = <String>[];
+
+  /// vt_1 토큰은 jihoon 으로 찾아준다.
+  @override
+  Future<String?> findUsername({required String verificationToken}) async {
+    finds.add(verificationToken);
+    return 'jihoon';
+  }
 
   final resets = <Map<String, String?>>[];
 
@@ -70,39 +86,61 @@ void main() {
         {'username': 'jihoon', 'email': 'jihoon@bpt.app', 'token': 'vt_1'});
   });
 
-  testWidgets('reset page has id field under code and toasts a mismatch',
+  testWidgets('reset page checks id and email before sending the code',
       (tester) async {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
+    final auth = _FakeAuthService();
     await tester.pumpWidget(ProviderScope(
-        overrides: [authServiceProvider.overrideWithValue(_FakeAuthService())],
+        overrides: [authServiceProvider.overrideWithValue(auth)],
         child: const MaterialApp(home: AccountRecoveryScreen())));
     await tester.tap(find.text('비밀번호 재설정').first);
     await tester.pumpAndSettle();
     final fields = find.byType(TextField);
-    expect(find.text('아이디'), findsOneWidget);
+    // 아이디 칸이 이메일 칸 위에 있다.
     expect(tester.getTopLeft(find.text('아이디')).dy,
-        greaterThan(tester.getTopLeft(find.text('인증 코드')).dy));
-    await tester.enterText(fields.at(0), 'jihoon@bpt.app');
+        lessThan(tester.getTopLeft(find.text('이메일')).dy));
+    await tester.enterText(fields.at(0), 'other');
+    await tester.enterText(fields.at(1), 'jihoon@bpt.app');
     await tester.tap(find.text('인증하기').first);
     await tester.pumpAndSettle();
-    await tester.enterText(fields.at(1), _validCode);
+    // 같은 계정이 아니면 보내지 않는다.
+    expect(auth.requested, isEmpty);
+    expect(find.text('전송 완료'), findsNothing);
+    expect(find.text('아이디와 이메일이 맞지 않아. 다시 확인해줘.'), findsOneWidget);
+    await tester.enterText(fields.at(0), 'jihoon');
+    await tester.pump();
+    await tester.tap(find.text('인증하기').first);
+    await tester.pumpAndSettle();
+    expect(auth.requested, ['jihoon@bpt.app']);
+    expect(find.text('전송 완료'), findsOneWidget);
+    await tester.enterText(fields.at(2), _validCode);
     await tester.pump();
     await tester.tap(find.text('인증하기'));
     await tester.pumpAndSettle();
-    await tester.enterText(fields.at(2), 'other');
-    await tester.enterText(fields.at(3), 'pw1234');
-    await tester.enterText(fields.at(4), 'pw1234');
-    await tester.tap(find.text('비밀번호 재설정하기').last);
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
-    expect(find.text('아이디와 이메일이 맞지 않아. 다시 확인해줘.'), findsOneWidget);
-    // 토스트가 올라왔다 내려갈 때까지 (320ms + 2.2s + 320ms) 프레임을 돌린다.
-    for (var i = 0; i < 40; i++) {
-      await tester.pump(const Duration(milliseconds: 100));
-    }
+    // 인증이 끝나면 새 비밀번호 칸이 열린다.
+    expect(find.text('인증 완료'), findsOneWidget);
+    expect(find.text('새 비밀번호'), findsOneWidget);
+  });
+
+  test('find id uses the one-time token; reset then asks to verify again',
+      () async {
+    final auth = _FakeAuthService();
+    final notifier = AccountRecoveryNotifier(auth);
+    addTearDown(notifier.dispose);
+    notifier.changeEmail('jihoon@bpt.app');
+    await notifier.sendCode();
+    await notifier.verifyCode(_validCode);
+    await notifier.findUsername();
+    expect(auth.finds, ['vt_1']);
+    expect(notifier.state.username, 'jihoon');
+    expect(notifier.state.verificationToken, isNull);
+    notifier.restartVerification();
+    expect(notifier.state.verified, isFalse);
+    expect(notifier.state.sent, isFalse);
+    expect(notifier.state.email, 'jihoon@bpt.app');
   });
 
   test('verification requires send and changing email invalidates proof',
@@ -140,7 +178,7 @@ void main() {
         child: const MaterialApp(home: AccountRecoveryScreen())));
     final fields = find.byType(TextField);
     expect(tester.widget<TextField>(fields.at(1)).enabled, isFalse);
-    expect(find.text('인증된 이메일'), findsNothing);
+    expect(find.text('내 아이디'), findsNothing);
     await tester.enterText(fields.at(0), 'jihoon@bpt.app');
     expect(tester.widget<TextField>(fields.at(0)).focusNode!.hasFocus, isTrue);
     final border = tester
@@ -158,18 +196,20 @@ void main() {
     await tester.pump();
     await tester.tap(find.text('인증하기'));
     await tester.pumpAndSettle();
-    expect(find.text('인증된 이메일'), findsNothing);
+    expect(find.text('내 아이디'), findsNothing);
     expect(find.text('인증 코드가 맞지 않아. 다시 확인해줘.'), findsOneWidget);
     await tester.enterText(fields.at(1), _validCode);
     await tester.pump();
     await tester.tap(find.text('인증하기'));
     await tester.pumpAndSettle();
     expect(find.text('인증 완료'), findsOneWidget);
-    expect(find.text('인증된 이메일'), findsOneWidget);
+    expect(find.text('내 아이디'), findsOneWidget);
+    // 이메일이 아니라 찾은 아이디를 보여준다.
+    expect(find.text('jihoon'), findsOneWidget);
     expect(tester.widget<TextField>(fields.at(1)).focusNode!.hasFocus, isFalse);
     await tester.enterText(fields.at(0), 'different@bpt.app');
     await tester.pump();
-    expect(find.text('인증된 이메일'), findsNothing);
+    expect(find.text('내 아이디'), findsNothing);
     expect(tester.widget<TextField>(fields.at(1)).enabled, isFalse);
     tester.view.physicalSize = const Size(320, 568);
     tester.view.viewInsets = const FakeViewPadding(bottom: 250);

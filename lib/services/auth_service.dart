@@ -82,10 +82,22 @@ class AuthService {
   }
 
   /// 아이디/비밀번호 찾기용 이메일 인증번호 발송 (6자리, 5분 유효).
-  Future<void> requestEmailVerification(String email) async {
+  /// [username]을 주면 비밀번호 재설정용: 아이디·이메일이 같은 계정일 때만
+  /// 보내고, 아니면 서버가 404 `USER_NOT_FOUND`를 준다.
+  Future<void> requestEmailVerification(String email,
+      {String? username}) async {
     await _apiClient.post(
       '/auth/verify-email/request',
-      data: {'email': email.trim()},
+      // 계정 찾기용 purpose라 메일 문구도 회원가입용이 아닌 계정 찾기용으로 간다.
+      data: {
+        'email': email.trim(),
+        if (username == null)
+          'purpose': 'FIND_ACCOUNT'
+        else ...{
+          'purpose': 'RESET_PASSWORD',
+          'username': username.trim(),
+        },
+      },
       // 서버가 메일을 다 보낸 뒤에 응답해서 3~4초 넘게 걸린다. 기본 5초로 끊으면
       // 메일은 가는데 앱은 연결 실패로 보이므로 이 요청만 길게 기다린다.
       options: Options(receiveTimeout: _emailSendTimeout),
@@ -112,9 +124,20 @@ class AuthService {
     return (verified: verified, token: token is String ? token : null);
   }
 
+  /// 아이디 찾기. 인증 확인에서 받은 일회용 토큰으로 가입 아이디를 받는다.
+  /// 토큰은 서버에서 바로 폐기된다. 가입 안 된 이메일이면 404 `USER_NOT_FOUND`.
+  Future<String?> findUsername({required String verificationToken}) async {
+    final response = await _apiClient.post(
+      '/auth/find-username',
+      data: {'verificationToken': verificationToken},
+    );
+    final data = response.data;
+    final username = data is Map ? data['username'] : null;
+    return username is String && username.isNotEmpty ? username : null;
+  }
+
   /// 비밀번호 재설정. 아이디와 인증된 이메일이 같은 계정일 때만 바뀐다.
   /// 아이디·이메일이 같은 계정이 아니면 서버가 404 `USER_NOT_FOUND`를 준다.
-  /// (서버 미구현 — 백엔드 요청 문서 1번 계정 찾기 API)
   Future<void> resetPassword({
     required String username,
     required String email,
