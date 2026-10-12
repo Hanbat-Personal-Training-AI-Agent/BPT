@@ -37,6 +37,7 @@ AI 쪽 작업(캘리브레이션 서버, 2D/3D 포즈, 사람 crop 입력, 자�
 
 **렙 카운트**
 - 스쿼트: 빠른 하강/상승(top↔bottom 직행)도 렙 시작·종료로 인정
+- 스쿼트(D-T3-13): 경계 사이 느린 프레임은 상태 유지, 한쪽 다리만 보여도 측정, 선 자세 기준선 재설정(무릎 1초 펴짐), 엉덩이 높이 두 번째 렙 신호(렙 수 = max). 공개 데이터 검증 측면 47.1 → 91.8%, 전 시점 61.8 → 93.7%
 - 바벨로우: 측면 판정 게이트(어깨폭 ÷ 몸통 길이 150프레임 중앙값 ≤ 0.56). 측면일 때만 휴식 자세 우선 판정, 한쪽 팔만 보여도 판정.
   측면 아니면 렙을 세지 않고 setup_side_view 안내
 - 푸시업: 측면일 때만(푸시업 전용 컷오프 1.0) top→bottom 직행도 렙 시작, 근측 팔 하나로 팔꿈치 각도(`sideViewRepFixes`, 끄면 이전 동작)
@@ -107,7 +108,7 @@ AI 쪽 작업(캘리브레이션 서버, 2D/3D 포즈, 사람 crop 입력, 자�
 - 후면 카메라 로우는 모두 측면 아님으로 판정
 
 ## 테스트
-- `swift test --package-path ios/CalibrationEngineKit`: 96 통과
+- `swift test --package-path ios/CalibrationEngineKit`: 100 통과
 - `pytest tests/`: 189 통과
 - 서버 `pytest tests` (server/calibration_modal): 82 통과, 1 건너뜀
 - `flutter test`: 79 통과
