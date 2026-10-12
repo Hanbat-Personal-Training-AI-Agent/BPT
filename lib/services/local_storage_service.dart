@@ -21,6 +21,7 @@ class LocalStorageService {
   static const _keyUser = 'bpt_user';
   static const _keyAutoLogin = 'bpt_auto_login';
   static const _keyAuthToken = 'bpt_auth_token';
+  static const _keyRefreshToken = 'bpt_refresh_token';
 
   String _recordsKey(String? uid) =>
       uid != null ? 'bpt_workout_records_$uid' : 'bpt_workout_records';
@@ -64,6 +65,17 @@ class LocalStorageService {
 
   String? loadAuthToken() => _prefs.getString(_keyAuthToken);
 
+  /// 액세스 토큰(1시간)이 만료되면 새로 받는 데 쓰는 토큰 (14일).
+  Future<void> saveRefreshToken(String? token) async {
+    if (token == null || token.isEmpty) {
+      await _prefs.remove(_keyRefreshToken);
+    } else {
+      await _prefs.setString(_keyRefreshToken, token);
+    }
+  }
+
+  String? loadRefreshToken() => _prefs.getString(_keyRefreshToken);
+
   // ── Workout Records ───────────────────────────────────────────────────────
   Future<void> saveRecords(List<WorkoutRecordModel> records,
       {String? uid}) async {
@@ -100,11 +112,13 @@ class LocalStorageService {
   Future<void> clearSession() async {
     await _prefs.setBool(_keyAutoLogin, false);
     await _prefs.remove(_keyAuthToken);
+    await _prefs.remove(_keyRefreshToken);
   }
 
   Future<void> clearAll() async {
     await _prefs.remove(_keyUser);
     await _prefs.setBool(_keyAutoLogin, false);
     await _prefs.remove(_keyAuthToken);
+    await _prefs.remove(_keyRefreshToken);
   }
 }

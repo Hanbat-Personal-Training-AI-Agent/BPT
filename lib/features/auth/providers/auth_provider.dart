@@ -18,7 +18,17 @@ class AuthNotifier extends ChangeNotifier {
   String? _error;
   bool _isOfflineMode = false;
 
-  AuthNotifier(this._authService, this._storage);
+  AuthNotifier(this._authService, this._storage) {
+    // 액세스 토큰은 1시간이면 만료된다. API 클라이언트가 자동으로 갱신하면
+    // 새 토큰을 기기에 저장하고, 리프레시 토큰까지 만료되면 로그인 화면으로 보낸다.
+    _authService.onTokensRefreshed = (accessToken, refreshToken) {
+      _storage.saveAuthToken(accessToken);
+      _storage.saveRefreshToken(refreshToken);
+    };
+    _authService.onSessionExpired = () {
+      if (_currentUser != null) logout();
+    };
+  }
 
   UserModel? get currentUser => _currentUser;
   bool get isLoggedIn => _currentUser != null;
@@ -38,7 +48,8 @@ class AuthNotifier extends ChangeNotifier {
     // 저장해 둔 토큰이 없으면 서버 인증을 되살릴 수 없으니 다시 로그인하게 한다.
     final token = _storage.loadAuthToken();
     if (token == null) return false;
-    _authService.restoreAuthToken(token);
+    _authService.restoreAuthToken(token,
+        refreshToken: _storage.loadRefreshToken());
 
     _currentUser = cachedUser;
     notifyListeners();
@@ -80,6 +91,7 @@ class AuthNotifier extends ChangeNotifier {
       _currentUser = user;
       await _storage.saveUser(user);
       await _storage.saveAuthToken(_authService.authToken);
+      await _storage.saveRefreshToken(_authService.refreshToken);
       await _storage.saveAutoLogin(rememberMe);
       _isOfflineMode = false;
       _error = null;
@@ -130,6 +142,7 @@ class AuthNotifier extends ChangeNotifier {
       _currentUser = user;
       await _storage.saveUser(user);
       await _storage.saveAuthToken(_authService.authToken);
+      await _storage.saveRefreshToken(_authService.refreshToken);
       await _storage.saveAutoLogin(true);
       _isOfflineMode = false;
     } on NetworkException {

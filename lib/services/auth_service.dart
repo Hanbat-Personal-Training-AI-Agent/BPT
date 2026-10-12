@@ -28,6 +28,7 @@ class AuthService {
       if (token != null) {
         _apiClient.setAuthToken(token);
       }
+      _apiClient.setRefreshToken(data['refreshToken'] as String?);
       final userJson = data['user'] as Map<String, dynamic>? ?? data;
       return UserModel.fromJson(userJson);
     } else {
@@ -64,6 +65,7 @@ class AuthService {
       if (token != null) {
         _apiClient.setAuthToken(token);
       }
+      _apiClient.setRefreshToken(data['refreshToken'] as String?);
       final userJson = data['user'] as Map<String, dynamic>? ?? data;
       return UserModel.fromJson(userJson);
     } else {
@@ -188,8 +190,23 @@ class AuthService {
   /// 로그인·회원가입으로 받은 현재 토큰 (기기에 저장할 때 쓴다)
   String? get authToken => _apiClient.authToken;
 
+  /// 로그인·회원가입으로 받은 리프레시 토큰 (기기에 저장할 때 쓴다)
+  String? get refreshToken => _apiClient.refreshToken;
+
   /// 기기에 저장해 둔 토큰으로 서버 인증 상태를 되살리거나(값) 지운다(null).
-  void restoreAuthToken(String? token) => _apiClient.setAuthToken(token);
+  void restoreAuthToken(String? token, {String? refreshToken}) {
+    _apiClient.setAuthToken(token);
+    _apiClient.setRefreshToken(refreshToken);
+  }
+
+  /// 액세스 토큰이 만료돼 자동으로 갱신되면 새 토큰을 넘긴다.
+  set onTokensRefreshed(
+          void Function(String accessToken, String? refreshToken)? callback) =>
+      _apiClient.onTokensRefreshed = callback;
+
+  /// 리프레시 토큰까지 만료돼 다시 로그인해야 할 때 불린다.
+  set onSessionExpired(void Function()? callback) =>
+      _apiClient.onSessionExpired = callback;
 
   /// Fetch current user profile from Spring Boot server
   Future<UserModel> fetchUserProfile() async {
