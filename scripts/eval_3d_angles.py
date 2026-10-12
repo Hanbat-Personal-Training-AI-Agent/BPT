@@ -29,14 +29,16 @@ WINDOW, LOOKAHEAD, APP_FPS = 27, 5, 30
 # Fit3D joints3d_25 -> H36M17: Fit3D 1-3 is the LEFT leg (same side as shoulder 11), H36M 1-3 is the right.
 FIT3D_TO_H36M = [0, 4, 5, 6, 1, 2, 3, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
 # limb -> (H36M a, b, c) per side, (COCO a, b, c) per side
-H36M = {'knee': {'L': (4, 5, 6), 'R': (1, 2, 3)}, 'elbow': {'L': (11, 12, 13), 'R': (14, 15, 16)}}
-COCO = {'knee': {'L': (11, 13, 15), 'R': (12, 14, 16)}, 'elbow': {'L': (5, 7, 9), 'R': (6, 8, 10)}}
+H36M = {'knee': {'L': (4, 5, 6), 'R': (1, 2, 3)}, 'elbow': {'L': (11, 12, 13), 'R': (14, 15, 16)},
+        'hip': {'L': (11, 4, 5), 'R': (14, 1, 2)}}  # hip = shoulder-hip-knee
+COCO = {'knee': {'L': (11, 13, 15), 'R': (12, 14, 16)}, 'elbow': {'L': (5, 7, 9), 'R': (6, 8, 10)},
+        'hip': {'L': (5, 11, 13), 'R': (6, 12, 14)}}
 COCO_SH, COCO_HIP = {'L': 5, 'R': 6}, {'L': 11, 'R': 12}
 SIDE_JOINTS = {'L': [3, 5, 7, 9, 11, 13, 15], 'R': [4, 6, 8, 10, 12, 14, 16]}  # ear..ankle, FormWarnings.sideScore
 EX3D_NAMES = ['pelvis_center', 'right_hip', 'right_knee', 'right_ankle', 'left_hip', 'left_knee', 'left_ankle',
               None, 'shoulder_center', 'nose', None, 'left_shoulder', 'left_elbow', 'left_wrist',
               'right_shoulder', 'right_elbow', 'right_wrist']
-EXTREME = {'knee': np.nanmin, 'elbow': np.nanmin, 'torso': np.nanmax}
+EXTREME = {'knee': np.nanmin, 'elbow': np.nanmin, 'hip': np.nanmin, 'torso': np.nanmax}
 
 
 def interior(a, b, c):
@@ -123,17 +125,28 @@ def evaluate(coco, ref, ref_up, side, w, h, runner, segments, cam_up=np.array([0
     return res
 
 
+def load_joints(sd, ex):
+    """Fit3D joints3d_25 in H36M order: .npy (subset copies) or the dataset's own .json."""
+    if os.path.exists(f'{sd}/joints3d_25/{ex}.npy'):
+        J = np.load(f'{sd}/joints3d_25/{ex}.npy')
+    elif os.path.exists(f'{sd}/joints3d_25/{ex}.json'):
+        J = np.array(json.load(open(f'{sd}/joints3d_25/{ex}.json'))['joints3d_25'])
+    else:
+        return None
+    return J.astype(float)[:, FIT3D_TO_H36M]
+
+
 def fit3d_jobs(root, replay, subjects, exercises):
     for sd in sorted(glob.glob(f'{root}/train/s*')):
         subj = os.path.basename(sd)
         if subjects and subj not in subjects: continue
         ann = json.load(open(f'{sd}/rep_ann.json'))
         for ex in exercises:
-            if not os.path.exists(f'{sd}/joints3d_25/{ex}.npy') or ex not in ann: continue
-            J = np.load(f'{sd}/joints3d_25/{ex}.npy').astype(float)[:, FIT3D_TO_H36M]
+            J = load_joints(sd, ex)
+            if J is None or ex not in ann: continue
             for cp in sorted(glob.glob(f'{sd}/camera_parameters/*/{ex}.json')):
                 cam = cp.split('/')[-2]
-                csv = glob.glob(f'{replay}/{subj}/{cam}/{ex}_*_coco17.csv')
+                csv = glob.glob(f'{replay}/{subj}/{cam}/{ex}_*coco17.csv')  # coco17 or mcoco17
                 if not csv: continue
                 c = json.load(open(cp)); R = np.array(c['extrinsics']['R']); T = np.array(c['extrinsics']['T']).reshape(3)
                 yield subj, ex, cam, J, R, T, ann[ex], csv[0]

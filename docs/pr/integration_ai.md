@@ -29,6 +29,7 @@ AI 쪽 작업(캘리브레이션 서버, 2D/3D 포즈, 사람 crop 입력, 자�
 - iPhone 17 라이브 3D 비용: 30 fps 안에 들어가지만 프레임당 +17 ms(9.4 → 26.2 ms), CPU 23 → 36%(D-D-05, `tools/ios_live3d_cost`)
 - Fit3D 미세조정 MotionAGFormer-XS: 학습 안 한 피험자 MPJPE 160–163 → 50–67 mm, 사선 무릎은 크게 좋아지나 몸통은 나빠져 앱 미반영(다음 단계 1순위, D-D-06). Fit3D 학습 가중치는 비상업(캡스톤) 전용, 학습은 사용자 PC(Home GPU)
 - 도구: `scripts/count_reps_3d_vs_2d.py`, `scripts/finetune_motionagformer_fit3d.py`, 2D·3D 각도 오차 평가
+- 3D 소스 비교(D-D-07, Fit3D 검증 s07–s11): MediaPipe 월드 3D(lite/full/heavy) MPJPE 150–168 / PA 98–104 mm, 렙 극값 9–36° → 각도·경고에 기각. s03–s05로 미세조정한 XS 52 / 38 mm, 사선 몸통(중력 기준)·엉덩이 2–5°만 후보. 측면은 2D 유지, 앱 변경 없음(`scripts/eval_3d_mediapipe.py`, `docs/results/eval_3d_mediapipe.md`)
 
 **자세 경고 (FormWarnings.swift)**
 - 푸시업·스쿼트·바벨로우 공통 경고 기반, 렙별 판정, 세션 로그, pose-replay 도구
