@@ -3,6 +3,7 @@ import 'package:bpt/data/repositories/workout_repository.dart';
 import 'package:bpt/features/report/providers/report_analysis_provider.dart';
 import 'package:bpt/features/report/screens/report_screen.dart';
 import 'package:bpt/models/workout_record_model.dart';
+import 'package:bpt/services/report_service.dart';
 import 'package:bpt/services/workout_records_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -41,6 +42,24 @@ class _FakeRepository implements IWorkoutRepository {
 }
 
 void main() {
+  test('server analysis counts are used as-is', () {
+    final data = buildReportAnalysisFromCounts(ReportAnalysisCounts.fromJson({
+      'totalSessions': 4,
+      'exercises': [
+        {'exerciseId': 'squat', 'sessions': 3},
+        {'exerciseId': 'pushup', 'sessions': 1},
+      ],
+      'mistakes': [
+        {'key': 'not-a-real-key', 'count': 9},
+      ],
+    }));
+    expect(data.totalSessions, 4);
+    expect([for (final r in data.ratios) (r.labelKo, r.percent)],
+        [('스쿼트', 75), ('푸쉬업', 25)]);
+    // 앱이 모르는 실수 키는 목록에서 뺀다.
+    expect(data.mistakes, isEmpty);
+  });
+
   test('ratios come from real records and add up to exactly 100%', () {
     final data = buildReportAnalysis([
       _record('squat'),
