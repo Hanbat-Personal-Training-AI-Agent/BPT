@@ -100,7 +100,7 @@ class _OnboardingScanScreenState extends ConsumerState<OnboardingScanScreen> {
         }
         if (args['isFinished'] == true && sessionPath != null && !_finished) {
           _finished = true;
-          // 4장을 다 찍은 시점이 체형 측정일이다 (POST /users/me/body-scans).
+          // 4장을 다 찍은 시점이 체형 측정일이다 (POST /users/me/body-scan).
           unawaited(ref
               .read(authNotifierProvider)
               .recordBodyScan(sessionPath: sessionPath));

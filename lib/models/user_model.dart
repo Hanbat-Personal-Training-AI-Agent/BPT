@@ -139,7 +139,7 @@ class UserModel {
 
   /// PUT /users/me 요청 본문 (서버 UserUpdateRequestDto 필드 이름·형식).
   /// toJson 은 기기 저장용이라 서버와 이름(phone)·날짜 형식이 다르다.
-  /// 체형 측정일은 POST /users/me/body-scans 로만 바꾸므로 보내지 않는다.
+  /// 체형 측정일은 POST /users/me/body-scan 로만 바꾸므로 보내지 않는다.
   Map<String, dynamic> toUpdateJson() => {
         'username': username,
         'email': email,
