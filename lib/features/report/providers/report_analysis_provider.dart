@@ -5,10 +5,14 @@ import '../../../core/i18n/locale_provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/mock_data.dart';
 import '../../../models/workout_record_model.dart';
+import '../../../services/report_service.dart';
+import '../../../services/workout_records_service.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../../home/providers/home_provider.dart';
 import '../../workout/data/kori_feedback_lines.dart';
 
-// 리포트 > 분석 탭 데이터. 종목별 비율, 세션 수, "자주 나온 실수"를 모두 실제 운동
+// 리포트 > 분석 탭 데이터. 종목별 세션 수와 "자주 나온 실수" 횟수는 서버 집계
+// (GET /reports/analysis)를 쓰고, 받기 전이거나 연결이 안 되면 실제 운동
 // 기록(allRecordsProvider)에서 계산한다. 실수는 기록의 feedbackCounts(네이티브 자세
 // 판정이 보낸 경고 횟수)를 키별로 더한 것이다.
 
@@ -68,8 +72,23 @@ class ReportAnalysisData {
   String insight(bool isKo) => isKo ? insightKo : insightEn;
 }
 
+/// 서버 분석 집계 (전체 기간). 운동 기록이 바뀌면 다시 받는다.
+/// 로그인 전이거나 연결이 안 되면 null.
+final serverReportCountsProvider =
+    FutureProvider<ReportAnalysisCounts?>((ref) async {
+  ref.watch(workoutRecordsProvider);
+  if (ref.watch(authNotifierProvider).currentUser == null) return null;
+  try {
+    return await ref.watch(reportServiceProvider).fetchAnalysis();
+  } catch (_) {
+    return null;
+  }
+});
+
 final reportAnalysisProvider = Provider<ReportAnalysisData>((ref) {
   ref.watch(selectedLanguageProvider); // 언어가 바뀌면 문구도 다시 계산
+  final server = ref.watch(serverReportCountsProvider).valueOrNull;
+  if (server != null) return buildReportAnalysisFromCounts(server);
   return buildReportAnalysis(ref.watch(allRecordsProvider));
 });
 
@@ -95,15 +114,11 @@ const List<Color> _mistakeColors = [
 /// 실수 목록에 보여줄 최대 줄 수.
 const int _maxMistakes = 5;
 
-List<MistakeItem> _buildMistakes(List<WorkoutRecordModel> records) {
-  final counts = <String, int>{};
-  for (final r in records) {
-    r.feedbackCounts.forEach((key, count) {
-      if (count > 0 && koriMistakeLabels.containsKey(key)) {
-        counts[key] = (counts[key] ?? 0) + count;
-      }
-    });
-  }
+List<MistakeItem> _buildMistakes(Map<String, int> allCounts) {
+  final counts = {
+    for (final e in allCounts.entries)
+      if (e.value > 0 && koriMistakeLabels.containsKey(e.key)) e.key: e.value,
+  };
   final keys = counts.keys.toList()
     ..sort((a, b) {
       final byCount = counts[b]!.compareTo(counts[a]!);
@@ -127,17 +142,43 @@ List<MistakeItem> _buildMistakes(List<WorkoutRecordModel> records) {
   ];
 }
 
+/// 기기에 있는 운동 기록으로 분석 탭 데이터를 만든다 (서버 집계를 못 받았을 때).
 ReportAnalysisData buildReportAnalysis(List<WorkoutRecordModel> records) {
-  final counts = <String, int>{};
-  final names = <String, (String, String)>{};
+  final sessions = <String, int>{};
+  final names = <String, String>{};
+  final mistakes = <String, int>{};
   for (final r in records) {
-    counts[r.exerciseId] = (counts[r.exerciseId] ?? 0) + 1;
-    final known = mockExercises.where((e) => e.id == r.exerciseId).firstOrNull;
-    names[r.exerciseId] = known != null
-        ? (known.nameKr, known.name)
-        : (r.exerciseName, r.exerciseName);
+    sessions[r.exerciseId] = (sessions[r.exerciseId] ?? 0) + 1;
+    names[r.exerciseId] = r.exerciseName;
+    r.feedbackCounts.forEach((key, count) {
+      if (count > 0) mistakes[key] = (mistakes[key] ?? 0) + count;
+    });
   }
-  final total = records.length;
+  return buildReportAnalysisFromCounts(
+    ReportAnalysisCounts(
+      totalSessions: records.length,
+      sessionsByExercise: sessions,
+      mistakeCounts: mistakes,
+    ),
+    exerciseNames: names,
+  );
+}
+
+/// 종목별 세션 수·실수 횟수로 분석 탭 데이터를 만든다.
+/// [exerciseNames]: 앱에 없는 종목 id 일 때 대신 보여줄 이름.
+ReportAnalysisData buildReportAnalysisFromCounts(
+  ReportAnalysisCounts data, {
+  Map<String, String> exerciseNames = const {},
+}) {
+  final counts = data.sessionsByExercise;
+  final names = <String, (String, String)>{};
+  for (final id in counts.keys) {
+    final known = mockExercises.where((e) => e.id == id).firstOrNull;
+    final fallback = exerciseNames[id] ?? id;
+    names[id] =
+        known != null ? (known.nameKr, known.name) : (fallback, fallback);
+  }
+  final total = data.totalSessions;
   final ids = counts.keys.toList()
     ..sort((a, b) => counts[b]!.compareTo(counts[a]!));
   final percents = _percentsSummingTo100([for (final id in ids) counts[id]!]);
@@ -152,7 +193,7 @@ ReportAnalysisData buildReportAnalysis(List<WorkoutRecordModel> records) {
       ),
   ];
 
-  final mistakes = _buildMistakes(records);
+  final mistakes = _buildMistakes(data.mistakeCounts);
 
   final String insightKo;
   final String insightEn;
