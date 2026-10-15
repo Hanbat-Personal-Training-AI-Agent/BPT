@@ -196,4 +196,63 @@ class AuthServiceTest {
         assertThat(response.getAccessToken()).isEqualTo("new.access.token");
         assertThat(response.getRefreshToken()).isEqualTo("new.refresh.token");
     }
+
+    @Test
+    @DisplayName("비밀번호 재설정 인증번호 발송 요청 시 아이디와 이메일 일치하면 성공")
+    void requestEmailVerification_resetPassword_success() {
+        User user = User.builder()
+                .id(1L)
+                .username("jihoon_kim")
+                .email("jihoon@bpt.app")
+                .build();
+
+        given(userRepository.findByUsername("jihoon_kim")).willReturn(java.util.Optional.of(user));
+
+        var req = com.bpt.kori.domain.auth.dto.EmailVerificationRequest.builder()
+                .email("jihoon@bpt.app")
+                .purpose("RESET_PASSWORD")
+                .username("jihoon_kim")
+                .build();
+
+        var res = authService.requestEmailVerification(req);
+        assertThat(res.isSuccess()).isTrue();
+    }
+
+    @Test
+    @DisplayName("비밀번호 재설정 인증번호 발송 요청 시 존재하지 않는 아이디면 USER_NOT_FOUND 예외 발생")
+    void requestEmailVerification_resetPassword_userNotFound() {
+        given(userRepository.findByUsername("unknown_user")).willReturn(java.util.Optional.empty());
+
+        var req = com.bpt.kori.domain.auth.dto.EmailVerificationRequest.builder()
+                .email("jihoon@bpt.app")
+                .purpose("RESET_PASSWORD")
+                .username("unknown_user")
+                .build();
+
+        assertThatThrownBy(() -> authService.requestEmailVerification(req))
+                .isInstanceOf(CustomException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.USER_NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("비밀번호 재설정 인증번호 발송 요청 시 아이디와 이메일 불일치하면 USER_NOT_FOUND 예외 발생")
+    void requestEmailVerification_resetPassword_emailMismatch() {
+        User user = User.builder()
+                .id(1L)
+                .username("jihoon_kim")
+                .email("jihoon@bpt.app")
+                .build();
+
+        given(userRepository.findByUsername("jihoon_kim")).willReturn(java.util.Optional.of(user));
+
+        var req = com.bpt.kori.domain.auth.dto.EmailVerificationRequest.builder()
+                .email("other@bpt.app")
+                .purpose("RESET_PASSWORD")
+                .username("jihoon_kim")
+                .build();
+
+        assertThatThrownBy(() -> authService.requestEmailVerification(req))
+                .isInstanceOf(CustomException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.USER_NOT_FOUND);
+    }
 }

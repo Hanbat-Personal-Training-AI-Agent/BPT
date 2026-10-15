@@ -119,7 +119,7 @@
 
 ---
 
-### 2.4 이메일 인증번호 발송 요청 (비동기 발송 & 1분 쿨다운)
+### 2.4 이메일 인증번호 발송 요청 (비동기 발송, 1분 쿨다운 & 비밀번호 재설정 계정 일치 검증)
 - **Method / URL**: `POST /auth/verify-email/request`
 - **인증 필요 여부**: ❌ 비인증
 - **설명**: 
@@ -127,23 +127,39 @@
   - 인증번호 저장 즉시 응답하므로 응답 지연이 없습니다.
   - 보안을 위해 서버 로그에 인증번호는 기록되지 않습니다.
   - 동일 이메일로의 재발송은 **1분 간격**으로 제한됩니다 (1분 이내 재요청 시 `429 RESEND_COOLDOWN_ACTIVE`).
+  - **비밀번호 재설정 계정 검증**: `purpose`가 `RESET_PASSWORD`이고 `username`이 제공된 경우, 해당 아이디가 존재하고 가입 이메일과 일치할 때만 인증번호를 발송하며 계정이 없거나 불일치 시 `404 USER_NOT_FOUND`를 반환합니다.
 
 #### Request Body
 ```json
 {
   "email": "user123@bpt.app",
-  "purpose": "FIND_ACCOUNT"
+  "purpose": "RESET_PASSWORD",
+  "username": "kori123"
 }
 ```
-> **purpose 옵션**:  
-> - `"SIGN_UP"` (기본값): *"회원가입 본인 인증을 위한"* 문구로 발송  
-> - `"FIND_ACCOUNT"`, `"FIND_USERNAME"`, `"RESET_PASSWORD"`: *"계정 찾기 본인 인증을 위한"* 문구로 발송
+> **파라미터 설명**:  
+> - `email` (필수, String): 인증번호를 전송할 이메일 주소  
+> - `purpose` (선택, String):
+>   - `"SIGN_UP"` (기본값): *"회원가입 본인 인증을 위한"* 문구로 발송  
+>   - `"FIND_ACCOUNT"`, `"FIND_USERNAME"`, `"RESET_PASSWORD"`: *"계정 찾기 본인 인증을 위한"* 문구로 발송  
+> - `username` (선택, String): 비밀번호 재설정(`RESET_PASSWORD`) 시 아이디와 이메일이 동일 계정인지 사전에 확인하기 위한 아이디
 
 #### Response Body (200 OK)
 ```json
 {
   "success": true,
   "message": "인증번호가 이메일로 발송되었습니다. (5분 내 입력)"
+}
+```
+
+#### Error Response (404 Not Found - 아이디 또는 이메일 계정 불일치 시)
+```json
+{
+  "success": false,
+  "error": {
+    "code": "USER_NOT_FOUND",
+    "message": "사용자를 찾을 수 없습니다."
+  }
 }
 ```
 

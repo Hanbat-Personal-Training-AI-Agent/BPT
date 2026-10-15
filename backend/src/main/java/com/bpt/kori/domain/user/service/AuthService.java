@@ -171,6 +171,27 @@ public class AuthService {
 
     public EmailVerificationResponse requestEmailVerification(EmailVerificationRequest request) {
         String email = request.getEmail().trim().toLowerCase();
+        String purpose = request.getPurpose() != null ? request.getPurpose().trim() : null;
+        String username = request.getUsername() != null ? request.getUsername().trim() : null;
+
+        // 비밀번호 재설정 시 아이디 확인:
+        // purpose가 RESET_PASSWORD이고 username이 오면, 같은 계정일 때만 발송하고 아니면 404 USER_NOT_FOUND
+        if ("RESET_PASSWORD".equalsIgnoreCase(purpose)) {
+            if (username != null && !username.isBlank()) {
+                User user = userRepository.findByUsername(username)
+                        .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+                if (!user.getEmail().trim().equalsIgnoreCase(email)) {
+                    log.warn("[VERIFY EMAIL RESET_PASSWORD MISMATCH] username {} has email {}, but request email is {}",
+                            username, user.getEmail(), email);
+                    throw new CustomException(ErrorCode.USER_NOT_FOUND);
+                }
+            } else {
+                if (!userRepository.existsByEmail(email)) {
+                    log.warn("[VERIFY EMAIL RESET_PASSWORD NOT FOUND] email {} not found", email);
+                    throw new CustomException(ErrorCode.USER_NOT_FOUND);
+                }
+            }
+        }
 
         // 4번: 재발송은 1분 간격 제한
         VerificationEntry existing = verificationStore.get(email);

@@ -82,13 +82,19 @@ class AuthService {
     return (data['available'] ?? data['isAvailable']) == true;
   }
 
-  /// 이메일 인증번호 발송 요청 (purpose: SIGN_UP, FIND_ACCOUNT 등)
-  Future<Map<String, dynamic>> requestEmailVerification(String email, {String? purpose}) async {
+  /// 이메일 인증번호 발송 요청 (purpose: SIGN_UP, FIND_ACCOUNT, RESET_PASSWORD 등)
+  /// RESET_PASSWORD 용도 시 username을 함께 전달하면 동일 계정 여부를 검증합니다.
+  Future<Map<String, dynamic>> requestEmailVerification(
+    String email, {
+    String? purpose,
+    String? username,
+  }) async {
     final response = await _apiClient.post(
       '/auth/verify-email/request',
       data: {
         'email': email.trim(),
         if (purpose != null && purpose.isNotEmpty) 'purpose': purpose,
+        if (username != null && username.isNotEmpty) 'username': username.trim(),
       },
     );
     return response.data as Map<String, dynamic>;

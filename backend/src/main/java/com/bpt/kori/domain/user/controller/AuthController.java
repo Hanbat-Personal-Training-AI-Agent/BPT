@@ -39,7 +39,7 @@ public class AuthController {
         return ResponseEntity.ok(response);
     }
 
-    @Operation(summary = "이메일 인증번호 발송 요청", description = "아이디/비밀번호 찾기용으로 이메일에 6자리 인증번호를 전송합니다.")
+    @Operation(summary = "이메일 인증번호 발송 요청", description = "회원가입 또는 아이디/비밀번호 찾기용으로 이메일에 6자리 인증번호를 전송합니다. (비밀번호 재설정 purpose=RESET_PASSWORD 및 username 전달 시 동일 계정 여부를 확인하며, 불일치 시 404 USER_NOT_FOUND를 반환합니다.)")
     @PostMapping("/verify-email/request")
     public ResponseEntity<EmailVerificationResponse> requestEmailVerification(@Valid @RequestBody EmailVerificationRequest request) {
         EmailVerificationResponse response = authService.requestEmailVerification(request);
