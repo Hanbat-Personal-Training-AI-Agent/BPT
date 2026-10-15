@@ -181,7 +181,7 @@ class AuthService {
   /// 저장하고 갱신된 사용자 정보를 돌려준다.
   Future<UserModel> recordBodyScan({String? sessionPath}) async {
     final response = await _apiClient.post(
-      '/users/me/body-scans',
+      '/users/me/body-scan',
       data: {if (sessionPath != null) 'bodyScanLocalPath': sessionPath},
     );
     return UserModel.fromJson(response.data as Map<String, dynamic>);
