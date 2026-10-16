@@ -283,19 +283,27 @@ class AuthNotifier extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// 회원 탈퇴. 서버 탈퇴 API(/users/me)를 호출하고 로컬 세션/저장 데이터를 정리한다.
-  Future<void> deleteAccount() async {
+  /// 회원 탈퇴. 서버가 계정을 지운 것을 확인한 뒤에만 로그아웃하고, 그 계정의
+  /// 프로필·운동 기록 캐시·전송 대기열을 기기에서 지운다.
+  /// 성공하면 null, 실패하면 화면에 보여줄 안내 문구를 돌려준다 (로그인 상태 유지).
+  Future<String?> deleteAccount() async {
+    final user = _currentUser;
     try {
       await _authService.deleteAccount();
+    } on NetworkException {
+      return '서버에 연결할 수 없어서 탈퇴하지 못했어. 인터넷 연결을 확인하고 다시 시도해줘.';
     } catch (_) {
-      // 오프라인이거나 서버 에러 시에도 기기 로컬 세션은 정상 정리
+      return '탈퇴하지 못했어. 잠시 후 다시 시도해줘.';
     }
+    if (user != null) await _storage.removeWorkoutData(user.id);
+    await _storage.removeUser();
     await _storage.clearSession();
     _authService.restoreAuthToken(null);
     _currentUser = null;
     _error = null;
     _isOfflineMode = false;
     notifyListeners();
+    return null;
   }
 
   void clearError() {

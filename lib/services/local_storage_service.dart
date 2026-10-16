@@ -125,6 +125,12 @@ class LocalStorageService {
     await _prefs.remove(legacySyncQueueKey);
   }
 
+  /// 탈퇴한 계정의 운동 기록 캐시와 전송 대기열을 지운다.
+  Future<void> removeWorkoutData(String uid) async {
+    await _prefs.remove(_recordsKey(uid));
+    await _prefs.remove(syncQueueKey(uid));
+  }
+
   // ── Session ───────────────────────────────────────────────────────────────
   Future<void> clearSession() async {
     await _prefs.setBool(_keyAutoLogin, false);
