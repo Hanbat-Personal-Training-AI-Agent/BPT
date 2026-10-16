@@ -321,4 +321,10 @@ final authNotifierProvider = ChangeNotifierProvider<AuthNotifier>((ref) {
   return AuthNotifier(authService, storage);
 });
 
+/// 지금 로그인한 사용자 ID (로그인 안 했으면 null). 운동 기록 캐시와 전송
+/// 대기열을 계정별로 나누는 데 쓴다. 바뀌면 그 Provider들이 새로 만들어진다.
+final currentUserIdProvider = Provider<String?>(
+  (ref) => ref.watch(authNotifierProvider.select((a) => a.currentUser?.id)),
+);
+
 final autoLoginProvider = StateProvider<bool>((ref) => false);
