@@ -884,3 +884,18 @@
 - **푸시업 정면(48%)**: 앱이 측면 촬영을 안내하는 시점이고 정면에서는 다리가 가려 tracking_lost가 거의 항상 울림(D-DATA-01 §3) — 렙을 세게 해도 셋업 안내와 충돌. 우선순위 낮음.
 - **YouTube 바벨로우 사선**: 조정 세트가 1개(2렙)라 조정할 데이터가 없음.
 - **MediaPipe Pose full로 스쿼트**: RTMPose-m 경로가 조정 92.2%까지 올라 남은 놓침이 적고, D-C-07에서 MediaPipe는 스쿼트·로우 PCK가 더 나빴음. 평가하려면 공개 클립 153개를 Home CPU로 다시 뽑아야 해서 이번엔 생략.
+
+## 트랙 halpe-decision — 운동 카메라 RTMPose-m COCO17 vs RTMPose-m Halpe26 — 2026-10-16
+배경: D-01(Halpe26 기본 되돌림), D-C-04(Halpe26 전환은 사용자 결정으로 올림), D-T3-05(운동 카메라 = m COCO17)로, "Halpe26으로 바꾸기로 했다"는 결정은 실행된 적이 없음. 이번 트랙에서 수치로 정함. 캘리브레이션 캡처(`RTMPoseModel.active` = s COCO17)는 범위 밖, 바꾸지 않음.
+
+### D-T3-17 판정 규칙 (검증 결과를 보기 전에 고정, 2026-10-16)
+- **비교**: 운동 카메라 기본 m COCO17(현재) vs m Halpe26. s Halpe26은 참고로만 같이 잼. 세 모델 모두 같은 현재 규칙(D-T3-13 스쿼트, D-T3-10/11 푸시업, D-T3-01/03 로우, crop 입력, crop 재맞춤 켬, ready-pose 끔, 3D 없음)을 같은 pose-replay 바이너리로.
+- **검증(held-out) 세트**(이미 고정된 분할 그대로): 공개 데이터 `data/eval_sources/split.csv`의 heldout(Mendeley + YouTube CC), MM-Fit 푸시업 D-T3-09 검증 6명 18세트, Exercise3D P2·P3(푸시업은 P1뿐이라 검증 없음), Fit3D s07–s11(사선). 조정 세트(공개 tuning, MM-Fit 조정 9명, Exercise3D P1, Fit3D s03–s05)는 같이 표에 싣지만 판정에 쓰지 않음.
+- **m Halpe26으로 바꾸는 조건(모두 만족해야 함)**:
+  1. 검증 렙 정확도가 **운동 × 측면** 칸마다 낮아지지 않음 — 측면 검증 데이터가 있는 출처(공개, MM-Fit, Exercise3D)별로 각각, 그리고 출처 합계로.
+  2. 검증 전체 렙 정확도(모든 출처·시점 합산: Σ(정답−놓침) ÷ Σ(정답+추가))가 **더 높음**.
+  3. 가짜 렙 0 유지: 흔들림 합성(소스 4개 × 11조건, 그 모델의 키포인트로 만듦), squat_03(정답 2 — 2를 넘으면 가짜 렙), 더미 영상 6개, 스쿼트·로우 평가기.
+  4. 셋업 키 오경보가 늘지 않음: 앱에서 켜진 키(setup_full_body·tracking_lost 전 운동, setup_side_view 로우만)의 실제 영상 전체(모든 출처·분할·시점, 합성·더미 제외) 합계가 m COCO17 이하.
+  5. iPhone 속도: 영상 입력 전체 파이프라인(`tools/pose_model_bench/run_pipeline.sh`, 30 fps 페이스)에서 p95 지연 ≤ 33.3 ms이고 놓친 프레임이 m COCO17(D-C-06: 0)보다 의미 있게 많지 않음(0.1% 이하). 기기를 1시간 동안 못 쓰면 "미측정"으로 두고, D-C-05(추론 m COCO17 3.31 ms vs m Halpe26 3.29 ms)대로 같은 속도로 봄.
+- 하나라도 어기면 m COCO17 유지, 어긴 조건을 수치로 적음. 어느 쪽이든 두 모델 모두 플래그(`BPT_POSE_MODEL`, pose-replay `--model`)로 고를 수 있게 둠.
+- 발뒤꿈치: Halpe26 발뒤꿈치 PCK와 squat_heel_rise 평가 가능성은 측정만. 틀린 자세 데이터가 없으면 키는 OFF(D-03).
