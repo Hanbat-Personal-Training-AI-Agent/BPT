@@ -89,6 +89,21 @@ public class UserService {
             } catch (Exception ignored) {}
         }
 
+        if (request.getMarketingConsent() != null) {
+            user.setMarketingConsent(request.getMarketingConsent());
+            if (request.getMarketingConsentAt() != null && !request.getMarketingConsentAt().isBlank()) {
+                try {
+                    user.setMarketingConsentAt(LocalDateTime.parse(request.getMarketingConsentAt().trim()));
+                } catch (Exception ignored) {
+                    user.setMarketingConsentAt(LocalDateTime.now());
+                }
+            } else if (Boolean.TRUE.equals(request.getMarketingConsent())) {
+                user.setMarketingConsentAt(LocalDateTime.now());
+            } else {
+                user.setMarketingConsentAt(null);
+            }
+        }
+
         return UserDto.fromEntity(user);
     }
 

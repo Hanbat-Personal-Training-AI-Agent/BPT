@@ -49,7 +49,7 @@ public class UserController {
         return ResponseEntity.ok(updated);
     }
 
-    @Operation(summary = "온보딩 정보 등록 (API 6)", description = "성별, 키, 몸무게, 운동 목표, 주간 빈도, 알림 시간(예: '18:00')을 저장하고 오늘 날짜를 체형 스캔일(lastBodyScanDate)로 기록합니다.")
+    @Operation(summary = "온보딩 정보 등록 (API 6)", description = "성별, 키, 몸무게, 운동 목표, 주간 빈도, 알림 시간(예: '18:00')을 저장합니다. (체형 측정일은 온보딩 시 갱신되지 않으며 4장 촬영 완료 후 POST /users/me/body-scans로 기록합니다.)")
     @PutMapping("/me/onboarding")
     public ResponseEntity<OnboardingResponse> updateOnboarding(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
