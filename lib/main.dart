@@ -17,6 +17,10 @@ void main() async {
   // Initialize local persistent storage
   final prefs = await SharedPreferences.getInstance();
 
+  // 계정 구분 없이 저장돼 있던 예전 운동 기록 캐시와 전송 대기열은 누구 것인지
+  // 알 수 없어 지운다. 서버에 올라간 기록은 로그인하면 다시 받아 온다.
+  await LocalStorageService(prefs).removeLegacyRecords();
+
   SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
