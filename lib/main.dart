@@ -7,7 +7,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'core/i18n/locale_provider.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
+import 'features/profile/providers/profile_provider.dart';
 import 'services/local_storage_service.dart';
+import 'services/reminder_notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -43,6 +45,15 @@ class BPTApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(appRouterProvider);
     final locale = ref.watch(appLocaleProvider);
+
+    // 로그인 사용자의 알림 설정이 바뀌면 코리 잔소리 알림을 다시 예약한다.
+    // 로그아웃하면(null) 예약을 지운다.
+    ref.listen(reminderScheduleProvider, (_, next) {
+      ref.read(reminderNotificationServiceProvider).sync(
+            enabled: next?.$1 ?? false,
+            time: next?.$2 ?? const TimeOfDay(hour: 7, minute: 0),
+          );
+    });
 
     return MaterialApp.router(
       title: 'BPT',

@@ -744,11 +744,9 @@ class _RecentRecordTile extends StatelessWidget {
                   const SizedBox(height: 3),
                   Text(
                     () {
-                      final weight = record.weightKg > 0
-                          ? record.weightKg
-                          : mockWeightKgByExercise[record.exerciseId]
-                              ?.toDouble();
-                      final weightPart = (weight == null || weight == 0)
+                      // 무게가 저장되지 않은 기록(맨몸 운동 등)은 무게를 표시하지 않는다.
+                      final weight = record.weightKg;
+                      final weightPart = weight <= 0
                           ? ''
                           : ' · ${weight == weight.roundToDouble() ? weight.toInt() : weight}kg';
                       return isKo

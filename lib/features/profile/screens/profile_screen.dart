@@ -802,8 +802,7 @@ class _EditGoalSheetState extends ConsumerState<_EditGoalSheet> {
   }
 
   void _save() {
-    // TODO(backend): PUT /users/me 가 weeklyFrequency 를 받지 않아 주간 목표는
-    // 지금 기기에만 저장된다. 백엔드가 받게 되면 이 호출만으로 서버에도 반영된다.
+    // 운동 목표와 주간 목표 횟수는 PUT /users/me 로 서버에 저장된다.
     ref.read(authNotifierProvider).updateProfile(
         widget.user.copyWith(workoutGoal: _goal, weeklyFrequency: _frequency));
     Navigator.pop(context);
@@ -1107,9 +1106,7 @@ class _SettingsCard extends ConsumerWidget {
                   scale: 0.95,
                   child: Switch(
                     value: notificationsEnabled,
-                    onChanged: (v) => ref
-                        .read(notificationsEnabledProvider.notifier)
-                        .state = v,
+                    onChanged: (v) => saveNotificationSettings(ref, enabled: v),
                     materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     activeTrackColor: AppColors.green,
                     thumbColor: const WidgetStatePropertyAll(AppColors.black),
@@ -1248,8 +1245,8 @@ class _ReminderTimeSheetState extends ConsumerState<_ReminderTimeSheet> {
     final hour24 = _isAm
         ? (_hour12 == 12 ? 0 : _hour12)
         : (_hour12 == 12 ? 12 : _hour12 + 12);
-    ref.read(koriReminderTimeProvider.notifier).state =
-        TimeOfDay(hour: hour24, minute: _minute);
+    saveNotificationSettings(ref,
+        time: TimeOfDay(hour: hour24, minute: _minute));
     Navigator.pop(context);
   }
 

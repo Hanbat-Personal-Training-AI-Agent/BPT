@@ -1,46 +1,95 @@
+import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/route_constants.dart';
 import '../../../core/theme/app_colors.dart';
+import '../services/calibration_upload_service.dart';
 
-/// Shown right after the 3 body-scan photos are captured. Plays a fake
-/// analysis progress animation (no backend call yet — the real pipeline
-/// isn't wired up), then deletes the local scan photos and continues to
-/// the 3D result screen.
-class OnboardingAnalyzingScreen extends StatefulWidget {
+/// Shown right after the 4 body-scan photos are captured. Uploads the capture
+/// bundle on its own (no button), plays the analysis progress animation, then
+/// continues to the 3D result screen once both are done.
+///
+/// The ring is still a 40 s animation: no analysis result comes back yet, and
+/// the result screen is a placeholder. A missing upload config or a failed
+/// upload does not block the flow; it is only logged and the photos stay on
+/// the device.
+class OnboardingAnalyzingScreen extends ConsumerStatefulWidget {
   const OnboardingAnalyzingScreen({super.key, this.sessionPath});
 
   /// `Documents/calibration/<sessionId>` written by the native calibration session.
   final String? sessionPath;
 
   @override
-  State<OnboardingAnalyzingScreen> createState() =>
+  ConsumerState<OnboardingAnalyzingScreen> createState() =>
       _OnboardingAnalyzingScreenState();
 }
 
-class _OnboardingAnalyzingScreenState extends State<OnboardingAnalyzingScreen>
+class _OnboardingAnalyzingScreenState
+    extends ConsumerState<OnboardingAnalyzingScreen>
     with SingleTickerProviderStateMixin {
   static const _duration = Duration(seconds: 40);
 
   late final AnimationController _controller;
 
+  /// Settles (never throws) when the upload has finished, failed or was skipped.
+  late final Future<void> _upload;
+  bool _finished = false;
+
   @override
   void initState() {
     super.initState();
+    _upload = _startUpload();
     _controller = AnimationController(vsync: this, duration: _duration)
       ..addStatusListener((status) {
-        if (status == AnimationStatus.completed) _finish();
+        if (status == AnimationStatus.completed) _finishAfterUpload();
       })
       ..forward();
   }
 
+  /// Sends the 4 photos + metadata right away. Keeps running if the user
+  /// leaves the screen, so the bundle still reaches the server.
+  Future<void> _startUpload() async {
+    final path = widget.sessionPath;
+    final service = ref.read(calibrationUploadServiceProvider);
+    final issue = service.config.configurationIssue;
+    if (path == null || path.isEmpty) {
+      debugPrint('[Calibration] 촬영 데이터 없음 → 전송 건너뜀');
+      return;
+    }
+    if (issue != null) {
+      debugPrint('[Calibration] 전송 건너뜀: $issue');
+      return;
+    }
+    try {
+      debugPrint('[Calibration] 사진 4장 자동 전송 시작');
+      final receipt = await service.upload(path, cancelToken: CancelToken());
+      debugPrint('[Calibration] 전송·접수 완료 (접수 번호 ${receipt.jobId})');
+    } on CalibrationUploadException catch (error) {
+      debugPrint('[Calibration] 전송 실패: ${error.message}');
+    } on DioException catch (error) {
+      debugPrint('[Calibration] 전송 실패: ${error.type.name}');
+    } catch (_) {
+      // Never log transport exceptions: they can contain signed URLs/credentials.
+      debugPrint('[Calibration] 전송 실패');
+    }
+  }
+
+  Future<void> _finishAfterUpload() async {
+    await _upload;
+    _finish();
+  }
+
   void _finish() {
-    // The capture bundle stays on disk: nothing uploads it yet, and the SMPL fitting
-    // pipeline is fed by hand from Files/Finder. Delete it here once upload exists.
-    if (mounted) context.go(RouteConstants.onboardingResult);
+    // The capture bundle stays on disk so a failed upload can be sent again later.
+    if (!mounted || _finished) return;
+    _finished = true;
+    context.go(RouteConstants.onboardingResult);
   }
 
   // TODO(temp): debug-only skip button — the analysis is still a fake
@@ -161,7 +210,7 @@ class _OnboardingAnalyzingScreenState extends State<OnboardingAnalyzingScreen>
                         ),
                         const SizedBox(height: 18),
                         const _StepRow(
-                          label: '자동 촬영 3장 수집',
+                          label: '자동 촬영 4장 수집',
                           state: _StepState.done,
                         ),
                         const SizedBox(height: 10),
@@ -197,29 +246,30 @@ class _OnboardingAnalyzingScreenState extends State<OnboardingAnalyzingScreen>
             ),
             // TODO(temp): debug-only skip button — remove once the real
             // analysis pipeline is wired up.
-            Positioned(
-              right: 16,
-              bottom: 100,
-              child: SafeArea(
-                child: GestureDetector(
-                  onTap: _debugSkip,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.6),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: AppColors.red, width: 1.5),
+            if (kDebugMode)
+              Positioned(
+                right: 16,
+                bottom: 100,
+                child: SafeArea(
+                  child: GestureDetector(
+                    onTap: _debugSkip,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.6),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: AppColors.red, width: 1.5),
+                      ),
+                      child: const Text('결과 보기 (테스트용)',
+                          style: TextStyle(
+                              color: AppColors.red,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800)),
                     ),
-                    child: const Text('결과 보기 (테스트용)',
-                        style: TextStyle(
-                            color: AppColors.red,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w800)),
                   ),
                 ),
               ),
-            ),
           ],
         ),
       ),

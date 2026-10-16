@@ -18,7 +18,17 @@ class AuthNotifier extends ChangeNotifier {
   String? _error;
   bool _isOfflineMode = false;
 
-  AuthNotifier(this._authService, this._storage);
+  AuthNotifier(this._authService, this._storage) {
+    // 액세스 토큰은 1시간이면 만료된다. API 클라이언트가 자동으로 갱신하면
+    // 새 토큰을 기기에 저장하고, 리프레시 토큰까지 만료되면 로그인 화면으로 보낸다.
+    _authService.onTokensRefreshed = (accessToken, refreshToken) {
+      _storage.saveAuthToken(accessToken);
+      _storage.saveRefreshToken(refreshToken);
+    };
+    _authService.onSessionExpired = () {
+      if (_currentUser != null) logout();
+    };
+  }
 
   UserModel? get currentUser => _currentUser;
   bool get isLoggedIn => _currentUser != null;
@@ -38,7 +48,8 @@ class AuthNotifier extends ChangeNotifier {
     // 저장해 둔 토큰이 없으면 서버 인증을 되살릴 수 없으니 다시 로그인하게 한다.
     final token = _storage.loadAuthToken();
     if (token == null) return false;
-    _authService.restoreAuthToken(token);
+    _authService.restoreAuthToken(token,
+        refreshToken: _storage.loadRefreshToken());
 
     _currentUser = cachedUser;
     notifyListeners();
@@ -46,14 +57,13 @@ class AuthNotifier extends ChangeNotifier {
     // Try background refresh from Spring Boot server
     try {
       final freshUser = await _authService.fetchUserProfile();
-      // 사용자 정보 응답에는 주간 목표가 없으니 기기에 있던 값을 유지한다.
+      // 서버에 주간 목표가 아직 없으면 기기에 있던 값을 유지한다.
       _currentUser = freshUser.copyWith(
           weeklyFrequency:
               freshUser.weeklyFrequency ?? cachedUser.weeklyFrequency);
       await _storage.saveUser(_currentUser!);
       _isOfflineMode = false;
       notifyListeners();
-      unawaited(_refreshWeeklyGoal());
     } on UnauthorizedException {
       // 토큰이 만료됐거나 서버에서 거절됨 → 저장된 세션을 지우고 로그인 화면으로
       await logout();
@@ -81,10 +91,10 @@ class AuthNotifier extends ChangeNotifier {
       _currentUser = user;
       await _storage.saveUser(user);
       await _storage.saveAuthToken(_authService.authToken);
+      await _storage.saveRefreshToken(_authService.refreshToken);
       await _storage.saveAutoLogin(rememberMe);
       _isOfflineMode = false;
       _error = null;
-      unawaited(_refreshWeeklyGoal());
     } on NetworkException {
       // Spring Boot backend not running or unreachable -> Fallback to Offline Local Login
       _currentUser = _createLocalFallbackUser(username: email);
@@ -132,6 +142,7 @@ class AuthNotifier extends ChangeNotifier {
       _currentUser = user;
       await _storage.saveUser(user);
       await _storage.saveAuthToken(_authService.authToken);
+      await _storage.saveRefreshToken(_authService.refreshToken);
       await _storage.saveAutoLogin(true);
       _isOfflineMode = false;
     } on NetworkException {
@@ -184,18 +195,6 @@ class AuthNotifier extends ChangeNotifier {
           ? '서버에 연결할 수 없어서 신체 정보를 저장하지 못했어.'
           : e.message;
     }
-  }
-
-  /// 서버의 주간 목표를 읽어 현재 사용자에 반영한다. 실패해도 조용히 넘어간다.
-  Future<void> _refreshWeeklyGoal() async {
-    try {
-      final goal = await _authService.fetchWeeklyGoal();
-      final user = _currentUser;
-      if (goal == null || user == null) return;
-      _currentUser = user.copyWith(weeklyFrequency: goal);
-      await _storage.saveUser(_currentUser!);
-      notifyListeners();
-    } catch (_) {}
   }
 
   /// TEST ONLY: 백엔드 호출 없이 로컬 오프라인 유저로 즉시 로그인 처리한다.
@@ -265,6 +264,22 @@ class AuthNotifier extends ChangeNotifier {
     _currentUser = null;
     _error = null;
     _isOfflineMode = false;
+    notifyListeners();
+  }
+
+  /// 체형 촬영 완료를 서버에 기록하고, 오늘 날짜를 마지막 측정일로 반영한다.
+  /// 서버에 못 보내도 기기에는 측정일을 남겨 재측정 알림이 바로 사라지게 한다.
+  Future<void> recordBodyScan({String? sessionPath}) async {
+    final user = _currentUser;
+    if (user == null) return;
+    try {
+      final fresh = await _authService.recordBodyScan(sessionPath: sessionPath);
+      _currentUser = fresh.copyWith(
+          weeklyFrequency: fresh.weeklyFrequency ?? user.weeklyFrequency);
+    } catch (_) {
+      _currentUser = user.copyWith(lastBodyScanDate: DateTime.now());
+    }
+    await _storage.saveUser(_currentUser!);
     notifyListeners();
   }
 

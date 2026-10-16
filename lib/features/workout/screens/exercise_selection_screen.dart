@@ -9,6 +9,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../data/mock_data.dart';
 import '../../../models/exercise_model.dart';
+import '../../home/providers/home_provider.dart';
 
 enum _SetMode { same, rampUp, pyramid }
 
@@ -32,7 +33,6 @@ class _ExerciseSelectionScreenState
     extends ConsumerState<ExerciseSelectionScreen> {
   static const _minSets = 3;
   static const _maxSets = 10;
-  static const _defaultWeight = 20;
 
   late String _selectedExerciseId;
   late int _setCount;
@@ -53,7 +53,7 @@ class _ExerciseSelectionScreenState
     _selectedExerciseId = first.id;
     _setCount = first.defaultSets.clamp(_minSets, _maxSets);
     _uniformReps = first.defaultReps;
-    _uniformWeight = _defaultWeight;
+    _uniformWeight = ref.read(defaultWeightKgProvider(first.id));
     _perSetValues = List.generate(
       _setCount,
       (_) => _SetConfig(reps: _uniformReps, weight: _uniformWeight),
@@ -75,6 +75,8 @@ class _ExerciseSelectionScreenState
     setState(() {
       _selectedExerciseId = id;
       _uniformReps = mockExercises.firstWhere((e) => e.id == id).defaultReps;
+      // 무게는 그 운동을 마지막으로 했을 때 든 무게(없으면 운동별 기본값)로 맞춘다.
+      _uniformWeight = ref.read(defaultWeightKgProvider(id));
       if (!_perSetEnabled) {
         _perSetValues = List.generate(
           _setCount,

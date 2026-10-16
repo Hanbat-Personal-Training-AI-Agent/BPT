@@ -18,6 +18,7 @@
 		35264BC5B5803A97A73D826C /* rtmpose_s_forward.mlpackage in Resources */ = {isa = PBXBuildFile; fileRef = D0DB04261F1D80726AD0AF58 /* rtmpose_s_forward.mlpackage */; };
 		3B3967161E833CAA004F5970 /* AppFrameworkInfo.plist in Resources */ = {isa = PBXBuildFile; fileRef = 3B3967151E833CAA004F5970 /* AppFrameworkInfo.plist */; };
 		3C9255FE7D789FFFC415E3C9 /* hand_landmarker.task in Resources */ = {isa = PBXBuildFile; fileRef = EF0D70169B810C7825FAE8DD /* hand_landmarker.task */; };
+		4B0A1C2D3E4F5A6B7C8D9E02 /* KoriSpeaker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B0A1C2D3E4F5A6B7C8D9E01 /* KoriSpeaker.swift */; };
 		3EAE5785BD00E55356394216 /* NativePoseRegistration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28CF067E5302E66D43049D22 /* NativePoseRegistration.swift */; };
 		40E3761BDF18FECA75D4155D /* BarbellRowEvaluator.swift in Sources */ = {isa = PBXBuildFile; fileRef = D17BBF73154938F9C729D2C4 /* BarbellRowEvaluator.swift */; };
 		511C8B1A5E3231BB606B95BE /* SquatTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66A9249975D25A56873258E4 /* SquatTypes.swift */; };
@@ -51,6 +52,8 @@
 		B75CABD5DE5ECD9A619075AC /* CalibrationDebugLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2F3CD58F303C94E51B2ECAF /* CalibrationDebugLog.swift */; };
 		9B1765659A9EB03CD190EA76 /* CalibrationSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = A477883B45E9D69598BA97E3 /* CalibrationSession.swift */; };
 		B80641859AA06A9A441B5935 /* CalibrationCameraPlatformView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2B44E870E9B48FAB6FB2538 /* CalibrationCameraPlatformView.swift */; };
+		925BCFA4D5D958F6F478B0AC /* CalibrationFrameAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7823F1F23BB7F8BB16A7D5B8 /* CalibrationFrameAnalyzer.swift */; };
+		F6385859DC9CD45597CCF40F /* RTMPoseInputTensor.swift in Sources */ = {isa = PBXBuildFile; fileRef = BCF4F40DCF7F2B98E0095348 /* RTMPoseInputTensor.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -81,6 +84,7 @@
 		1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GeneratedPluginRegistrant.m; sourceTree = "<group>"; };
 		1CCE7980CB9E4B502305AFFA /* MediaPipeHandLandmarkerRunner.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MediaPipeHandLandmarkerRunner.swift; sourceTree = "<group>"; };
 		200979D0AF7396451B08CFB3 /* Pods_RunnerTests.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_RunnerTests.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		4B0A1C2D3E4F5A6B7C8D9E01 /* KoriSpeaker.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = KoriSpeaker.swift; sourceTree = "<group>"; };
 		28CF067E5302E66D43049D22 /* NativePoseRegistration.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NativePoseRegistration.swift; sourceTree = "<group>"; };
 		2A1FD033181BAA88DDC1B0E9 /* BarbellRowTypes.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BarbellRowTypes.swift; sourceTree = "<group>"; };
 		331C807B294A618700263BE5 /* RunnerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunnerTests.swift; sourceTree = "<group>"; };
@@ -135,6 +139,8 @@
 		B2F3CD58F303C94E51B2ECAF /* CalibrationDebugLog.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CalibrationDebugLog.swift; sourceTree = "<group>"; };
 		A477883B45E9D69598BA97E3 /* CalibrationSession.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CalibrationSession.swift; sourceTree = "<group>"; };
 		C2B44E870E9B48FAB6FB2538 /* CalibrationCameraPlatformView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CalibrationCameraPlatformView.swift; sourceTree = "<group>"; };
+		7823F1F23BB7F8BB16A7D5B8 /* CalibrationFrameAnalyzer.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CalibrationFrameAnalyzer.swift; sourceTree = "<group>"; };
+		BCF4F40DCF7F2B98E0095348 /* RTMPoseInputTensor.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = RTMPoseInputTensor.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -185,6 +191,7 @@
 				A9904FCF0AC9BC0DB7C5C3AD /* CalibrationVoice.swift */,
 				B2F3CD58F303C94E51B2ECAF /* CalibrationDebugLog.swift */,
 				A477883B45E9D69598BA97E3 /* CalibrationSession.swift */,
+				7823F1F23BB7F8BB16A7D5B8 /* CalibrationFrameAnalyzer.swift */,
 				C2B44E870E9B48FAB6FB2538 /* CalibrationCameraPlatformView.swift */,
 			);
 			path = Calibration;
@@ -196,6 +203,7 @@
 				FCEB665660D0A67B817FFAB4 /* NativePoseCameraPlatformView.swift */,
 				F3C7BDC341C048CCF624916D /* NativePoseCameraPlatformViewFactory.swift */,
 				28CF067E5302E66D43049D22 /* NativePoseRegistration.swift */,
+				4B0A1C2D3E4F5A6B7C8D9E01 /* KoriSpeaker.swift */,
 			);
 			path = Bridge;
 			sourceTree = "<group>";
@@ -239,6 +247,7 @@
 			children = (
 				C22663292A168CDCAD307E66 /* PoseCoordinateTransforms.swift */,
 				9C26CE42DA3E61208CE01EF8 /* PosePreprocess.swift */,
+				BCF4F40DCF7F2B98E0095348 /* RTMPoseInputTensor.swift */,
 				C7C4940B99ECEFA823DD8EB1 /* SimCCDecoder.swift */,
 			);
 			path = PosePipeline;
@@ -575,6 +584,7 @@
 				FEEDD62DEEFAEFF0804DBBBC /* CameraPosePreview.swift in Sources */,
 				A7DD801D7BE99E90AD97FF07 /* PoseCoordinateTransforms.swift in Sources */,
 				21CDBC22A214628A2C924DA7 /* PosePreprocess.swift in Sources */,
+				F6385859DC9CD45597CCF40F /* RTMPoseInputTensor.swift in Sources */,
 				8A47468CE23144E7FE449BEB /* SimCCDecoder.swift in Sources */,
 				223CDB2759C9124390D74E5F /* BundledVideoHandFrameProcessor.swift in Sources */,
 				08C943D98F2961D3E7FD292C /* HandCropBuilder.swift in Sources */,
@@ -595,6 +605,7 @@
 				622CB33062458ACA0B781D8B /* NativePoseCameraPlatformView.swift in Sources */,
 				C4CC1F25A32E8EDA3BF8D0D3 /* NativePoseCameraPlatformViewFactory.swift in Sources */,
 				3EAE5785BD00E55356394216 /* NativePoseRegistration.swift in Sources */,
+				4B0A1C2D3E4F5A6B7C8D9E02 /* KoriSpeaker.swift in Sources */,
 				86AB2F1D28559673AEFB3414 /* CalibrationConfig.swift in Sources */,
 				5A078BAFDB04ACF07057A2B7 /* CalibrationTypes.swift in Sources */,
 				0769990B245BA6D1840230A1 /* CalibrationEngine.swift in Sources */,
@@ -603,6 +614,7 @@
 				3ADE02570275D4BCFFA42291 /* CalibrationVoice.swift in Sources */,
 				B75CABD5DE5ECD9A619075AC /* CalibrationDebugLog.swift in Sources */,
 				9B1765659A9EB03CD190EA76 /* CalibrationSession.swift in Sources */,
+				925BCFA4D5D958F6F478B0AC /* CalibrationFrameAnalyzer.swift in Sources */,
 				B80641859AA06A9A441B5935 /* CalibrationCameraPlatformView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

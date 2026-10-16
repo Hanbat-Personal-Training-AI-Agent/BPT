@@ -9,6 +9,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../data/mock_data.dart';
 import '../../../models/workout_record_model.dart';
+import '../../../services/calendar_service.dart';
 import '../../home/providers/home_provider.dart';
 
 const _weekdayHeaderKo = ['일', '월', '화', '수', '목', '금', '토'];
@@ -90,7 +91,12 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
             r.date.month == _visibleMonth.month)
         .toList();
 
-    final workoutDates = monthRecords.map((r) => _dateOnly(r.date)).toSet();
+    // 운동한 날 표시와 이번 달 횟수는 서버 캘린더를 쓰고, 못 받으면 기기 기록으로 센다.
+    final serverMonth =
+        ref.watch(monthlyCalendarProvider(_visibleMonth)).valueOrNull;
+    final workoutDates = serverMonth?.workoutDates ??
+        monthRecords.map((r) => _dateOnly(r.date)).toSet();
+    final monthWorkoutCount = serverMonth?.recordCount ?? monthRecords.length;
 
     final selectedDate = _selectedDate;
     final selectedRecords = selectedDate == null
@@ -123,8 +129,8 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                         ),
                         Text(
                           isKo
-                              ? '${_monthsKo[_visibleMonth.month - 1]} ${monthRecords.length}번 운동'
-                              : '${monthRecords.length} workouts in ${_monthsEn[_visibleMonth.month - 1]}',
+                              ? '${_monthsKo[_visibleMonth.month - 1]} $monthWorkoutCount번 운동'
+                              : '$monthWorkoutCount workouts in ${_monthsEn[_visibleMonth.month - 1]}',
                           style: TextStyle(
                             color: Colors.white.withValues(alpha: 0.45),
                             fontSize: 13,
@@ -505,9 +511,7 @@ class _CalendarRecordTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ex = findExercise(record.exerciseId);
-    final weight = record.weightKg > 0
-        ? record.weightKg
-        : mockWeightKgByExercise[record.exerciseId]?.toDouble();
+    final double? weight = record.weightKg > 0 ? record.weightKg : null;
 
     return GestureDetector(
       onTap: () => context.push(

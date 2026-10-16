@@ -134,9 +134,28 @@ class _WorkoutResultScreenState extends ConsumerState<WorkoutResultScreen>
       feedbackNotes: (r['feedbackHistory'] as List?)?.cast<String>() ?? [],
       targetReps: r['targetReps'] as int? ?? 0,
       targetSets: r['targetSets'] as int? ?? 1,
+      setsDetail: _setsDetail(),
+      feedbackCounts: (r['feedbackCounts'] as Map?)?.map(
+              (k, v) => MapEntry(k.toString(), (v as num?)?.toInt() ?? 0)) ??
+          const {},
     );
 
     await ref.read(workoutRecordsProvider.notifier).addMetadataRecord(dto);
+  }
+
+  /// 운동 화면이 넘긴 세트별 기록(`setResults`)을 서버 setsDetail 로 바꾼다.
+  List<WorkoutSetDetail> _setsDetail() {
+    final raw = widget.result['setResults'];
+    if (raw is! List) return const [];
+    return [
+      for (final (i, e) in raw.indexed)
+        if (e is Map)
+          WorkoutSetDetail(
+            setNumber: i + 1,
+            reps: (e['reps'] as num?)?.toInt() ?? 0,
+            weightKg: (e['weightKg'] as num?)?.toDouble() ?? 0,
+          ),
+    ];
   }
 
   /// 기록에는 무게를 하나만 저장하므로, 세트마다 무게가 다르면 가장 무거운

@@ -18,6 +18,9 @@ class WorkoutRecordModel {
   final int targetSets;
   final bool isSynced; // Spring Boot 백엔드 서버 동기화 여부
 
+  /// 자세 피드백 키별 횟수 (kori_feedback_lines.dart 키). 리포트 "자주 나온 실수" 집계용.
+  final Map<String, int> feedbackCounts;
+
   const WorkoutRecordModel({
     required this.id,
     this.serverId,
@@ -34,6 +37,7 @@ class WorkoutRecordModel {
     this.targetReps = 0,
     this.targetSets = 1,
     this.isSynced = false,
+    this.feedbackCounts = const {},
   });
 
   int get accuracy =>
@@ -86,6 +90,7 @@ class WorkoutRecordModel {
       targetReps: targetReps ?? this.targetReps,
       targetSets: targetSets ?? this.targetSets,
       isSynced: isSynced ?? this.isSynced,
+      feedbackCounts: feedbackCounts,
     );
   }
 
@@ -104,6 +109,7 @@ class WorkoutRecordModel {
       feedbackNotes: feedbackNotes,
       targetReps: targetReps,
       targetSets: targetSets,
+      feedbackCounts: feedbackCounts,
     );
   }
 
@@ -124,6 +130,7 @@ class WorkoutRecordModel {
       targetReps: dto.targetReps,
       targetSets: dto.targetSets,
       isSynced: isSynced,
+      feedbackCounts: dto.feedbackCounts,
     );
   }
 
@@ -143,6 +150,7 @@ class WorkoutRecordModel {
         'targetReps': targetReps,
         'targetSets': targetSets,
         'isSynced': isSynced,
+        'feedbackCounts': feedbackCounts,
       };
 
   factory WorkoutRecordModel.fromJson(Map<String, dynamic> json) =>
@@ -165,6 +173,9 @@ class WorkoutRecordModel {
         targetReps: (json['targetReps'] as num?)?.toInt() ?? 0,
         targetSets: (json['targetSets'] as num?)?.toInt() ?? 1,
         isSynced: json['isSynced'] as bool? ?? false,
+        feedbackCounts: (json['feedbackCounts'] as Map?)?.map(
+                (k, v) => MapEntry(k.toString(), (v as num?)?.toInt() ?? 0)) ??
+            const {},
       );
 
   String toJsonString() => jsonEncode(toJson());

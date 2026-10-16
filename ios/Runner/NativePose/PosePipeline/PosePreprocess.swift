@@ -18,17 +18,9 @@ struct PosePreprocessResult {
     let timing: PosePreprocessTiming
 }
 
-enum PosePreprocessError: Error {
-    case missingCGImage
-    case couldNotCreateBitmapContext
-    case invalidRTMPoseInputCount(Int)
-    case invalidRTMPoseInputStrides([Int])
-    case invalidPixelBufferCount(Int)
-}
-
-enum PosePreprocess {
-    static let meanRGB = [123.675, 116.28, 103.53]
-    static let stdRGB = [58.395, 57.12, 57.375]
+// The tensor half of `PosePreprocess` (normalization constants, input array, RGBA → tensor)
+// lives in RTMPoseInputTensor.swift without UIKit, so the calibration replay tool can build it on macOS.
+extension PosePreprocess {
 
     static func makeSyntheticImage(width: Int = 1080, height: Int = 1920) -> UIImage {
         let renderer = UIGraphicsImageRenderer(size: CGSize(width: width, height: height))
@@ -77,8 +69,8 @@ enum PosePreprocess {
         return try preprocessFullImage(cgImage)
     }
 
-    static func preprocessFullImage(_ cgImage: CGImage) throws -> PosePreprocessResult {
-        try preprocessFullImageFast(cgImage)
+    static func preprocessFullImage(_ cgImage: CGImage, workspace: RTMPoseInputWorkspace? = nil) throws -> PosePreprocessResult {
+        try preprocessFullImageFast(cgImage, workspace: workspace)
     }
 
     static func preprocessFullImageFast(_ image: UIImage) throws -> PosePreprocessResult {
@@ -88,7 +80,7 @@ enum PosePreprocess {
         return try preprocessFullImageFast(cgImage)
     }
 
-    static func preprocessFullImageFast(_ cgImage: CGImage) throws -> PosePreprocessResult {
+    static func preprocessFullImageFast(_ cgImage: CGImage, workspace: RTMPoseInputWorkspace? = nil) throws -> PosePreprocessResult {
         let imageWidth = cgImage.width
         let imageHeight = cgImage.height
         let inputWidth = PoseCoordinateTransforms.rtmposeInputWidth
@@ -96,21 +88,21 @@ enum PosePreprocess {
 
         var timing = PosePreprocessTiming()
         let pixelExtractStart = CACurrentMediaTime()
-        var pixels = Array(repeating: UInt8(0), count: inputWidth * inputHeight * 4)
+        let workspace = try workspace ?? RTMPoseInputWorkspace()
         timing.pixelExtractMs = elapsedMs(pixelExtractStart)
 
         let resizeStart = CACurrentMediaTime()
         try drawResizedRGBA(
             cgImage,
-            pixels: &pixels,
+            pixels: &workspace.pixels,
             width: inputWidth,
             height: inputHeight
         )
         timing.resizeMs = elapsedMs(resizeStart)
 
-        let input = try makeRTMPoseInputArray()
+        let input = workspace.input
         let normalizeStart = CACurrentMediaTime()
-        try normalizeRGBAIntoRTMPoseInput(pixels, input: input, width: inputWidth, height: inputHeight)
+        try normalizeRGBAIntoRTMPoseInput(workspace.pixels, input: input, width: inputWidth, height: inputHeight)
         timing.normalizeToMultiArrayMs = elapsedMs(normalizeStart)
 
         return PosePreprocessResult(
@@ -188,68 +180,6 @@ enum PosePreprocess {
         )
     }
 
-    private static func makeRTMPoseInputArray() throws -> MLMultiArray {
-        let input = try MLMultiArray(
-            shape: [
-                NSNumber(value: 1),
-                NSNumber(value: 3),
-                NSNumber(value: PoseCoordinateTransforms.rtmposeInputHeight),
-                NSNumber(value: PoseCoordinateTransforms.rtmposeInputWidth),
-            ],
-            dataType: .float32
-        )
-        try CoreMLMultiArrayIndexing.validateShape(
-            input,
-            expectedShape: [1, 3, 256, 192],
-            label: "PosePreprocess.rtmpose_input"
-        )
-        guard input.count == 147456 else {
-            throw PosePreprocessError.invalidRTMPoseInputCount(input.count)
-        }
-        let strides = input.strides.map { $0.intValue }
-        guard strides == [147456, 49152, 192, 1] else {
-            throw PosePreprocessError.invalidRTMPoseInputStrides(strides)
-        }
-        return input
-    }
-
-    private static func normalizeRGBAIntoRTMPoseInput(
-        _ pixels: [UInt8],
-        input: MLMultiArray,
-        width: Int,
-        height: Int
-    ) throws {
-        guard input.count == 147456 else {
-            throw PosePreprocessError.invalidRTMPoseInputCount(input.count)
-        }
-        let pixelCount = width * height
-        let expectedPixelBytes = pixelCount * 4
-        guard pixels.count == expectedPixelBytes else {
-            throw PosePreprocessError.invalidPixelBufferCount(pixels.count)
-        }
-
-        let output = input.dataPointer.assumingMemoryBound(to: Float.self)
-        let redBase = 0
-        let greenBase = pixelCount
-        let blueBase = pixelCount * 2
-        guard blueBase + pixelCount <= input.count else {
-            throw PosePreprocessError.invalidRTMPoseInputCount(input.count)
-        }
-        let meanR = Float(meanRGB[0])
-        let meanG = Float(meanRGB[1])
-        let meanB = Float(meanRGB[2])
-        let invStdR = Float(1.0 / stdRGB[0])
-        let invStdG = Float(1.0 / stdRGB[1])
-        let invStdB = Float(1.0 / stdRGB[2])
-
-        for pixelIndex in 0..<pixelCount {
-            let byteIndex = pixelIndex * 4
-            output[redBase + pixelIndex] = (Float(pixels[byteIndex]) - meanR) * invStdR
-            output[greenBase + pixelIndex] = (Float(pixels[byteIndex + 1]) - meanG) * invStdG
-            output[blueBase + pixelIndex] = (Float(pixels[byteIndex + 2]) - meanB) * invStdB
-        }
-    }
-
     private static func directResizeInverseAffine(
         imageWidth: Int,
         imageHeight: Int,
@@ -290,6 +220,8 @@ enum PosePreprocess {
                 throw PosePreprocessError.couldNotCreateBitmapContext
             }
             context.interpolationQuality = .high
+            // The bitmap is reused: transparent input must overwrite, not blend over the last frame.
+            context.setBlendMode(.copy)
             context.draw(cgImage, in: CGRect(x: 0, y: 0, width: width, height: height))
         }
     }

@@ -7,6 +7,12 @@ enum NativePoseExercise: String, CaseIterable {
     case barbellRow
     case pushUp
 
+    /// Hands are overlay-only today. Skip the two auxiliary models for lower-body squat;
+    /// preserve other exercises' overlays, with an explicit A/B override for profiling.
+    func handBranchEnabled(override: Bool? = nil) -> Bool {
+        override ?? (self != .squat)
+    }
+
     init?(flutterId: String) {
         switch flutterId {
         case "deadlift":

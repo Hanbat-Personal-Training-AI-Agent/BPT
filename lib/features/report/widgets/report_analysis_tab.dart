@@ -7,8 +7,8 @@ import '../providers/report_analysis_provider.dart';
 
 /// 리포트 > 분석 탭 본문.
 ///
-/// ⚠️ 종목별 비율과 자주 나온 실수는 아직 목데이터다. [reportAnalysisProvider]
-/// 참고 — 실제 집계가 생기면 그 provider만 교체하면 된다.
+/// 데이터는 [reportAnalysisProvider] 가 실제 운동 기록에서 계산한다. "자주 나온
+/// 실수"는 백엔드가 피드백 횟수를 저장하기 전까지 빈 상태 문구를 보여준다.
 class ReportAnalysisTab extends ConsumerWidget {
   const ReportAnalysisTab({super.key, required this.isKo});
   final bool isKo;
@@ -193,7 +193,6 @@ class _RatioLegend extends StatelessWidget {
               Expanded(
                 child: Text(
                   r.label(isKo),
-
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
@@ -228,8 +227,8 @@ class _MistakesCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final maxCount = data.mistakes.fold<int>(
-        0, (a, m) => m.count > a ? m.count : a);
+    final maxCount =
+        data.mistakes.fold<int>(0, (a, m) => m.count > a ? m.count : a);
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
@@ -251,19 +250,31 @@ class _MistakesCard extends StatelessWidget {
                   fontWeight: FontWeight.w900,
                 ),
               ),
-              Text(
-                isKo
-                    ? '총 ${data.totalMistakes}회'
-                    : 'Total ${data.totalMistakes}',
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.4),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
+              if (data.mistakes.isNotEmpty)
+                Text(
+                  isKo
+                      ? '총 ${data.totalMistakes}회'
+                      : 'Total ${data.totalMistakes}',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.4),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-              ),
             ],
           ),
           const SizedBox(height: 14),
+          if (data.mistakes.isEmpty)
+            Text(
+              isKo
+                  ? '자세 실수 분석은 곧 보여줄게!'
+                  : 'Form mistake analysis is coming soon!',
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.5),
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           for (final (i, m) in data.mistakes.indexed) ...[
             _MistakeRow(isKo: isKo, item: m, maxCount: maxCount, order: i),
             if (m != data.mistakes.last) const SizedBox(height: 10),

@@ -31,7 +31,6 @@ class _FakeAuthService extends AuthService {
     required String phoneNumber,
     required String birthDate,
     bool termsAgreed = true,
-    bool privacyAgreed = true,
   }) async {
     signUps.add('$username $phoneNumber $birthDate');
     return UserModel.fromJson(

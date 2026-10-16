@@ -8,7 +8,14 @@ import UIKit
 // MARK: - Options
 
 private enum CameraPreviewOptions {
-    static let enableHandBranchForCamera = true
+    /// Xcode scheme environment: BPT_CAMERA_HANDS=1 (all on), 0 (all off), unset (exercise policy).
+    static let handBranchOverride: Bool? = {
+        switch ProcessInfo.processInfo.environment["BPT_CAMERA_HANDS"] {
+        case "1": return true
+        case "0": return false
+        default: return nil
+        }
+    }()
     static let enableMotion3DForCamera = false
     static let handCropSize = 256.0
     static let wristConfidenceThreshold = 0.3
@@ -78,6 +85,7 @@ private final class CameraCaptureManager: NSObject, AVCaptureVideoDataOutputSamp
         }
 
         let output = AVCaptureVideoDataOutput()
+        output.alwaysDiscardsLateVideoFrames = true
         output.videoSettings = [
             kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA
         ]
@@ -187,8 +195,10 @@ final class CameraPoseViewModel: ObservableObject {
     }
 
     private func setup() {
+        let workspace: RTMPoseInputWorkspace
         do {
             rtmpose = try loadModel(named: "rtmpose_s_forward")
+            workspace = try RTMPoseInputWorkspace()
         } catch {
             statusText = "Failed to load RTMPose: \(error.localizedDescription)"
             return
@@ -202,7 +212,8 @@ final class CameraPoseViewModel: ObservableObject {
         case .pushUp: pushUpEvaluator = PushUpEvaluator()
         }
 
-        if CameraPreviewOptions.enableHandBranchForCamera {
+        let handEnabled = exercise.handBranchEnabled(override: CameraPreviewOptions.handBranchOverride)
+        if handEnabled {
             handLandmarkers = MediaPipeHandLandmarkerPair()
             print("CameraPosePreview hand landmarkers initialized: \(handLandmarkers?.statusDescription ?? "nil")")
         }
@@ -224,6 +235,7 @@ final class CameraPoseViewModel: ObservableObject {
                 sampleBuffer,
                 frameIdx: frameIdx,
                 rtmpose: rtmposeModel,
+                workspace: workspace,
                 handLandmarkers: handLandmarkRunner,
                 ciContext: context
             )
@@ -231,13 +243,14 @@ final class CameraPoseViewModel: ObservableObject {
 
         captureManager.start()
         statusText = "Running"
-        print("CameraPosePreview started exercise=\(exercise.rawValue) hand=\(CameraPreviewOptions.enableHandBranchForCamera) 3d=\(CameraPreviewOptions.enableMotion3DForCamera)")
+        print("CameraPosePreview started exercise=\(exercise.rawValue) hand=\(handEnabled) 3d=\(CameraPreviewOptions.enableMotion3DForCamera)")
     }
 
     private nonisolated func processFrame(
         _ sampleBuffer: CMSampleBuffer,
         frameIdx: Int,
         rtmpose: MLModel,
+        workspace: RTMPoseInputWorkspace,
         handLandmarkers: MediaPipeHandLandmarkerPair?,
         ciContext: CIContext
     ) {
@@ -245,12 +258,8 @@ final class CameraPoseViewModel: ObservableObject {
             do {
                 let timestampMs = Self.timestampMs(sampleBuffer, fallback: frameIdx)
                 let cgImage = try Self.cgImageFromSampleBuffer(sampleBuffer, ciContext: ciContext)
-                let preprocess = try PosePreprocess.preprocessFullImage(cgImage)
-
-                let rtmposeProvider = try MLDictionaryFeatureProvider(dictionary: [
-                    "input_image": MLFeatureValue(multiArray: preprocess.inputTensor)
-                ])
-                let rtmposeOutput = try rtmpose.prediction(from: rtmposeProvider)
+                let preprocess = try PosePreprocess.preprocessFullImage(cgImage, workspace: workspace)
+                let rtmposeOutput = try rtmpose.prediction(from: workspace.provider)
 
                 guard let simccX = rtmposeOutput.featureValue(for: "simcc_x")?.multiArrayValue,
                       let simccY = rtmposeOutput.featureValue(for: "simcc_y")?.multiArrayValue else {
@@ -267,8 +276,7 @@ final class CameraPoseViewModel: ObservableObject {
                 let handResults: [HandLandmarkResult]
                 let leftHand: HandLandmarkResult?
                 let rightHand: HandLandmarkResult?
-                if CameraPreviewOptions.enableHandBranchForCamera,
-                   let handLandmarkers = handLandmarkers {
+                if let handLandmarkers = handLandmarkers {
                     let handImage = UIImage(cgImage: cgImage)
                     let handFrame = BundledVideoHandFrameProcessor.runWristCropHands(
                         image: handImage,
