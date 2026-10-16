@@ -76,7 +76,9 @@ class AuthNotifier extends ChangeNotifier {
     return true;
   }
 
-  /// Login via Spring Boot REST API (Falls back to offline local user if server is unreachable)
+  /// Login via Spring Boot REST API.
+  /// 서버에 연결되지 않으면 비밀번호를 확인할 수 없으니 로그인하지 않고
+  /// 'network_error' 를 남긴다. (저장된 토큰으로 되살리는 자동 로그인은 [tryAutoLogin])
   Future<void> login(
     String email,
     String password, {
@@ -94,13 +96,6 @@ class AuthNotifier extends ChangeNotifier {
       await _storage.saveRefreshToken(_authService.refreshToken);
       await _storage.saveAutoLogin(rememberMe);
       _isOfflineMode = false;
-      _error = null;
-    } on NetworkException {
-      // Spring Boot backend not running or unreachable -> Fallback to Offline Local Login
-      _currentUser = _createLocalFallbackUser(username: email);
-      await _storage.saveUser(_currentUser!);
-      await _storage.saveAutoLogin(rememberMe);
-      _isOfflineMode = true;
       _error = null;
     } on ApiException catch (e) {
       _error = _mapApiError(e);
