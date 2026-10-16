@@ -897,5 +897,6 @@
   3. 가짜 렙 0 유지: 흔들림 합성(소스 4개 × 11조건, 그 모델의 키포인트로 만듦), squat_03(정답 2 — 2를 넘으면 가짜 렙), 더미 영상 6개, 스쿼트·로우 평가기.
   4. 셋업 키 오경보가 늘지 않음: 앱에서 켜진 키(setup_full_body·tracking_lost 전 운동, setup_side_view 로우만)의 실제 영상 전체(모든 출처·분할·시점, 합성·더미 제외) 합계가 m COCO17 이하.
   5. iPhone 속도: 영상 입력 전체 파이프라인(`tools/pose_model_bench/run_pipeline.sh`, 30 fps 페이스)에서 p95 지연 ≤ 33.3 ms이고 놓친 프레임이 m COCO17(D-C-06: 0)보다 의미 있게 많지 않음(0.1% 이하). 기기를 1시간 동안 못 쓰면 "미측정"으로 두고, D-C-05(추론 m COCO17 3.31 ms vs m Halpe26 3.29 ms)대로 같은 속도로 봄.
+- **렙 정확도 계산**(출처별, 세 모델 같은 방식): 공개·MM-Fit = 세트 렙 수(놓침 = max(0, 정답−셈), 추가 = max(0, 셈−정답), 공개는 엄격 기준 — 관대 기준은 참고), Exercise3D = 정답 저점과 렙 끝을 순서대로 맞춤(`eval_pose2d_reps.py`, analyze.py), Fit3D = 영상 전체 세트 렙 수(정답 = rep_ann 경계 수 − 1, 50 fps 원본, 시점 40–75°만 사선). 시점: 공개는 라벨의 side/diag/front/back, Exercise3D·Fit3D는 각도(측면 ≤40°, 사선 40–75°, 정면/후면 ≥75°).
 - 하나라도 어기면 m COCO17 유지, 어긴 조건을 수치로 적음. 어느 쪽이든 두 모델 모두 플래그(`BPT_POSE_MODEL`, pose-replay `--model`)로 고를 수 있게 둠.
 - 발뒤꿈치: Halpe26 발뒤꿈치 PCK와 squat_heel_rise 평가 가능성은 측정만. 틀린 자세 데이터가 없으면 키는 OFF(D-03).
