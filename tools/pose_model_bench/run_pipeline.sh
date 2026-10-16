@@ -3,9 +3,10 @@
 #   ./run_pipeline.sh setup <clips dir> [rtmpose_m_forward.mlpackage] [motionagformer_xs.mlpackage]
 #       copies 720x1280 30 fps clips (<exercise>_<seq>.mp4) + models into Host/PipelineAssets (git-ignored), builds, installs.
 #       BPT_MP_DIR=<dir with pose_landmarker_{lite,full,heavy}.task + frame.jpg> also bundles the MediaPipe assets.
-#   ./run_pipeline.sh <a|b|c|d|e> <paced|unpaced> [seconds=180] [cooldown=60]
+#   ./run_pipeline.sh <a|b|c|d|e|f> <paced|unpaced> [seconds=180] [cooldown=60]
 #       a default (RTMPose-s COCO17), b + per-set recording, c + MotionAGFormer-XS every frame, d RTMPose-m COCO17,
-#       e MediaPipe pose_landmarker_full (BPT_MP_DELEGATE=gpu|cpu, default gpu)
+#       e MediaPipe pose_landmarker_full (BPT_MP_DELEGATE=gpu|cpu, default gpu), f RTMPose-m Halpe26
+#       (setup with rtmpose_m_halpe26_forward.mlpackage among the extra models)
 #   ./run_pipeline.sh mp <latency|sustain|all> [model=pose_landmarker_full] [delegate=gpu] [seconds=150] [cooldown=0]
 #       Host/MediaPipeBench.swift on PipelineAssets/frame.jpg
 # Env: BPT_DEVICE (devicectl id), BPT_DEVICE_UDID (xcodebuild id), BPT_TEAM, BPT_DD (DerivedData).
@@ -38,8 +39,9 @@ case $1 in
   b) V='{"BENCH_RECORD":"1"}' ;;
   c) V='{"BENCH_3D":"1"}' ;;
   d) V='{"BENCH_MODEL":"rtmpose_m_forward"}' ;;
+  f) V='{"BENCH_MODEL":"rtmpose_m_halpe26_forward"}' ;;
   e) V="{\"BENCH_MODEL\":\"pose_landmarker_full\",\"BENCH_MP_DELEGATE\":\"${BPT_MP_DELEGATE:-gpu}\"}" ;;
-  *) echo "variant a|b|c|d|e"; exit 2 ;;
+  *) echo "variant a|b|c|d|e|f"; exit 2 ;;
 esac
 ENV=$(python3 -c "import json,sys; v=json.loads(sys.argv[1]); v.update(BENCH_PIPELINE='1', BENCH_PACED='1' if sys.argv[2]=='paced' else '0', BENCH_SECONDS=sys.argv[3], BENCH_COOLDOWN=sys.argv[4]); print(json.dumps(v))" "$V" $2 ${3:-180} ${4:-60})
 xcrun devicectl device process launch --console --terminate-existing --environment-variables "$ENV" \

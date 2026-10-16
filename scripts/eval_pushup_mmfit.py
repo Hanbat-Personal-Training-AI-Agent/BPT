@@ -17,6 +17,7 @@ PRE, POST, FPS = 3.0, 1.5, 30
 HELD_SESSIONS = {"w00", "w05", "w12", "w13", "w19", "w20"}
 ZENODO = "https://zenodo.org/api/records/7672767/files/{w}_rgb.mp4/content"
 HEAVY = os.environ.get("BPT_HEAVY", "")  # optional lock wrapper (scratchpad/shared/heavy.sh)
+MODEL = os.environ.get("POSE_MODEL", "mcoco17")  # pose-replay --model (app workout default)
 REPLAY = os.environ.get("POSE_REPLAY", "/private/tmp/bpt-swiftpm-pushup-heldout/release/pose-replay")
 
 
@@ -58,9 +59,9 @@ def main(labels_root, clips, outdir, results, *flags):
         mp4 = clips / f"{cid}.mp4"
         if "--cut" in flags and not mp4.exists():
             cut(cid, w, s, e, mp4)
-        js = outdir / f"{cid}_pushup_mcoco17.json"
+        js = outdir / f"{cid}_pushup_{MODEL}.json"
         if "--run" in flags and not js.exists():
-            subprocess.run([*([HEAVY] if HEAVY else []), REPLAY, "--exercise", "pushup", "--motion3d", "none",
+            subprocess.run([*([HEAVY] if HEAVY else []), REPLAY, "--exercise", "pushup", "--model", MODEL, "--motion3d", "none",
                             "--output-dir", str(outdir), str(mp4)], check=True,
                            env={"BPT_LOCK": "heavy", "PATH": "/usr/bin:/bin"},
                            stdout=subprocess.DEVNULL)

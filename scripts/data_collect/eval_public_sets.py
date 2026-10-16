@@ -1,6 +1,7 @@
 """Score pose-replay outputs (app default: RTMPose-m COCO17, crop, ready-pose off) against merged hand labels.
 
 usage: python3 -I eval_public_sets.py <replay_dir[:replay_dir...]> <out.md> <labels.csv>...
+Env POSE_MODEL: which pose-replay --model outputs to score (default mcoco17, the app's workout model).
 Rep accuracy (project metric, set-level counts): missed = max(0, truth - counted), extra = max(0, counted - truth),
 acc = sum(truth - missed) / sum(truth + extra). Only rows with rep_status ok. Lenient: a count between reps and
 reps + partial (rep already under way at the clip start / cut at the end) counts as exact.
@@ -9,11 +10,12 @@ Form keys (all OFF in the app; pose-replay logs every rule that held): a wrong c
 fired on >= 1 counted rep (or as a set event); per-rep rate = reps with the key / counted reps.
 False alarm = share of counted reps of agreed-normal clips on which the key fired.
 """
-import csv, json, sys
+import csv, json, os, sys
 from collections import defaultdict
 from pathlib import Path
 
 FILE_EX = {"squat": "squat", "pushup": "pushup", "row": "barbell_row"}
+MODEL = os.environ.get("POSE_MODEL", "mcoco17")
 SETUP = ("setup_full_body", "tracking_lost", "setup_side_view")
 FORM_KEYS = {
     "squat": ["squat_shallow", "squat_hips_first", "squat_lean_drift", "squat_no_lockout", "squat_depth_fade", "squat_knee_valgus", "squat_heel_rise"],
@@ -24,7 +26,7 @@ FORM_KEYS = {
 
 def load(replay_dirs, row):
     for d in replay_dirs.split(":"):  # several replay dirs, colon-separated
-        p = Path(d) / f"{Path(row['file']).stem}_{FILE_EX[row['exercise']]}_mcoco17.json"
+        p = Path(d) / f"{Path(row['file']).stem}_{FILE_EX[row['exercise']]}_{MODEL}.json"
         if p.exists():
             return json.load(open(p))
     return None
@@ -84,7 +86,7 @@ def main(replay_dir, out_md, *label_csvs):
             rep_rows.append(r)
         if r["form_status"] == "ok":
             form_rows.append(r)
-    L = ["# 공개 데이터 평가 (pose-replay, RTMPose-m COCO17 기본, crop, ready-pose off, 3D 없음)", "",
+    L = [f"# 공개 데이터 평가 (pose-replay --model {MODEL}, crop, ready-pose off, 3D 없음)", "",
          f"라벨 행 {len(labels)}, 렙 평가 세트 {len(rep_rows)}, 자세 평가 세트 {len(form_rows)}, replay 없음 {len(missing)}", ""]
     for src in sorted({r["source"] for r in rep_rows}) + ["전체"]:
         rs = [r for r in rep_rows if src in ("전체", r["source"])]
