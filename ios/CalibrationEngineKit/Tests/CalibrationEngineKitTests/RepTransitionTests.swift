@@ -352,7 +352,7 @@ final class RepTransitionTests: XCTestCase {
         XCTAssertEqual(RTMPoseModel.active, .coco17, "calibration capture unchanged")
     }
 
-    /// Every selectable model (BPT_POSE_MODEL / pose-replay --model, incl. mhalpe26) is a package the app bundles.
+    /// Every selectable model (BPT_POSE_MODEL / pose-replay --model) is a package the app bundles.
     func testEverySelectableModelIsBundled() throws {
         var root = URL(fileURLWithPath: #filePath)
         for _ in 0..<5 { root.deleteLastPathComponent() }
