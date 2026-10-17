@@ -13,10 +13,13 @@ Per joint (all frames of each subject x exercise x camera):
                    mean signed offset in the body frame (along pelvis->neck = "up", along l->r hip = "side", / torso)
   swap             frames where swapping the label's left/right reduces model error by half and the plain error > 0.10
   sync             model-vs-label wrist error at time shifts -3..3 frames (minimum at 0 = video and mocap in sync)
+--bones (label only, no model, no images): per subject x exercise, coefficient of variation of the 3D limb
+  segment lengths over all frames and the p99.9 3D joint speed (a mocap dropout or marker swap shows up as a spike).
 Contact sheets (rep top and bottom x 4 cameras, labels green, model red) are written per subject x exercise.
 Fit3D images stay on this machine (licence).
 
 usage: check_fit3d_coco17_labels.py --root ~/datasets/fit3d/train --subjects s03,s04 --out DIR [--stride 5]
+       check_fit3d_coco17_labels.py --root ~/datasets/fit3d/train --subjects s03,... --out DIR --bones
 """
 
 import argparse
@@ -159,6 +162,32 @@ def summarize(path):
     return out
 
 
+SEGMENTS = {'upper_arm': (5, 7), 'forearm': (7, 9), 'thigh': (11, 13), 'shin': (13, 15)}
+
+
+def bones(root, subjects):
+    """Label-only stability: limb length CV (both sides pooled per segment) and joint speed in mm/frame."""
+    cv, speed = {k: [] for k in SEGMENTS}, {j: [] for j in BODY}
+    for subj in subjects:
+        for ex in EXERCISES:
+            J = np.array(json.load(open(f'{root}/{subj}/joints3d_25/{ex}.json'))['joints3d_25'])
+            C = np.full((len(J), 17, 3), np.nan)
+            for c, f in FIT3D_COCO.items():
+                C[:, c] = J[:, f]
+            for k, (a, b) in SEGMENTS.items():
+                for d in (0, 1):
+                    L = np.linalg.norm(C[:, a + d] - C[:, b + d], axis=-1)
+                    cv[k].append(float(L.std() / L.mean()))
+            v = np.linalg.norm(np.diff(C, axis=0), axis=-1) * 1000
+            for j in BODY:
+                speed[j].append(float(np.percentile(v[:, j], 99.9)))
+    return {'segment_len_cv_med': {k: round(float(np.median(x)), 4) for k, x in cv.items()},
+            'segment_len_cv_max': {k: round(float(np.max(x)), 4) for k, x in cv.items()},
+            'speed_mm_per_frame_p999_med': {COCO_NAMES[j]: round(float(np.median(x)), 1) for j, x in speed.items()},
+            'speed_mm_per_frame_p999_max': {COCO_NAMES[j]: round(float(np.max(x)), 1) for j, x in speed.items()},
+            'n_sequences': len(subjects) * len(EXERCISES)}
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--root', required=True)
@@ -167,7 +196,11 @@ def main():
     ap.add_argument('--stride', type=int, default=5)
     ap.add_argument('--render', help='comma list subj:exercise:frame -> 4-camera close-up sheets only')
     ap.add_argument('--summary', help='check JSON -> per-joint aggregate (prints JSON, no model)')
+    ap.add_argument('--bones', action='store_true', help='label-only 3D limb length / speed check (prints JSON)')
     a = ap.parse_args()
+    if a.bones:
+        print(json.dumps(bones(a.root, a.subjects.split(',')), indent=1))
+        return
     if a.summary:
         print(json.dumps(summarize(a.summary), indent=1))
         return
