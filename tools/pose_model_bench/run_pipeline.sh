@@ -9,7 +9,8 @@
 #       (setup with rtmpose_m_halpe26_forward.mlpackage among the extra models)
 #   ./run_pipeline.sh mp <latency|sustain|all> [model=pose_landmarker_full] [delegate=gpu] [seconds=150] [cooldown=0]
 #       Host/MediaPipeBench.swift on PipelineAssets/frame.jpg
-# Env: BPT_DEVICE (devicectl id), BPT_DEVICE_UDID (xcodebuild id), BPT_TEAM, BPT_DD (DerivedData).
+# Env: BENCH_EXTRA (JSON of extra launch env, e.g. '{"BENCH_LOST_SEARCH":"10"}' — re-acquisition knobs, PipelineBench.swift),
+#   BPT_DEVICE (devicectl id), BPT_DEVICE_UDID (xcodebuild id), BPT_TEAM, BPT_DD (DerivedData).
 set -e
 cd ${0:a:h}
 DEV=${BPT_DEVICE:-6886E076-24C5-54CD-BE2A-7B4276775949}
@@ -43,6 +44,6 @@ case $1 in
   e) V="{\"BENCH_MODEL\":\"pose_landmarker_full\",\"BENCH_MP_DELEGATE\":\"${BPT_MP_DELEGATE:-gpu}\"}" ;;
   *) echo "variant a|b|c|d|e|f"; exit 2 ;;
 esac
-ENV=$(python3 -c "import json,sys; v=json.loads(sys.argv[1]); v.update(BENCH_PIPELINE='1', BENCH_PACED='1' if sys.argv[2]=='paced' else '0', BENCH_SECONDS=sys.argv[3], BENCH_COOLDOWN=sys.argv[4]); print(json.dumps(v))" "$V" $2 ${3:-180} ${4:-60})
+ENV=$(python3 -c "import json,os,sys; v=json.loads(sys.argv[1]); v.update(json.loads(os.environ.get('BENCH_EXTRA','{}'))); v.update(BENCH_PIPELINE='1', BENCH_PACED='1' if sys.argv[2]=='paced' else '0', BENCH_SECONDS=sys.argv[3], BENCH_COOLDOWN=sys.argv[4]); print(json.dumps(v))" "$V" $2 ${3:-180} ${4:-60})
 xcrun devicectl device process launch --console --terminate-existing --environment-variables "$ENV" \
   --device $DEV com.bpt.posebench.PoseModelBenchHost 2>&1 | grep --line-buffered BENCH

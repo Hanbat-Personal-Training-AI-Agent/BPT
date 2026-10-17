@@ -104,6 +104,13 @@ final class PipelineBench {
             let session = SetSession(exercise: name.hasPrefix("squat") ? .squat : name.hasPrefix("pushup") ? .pushUp : .barbellRow)
             DispatchQueue.main.sync { lastRep = 0; lastStatus = nil }
             var cropTracker = RTMPoseCropTracker()
+            // Re-acquisition experiment knobs (D-T3-20, unset = the app's path). BENCH_MIN_JOINTS=18 never tracks:
+            // every frame is "lost", the worst case for BENCH_LOST_SEARCH's extra passes.
+            if env["BENCH_LOST_INPUT"] == "letterbox" { cropTracker.lostInput = .letterbox }
+            if let v = env["BENCH_ACQUIRE_JOINTS"].flatMap(Int.init) { cropTracker.acquireMinJoints = v }
+            if let v = env["BENCH_LOST_HOLD"].flatMap(Int.init) { cropTracker.lostHoldFrames = v }
+            if let v = env["BENCH_LOST_SEARCH"].flatMap(Int.init) { cropTracker.lostSearchInterval = v }
+            if let v = env["BENCH_MIN_JOINTS"].flatMap(Int.init) { cropTracker.minJoints = v }
             var normalizer = MotionAGFormerInputNormalizer()
             var window: [[[Float]]] = []
             let recorder = record ? WorkoutSetRecorder.directory().map {
