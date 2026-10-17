@@ -915,3 +915,8 @@
 - **기각**: m Halpe26 기본 전환(조건 1 불통과 — 규칙대로), 측면 푸시업만 COCO17·나머지 Halpe26 혼합(검증 결과를 보고 만든 규칙이라 과적합, 이번 범위 밖).
 - **다시 볼 것**: w20_s3 같은 추적 실패를 crop 재확인(D-B-03)이 왜 못 잡는지 — 고치면 m Halpe26 재평가 후보. 그때는 새 검증 데이터로.
 - **되돌리기/켜기**: m Halpe26을 기본으로 쓰려면 `RTMPoseModel.workout`의 기본 케이스를 `.mhalpe26`으로(한 줄), 시험은 Xcode scheme `BPT_POSE_MODEL=mhalpe26`(캘리브레이션도 같이 바뀜 — 기존 덮어쓰기 규칙).
+
+### D-T3-18 정정 (2026-10-17, 사용자 지시)
+- **사용자 결정**: 운동 기본은 RTMPose-m COCO17 유지. Halpe26의 최종 채택·기각은 **결정하지 않음**(보류). 위 D-T3-17 판정 규칙과 D-T3-18 "결정"은 에이전트가 정한 것으로 사용자 승인을 받지 않았음 — 공식 채택 기준이 아니라 실험 기록으로만 봄.
+- **앱 구성**: m Halpe26(`rtmpose_m_halpe26_forward.mlpackage`, 27.8 MB)을 Runner 번들·pbxproj·`RTMPoseModel`에서 뺌(사용자 지시). 실험용 사본은 git 밖 `~/bpt-models/rtmpose_m_halpe26_forward.mlpackage`, 결과는 `docs/results/halpe_decision.md` 그대로. 재실험: pose-replay `--model halpe26 --model-path ~/bpt-models/rtmpose_m_halpe26_forward.mlpackage`, iPhone 속도는 벤치 앱 `run_pipeline.sh f`(extra models). s Halpe26은 10/9 사용자 지시("설정으로 켤 수 있게 유지")대로 남김.
+- **w20_s3 원인**: "사람 추적 실패"는 **검증 안 된 가설**(신뢰도·상태만 관찰). 같은 crop·검증된 bbox·프레임별 분석으로 원인 분리 중 — 결과 전에는 Halpe26 결론 없음.

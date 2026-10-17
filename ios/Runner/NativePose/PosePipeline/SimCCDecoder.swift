@@ -85,7 +85,7 @@ enum CoreMLMultiArrayIndexing {
     }
 }
 
-/// The RTMPose checkpoints in the bundle. Xcode scheme environment BPT_POSE_MODEL=coco17|halpe26|mcoco17|mhalpe26
+/// The RTMPose checkpoints in the bundle. Xcode scheme environment BPT_POSE_MODEL=coco17|halpe26|mcoco17
 /// overrides both choices below without a code change (pose-replay / calibration-replay: `--model`).
 /// Halpe26 stays opt-in: on the same footage it changed a squat rep count (1 → 2 on squat_03) and a
 /// calibration capture (guided dummy_03 finishes instead of missing leftfront), so it needs a decision.
@@ -94,8 +94,7 @@ enum RTMPoseModel: String, CaseIterable {
     case halpe26 = "rtmpose_s_halpe26_forward"
     /// RTMPose-m COCO17 (same 256×192 input and SimCC outputs as s).
     case mcoco17 = "rtmpose_m_forward"
-    /// RTMPose-m Halpe26 (body7 700e; 26 joints, first 17 = COCO17, plus toes/heels). docs/decisions.md D-T3-17
-    case mhalpe26 = "rtmpose_m_halpe26_forward"
+    // RTMPose-m Halpe26 is not bundled (D-T3-18 amendment); experiments load it with pose-replay --model-path.
 
     private static let override = ProcessInfo.processInfo.environment["BPT_POSE_MODEL"]
         .flatMap { name in allCases.first { "\($0)" == name } }
