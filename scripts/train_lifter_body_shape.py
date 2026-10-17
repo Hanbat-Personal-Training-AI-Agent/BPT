@@ -267,18 +267,18 @@ def cmd_eval(a):
             J, Rs = ex3d_joints(a.ex3d, seq)
             up_w = -np.mean([R[1] for R in Rs.values()], axis=0); up_w /= np.linalg.norm(up_w)
             rf = g['rep_frames']; half = int(np.median(np.diff(rf)) / 2) if len(rf) > 1 else 15
-            for cam, v in g['views'].items():
+            for cam, view in g['views'].items():
                 csv = f'{a.ex3d}/ex3dcsv/{seq}/{cam}_{exname[g["exercise"]]}_mcoco17.csv'
-                if v['angle_deg'] > 75 or not os.path.exists(csv): continue
+                if view['angle_deg'] > 75 or not os.path.exists(csv): continue
                 K = read_csv(csv); meta = glob.glob(f'{a.ex3d}/replay_meta/{seq}/{cam}_*_coco17.json')[0]
                 w, h = json.load(open(meta))['image_size']
                 n = min(len(K), len(J)); K = K[:n]; R = Rs[cam]; up_c = R @ up_w
                 G = J[:n] @ R.T; G[:, 7], G[:, 10] = (G[:, 0] + G[:, 8]) / 2, G[:, 9]; G = G - G[:, :1]
                 seg = [(max(0, r - half), min(n - 1, r + half)) for r in rf if r < n]
                 side = near_side(K); ref = angles(G, side, up_c); ref['torso'] = ref['torso_g']
-                res = dict(source='ex3d', subject=seq, exercise=g['exercise'], cam=cam, view_deg=v['angle_deg'], _ref=ref)
+                res = dict(source='ex3d', subject=seq, exercise=g['exercise'], cam=cam, view_deg=view['angle_deg'], _ref=ref)
                 run(res, mag_input(K, w, h)[0], shapes[seq]['calibrated_cm'], G, side, up_c, seg, None, with_pose=False)
-                res.pop('_ref'); out.append(res); print(seq, cam, round(v['angle_deg']), flush=True)
+                res.pop('_ref'); out.append(res); print(seq, cam, round(view['angle_deg']), flush=True)
     json.dump(out, open(a.out, 'w'))
 
 
