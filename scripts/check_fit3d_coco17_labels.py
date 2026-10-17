@@ -13,6 +13,10 @@ Per joint (all frames of each subject x exercise x camera):
                    mean signed offset in the body frame (along pelvis->neck = "up", along l->r hip = "side", / torso)
   swap             frames where swapping the label's left/right reduces model error by half and the plain error > 0.10
   sync             model-vs-label wrist error at time shifts -3..3 frames (minimum at 0 = video and mocap in sync)
+--smplx DIR (SMPL-X model files, gitignored, user's account) switches the label source to the OFFICIAL per-frame SMPL-X
+  params (smplx/<exercise>.json): mesh (numpy LBS, given rotation matrices, per-frame betas + expression) -> COCO17 with
+  GVHMR SmplxLiteCoco17 (= WHAM J_regressor_coco [17x6890] x smplx2smpl [6890x10475], 132 vertices) -> same cameras.
+  Extra per joint: mesh_vs_mocap (2D, / box) and mesh_vs_mocap_mm (3D) against the projected joints3d_25 joint.
 --bones (label only, no model, no images): per subject x exercise, coefficient of variation of the 3D limb
   segment lengths over all frames and the p99.9 3D joint speed (a mocap dropout or marker swap shows up as a spike).
 Contact sheets (rep top and bottom x 4 cameras, labels green, model red) are written per subject x exercise.
@@ -38,6 +42,7 @@ EXERCISES = ('squat', 'pushup', 'diamond_pushup', 'barbell_row', 'barbell_dead_r
 CAMS = ('50591643', '58860488', '60457274', '65906101')
 FIT3D_COCO = {5: 11, 6: 14, 7: 12, 8: 15, 9: 13, 10: 16, 11: 1, 12: 4, 13: 2, 14: 5, 15: 3, 16: 6}  # coco <- fit3d
 BODY = list(range(5, 17))
+FACE_EDGES = ((0, 1), (0, 2), (1, 3), (2, 4))
 EDGES = ((5, 7), (7, 9), (6, 8), (8, 10), (5, 6), (11, 12), (5, 11), (6, 12), (11, 13), (13, 15), (12, 14), (14, 16))
 
 
@@ -48,6 +53,48 @@ def coco_labels(J, camera):
     for c, f in FIT3D_COCO.items():
         out[:, c] = p[:, f]
     return out
+
+
+class SmplxCoco17:
+    """Official Fit3D SMPL-X params -> COCO17 3D (world, m). Only the 132 vertices the regressor touches are skinned."""
+
+    def __init__(self, model_dir, regressor, gender='neutral'):
+        import torch
+        m = np.load(f'{model_dir}/SMPLX_{gender.upper()}.npz', allow_pickle=True)
+        W = (torch.load(f'{regressor}/smpl_coco17_J_regressor.pt').float() @ torch.load(f'{regressor}/smplx2smpl_sparse.pt').to_dense().float()).numpy()
+        self.vid = np.where(np.abs(W).sum(0) > 0)[0]
+        self.W = W[:, self.vid]
+        sd = m['shapedirs'].astype(np.float64)
+        self.vt, self.sd, self.ed = m['v_template'][self.vid].astype(np.float64), sd[self.vid, :, :10], sd[self.vid, :, 300:310]
+        self.pd = m['posedirs'][self.vid].astype(np.float64)                      # [V,3,486]
+        self.lw = m['weights'][self.vid].astype(np.float64)                       # [V,55]
+        Jr = m['J_regressor'].astype(np.float64)
+        self.Jt, self.Js, self.Je = Jr @ m['v_template'], np.einsum('jv,vck->jck', Jr, sd[:, :, :10]), np.einsum('jv,vck->jck', Jr, sd[:, :, 300:310])
+        self.parents = m['kintree_table'][0].astype(np.int64); self.parents[0] = -1  # stored as uint32 max
+
+    def __call__(self, path):
+        p = {k: np.array(v, np.float64) for k, v in json.load(open(path)).items()}
+        R = np.concatenate([p['global_orient'], p['body_pose'], p['jaw_pose'], p['leye_pose'], p['reye_pose'],
+                            p['left_hand_pose'], p['right_hand_pose']], 1)          # [T,55,3,3] SMPL-X joint order
+        b, e = p['betas'], p['expression']
+        J = self.Jt + np.einsum('tk,jck->tjc', b, self.Js) + np.einsum('tk,jck->tjc', e, self.Je)
+        T = len(R)
+        G = np.zeros((T, 55, 4, 4)); G[:, :, 3, 3] = 1
+        for j, q in enumerate(self.parents):
+            local = np.zeros((T, 4, 4)); local[:, :3, :3] = R[:, j]; local[:, 3, 3] = 1
+            local[:, :3, 3] = J[:, j] - (J[:, q] if q >= 0 else 0)
+            G[:, j] = local if q < 0 else G[:, q] @ local
+        A = G.copy()
+        A[:, :, :3, 3] -= np.einsum('tjcd,tjd->tjc', G[:, :, :3, :3], J)
+        pf = (R[:, 1:] - np.eye(3)).reshape(T, -1)
+        v = self.vt + np.einsum('tk,vck->tvc', b, self.sd) + np.einsum('tk,vck->tvc', e, self.ed) + np.einsum('tk,vck->tvc', pf, self.pd)
+        M = np.einsum('vj,tjcd->tvcd', self.lw, A)
+        v = np.einsum('tvcd,tvd->tvc', M[..., :3, :3], v) + M[..., :3, 3] + p['transl'][:, None]
+        return np.einsum('kv,tvc->tkc', self.W, v)                                  # [T,17,3]
+
+
+def project17(C, camera):
+    return project_fit3d(C.reshape(-1, 3), camera).reshape(len(C), 17, 2)
 
 
 def phase_frames(J, ex, reps):
@@ -89,10 +136,10 @@ def body_frame_offset(err, lab):
     return u, s
 
 
-TAGS = {5: 'LS', 6: 'RS', 7: 'LE', 8: 'RE', 9: 'LW', 10: 'RW', 11: 'LH', 12: 'RH', 13: 'LK', 14: 'RK', 15: 'LA', 16: 'RA'}
+TAGS = {0: 'N', 1: 'LEy', 2: 'REy', 3: 'LEa', 4: 'REa', 5: 'LS', 6: 'RS', 7: 'LE', 8: 'RE', 9: 'LW', 10: 'RW', 11: 'LH', 12: 'RH', 13: 'LK', 14: 'RK', 15: 'LA', 16: 'RA'}
 
 
-def draw(img, lab, pred, tag, size=300):
+def draw(img, lab, pred, tag, size=300, js=BODY):
     """Label = dots + tag text (left green, right cyan); model = crosses (left red, right magenta)."""
     box = bbox_from_points(lab[BODY])
     c = (box[:2] + box[2:]) / 2
@@ -100,11 +147,11 @@ def draw(img, lab, pred, tag, size=300):
     k = size / side
     m = np.array([[k, 0, size / 2 - k * c[0]], [0, k, size / 2 - k * c[1]]])
     tile = cv2.warpAffine(img, m, (size, size), borderValue=(40, 40, 40))
-    L, P = apply_affine(m, lab[BODY]), apply_affine(m, pred[BODY])
-    L = dict(zip(BODY, L)); P = dict(zip(BODY, P))
-    for a, b in EDGES:
+    L, P = apply_affine(m, lab[js]), apply_affine(m, pred[js])
+    L = dict(zip(js, L)); P = dict(zip(js, P))
+    for a, b in EDGES + (FACE_EDGES if 0 in js else ()):
         cv2.line(tile, tuple(int(v) for v in L[a]), tuple(int(v) for v in L[b]), (0, 200, 0), 1)
-    for j in BODY:
+    for j in js:
         left = j % 2 == 1
         col = (0, 255, 0) if left else (255, 255, 0)
         x, y = (int(v) for v in L[j])
@@ -196,6 +243,8 @@ def main():
     ap.add_argument('--stride', type=int, default=5)
     ap.add_argument('--render', help='comma list subj:exercise:frame -> 4-camera close-up sheets only')
     ap.add_argument('--summary', help='check JSON -> per-joint aggregate (prints JSON, no model)')
+    ap.add_argument('--smplx', help='SMPL-X model dir -> labels from the official SMPL-X params (all 17 joints)')
+    ap.add_argument('--regressor', default=os.path.expanduser('~/rtmft/ext/GVHMR/hmr4d/utils/body_model'))
     ap.add_argument('--bones', action='store_true', help='label-only 3D limb length / speed check (prints JSON)')
     a = ap.parse_args()
     if a.bones:
@@ -210,18 +259,22 @@ def main():
         for spec in a.render.split(','):
             render(a, model, spec)
         return
+    mesh = SmplxCoco17(a.smplx, a.regressor) if a.smplx else None
+    js = list(range(17)) if mesh else BODY
     rows = {}
     for subj in a.subjects.split(','):
         reps_all = json.load(open(f'{a.root}/{subj}/rep_ann.json'))
         for ex in EXERCISES:
             J = np.array(json.load(open(f'{a.root}/{subj}/joints3d_25/{ex}.json'))['joints3d_25'])
+            C = mesh(f'{a.root}/{subj}/smplx/{ex}.json') if mesh else None
             tops, bottoms = phase_frames(J, ex, reps_all[ex])
             show = [tops[len(tops) // 2], bottoms[len(bottoms) // 2]]
             tiles = []
             for cam in CAMS:
                 camera = json.load(open(f'{a.root}/{subj}/camera_parameters/{cam}/{ex}.json'))
                 video = f'{a.root}/{subj}/videos/{cam}/{ex}.mp4'
-                lab = coco_labels(J, camera)
+                mocap = coco_labels(J, camera)
+                lab = project17(C, camera) if mesh else mocap
                 idx = list(range(0, len(J), a.stride))
                 wide = sorted(set(idx) | {t + d for t in idx for d in (-3, -2, -1, 1, 2, 3) if 0 <= t + d < len(J)} | set(show))
                 frames = read_frames(video, wide)
@@ -248,7 +301,7 @@ def main():
                 oof = (lab[..., 0] < 0) | (lab[..., 0] >= W) | (lab[..., 1] < 0) | (lab[..., 1] >= H)
                 key = f'{subj}/{ex}/{cam}'
                 rows[key] = {'n_model_frames': len(T), 'n_frames': len(J), 'sync_wrist_ankle': sync, 'joints': {}}
-                for j in BODY:
+                for j in js:
                     swapped = (sw[:, j] < 0.5 * err[:, j]) & (err[:, j] > 0.10)
                     rows[key]['joints'][COCO_NAMES[j]] = {
                         'out_of_frame': float(oof[:, j].mean()),
@@ -259,11 +312,16 @@ def main():
                         'swap_frames': int(swapped.sum()), 'swap_examples': [int(T[i]) for i in np.where(swapped)[0][:5]],
                         'far_examples': [int(T[i]) for i in np.argsort(-err[:, j])[:3]],
                     }
+                    if mesh and j in FIT3D_COCO:  # same physical joint in the mocap skeleton (definitions differ for hips/shoulders)
+                        d2 = np.linalg.norm(lab[T, j] - mocap[T, j], axis=-1) / box
+                        rows[key]['joints'][COCO_NAMES[j]].update(
+                            mesh_vs_mocap_med=float(np.median(d2)), mesh_vs_mocap_p90=float(np.percentile(d2, 90)),
+                            mesh_vs_mocap_mm=float(np.median(np.linalg.norm(C[:, j] - J[:, FIT3D_COCO[j]], axis=-1)) * 1000))
                 for t, ph in zip(show, ('top', 'bottom')):
                     fr = frames[t]
                     cr, m = crop_box(cv2.cvtColor(fr, cv2.COLOR_BGR2RGB), *box_to_center_scale(bbox_from_points(lab[t, BODY])))
                     q, _ = predict(model, [cr])
-                    tiles.append((ph, draw(fr, lab[t], apply_affine(invert_affine(m), q[0][:17]), f'{subj} {ex} {cam[:4]} {ph} t{t}')))
+                    tiles.append((ph, draw(fr, lab[t], apply_affine(invert_affine(m), q[0][:17]), f'{subj} {ex} {cam[:4]} {ph} t{t}', js=js)))
                 print(key, 'limb err med', round(float(np.median(err[:, [7, 8, 9, 10, 13, 14, 15, 16]])), 4),
                       'hip', round(float(np.median(err[:, [11, 12]])), 4), 'sync', {k: round(v, 4) for k, v in sync.items()}, flush=True)
             sheet = np.vstack([np.hstack([t for p, t in tiles if p == ph]) for ph in ('top', 'bottom')])
