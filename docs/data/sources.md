@@ -37,3 +37,17 @@
 - 얼굴 블러(일부 프레임은 몸 전체 블러), 역광 체육관 → 관절 신뢰도가 전반적으로 낮다(예: subject_001 스쿼트 측면 평균 0.4–0.6). 결과는 앱 실사용보다 나쁘게 나올 수 있다.
 - 15 fps → 앱 가정(30 fps)에 맞춰 프레임 복제로 30 fps 재인코딩(새 정보 없음).
 - "back" = 덤벨 벤트오버 로우(바벨 아님). BarbellRowEvaluator로 평가.
+
+## 라벨 정의 검증 전용 참조 (트랙 fit3d-label-verify, 2026-10-18)
+
+평가·검증 전용, 비상업. 학습·미세조정·앱 자산에 쓰지 않는다. 원본은 Home `~/datasets/<name>`, `~/models/<name>`에 두고 git에 넣지 않는다(집계 숫자만 커밋).
+
+| 이름 | 라이선스 (원문 위치) | 받는 법 | 쓰는 곳 |
+|---|---|---|---|
+| EFT COCO2014-Val-ver10 (Joo 외, 3DV'21) — COCO val2014 사람 10,510명의 SMPL 피팅(사람이 걸러 낸 판) | **CC-BY-NC 4.0** — https://github.com/facebookresearch/eft README·LICENSE (Home `~/datasets/eft/LICENSE.txt` 사본) | `curl -LO https://dl.fbaipublicfiles.com/eft/COCO2014-Val-ver10.json` (로그인 없음) | 방법 A: SMPL→COCO17 정의를 사람 COCO 키포인트와 비교 |
+| DensePose-COCO minival·valminusminival + UV 데이터 (Güler 외, CVPR'18) | **CC-BY-NC 4.0** — https://github.com/facebookresearch/DensePose LICENSE (Home `~/datasets/densepose/LICENSE.txt` 사본) | `https://dl.fbaipublicfiles.com/densepose/densepose_coco_2014_{minival,valminusminival}.json`, `densepose_uv_data.tar.gz` | 방법 A: 키포인트를 쓰지 않는 표면 대응점만으로 SMPL 재피팅 |
+| SMPL v1.1.0 중립 모델 | SMPL 비상업 라이선스(https://smpl.is.tue.mpg.de, 사용자 계정으로 이미 받음, Mac `external/smpl/`) | Home `~/models/smpl/`에 복사, chumpy 없이 읽도록 변환한 사본 `SMPL_NEUTRAL.pkl`(원본 유지) | 방법 A |
+| COCO 2017 keypoints | 주석 CC BY 4.0(https://cocodataset.org/#termsofuse), 이미지 Flickr 약관 | 이미 Home `~/datasets/coco` | 방법 A 사람 정답(이미지는 열지 않음) |
+| COCO 학습 2D 포즈 모델 4개(합의용): ViTPose-H 256×192, HRNet-w48-DARK 384×288, ResNet-152-DARK 384×288, RTMPose-l(AIC+COCO 사전학습, COCO) 256×192 | mmpose 모델 모음 **Apache-2.0**(https://github.com/open-mmlab/mmpose LICENSE, ViTPose https://github.com/ViTAE-Transformer/ViTPose Apache-2.0). 학습 데이터 COCO(주석 CC BY 4.0) | `https://download.openmmlab.com/mmpose/v1/...` (주소·sha256은 Home `~/models/coco_pose_consensus/SHA256SUMS`와 실행 manifest) | 방법 B: Fit3D 프레임에서 COCO 정의 합의(숫자만, 정답 아님). ViTPose용 mmpretrain 1.2.0(Apache-2.0)은 `~/models/coco_pose_consensus/pylib`에만 설치 |
+
+확인했지만 안 쓴 것: NeuralAnnot COCO SMPL/SMPL-X(COCO 키포인트에 맞춰 피팅 → 그 정의를 검증하는 데 순환, 라이선스는 확인하지 않음), BEDLAM·SMPLer-X 의사정답(사람 COCO 키포인트가 없음), EFT COCO2014-All/Part(train2014, 같은 출처 → 이번에는 val만으로 충분).

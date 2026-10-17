@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>COCO 점 고르기</title>
+<!-- Local-only check page (track fit3d-label-verify). Loads choice.js + frames/ from its own folder (built by
+     scripts/fit3d_choice_set.py). Markers carry shuffled letters only; which source is which lives in private/choice_key.json. -->
+<style>
+:root{--bg:#f6f6f4;--fg:#1a1a1a;--muted:#666;--panel:#fff;--line:#d8d8d4;--accent:#0b63ce;--ok:#1d7a3a;--cv:#2a2a2a}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#161616;--fg:#eee;--muted:#aaa;--panel:#202020;--line:#3a3a3a;--accent:#5aa2ff;--ok:#5fd38a;--cv:#111}}
+:root[data-theme="dark"]{--bg:#161616;--fg:#eee;--muted:#aaa;--panel:#202020;--line:#3a3a3a;--accent:#5aa2ff;--ok:#5fd38a;--cv:#111}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.45 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo",sans-serif}
+#app{display:flex;gap:12px;padding:12px 16px;height:100vh}
+#stage{flex:1;min-width:0;background:var(--cv);border-radius:8px;overflow:hidden}
+#cv{width:100%;height:100%;display:block}
+#side{width:340px;flex:none;display:flex;flex-direction:column;gap:10px;overflow:auto}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+#joint{font-size:20px;font-weight:700}
+.muted{color:var(--muted);font-size:12px}
+button{font:inherit;padding:8px 12px;border-radius:6px;border:1px solid var(--line);background:var(--panel);color:var(--fg);cursor:pointer}
+button.sel{background:var(--accent);color:#fff;border-color:var(--accent)}
+button.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+.row{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+kbd{border:1px solid var(--line);border-radius:3px;padding:0 4px;font-size:12px}
+@media (max-width:800px){#app{flex-direction:column;height:auto}#stage{height:65vh}#side{width:100%}}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="stage"><canvas id="cv"></canvas></div>
+  <div id="side">
+    <div class="card">
+      <div class="muted" id="progress"></div>
+      <div class="row" style="margin-top:6px"><button id="prev">← 이전</button><button id="next">다음 →</button><button id="exportBtn" class="primary">JSON 저장</button></div>
+      <div class="row" style="margin-top:6px"><label class="muted"><input type="checkbox" id="whole"> 전체 프레임 보기</label></div>
+    </div>
+    <div class="card">
+      <div class="muted">이 관절의 COCO 위치에 가장 가까운 표시는? (사람 본인 기준 왼쪽/오른쪽)</div>
+      <div id="joint"></div>
+      <div id="def" style="margin-top:6px"></div>
+      <div class="row" id="opts" style="margin-top:10px"></div>
+      <div class="muted" style="margin-top:8px">키: <kbd>1</kbd>–<kbd>3</kbd> 표시 고르기 · <kbd>4</kbd> 모두 아님 · <kbd>5</kbd> 판단 불가 · <kbd>←</kbd><kbd>→</kbd> 이동. 고르면 다음 문제로 넘어갑니다.</div>
+    </div>
+    <div class="card muted">표시는 순서가 무작위인 글자(A/B/C)이고, 어느 것이 어떤 라벨인지는 이 페이지에 없습니다. 망설여지면 "판단 불가"를 누르세요. 작업은 이 브라우저에 자동 보관됩니다.</div>
+  </div>
+</div>
+<script src="choice.js"></script>
+<script>
+'use strict';
+const DEF = {
+ nose:['코','코끝(코의 가장 앞쪽 끝).'],
+ l_sh:['왼어깨','어깨 끝 뼈(견봉) 위치: 어깨 윤곽의 위쪽 바깥 모서리, 팔이 몸통에 붙는 곳 위. 몸 안쪽 관절 중심이 아님.'],
+ r_sh:['오른어깨','어깨 끝 뼈(견봉) 위치: 어깨 윤곽의 위쪽 바깥 모서리. 몸 안쪽 관절 중심이 아님.'],
+ l_hip:['왼엉덩이','COCO 엉덩이점: 골반 옆, 허벅지가 골반과 만나는 보이는 고관절 위치(옆에서 보면 넙다리뼈 큰돌기 근처, 앞에서 보면 사타구니 선 바깥 끝 높이). 허리띠·골반뼈 꼭대기보다 낮고, 몸속 관절 중심이 아님.'],
+ r_hip:['오른엉덩이','COCO 엉덩이점: 골반 옆의 보이는 고관절 위치. 허리띠 높이보다 낮음.']};
+const Q = window.CHOICES || [];
+const KEY = 'bpt-fit3d-choice-v1';
+const store = {get(){try{return JSON.parse(localStorage.getItem(KEY))||{}}catch(e){return {}}},set(v){try{localStorage.setItem(KEY,JSON.stringify(v))}catch(e){}}};
+const S = Object.assign({answers:{}, cursor:0}, store.get());
+let qi = Math.min(S.cursor||0, Math.max(Q.length-1,0)), t0 = performance.now();
+const cv = document.getElementById('cv'), ctx = cv.getContext('2d'), img = new Image();
+const OPTS = () => Q[qi].markers.map(m=>m.letter).concat(['none','unsure']);
+const LABEL = {none:'모두 아님', unsure:'판단 불가'};
+function view(){
+  const q = Q[qi], r = cv.getBoundingClientRect(); cv.width = r.width*devicePixelRatio; cv.height = r.height*devicePixelRatio;
+  let cx, cy, half;
+  if(document.getElementById('whole').checked){ cx = img.naturalWidth/2; cy = img.naturalHeight/2; half = Math.max(img.naturalWidth, img.naturalHeight)/2; }
+  else { const xs = q.markers.map(m=>m.xy[0]), ys = q.markers.map(m=>m.xy[1]);
+    cx = (Math.min(...xs)+Math.max(...xs))/2; cy = (Math.min(...ys)+Math.max(...ys))/2;
+    half = Math.max(q.zoom, (Math.max(...xs)-Math.min(...xs))*0.8, (Math.max(...ys)-Math.min(...ys))*0.8); }
+  const s = Math.min(cv.width, cv.height)/(2*half);
+  return {s, ox: cv.width/2 - cx*s, oy: cv.height/2 - cy*s};
+}
+function draw(){
+  if(!Q.length) return; const v = view(), q = Q[qi];
+  ctx.fillStyle = '#111'; ctx.fillRect(0,0,cv.width,cv.height);
+  ctx.drawImage(img, v.ox, v.oy, img.naturalWidth*v.s, img.naturalHeight*v.s);
+  const d = devicePixelRatio, chosen = (S.answers[q.id]||{}).choice;
+  q.markers.forEach((m,i)=>{
+    const x = m.xy[0]*v.s+v.ox, y = m.xy[1]*v.s+v.oy, col = m.letter===chosen ? '#ffd400' : '#ff3df5';
+    ctx.lineWidth = 2*d; ctx.strokeStyle = '#000'; ctx.beginPath();
+    for(const [a,b] of [[1,0],[-1,0],[0,1],[0,-1]]){ ctx.moveTo(x+a*4*d,y+b*4*d); ctx.lineTo(x+a*12*d,y+b*12*d); }
+    ctx.stroke(); ctx.lineWidth = 1.2*d; ctx.strokeStyle = col; ctx.stroke();   // open crosshair: the point itself stays visible
+    const off = [[14,-14],[-26,-14],[14,22]][i]; ctx.font = `bold ${15*d}px sans-serif`;
+    ctx.lineWidth = 3*d; ctx.strokeStyle = '#000'; ctx.strokeText(m.letter, x+off[0]*d, y+off[1]*d); ctx.fillStyle = col; ctx.fillText(m.letter, x+off[0]*d, y+off[1]*d);
+  });
+}
+function ui(){
+  const q = Q[qi], done = Object.keys(S.answers).length;
+  document.getElementById('progress').textContent = `문제 ${qi+1} / ${Q.length} · 답한 것 ${done} · ${q.img.replace('frames/','').replace('.jpg','')}`;
+  document.getElementById('joint').textContent = DEF[q.joint][0];
+  document.getElementById('def').textContent = DEF[q.joint][1];
+  const box = document.getElementById('opts'); box.innerHTML = '';
+  OPTS().forEach((o,i)=>{ const b = document.createElement('button'); b.textContent = `${o==='none'?4:o==='unsure'?5:i+1}. ${LABEL[o]||o}`;
+    if((S.answers[q.id]||{}).choice===o) b.className = 'sel'; b.onclick = ()=>answer(o); box.appendChild(b); });
+  draw();
+}
+function load(){ img.onload = ()=>{ t0 = performance.now(); ui(); }; if(img.src.endsWith(Q[qi].img)) ui(); else img.src = Q[qi].img; S.cursor = qi; store.set(S); }
+function answer(o){ const q = Q[qi]; S.answers[q.id] = {choice:o, ms: Math.round(performance.now()-t0), at:new Date().toISOString()}; store.set(S); if(qi < Q.length-1) go(1); else ui(); }
+function go(d){ const n = qi+d; if(n<0||n>=Q.length) return; qi = n; load(); }
+function exportJson(){
+  const out = {tool:'bpt-fit3d-choice', version:1, exported_at:new Date().toISOString(), n_questions:Q.length, answers:S.answers};
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(out,null,1)],{type:'application/json'}));
+  a.download = 'fit3d_coco_choice.json'; document.body.appendChild(a); a.click(); a.remove();
+}
+document.getElementById('prev').onclick = ()=>go(-1);
+document.getElementById('next').onclick = ()=>go(1);
+document.getElementById('exportBtn').onclick = exportJson;
+document.getElementById('whole').onchange = draw;
+document.addEventListener('keydown', e=>{ const k = e.key.toLowerCase(), o = Q.length ? OPTS() : [];
+  if(k==='arrowright') go(1); else if(k==='arrowleft') go(-1);
+  else if(k==='4') answer('none'); else if(k==='5') answer('unsure'); else if(/^[1-3]$/.test(k) && +k <= o.length-2) answer(o[+k-1]); });
+window.addEventListener('resize', draw);
+if(!Q.length) document.getElementById('progress').textContent = 'choice.js가 없습니다'; else load();
+window.__choice = {get state(){return S}, answer, go, exportJson};  // test hook
+</script>
+</body>
+</html>
