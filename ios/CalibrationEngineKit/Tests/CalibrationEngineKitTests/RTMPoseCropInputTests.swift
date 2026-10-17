@@ -72,6 +72,7 @@ final class RTMPoseCropInputTests: XCTestCase {
         XCTAssertNil(t.acquireMinJoints)
         XCTAssertEqual(t.lostHoldFrames, 0)
         XCTAssertEqual(t.lostSearchInterval, 0)
+        XCTAssertEqual(t.acquireMinCropFraction, 0)
         // Letterbox: 1280×720 in a 3:4 rect, centred, aspect kept.
         var lb = RTMPoseCropTracker()
         lb.lostInput = .letterbox
@@ -86,6 +87,22 @@ final class RTMPoseCropInputTests: XCTestCase {
         XCTAssertEqual(tiles[3], CGRect(x: 740, y: 0, width: 540, height: 720))
         XCTAssertEqual(RTMPoseCropTracker.lostSearchRects(imageWidth: 720, imageHeight: 1280)[3],
                        CGRect(x: 0, y: 320, width: 720, height: 960))
+    }
+
+    func testMinimumInitialCropOnlyOnAcquisition() throws {
+        // A few joints in a 40×40 box: the fresh crop is tiny; with the option it is grown to 0.5 × 1920.
+        let tiny = (0..<17).map { j in PoseKeypoint(x: 500 + Double(j % 4) * 10, y: 900 + Double(j / 4) * 10, confidence: 0.9) }
+        var t = RTMPoseCropTracker()
+        t.update(tiny)
+        XCTAssertLessThan(try XCTUnwrap(t.crop).height, 200)
+        t = RTMPoseCropTracker()
+        t.acquireMinCropFraction = 0.5
+        t.imageHeight = 1920
+        t.update(tiny)
+        let crop = try XCTUnwrap(t.crop)
+        XCTAssertEqual(crop.height, 960, accuracy: 1e-9)
+        XCTAssertEqual(crop.width / crop.height, 0.75, accuracy: 1e-9)
+        XCTAssertTrue(crop.contains(CGPoint(x: 515, y: 920)))
     }
 
     func testRelaxedAcquireAndHold() {

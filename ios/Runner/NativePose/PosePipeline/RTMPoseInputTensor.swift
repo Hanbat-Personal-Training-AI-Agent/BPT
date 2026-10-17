@@ -148,6 +148,12 @@ struct RTMPoseCropTracker {
     /// (letterboxed whole frame + three full-height 3:4 tiles) and start tracking on the best (0 = off).
     var lostSearchInterval = 0
     /// Search frames run / searches that started tracking (pose-replay reports them).
+    /// When tracking starts from the lost state, the first crop is grown (3:4, same centre) to at least this
+    /// fraction of the frame height: a crop built from a few stray joints is far smaller than the person (MM-Fit
+    /// w20: 1/32–1/173 of the detector crop) and loses them on the next frame (0 = off). D-T3-21 mechanism B.
+    var acquireMinCropFraction = 0.0
+    /// Frame height in pixels, set by `estimate` each frame (0 = unknown: no minimum).
+    var imageHeight = 0.0
     private(set) var lostSearchPasses = 0
     private(set) var lostSearchHits = 0
     private var heldFrames = 0
@@ -231,7 +237,11 @@ struct RTMPoseCropTracker {
         framesSinceRecheck += 1
         // Keypoints stop at the eyes and ankles; leave room for the head top and the soles.
         let person = box.insetBy(dx: 0, dy: -0.08 * box.height)
-        let target = Self.fitToInputAspect(person.insetBy(dx: -margin * person.width, dy: -margin * person.height))
+        var target = Self.fitToInputAspect(person.insetBy(dx: -margin * person.width, dy: -margin * person.height))
+        if crop == nil, acquireMinCropFraction > 0, target.height < acquireMinCropFraction * imageHeight {
+            let h = acquireMinCropFraction * imageHeight
+            target = CGRect(x: target.midX - 0.375 * h, y: target.midY - h / 2, width: 0.75 * h, height: h)
+        }
         if let current = crop, current.contains(person),
            current.height > minRatio * target.height, current.height < maxRatio * target.height {
             let tx = current.width / Double(PoseCoordinateTransforms.rtmposeInputWidth)
@@ -349,6 +359,7 @@ extension RTMPoseCropTracker {
         let rect = personCrop ? inputRect(imageWidth: image.width, imageHeight: image.height)
             : CGRect(x: 0, y: 0, width: image.width, height: image.height)
         guard let e = try Self.estimate(image, rect: rect, model: model, workspace: workspace) else { return nil }
+        imageHeight = Double(image.height)
         var switched: Bool?
         if personCrop {
             let wasLost = crop == nil

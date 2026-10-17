@@ -6,7 +6,7 @@
 //
 //   swift run -c release --package-path ios/CalibrationEngineKit pose-replay \
 //       [--exercise squat|pushup|row|bench|deadlift] [--model coco17|halpe26|mcoco17|mhalpe26] [--model-path PATH] [--motion3d PATH|none] [--lookahead N] \
-//       [--row-shrug] [--side-cutoff R] [--row-offside off] [--pushup-ankle on|off] [--pushup-wrist-conf C] [--pushup-min-frames N] [--pushup-height on|off] [--squat-hold on|off] [--squat-near-leg on|off] [--squat-rebaseline N] [--squat-height on|off] [--squat-height-range R] [--ready-pose off|preset] [--input crop|full] [--crop-edge on|off] [--crops-in PATH] [--lost-input stretch|letterbox] [--acquire-joints N] [--lost-hold N] [--lost-search N] [--acquire-boxes PATH] [--keypoints-csv PATH] [--keypoints-dir DIR] [--output-dir PATH] <video.mp4>...
+//       [--row-shrug] [--side-cutoff R] [--row-offside off] [--pushup-ankle on|off] [--pushup-wrist-conf C] [--pushup-min-frames N] [--pushup-height on|off] [--squat-hold on|off] [--squat-near-leg on|off] [--squat-rebaseline N] [--squat-height on|off] [--squat-height-range R] [--ready-pose off|preset] [--input crop|full] [--crop-edge on|off] [--crops-in PATH] [--lost-input stretch|letterbox] [--acquire-joints N] [--lost-hold N] [--lost-search N] [--acquire-boxes PATH] [--acquire-min-crop F] [--keypoints-csv PATH] [--keypoints-dir DIR] [--output-dir PATH] <video.mp4>...
 //
 // --crop-edge off: keep a crop whose border pins confident joints (RTMPoseCropTracker.refitAtCropEdge = false, old).
 // --crops-in: RTMPose input rect per frame from a CSV (CropSequence.swift; e.g. another model's _crops.csv trace or
@@ -16,6 +16,7 @@
 // to keep), --lost-hold N (keep a crop N frames after its person drops below 6), --lost-search N (while lost, every N
 // frames also try the letterboxed frame + three 3:4 tiles), --acquire-boxes PATH (crop CSV, e.g. detector boxes: while
 // lost, start from that frame's rect instead of the whole frame). Both file options also take a directory of <video>_det.csv.
+// --acquire-min-crop F: a crop started from the lost state is at least F x frame height tall (D-T3-21 mechanism B).
 // Every video run also writes <video>_<exercise>_<model>_crops.csv: the rect each frame used, why it changed, and rechecks.
 // --model-path: another RTMPose .mlpackage with the same 256x192 input and SimCC outputs (17 or 26 joints;
 // pass --model halpe26 for 26) — candidate models are compared on the same videos without replacing the bundled one.
@@ -80,9 +81,10 @@ var acquireJoints: Int?
 var lostHold = 0
 var lostSearch = 0
 var acquireBoxes: String?
+var acquireMinCrop = 0.0
 var videos: [URL] = []
 var arguments = CommandLine.arguments.dropFirst().makeIterator()
-let usage = "usage: pose-replay [--exercise squat|pushup|row|bench|deadlift] [--model coco17|halpe26|mcoco17|mhalpe26] [--model-path PATH] [--motion3d PATH|none] [--lookahead N] [--row-shrug] [--side-cutoff R] [--row-offside off] [--pushup-ankle on|off] [--pushup-wrist-conf C] [--pushup-min-frames N] [--pushup-height on|off] [--squat-hold on|off] [--squat-near-leg on|off] [--squat-rebaseline N] [--squat-height on|off] [--squat-height-range R] [--ready-pose off|preset] [--input crop|full] [--crop-edge on|off] [--crops-in PATH] [--lost-input stretch|letterbox] [--acquire-joints N] [--lost-hold N] [--lost-search N] [--acquire-boxes PATH] [--keypoints-csv PATH] [--keypoints-dir DIR] [--output-dir PATH] <video.mp4>..."
+let usage = "usage: pose-replay [--exercise squat|pushup|row|bench|deadlift] [--model coco17|halpe26|mcoco17|mhalpe26] [--model-path PATH] [--motion3d PATH|none] [--lookahead N] [--row-shrug] [--side-cutoff R] [--row-offside off] [--pushup-ankle on|off] [--pushup-wrist-conf C] [--pushup-min-frames N] [--pushup-height on|off] [--squat-hold on|off] [--squat-near-leg on|off] [--squat-rebaseline N] [--squat-height on|off] [--squat-height-range R] [--ready-pose off|preset] [--input crop|full] [--crop-edge on|off] [--crops-in PATH] [--lost-input stretch|letterbox] [--acquire-joints N] [--lost-hold N] [--lost-search N] [--acquire-boxes PATH] [--acquire-min-crop F] [--keypoints-csv PATH] [--keypoints-dir DIR] [--output-dir PATH] <video.mp4>..."
 while let argument = arguments.next() {
     switch argument {
     case "--model":
@@ -175,6 +177,9 @@ while let argument = arguments.next() {
     case "--lost-search":
         guard let value = arguments.next().flatMap(Int.init), value >= 0 else { exit(2) }
         lostSearch = value
+    case "--acquire-min-crop":
+        guard let value = arguments.next().flatMap(Double.init), value >= 0 else { exit(2) }
+        acquireMinCrop = value
     case "--acquire-boxes":
         guard let path = arguments.next() else { exit(2) }
         acquireBoxes = path
@@ -254,6 +259,7 @@ for video in videos {
     cropTracker.acquireMinJoints = acquireJoints
     cropTracker.lostHoldFrames = lostHold
     cropTracker.lostSearchInterval = lostSearch
+    cropTracker.acquireMinCropFraction = acquireMinCrop
     var seeds = 0
     var fullFrameInputs = 0
     var rechecks = 0, switches = 0
@@ -458,6 +464,7 @@ for video in videos {
         "lost_search_hits": cropTracker.lostSearchHits,
         "acquire_boxes": acquireBoxes.map { $0 as Any } ?? NSNull(),
         "acquire_seeds": seeds,
+        "acquire_min_crop": acquireMinCrop,
         "pose_ms_per_frame": coco17Frames.isEmpty ? 0 : poseSeconds * 1000 / Double(coco17Frames.count),
         "frames": coco17Frames.count,
         "image_size": [imageWidth, imageHeight],
