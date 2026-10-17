@@ -63,7 +63,7 @@ def main(labels_root, clips, outdir, results, *flags):
         if "--run" in flags and not js.exists():
             subprocess.run([*([HEAVY] if HEAVY else []), REPLAY, "--exercise", "pushup", "--model", MODEL, "--motion3d", "none",
                             "--output-dir", str(outdir), str(mp4)], check=True,
-                           env={"BPT_LOCK": "heavy", "PATH": "/usr/bin:/bin"},
+                           env={"BPT_LOCK": os.environ.get("BPT_LOCK", "heavy"), "PATH": "/usr/bin:/bin"},
                            stdout=subprocess.DEVNULL)
         sess = json.load(open(js))["session"]
         c = sess["rep_count"]
