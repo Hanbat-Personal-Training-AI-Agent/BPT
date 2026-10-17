@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>COCO 기준점 찍기</title>
+<!-- Local-only annotation page (track fit3d-label-verify). Loads manifest.js + frames/ from its own folder.
+     No generated labels are shown here (no anchoring). Clicks are kept in localStorage and exported as JSON. -->
+<style>
+:root{--bg:#f6f6f4;--fg:#1a1a1a;--muted:#666;--panel:#fff;--line:#d8d8d4;--accent:#0b63ce;--warn:#b25b00;--ok:#1d7a3a;--cv:#2a2a2a}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#161616;--fg:#eee;--muted:#aaa;--panel:#202020;--line:#3a3a3a;--accent:#5aa2ff;--warn:#ffb057;--ok:#5fd38a;--cv:#111}}
+:root[data-theme="dark"]{--bg:#161616;--fg:#eee;--muted:#aaa;--panel:#202020;--line:#3a3a3a;--accent:#5aa2ff;--warn:#ffb057;--ok:#5fd38a;--cv:#111}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.45 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo",sans-serif}
+#app{display:flex;gap:12px;padding:12px 16px;height:100vh}
+#stage{flex:1;min-width:0;position:relative;background:var(--cv);border-radius:8px;overflow:hidden}
+#cv{width:100%;height:100%;display:block;cursor:crosshair}
+#side{width:340px;flex:none;display:flex;flex-direction:column;gap:10px;overflow:auto}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+h1{font-size:15px;margin:0 0 4px}
+#joint{font-size:20px;font-weight:700}
+#def{margin-top:6px}
+.muted{color:var(--muted);font-size:12px}
+button{font:inherit;padding:5px 9px;border-radius:6px;border:1px solid var(--line);background:var(--panel);color:var(--fg);cursor:pointer}
+button.on{background:var(--warn);color:#000;border-color:var(--warn)}
+button.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+.row{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+#list{display:grid;grid-template-columns:1fr 1fr;gap:2px 8px;font-size:13px}
+#list div{cursor:pointer;padding:1px 4px;border-radius:4px}
+#list div.cur{outline:2px solid var(--accent)}
+#list .done{color:var(--ok)}#list .uns{color:var(--warn)}#list .skip{color:var(--muted);text-decoration:line-through}
+#loupe{width:160px;height:160px;border:1px solid var(--line);border-radius:6px;background:#000}
+kbd{border:1px solid var(--line);border-radius:3px;padding:0 4px;font-size:12px}
+#help{position:absolute;left:8px;bottom:8px;color:#ddd;font-size:12px;background:rgba(0,0,0,.5);padding:4px 8px;border-radius:6px}
+@media (max-width:800px){#app{flex-direction:column;height:auto}#stage{height:70vh}#side{width:100%}}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="stage"><canvas id="cv"></canvas><div id="help">클릭 = 찍고 다음 관절 · 드래그 = 이동 · 휠 = 확대 · <kbd>U</kbd> 불확실 · <kbd>S</kbd> 안 보임(건너뛰기) · <kbd>Z</kbd> 되돌리기 · <kbd>←</kbd><kbd>→</kbd> 프레임</div></div>
+  <div id="side">
+    <div class="card">
+      <h1 id="frameTitle">프레임</h1>
+      <div class="muted" id="progress"></div>
+      <div class="row" style="margin-top:6px">
+        <button id="prev">← 이전</button><button id="next">다음 →</button>
+        <button id="exportBtn" class="primary">JSON 저장</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="muted">지금 찍을 관절 (사람 본인 기준 왼쪽/오른쪽)</div>
+      <div id="joint"></div>
+      <div id="def"></div>
+      <div class="row" style="margin-top:8px">
+        <button id="unsure">가려짐/불확실 (U)</button>
+        <button id="skip">안 보임 (S)</button>
+        <button id="undo">되돌리기 (Z)</button>
+      </div>
+      <div class="muted" style="margin-top:6px">가려졌어도 위치를 짐작할 수 있으면 찍고 "불확실"을 켜세요. 전혀 모르겠으면 "안 보임".</div>
+    </div>
+    <div class="card"><canvas id="loupe" width="160" height="160"></canvas><div class="muted">돋보기 (3배)</div></div>
+    <div class="card"><div id="list"></div></div>
+    <div class="card muted">
+      불러오기(이어하기): <input type="file" id="importFile" accept=".json"><br>
+      작업은 이 브라우저에 자동 보관됩니다. 끝나면 "JSON 저장"을 누르세요. 일부만 해도 됩니다.
+    </div>
+  </div>
+</div>
+<script src="manifest.js"></script>
+<script>
+'use strict';
+const JOINTS = [
+ ['nose','코','코끝(코의 가장 앞쪽 끝).'],
+ ['l_eye','왼눈','사람 본인의 왼쪽 눈. 눈동자(안구) 가운데. 감았으면 눈꺼풀 가운데.'],
+ ['r_eye','오른눈','사람 본인의 오른쪽 눈. 눈동자(안구) 가운데.'],
+ ['l_ear','왼귀','왼쪽 귀의 가운데(귓구멍 근처). 머리카락에 가렸으면 짐작해 찍고 불확실.'],
+ ['r_ear','오른귀','오른쪽 귀의 가운데(귓구멍 근처).'],
+ ['l_sh','왼어깨','어깨 끝 뼈(견봉) 위치: 어깨 윤곽의 위쪽 바깥 모서리, 팔이 몸통에 붙는 곳 위. 몸 안쪽 관절 중심이 아님.'],
+ ['r_sh','오른어깨','어깨 끝 뼈(견봉) 위치: 어깨 윤곽의 위쪽 바깥 모서리. 몸 안쪽 관절 중심이 아님.'],
+ ['l_el','왼팔꿈치','팔꿈치 관절 가운데(위팔과 아래팔이 꺾이는 점의 팔 두께 중앙).'],
+ ['r_el','오른팔꿈치','팔꿈치 관절 가운데.'],
+ ['l_wr','왼손목','손목 관절 가운데(손과 아래팔이 만나는 선의 중앙).'],
+ ['r_wr','오른손목','손목 관절 가운데.'],
+ ['l_hip','왼엉덩이','COCO 엉덩이점: 골반 옆, 허벅지가 골반과 만나는 보이는 고관절 위치(옆에서 보면 넙다리뼈 큰돌기 근처, 앞에서 보면 사타구니 선 바깥 끝 높이). 허리띠·골반뼈 꼭대기보다 낮고, 몸속 관절 중심이 아님.'],
+ ['r_hip','오른엉덩이','COCO 엉덩이점: 골반 옆의 보이는 고관절 위치. 허리띠 높이보다 낮음.'],
+ ['l_kn','왼무릎','무릎 관절 가운데(무릎뼈 바로 아래 높이, 다리 두께 중앙).'],
+ ['r_kn','오른무릎','무릎 관절 가운데.'],
+ ['l_an','왼발목','발목 관절 가운데(안쪽·바깥 복사뼈 사이). 옆모습이면 복사뼈.'],
+ ['r_an','오른발목','발목 관절 가운데.'],
+];
+const TAG = ['N','LEy','REy','LEa','REa','LS','RS','LE','RE','LW','RW','LH','RH','LK','RK','LA','RA'];
+const KEY = 'bpt-fit3d-annot-v1';
+const M = window.MANIFEST || [];
+const store = {get(){try{return JSON.parse(localStorage.getItem(KEY))||{}}catch(e){return {}}},set(v){try{localStorage.setItem(KEY,JSON.stringify(v))}catch(e){}}};
+let S = store.get();
+S.frames = S.frames || {};
+let fi = Math.min(S.cursor||0, Math.max(0, M.length-1)), ji = 0, unsureNext = false;
+const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+const lp = document.getElementById('loupe'), lctx = lp.getContext('2d');
+const img = new Image();
+let view = {s:1, ox:0, oy:0}, mouse = null;
+
+function rec(){ const id = M[fi].id; if(!S.frames[id]) S.frames[id] = {points:Array(17).fill(null), unsure:Array(17).fill(false), skipped:Array(17).fill(false), repeat_of:M[fi].repeat_of||null, ms:0}; return S.frames[id]; }
+function save(){ S.cursor = fi; store.set(S); }
+function firstOpen(r){ for(let j=0;j<17;j++) if(!r.points[j] && !r.skipped[j]) return j; return 17; }
+// screen <-> image pixels (exported coordinates are natural-image pixels)
+function toImg(x,y){ return [(x-view.ox)/view.s, (y-view.oy)/view.s]; }
+function toScr(p){ return [p[0]*view.s+view.ox, p[1]*view.s+view.oy]; }
+function fit(){ const r = cv.getBoundingClientRect(); cv.width = r.width*devicePixelRatio; cv.height = r.height*devicePixelRatio;
+  const s = Math.min(r.width/img.naturalWidth, r.height/img.naturalHeight); view = {s, ox:(r.width-img.naturalWidth*s)/2, oy:(r.height-img.naturalHeight*s)/2}; }
+function draw(){
+  const r = cv.getBoundingClientRect(); ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+  ctx.fillStyle = '#2a2a2a'; ctx.fillRect(0,0,r.width,r.height);
+  if(!img.naturalWidth) return;
+  ctx.drawImage(img, view.ox, view.oy, img.naturalWidth*view.s, img.naturalHeight*view.s);
+  const R = rec();
+  ctx.font = '12px sans-serif';
+  R.points.forEach((p,j)=>{ if(!p) return; const [x,y] = toScr(p); const col = j===0?'#ff9f1a':(j%2?'#2ee66b':'#3fd0ff');
+    ctx.beginPath(); ctx.arc(x,y,4,0,7); if(R.unsure[j]){ctx.strokeStyle=col;ctx.lineWidth=2;ctx.stroke()} else {ctx.fillStyle=col;ctx.fill()}
+    ctx.fillStyle = col; ctx.fillText(TAG[j]+(R.unsure[j]?'?':''), x+6, y-6); });
+  drawLoupe();
+}
+function drawLoupe(){
+  lctx.fillStyle='#000'; lctx.fillRect(0,0,160,160);
+  if(!mouse||!img.naturalWidth) return;
+  const [ix,iy] = toImg(mouse[0],mouse[1]), z = 3*view.s, w = 160/z;
+  lctx.imageSmoothingEnabled = false;
+  lctx.drawImage(img, ix-w/2, iy-w/2, w, w, 0, 0, 160, 160);
+  const R = rec(); R.points.forEach((p,j)=>{ if(!p) return; const x=(p[0]-ix)*z+80, y=(p[1]-iy)*z+80; lctx.fillStyle=j%2?'#2ee66b':'#3fd0ff'; lctx.fillRect(x-2,y-2,4,4); });
+  lctx.strokeStyle='#ff3b3b'; lctx.lineWidth=1; lctx.beginPath(); lctx.moveTo(80,70); lctx.lineTo(80,90); lctx.moveTo(70,80); lctx.lineTo(90,80); lctx.stroke();
+}
+function ui(){
+  const R = rec(), m = M[fi];
+  document.getElementById('frameTitle').textContent = `${fi+1} / ${M.length} · ${m.id}${m.note? ' · '+m.note : ''}`;
+  const done = M.filter(x=>{const r=S.frames[x.id]; return r && firstOpen(r)===17}).length;
+  const msList = Object.values(S.frames).filter(r=>firstOpen(r)===17).map(r=>r.ms);
+  const avg = msList.length? msList.reduce((a,b)=>a+b,0)/msList.length : 40000;
+  document.getElementById('progress').textContent = `완료 ${done}/${M.length} 프레임 · 프레임당 평균 ${(avg/1000).toFixed(0)}초 · 남은 예상 ${Math.round(avg*(M.length-done)/60000)}분`;
+  const J = JOINTS[Math.min(ji,16)];
+  document.getElementById('joint').textContent = ji<17 ? `${ji+1}. ${J[1]} (${J[0]})` : '이 프레임 끝 → 다음 프레임(→)';
+  document.getElementById('def').textContent = ji<17 ? J[2] : '';
+  document.getElementById('unsure').classList.toggle('on', ji<17 && (unsureNext || R.unsure[ji]));
+  document.getElementById('list').innerHTML = JOINTS.map((j,k)=>`<div data-k="${k}" class="${k===ji?'cur ':''}${R.skipped[k]?'skip':R.points[k]?(R.unsure[k]?'uns':'done'):''}">${k+1}. ${j[1]}${R.unsure[k]?' ?':''}</div>`).join('');
+  draw();
+}
+function load(){ img.onload = ()=>{ fit(); ji = firstOpen(rec()); unsureNext=false; t0 = performance.now(); ui(); }; img.src = M[fi].img; save(); }
+let t0 = performance.now();
+function tick(){ const R = rec(); const now = performance.now(); R.ms += Math.min(now - t0, 120000); t0 = now; }
+function place(p){ if(ji>=17) return; const R = rec(); tick(); R.points[ji] = [Math.round(p[0]*10)/10, Math.round(p[1]*10)/10]; R.skipped[ji] = false; R.unsure[ji] = unsureNext; R.order = (R.order||[]).concat(ji); unsureNext=false; ji = firstOpen(R); save(); ui(); }
+function skip(){ if(ji>=17) return; const R = rec(); tick(); R.points[ji]=null; R.skipped[ji]=true; R.unsure[ji]=false; R.order=(R.order||[]).concat(ji); unsureNext=false; ji = firstOpen(R); save(); ui(); }
+function undo(){ const R = rec(); const o = R.order||[]; if(!o.length) return; const j = o.pop(); R.points[j]=null; R.skipped[j]=false; R.unsure[j]=false; ji = j; save(); ui(); }
+function toggleUnsure(){ if(ji>=17) return; const R = rec(); if(R.points[ji]) R.unsure[ji]=!R.unsure[ji]; else unsureNext=!unsureNext; save(); ui(); }
+function go(d){ tick(); const n = fi+d; if(n<0||n>=M.length) return; fi = n; load(); }
+let down = null;
+cv.addEventListener('mousedown', e=>{ down = {x:e.offsetX, y:e.offsetY, ox:view.ox, oy:view.oy, moved:false}; });
+cv.addEventListener('mousemove', e=>{ mouse = [e.offsetX, e.offsetY];
+  if(down){ const dx=e.offsetX-down.x, dy=e.offsetY-down.y; if(Math.abs(dx)+Math.abs(dy)>4) down.moved=true; if(down.moved){view.ox=down.ox+dx; view.oy=down.oy+dy; draw(); return;} }
+  drawLoupe(); });
+cv.addEventListener('mouseup', e=>{ if(down && !down.moved) place(toImg(e.offsetX, e.offsetY)); down = null; });
+cv.addEventListener('mouseleave', ()=>{ mouse=null; down=null; drawLoupe(); });
+cv.addEventListener('wheel', e=>{ e.preventDefault(); const k = Math.exp(-e.deltaY*0.0015); const [ix,iy] = toImg(e.offsetX,e.offsetY);
+  view.s *= k; view.ox = e.offsetX - ix*view.s; view.oy = e.offsetY - iy*view.s; mouse = [e.offsetX, e.offsetY]; draw(); }, {passive:false});
+document.getElementById('list').addEventListener('click', e=>{ const k = e.target.dataset.k; if(k===undefined) return; const R = rec(); ji=+k; R.points[ji]=null; R.skipped[ji]=false; R.unsure[ji]=false; save(); ui(); });
+document.getElementById('unsure').onclick = toggleUnsure;
+document.getElementById('skip').onclick = skip;
+document.getElementById('undo').onclick = undo;
+document.getElementById('prev').onclick = ()=>go(-1);
+document.getElementById('next').onclick = ()=>go(1);
+document.addEventListener('keydown', e=>{ if(e.target.tagName==='INPUT') return; const k=e.key.toLowerCase();
+  if(k==='u') toggleUnsure(); else if(k==='s') skip(); else if(k==='z'||k==='backspace'){e.preventDefault();undo();} else if(k==='arrowright'||k==='n') go(1); else if(k==='arrowleft'||k==='p') go(-1); });
+window.addEventListener('resize', ()=>{ fit(); draw(); });
+function exportJson(){
+  tick(); save();
+  const out = {tool:'bpt-fit3d-annot', version:1, exported_at:new Date().toISOString(), coords:'crop image pixels (natural size of frames/*.jpg)',
+               joints:JOINTS.map(j=>j[0]), frames:S.frames};
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(out,null,1)],{type:'application/json'}));
+  a.download = 'fit3d_coco_manual.json'; document.body.appendChild(a); a.click(); a.remove();
+}
+document.getElementById('exportBtn').onclick = exportJson;
+document.getElementById('importFile').onchange = e=>{ const f = e.target.files[0]; if(!f) return; f.text().then(t=>{ const d = JSON.parse(t); if(!d.frames) return alert('형식이 다릅니다');
+  S.frames = Object.assign(S.frames, d.frames); save(); load(); }); };
+if(!M.length){ document.getElementById('frameTitle').textContent = 'manifest.js가 없습니다'; } else load();
+window.__annot = {toImg, toScr, get view(){return view}, get state(){return S}, place, skip, undo, toggleUnsure, go, exportJson};  // test hook
+</script>
+</body>
+</html>
