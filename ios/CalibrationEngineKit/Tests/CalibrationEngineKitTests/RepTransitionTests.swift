@@ -351,4 +351,16 @@ final class RepTransitionTests: XCTestCase {
         XCTAssertEqual(RTMPoseModel.workout.rawValue, "rtmpose_m_forward")
         XCTAssertEqual(RTMPoseModel.active, .coco17, "calibration capture unchanged")
     }
+
+    /// Every selectable model (BPT_POSE_MODEL / pose-replay --model, incl. mhalpe26) is a package the app bundles.
+    func testEverySelectableModelIsBundled() throws {
+        var root = URL(fileURLWithPath: #filePath)
+        for _ in 0..<5 { root.deleteLastPathComponent() }
+        let project = try String(contentsOf: root.appendingPathComponent("ios/Runner.xcodeproj/project.pbxproj"), encoding: .utf8)
+        for model in RTMPoseModel.allCases {
+            let package = "ios/Runner/NativePose/Models/\(model.rawValue).mlpackage/Manifest.json"
+            XCTAssertTrue(FileManager.default.fileExists(atPath: root.appendingPathComponent(package).path), package)
+            XCTAssertTrue(project.contains("\(model.rawValue).mlpackage in Resources"), "\(model) not in Runner resources")
+        }
+    }
 }

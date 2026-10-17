@@ -884,3 +884,34 @@
 - **푸시업 정면(48%)**: 앱이 측면 촬영을 안내하는 시점이고 정면에서는 다리가 가려 tracking_lost가 거의 항상 울림(D-DATA-01 §3) — 렙을 세게 해도 셋업 안내와 충돌. 우선순위 낮음.
 - **YouTube 바벨로우 사선**: 조정 세트가 1개(2렙)라 조정할 데이터가 없음.
 - **MediaPipe Pose full로 스쿼트**: RTMPose-m 경로가 조정 92.2%까지 올라 남은 놓침이 적고, D-C-07에서 MediaPipe는 스쿼트·로우 PCK가 더 나빴음. 평가하려면 공개 클립 153개를 Home CPU로 다시 뽑아야 해서 이번엔 생략.
+
+## 트랙 halpe-decision — 운동 카메라 RTMPose-m COCO17 vs RTMPose-m Halpe26 — 2026-10-16
+배경: D-01(Halpe26 기본 되돌림), D-C-04(Halpe26 전환은 사용자 결정으로 올림), D-T3-05(운동 카메라 = m COCO17)로, "Halpe26으로 바꾸기로 했다"는 결정은 실행된 적이 없음. 이번 트랙에서 수치로 정함. 캘리브레이션 캡처(`RTMPoseModel.active` = s COCO17)는 범위 밖, 바꾸지 않음.
+
+### D-T3-17 판정 규칙 (검증 결과를 보기 전에 고정, 2026-10-16)
+- **비교**: 운동 카메라 기본 m COCO17(현재) vs m Halpe26. s Halpe26은 참고로만 같이 잼. 세 모델 모두 같은 현재 규칙(D-T3-13 스쿼트, D-T3-10/11 푸시업, D-T3-01/03 로우, crop 입력, crop 재맞춤 켬, ready-pose 끔, 3D 없음)을 같은 pose-replay 바이너리로.
+- **검증(held-out) 세트**(이미 고정된 분할 그대로): 공개 데이터 `data/eval_sources/split.csv`의 heldout(Mendeley + YouTube CC), MM-Fit 푸시업 D-T3-09 검증 6명 18세트, Exercise3D P2·P3(푸시업은 P1뿐이라 검증 없음), Fit3D s07–s11(사선). 조정 세트(공개 tuning, MM-Fit 조정 9명, Exercise3D P1, Fit3D s03–s05)는 같이 표에 싣지만 판정에 쓰지 않음.
+- **m Halpe26으로 바꾸는 조건(모두 만족해야 함)**:
+  1. 검증 렙 정확도가 **운동 × 측면** 칸마다 낮아지지 않음 — 측면 검증 데이터가 있는 출처(공개, MM-Fit, Exercise3D)별로 각각, 그리고 출처 합계로.
+  2. 검증 전체 렙 정확도(모든 출처·시점 합산: Σ(정답−놓침) ÷ Σ(정답+추가))가 **더 높음**.
+  3. 가짜 렙 0 유지: 흔들림 합성(소스 4개 × 11조건, 그 모델의 키포인트로 만듦), squat_03(정답 2 — 2를 넘으면 가짜 렙), 더미 영상 6개, 스쿼트·로우 평가기.
+  4. 셋업 키 오경보가 늘지 않음: 앱에서 켜진 키(setup_full_body·tracking_lost 전 운동, setup_side_view 로우만)의 실제 영상 전체(모든 출처·분할·시점, 합성·더미 제외) 합계가 m COCO17 이하.
+  5. iPhone 속도: 영상 입력 전체 파이프라인(`tools/pose_model_bench/run_pipeline.sh`, 30 fps 페이스)에서 p95 지연 ≤ 33.3 ms이고 놓친 프레임이 m COCO17(D-C-06: 0)보다 의미 있게 많지 않음(0.1% 이하). 기기를 1시간 동안 못 쓰면 "미측정"으로 두고, D-C-05(추론 m COCO17 3.31 ms vs m Halpe26 3.29 ms)대로 같은 속도로 봄.
+- **렙 정확도 계산**(출처별, 세 모델 같은 방식): 공개·MM-Fit = 세트 렙 수(놓침 = max(0, 정답−셈), 추가 = max(0, 셈−정답), 공개는 엄격 기준 — 관대 기준은 참고), Exercise3D = 정답 저점과 렙 끝을 순서대로 맞춤(`eval_pose2d_reps.py`, analyze.py), Fit3D = 영상 전체 세트 렙 수(정답 = rep_ann 경계 수 − 1, 50 fps 원본, 시점 40–75°만 사선). 시점: 공개는 라벨의 side/diag/front/back, Exercise3D·Fit3D는 각도(측면 ≤40°, 사선 40–75°, 정면/후면 ≥75°).
+- 하나라도 어기면 m COCO17 유지, 어긴 조건을 수치로 적음. 어느 쪽이든 두 모델 모두 플래그(`BPT_POSE_MODEL`, pose-replay `--model`)로 고를 수 있게 둠.
+- 발뒤꿈치: Halpe26 발뒤꿈치 PCK와 squat_heel_rise 평가 가능성은 측정만. 틀린 자세 데이터가 없으면 키는 OFF(D-03).
+
+### D-T3-18 운동 카메라 기본은 m COCO17 유지 — m Halpe26은 측면 푸시업 검증에서 떨어짐 (2026-10-17)
+- **결정**: `RTMPoseModel.workout` = m COCO17 그대로(`workoutUsesMediumModel = true`). m Halpe26은 번들에 넣고 `BPT_POSE_MODEL=mhalpe26` / pose-replay `--model mhalpe26` / `run_pipeline.sh f`로 고를 수 있게 함. 캘리브레이션(`RTMPoseModel.active` = s COCO17)은 손대지 않음. 표 전체 `docs/results/halpe_decision.md`.
+- **D-T3-17 조건별** (m COCO17 → m Halpe26, 검증):
+  1. 운동 × 측면: 스쿼트 공개 91.8 → 96.1%, Exercise3D 100 → 100% / 로우 공개 11.4 → 11.4%, Exercise3D 100 → 100% / **푸시업 공개 89.4 → 90.4%, MM-Fit 94.5 → 91.1%(−7 +3 → −15 +1), 합계 91.8 → 90.7% → 불통과.**
+  2. 검증 전체(모든 출처·시점): 71.8 → 72.8% → 통과.
+  3. 가짜 렙: 흔들림 합성 44건·squat_03(2/2)·더미 6개 모두 0 → 통과.
+  4. 셋업 키 알람(실제 영상 전체): 232 → 199 → 통과(측면만은 5 → 7).
+  5. iPhone 17 페이스 30 fps: p95 21.5 ms(m COCO17 30.0–33.0), 놓친 프레임 0–7(m COCO17 0–63) → 통과.
+- **불통과 원인**: MM-Fit 검증 w20_s3에서 m Halpe26이 1렙(정답 10, m COCO17 10) — 세트 내내 관절 신뢰도 중앙값 0.10–0.22(m COCO17 0.48–0.86)이고 상태가 `unknown`에서 안 나옴, setup_full_body 1회. 사람·crop을 잘못 잡은 추적 실패로 보임(추정, D-C-03의 사람 선택 문제와 같은 종류). w20_s2 10 → 8, w13_s2 12 → 10(추가 2 감소)도 있음. 조정 세트에서도 MM-Fit 98.1 → 97.3%, Exercise3D 조정 98.7 → 97.1%(사선 푸시업·후면 로우), 공개 스쿼트 측면 조정 92.8 → 87.3%로 m Halpe26이 낮은 칸이 있어 "검증에서만 운이 나빴다"고 보기도 어려움.
+- **m Halpe26이 나은 점(기록)**: 2D 정확도(Exercise3D 측면 body12 PCK 0.935 vs 0.864), 공개 측면 스쿼트 검증 +4.3%p, Fit3D 사선 검증 85.6 → 88.3%(스쿼트·푸시업 추가 렙 감소), 공개 정면 푸시업 47.9 → 53.9%, 셋업 알람 −33, 페이스 지연이 더 낮음, 발뒤꿈치 PCK 0.955(측면).
+- **발뒤꿈치**: squat_heel_rise는 검증 세트에 틀린 자세가 0개이고, 조정 3세트에서도 heel_rise_max가 정상 렙보다 작아 가르지 못함 → OFF 유지(D-03).
+- **기각**: m Halpe26 기본 전환(조건 1 불통과 — 규칙대로), 측면 푸시업만 COCO17·나머지 Halpe26 혼합(검증 결과를 보고 만든 규칙이라 과적합, 이번 범위 밖).
+- **다시 볼 것**: w20_s3 같은 추적 실패를 crop 재확인(D-B-03)이 왜 못 잡는지 — 고치면 m Halpe26 재평가 후보. 그때는 새 검증 데이터로.
+- **되돌리기/켜기**: m Halpe26을 기본으로 쓰려면 `RTMPoseModel.workout`의 기본 케이스를 `.mhalpe26`으로(한 줄), 시험은 Xcode scheme `BPT_POSE_MODEL=mhalpe26`(캘리브레이션도 같이 바뀜 — 기존 덮어쓰기 규칙).
