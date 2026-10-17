@@ -6,9 +6,12 @@
 //
 //   swift run -c release --package-path ios/CalibrationEngineKit pose-replay \
 //       [--exercise squat|pushup|row|bench|deadlift] [--model coco17|halpe26|mcoco17|mhalpe26] [--model-path PATH] [--motion3d PATH|none] [--lookahead N] \
-//       [--row-shrug] [--side-cutoff R] [--row-offside off] [--pushup-ankle on|off] [--pushup-wrist-conf C] [--pushup-min-frames N] [--pushup-height on|off] [--squat-hold on|off] [--squat-near-leg on|off] [--squat-rebaseline N] [--squat-height on|off] [--squat-height-range R] [--ready-pose off|preset] [--input crop|full] [--crop-edge on|off] [--keypoints-csv PATH] [--keypoints-dir DIR] [--output-dir PATH] <video.mp4>...
+//       [--row-shrug] [--side-cutoff R] [--row-offside off] [--pushup-ankle on|off] [--pushup-wrist-conf C] [--pushup-min-frames N] [--pushup-height on|off] [--squat-hold on|off] [--squat-near-leg on|off] [--squat-rebaseline N] [--squat-height on|off] [--squat-height-range R] [--ready-pose off|preset] [--input crop|full] [--crop-edge on|off] [--crops-in PATH] [--keypoints-csv PATH] [--keypoints-dir DIR] [--output-dir PATH] <video.mp4>...
 //
 // --crop-edge off: keep a crop whose border pins confident joints (RTMPoseCropTracker.refitAtCropEdge = false, old).
+// --crops-in: RTMPose input rect per frame from a CSV (CropSequence.swift; e.g. another model's _crops.csv trace or
+// detector boxes) instead of the crop tracker; no recheck. A frame missing from the file uses the whole frame.
+// Every video run also writes <video>_<exercise>_<model>_crops.csv: the rect each frame used, why it changed, and rechecks.
 // --model-path: another RTMPose .mlpackage with the same 256x192 input and SimCC outputs (17 or 26 joints;
 // pass --model halpe26 for 26) — candidate models are compared on the same videos without replacing the bundled one.
 //
@@ -66,9 +69,10 @@ var squatHeightRange: Double?
 var readyPosePreset = false
 var personCrop = true
 var cropEdgeRefit = true
+var cropsIn: String?
 var videos: [URL] = []
 var arguments = CommandLine.arguments.dropFirst().makeIterator()
-let usage = "usage: pose-replay [--exercise squat|pushup|row|bench|deadlift] [--model coco17|halpe26|mcoco17|mhalpe26] [--model-path PATH] [--motion3d PATH|none] [--lookahead N] [--row-shrug] [--side-cutoff R] [--row-offside off] [--pushup-ankle on|off] [--pushup-wrist-conf C] [--pushup-min-frames N] [--pushup-height on|off] [--squat-hold on|off] [--squat-near-leg on|off] [--squat-rebaseline N] [--squat-height on|off] [--squat-height-range R] [--ready-pose off|preset] [--input crop|full] [--crop-edge on|off] [--keypoints-csv PATH] [--keypoints-dir DIR] [--output-dir PATH] <video.mp4>..."
+let usage = "usage: pose-replay [--exercise squat|pushup|row|bench|deadlift] [--model coco17|halpe26|mcoco17|mhalpe26] [--model-path PATH] [--motion3d PATH|none] [--lookahead N] [--row-shrug] [--side-cutoff R] [--row-offside off] [--pushup-ankle on|off] [--pushup-wrist-conf C] [--pushup-min-frames N] [--pushup-height on|off] [--squat-hold on|off] [--squat-near-leg on|off] [--squat-rebaseline N] [--squat-height on|off] [--squat-height-range R] [--ready-pose off|preset] [--input crop|full] [--crop-edge on|off] [--crops-in PATH] [--keypoints-csv PATH] [--keypoints-dir DIR] [--output-dir PATH] <video.mp4>..."
 while let argument = arguments.next() {
     switch argument {
     case "--model":
@@ -141,6 +145,9 @@ while let argument = arguments.next() {
         }
     case "--crop-edge":
         cropEdgeRefit = arguments.next() != "off"
+    case "--crops-in":
+        guard let path = arguments.next() else { exit(2) }
+        cropsIn = path
     case "--keypoints-csv":
         guard let path = arguments.next() else { exit(2) }
         keypointsCSV = path
@@ -216,6 +223,10 @@ for video in videos {
     var fullFrameInputs = 0
     var rechecks = 0, switches = 0
     var poseSeconds = 0.0
+    let fixedRects = try cropsIn.map { CropSequence.parse(try String(contentsOfFile: $0, encoding: .utf8)) }
+    var cropsInMissing = 0
+    var cropTrace = [CropSequence.header]
+    var source = "full"
     if let keypointsCSV {
         guard FileManager.default.fileExists(atPath: keypointsCSV) else { print("no keypoints: \(keypointsCSV)"); continue }
         for line in try String(contentsOfFile: keypointsCSV, encoding: .utf8).split(whereSeparator: \.isNewline).dropFirst() {
@@ -249,11 +260,28 @@ for video in videos {
         imageWidth = cgImage.width
         imageHeight = cgImage.height
         let poseStart = Date()
-        if cropTracker.crop == nil { fullFrameInputs += 1 }
-        // The live camera path's pose step (crop, RTMPose, decode, tracker, ~1 s whole-frame recheck).
-        guard let model, let estimate = try cropTracker.estimate(cgImage, model: model, workspace: workspace, personCrop: personCrop) else {
-            fatalError("model has no simcc_x / simcc_y outputs")
+        let frame = coco17Frames.count
+        let whole = CGRect(x: 0, y: 0, width: cgImage.width, height: cgImage.height)
+        let estimate: RTMPoseFrameEstimate?
+        if let fixedRects {
+            let rect: CGRect? = fixedRects[frame] ?? { cropsInMissing += 1; return nil }()
+            if rect == nil { fullFrameInputs += 1 }
+            cropTrace.append(CropSequence.line(frame: frame, rect: rect, source: "file"))
+            estimate = try model.flatMap { try RTMPoseCropTracker.estimate(cgImage, rect: rect ?? whole, model: $0, workspace: workspace) }
+        } else {
+            if cropTracker.crop == nil { fullFrameInputs += 1; source = "full" }
+            let used = personCrop ? cropTracker.crop : nil, refitsBefore = cropTracker.edgeRefits
+            // The live camera path's pose step (crop, RTMPose, decode, tracker, ~1 s whole-frame recheck).
+            estimate = try model.flatMap { try cropTracker.estimate(cgImage, model: $0, workspace: workspace, personCrop: personCrop) }
+            let recheck = estimate?.recheckSwitched.map { $0 ? "switch" : "kept" } ?? ""
+            cropTrace.append(CropSequence.line(frame: frame, rect: used, source: source, recheck: recheck))
+            // Why the next frame's rect is what it is.
+            source = cropTracker.crop == nil ? "full"
+                : estimate?.recheckSwitched == true ? "switch"
+                : cropTracker.edgeRefits > refitsBefore ? "refit"
+                : cropTracker.crop == used ? "kept" : "retarget"
         }
+        guard let estimate else { fatalError("model has no simcc_x / simcc_y outputs") }
         let decoded = estimate.decoded, back = estimate.inverseAffine, coco17 = estimate.coco17
         if let switched = estimate.recheckSwitched {
             rechecks += 1
@@ -371,6 +399,8 @@ for video in videos {
         "whole_frame_rechecks": rechecks,
         "person_switches": switches,
         "crop_edge_refits": cropTracker.edgeRefits,
+        "crops_in": cropsIn.map { $0 as Any } ?? NSNull(),
+        "crops_in_missing": cropsInMissing,
         "pose_ms_per_frame": coco17Frames.isEmpty ? 0 : poseSeconds * 1000 / Double(coco17Frames.count),
         "frames": coco17Frames.count,
         "image_size": [imageWidth, imageHeight],
@@ -389,6 +419,10 @@ for video in videos {
     try JSONSerialization.data(withJSONObject: json, options: [.prettyPrinted, .sortedKeys])
         .write(to: outputDir.appendingPathComponent("\(base).json"))
     try csv.write(to: outputDir.appendingPathComponent("\(base).csv"), atomically: true, encoding: .utf8)
+    if keypointsCSV == nil {
+        try (cropTrace.joined(separator: "\n") + "\n").write(to: outputDir.appendingPathComponent("\(base)_crops.csv"),
+                                                             atomically: true, encoding: .utf8)
+    }
 
     print("== \(name) exercise=\(exercise.rawValue) model=\(poseModel) frames=\(coco17Frames.count) reps=\(rep) "
           + "input=\(personCrop ? "crop" : "full") full_frame_inputs=\(fullFrameInputs) switches=\(switches)/\(rechecks) "
