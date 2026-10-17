@@ -884,3 +884,15 @@
 - **푸시업 정면(48%)**: 앱이 측면 촬영을 안내하는 시점이고 정면에서는 다리가 가려 tracking_lost가 거의 항상 울림(D-DATA-01 §3) — 렙을 세게 해도 셋업 안내와 충돌. 우선순위 낮음.
 - **YouTube 바벨로우 사선**: 조정 세트가 1개(2렙)라 조정할 데이터가 없음.
 - **MediaPipe Pose full로 스쿼트**: RTMPose-m 경로가 조정 92.2%까지 올라 남은 놓침이 적고, D-C-07에서 MediaPipe는 스쿼트·로우 PCK가 더 나빴음. 평가하려면 공개 클립 153개를 Home CPU로 다시 뽑아야 해서 이번엔 생략.
+
+## 트랙 rtmpose-ft — 운동 2D 모델(RTMPose-m COCO17) 미세조정, 정의가 검증된 관절만 학습 — 2026-10-17
+상세 `docs/results/rtmpose_ft_label_check.md`(라벨 검증), `docs/results/rtmpose_ft.md`(학습·전후 표). 분할: Fit3D 조정 s03–s05 / 검증 s07–s11, 공개 데이터 `data/eval_sources/split.csv`, MM-Fit D-T3-09. 검증 세트는 모델을 고른 뒤 한 번만 봄.
+
+### D-C-08 채택 규칙 (검증 결과를 보기 전에 고정, 2026-10-17)
+- 미세조정 가중치를 운동 기본(`RTMPoseModel.workout`)으로 바꾸는 조건 — **모두** 만족할 때만:
+  1. 검증(held-out) 렙 정확도가 운동 × 측면 시점 어느 칸에서도 떨어지지 않음(공개 Mendeley·YouTube 검증 사람, MM-Fit 검증 6명, Fit3D 검증 사선 s07–s11).
+  2. 검증 전체(모든 운동·시점 합) 렙 정확도가 올라감.
+  3. 가짜 렙 0 유지: 흔들림 합성 44건(스쿼트·로우), squat_03 2/2, 더미 영상(스쿼트·로우) 0렙.
+  4. 앱에서 켜진 셋업 키(setup_full_body·tracking_lost·로우 setup_side_view) 경보 수가 늘지 않음.
+- 하나라도 어기면 기본으로 넣지 않고 이유를 적는다. 어느 쪽이든 선택은 가능하게 둔다(플래그/환경 변수).
+- Fit3D로 학습한 가중치는 비상업(캡스톤) 용도만(Fit3D 라이선스).
