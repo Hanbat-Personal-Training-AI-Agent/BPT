@@ -304,7 +304,7 @@ def cmd_table(a):
                              ('Exercise3D diagonal 40-75 deg (relative)', lambda r: r['source'] == 'ex3d' and r['view_deg'] > 40, False)):
         rs = [r for r in rows if sel(r)]
         if not rs: continue
-        print(f'\n### {title} ({len(rs)} videos)\n')
+        print(f'\n### {title} ({len(rs) // len(a.files)} videos per variant)\n')
         print(f'| variant | {"MPJPE | PA-MPJPE | accel | " if pose else ""}{head} |')
         print('|---|' + '---|' * (len(CELLS) + (3 if pose else 0)))
         for t in tags:
