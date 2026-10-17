@@ -66,6 +66,49 @@ final class RTMPoseCropInputTests: XCTestCase {
         XCTAssertNil(tracker.crop)
     }
 
+    func testReacquireOptionsDefaultToTheCurrentPath() throws {
+        let t = RTMPoseCropTracker()
+        XCTAssertEqual(t.lostInput, .stretch)
+        XCTAssertNil(t.acquireMinJoints)
+        XCTAssertEqual(t.lostHoldFrames, 0)
+        XCTAssertEqual(t.lostSearchInterval, 0)
+        // Letterbox: 1280×720 in a 3:4 rect, centred, aspect kept.
+        var lb = RTMPoseCropTracker()
+        lb.lostInput = .letterbox
+        let r = lb.inputRect(imageWidth: 1280, imageHeight: 720)
+        XCTAssertEqual(r.width, 1280, accuracy: 1e-9)
+        XCTAssertEqual(r.height, 1280 / 0.75, accuracy: 1e-9)
+        XCTAssertEqual(r.midY, 360, accuracy: 1e-9)
+        let tiles = RTMPoseCropTracker.lostSearchRects(imageWidth: 1280, imageHeight: 720)
+        XCTAssertEqual(tiles.count, 4)
+        XCTAssertEqual(tiles[0], r)
+        XCTAssertEqual(tiles[1], CGRect(x: 0, y: 0, width: 540, height: 720))
+        XCTAssertEqual(tiles[3], CGRect(x: 740, y: 0, width: 540, height: 720))
+        XCTAssertEqual(RTMPoseCropTracker.lostSearchRects(imageWidth: 720, imageHeight: 1280)[3],
+                       CGRect(x: 0, y: 320, width: 720, height: 960))
+    }
+
+    func testRelaxedAcquireAndHold() {
+        var four = person(confidence: 0.1)
+        for j in 0..<4 { four[j].confidence = 0.9 }
+        var t = RTMPoseCropTracker()
+        t.update(four)
+        XCTAssertNil(t.crop, "default: 4 joints do not start tracking")
+        t.acquireMinJoints = 4
+        t.update(four)
+        XCTAssertNotNil(t.crop, "relaxed: 4 joints start tracking")
+        t.update(four)
+        XCTAssertNil(t.crop, "keeping still needs minJoints")
+        t.lostHoldFrames = 2
+        t.update(person())
+        let crop = t.crop
+        t.update(person(confidence: 0.1))
+        t.update(person(confidence: 0.1))
+        XCTAssertEqual(t.crop, crop, "held for 2 frames")
+        t.update(person(confidence: 0.1))
+        XCTAssertNil(t.crop)
+    }
+
     func testCropRefitsWhenJointsArePinnedToItsBorder() throws {
         for refit in [true, false] {
             var tracker = RTMPoseCropTracker()

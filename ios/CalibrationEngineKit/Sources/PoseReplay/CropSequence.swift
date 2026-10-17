@@ -1,5 +1,4 @@
 import CoreGraphics
-import CoreML
 import Foundation
 
 /// Per-frame RTMPose input rects for pose-replay: `<video>_<exercise>_<model>_crops.csv` (the trace every run
@@ -29,23 +28,5 @@ enum CropSequence {
             }
         }
         return rects
-    }
-}
-
-extension RTMPoseCropTracker {
-    /// RTMPose on a given rect (no tracker update, no recheck) — the same steps as `estimate`.
-    static func estimate(_ image: CGImage, rect: CGRect, model: MLModel,
-                         workspace: RTMPoseInputWorkspace) throws -> RTMPoseFrameEstimate? {
-        let back = try PosePreprocess.drawRegion(image, rect: rect, into: &workspace.pixels)
-        try PosePreprocess.normalizeRGBAIntoRTMPoseInput(workspace.pixels, input: workspace.input,
-                                                          width: PoseCoordinateTransforms.rtmposeInputWidth,
-                                                          height: PoseCoordinateTransforms.rtmposeInputHeight)
-        let output = try model.prediction(from: workspace.provider)
-        guard let x = output.featureValue(for: "simcc_x")?.multiArrayValue,
-              let y = output.featureValue(for: "simcc_y")?.multiArrayValue else { return nil }
-        let decoded = try SimCCDecoder.decodeToInputCoordinates(simccX: x, simccY: y)
-        return RTMPoseFrameEstimate(decoded: decoded, inverseAffine: back,
-                                    coco17: PoseCoordinateTransforms.applyInverseAffine(decoded: decoded, inverseAffine: back),
-                                    recheckSwitched: nil)
     }
 }

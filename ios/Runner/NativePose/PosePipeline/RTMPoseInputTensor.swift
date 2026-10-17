@@ -134,6 +134,24 @@ struct RTMPoseCropTracker {
     var refitAtCropEdge = true
     /// Frames where `refitAtCropEdge` re-fitted the crop (pose-replay reports it).
     private(set) var edgeRefits = 0
+
+    // Re-acquiring a lost person (experiment, docs/decisions.md D-T3-20; every default = the behaviour above).
+    /// RTMPose input while lost: `.stretch` = whole frame stretched to 192×256; `.letterbox` = whole frame in a
+    /// 3:4 rect with black bars (aspect kept).
+    enum LostInput { case stretch, letterbox }
+    var lostInput = LostInput.stretch
+    /// Confident joints needed to start tracking from the lost state (nil = `minJoints`, same as keeping).
+    var acquireMinJoints: Int?
+    /// Frames a crop is kept after its person drops below `minJoints` before going lost (0 = at once).
+    var lostHoldFrames = 0
+    /// While lost: on the first lost frame and every this many after, also run RTMPose on `lostSearchRects`
+    /// (letterboxed whole frame + three full-height 3:4 tiles) and start tracking on the best (0 = off).
+    var lostSearchInterval = 0
+    /// Search frames run / searches that started tracking (pose-replay reports them).
+    private(set) var lostSearchPasses = 0
+    private(set) var lostSearchHits = 0
+    private var heldFrames = 0
+    private var lostFrames = 0
     /// Top-left frame pixels; nil = whole frame.
     private(set) var crop: CGRect?
     /// Confident-keypoint box of the tracked person (frame pixels).
@@ -144,13 +162,29 @@ struct RTMPoseCropTracker {
     var wholeFrameRecheckDue: Bool { crop != nil && framesSinceRecheck >= recheckInterval }
 
     func inputRect(imageWidth: Int, imageHeight: Int) -> CGRect {
-        crop ?? CGRect(x: 0, y: 0, width: imageWidth, height: imageHeight)
+        let whole = CGRect(x: 0, y: 0, width: imageWidth, height: imageHeight)
+        return crop ?? (lostInput == .letterbox ? Self.fitToInputAspect(whole) : whole)
     }
 
     mutating func reset() {
         crop = nil
         person = nil
         framesSinceRecheck = 0
+        heldFrames = 0
+    }
+
+    /// Start tracking on a given rect (pose-replay `--acquire-boxes`: detector boxes while lost).
+    mutating func seed(_ rect: CGRect) {
+        crop = rect
+        framesSinceRecheck = 0
+    }
+
+    /// Letterboxed whole frame, then the largest 3:4 tiles at the start, middle and end of the long side.
+    static func lostSearchRects(imageWidth: Int, imageHeight: Int) -> [CGRect] {
+        let w = Double(imageWidth), h = Double(imageHeight)
+        let th = min(h, w / 0.75), tw = 0.75 * th
+        return [fitToInputAspect(CGRect(x: 0, y: 0, width: w, height: h))]
+            + [0.0, 0.5, 1.0].map { CGRect(x: (w - tw) * $0, y: (h - th) * $0, width: tw, height: th) }
     }
 
     /// Whole-frame keypoints from a recheck. Switches the crop to that person if they are a different,
@@ -173,9 +207,9 @@ struct RTMPoseCropTracker {
         return true
     }
 
-    private func box(_ keypoints: [PoseKeypoint]) -> CGRect? {
+    private func box(_ keypoints: [PoseKeypoint], minJoints: Int? = nil) -> CGRect? {
         let points = keypoints.prefix(17).filter { $0.confidence >= minConfidence }
-        guard points.count >= minJoints else { return nil }
+        guard points.count >= minJoints ?? self.minJoints else { return nil }
         let x0 = points.map(\.x).min()!, x1 = points.map(\.x).max()!
         let y0 = points.map(\.y).min()!, y1 = points.map(\.y).max()!
         guard x1 - x0 > 1 || y1 - y0 > 1 else { return nil }
@@ -184,10 +218,15 @@ struct RTMPoseCropTracker {
 
     /// Feed the frame's COCO-17 keypoints in full-frame pixels (extra Halpe joints are ignored).
     mutating func update(_ keypoints: [PoseKeypoint]) {
-        guard let box = box(keypoints) else {
+        guard let box = box(keypoints, minJoints: crop == nil ? acquireMinJoints : nil) else {
+            if crop != nil, heldFrames < lostHoldFrames {
+                heldFrames += 1
+                return
+            }
             reset()
             return
         }
+        heldFrames = 0
         self.person = box
         framesSinceRecheck += 1
         // Keypoints stop at the eyes and ankles; leave room for the head top and the soles.
@@ -252,15 +291,42 @@ extension RTMPoseCropTracker {
     @discardableResult
     mutating func recheckWholeFrame(_ image: CGImage, model: MLModel, workspace: RTMPoseInputWorkspace) throws -> Bool {
         let whole = CGRect(x: 0, y: 0, width: image.width, height: image.height)
-        let back = try PosePreprocess.drawRegion(image, rect: whole, into: &workspace.pixels)
+        guard let e = try Self.estimate(image, rect: whole, model: model, workspace: workspace) else { return false }
+        return offerWholeFrame(e.coco17)
+    }
+
+    /// The lost-person search pass (`lostSearchInterval`): RTMPose on each `lostSearchRects` rect; the one with
+    /// the most confident joints (then the highest mean confidence) is fed to `update`, which starts tracking
+    /// if it clears the acquire threshold. One extra inference per rect.
+    mutating func searchWhileLost(_ image: CGImage, model: MLModel, workspace: RTMPoseInputWorkspace) throws {
+        lostSearchPasses += 1
+        var best: (count: Int, mean: Double, keypoints: [PoseKeypoint])?
+        for rect in Self.lostSearchRects(imageWidth: image.width, imageHeight: image.height) {
+            guard let e = try Self.estimate(image, rect: rect, model: model, workspace: workspace) else { continue }
+            let seen = e.coco17.prefix(17).map(\.confidence).filter { $0 >= minConfidence }
+            let score = (seen.count, seen.isEmpty ? 0 : seen.reduce(0, +) / Double(seen.count))
+            if best.map({ score > ($0.count, $0.mean) }) ?? true { best = (score.0, score.1, e.coco17) }
+        }
+        guard let best else { return }
+        update(best.keypoints)
+        if crop != nil { lostSearchHits += 1 }
+    }
+
+    /// RTMPose on one rect of `image` (no tracker update): decoded output, input → frame transform, COCO-17 in
+    /// frame pixels. nil when the model has no SimCC outputs. Reuses `workspace`.
+    static func estimate(_ image: CGImage, rect: CGRect, model: MLModel,
+                         workspace: RTMPoseInputWorkspace) throws -> RTMPoseFrameEstimate? {
+        let back = try PosePreprocess.drawRegion(image, rect: rect, into: &workspace.pixels)
         try PosePreprocess.normalizeRGBAIntoRTMPoseInput(workspace.pixels, input: workspace.input,
                                                           width: PoseCoordinateTransforms.rtmposeInputWidth,
                                                           height: PoseCoordinateTransforms.rtmposeInputHeight)
         let output = try model.prediction(from: workspace.provider)
         guard let x = output.featureValue(for: "simcc_x")?.multiArrayValue,
-              let y = output.featureValue(for: "simcc_y")?.multiArrayValue else { return false }
+              let y = output.featureValue(for: "simcc_y")?.multiArrayValue else { return nil }
         let decoded = try SimCCDecoder.decodeToInputCoordinates(simccX: x, simccY: y)
-        return offerWholeFrame(PoseCoordinateTransforms.applyInverseAffine(decoded: decoded, inverseAffine: back))
+        return RTMPoseFrameEstimate(decoded: decoded, inverseAffine: back,
+                                    coco17: PoseCoordinateTransforms.applyInverseAffine(decoded: decoded, inverseAffine: back),
+                                    recheckSwitched: nil)
     }
 }
 
@@ -282,22 +348,22 @@ extension RTMPoseCropTracker {
                            personCrop: Bool = true) throws -> RTMPoseFrameEstimate? {
         let rect = personCrop ? inputRect(imageWidth: image.width, imageHeight: image.height)
             : CGRect(x: 0, y: 0, width: image.width, height: image.height)
-        let back = try PosePreprocess.drawRegion(image, rect: rect, into: &workspace.pixels)
-        try PosePreprocess.normalizeRGBAIntoRTMPoseInput(workspace.pixels, input: workspace.input,
-                                                          width: PoseCoordinateTransforms.rtmposeInputWidth,
-                                                          height: PoseCoordinateTransforms.rtmposeInputHeight)
-        let output = try model.prediction(from: workspace.provider)
-        guard let x = output.featureValue(for: "simcc_x")?.multiArrayValue,
-              let y = output.featureValue(for: "simcc_y")?.multiArrayValue else { return nil }
-        let decoded = try SimCCDecoder.decodeToInputCoordinates(simccX: x, simccY: y)
-        let coco17 = PoseCoordinateTransforms.applyInverseAffine(decoded: decoded, inverseAffine: back)
+        guard let e = try Self.estimate(image, rect: rect, model: model, workspace: workspace) else { return nil }
         var switched: Bool?
         if personCrop {
-            update(coco17)
+            let wasLost = crop == nil
+            update(e.coco17)
+            if lostSearchInterval > 0, wasLost, crop == nil {
+                lostFrames += 1
+                if (lostFrames - 1) % lostSearchInterval == 0 { try searchWhileLost(image, model: model, workspace: workspace) }
+            } else {
+                lostFrames = 0
+            }
             // Every ~1 s one extra whole-frame pass, so a bystander locked in at the start is dropped for the
             // (bigger) user. Runs after this frame's keypoints are taken from the workspace.
             if wholeFrameRecheckDue { switched = try recheckWholeFrame(image, model: model, workspace: workspace) }
         }
-        return RTMPoseFrameEstimate(decoded: decoded, inverseAffine: back, coco17: coco17, recheckSwitched: switched)
+        return RTMPoseFrameEstimate(decoded: e.decoded, inverseAffine: e.inverseAffine, coco17: e.coco17,
+                                    recheckSwitched: switched)
     }
 }

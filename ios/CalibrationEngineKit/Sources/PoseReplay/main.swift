@@ -6,11 +6,16 @@
 //
 //   swift run -c release --package-path ios/CalibrationEngineKit pose-replay \
 //       [--exercise squat|pushup|row|bench|deadlift] [--model coco17|halpe26|mcoco17|mhalpe26] [--model-path PATH] [--motion3d PATH|none] [--lookahead N] \
-//       [--row-shrug] [--side-cutoff R] [--row-offside off] [--pushup-ankle on|off] [--pushup-wrist-conf C] [--pushup-min-frames N] [--pushup-height on|off] [--squat-hold on|off] [--squat-near-leg on|off] [--squat-rebaseline N] [--squat-height on|off] [--squat-height-range R] [--ready-pose off|preset] [--input crop|full] [--crop-edge on|off] [--crops-in PATH] [--keypoints-csv PATH] [--keypoints-dir DIR] [--output-dir PATH] <video.mp4>...
+//       [--row-shrug] [--side-cutoff R] [--row-offside off] [--pushup-ankle on|off] [--pushup-wrist-conf C] [--pushup-min-frames N] [--pushup-height on|off] [--squat-hold on|off] [--squat-near-leg on|off] [--squat-rebaseline N] [--squat-height on|off] [--squat-height-range R] [--ready-pose off|preset] [--input crop|full] [--crop-edge on|off] [--crops-in PATH] [--lost-input stretch|letterbox] [--acquire-joints N] [--lost-hold N] [--lost-search N] [--acquire-boxes PATH] [--keypoints-csv PATH] [--keypoints-dir DIR] [--output-dir PATH] <video.mp4>...
 //
 // --crop-edge off: keep a crop whose border pins confident joints (RTMPoseCropTracker.refitAtCropEdge = false, old).
 // --crops-in: RTMPose input rect per frame from a CSV (CropSequence.swift; e.g. another model's _crops.csv trace or
 // detector boxes) instead of the crop tracker; no recheck. A frame missing from the file uses the whole frame.
+// Lost-person re-acquisition (experiment, D-T3-20; all off = the app's path): --lost-input letterbox (whole frame
+// with black bars instead of stretched while lost), --acquire-joints N (joints needed to start tracking, default = 6
+// to keep), --lost-hold N (keep a crop N frames after its person drops below 6), --lost-search N (while lost, every N
+// frames also try the letterboxed frame + three 3:4 tiles), --acquire-boxes PATH (crop CSV, e.g. detector boxes: while
+// lost, start from that frame's rect instead of the whole frame). Both file options also take a directory of <video>_det.csv.
 // Every video run also writes <video>_<exercise>_<model>_crops.csv: the rect each frame used, why it changed, and rechecks.
 // --model-path: another RTMPose .mlpackage with the same 256x192 input and SimCC outputs (17 or 26 joints;
 // pass --model halpe26 for 26) — candidate models are compared on the same videos without replacing the bundled one.
@@ -70,9 +75,14 @@ var readyPosePreset = false
 var personCrop = true
 var cropEdgeRefit = true
 var cropsIn: String?
+var lostInput = RTMPoseCropTracker.LostInput.stretch
+var acquireJoints: Int?
+var lostHold = 0
+var lostSearch = 0
+var acquireBoxes: String?
 var videos: [URL] = []
 var arguments = CommandLine.arguments.dropFirst().makeIterator()
-let usage = "usage: pose-replay [--exercise squat|pushup|row|bench|deadlift] [--model coco17|halpe26|mcoco17|mhalpe26] [--model-path PATH] [--motion3d PATH|none] [--lookahead N] [--row-shrug] [--side-cutoff R] [--row-offside off] [--pushup-ankle on|off] [--pushup-wrist-conf C] [--pushup-min-frames N] [--pushup-height on|off] [--squat-hold on|off] [--squat-near-leg on|off] [--squat-rebaseline N] [--squat-height on|off] [--squat-height-range R] [--ready-pose off|preset] [--input crop|full] [--crop-edge on|off] [--crops-in PATH] [--keypoints-csv PATH] [--keypoints-dir DIR] [--output-dir PATH] <video.mp4>..."
+let usage = "usage: pose-replay [--exercise squat|pushup|row|bench|deadlift] [--model coco17|halpe26|mcoco17|mhalpe26] [--model-path PATH] [--motion3d PATH|none] [--lookahead N] [--row-shrug] [--side-cutoff R] [--row-offside off] [--pushup-ankle on|off] [--pushup-wrist-conf C] [--pushup-min-frames N] [--pushup-height on|off] [--squat-hold on|off] [--squat-near-leg on|off] [--squat-rebaseline N] [--squat-height on|off] [--squat-height-range R] [--ready-pose off|preset] [--input crop|full] [--crop-edge on|off] [--crops-in PATH] [--lost-input stretch|letterbox] [--acquire-joints N] [--lost-hold N] [--lost-search N] [--acquire-boxes PATH] [--keypoints-csv PATH] [--keypoints-dir DIR] [--output-dir PATH] <video.mp4>..."
 while let argument = arguments.next() {
     switch argument {
     case "--model":
@@ -148,6 +158,26 @@ while let argument = arguments.next() {
     case "--crops-in":
         guard let path = arguments.next() else { exit(2) }
         cropsIn = path
+    case "--lost-input":
+        switch arguments.next() {
+        case "stretch": lostInput = .stretch
+        case "letterbox": lostInput = .letterbox
+        default:
+            print("--lost-input requires stretch or letterbox")
+            exit(2)
+        }
+    case "--acquire-joints":
+        guard let value = arguments.next().flatMap(Int.init), value >= 1 else { exit(2) }
+        acquireJoints = value
+    case "--lost-hold":
+        guard let value = arguments.next().flatMap(Int.init), value >= 0 else { exit(2) }
+        lostHold = value
+    case "--lost-search":
+        guard let value = arguments.next().flatMap(Int.init), value >= 0 else { exit(2) }
+        lostSearch = value
+    case "--acquire-boxes":
+        guard let path = arguments.next() else { exit(2) }
+        acquireBoxes = path
     case "--keypoints-csv":
         guard let path = arguments.next() else { exit(2) }
         keypointsCSV = path
@@ -220,10 +250,22 @@ for video in videos {
     var imageWidth = 0, imageHeight = 0
     var cropTracker = RTMPoseCropTracker()
     cropTracker.refitAtCropEdge = cropEdgeRefit
+    cropTracker.lostInput = lostInput
+    cropTracker.acquireMinJoints = acquireJoints
+    cropTracker.lostHoldFrames = lostHold
+    cropTracker.lostSearchInterval = lostSearch
+    var seeds = 0
     var fullFrameInputs = 0
     var rechecks = 0, switches = 0
     var poseSeconds = 0.0
-    let fixedRects = try cropsIn.map { CropSequence.parse(try String(contentsOfFile: $0, encoding: .utf8)) }
+    // --crops-in / --acquire-boxes take a CSV, or a directory of <video>_det.csv (many clips in one run).
+    func rects(_ path: String) throws -> [Int: CGRect?] {
+        var isDir: ObjCBool = false
+        let file = FileManager.default.fileExists(atPath: path, isDirectory: &isDir) && isDir.boolValue ? "\(path)/\(name)_det.csv" : path
+        return CropSequence.parse(try String(contentsOfFile: file, encoding: .utf8))
+    }
+    let fixedRects = try cropsIn.map(rects)
+    let seedRects = try acquireBoxes.map(rects)
     var cropsInMissing = 0
     var cropTrace = [CropSequence.header]
     var source = "full"
@@ -269,14 +311,21 @@ for video in videos {
             cropTrace.append(CropSequence.line(frame: frame, rect: rect, source: "file"))
             estimate = try model.flatMap { try RTMPoseCropTracker.estimate(cgImage, rect: rect ?? whole, model: $0, workspace: workspace) }
         } else {
+            if personCrop, cropTracker.crop == nil, let seed = seedRects?[frame] ?? nil {
+                cropTracker.seed(seed)
+                seeds += 1
+                source = "seed"
+            }
             if cropTracker.crop == nil { fullFrameInputs += 1; source = "full" }
             let used = personCrop ? cropTracker.crop : nil, refitsBefore = cropTracker.edgeRefits
+            let hitsBefore = cropTracker.lostSearchHits
             // The live camera path's pose step (crop, RTMPose, decode, tracker, ~1 s whole-frame recheck).
             estimate = try model.flatMap { try cropTracker.estimate(cgImage, model: $0, workspace: workspace, personCrop: personCrop) }
             let recheck = estimate?.recheckSwitched.map { $0 ? "switch" : "kept" } ?? ""
             cropTrace.append(CropSequence.line(frame: frame, rect: used, source: source, recheck: recheck))
             // Why the next frame's rect is what it is.
             source = cropTracker.crop == nil ? "full"
+                : cropTracker.lostSearchHits > hitsBefore ? "search"
                 : estimate?.recheckSwitched == true ? "switch"
                 : cropTracker.edgeRefits > refitsBefore ? "refit"
                 : cropTracker.crop == used ? "kept" : "retarget"
@@ -401,6 +450,14 @@ for video in videos {
         "crop_edge_refits": cropTracker.edgeRefits,
         "crops_in": cropsIn.map { $0 as Any } ?? NSNull(),
         "crops_in_missing": cropsInMissing,
+        "lost_input": "\(lostInput)",
+        "acquire_joints": acquireJoints ?? cropTracker.minJoints,
+        "lost_hold": lostHold,
+        "lost_search": lostSearch,
+        "lost_search_passes": cropTracker.lostSearchPasses,
+        "lost_search_hits": cropTracker.lostSearchHits,
+        "acquire_boxes": acquireBoxes.map { $0 as Any } ?? NSNull(),
+        "acquire_seeds": seeds,
         "pose_ms_per_frame": coco17Frames.isEmpty ? 0 : poseSeconds * 1000 / Double(coco17Frames.count),
         "frames": coco17Frames.count,
         "image_size": [imageWidth, imageHeight],
