@@ -1,4 +1,17 @@
 import 'dart:convert';
+import 'dart:math';
+
+/// 새 운동 기록 번호(UUID v4). 서버는 이 번호를 모든 계정에서 하나뿐인 값으로
+/// 다루므로, 시각만으로 만들면 다른 사람 기록과 겹칠 수 있다.
+String newClientRecordId() {
+  final random = Random.secure();
+  final bytes = List<int>.generate(16, (_) => random.nextInt(256));
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  final hex = bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+  return '${hex.substring(0, 8)}-${hex.substring(8, 12)}-'
+      '${hex.substring(12, 16)}-${hex.substring(16, 20)}-${hex.substring(20)}';
+}
 
 /// On-Device AI Edge Computing Metadata Request DTO
 /// Transmits strictly lightweight metadata (Reps, postureScore, duration, posture feedback notes)
@@ -17,7 +30,8 @@ class WorkoutMetadataRequestDto {
   final List<String> feedbackNotes;
   final int targetReps;
   final int targetSets;
-  final Map<String, dynamic>? poseMetricsSummary; // On-device joint angles/metrics metadata summary
+  final Map<String, dynamic>?
+      poseMetricsSummary; // On-device joint angles/metrics metadata summary
 
   /// 세트별 기록. 서버 setsDetail: {setNumber, reps, weightKg}
   final List<WorkoutSetDetail> setsDetail;
@@ -102,6 +116,10 @@ class WorkoutMetadataRequestDto {
     );
   }
 
+  /// 기록 번호만 바꾼 사본.
+  WorkoutMetadataRequestDto withClientRecordId(String id) =>
+      WorkoutMetadataRequestDto.fromJson({...toJson(), 'clientRecordId': id});
+
   String toJsonString() => jsonEncode(toJson());
 
   factory WorkoutMetadataRequestDto.fromJsonString(String source) =>
@@ -129,7 +147,8 @@ class WorkoutMetadataResponseDto {
 
   factory WorkoutMetadataResponseDto.fromJson(Map<String, dynamic> json) {
     return WorkoutMetadataResponseDto(
-      serverRecordId: json['serverRecordId'] as String? ?? json['id'] as String? ?? '',
+      serverRecordId:
+          json['serverRecordId'] as String? ?? json['id'] as String? ?? '',
       clientRecordId: json['clientRecordId'] as String? ?? '',
       postureScore: (json['postureScore'] as num?)?.toDouble() ?? 0.0,
       success: json['success'] as bool? ?? true,
