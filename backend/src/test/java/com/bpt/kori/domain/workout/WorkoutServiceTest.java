@@ -30,6 +30,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.never;
 
 @ExtendWith(MockitoExtension.class)
 class WorkoutServiceTest {
@@ -91,6 +92,62 @@ class WorkoutServiceTest {
         assertThat(response.getServerRecordId()).isEqualTo("501");
         assertThat(response.getVideoLocalPath()).isEqualTo("/local/path/video.mp4");
         verify(workoutRecordRepository).save(any(WorkoutRecord.class));
+    }
+
+    @Test
+    @DisplayName("다른 사용자의 기록 ID 재사용은 거절하고 기록을 변경하지 않는다")
+    void saveWorkoutRecord_otherOwner_throwsAccessDenied() {
+        User requester = User.builder().id(2L).username("requester").build();
+        User owner = User.builder().id(1L).username("owner").build();
+        WorkoutRecord existing = WorkoutRecord.builder()
+                .id(501L)
+                .clientRecordId("rec_private")
+                .user(owner)
+                .videoLocalPath("/private/owner/video.mp4")
+                .build();
+        given(userRepository.findById(2L)).willReturn(Optional.of(requester));
+        given(workoutRecordRepository.findByClientRecordId("rec_private"))
+                .willReturn(Optional.of(existing));
+        WorkoutMetadataRequestDto request = new WorkoutMetadataRequestDto();
+        request.setClientRecordId("rec_private");
+
+        assertThatThrownBy(() -> workoutService.saveWorkoutRecord(2L, request))
+                .isInstanceOf(CustomException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.SESSION_ACCESS_DENIED);
+        verify(workoutRecordRepository, never()).save(any(WorkoutRecord.class));
+        assertThat(requester.getTotalWorkouts()).isZero();
+        assertThat(existing.getUser().getId()).isEqualTo(1L);
+    }
+
+    @Test
+    @DisplayName("본인 기록 재전송은 기존 결과를 반환하고 운동 횟수를 늘리지 않는다")
+    void saveWorkoutRecord_sameOwner_returnsExistingRecord() {
+        User requester = User.builder().id(1000L).username("owner").build();
+        // Separate entity instances must still match by persistent user ID.
+        User owner = User.builder().id(Long.valueOf("1000")).username("owner").build();
+        LocalDateTime createdAt = LocalDateTime.of(2026, 9, 10, 10, 0);
+        WorkoutRecord existing = WorkoutRecord.builder()
+                .id(501L)
+                .clientRecordId("rec_existing")
+                .user(owner)
+                .videoLocalPath("/local/video.mp4")
+                .createdAt(createdAt)
+                .build();
+        given(userRepository.findById(1000L)).willReturn(Optional.of(requester));
+        given(workoutRecordRepository.findByClientRecordId("rec_existing"))
+                .willReturn(Optional.of(existing));
+        WorkoutMetadataRequestDto request = new WorkoutMetadataRequestDto();
+        request.setClientRecordId("rec_existing");
+
+        WorkoutMetadataResponseDto response = workoutService.saveWorkoutRecord(1000L, request);
+
+        assertThat(response.isSuccess()).isTrue();
+        assertThat(response.getServerRecordId()).isEqualTo("501");
+        assertThat(response.getClientRecordId()).isEqualTo("rec_existing");
+        assertThat(response.getVideoLocalPath()).isEqualTo("/local/video.mp4");
+        assertThat(response.getSyncedAt()).isEqualTo(createdAt);
+        verify(workoutRecordRepository, never()).save(any(WorkoutRecord.class));
+        assertThat(requester.getTotalWorkouts()).isZero();
     }
 
     @Test

@@ -45,6 +45,11 @@ public class WorkoutService {
         Optional<WorkoutRecord> existing = workoutRecordRepository.findByClientRecordId(dto.getClientRecordId());
         if (existing.isPresent()) {
             WorkoutRecord record = existing.get();
+            // A client record ID is an idempotency key, not proof of ownership.
+            // Check the authenticated user before returning any existing metadata.
+            if (!Objects.equals(record.getUser().getId(), userId)) {
+                throw new CustomException(ErrorCode.SESSION_ACCESS_DENIED);
+            }
             return WorkoutMetadataResponseDto.builder()
                     .serverRecordId(String.valueOf(record.getId()))
                     .clientRecordId(record.getClientRecordId())
