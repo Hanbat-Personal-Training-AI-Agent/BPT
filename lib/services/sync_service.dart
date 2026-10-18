@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:dio/dio.dart' show Response;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -71,6 +72,17 @@ class SyncQueueStorage {
     // Avoid duplicate client IDs in queue
     queue.removeWhere((item) => item.clientRecordId == dto.clientRecordId);
     queue.add(dto);
+    await _saveQueue(queue);
+  }
+
+  /// 같은 자리에서 기록을 바꾼다 (보내는 순서 유지).
+  Future<void> replace(
+      String clientRecordId, WorkoutMetadataRequestDto dto) async {
+    final queue = getQueue();
+    final index =
+        queue.indexWhere((item) => item.clientRecordId == clientRecordId);
+    if (index == -1) return;
+    queue[index] = dto;
     await _saveQueue(queue);
   }
 
@@ -170,14 +182,20 @@ class WorkoutSyncNotifier extends StateNotifier<AsyncValue<SyncState>> {
 
     String? lastError;
 
-    for (final dto in List<WorkoutMetadataRequestDto>.from(currentQueue)) {
+    for (var dto in List<WorkoutMetadataRequestDto>.from(currentQueue)) {
       // 로그아웃하거나 계정이 바뀌면 이 대기열의 남은 기록은 보내지 않는다.
       if (!mounted || !_isCurrentAccount()) break;
       try {
-        final response = await _apiClient.post(
-          '/workouts/records/sync',
-          data: dto.toJson(),
-        );
+        Response response;
+        try {
+          response = await _post(dto);
+        } on ApiException catch (e) {
+          // 기록 번호가 다른 계정 기록과 겹쳤다. 새 번호로 바꿔 한 번 더 보낸다.
+          // (이대로 두면 이 기록이 대기열 맨 앞에서 뒤 기록까지 계속 막는다)
+          if (e.code != ApiClient.sessionAccessDenied) rethrow;
+          dto = await _renumber(queueStorage, dto);
+          response = await _post(dto);
+        }
 
         if (response.statusCode == 200 || response.statusCode == 201) {
           final resDto = WorkoutMetadataResponseDto.fromJson(
@@ -211,6 +229,23 @@ class WorkoutSyncNotifier extends StateNotifier<AsyncValue<SyncState>> {
     );
 
     return updatedQueueCount == 0;
+  }
+
+  Future<Response> _post(WorkoutMetadataRequestDto dto) =>
+      _apiClient.post('/workouts/records/sync', data: dto.toJson());
+
+  /// 대기열과 기기 기록의 번호를 새 번호로 바꾼다.
+  Future<WorkoutMetadataRequestDto> _renumber(
+      SyncQueueStorage queueStorage, WorkoutMetadataRequestDto dto) async {
+    final renumbered = dto.withClientRecordId(newClientRecordId());
+    await queueStorage.replace(dto.clientRecordId, renumbered);
+    final records = _localStorage.loadRecords(uid: queueStorage.uid);
+    final index = records.indexWhere((r) => r.id == dto.clientRecordId);
+    if (index != -1) {
+      records[index] = records[index].copyWith(id: renumbered.clientRecordId);
+      await _localStorage.saveRecords(records, uid: queueStorage.uid);
+    }
+    return renumbered;
   }
 
   void _markLocalRecordSynced(String clientRecordId, String serverRecordId) {

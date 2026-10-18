@@ -20,12 +20,14 @@ class ApiException implements Exception {
 }
 
 class NetworkException extends ApiException {
-  NetworkException([super.message = 'Network connection unavailable or timed out']);
+  NetworkException(
+      [super.message = 'Network connection unavailable or timed out']);
 }
 
 class UnauthorizedException extends ApiException {
   UnauthorizedException(
-      [super.message = 'Unauthorized session. Please login again.', String? code])
+      [super.message = 'Unauthorized session. Please login again.',
+      String? code])
       : super(statusCode: 401, code: code);
 }
 
@@ -76,7 +78,8 @@ class ApiClient {
       InterceptorsWrapper(
         onRequest: (options, handler) {
           if (_authToken != null && _authToken!.isNotEmpty) {
-            options.headers[HttpHeaders.authorizationHeader] = 'Bearer $_authToken';
+            options.headers[HttpHeaders.authorizationHeader] =
+                'Bearer $_authToken';
           }
           return handler.next(options);
         },
@@ -115,6 +118,9 @@ class ApiClient {
 
   static const _retriedKey = '_tokenRefreshRetried';
 
+  /// 다른 계정의 운동 기록에 접근했을 때 백엔드가 주는 403 에러 코드.
+  static const sessionAccessDenied = 'SESSION_ACCESS_DENIED';
+
   static Dio _createDio(String? baseUrl) => Dio(
         BaseOptions(
           baseUrl: baseUrl ?? ApiConfig.baseUrl,
@@ -147,7 +153,16 @@ class ApiClient {
         _authToken != null &&
         error.requestOptions.extra[_retriedKey] != true &&
         // 로그인·가입·갱신 같은 인증 API의 401은 토큰 만료가 아니다.
-        !error.requestOptions.path.startsWith('/auth/');
+        !error.requestOptions.path.startsWith('/auth/') &&
+        // 다른 계정의 기록에 접근한 403도 토큰 만료가 아니다.
+        _errorCode(error) != sessionAccessDenied;
+  }
+
+  /// 백엔드 에러 응답({success: false, error: {code, message}})의 code.
+  static String? _errorCode(DioException error) {
+    final data = error.response?.data;
+    final body = data is Map ? data['error'] : null;
+    return body is Map ? body['code']?.toString() : null;
   }
 
   /// 이 요청을 보낸 뒤 다른 요청이 이미 토큰을 갱신했으면 갱신 없이 다시 보내면 된다.
@@ -276,7 +291,8 @@ class ApiClient {
       case DioExceptionType.sendTimeout:
       case DioExceptionType.receiveTimeout:
       case DioExceptionType.connectionError:
-        return NetworkException('Network timeout or connection refused (${error.message})');
+        return NetworkException(
+            'Network timeout or connection refused (${error.message})');
       case DioExceptionType.badResponse:
         final statusCode = error.response?.statusCode;
         final data = error.response?.data;

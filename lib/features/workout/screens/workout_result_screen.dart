@@ -122,7 +122,7 @@ class _WorkoutResultScreenState extends ConsumerState<WorkoutResultScreen>
     final r = widget.result;
     final dto = WorkoutMetadataRequestDto(
       weightKg: _heaviestSetWeightKg(),
-      clientRecordId: DateTime.now().millisecondsSinceEpoch.toString(),
+      clientRecordId: newClientRecordId(),
       exerciseId: r['exerciseId'] as String? ?? 'squat',
       exerciseName: r['exerciseName'] as String? ?? 'Squat',
       date: DateTime.now(),
