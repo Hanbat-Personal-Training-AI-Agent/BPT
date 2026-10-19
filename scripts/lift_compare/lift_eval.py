@@ -160,11 +160,17 @@ def main():
     p.add_argument('--ckpt', default=None)
     p.add_argument('--ftd', default=None, help='D-D-08 d.pth (Fit3D fine-tuned XS with bone-length FiLM)')
     p.add_argument('--shapes', default=None, help='shapes.json with per-subject calibrated_cm (SMPL beta fit, D-D-08)')
+    p.add_argument('--ftr', default=None, help='plain fine-tuned XS checkpoint (D-D-06 reproduction), crop only, key "ftr"')
+    p.add_argument('--ftr-name', default='ftr')
+    p.add_argument('--no-orig', action='store_true', help='skip the original XS (run only --ftd / --ftr)')
     a = p.parse_args()
     import torch
     dev = 'cuda' if torch.cuda.is_available() else 'cpu'
     model = load(a.mag_repo, a.ckpt or f'{a.mag_repo}/checkpoint/motionagformer-xs-h36m.pth.tr', dev)[0].eval()
-    lifters = {'orig': (lambda X, subj: app_predict(model, X, dev), ('crop', 'screen'))}
+    lifters = {} if a.no_orig else {'orig': (lambda X, subj: app_predict(model, X, dev), ('crop', 'screen'))}
+    if a.ftr:
+        ftr = load(a.mag_repo, a.ftr, dev)[0].eval()
+        lifters[a.ftr_name] = (lambda X, subj: app_predict(ftr, X, dev), ('crop',))
     if a.ftd:
         ftd, shapes = FiLMLifter.make(a.mag_repo, a.ftd, dev), json.load(open(a.shapes))
         lifters['ftd'] = (lambda X, subj: FiLMLifter.predict(ftd, X, shapes[subj]['calibrated_cm'], dev), ('crop',))
@@ -205,6 +211,7 @@ def main():
         for key, (xy, cf) in inp.items():
             if key != 'gt2d': res['m2d'][key] = metrics2d(xy, cf, G2, scale)
             for norm in ('crop', 'screen'):
+              if not any(norm in ns for _, ns in lifters.values()): continue
               x, px = normalise(xy, cf, norm, w, h)
               ys = x[..., 1]; res['scale_in'][f'{key}|{norm}'] = float(np.median(ys.max(1) - ys.min(1)))
               X = np.concatenate([x, cf[..., None]], -1).astype(np.float32)

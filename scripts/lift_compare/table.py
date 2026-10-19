@@ -44,10 +44,15 @@ def fmt_rep(x): return f'{np.median(x):.1f} ({np.percentile(x, 90):.1f})' if len
 
 
 def main():
-    p = argparse.ArgumentParser(); p.add_argument('json'); p.add_argument('--group', default='heldout')
-    p.add_argument('--boot', type=int, default=2000); p.add_argument('--box', default='raw', choices=['raw', 'padded', 'none']); p.add_argument('--box-json', default=None); p.add_argument('--combos', default='orig|crop,orig|screen,ftd|crop')
+    p = argparse.ArgumentParser(); p.add_argument('json', nargs='+'); p.add_argument('--group', default='heldout')
+    p.add_argument('--boot', type=int, default=2000); p.add_argument('--box', default='raw', choices=['raw', 'padded', 'none']); p.add_argument('--box-json', default=None); p.add_argument('--combos', default='orig|crop,orig|screen,ftd|crop,ftr_s05|crop,ftr_s03|crop')
     a = p.parse_args()
-    allrows = json.load(open(a.json)); rows = [r for r in allrows if r['group'] == a.group]
+    allrows = json.load(open(a.json[0]))
+    idx = {(r['subject'], r['cam'], r['exercise']): r for r in allrows}
+    for extra in a.json[1:]:  # merge other lifters' runs (same videos); videos missing there lose nothing
+        for e in json.load(open(extra)):
+            if (e['subject'], e['cam'], e['exercise']) in idx: idx[(e['subject'], e['cam'], e['exercise'])]['m3d'].update(e['m3d'])
+    rows = [r for r in allrows if r['group'] == a.group]
     if a.box == 'raw': bad = [r for r in rows if r['box_ok'] < 0.99 or r['nodet'] > 0.01]  # pre-registered
     elif a.box == 'padded':
         bj = json.load(open(a.box_json)); nm = lambda r: f"{r['subject']}_{r['cam']}_{r['exercise']}"
@@ -58,7 +63,7 @@ def main():
     P(f"## 묶음 {a.group}: 영상 {len(rows)}개 (상자 검증 탈락 {len(bad)}: {[(r['subject'], r['cam'], r['exercise'], round(r['box_ok'], 3)) for r in bad]})")
     P(f"피험자 {sorted({r['subject'] for r in rows})}, 시점각 범위 {min(r['view_deg'] for r in rows)}–{max(r['view_deg'] for r in rows)}°, "
       f"시점 분포 {[(n, sum(lo <= r['view_deg'] < hi for r in rows)) for n, lo, hi in VIEWS]}\n")
-    keys = list(rows[0]['m3d'])
+    keys = [k for k in rows[0]['m3d'] if all(k in r['m3d'] for r in rows)]
     for combo in a.combos.split(','):
         lif, norm = combo.split('|')
         if not any(k.split('|')[0] == lif and k.split('|')[2] == norm for k in keys): P(f'### {combo}: 측정 안 함(결과 없음)\n'); continue
