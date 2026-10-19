@@ -288,6 +288,15 @@ enum FormGeometry {
     // forward = (L hip − R hip) × up.
     static let up3D = SIMD3<Double>(0, -1, 0)
 
+    /// "Up" in the XS output frame (image x right, y down, z away from the camera) from CoreMotion gravity (device
+    /// frame: x right, y up the screen, z out of the screen), phone in portrait. Front camera: the image is mirrored
+    /// (x flips) and "away from the camera" is +z of the device. Upright phone → (0, −1, 0) = `up3D`.
+    /// Hypothesis: XS depth (z) sign follows the camera frame — not verified on a device yet (lift_app.md).
+    static func cameraUp(gravity g: SIMD3<Double>, frontCamera: Bool) -> SIMD3<Double> {
+        let image = SIMD3<Double>(frontCamera ? -g.x : g.x, -g.y, frontCamera ? g.z : -g.z)
+        return simd_length(image) > 1e-6 ? -simd_normalize(image) : up3D
+    }
+
     /// 3D trunk (pelvis → thorax) vs vertical, deg; > 0 forward lean, < 0 backward.
     static func signedTorsoAngle3D(_ j: [SIMD3<Double>], up: SIMD3<Double> = up3D) -> Double? {
         guard j.count == 17 else { return nil }
@@ -447,6 +456,8 @@ final class FormWarningTracker {
     var pushUp = PushUpFormConfig()
     var squat = SquatFormConfig()
     var row = BarbellRowFormConfig()
+    /// "Up" for 3D metrics (camera −y by default; FormGeometry.cameraUp(gravity:) when the camera feeds gravity).
+    var up3D = FormGeometry.up3D
     var bench = BenchPressFormConfig()
     var deadlift = DeadliftFormConfig()
 
@@ -565,7 +576,7 @@ final class FormWarningTracker {
     /// the head-line deviation, shrug and heel quantities stay nil.
     private func measure3D(_ j: [SIMD3<Double>], like s2: FormFrameSample, into s: inout FormFrameSample) {
         let k = FormGeometry.h36mSide(s2.side)
-        let up = FormGeometry.up3D
+        let up = up3D
         s.requiredOK = true
         s.has3D = true
         s.state3D = .ok
@@ -574,9 +585,9 @@ final class FormWarningTracker {
         s.elbow = FormGeometry.angle3D(j[k.shoulder], j[k.elbow], j[k.wrist])
         s.knee = FormGeometry.angle3D(j[k.hip], j[k.knee], j[k.ankle])
         s.hipAngle = FormGeometry.angle3D(j[k.shoulder], j[k.hip], j[k.knee])
-        s.torso = FormGeometry.signedTorsoAngle3D(j)
-        s.hipDeviation = FormGeometry.signedHipDeviation3D(j)
-        s.headDeviation = FormGeometry.signedLineDeviation3D(point: j[10], a: j[0], b: j[8])
+        s.torso = FormGeometry.signedTorsoAngle3D(j, up: up)
+        s.hipDeviation = FormGeometry.signedHipDeviation3D(j, up: up)
+        s.headDeviation = FormGeometry.signedLineDeviation3D(point: j[10], a: j[0], b: j[8], up: up)
         let trunk = j[8] - j[0], torsoLength = simd_length(trunk)
         if torsoLength > 1e-8 {
             s.torsoLength = torsoLength

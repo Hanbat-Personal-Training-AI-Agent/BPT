@@ -53,6 +53,20 @@ final class FormWarningsTests: XCTestCase {
         XCTAssertEqual(try XCTUnwrap(FormGeometry.signedHipDeviation3D(plank)), 0.05 / 1.5, accuracy: 1e-9)
     }
 
+    func testCameraUpFromGravity() {
+        let upright = FormGeometry.cameraUp(gravity: [0, -1, 0], frontCamera: false)
+        XCTAssertEqual(simd_length(upright - FormGeometry.up3D), 0, accuracy: 1e-12)
+        XCTAssertEqual(simd_length(FormGeometry.cameraUp(gravity: [0, -1, 0], frontCamera: true) - FormGeometry.up3D), 0, accuracy: 1e-12)
+        // Back camera, top of the phone tilted away from the user by 20 deg: gravity gains -z (into the screen).
+        let t = 20.0 * .pi / 180
+        let tilted = FormGeometry.cameraUp(gravity: [0, -cos(t), -sin(t)], frontCamera: false)
+        XCTAssertEqual(tilted.y, -cos(t), accuracy: 1e-12)
+        XCTAssertEqual(tilted.z, -sin(t), accuracy: 1e-12)
+        // Phone rolled: image x flips with the front camera mirror.
+        XCTAssertEqual(FormGeometry.cameraUp(gravity: [0.5, -0.866, 0], frontCamera: false).x,
+                       -FormGeometry.cameraUp(gravity: [0.5, -0.866, 0], frontCamera: true).x, accuracy: 1e-12)
+    }
+
     func testBad3DFramesSkipped3DAndCounted() {
         let tracker = FormWarningTracker(exercise: .squat)
         let coco = sidePushUp(hipDrop: 0)

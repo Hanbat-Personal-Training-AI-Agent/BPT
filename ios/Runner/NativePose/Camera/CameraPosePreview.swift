@@ -29,6 +29,9 @@ private enum CameraPreviewOptions {
     static let motion3DAsync = ProcessInfo.processInfo.environment["BPT_3D_ASYNC"] != "0"
     /// MediaPipe wrists into the XS input (MotionAGFormerWristSource); the hand branch then runs for every exercise.
     static let motion3DWristFromHands = ProcessInfo.processInfo.environment["BPT_3D_HAND_WRISTS"] != "0"
+    /// CoreMotion gravity as "up" for the 3D trunk/hip metrics (D-D-07: oblique trunk needs gravity). Off until the
+    /// XS-frame axis mapping (FormGeometry.cameraUp) is checked on a device; BPT_3D_GRAVITY=1 turns it on.
+    static let motion3DGravity = ProcessInfo.processInfo.environment["BPT_3D_GRAVITY"] == "1"
     /// RTMPose input: 3:4 person crop from the previous frame's keypoints (RTMPoseCropTracker).
     /// false = old input, whole frame stretched to 192×256 every frame.
     static let personCropInput = true
@@ -226,6 +229,7 @@ final class CameraPoseViewModel: ObservableObject {
     nonisolated(unsafe) private var lifter: MotionAGFormerLive<CameraProcessingResult>?
     private let liftQueue = DispatchQueue(label: "com.bpt.camera.lift3d", qos: .userInitiated)
     private var lastReportedPose3D: String?
+    private var motion: DeviceMotionMonitor?
     nonisolated private var perfLog: WorkoutPerfLog? { captureManager.perfLog }
 
     init(exercise: NativePoseExercise, bridge: WorkoutChannel? = nil) {
@@ -249,6 +253,7 @@ final class CameraPoseViewModel: ObservableObject {
 
     func stopCamera() {
         captureManager.stop()
+        motion?.stop()
         captureManager.finishRecording { _ in }
         if let tracker = formTracker { formLog?.close(tracker) }
         formLog = nil
@@ -357,6 +362,10 @@ final class CameraPoseViewModel: ObservableObject {
                                             cadence: CameraPreviewOptions.motion3DCadence,
                                             predict: MotionAGFormerCoreML.predictor(xs))
                 formTracker?.common.form3DRequired = true
+                if CameraPreviewOptions.motion3DGravity {
+                    motion = DeviceMotionMonitor()
+                    motion?.start()
+                }
             } catch {
                 statusText = "Failed to load MotionAGFormer-XS: \(error.localizedDescription)"
                 return
@@ -520,6 +529,10 @@ final class CameraPoseViewModel: ObservableObject {
     /// 3D path: frame t with its own 2D and 3D (state never hidden: it goes to the evaluators and to Flutter).
     @MainActor
     private func handleLifted(_ result: CameraProcessingResult, _ frame3D: Lifted3DFrame) {
+        if let state = motion?.state, state.isAvailable, state.gravity.count == 3 {
+            formTracker?.up3D = FormGeometry.cameraUp(gravity: SIMD3(state.gravity[0], state.gravity[1], state.gravity[2]),
+                                                      frontCamera: isFrontCamera)
+        }
         let t0 = CACurrentMediaTime()
         let (statusText, rep, done) = runEvaluator(frameIndex: result.frameIndex, rawCoco17: result.rawCoco17,
                                                    feet: result.feet, pose3D: frame3D.pose3D, pose3DState: frame3D.state)
