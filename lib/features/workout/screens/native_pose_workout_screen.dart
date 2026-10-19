@@ -89,6 +89,8 @@ class _NativePoseWorkoutScreenState
   // (kori_feedback_lines.dart). 답으로 돌려준 대사를 네이티브가 말한다(native_pose_channel.dart).
   // `scope: "set"`(세트 끝 요약)은 말풍선 없이 음성으로만. 첫 피드백 전에는 운동별 기본 팁을 보여준다.
   String? _feedbackKey;
+  // 실시간 3D 상태 (onPoseUpdate.pose3d). null = 3D 경로 없음.
+  NativePose3DStatus? _pose3d;
   int? _feedbackCount;
   int _badCountThisSet = 0;
   final Set<String> _warningKeysThisSet = {};
@@ -180,6 +182,10 @@ class _NativePoseWorkoutScreenState
     if (call.method == 'onPoseUpdate') {
       final args = (call.arguments as Map).cast<String, dynamic>();
       final rep = (args['rep'] as num?)?.toInt() ?? _latestNativeRep;
+      final pose3d = NativePose3DStatus.parse(args);
+      if (pose3d != null && mounted && (pose3d.state != _pose3d?.state || pose3d.filled != _pose3d?.filled)) {
+        setState(() => _pose3d = pose3d);
+      }
       _onNativeUpdate(rep);
     } else if (call.method == NativePoseChannel.onFeedback) {
       // { key: 'squat_shallow', n?: 3, scope: 'rep'|'set' } — key는 kori_feedback_lines.dart 목록 기준.
@@ -507,6 +513,15 @@ class _NativePoseWorkoutScreenState
                 onToggleVoiceMuted: _toggleVoiceMuted,
                 onEnd: _confirmEnd,
               ),
+            ),
+          ),
+        if (!_setComplete && !_workoutComplete && _pose3d?.message(isKo: isKo) != null)
+          Positioned(
+            left: 16,
+            right: 16,
+            top: 96,
+            child: SafeArea(
+              child: _Pose3DBanner(text: _pose3d!.message(isKo: isKo)!),
             ),
           ),
         // TODO(temp): 디버그 빌드에서만 보이는 테스트 버튼. 실제 기기 카메라
@@ -2193,4 +2208,28 @@ class _ConfettiPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_ConfettiPainter old) => false;
+}
+
+/// 실시간 3D 상태 안내 (3D를 쓸 수 없을 때만 보임).
+class _Pose3DBanner extends StatelessWidget {
+  const _Pose3DBanner({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.topCenter,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.6),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          child: Text(text, style: const TextStyle(color: Colors.white, fontSize: 13)),
+        ),
+      ),
+    );
+  }
 }

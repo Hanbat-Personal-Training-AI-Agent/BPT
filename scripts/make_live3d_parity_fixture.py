@@ -18,6 +18,8 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from pose_feedback.body.live_motionagformer import LiveMotionAGFormer  # noqa: E402
+from pose_feedback.body.motionagformer_wrist_source import (  # noqa: E402
+    build_motionagformer_input_2d, reject_crossed_mediapipe_wrists)
 
 W, H = 720, 1280
 
@@ -72,6 +74,23 @@ def run(predict, frames, lookahead, cadence):
     return {"lookahead": lookahead, "cadence": cadence, "inferences": live.inferences, "frames": rows}
 
 
+def wrist_cases(frames):
+    """MediaPipe wrist replacement cases: near own wrist, crossed (closer to the other wrist), missing."""
+    rng = np.random.default_rng(0)
+    cases = []
+    for t in range(0, 40, 4):
+        raw = frames[t]
+        mp = {"left": (raw[9, :2] + rng.normal(0, 8, 2)).tolist(), "right": (raw[10, :2] + rng.normal(0, 8, 2)).tolist()}
+        if t % 8 == 0:
+            mp["right"] = (raw[9, :2] + rng.normal(0, 3, 2)).tolist()  # crossed: the left hand found in the right crop
+        if t % 12 == 0:
+            mp.pop("left")
+        kept = reject_crossed_mediapipe_wrists(raw, mp)
+        out, _ = build_motionagformer_input_2d(raw, kept, wrist_source="mediapipe")
+        cases.append({"raw": np.round(raw, 6).tolist(), "mediapipe": mp, "input": np.asarray(out, dtype=float).tolist()})
+    return cases
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--coreml")
@@ -80,6 +99,7 @@ def main():
     frames = sequence()
     fixture = {"image_size": [W, H], "coco17": [np.round(k, 6).tolist() for k in frames],
                "fake": [run(fake_predict, frames, la, cad) for la, cad in ((5, 1), (5, 2), (0, 1), (13, 1))]}
+    fixture["wrist"] = wrist_cases(frames)
     if a.coreml:
         import coremltools as ct
         model = ct.models.MLModel(a.coreml, compute_units=ct.ComputeUnit.CPU_ONLY)

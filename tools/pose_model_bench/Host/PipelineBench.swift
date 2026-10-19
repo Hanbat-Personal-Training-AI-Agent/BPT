@@ -52,6 +52,11 @@ final class PipelineBench {
     func run() throws {
         let model = env["BENCH_MODEL"] ?? "rtmpose_s_forward"
         let record = env["BENCH_RECORD"] == "1", lift3D = env["BENCH_3D"] == "1", paced = env["BENCH_PACED"] == "1"
+        // lift-app pipeline: BENCH_3D=1 runs MotionAGFormerLive (lookahead BENCH_3D_LOOKAHEAD=5, one inference per
+        // BENCH_3D_CADENCE=1 frames, BENCH_3D_ASYNC=1 on its own queue) + Pose3DConstraints + 3D posture judgement;
+        // BENCH_HANDS=1 adds the wrist-crop MediaPipe hands (CameraPosePreview hand branch) and their wrists in the XS input.
+        let hands = env["BENCH_HANDS"] == "1", async3D = env["BENCH_3D_ASYNC"] == "1"
+        let lookahead = Int(env["BENCH_3D_LOOKAHEAD"] ?? "") ?? 5, cadence = Int(env["BENCH_3D_CADENCE"] ?? "") ?? 1
         let seconds = Double(env["BENCH_SECONDS"] ?? "") ?? 180
         let dumpDir: URL? = env["BENCH_DUMP"] == "1"
             ? FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("pipeline_csv") : nil
@@ -59,7 +64,7 @@ final class PipelineBench {
             try? FileManager.default.removeItem(at: dumpDir)
             try FileManager.default.createDirectory(at: dumpDir, withIntermediateDirectories: true)
         }
-        let label = "model=\(model) record=\(record) 3d=\(lift3D) paced=\(paced)"
+        let label = "model=\(model) record=\(record) 3d=\(lift3D) lookahead=\(lookahead) cadence=\(cadence) async=\(async3D) hands=\(hands) paced=\(paced)"
         DispatchQueue.main.sync { UIDevice.current.isBatteryMonitoringEnabled = true }
         let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
         for dir in ["workout_videos", "workout_form_logs"] { try? FileManager.default.removeItem(at: documents.appendingPathComponent(dir)) }
@@ -69,6 +74,9 @@ final class PipelineBench {
             ? try MediaPipePose(model: model, gpu: env["BENCH_MP_DELEGATE"] != "cpu", video: true) : nil
         let rtmpose = mediaPipe == nil ? try loadModel(model) : nil
         let motion3D = lift3D ? try loadModel("motionagformer_xs") : nil
+        let handPair = hands ? MediaPipeHandLandmarkerPair() : nil
+        let liftQueue = DispatchQueue(label: "bench.lift3d", qos: .userInitiated)
+        var handsMs: [Double] = [], liftMs: [Double] = []  // processing / lift queue only
         let workspace = try RTMPoseInputWorkspace()
         let clips = try FileManager.default.contentsOfDirectory(at: assets.appendingPathComponent("clips"),
                                                                 includingPropertiesForKeys: nil)
@@ -104,8 +112,20 @@ final class PipelineBench {
             let session = SetSession(exercise: name.hasPrefix("squat") ? .squat : name.hasPrefix("pushup") ? .pushUp : .barbellRow)
             DispatchQueue.main.sync { lastRep = 0; lastStatus = nil }
             var cropTracker = RTMPoseCropTracker()
-            var normalizer = MotionAGFormerInputNormalizer()
-            var window: [[[Float]]] = []
+            typealias Payload = (idx: Int, coco17: [PoseKeypoint], feet: FootKeypoints?, arrival: Double)
+            var lifter = motion3D.map { MotionAGFormerLive<Payload>(lookahead: lookahead, cadence: cadence, predict: MotionAGFormerCoreML.predictor($0)) }
+            if lifter != nil { session.tracker.common.form3DRequired = true }
+            /// Main thread: evaluator + tracker + bridge change detection for one judged frame.
+            func judge(_ p: Payload, _ frame3D: Lifted3DFrame?) {
+                DispatchQueue.main.async { [self] in
+                    let (status, rep) = session.evaluate(frameIndex: p.idx, coco17: p.coco17, feet: p.feet, pose3D: frame3D?.pose3D, state: frame3D?.state)
+                    feedbackEvents += session.tracker.drainEvents().count
+                    if rep != lastRep || status != lastStatus { bridgeUpdates += 1 }
+                    lastRep = rep
+                    lastStatus = status
+                    latencies.append((Self.now() - p.arrival) * 1000)
+                }
+            }
             let recorder = record ? WorkoutSetRecorder.directory().map {
                 WorkoutSetRecorder.prune(directory: $0, keep: WorkoutSetRecorder.keepFiles - 1)
                 return WorkoutSetRecorder(url: $0.appendingPathComponent(
@@ -155,15 +175,27 @@ final class PipelineBench {
                         guard let estimate = try cropTracker.estimate(cgImage, model: rtmpose!, workspace: workspace) else { return nil }
                         convertMs.append((t1 - t0) * 1000)
                         estimateMs.append((Self.now() - t1) * 1000)
-                        var pose3D: [SIMD3<Double>]?
-                        if let motion3D {
-                            // Causal 27-frame window (the newest frame's row), like pose-replay's lift3D with lookahead 0.
-                            let frame = try PoseCoordinateTransforms.normalizedMotionAGFormerFrame(
-                                fromCOCO17: estimate.coco17, imageWidth: cgImage.width, imageHeight: cgImage.height,
-                                normalizer: &normalizer)
-                            window.append(frame)
-                            if window.count > 27 { window.removeFirst() }
-                            pose3D = try Self.predict3D(window, model: motion3D)
+                        var liftInput = estimate.coco17
+                        if let handPair {
+                            let h0 = Self.now()
+                            let frame = BundledVideoHandFrameProcessor.runWristCropHands(
+                                image: UIImage(cgImage: cgImage), rawCoco17: estimate.coco17, imageWidth: Double(cgImage.width),
+                                imageHeight: Double(cgImage.height), timestampMs: idx * 33, handLandmarkers: handPair)
+                            let point = { (h: HandLandmarkResult?) in h?.wristFramePoint.map { PosePoint(x: $0.x, y: $0.y) } }
+                            liftInput = MotionAGFormerWristSource.input(raw: estimate.coco17, left: point(frame.leftHand), right: point(frame.rightHand)).input
+                            handsMs.append((Self.now() - h0) * 1000)
+                        }
+                        let feet = PoseCoordinateTransforms.applyInverseAffineToFeet(decoded: estimate.decoded, inverseAffine: estimate.inverseAffine)
+                        if lifter != nil {
+                            let payload: Payload = (idx, estimate.coco17, feet, arrival)
+                            let (w, hgt) = (cgImage.width, cgImage.height)
+                            let lift = {
+                                let l0 = Self.now()
+                                let ready = (try? lifter!.push(frameIndex: idx, coco17: liftInput, imageWidth: w, imageHeight: hgt, payload: payload)) ?? []
+                                liftMs.append((Self.now() - l0) * 1000)
+                                for (p, f) in ready { judge(p, f) }
+                            }
+                            if async3D { liftQueue.async(execute: lift) } else { liftQueue.sync(execute: lift) }
                         }
                         recorder?.append(sampleBuffer)
                         perfLog?.frameProcessed()
@@ -173,22 +205,12 @@ final class PipelineBench {
                                 [String(format: "%.4f", $0.x), String(format: "%.4f", $0.y), String(format: "%.4f", $0.confidence)]
                             }).joined(separator: ",") + "\n"
                         }
-                        return (estimate.coco17, PoseCoordinateTransforms.applyInverseAffineToFeet(
-                            decoded: estimate.decoded, inverseAffine: estimate.inverseAffine), pose3D)
+                        return lifter == nil ? (estimate.coco17, feet, nil) : nil
                     }
                 }
                 processed += 1
                 processingMs.append((Self.now() - arrival) * 1000)
-                guard let step else { continue }
-                // handleProcessingResult (main): evaluator + form tracker + bridge change detection.
-                DispatchQueue.main.async { [self] in
-                    let (status, rep) = session.evaluate(frameIndex: idx, coco17: step.coco17, feet: step.feet, pose3D: step.pose3D)
-                    feedbackEvents += session.tracker.drainEvents().count
-                    if rep != lastRep || status != lastStatus { bridgeUpdates += 1 }
-                    lastRep = rep
-                    lastStatus = status
-                    latencies.append((Self.now() - arrival) * 1000)
-                }
+                if let step { judge((idx, step.coco17, step.feet, arrival), nil) }
                 if Self.now() - lastLog >= 10 {
                     let (level, _) = Self.battery()
                     let line = String(format: "t=%.0f fps=%.1f drops=%d thermal=%@ battery=%.2f", Self.now() - start,
@@ -201,6 +223,8 @@ final class PipelineBench {
                 }
             }
             reader.cancelReading()
+            // Set end: judge the frames still in the 3D window (CameraPosePreview.endSet).
+            if lifter != nil { liftQueue.sync { for (p, f) in (try? lifter!.flush()) ?? [] { judge(p, f) } } }
             if let dumpDir, finished { try csv.write(to: dumpDir.appendingPathComponent("\(name).csv"), atomically: true, encoding: .utf8) }
             // endSet: set-scope feedback, close the set file (processing queue, like finishRecording).
             let reps = DispatchQueue.main.sync { () -> Int in
@@ -214,6 +238,7 @@ final class PipelineBench {
             if clipIndex == clips.count { completedFirstPass = true }
         }
         let wall = Self.now() - start
+        liftQueue.sync {}
         DispatchQueue.main.sync {}  // drain the evaluator steps
         let (battery1, _) = Self.battery()
         let lat = DispatchQueue.main.sync { latencies.sorted() }
@@ -228,6 +253,9 @@ final class PipelineBench {
                      battery0, battery1, Double(battery0 - battery1) * 100 / (wall / 60), Self.thermal(),
                      DispatchQueue.main.sync { bridgeUpdates }, DispatchQueue.main.sync { feedbackEvents },
                      pct(convertMs.sorted(), 0.5), pct(estimateMs.sorted(), 0.5), pct(estimateMs.sorted(), 0.95)))
+        let hs = handsMs.sorted(), ls = liftQueue.sync { liftMs.sorted() }
+        print(String(format: "BENCH stages hands_p50=%.2f hands_p95=%.2f lift3d_p50=%.2f lift3d_p95=%.2f delay_frames=%d",
+                     pct(hs, 0.5), pct(hs, 0.95), pct(ls, 0.5), pct(ls, 0.95), lift3D ? lookahead + cadence - 1 : 0))
         print("BENCH thermal_trace " + thermalTrace.joined(separator: " "))
         perfLog?.close()
         let documents2 = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
@@ -247,27 +275,13 @@ final class PipelineBench {
         return context.createCGImage(image, from: image.extent)
     }
 
-    /// MotionAGFormer-XS on the window (edge-clamped to 27 frames), the newest frame's H36M17 3D row.
-    private static func predict3D(_ frames: [[[Float]]], model: MLModel) throws -> [SIMD3<Double>] {
-        let count = 27
-        let input = try MLMultiArray(shape: [1, NSNumber(value: count), 17, 3], dataType: .float32)
-        let pointer = input.dataPointer.bindMemory(to: Float.self, capacity: count * 17 * 3)
-        for t in 0..<count {
-            let source = frames[max(0, frames.count - count + t)]
-            for j in 0..<17 { for c in 0..<3 { pointer[(t * 17 + j) * 3 + c] = source[j][c] } }
-        }
-        let output = try model.prediction(from: MLDictionaryFeatureProvider(dictionary: ["input_2d_sequence": input]))
-        let pred = output.featureValue(for: "pred_3d_sequence")!.multiArrayValue!
-        let row = NSNumber(value: count - 1)
-        return (0..<17).map { j in SIMD3((0..<3).map { pred[[0, row, NSNumber(value: j), NSNumber(value: $0)]].doubleValue }) }
-    }
 }
 
 /// One set's evaluator (CameraPoseViewModel.setup / runEvaluator). Main thread only.
 private final class SetSession {
     let exercise: FormExercise
     let tracker: FormWarningTracker
-    let evaluate: (Int, [PoseKeypoint], FootKeypoints?, [SIMD3<Double>]?) -> (String, Int)
+    let evaluate: (Int, [PoseKeypoint], FootKeypoints?, [SIMD3<Double>]?, Pose3DState?) -> (String, Int)
 
     init(exercise: FormExercise) {
         self.exercise = exercise
@@ -275,19 +289,19 @@ private final class SetSession {
         case .squat:
             let e = SquatEvaluator()
             tracker = e.formTracker
-            evaluate = { let r = e.evaluate(frameIndex: $0, coco17: $1, pose3D: $3, feet: $2); return (r.status.rawValue, r.rep) }
+            evaluate = { let r = e.evaluate(frameIndex: $0, coco17: $1, pose3D: $3, pose3DState: $4, feet: $2); return (r.status.rawValue, r.rep) }
         case .pushUp:
             let e = PushUpEvaluator()
             tracker = e.formTracker
-            evaluate = { i, k, _, p in let r = e.evaluate(frameIndex: i, coco17: k, pose3D: p); return (r.status.rawValue, r.rep) }
+            evaluate = { i, k, _, p, s in let r = e.evaluate(frameIndex: i, coco17: k, pose3D: p, pose3DState: s); return (r.status.rawValue, r.rep) }
         default:
             let e = BarbellRowEvaluator()
             tracker = e.formTracker
-            evaluate = { i, k, _, p in let r = e.evaluate(frameIndex: i, coco17: k, pose3D: p); return (r.status.rawValue, r.rep) }
+            evaluate = { i, k, _, p, s in let r = e.evaluate(frameIndex: i, coco17: k, pose3D: p, pose3DState: s); return (r.status.rawValue, r.rep) }
         }
     }
 
-    func evaluate(frameIndex: Int, coco17: [PoseKeypoint], feet: FootKeypoints?, pose3D: [SIMD3<Double>]?) -> (String, Int) {
-        evaluate(frameIndex, coco17, feet, pose3D)
+    func evaluate(frameIndex: Int, coco17: [PoseKeypoint], feet: FootKeypoints?, pose3D: [SIMD3<Double>]?, state: Pose3DState?) -> (String, Int) {
+        evaluate(frameIndex, coco17, feet, pose3D, state)
     }
 }

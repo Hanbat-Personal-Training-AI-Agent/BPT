@@ -16,7 +16,19 @@ private enum CameraPreviewOptions {
         default: return nil
         }
     }()
-    static let enableMotion3DForCamera = false
+    /// MotionAGFormer-XS live 3D (MotionAGFormerLive → Pose3DConstraints → 3D posture judgement).
+    /// ai/lift-app ONLY: true here, with motionagformer_xs.mlpackage bundled. integration/ai keeps false until the user
+    /// approves the flip (docs/results/lift_app.md). BPT_CAMERA_3D=0 in the Xcode scheme turns it off for A/B profiling;
+    /// then the evaluators judge in 2D (form3DRequired off) and the HUD gets no pose3d state.
+    static let enableMotion3DForCamera = ProcessInfo.processInfo.environment["BPT_CAMERA_3D"] != "0"
+    /// Output row 26 − lookahead (5 = 167 ms at 30 fps; see lift_app.md lookahead study).
+    static let motion3DLookahead = Int(ProcessInfo.processInfo.environment["BPT_3D_LOOKAHEAD"] ?? "") ?? 5
+    /// One XS inference per N frames, N rows read from it (every frame still gets its own 3D).
+    static let motion3DCadence = Int(ProcessInfo.processInfo.environment["BPT_3D_CADENCE"] ?? "") ?? 1
+    /// XS on its own serial queue (2D capture queue is free for the next frame); "0" = inline on the capture queue.
+    static let motion3DAsync = ProcessInfo.processInfo.environment["BPT_3D_ASYNC"] != "0"
+    /// MediaPipe wrists into the XS input (MotionAGFormerWristSource); the hand branch then runs for every exercise.
+    static let motion3DWristFromHands = ProcessInfo.processInfo.environment["BPT_3D_HAND_WRISTS"] != "0"
     /// RTMPose input: 3:4 person crop from the previous frame's keypoints (RTMPoseCropTracker).
     /// false = old input, whole frame stretched to 192×256 every frame.
     static let personCropInput = true
@@ -50,6 +62,10 @@ struct CameraProcessingResult {
     let rawCoco17: [PoseKeypoint]
     let feet: FootKeypoints?
     let handResults: [HandLandmarkResult]
+    /// CACurrentMediaTime when the frame reached processFrame (input → judgement latency).
+    var arrivedAt: CFTimeInterval = 0
+    /// XS input wrists replaced by MediaPipe (left, right); raw wrists stay in rawCoco17.
+    var wristsReplaced = (left: false, right: false)
 }
 
 // MARK: - Camera capture manager
@@ -206,6 +222,11 @@ final class CameraPoseViewModel: ObservableObject {
 
     /// Only touched on the capture processing queue (one frame at a time), like the workspace.
     nonisolated(unsafe) private var cropTracker = RTMPoseCropTracker()
+    /// Live 3D. Only touched on `liftQueue` (serial, frame order kept).
+    nonisolated(unsafe) private var lifter: MotionAGFormerLive<CameraProcessingResult>?
+    private let liftQueue = DispatchQueue(label: "com.bpt.camera.lift3d", qos: .userInitiated)
+    private var lastReportedPose3D: String?
+    nonisolated private var perfLog: WorkoutPerfLog? { captureManager.perfLog }
 
     init(exercise: NativePoseExercise, bridge: WorkoutChannel? = nil) {
         self.exercise = exercise
@@ -270,6 +291,20 @@ final class CameraPoseViewModel: ObservableObject {
         guard !betweenSets else { return }
         betweenSets = true
         recording = false
+        // The last `lookahead` frames are still in the 3D window: judge them (window clamped at the newest frame)
+        // before the set summary.
+        guard lifter != nil else { return finishEndSet(index) }
+        liftQueue.async { [weak self] in
+            guard let self else { return }
+            let tail = (try? self.lifter?.flush()) ?? []
+            Task { @MainActor in
+                for (result, frame3D) in tail { self.handleLifted(result, frame3D) }
+                self.finishEndSet(index)
+            }
+        }
+    }
+
+    private func finishEndSet(_ index: Int) {
         let tracker = formTracker
         let worstJoint = tracker.flatMap {
             FeedbackJoint.worst(setCounts: $0.endSet(), enabled: $0.common.enabledFeedbackKeys,
@@ -314,7 +349,22 @@ final class CameraPoseViewModel: ObservableObject {
         }
         if let tracker = formTracker { formLog = WorkoutFormLog(exercise: tracker.exercise) }
 
-        let handEnabled = exercise.handBranchEnabled(override: CameraPreviewOptions.handBranchOverride)
+        if CameraPreviewOptions.enableMotion3DForCamera {
+            // 3D is part of the analysis: no silent 2D-only fallback when the model is missing.
+            do {
+                let xs = try loadModel(named: "motionagformer_xs")
+                lifter = MotionAGFormerLive(lookahead: CameraPreviewOptions.motion3DLookahead,
+                                            cadence: CameraPreviewOptions.motion3DCadence,
+                                            predict: MotionAGFormerCoreML.predictor(xs))
+                formTracker?.common.form3DRequired = true
+            } catch {
+                statusText = "Failed to load MotionAGFormer-XS: \(error.localizedDescription)"
+                return
+            }
+        }
+
+        let handEnabled = (CameraPreviewOptions.enableMotion3DForCamera && CameraPreviewOptions.motion3DWristFromHands)
+            || exercise.handBranchEnabled(override: CameraPreviewOptions.handBranchOverride)
         if handEnabled {
             handLandmarkers = MediaPipeHandLandmarkerPair()
             print("CameraPosePreview hand landmarkers initialized: \(handLandmarkers?.statusDescription ?? "nil")")
@@ -349,7 +399,7 @@ final class CameraPoseViewModel: ObservableObject {
         startPerfLog()
         captureManager.start()
         statusText = "Running"
-        print("CameraPosePreview started exercise=\(exercise.rawValue) hand=\(handEnabled) 3d=\(CameraPreviewOptions.enableMotion3DForCamera)")
+        print("CameraPosePreview started exercise=\(exercise.rawValue) hand=\(handEnabled) 3d=\(lifter != nil) lookahead=\(CameraPreviewOptions.motion3DLookahead) cadence=\(CameraPreviewOptions.motion3DCadence) async=\(CameraPreviewOptions.motion3DAsync)")
     }
 
     private nonisolated func processFrame(
@@ -362,6 +412,7 @@ final class CameraPoseViewModel: ObservableObject {
     ) {
         autoreleasepool {
             do {
+                let arrivedAt = CACurrentMediaTime()
                 let timestampMs = Self.timestampMs(sampleBuffer, fallback: frameIdx)
                 let cgImage = try Self.cgImageFromSampleBuffer(sampleBuffer, ciContext: ciContext)
                 guard let estimate = try cropTracker.estimate(cgImage, model: rtmpose, workspace: workspace,
@@ -403,7 +454,7 @@ final class CameraPoseViewModel: ObservableObject {
                     useMediaPipeWrist: CameraPreviewOptions.useMediaPipeWristFor2DBodyOverlay
                 )
 
-                let result = CameraProcessingResult(
+                var result = CameraProcessingResult(
                     frameIndex: frameIdx,
                     imageWidth: Double(cgImage.width),
                     imageHeight: Double(cgImage.height),
@@ -415,10 +466,39 @@ final class CameraPoseViewModel: ObservableObject {
                     ),
                     handResults: handResults
                 )
+                result.arrivedAt = arrivedAt
 
-                Task { @MainActor [weak self] in
-                    self?.handleProcessingResult(result)
+                guard lifter != nil else {
+                    Task { @MainActor [weak self] in
+                        self?.handleProcessingResult(result)
+                    }
+                    return
                 }
+                // 3D path: the XS input gets the MediaPipe wrists (same frame, computed above); the overlay shows the
+                // 2D at once, the evaluators get frame t with its own 3D `lookahead` frames later.
+                let point = { (hand: HandLandmarkResult?) in hand?.wristFramePoint.map { PosePoint(x: $0.x, y: $0.y) } }
+                let wrists = CameraPreviewOptions.motion3DWristFromHands
+                    ? MotionAGFormerWristSource.input(raw: rawCoco17, left: point(leftHand), right: point(rightHand))
+                    : MotionAGFormerWristSource.Result(input: rawCoco17)
+                result.wristsReplaced = (wrists.replacedLeft, wrists.replacedRight)
+                perfLog?.sample("pose2d_hands", ms: (CACurrentMediaTime() - arrivedAt) * 1000)
+                let shown = result
+                Task { @MainActor [weak self] in self?.showFrame(shown) }
+                let lift = { [weak self] in
+                    guard let self else { return }
+                    let t0 = CACurrentMediaTime()
+                    do {
+                        let ready = try self.lifter?.push(frameIndex: frameIdx, coco17: wrists.input, imageWidth: cgImage.width,
+                                                          imageHeight: cgImage.height, payload: shown) ?? []
+                        self.perfLog?.sample("lift3d", ms: (CACurrentMediaTime() - t0) * 1000)
+                        Task { @MainActor [weak self] in
+                            for (r, frame3D) in ready { self?.handleLifted(r, frame3D) }
+                        }
+                    } catch {
+                        print("CameraPosePreview 3D error frame=\(frameIdx): \(error)")
+                    }
+                }
+                if CameraPreviewOptions.motion3DAsync { liftQueue.async(execute: lift) } else { liftQueue.sync(execute: lift) }
             } catch {
                 if frameIdx % CameraPreviewOptions.debugLogEveryNFrames == 0 {
                     print("CameraPosePreview frame processing error: \(error)")
@@ -427,10 +507,44 @@ final class CameraPoseViewModel: ObservableObject {
         }
     }
 
+    /// Overlay only (3D path): the newest 2D right away, status/rep from the last judged frame.
+    @MainActor
+    private func showFrame(_ result: CameraProcessingResult) {
+        currentFrame = CameraFrameData(
+            id: result.frameIndex, frameIndex: result.frameIndex, imageWidth: result.imageWidth,
+            imageHeight: result.imageHeight, coco17: result.visualCoco17, rawCoco17: result.rawCoco17,
+            handResults: result.handResults, exerciseTitle: exercise.displayName,
+            statusText: lastReportedStatus ?? "", rep: lastReportedRep ?? 0, done: lastReportedDone ?? false)
+    }
+
+    /// 3D path: frame t with its own 2D and 3D (state never hidden: it goes to the evaluators and to Flutter).
+    @MainActor
+    private func handleLifted(_ result: CameraProcessingResult, _ frame3D: Lifted3DFrame) {
+        let t0 = CACurrentMediaTime()
+        let (statusText, rep, done) = runEvaluator(frameIndex: result.frameIndex, rawCoco17: result.rawCoco17,
+                                                   feet: result.feet, pose3D: frame3D.pose3D, pose3DState: frame3D.state)
+        let now = CACurrentMediaTime()
+        perfLog?.sample("evaluate", ms: (now - t0) * 1000)
+        perfLog?.sample("latency_input_to_judgement", ms: (now - result.arrivedAt) * 1000)
+        perfLog?.judged()
+        let pose3D = Pose3DBridge.payload(frame3D)
+        let pose3DKey = "\(frame3D.state.rawValue)/\(frame3D.state == .warmingUp ? frame3D.filled : 0)"
+        if rep != lastReportedRep || statusText != lastReportedStatus || done != lastReportedDone || pose3DKey != lastReportedPose3D {
+            lastReportedRep = rep
+            lastReportedStatus = statusText
+            lastReportedDone = done
+            lastReportedPose3D = pose3DKey
+            bridge?.sendUpdate(rep: rep, status: statusText, done: done, pose3d: pose3D)
+        }
+        if result.frameIndex % CameraPreviewOptions.debugLogEveryNFrames == 0 {
+            print("CameraPosePreview frame=\(result.frameIndex) status=\(statusText) rep=\(rep) 3d=\(frame3D.state.rawValue) row=\(frame3D.row.map(String.init) ?? "-") wrists=\(result.wristsReplaced)")
+        }
+    }
+
     @MainActor
     private func handleProcessingResult(_ result: CameraProcessingResult) {
         let (statusText, rep, done) = self.runEvaluator(frameIndex: result.frameIndex, rawCoco17: result.rawCoco17,
-                                                        feet: result.feet)
+                                                        feet: result.feet, pose3D: nil, pose3DState: nil)
 
         let frameData = CameraFrameData(
             id: result.frameIndex,
@@ -461,36 +575,36 @@ final class CameraPoseViewModel: ObservableObject {
         }
     }
 
-    private func runEvaluator(frameIndex: Int, rawCoco17: [PoseKeypoint],
-                              feet: FootKeypoints?) -> (status: String, rep: Int, done: Bool) {
+    private func runEvaluator(frameIndex: Int, rawCoco17: [PoseKeypoint], feet: FootKeypoints?,
+                              pose3D: [SIMD3<Double>]?, pose3DState: Pose3DState?) -> (status: String, rep: Int, done: Bool) {
         switch exercise {
         case .deadlift:
             if let eval = deadliftEvaluator {
-                let r = eval.evaluate(frameIndex: frameIndex, coco17: rawCoco17)
+                let r = eval.evaluate(frameIndex: frameIndex, coco17: rawCoco17, pose3D: pose3D, pose3DState: pose3DState)
                 reportForm()
                 return (r.status.rawValue, r.rep, r.done)
             }
         case .benchPress:
             if let eval = benchPressEvaluator {
-                let r = eval.evaluate(frameIndex: frameIndex, coco17: rawCoco17)
+                let r = eval.evaluate(frameIndex: frameIndex, coco17: rawCoco17, pose3D: pose3D, pose3DState: pose3DState)
                 reportForm()
                 return (r.status.rawValue, r.rep, r.done)
             }
         case .squat:
             if let eval = squatEvaluator {
-                let r = eval.evaluate(frameIndex: frameIndex, coco17: rawCoco17, feet: feet)
+                let r = eval.evaluate(frameIndex: frameIndex, coco17: rawCoco17, pose3D: pose3D, pose3DState: pose3DState, feet: feet)
                 reportForm()
                 return (r.status.rawValue, r.rep, r.done)
             }
         case .barbellRow:
             if let eval = barbellRowEvaluator {
-                let r = eval.evaluate(frameIndex: frameIndex, coco17: rawCoco17)
+                let r = eval.evaluate(frameIndex: frameIndex, coco17: rawCoco17, pose3D: pose3D, pose3DState: pose3DState)
                 reportForm()
                 return (r.status.rawValue, r.rep, r.done)
             }
         case .pushUp:
             if let eval = pushUpEvaluator {
-                let r = eval.evaluate(frameIndex: frameIndex, coco17: rawCoco17)
+                let r = eval.evaluate(frameIndex: frameIndex, coco17: rawCoco17, pose3D: pose3D, pose3DState: pose3DState)
                 reportForm()
                 return (r.status.rawValue, r.rep, r.done)
             }

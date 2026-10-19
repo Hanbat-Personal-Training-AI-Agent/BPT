@@ -25,7 +25,13 @@ final class MotionAGFormerLiveTests: XCTestCase {
         let image_size: [Int]
         let coco17: [[[Double]]]
         let fake: [Run]
+        struct WristCase: Decodable {
+            let raw: [[Double]]
+            let mediapipe: [String: [Double]]
+            let input: [[Double]]
+        }
         let coreml: Run?
+        let wrist: [WristCase]
     }
 
     static let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
@@ -106,6 +112,35 @@ final class MotionAGFormerLiveTests: XCTestCase {
         let (got, _) = try run(f, lookahead: 5, cadence: 1, predict: MotionAGFormerCoreML.predictor(model))
         // fp16 output + float32 (Python) vs double (Swift) input normalisation: max seen 0.0076 crop units (~0.8% of body height).
         compare(got, want, accuracy: 1e-2)
+    }
+
+    func testWristSourceParity() throws {
+        for c in try fixture().wrist {
+            let raw = c.raw.map { PoseKeypoint(x: $0[0], y: $0[1], confidence: $0[2]) }
+            let point = { (side: String) in c.mediapipe[side].map { PosePoint(x: $0[0], y: $0[1]) } }
+            let got = MotionAGFormerWristSource.input(raw: raw, left: point("left"), right: point("right"))
+            for (g, w) in zip(got.input, c.input) {
+                XCTAssertEqual(g.x, w[0], accuracy: 1e-3)
+                XCTAssertEqual(g.y, w[1], accuracy: 1e-3)
+                XCTAssertEqual(g.confidence, w[2], accuracy: 1e-6, "RTMPose confidence kept")
+            }
+        }
+    }
+
+    /// Flutter gets the state in every case; `usable` only when the evaluators judge with that 3D.
+    func testBridgePayloadPerState() {
+        let pose = [SIMD3<Double>](repeating: .zero, count: 17)
+        for (state, filled, has3D, usable) in [(Pose3DState.warmingUp, 12, false, false), (.trackingLost, 0, false, false),
+                                               (.bad3D, 27, true, false), (.ok, 27, true, true)] {
+            let frame = Lifted3DFrame(frameIndex: 0, state: state, filled: filled, raw: has3D ? pose : nil,
+                                      pose3D: has3D ? pose : nil, constraints: nil, row: has3D ? 21 : nil)
+            let p = Pose3DBridge.payload(frame)
+            XCTAssertEqual(p["state"] as? String, state.rawValue)
+            XCTAssertEqual(p["filled"] as? Int, filled)
+            XCTAssertEqual(p["window"] as? Int, 27)
+            XCTAssertEqual(p["usable"] as? Bool, usable)
+            XCTAssertEqual(frame.usable3D != nil, usable)
+        }
     }
 
     func testStatesAndTimeAlignment() throws {

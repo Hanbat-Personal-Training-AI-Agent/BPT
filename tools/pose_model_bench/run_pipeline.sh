@@ -28,7 +28,7 @@ if [[ $1 == setup ]]; then
   exit
 fi
 if [[ $1 == mp ]]; then
-  ENV=$(python3 -c "import json,sys; print(json.dumps(dict(zip(['BENCH_MP','BENCH_MP_MODEL','BENCH_MP_DELEGATE','BENCH_SECONDS','BENCH_COOLDOWN'], sys.argv[1:]), BENCH_PIPELINE='1')))" \
+  ENV=$(conda run -n bpt-eval python -c "import json,sys; print(json.dumps(dict(zip(['BENCH_MP','BENCH_MP_MODEL','BENCH_MP_DELEGATE','BENCH_SECONDS','BENCH_COOLDOWN'], sys.argv[1:]), BENCH_PIPELINE='1')))" \
     $2 ${3:-pose_landmarker_full} ${4:-gpu} ${5:-150} ${6:-0})
   xcrun devicectl device process launch --console --terminate-existing --environment-variables "$ENV" \
     --device $DEV com.bpt.posebench.PoseModelBenchHost 2>&1 | grep --line-buffered BENCH
@@ -38,11 +38,13 @@ case $1 in
   a) V='{}' ;;
   b) V='{"BENCH_RECORD":"1"}' ;;
   c) V='{"BENCH_3D":"1"}' ;;
+  g) V="{\"BENCH_MODEL\":\"rtmpose_m_forward\",\"BENCH_3D\":\"1\",\"BENCH_HANDS\":\"1\",\"BENCH_3D_ASYNC\":\"${BPT_3D_ASYNC:-1}\",\"BENCH_3D_CADENCE\":\"${BPT_3D_CADENCE:-1}\"}" ;;  # lift-app: m + hands + live XS + 3D judgement
+  h) V='{"BENCH_MODEL":"rtmpose_m_forward"}' ;;  # lift-app baseline: m, 2D only, no hands
   d) V='{"BENCH_MODEL":"rtmpose_m_forward"}' ;;
   f) V='{"BENCH_MODEL":"rtmpose_m_halpe26_forward"}' ;;
   e) V="{\"BENCH_MODEL\":\"pose_landmarker_full\",\"BENCH_MP_DELEGATE\":\"${BPT_MP_DELEGATE:-gpu}\"}" ;;
-  *) echo "variant a|b|c|d|e|f"; exit 2 ;;
+  *) echo "variant a|b|c|d|e|f|g|h"; exit 2 ;;
 esac
-ENV=$(python3 -c "import json,sys; v=json.loads(sys.argv[1]); v.update(BENCH_PIPELINE='1', BENCH_PACED='1' if sys.argv[2]=='paced' else '0', BENCH_SECONDS=sys.argv[3], BENCH_COOLDOWN=sys.argv[4]); print(json.dumps(v))" "$V" $2 ${3:-180} ${4:-60})
+ENV=$(conda run -n bpt-eval python -c "import json,sys; v=json.loads(sys.argv[1]); v.update(BENCH_PIPELINE='1', BENCH_PACED='1' if sys.argv[2]=='paced' else '0', BENCH_SECONDS=sys.argv[3], BENCH_COOLDOWN=sys.argv[4]); print(json.dumps(v))" "$V" $2 ${3:-180} ${4:-60})
 xcrun devicectl device process launch --console --terminate-existing --environment-variables "$ENV" \
   --device $DEV com.bpt.posebench.PoseModelBenchHost 2>&1 | grep --line-buffered BENCH
