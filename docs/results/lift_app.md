@@ -79,6 +79,8 @@
 
 **Fit3D·Exercise3D 정상 렙의 오경보(3d 모드)**: Ex3D 스쿼트 squat_knee_valgus 2D 1렙 → 3D 20렙/120, no_lockout 8 → 7; 푸시업 no_lockout 18 → 6, head_up 6 → 0; 로우 head_up 6 → 0. MM-Fit 푸시업: no_lockout 58 → 35, hip_sag 34 → 2, head_up 25 → 5(판정 가능 렙 128/174 기준). Fit3D의 종단(앱 경로) 판정은 **측정 안 함** — Fit3D는 S1–S5로 3D 정확도만 잼.
 
+**최종 코드(0dda987: 2D 높이·스쿼트만 무릎 반사)로 다시 돌린 값**(Home `~/bpt-runs/lift-app/20261020-e2e-0dda987`): 위 표와 거의 같다 — 렙 수 차이 0, 상태 비율 ±0.3%p(공개 스쿼트 bad_3d 0.4 → 0.1%), 공개 검증 자세 키는 squat_knee_valgus 오경보 43 → 44%만 달라짐, 나머지 키의 검출·오경보는 같음. 반사는 스쿼트에서만 켜서 푸시업 bad_3d(MM-Fit 25.8%, 공개 11.4%)는 그대로다.
+
 **cadence 2·제약 끔**: 3d_c2는 상태·판정이 3d와 거의 같다(MM-Fit 같은 키 95 vs 93/128, Ex3D 판정 렙 ±2). 3d_raw(제약 끔)는 bad_3d가 0이라 모든 렙을 판정하고(MM-Fit 174/174), MM-Fit hip_sag 19렙 등 3d보다 키가 많다 — 원출력의 품질 문제를 판정에 그대로 넣는 셈.
 
 
