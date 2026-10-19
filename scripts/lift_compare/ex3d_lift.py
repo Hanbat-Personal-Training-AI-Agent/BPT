@@ -18,7 +18,7 @@ sys.path[:0] = [str(Path(__file__).resolve().parents[2]), str(Path(__file__).res
 from eval_3d_angles import EX3D_NAMES  # noqa: E402
 from eval_3d_mediapipe import angles, procrustes  # noqa: E402
 from finetune_motionagformer_fit3d import app_predict, load  # noqa: E402
-from lift_eval import ang_metrics, h36m_inputs, normalise  # noqa: E402
+from lift_eval import FiLMLifter, ang_metrics, h36m_inputs, normalise  # noqa: E402
 
 EXNAME = {'squat': 'squat', 'pushup': 'pushup', 'barbellrow': 'barbell_row'}
 HELD = {'squat_0002', 'barbellrow_0001', 'barbellrow_0003'}
@@ -42,10 +42,16 @@ def main():
     p = argparse.ArgumentParser()
     p.add_argument('--labels', required=True); p.add_argument('--runs', required=True); p.add_argument('--out', required=True)
     p.add_argument('--mag-repo', default=os.path.expanduser('~/models/MotionAGFormer'))
+    p.add_argument('--ftd', default=None); p.add_argument('--shapes', default=None)
+    p.add_argument('--only-ftd', action='store_true', help='run only the D-D-08 d lifter (crop)')
     a = p.parse_args()
     import torch
     dev = 'cuda' if torch.cuda.is_available() else 'cpu'
     model = load(a.mag_repo, f'{a.mag_repo}/checkpoint/motionagformer-xs-h36m.pth.tr', dev)[0].eval()
+    lifters = {} if a.only_ftd else {'orig': (lambda X, seq: app_predict(model, X, dev), ('crop', 'screen'))}
+    if a.ftd:
+        ftd, shapes = FiLMLifter.make(a.mag_repo, a.ftd, dev), json.load(open(a.shapes))
+        lifters['ftd'] = (lambda X, seq: FiLMLifter.predict(ftd, X, shapes[seq]['calibrated_cm'], dev), ('crop',))
     gt = json.load(open(f'{a.labels}/gt.json')); L = f'{a.labels}/exercise3d_labels'; out = []
     for cfg, d in (x.split('=') for x in a.runs.split(',')):
         for seq, g in gt.items():
@@ -74,11 +80,13 @@ def main():
                 inp = h36m_inputs({'coco': Kc[:n, :17], 'halpe': Kh[:n]}, None)
                 for key, (xy, cf) in inp.items():
                     for norm in ('crop', 'screen'):
-                        x, _ = normalise(xy, cf, norm, w, h)
-                        P = app_predict(model, np.concatenate([x, cf[..., None]], -1).astype(np.float32), dev).astype(float)
-                        P = P - P[:, :1]
+                      x, _ = normalise(xy, cf, norm, w, h)
+                      X = np.concatenate([x, cf[..., None]], -1).astype(np.float32)
+                      for lname, (fn, norms) in lifters.items():
+                        if norm not in norms: continue
+                        P = fn(X, seq).astype(float); P = P - P[:, :1]
                         pa = np.linalg.norm(procrustes(P[:, PA_JOINTS], G[:, PA_JOINTS]) - G[:, PA_JOINTS], axis=-1).mean(-1) / torso * 100
-                        res['m3d'][f'{key}|{norm}|raw'] = dict(pa=float(np.nanmean(pa)), ang=ang_metrics(angles(P, side, up_c), ref, seg))
+                        res['m3d'][f'{key}|{norm}|raw' if lname == 'orig' else f'{lname}|{key}|{norm}|raw'] = dict(pa=float(np.nanmean(pa)), ang=ang_metrics(angles(P, side, up_c), ref, seg))
                 print(cfg, stem, round(v['angle_deg']), {k: round(r['pa']) for k, r in res['m3d'].items() if '|crop' in k}, flush=True)
                 out.append(res)
     json.dump(out, open(a.out, 'w'))
