@@ -16,7 +16,7 @@ from collections import deque
 import numpy as np
 
 from pose_feedback.geometry.bone_lengths import H36M17_PARENTS, MIN_BONE_LENGTH, SEGMENT_NAMES, apply_bone_lengths
-from pose_feedback.geometry.hinge_limit import clamp_knee_hyperextension, is_bad_3d
+from pose_feedback.geometry.hinge_limit import clamp_knee_hyperextension, is_bad_3d, knee_theta_deg
 
 # Relative segment lengths for the first session_min_frames frames (only ratios matter): Fit3D mocap, 8 subjects,
 # upper arm / thigh 0.60-0.63, forearm / thigh 0.54-0.57, shin / thigh 0.95-1.06 (docs/results/lift_app.md S2).
@@ -78,12 +78,14 @@ def clamp_angle(j, limit):
 class Pose3DConstraints:
     def __init__(self, enabled=True, bone_lengths=True, calibration_targets_cm=None, knee_correction=False,
                  knee_limit_deg=30.0, angle_limits=DEFAULT_ANGLE_LIMITS, bad_angle_deg=20.0, bad_bone_fraction=None,
+                 reflect_flipped_knee=True,
                  session_min_frames=30, session_window_frames=300, prior_lengths=None):
         self.enabled = enabled
         self.bone_lengths = bone_lengths
         self.calibration_targets_cm = calibration_targets_cm
         self.knee_correction = knee_correction
         self.knee_limit_deg = knee_limit_deg
+        self.reflect_flipped_knee = reflect_flipped_knee
         self.angle_limits = angle_limits
         self.bad_angle_deg = bad_angle_deg
         self.bad_bone_fraction = bad_bone_fraction
@@ -110,7 +112,7 @@ class Pose3DConstraints:
         """Return (joints [17,3] float64, report dict)."""
         j = np.asarray(joints_3d, dtype="float64").copy()
         report = {"bone_max_correction": 0.0, "bone_source": "none", "knee_hyperextended": False,
-                  "knee_correction_deg": 0.0, "angle_corrections": {}, "bad": False}
+                  "knee_correction_deg": 0.0, "knees_reflected": 0, "angle_corrections": {}, "bad": False}
         if not self.enabled:
             return j, report
         if self.bone_lengths:
@@ -125,6 +127,19 @@ class Pose3DConstraints:
             corr = [abs(s["output"] - s["observed"]) / max(s["observed"], MIN_BONE_LENGTH)
                     for s in bones["segments"].values() if s["constrained"]]
             report["bone_max_correction"] = max(corr) if corr else 0.0
+        if self.reflect_flipped_knee:
+            # Knee depth flip (lift_app.md S3): reflect the knee across the hip-ankle line (interior angle, lengths kept).
+            for leg, (hip, knee, ankle) in (("right", (1, 2, 3)), ("left", (4, 5, 6))):
+                theta = knee_theta_deg(j, leg)
+                if theta is None or theta >= -self.knee_limit_deg:
+                    continue
+                line = j[ankle] - j[hip]
+                if np.linalg.norm(line) <= 1e-9:
+                    continue
+                a = line / np.linalg.norm(line)
+                v = j[knee] - j[hip]
+                j[knee] = j[hip] + 2 * a * float(np.dot(v, a)) - v
+                report["knees_reflected"] += 1
         out, hinge = clamp_knee_hyperextension(j, limit_deg=self.knee_limit_deg, enabled=self.knee_correction)
         j = np.asarray(out, dtype="float64").copy()
         report["knee_hyperextended"] = is_bad_3d(hinge)

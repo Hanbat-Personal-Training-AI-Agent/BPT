@@ -70,6 +70,7 @@ def run(predict, frames, lookahead, cadence):
             "bone_max_correction": None if c is None else c["bone_max_correction"],
             "bone_source": None if c is None else c["bone_source"],
             "angle_corrections": None if c is None else c["angle_corrections"],
+            "knees_reflected": None if c is None else c["knees_reflected"],
         })
     return {"lookahead": lookahead, "cadence": cadence, "inferences": live.inferences, "frames": rows}
 

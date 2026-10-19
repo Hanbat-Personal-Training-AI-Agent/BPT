@@ -69,3 +69,22 @@ def test_constraints_clamp_knee_and_keep_bone_lengths():
         assert abs(ang - 41.0) < 1e-6
         assert abs(np.linalg.norm(v) - 0.4) < 1e-9
     assert abs(report["angle_corrections"]["left_knee_flexion"] - 31.0) < 1e-6 and report["bad"]  # 10 -> 41 deg: moved 31 > 20
+
+
+def test_flipped_knee_is_reflected_not_discarded():
+    from pose_feedback.geometry.hinge_limit import knee_theta_deg
+    j = np.zeros((17, 3))
+    j[1], j[4] = [-0.1, 0, 0], [0.1, 0, 0]
+    j[8] = [0, -0.5, 0]
+    j[7] = j[8] / 2
+    for hip, knee, ankle in ((1, 2, 3), (4, 5, 6)):
+        j[ankle] = j[hip] + [0, 0.85, 0]
+        j[knee] = j[hip] + [0, 0.45, 0.0]
+    j[2][2] = 0.12  # right knee pushed the "wrong" way in depth: hyperextension-looking theta
+    before = knee_theta_deg(j, "right")
+    assert before < -30
+    out, report = Pose3DConstraints(bone_lengths=False).apply(j)
+    assert report["knees_reflected"] == 1 and not report["bad"]
+    assert knee_theta_deg(out, "right") > 30
+    for p in (1, 3):
+        assert abs(np.linalg.norm(out[2] - out[p]) - np.linalg.norm(j[2] - j[p])) < 1e-9

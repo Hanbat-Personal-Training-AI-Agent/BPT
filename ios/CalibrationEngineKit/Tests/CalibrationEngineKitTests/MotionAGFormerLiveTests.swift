@@ -15,6 +15,7 @@ final class MotionAGFormerLiveTests: XCTestCase {
             let pose3d: [[Double]]?
             let bone_max_correction: Double?
             let angle_corrections: [String: Double]?
+            let knees_reflected: Int?
         }
         struct Run: Decodable {
             let lookahead: Int
@@ -85,6 +86,7 @@ final class MotionAGFormerLiveTests: XCTestCase {
             if let c = g.constraints, let bone = w.bone_max_correction {
                 XCTAssertEqual(c.boneMaxCorrection, bone, accuracy: accuracy * 10, "frame \(w.frame)", file: file, line: line)
                 XCTAssertEqual(Set(c.angleCorrections.keys), Set((w.angle_corrections ?? [:]).keys), "frame \(w.frame)", file: file, line: line)
+                XCTAssertEqual(c.kneesReflected, w.knees_reflected ?? 0, "frame \(w.frame)", file: file, line: line)
             }
         }
     }

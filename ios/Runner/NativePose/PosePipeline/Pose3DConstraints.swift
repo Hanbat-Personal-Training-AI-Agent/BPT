@@ -26,6 +26,8 @@ struct Pose3DConstraints {
         var boneSource = "none"
         var kneeHyperextended = false
         var kneeCorrectionDegrees = 0.0
+        /// Legs whose knee was reflected across the hip–ankle line (depth flip fixed; interior angle and bone lengths kept).
+        var kneesReflected = 0
         /// name → degrees moved (only limits that fired).
         var angleCorrections: [String: Double] = [:]
         var bad = false
@@ -50,6 +52,10 @@ struct Pose3DConstraints {
     /// Knee θ < −30°: XS put the knee depth on the wrong side (S3: 100% of flagged legs; mocap never below −7°).
     /// Detection only — correction changed the knee error by 0.2° (S5 e), and the interior angle is usually still right.
     var knee = KneeHingeLimit.Config(enabled: false, limitDegrees: 30)
+    /// Knee depth flip fix (S3: in 100% of flagged legs the XS knee sits on the wrong side of the hip–ankle line in depth):
+    /// reflect the knee across that line, so θ turns positive with the same interior angle and segment lengths. The frame
+    /// then stays usable. false = detection only (the flip marks bad3D). 제안값 — Fit3D 검증 결과는 lift_app.md.
+    var reflectFlippedKnee = true
     var angleLimits: [AngleLimit] = Pose3DConstraints.defaultAngleLimits
     /// bad3D: an angle limit had to move a joint more than this, or the knee depth flipped. 제안값(사용자 미승인).
     var badAngleDegrees = 20.0
@@ -107,6 +113,17 @@ struct Pose3DConstraints {
                 .map { abs($0.output - $0.observed) / max($0.observed, BoneLengthConstraint.minBoneLength) }.max() ?? 0
         }
 
+        if reflectFlippedKnee {
+            for (hip, kneeJoint, ankle) in [(1, 2, 3), (4, 5, 6)] {
+                guard let (theta, _) = KneeHingeLimit.kneeTheta(joints, hip: hip, knee: kneeJoint, ankle: ankle),
+                      theta < -knee.limitDegrees else { continue }
+                let line = joints[ankle] - joints[hip]
+                guard simd_length(line) > 1e-9 else { continue }
+                let a = simd_normalize(line), v = joints[kneeJoint] - joints[hip]
+                joints[kneeJoint] = joints[hip] + 2 * a * simd_dot(v, a) - v
+                report.kneesReflected += 1
+            }
+        }
         let hinge = KneeHingeLimit.apply(joints, config: knee)
         joints = hinge.joints
         report.kneeHyperextended = hinge.bad3D
