@@ -920,3 +920,20 @@
 - **사용자 결정**: 운동 기본은 RTMPose-m COCO17 유지. Halpe26의 최종 채택·기각은 **결정하지 않음**(보류). 위 D-T3-17 판정 규칙과 D-T3-18 "결정"은 에이전트가 정한 것으로 사용자 승인을 받지 않았음 — 공식 채택 기준이 아니라 실험 기록으로만 봄.
 - **앱 구성**: m Halpe26(`rtmpose_m_halpe26_forward.mlpackage`, 27.8 MB)을 Runner 번들·pbxproj·`RTMPoseModel`에서 뺌(사용자 지시). 실험용 사본은 git 밖 `~/bpt-models/rtmpose_m_halpe26_forward.mlpackage`, 결과는 `docs/results/halpe_decision.md` 그대로. 재실험: pose-replay `--model halpe26 --model-path ~/bpt-models/rtmpose_m_halpe26_forward.mlpackage`, iPhone 속도는 벤치 앱 `run_pipeline.sh f`(extra models). s Halpe26은 10/9 사용자 지시("설정으로 켤 수 있게 유지")대로 남김.
 - **w20_s3 원인**: "사람 추적 실패"는 **검증 안 된 가설**(신뢰도·상태만 관찰). 같은 crop·검증된 bbox·프레임별 분석으로 원인 분리 중 — 결과 전에는 Halpe26 결론 없음.
+
+## 트랙 lift-compare — 2D 모델(COCO17 vs Halpe26)이 MotionAGFormer-XS 3D에 주는 영향 — 2026-10-19/20
+
+### D-T3-22 Halpe26 vs COCO17의 3D 리프팅 영향 (발견과 추천만, 결정 아님)
+- 상세 `docs/results/lift_compare.md`, 사전 등록 `docs/results/lift_compare_plan.md`(제안, 미승인), 제약용 통계 `docs/results/lift_compare_priors.md`. 실행 기록 Home `~/bpt-runs/lift-compare/<run-id>/manifest.json`. 채택·기각·앱 변경·병합 없음.
+- **실험 A(같은 RTMDet 상자, PyTorch), Fit3D 모캡 정답, 검증 s07–s11, 사선 56–75°** [Fit3D·verified 3D]:
+  - 원래 H36M XS: Halpe26(변형 a = COCO 부분, 지금 앱 방식) − COCO17 = MPJPE −1.8 ~ −3.9 mm, P-MPJPE −2.2 ~ −4.4 mm(피험자 묶음 부트스트랩 95% CI가 0 미만; 상자 규칙 3 × 정규화 2 중 P-MPJPE 6/6, MPJPE 5/6이 사전 규칙상 "차이 있음"). 관절 각도 렙 극값·ROM·떨림은 구별 불가.
+  - Fit3D 미세조정 XS(D-D-08 d, 그리고 D-D-06 재현 s05 폴드): 차이 구별 불가(MPJPE −1.5 ~ +0.4 mm, CI가 0 포함).
+  - 변형 b(Halpe 19/18/17을 골반·흉곽·머리로): 모든 리프터에서 나빠짐(MPJPE +6 ~ +11 mm).
+  - MediaPipe 손목 교체: 구별 불가, 방향은 조금 나쁨(+0.3 ~ +1.3 mm, 2D 손목 오차·떨림 증가).
+  - lift-app 제약(ed67a6e)·Fit3D 한계 제약: 위치 ±1–2 mm, 떨림 +0.1–0.5, 각도 거의 그대로.
+- **더 큰 요인**: 리프터(원래 113–156 → 미세조정 52 mm)와 원래 XS의 정규화(앱 crop 156 → 학습 설정 screen 113 mm, Fit3D 정사각 영상; Exercise3D 세로 영상에서는 반대로 crop이 나음).
+- **2D**: Halpe26이 팔꿈치·손목·무릎 오차 4–12%, 떨림 15–23%, 끊김 0.25–0.6배로 낫고 발목은 같음. 두 모델 모두 엉덩이가 모캡(H36M) 고관절보다 몸통 길이 0.18–0.19 아래(정의 오프셋).
+- Exercise3D [의사 정답·unverified·비독립]: 측면에서 Halpe26 P-MPJPE −0.6 ~ −0.8 %p, 정면 +2.2 ~ +3.2 %p(실험 A·B 같은 방향). 정확도 주장 아님.
+- **재감사**: D-D-07 원래 XS — 스쿼트·로우 정확히 재현, 푸시업 재현 안 됨(원인 미증명, 당시 CSV 삭제). D-D-07 미세조정·D-D-06 가중치 없음 → D-D-06 레시피 재현(입력은 m COCO17로 다름): 46.2 / 52.7 mm vs 기록 50.3 / 67.0 mm → 수치 재현 안 됨, 방향 같음. Core ML 변환 동등성 ALL 0.22–0.23%.
+- **추천(사용자 결정 아님)**: (1) 3D 정확도만으로는 Halpe26 전환 근거가 약하다(원래 XS에서 2–4 mm, 미세조정 XS에서 0). Halpe26을 고른다면 이유는 2D 안정성·발뒤꿈치이고 3D는 중립. (2) 변형 b 매핑은 쓰지 않는다. (3) 3D 정확도를 올리려면 2D 모델보다 리프터(미세조정)와 정규화(학습 분포에 맞춘 crop 크기)를 먼저 본다. (4) 측면 3D 정답 데이터 확보가 필요(측면은 평가 불가).
+- **평가 불가 / 측정 안 함**: 측면 3D 정확도(Fit3D에 측면 카메라 없음), 자세 오류 검출(라벨 없음), iPhone FPS·종단 지연(ai/lift-app), Fit3D 앱 경로 Halpe26, 공개·MM-Fit 3D(정답 없음).
