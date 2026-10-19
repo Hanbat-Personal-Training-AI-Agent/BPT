@@ -256,7 +256,7 @@ lift_app_plan.md (a)절: 3D 코드 재고(a2), 키 목록·2D/3D 구분(a3), 2D 
 
 테스트: Swift `MotionAGFormerLiveTests`(가짜 모델 4개 설정·Core ML XS 패리티, 손목 교체 패리티, 상태·시간 정렬, 브리지 상태별), `FormWarningsTests.testForm3DRequiredUses3DAndNeverFallsBackTo2D`, Python `tests/test_live_motionagformer_stream.py`(오프라인 `run_live_motionagformer_sequence`와 워밍업 뒤 프레임 동일 — 이 테스트가 flush 창 부호 버그를 잡음), Dart `native_pose_channel_test`. Core ML 패리티 최대 차 0.0076 crop 단위(fp16 출력 + Python float32 / Swift double 정규화).
 
-## 회귀 (ai/lift-app 9196bb9)
-- swift test(CalibrationEngineKit) 108 통과(기준 101 + 7: Live 패리티 4·브리지 상태·3D 판정·중력 매핑), pytest(bpt-eval) 195 통과(+3), flutter test 80 통과(+1).
+## 회귀 (ai/lift-app a87457c)
+- swift test(CalibrationEngineKit) 109 통과(기준 101 + 8: Live 패리티 4·브리지 상태·3D 판정·중력 매핑·3D 렙 지표 패리티), pytest(bpt-eval) 198 통과(+6), flutter test 80 통과(+1). 기기용 빌드 `flutter build ios --debug --no-codesign` 성공, 시뮬레이터 빌드는 아래 이유로 계속 실패.
 - 시뮬레이터 빌드: `192ad47`에서 `flutter build ios --simulator --debug` 성공(17:20). 18:05에 Mac의 Xcode가 27.1로 바뀐 뒤로는 시뮬레이터 빌드가 Flutter의 `Prepare Flutter Framework Script`에서 실패한다 — 새 `lipo -verify_arch arm64 x86_64 <파일>`이 “requires exactly one input file”로 거부(같은 `lipo` 명령을 그 Flutter.framework에 직접 실행해도 실패함을 확인 — 이 브랜치 코드와 무관한 도구 문제로 판단, 다른 브랜치에서의 재현은 하지 않음). 대신 `flutter build ios --debug --no-codesign`(기기용, 단일 아키텍처라 검사 통과)으로 최종 코드 전체 컴파일 성공, iPhone 벤치 앱(Release, 같은 PosePipeline·Evaluators·Bridge·Hands 소스)도 빌드·실행 성공.
 - 서버 테스트: 이 브랜치는 server/ 를 바꾸지 않아 **측정 안 함**.
