@@ -17,3 +17,4 @@
 - 기기(iPhone) 측정: 앱 실행이 코드 서명 신뢰 문제로 거부되어 미측정(사용자가 기기에서 개발자 프로필 신뢰 필요).
 - 2026-10-19 14:01:43 완료: public m0.8 halpe26 --only-lost (manifest out/public/m0.8/manifest_halpe26.json, Home ~/bpt-runs/reacquire/public__m0.8/)
 - 2026-10-19 14:31:29 완료: public det mcoco17 --only-lost (manifest out/public/det/manifest_mcoco17.json, Home ~/bpt-runs/reacquire/public__det/)
+- 2026-10-19 16:16:59 완료: public det halpe26 --only-lost (재부팅 뒤 스크래치 복원: Home _tools/scratch·<ds>__<cfg>·clips·datasets(mendeley clips30, yt_cc segments)·eval-reliability clips, 입력 클립 sha256 4849/4849 manifest와 같음, 바이너리 fbee0539…21e2 Home 사본 그대로; 복원한 출력으로 만든 e3d·mmfit 조정·MM-Fit 3클립 표가 재부팅 전 표와 같음. 이번 실행 204클립 manifest out/public/det/manifest_halpe26.json, 재부팅 전 340클립(재사용 300)은 manifest가 없어 manifest_halpe26_prereboot.json에 사후 기록, Home ~/bpt-runs/reacquire/public__det/). 사용자 지시로 실험은 여기서 멈춤(새 후보·재실행 없음).
