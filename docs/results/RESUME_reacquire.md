@@ -15,3 +15,4 @@
   ```
   (스크래치가 지워졌으면 Home `_tools/scratch/`와 `<ds>__<cfg>/`를 되돌려 받고, 클립은 Home `clips/`·`datasets/`에서 다시 복사.)
 - 기기(iPhone) 측정: 앱 실행이 코드 서명 신뢰 문제로 거부되어 미측정(사용자가 기기에서 개발자 프로필 신뢰 필요).
+- 2026-10-19 14:01:43 완료: public m0.8 halpe26 --only-lost (manifest out/public/m0.8/manifest_halpe26.json, Home ~/bpt-runs/reacquire/public__m0.8/)
