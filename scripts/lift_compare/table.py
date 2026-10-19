@@ -45,12 +45,16 @@ def fmt_rep(x): return f'{np.median(x):.1f} ({np.percentile(x, 90):.1f})' if len
 
 def main():
     p = argparse.ArgumentParser(); p.add_argument('json'); p.add_argument('--group', default='heldout')
-    p.add_argument('--boot', type=int, default=2000); p.add_argument('--combos', default='orig|crop,orig|screen,ftd|crop')
+    p.add_argument('--boot', type=int, default=2000); p.add_argument('--box', default='raw', choices=['raw', 'padded', 'none']); p.add_argument('--box-json', default=None); p.add_argument('--combos', default='orig|crop,orig|screen,ftd|crop')
     a = p.parse_args()
     allrows = json.load(open(a.json)); rows = [r for r in allrows if r['group'] == a.group]
-    bad = [r for r in rows if r['box_ok'] < 0.99 or r['nodet'] > 0.01]
+    if a.box == 'raw': bad = [r for r in rows if r['box_ok'] < 0.99 or r['nodet'] > 0.01]  # pre-registered
+    elif a.box == 'padded':
+        bj = json.load(open(a.box_json)); nm = lambda r: f"{r['subject']}_{r['cam']}_{r['exercise']}"
+        bad = [r for r in rows if bj[nm(r)]['padded'] < 0.99 or r['nodet'] > 0.01]
+    else: bad = []
+    P = print; P(f'(상자 규칙: {a.box})')
     rows = [r for r in rows if r not in bad]
-    P = print
     P(f"## 묶음 {a.group}: 영상 {len(rows)}개 (상자 검증 탈락 {len(bad)}: {[(r['subject'], r['cam'], r['exercise'], round(r['box_ok'], 3)) for r in bad]})")
     P(f"피험자 {sorted({r['subject'] for r in rows})}, 시점각 범위 {min(r['view_deg'] for r in rows)}–{max(r['view_deg'] for r in rows)}°, "
       f"시점 분포 {[(n, sum(lo <= r['view_deg'] < hi for r in rows)) for n, lo, hi in VIEWS]}\n")
