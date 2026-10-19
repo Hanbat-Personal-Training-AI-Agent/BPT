@@ -24,7 +24,7 @@ usage (Home, bpt-home env, code synced to ~/bpt-runs/lift-app/_code/<sha>/):
   eval_lift_app_fit3d.py coreml-dump --root ... --replay ... --run-dir RUN      (Home)
   eval_lift_app_fit3d.py coreml-check --dump DUMP.npz --mlpackage PKG --run-dir RUN   (Mac, bpt-coreml env)
 """
-import argparse, glob, hashlib, importlib, json, os, socket, sys, time
+import argparse, glob, hashlib, importlib, json, math, os, socket, sys, time
 from multiprocessing import Pool
 from pathlib import Path
 import numpy as np
@@ -479,6 +479,282 @@ def run_constraints(a):
            [d['csv'] for d in seqs] + [a.checkpoint] + ([a.gt_limits] if a.gt_limits else []))
 
 
+# ---------------------------------------------------------------- S6 knee-flip reflection (+ S8 view bins)
+ROM_KEYS = ('knee', 'hip', 'elbow', 'torso_g')
+
+
+def rom_err(A, ref, seg):
+    """Per rep |ROM(pred) - ROM(GT)|, ROM = max - min inside the rep (near side, as angle_metrics)."""
+    rom = lambda x: np.nanmax(x) - np.nanmin(x)
+    return {k: [abs(rom(A[k][s:e + 1]) - rom(ref[k][s:e + 1])) for s, e in seg if np.isfinite(A[k][s:e + 1]).any()] for k in ROM_KEYS}
+
+
+def vbin10(v): return f'{int(v // 10 * 10)}-{int(v // 10 * 10) + 10}'
+
+
+def run_s6(a):
+    from pose_feedback.geometry.pose3d_constraints import DEFAULT_ANGLE_LIMITS
+    model, dev = load_model(a); seqs = load_seqs(a)
+    variants = {'a_raw': None, 'g_prev': dict(reflect_flipped_knee=False), 'h_new': {}}
+    names = [l[0] for l in DEFAULT_ANGLE_LIMITS]
+    recs = []
+    for d in seqs:
+        raw = predict_rows(model, dev, d['x'], [5], seq_key(d))[5]; ref = ref_angles(d); mm = d['mm'][:, None, None] / 1000
+        G = d['G']; outs = {}
+        for v, kw in variants.items():
+            r = dict(group=d['group'], exercise=d['ex'], bin=d['bin'], vbin=vbin10(d['view']), subj=d['subj'], cam=d['cam'], var=v)
+            if kw is None:
+                Q = raw
+            else:
+                Q, reps = apply_constraints(raw, kw)
+                r['fire_xs'] = fire_stats(reps, names); r['fire_xs']['reflected'] = [rp['knees_reflected'] > 0 for rp in reps]
+                rg = apply_constraints(d['y'].astype(float), kw)[1]
+                r['fire_gt'] = fire_stats(rg, names); r['fire_gt']['reflected'] = [rp['knees_reflected'] > 0 for rp in rg]
+            P = (Q - Q[:, :1]) * mm; outs[v] = P
+            A = angles(P, d['side'], d['up_c'])
+            r.update(**pose_metrics(P, G), **angle_metrics(A, ref, d['seg']), rom=rom_err(A, ref, d['seg']))
+            recs.append(r)
+        # reflected legs: knee moved between g_prev and h_new where g_prev theta < -30 (hip-limit moves are ~0.1%)
+        Pg, Ph = outs['g_prev'], outs['h_new']; rr = recs[-1]
+        b, af, side_ok, closer = [], [], [], []
+        for leg in SIDES:
+            h, k, an = LEGS[leg]
+            m = (knee_theta(Pg, leg)[0] < -30) & (np.linalg.norm(Ph[:, k] - Pg[:, k], axis=-1) > 1e-6)
+            eb = np.linalg.norm(Pg[m, k] - G[m, k], axis=-1) * 1000; ea = np.linalg.norm(Ph[m, k] - G[m, k], axis=-1) * 1000
+            def off(Q):  # knee offset from the hip-ankle line (the vector the reflection flips)
+                v, ax = Q[m, k] - Q[m, h], Q[m, an] - Q[m, h]
+                ax = ax / np.linalg.norm(ax, axis=-1, keepdims=True).clip(1e-9)
+                return v - ax * (v * ax).sum(-1, keepdims=True)
+            og = off(G); deep = np.linalg.norm(og, axis=-1) > 0.02
+            b.append(eb); af.append(ea); closer.append(ea < eb)
+            side_ok.append(np.stack([(off(Pg) * og).sum(-1) > 0, (off(Ph) * og).sum(-1) > 0], 1)[deep])
+        rr.update(refl_before=np.concatenate(b), refl_after=np.concatenate(af), refl_closer=np.concatenate(closer),
+                  refl_gtside=np.concatenate(side_ok).reshape(-1, 2))
+        print(d['subj'], d['ex'], d['cam'], flush=True)
+    summ = {}
+    md = ['| 묶음 | 운동 | 변형 | 영상 | 프레임 | MPJPE | PA-MPJPE | 가속도 | ' + ' | '.join(f'{g} 렙극값 (p90) / 프레임' for g in ('knee', 'hip', 'elbow', 'torso_g'))
+          + ' | ' + ' | '.join(f'ROM {g} 중앙값 (p90)' for g in ROM_KEYS) + ' | 3D 불량 | 반사 프레임 |', '|---' * 18 + '|']
+    md2 = ['| 묶음 | 운동 | 시점(10°) | 영상 | 프레임 | h_new 3D 불량 | h_new 반사 | g_prev 3D 불량 |', '|---' * 8 + '|']
+    md3 = ['| 묶음 | 운동 | 반사된 다리×프레임 | 무릎 3D 오차 전 중앙값 / 평균 (mm) | 후 중앙값 / 평균 | 후가 더 가까움 | 정답 쪽 전 → 후 (정답 무릎이 엉덩이–발목 선에서 >2cm, n) |', '|---' * 7 + '|']
+    md4 = ['| 묶음 | 운동 | 변형 | 대상 | 3D 불량 | 반사 | 무릎 θ<−30 | 각도 제한 하나라도 | 제한별 |', '|---' * 9 + '|']
+    f = lambda q, kk='p50': q.get(kk, float('nan'))
+    for k, rs in groups_of(recs, ('group', 'exercise', 'var')):
+        s = dict(videos=len(rs), frames=int(len(cat(rs, 'mpjpe'))), mpjpe=st(cat(rs, 'mpjpe')), pa_mpjpe=st(cat(rs, 'pa_mpjpe')),
+                 accel=st(cat(rs, 'accel')), **{g: dict(rep=st(cat(rs, g, 'rep')), frame=st(cat(rs, g, 'frame'))) for g in ANG},
+                 rom={g: st(cat(rs, 'rom', g)) for g in ROM_KEYS})
+        for who in ('fire_xs', 'fire_gt'):
+            if who in rs[0]: s[who] = {q: round(float(cat(rs, who, q).mean()), 4) for q in rs[0][who]}
+        bad = s.get('fire_xs', {}).get('bad'); refl = s.get('fire_xs', {}).get('reflected')
+        md.append(f"| {k[0]} | {k[1]} | {k[2]} | {s['videos']} | {s['frames']} | {s['mpjpe']['mean']:.1f} | {s['pa_mpjpe']['mean']:.1f} | {s['accel']['mean']:.2f} | "
+                  + ' | '.join(f"{f(s[g]['rep']):.1f} ({f(s[g]['rep'], 'p90'):.0f}) / {f(s[g]['frame']):.1f}" for g in ('knee', 'hip', 'elbow', 'torso_g')) + ' | '
+                  + ' | '.join(f"{f(s['rom'][g]):.1f} ({f(s['rom'][g], 'p90'):.0f})" for g in ROM_KEYS)
+                  + f" | {'-' if bad is None else f'{bad:.2%}'} | {'-' if refl is None else f'{refl:.2%}'} |")
+        for who in ('fire_xs', 'fire_gt'):
+            if who in s:
+                fr = s[who]; angs = ', '.join(f"{q[4:]} {v:.2%}" for q, v in fr.items() if q.startswith('ang_') and v > 0) or '-'
+                md4.append(f"| {k[0]} | {k[1]} | {k[2]} | {'XS' if who == 'fire_xs' else '정답'} | {fr['bad']:.2%} | {fr['reflected']:.2%} | {fr['knee_hyper']:.2%} | {fr['any_angle']:.2%} | {angs} |")
+        if k[2] == 'h_new':
+            rb, ra = cat(rs, 'refl_before'), cat(rs, 'refl_after'); gs = cat(rs, 'refl_gtside').reshape(-1, 2)
+            s['reflection'] = dict(n=int(len(rb)), before=st(rb), after=st(ra), closer=round(float(cat(rs, 'refl_closer').mean()), 3) if len(rb) else None,
+                                   gt_side_before=round(float(gs[:, 0].mean()), 3) if len(gs) else None,
+                                   gt_side=round(float(gs[:, 1].mean()), 3) if len(gs) else None, gt_side_n=int(len(gs)))
+            R = s['reflection']
+            cl = '-' if R['closer'] is None else f"{R['closer']:.1%}"
+            gsd = '-' if R['gt_side'] is None else f"{R['gt_side_before']:.1%} → {R['gt_side']:.1%}"
+            md3.append(f"| {k[0]} | {k[1]} | {R['n']} | {f(R['before']):.0f} / {R['before'].get('mean', float('nan')):.0f} | "
+                       f"{f(R['after']):.0f} / {R['after'].get('mean', float('nan')):.0f} | {cl} | {gsd} ({R['gt_side_n']}) |")
+        summ['/'.join(k)] = s
+    for k, rs in groups_of([r for r in recs if r['var'] == 'h_new'], ('group', 'exercise', 'vbin')):
+        rg = [r for r in recs if r['var'] == 'g_prev' and r['group'] == k[0] and (k[1] == 'all' or r['exercise'] == k[1]) and r['vbin'] == k[2]]
+        s = dict(videos=len(rs), frames=int(len(cat(rs, 'fire_xs', 'bad'))), bad=round(float(cat(rs, 'fire_xs', 'bad').mean()), 4),
+                 reflected=round(float(cat(rs, 'fire_xs', 'reflected').mean()), 4), bad_g_prev=round(float(cat(rg, 'fire_xs', 'bad').mean()), 4))
+        summ['vbin/' + '/'.join(k)] = s
+        md2.append(f"| {k[0]} | {k[1]} | {k[2]}° | {s['videos']} | {s['frames']} | {s['bad']:.2%} | {s['reflected']:.2%} | {s['bad_g_prev']:.2%} |")
+    finish(a, 's6', summ, md + [''] + md4 + [''] + md3 + [''] + md2, [d['csv'] for d in seqs] + [a.checkpoint])
+
+
+# ---------------------------------------------------------------- S7 normal-rep metric distributions + app rules
+S7_KEYS = {
+    'squat': ['knee_min', 'knee_max', 'hip_angle_max', 'torso_min', 'torso_max', 'torso_mean', 'torso_range', 'torso_at_bottom',
+              'hips_first_torso_rise', 'hips_first_hip_rise_speed', 'hips_first_shoulder_rise_speed', 'hips_first_speed_diff',
+              'knee_ankle_gap_ratio_min', 'head_dev_change_min', 'head_dev_change_max', 'elbow_min'],
+    'pushup': ['elbow_min', 'elbow_max', 'hip_dev_min', 'hip_dev_max', 'head_dev_change_min', 'head_dev_change_max',
+               'first_rep_top_wrist_ahead', 'knee_min', 'hip_angle_max', 'torso_min', 'torso_max', 'torso_mean', 'torso_range'],
+    'barbell_row': ['torso_min', 'torso_max', 'torso_mean', 'torso_range', 'elbow_min', 'elbow_max', 'elbow_behind_max',
+                    'head_dev_change_min', 'head_dev_change_max', 'hip_angle_max', 'knee_min', 'hip_dev_min', 'hip_dev_max'],
+}
+STAB = ('knee', 'elbow', 'torso')
+
+
+def judge_py(ms, exercise):
+    """FormWarnings.swift judge() (e05f1ac, :959-1037) for one set, sideView = true (the 3D path has no
+    front_view_fraction, so the gate passes; squat_knee_valgus is the front-view branch and is evaluated
+    separately as 'valgus_if_front'). Returns [set of keys] per rep."""
+    med = lambda v: float(np.median(v)) if len(v) else None
+    out = []
+    for i, m in enumerate(ms):
+        hist = ms[:i]; fired = set()
+        fire = lambda k, c: fired.add(k) if c else None
+        over = lambda n, t: n in m and m[n] > t
+        under = lambda n, t: n in m and m[n] < t
+
+        def base(n):
+            if len(hist) < 3 or n not in m: return None
+            return med([h[n] for h in hist[:3] if n in h])
+
+        def over_base(n, t):
+            b = base(n); return b is not None and m[n] - b > t
+
+        def below_max(n, t):
+            if n not in m: return False
+            return max([h[n] for h in hist if n in h] + [m[n]]) - m[n] > t
+
+        def trend(n, t):
+            al = hist + [m]
+            if len(al) < 6: return False
+            f3, l3 = [x[n] for x in al[:3] if n in x], [x[n] for x in al[-3:] if n in x]
+            return len(f3) == 3 and len(l3) == 3 and np.mean(l3) - np.mean(f3) > t
+        if exercise == 'pushup':
+            fire('pushup_hip_sag', over('hip_dev_max', 0.14)); fire('pushup_hip_pike', under('hip_dev_min', -0.08))
+            fire('pushup_shallow', over_base('elbow_min', 15)); fire('pushup_no_lockout', below_max('elbow_max', 10))
+            fire('pushup_head_drop', over('head_dev_change_max', 0.376)); fire('pushup_head_up', under('head_dev_change_min', -0.15))
+            if 'first_rep_top_wrist_ahead' in m: fire('pushup_hand_position', abs(m['first_rep_top_wrist_ahead']) > 0.35)
+            fire('pushup_depth_fade', trend('elbow_min', 15))
+        elif exercise == 'squat':
+            if all(q in m for q in ('hips_first_torso_rise', 'hips_first_hip_rise_speed', 'hips_first_shoulder_rise_speed')):
+                fire('squat_hips_first', m['hips_first_torso_rise'] > 8 and m['hips_first_hip_rise_speed'] > m['hips_first_shoulder_rise_speed'])
+            fire('squat_shallow', over_base('knee_min', 15))
+            fire('squat_no_lockout', below_max('knee_max', 10) or below_max('hip_angle_max', 10))
+            fire('squat_lean_drift', trend('torso_at_bottom', 8)); fire('squat_depth_fade', trend('knee_min', 10))
+            fire('valgus_if_front', under('knee_ankle_gap_ratio_min', 1.0))
+        else:
+            if 'torso_min' in m and 'torso_max' in m: fire('row_torso_swing', m['torso_max'] - m['torso_min'] > 39.9)
+            b = base('torso_mean')
+            if b is not None: fire('row_standing_up', math.remainder(b - m['torso_mean'], 360) > 10)
+            b = base('elbow_behind_max')
+            if b is not None: fire('row_short_pull', b - m['elbow_behind_max'] > 0.10)
+            fire('row_head_up', under('head_dev_change_min', -0.15))
+        out.append(fired)
+    return out
+
+
+RULES_BY_EX = {'pushup': ['pushup_hip_sag', 'pushup_hip_pike', 'pushup_shallow', 'pushup_no_lockout', 'pushup_head_drop', 'pushup_head_up',
+                          'pushup_hand_position', 'pushup_depth_fade'],
+               'squat': ['squat_hips_first', 'squat_shallow', 'squat_no_lockout', 'squat_lean_drift', 'squat_depth_fade', 'valgus_if_front'],
+               'barbell_row': ['row_torso_swing', 'row_standing_up', 'row_short_pull', 'row_head_up']}
+
+
+def rep_records(P, intervals, exercise, side, up, meta):
+    """Per-rep metrics (form_metrics_3d mirror), stability and fired rules for one pose sequence."""
+    from pose_feedback.body.form_metrics_3d import frame_metrics, rep_metrics
+    F = []
+    for t, p in enumerate(P):
+        f = frame_metrics(p, side, up); f['frame'] = t; F.append(f)
+    ms, recs = [], []
+    for r, (s, e) in enumerate(intervals):
+        fr = F[s:e + 1]; m = rep_metrics(fr, exercise, is_first_rep=r == 0)
+        if 'torso_min' in m and 'torso_max' in m: m['torso_range'] = m['torso_max'] - m['torso_min']
+        if 'hips_first_hip_rise_speed' in m: m['hips_first_speed_diff'] = m['hips_first_hip_rise_speed'] - m['hips_first_shoulder_rise_speed']
+        for q in STAB:
+            v = np.array([x[q] for x in fr if x[q] is not None], float)
+            if len(v) > 1: m[f'stab_{q}'] = float(np.median(np.abs(np.diff(v))))
+        ms.append(m)
+    for m, fired in zip(ms, judge_py(ms, exercise)):
+        recs.append(dict(meta, m=m, fired=fired))
+    return recs
+
+
+def s7_summary(a, recs, name, inputs, extra_md=()):
+    PS = (1, 5, 25, 50, 75, 95, 99)
+    summ, md = {}, []
+    for ex in EXERCISES:
+        keys = S7_KEYS[ex] + [f'stab_{q}' for q in STAB]
+        rows = [r for r in recs if r['exercise'] == ex]
+        if not rows: continue
+        md += [f'**{ex}** (렙 단위 분포; 피험자 중앙값 범위 = 피험자별 중앙값의 최소–최대)', '',
+               '| 묶음 | 소스 | 위 | 지표 | 렙 | ' + ' | '.join(f'p{p}' for p in PS) + ' | 피험자 중앙값 범위 |', '|---' * (6 + len(PS)) + '|']
+        for grp in dict.fromkeys(r['group'] for r in rows):
+            for src in dict.fromkeys(r['src'] for r in rows):
+                for up in ('cam', 'grav'):
+                    rs = [r for r in rows if r['group'] == grp and r['src'] == src and r['up'] == up]
+                    for kk in keys:
+                        v = np.array([r['m'][kk] for r in rs if kk in r['m']], float)
+                        if not len(v): continue
+                        subj = {}
+                        for r in rs:
+                            if kk in r['m']: subj.setdefault(r['subj'], []).append(r['m'][kk])
+                        sm = [float(np.median(x)) for x in subj.values()]
+                        q = {f'p{p}': round(float(np.percentile(v, p)), 4) for p in PS}
+                        summ[f'{ex}/{grp}/{src}/{up}/{kk}'] = dict(n=int(len(v)), **q, subject_medians={s_: round(float(np.median(x)), 4) for s_, x in subj.items()})
+                        md.append(f"| {grp} | {src} | {up} | {kk} | {len(v)} | " + ' | '.join(f'{q[f"p{p}"]:.3g}' for p in PS) + f" | {min(sm):.3g}–{max(sm):.3g} |")
+        md += ['', f'**{ex} 규칙 발화율 (정상 렙; sideView = 참으로 판정; trend 규칙은 세트 6렙 이상 필요 — Fit3D 세트는 5렙이라 발화 불가)**', '',
+               '| 묶음 | 소스 | 위 | 렙 | ' + ' | '.join(RULES_BY_EX[ex]) + ' |', '|---' * (4 + len(RULES_BY_EX[ex])) + '|']
+        for grp in dict.fromkeys(r['group'] for r in rows):
+            for src in dict.fromkeys(r['src'] for r in rows):
+                for up in ('cam', 'grav'):
+                    rs = [r for r in rows if r['group'] == grp and r['src'] == src and r['up'] == up]
+                    if not rs: continue
+                    fr = {k: round(float(np.mean([k in r['fired'] for r in rs])), 4) for k in RULES_BY_EX[ex]}
+                    summ[f'{ex}/{grp}/{src}/{up}/rules'] = dict(reps=len(rs), **fr)
+                    md.append(f"| {grp} | {src} | {up} | {len(rs)} | " + ' | '.join(f'{fr[k]:.1%}' for k in RULES_BY_EX[ex]) + ' |')
+        md.append('')
+    finish(a, name, summ, list(extra_md) + md, inputs)
+
+
+def run_s7(a):
+    from pose_feedback.body.form_metrics_3d import UP
+    model, dev = load_model(a); seqs = load_seqs(a)
+    recs = []
+    for d in seqs:
+        raw = predict_rows(model, dev, d['x'], [5], seq_key(d))[5]; mm = d['mm'][:, None, None] / 1000
+        Qh, _ = apply_constraints(raw, {})
+        srcs = {'gt': d['G'], 'xs_h_new': (Qh - Qh[:, :1]) * mm, 'xs_raw': (raw - raw[:, :1]) * mm}
+        side = {'L': 'left', 'R': 'right'}[d['side']]
+        for src, P in srcs.items():
+            for up, u in (('cam', UP), ('grav', d['up_c'])):
+                recs += rep_records(P, d['seg'], d['ex'], side, u, dict(group=d['group'], exercise=d['ex'], subj=d['subj'], cam=d['cam'], src=src, up=up))
+        print(d['subj'], d['ex'], d['cam'], flush=True)
+    s7_summary(a, recs, 's7', [d['csv'] for d in seqs] + [a.checkpoint],
+               ['Fit3D 정상 렙(rep_ann). 소스: gt = 모캡, xs_h_new = XS(L=5) + Pose3DConstraints() 기본값, xs_raw = XS 그대로. '
+                '위: cam = 카메라 −y(앱 기본), grav = 실제 중력(정답 카메라 자세). 3D 자세는 골반 기준이라 hipY ≡ 0 → '
+                'hips_first_hip_rise_speed ≡ 0 (앱 3D 경로와 같음).', ''])
+
+
+def run_s7_ex3d(a):
+    """Exercise3D canonical_3d labels (Sapiens triangulation = pseudo-GT, NOT ground truth), per camera view."""
+    import ast
+    from eval_3d_angles import EX3D_NAMES
+    from pose_feedback.body.form_metrics_3d import UP
+    O = Path(a.outputs); gt = json.load(open(O / 'rep_validation/gt.json')); recs, inputs = [], [str(O / 'rep_validation/gt.json')]
+    exname = {'squat': 'squat', 'pushup': 'pushup', 'barbellrow': 'barbell_row'}
+    for seq, g in gt.items():
+        if g['exercise'] not in exname: continue
+        f = O / 'exercise3d_labels' / seq / 'geometry/canonical_3d.npz'; inputs.append(str(f))
+        z = np.load(f); names = list(z['joint_names']); Pw = z['keypoints_3d'].astype(float)
+        J = np.stack([Pw[:, names.index(nm)] if nm else np.full((len(Pw), 3), np.nan) for nm in EX3D_NAMES], 1)
+        cg = json.load(open(O / 'exercise3d_labels' / seq / 'geometry/metadata.json'))['camera_geometry']
+        cg = ast.literal_eval(cg) if isinstance(cg, str) else cg
+        Rs = {c: np.array(v['extrinsic_world_to_camera'])[:, :3] for c, v in cg.items()}
+        up_w = -np.mean([R[1] for R in Rs.values()], axis=0); up_w /= np.linalg.norm(up_w)
+        rf = g['rep_frames']; half = int(np.median(np.diff(rf)) / 2) if len(rf) > 1 else 15
+        seg = [(max(0, r - half), min(len(J) - 1, r + half)) for r in rf]
+        sex = 'heldout' if seq in {'squat_0002', 'barbellrow_0001', 'barbellrow_0003'} else 'tuning'
+        for cam, v in g['views'].items():
+            if v['angle_deg'] > 75 or cam not in Rs: continue
+            R = Rs[cam]; G = J @ R.T
+            G[:, 7], G[:, 10] = (G[:, 0] + G[:, 8]) / 2, G[:, 9]  # no spine / head top in Ex3D: spine = mid, head = nose
+            G = G - G[:, :1]
+            if np.isnan(G).any(): G = np.nan_to_num(G)
+            vb = 'side' if v['angle_deg'] <= 40 else 'diag'
+            for up, u in (('cam', UP), ('grav', R @ up_w)):
+                recs += rep_records(G, seg, exname[g['exercise']], v['near_side'], u,
+                                    dict(group=f'{sex}-{vb}', exercise=exname[g['exercise']], subj=seq, cam=cam, src='ex3d_pseudo', up=up))
+        print(seq, flush=True)
+    s7_summary(a, recs, 's7_ex3d', inputs,
+               ['Exercise3D canonical_3d (Sapiens 삼각측량 = 의사 정답, 정답 아님). 렙 구간 = 정답 렙 저점 ± 렙 간격/2 (근사). '
+                '머리 = 코(정수리 없음), 척추 = 골반·흉곽 중점. 묶음 = 조정/검증(P2·P3) × 측면(≤40°)/사선(40–75°). "피험자" = 시퀀스.', ''])
+
+
 # ---------------------------------------------------------------- S4 hands
 def hand_job(job):
     video, K, task, out = job
@@ -645,7 +921,7 @@ def run_coreml_check(a):
 
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument('cmd', choices=['lookahead', 'gt-stats', 'xs-knee', 'constraints', 'hands', 'wrist', 'coreml-dump', 'coreml-check'])
+    p.add_argument('cmd', choices=['lookahead', 'gt-stats', 'xs-knee', 'constraints', 's6', 's7', 's7-ex3d', 'hands', 'wrist', 'coreml-dump', 'coreml-check'])
     p.add_argument('--gt-limits', default=None, help='gt_stats.json (tuning subjects) -> extra variant f with p0.1/p99.9 limits')
     p.add_argument('--root'); p.add_argument('--replay'); p.add_argument('--run-dir', required=True)
     p.add_argument('--subjects', type=lambda s: s.split(','), default=['s03', 's04', 's05', 's07', 's08', 's09', 's10', 's11'])
@@ -656,7 +932,7 @@ def main():
     p.add_argument('--constraint', default=None, help='MODULE:FUNC, P [N,17,3] crop units -> same (S5)')
     p.add_argument('--task'); p.add_argument('--hands'); p.add_argument('--jobs', type=int, default=10)
     p.add_argument('--gates', type=lambda s: s.split(','), default=['d0.25', 'd0.5', 'd1.0', 'c0.5', 'c0.7'])
-    p.add_argument('--dump'); p.add_argument('--mlpackage')
+    p.add_argument('--dump'); p.add_argument('--mlpackage'); p.add_argument('--outputs', help='Exercise3D outputs dir (s7-ex3d)')
     p.add_argument('--vars-3d', type=lambda s: s.split(','), default=[], help='wrist variants that also get the XS 3D pass')
     p.add_argument('--modes-3d', type=lambda s: s.split(','), default=list(HAND_MODES))
     p.add_argument('--cache', default=None, help='dir for raw XS rows of the app input, shared by lookahead/xs-knee/constraints')
@@ -664,7 +940,7 @@ def main():
     CACHE['dir'] = a.cache
     a.checkpoint = a.checkpoint or f'{a.mag_repo}/checkpoint/motionagformer-xs-h36m.pth.tr'
     os.makedirs(a.run_dir, exist_ok=True)
-    {'lookahead': run_lookahead, 'gt-stats': run_gt_stats, 'xs-knee': run_xs_knee, 'constraints': run_constraints, 'hands': run_hands, 'wrist': run_wrist,
+    {'lookahead': run_lookahead, 'gt-stats': run_gt_stats, 'xs-knee': run_xs_knee, 'constraints': run_constraints, 's6': run_s6, 's7': run_s7, 's7-ex3d': run_s7_ex3d, 'hands': run_hands, 'wrist': run_wrist,
      'coreml-dump': run_coreml_dump, 'coreml-check': run_coreml_check}[a.cmd](a)
 
 
