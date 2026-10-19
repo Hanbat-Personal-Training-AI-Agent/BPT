@@ -3,7 +3,31 @@
 기준: integration/ai `c113150`. 계획·운동별 명세: [lift_app_plan.md](lift_app_plan.md). 모델 정확도 비교(2D vs 3D 지표, 원래 vs Fit3D XS, COCO17 vs Halpe26)는 ai/lift-compare 담당 — 여기서는 앱 경로 통합·종단 평가·지연만 다룬다.
 **이 브랜치 한정 변경**(병합 전 사용자 승인 필요): `enableMotion3DForCamera = true`, `motionagformer_xs.mlpackage`(원래 H36M XS, 4.9 MB) Runner 번들 포함, 3D 경로에서 손 분기를 모든 운동에 켬. integration/ai의 기본값은 그대로다.
 
-<!--DEVICE-->
+## iPhone 측정 — 전체 파이프라인 (iPhone 17, iOS 27.0, 2026-10-19 20:51–21:40)
+**D-D-05 “+17 ms”가 잰 것(코드 확인)**: `tools/ios_live3d_cost/Bench.swift` — 무작위 텐서(:17–29)로 RTMPose-s·XS 추론만(:35–36). 카메라·전처리·crop·디코딩·손·평가기 없음. 아래는 그것이 아니라 **앱과 같은 프레임 단위 코드 전체**다.
+
+방법: `tools/pose_model_bench` 호스트 앱(`Host/PipelineBench.swift`, 이 브랜치에서 lift-app 경로로 갱신)이 Exercise3D 측면 13클립(720×1280, D-C-06과 같은 클립)을 기기에서 디코딩해 카메라 대신 넣고, 프레임마다 CameraPosePreview와 같은 코드: 처리 큐에서 `RTMPoseCropTracker.estimate`(RTMPose-m COCO17) [+ 손목 crop MediaPipe 손 + `MotionAGFormerWristSource`] → [별도 큐 `MotionAGFormerLive`(XS Core ML + 제약)] → 메인 스레드 평가기·`FormWarningTracker`(form3DRequired)·브리지 변경 감지. 변형마다 30 fps 페이스 120초 + 무제한 120초, 각 실행 앞 60초 휴식, computeUnits = all. 지연 = 프레임 도착(페이스: 30 fps 시계의 도착 시각)부터 **그 프레임의 판정 끝**까지 — 3D 경로는 lookahead 5프레임(167 ms) 기다림이 포함된다. 처리 = 도착부터 처리 큐가 다음 프레임을 받을 수 있을 때까지(놓친 프레임을 정함). CPU = 프로세스 user+sys ÷ 벽시계(100 = 코어 하나). 결과·manifest: Home `~/bpt-runs/lift-app/20261019-iphone-bench/`(manifest.json: 소스·클립·모델 sha256, 명령).
+
+| 변형 | 페이스 fps / 놓친 프레임(3,600 중) | 입력→판정 지연 p50 / p95 / 최대 (ms) | 처리 p50 / p95 | RTMPose 단계 p50 | 손 p50 / p95 | XS+제약 p50 / p95 | 프로세스 CPU | 무제한 FPS | 발열(페이스 끝) |
+|---|---|---|---|---|---|---|---|---|---|
+| h: m 2D만 (기준) | 29.99 / 1 | 25.0 / 31.6 / 66.0 | 24.9 / 31.5 | 17.7 | – | – | 58% | 116.1 | nominal |
+| j: m + 손, 2D | 29.89 / 13 | 24.0 / 31.5 / 200.1 | 24.0 / 31.5 | 9.0 | 9.9 / 15.7 | – | 61% | 61.5 | nominal |
+| i: m + 라이브 XS(비동기), 손 없음 | 29.91 / 9 | 193.2 / 200.9 / 226.3 | 17.9 / 26.1 | 10.8 | – | 8.7 / 11.0 | 44% | 99.4 | nominal |
+| **g: m + 손 + 라이브 XS(비동기) = lift-app** | **29.95 / 4** | **193.0 / 198.9 / 219.4** | 20.6 / 26.9 | 7.1 | 7.6 / 12.4 | 5.8 / 7.6 | 54% | 57.3 | fair |
+| g, XS를 처리 큐에서 동기 | 29.95 / 5 | 191.4 / 197.1 / 228.9 | 24.8 / 30.7 | 6.9 | 7.3 / 12.0 | 5.8 / 7.5 | 52% | 45.5 | serious |
+| g, cadence 2(2프레임마다 XS 1회) | 29.95 / 4 | 205.2 / 234.0 / 276.0 | 23.5 / 29.5 | 8.7 | 9.3 / 13.6 | 0.0 / 7.8 | 60% | 56.1 | serious |
+
+- **실효 FPS**: lift-app 전체(g)도 30 fps 페이스를 지킨다(놓친 프레임 4/3,600 = 0.11%). 처리 p95 26.9 ms — 33.3 ms 예산 안, 여유 약 6 ms.
+- **입력→판정 지연 ≈ 193 ms(p50) / 199 ms(p95)**: lookahead 5프레임 167 ms + 처리 약 26 ms. 지연의 대부분은 계산이 아니라 lookahead다(S1: L=3이면 −67 ms, 떨림 개선의 약 75% 유지).
+- **3D 비용**: XS+제약 5.8–8.7 ms/프레임(p50), 별도 큐라 처리 큐를 막지 않음. 무제한 FPS로 보면 손(116 → 61)이 XS(116 → 99)보다 훨씬 비싸다. 손 + XS 동시 57 FPS.
+- **비동기 vs 동기**: 페이스에서는 지연이 같고, 동기는 처리 p95가 30.7 ms로 예산 끝에 가까워지며 무제한 45 FPS(−21%). 비동기 유지가 맞다(제안).
+- **cadence 2**: 이득 없음 — XS가 병목이 아니라서 무제한 FPS는 그대로(56 vs 57)이고, 묶음을 기다리는 1프레임 때문에 지연 p95가 +35 ms. 3D를 매 프레임 유지(제안).
+- 페이스에서 RTMPose 단계가 h(17.7 ms)보다 g(7.1 ms)에서 빠른 것은 다른 작업이 가속기를 깨워 두기 때문으로 보임(D-C-06에서도 관찰, 추정).
+- **발열**: 실행이 이어지며 fair → serious로 올라감(뒤 변형일수록 불리, 순서 효과). 30분 이상 세션의 발열·배터리: **측정 안 함**(배터리는 충전 연결 여부 미확인, 2분 단위로 의미 있는 값 아님).
+- **측정 안 함**: GPU/Neural Engine 사용률(프로파일러 필요), 실제 카메라 캡처·미리보기 그리기·Flutter UI가 포함된 Runner 앱(사람이 카메라 앞에 있어야 함 — 이 벤치는 그것들을 빼서 실제보다 가볍다), 중력(BPT_3D_GRAVITY) 경로.
+- 측정 중 기기가 두 번 연결이 끊김(20:20경, 20:54경, devicectl CoreDeviceError 4016) — 다시 연결된 뒤 전체 행렬을 처음부터 다시 돌린 값만 표에 씀. 19:51 첫 실행의 h 페이스 p50 24.2 ms(표 25.0 ms)도 같은 범위.
+- Mac 대리값(아이폰 수치 아님, pose-replay CSV 모드, Mac M 시리즈): XS+제약 9–14 ms/프레임(cadence 2: 5–6 ms).
+
 
 ## 종단 비교 — 2D 판정 vs 3D 경로 (실험 B, 같은 앱 2D)
 방법: eval-reliability가 만든 앱 2D 키포인트 CSV(RTMPose-m COCO17 crop, Mac pose-replay `2ef3ced` 빌드, 2026-10-18; Home `~/bpt-runs/eval-reliability/*`)를 이 브랜치 pose-replay(`384e684`)로 다시 재생. 2D는 모드 사이에 완전히 같고 바뀌는 것은 3D 경로뿐 — 그래서 이 표는 **3D가 판정에 주는 영향만** 보여 준다(2D 모델·추적 비교 아님). 모드: `2d` = `--motion3d none`(기존 2D 판정), `3d` = 앱과 같은 라이브 XS(L=5, 제약, 3D 판정), `3d_raw` = 제약 끔, `3d_c2` = cadence 2. 스크립트 `scripts/lift_app_e2e.py`, 결과·manifest Home `~/bpt-runs/lift-app/20261019-e2e-384e684/<세트>/manifest.json`(manifest의 git_dirty=true는 문서·벤치 스크립트 미커밋분; Swift·Python 코드는 384e684 그대로).
