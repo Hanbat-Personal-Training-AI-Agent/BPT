@@ -120,7 +120,8 @@ class LiveMotionAGFormer:
     cadence k runs one inference per k frames and reads k consecutive rows. flush() emits the last
     frames with the window clamped at the newest frame (= run_live_motionagformer_sequence at the end).
     States: warming_up (< 27 real frames since reset), tracking_lost (< min_joints joints at
-    min_confidence; reset_after_lost such frames in a row clear the window), bad_3d (constraints), ok.
+    min_confidence; reset_after_lost such frames in a row clear the window), partial_3d (some joints untrusted:
+    constraints report invalid_joints), bad_3d (all joints untrusted), ok.
     """
 
     WINDOW = MOTIONAGFORMER_WINDOW_SIZE
@@ -224,6 +225,8 @@ class LiveMotionAGFormer:
                 out.append(self._frame(f, pl, "tracking_lost", self.real, row, raw))
                 continue
             fixed, report = self.constraints.apply(raw)
-            out.append(self._frame(f, pl, "bad_3d" if report["bad"] else "ok", min(self.real, w), row, raw, fixed, report))
+            n = len(report["invalid_joints"])
+            state = "ok" if n == 0 else "bad_3d" if n == 17 else "partial_3d"
+            out.append(self._frame(f, pl, state, min(self.real, w), row, raw, fixed, report))
         self.pending -= count
         return out

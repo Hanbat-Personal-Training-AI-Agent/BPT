@@ -21,7 +21,8 @@ import Flutter
 
 /// What Flutter gets about the live 3D, per state (sent with onPoseUpdate whenever it changes):
 /// warming_up {filled = real frames so far of 27} → "3D 준비 중"; tracking_lost → "사람이 안 보여요"; bad_3d →
-/// "자세 인식이 불안정해요" (posture keys skip the frame); ok. `usable` = the evaluators judge posture with this
+/// "자세 인식이 불안정해요" (posture keys skip the frame); partial_3d → "일부 관절 3D 불안정" (only the metrics
+/// that need those joints are skipped, usable = true); ok. `usable` = the evaluators judge posture with this
 /// frame's 3D. Never a 2D stand-in: without usable 3D no posture key is sent for the rep (FormWarningTracker).
 enum Pose3DBridge {
     static func payload(_ frame: Lifted3DFrame) -> [String: Any] {

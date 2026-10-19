@@ -30,6 +30,10 @@ struct Pose3DConstraints {
         var kneesReflected = 0
         /// name → degrees moved (only limits that fired).
         var angleCorrections: [String: Double] = [:]
+        /// H36M17 joints whose 3D is not trusted this frame: a flipped knee (detection only), the subtree of a joint an
+        /// angle limit moved more than `badAngleDegrees`, or every joint when the bone gate is set and exceeded.
+        /// Metrics that need one of them are skipped; the others stay valid (per-metric invalidation).
+        var invalidJoints: Set<Int> = []
         var bad = false
         var maxAngleCorrection: Double { max(kneeCorrectionDegrees, angleCorrections.values.max() ?? 0) }
     }
@@ -81,6 +85,16 @@ struct Pose3DConstraints {
         AngleLimit(name: "spine", refFrom: 7, refTo: 0, joint: 7, child: 8, minDegrees: 120, maxDegrees: 180),
     ]
 
+    /// `joint` and every joint below it in the H36M17 tree.
+    static func subtree(_ joint: Int) -> Set<Int> {
+        var out: Set<Int> = [], stack = [joint]
+        while let k = stack.popLast() {
+            out.insert(k)
+            stack += children[k]
+        }
+        return out
+    }
+
     static let children: [[Int]] = {
         var c = Array(repeating: [Int](), count: 17)
         for (j, p) in BoneLengthConstraint.parents.enumerated() where p >= 0 { c[p].append(j) }
@@ -131,10 +145,17 @@ struct Pose3DConstraints {
         report.kneeCorrectionDegrees = max(hinge.right.correctionDegrees, hinge.left.correctionDegrees)
 
         for limit in angleLimits {
-            if let moved = Self.clamp(&joints, limit), moved > 0 { report.angleCorrections[limit.name] = moved }
+            if let moved = Self.clamp(&joints, limit), moved > 0 {
+                report.angleCorrections[limit.name] = moved
+                if moved > badAngleDegrees { report.invalidJoints.formUnion(Self.subtree(limit.child)) }
+            }
         }
-        report.bad = report.maxAngleCorrection > badAngleDegrees || badBoneFraction.map { report.boneMaxCorrection > $0 } == true
-            || (report.kneeHyperextended && !knee.enabled)
+        if !knee.enabled {
+            if hinge.right.hyperextended { report.invalidJoints.insert(2) }
+            if hinge.left.hyperextended { report.invalidJoints.insert(5) }
+        }
+        if let gate = badBoneFraction, report.boneMaxCorrection > gate { report.invalidJoints = Set(0..<17) }
+        report.bad = !report.invalidJoints.isEmpty
         return (joints, report)
     }
 

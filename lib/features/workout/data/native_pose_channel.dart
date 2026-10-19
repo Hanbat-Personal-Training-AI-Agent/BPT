@@ -57,7 +57,7 @@ Map<String, String>? koriVoiceReply(String key, int? n, {required bool isKo}) {
 class NativePose3DStatus {
   const NativePose3DStatus({required this.state, this.filled = 0, this.window = 27, this.usable = false});
 
-  final String state; // warming_up | tracking_lost | bad_3d | ok
+  final String state; // warming_up | tracking_lost | partial_3d | bad_3d | ok
   final int filled;
   final int window;
   final bool usable;
@@ -83,6 +83,8 @@ class NativePose3DStatus {
         return isKo ? '사람이 잘 안 보여요 — 자세 판정 멈춤' : 'Person not visible — form check paused';
       case 'bad_3d':
         return isKo ? '3D 자세 인식이 불안정해요 — 이 구간은 판정 안 함' : '3D pose unreliable — not judged';
+      case 'partial_3d':
+        return isKo ? '일부 관절 3D 불안정 — 그 관절은 판정 안 함' : 'Some joints unreliable in 3D — those are not judged';
       default:
         return null;
     }

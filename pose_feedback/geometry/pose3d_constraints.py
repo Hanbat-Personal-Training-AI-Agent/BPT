@@ -44,6 +44,15 @@ DEFAULT_ANGLE_LIMITS = (
 CHILDREN = [[c for c in range(17) if H36M17_PARENTS[c] == p] for p in range(17)]
 
 
+def subtree(joint):
+    out, stack = set(), [joint]
+    while stack:
+        k = stack.pop()
+        out.add(k)
+        stack += CHILDREN[k]
+    return out
+
+
 def _mirror(name):
     return name.replace("left", "#").replace("right", "left").replace("#", "right")
 
@@ -112,7 +121,8 @@ class Pose3DConstraints:
         """Return (joints [17,3] float64, report dict)."""
         j = np.asarray(joints_3d, dtype="float64").copy()
         report = {"bone_max_correction": 0.0, "bone_source": "none", "knee_hyperextended": False,
-                  "knee_correction_deg": 0.0, "knees_reflected": 0, "angle_corrections": {}, "bad": False}
+                  "knee_correction_deg": 0.0, "knees_reflected": 0, "angle_corrections": {}, "invalid_joints": [],
+                  "bad": False}
         if not self.enabled:
             return j, report
         if self.bone_lengths:
@@ -144,14 +154,22 @@ class Pose3DConstraints:
         j = np.asarray(out, dtype="float64").copy()
         report["knee_hyperextended"] = is_bad_3d(hinge)
         report["knee_correction_deg"] = max(hinge[leg]["correction_deg"] for leg in hinge)
+        invalid = set()
         for limit in self.angle_limits:
             moved = clamp_angle(j, limit)
             if moved:
                 report["angle_corrections"][limit[0]] = moved
-        max_angle = max([report["knee_correction_deg"]] + list(report["angle_corrections"].values()))
-        report["bad"] = bool(max_angle > self.bad_angle_deg
-                             or (self.bad_bone_fraction is not None and report["bone_max_correction"] > self.bad_bone_fraction)
-                             or (report["knee_hyperextended"] and not self.knee_correction))
+                if moved > self.bad_angle_deg:
+                    invalid |= subtree(limit[4])
+        if not self.knee_correction:
+            if hinge["right"]["hyperextended"]:
+                invalid.add(2)
+            if hinge["left"]["hyperextended"]:
+                invalid.add(5)
+        if self.bad_bone_fraction is not None and report["bone_max_correction"] > self.bad_bone_fraction:
+            invalid = set(range(17))
+        report["invalid_joints"] = sorted(invalid)
+        report["bad"] = bool(invalid)
         return j, report
 
 

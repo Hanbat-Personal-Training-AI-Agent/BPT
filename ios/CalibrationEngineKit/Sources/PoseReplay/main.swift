@@ -351,7 +351,7 @@ for video in videos {
                        f(frame3D.constraints?.boneMaxCorrection), f(frame3D.constraints?.maxAngleCorrection)]
                       + xyz(frame3D.raw) + xyz(frame3D.pose3D)).joined(separator: ",") + "\n"
         }
-        let result = step(i, coco17Frames[i], frame3D?.pose3D, frame3D?.state, feetFrames[i])
+        let result = step(i, coco17Frames[i], frame3D?.masked3D, frame3D?.state, feetFrames[i])
         if result.rep > rep { repEndFrames.append(i) }
         rep = result.rep
         for event in tracker.drainEvents() {

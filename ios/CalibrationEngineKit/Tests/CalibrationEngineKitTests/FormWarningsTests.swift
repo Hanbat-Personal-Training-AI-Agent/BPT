@@ -67,6 +67,26 @@ final class FormWarningsTests: XCTestCase {
                        -FormGeometry.cameraUp(gravity: [0.5, -0.866, 0], frontCamera: true).x, accuracy: 1e-12)
     }
 
+    /// partial3D: a NaN (untrusted) knee drops only the knee-dependent metrics; trunk metrics stay.
+    func testPartial3DDropsOnlyMetricsOfInvalidJoints() throws {
+        let tracker = FormWarningTracker(exercise: .squat)
+        let coco = sidePushUp(hipDrop: 0)
+        var pose = standing3D(lean: 20, kneeTheta: 30)
+        pose[5] = SIMD3(repeating: .nan)  // left knee untrusted
+        pose[2] = SIMD3(repeating: .nan)
+        tracker.observe(frameIndex: 0, coco17: coco, pose3D: pose, pose3DState: .partial3D, phase: "descending")
+        tracker.beginRep()
+        tracker.observe(frameIndex: 1, coco17: coco, pose3D: pose, pose3DState: .partial3D, phase: "bottom")
+        tracker.recordCurrentFrame()
+        let report = tracker.finishRep(repIndex: 1)
+        XCTAssertEqual(try XCTUnwrap(report.metrics3D["torso_max"]), 20, accuracy: 1e-9)
+        XCTAssertNil(report.metrics3D["knee_min"])
+        XCTAssertNil(report.metrics3D["hip_angle_max"])
+        XCTAssertEqual(report.formSource, "2d")
+        XCTAssertEqual(report.states3D, ["partial_3d": 2])
+        XCTAssertEqual(tracker.sessionBad3DFrames, 0)
+    }
+
     func testBad3DFramesSkipped3DAndCounted() {
         let tracker = FormWarningTracker(exercise: .squat)
         let coco = sidePushUp(hipDrop: 0)

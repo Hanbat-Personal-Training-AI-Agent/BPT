@@ -16,6 +16,7 @@ final class MotionAGFormerLiveTests: XCTestCase {
             let bone_max_correction: Double?
             let angle_corrections: [String: Double]?
             let knees_reflected: Int?
+            let invalid_joints: [Int]?
         }
         struct Run: Decodable {
             let lookahead: Int
@@ -86,6 +87,7 @@ final class MotionAGFormerLiveTests: XCTestCase {
             if let c = g.constraints, let bone = w.bone_max_correction {
                 XCTAssertEqual(c.boneMaxCorrection, bone, accuracy: accuracy * 10, "frame \(w.frame)", file: file, line: line)
                 XCTAssertEqual(Set(c.angleCorrections.keys), Set((w.angle_corrections ?? [:]).keys), "frame \(w.frame)", file: file, line: line)
+                XCTAssertEqual(c.invalidJoints, Set(w.invalid_joints ?? []), "frame \(w.frame)", file: file, line: line)
                 XCTAssertEqual(c.kneesReflected, w.knees_reflected ?? 0, "frame \(w.frame)", file: file, line: line)
             }
         }
@@ -133,7 +135,7 @@ final class MotionAGFormerLiveTests: XCTestCase {
     func testBridgePayloadPerState() {
         let pose = [SIMD3<Double>](repeating: .zero, count: 17)
         for (state, filled, has3D, usable) in [(Pose3DState.warmingUp, 12, false, false), (.trackingLost, 0, false, false),
-                                               (.bad3D, 27, true, false), (.ok, 27, true, true)] {
+                                               (.bad3D, 27, true, false), (.partial3D, 27, true, true), (.ok, 27, true, true)] {
             let frame = Lifted3DFrame(frameIndex: 0, state: state, filled: filled, raw: has3D ? pose : nil,
                                       pose3D: has3D ? pose : nil, constraints: nil, row: has3D ? 21 : nil)
             let p = Pose3DBridge.payload(frame)

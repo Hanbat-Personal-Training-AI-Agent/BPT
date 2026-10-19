@@ -72,6 +72,10 @@ def frame_metrics(j, side="left", up=UP, two_d=None):
         gap = float(np.dot(j[6] - j[3], u))
         if abs(gap) > 1e-6:
             s["kneeAnkleGapRatio"] = float(np.dot(j[5] - j[2], u)) / gap
+    # NaN joints (partial_3d: untrusted) give NaN metrics: drop them, keep the rest (Swift measure3D does the same).
+    for key, v in s.items():
+        if isinstance(v, float) and not math.isfinite(v):
+            s[key] = None
     return s
 
 

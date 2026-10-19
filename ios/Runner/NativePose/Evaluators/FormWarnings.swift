@@ -558,9 +558,11 @@ final class FormWarningTracker {
             if state == .bad3D {
                 sample.bad3D = true
                 sessionBad3DFrames += 1
-            } else if state == .ok {
+            } else if state == .ok || state == .partial3D {
+                // partial3D: untrusted joints are NaN; every metric that needs one comes out nil (sanitised below).
                 var s3 = FormFrameSample(frame: frameIndex, phase: phase, side: side)
                 measure3D(pose3D, like: sample, into: &s3)
+                s3.state3D = state
                 current3D = s3
             }
         }
@@ -612,6 +614,11 @@ final class FormWarningTracker {
             let u = simd_normalize(lr)
             let ankleGap = simd_dot(j[6] - j[3], u)
             if abs(ankleGap) > 1e-6 { s.kneeAnkleGapRatio = simd_dot(j[5] - j[2], u) / ankleGap }
+        }
+        // NaN joints (partial3D) give NaN metrics: drop them, keep the rest.
+        for key in [\FormFrameSample.elbow, \.knee, \.hipAngle, \.torso, \.hipDeviation, \.headDeviation,
+                    \.wristAhead, \.elbowBehind, \.kneeAnkleGapRatio] where s[keyPath: key]?.isFinite == false {
+            s[keyPath: key] = nil
         }
     }
 

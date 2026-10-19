@@ -126,7 +126,7 @@ final class PipelineBench {
             /// Main thread: evaluator + tracker + bridge change detection for one judged frame.
             func judge(_ p: Payload, _ frame3D: Lifted3DFrame?) {
                 DispatchQueue.main.async { [self] in
-                    let (status, rep) = session.evaluate(frameIndex: p.idx, coco17: p.coco17, feet: p.feet, pose3D: frame3D?.pose3D, state: frame3D?.state)
+                    let (status, rep) = session.evaluate(frameIndex: p.idx, coco17: p.coco17, feet: p.feet, pose3D: frame3D?.masked3D, state: frame3D?.state)
                     feedbackEvents += session.tracker.drainEvents().count
                     if rep != lastRep || status != lastStatus { bridgeUpdates += 1 }
                     lastRep = rep

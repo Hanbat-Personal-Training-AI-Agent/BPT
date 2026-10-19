@@ -536,7 +536,7 @@ final class CameraPoseViewModel: ObservableObject {
         }
         let t0 = CACurrentMediaTime()
         let (statusText, rep, done) = runEvaluator(frameIndex: result.frameIndex, rawCoco17: result.rawCoco17,
-                                                   feet: result.feet, pose3D: frame3D.pose3D, pose3DState: frame3D.state)
+                                                   feet: result.feet, pose3D: frame3D.masked3D, pose3DState: frame3D.state)
         let now = CACurrentMediaTime()
         perfLog?.sample("evaluate", ms: (now - t0) * 1000)
         perfLog?.sample("latency_input_to_judgement", ms: (now - result.arrivedAt) * 1000)

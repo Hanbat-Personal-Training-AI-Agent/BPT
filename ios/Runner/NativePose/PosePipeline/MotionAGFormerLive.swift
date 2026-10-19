@@ -17,13 +17,15 @@ import simd
 /// - trackingLost: this frame's 2D has fewer than `minJoints` joints at `minConfidence` — no 3D for it.
 ///   `resetAfterLostFrames` such frames in a row clear the window (the sequence is broken), so the
 ///   person's return starts a new warm-up.
-/// - bad3D: 3D exists but the anatomical constraints had to move it a lot (Pose3DConstraints) — 3D is
-///   reported, judging skips it.
+/// - partial3D: some joints are not trusted (Pose3DConstraints.Report.invalidJoints, e.g. a flipped knee) — they are
+///   NaN in `masked3D`, so only the metrics that need them are skipped (per-metric invalidation).
+/// - bad3D: every joint is untrusted (bone gate) — judging skips the frame.
 /// - ok.
 enum Pose3DState: String {
     case warmingUp = "warming_up"
     case trackingLost = "tracking_lost"
     case bad3D = "bad_3d"
+    case partial3D = "partial_3d"
     case ok
 }
 
@@ -40,8 +42,15 @@ struct Lifted3DFrame {
     /// Output row of the 27-frame window this frame was read from (26 − effective lookahead).
     let row: Int?
 
-    /// 3D the evaluators may judge with: only in state ok.
-    var usable3D: [SIMD3<Double>]? { state == .ok ? pose3D : nil }
+    /// 3D the evaluators may judge with: ok, or partial with the untrusted joints NaN.
+    var usable3D: [SIMD3<Double>]? { state == .ok || state == .partial3D ? masked3D : nil }
+
+    /// `pose3D` with `constraints.invalidJoints` set to NaN (what the evaluators get; = pose3D when nothing is invalid).
+    var masked3D: [SIMD3<Double>]? {
+        guard var p = pose3D else { return nil }
+        for j in constraints?.invalidJoints ?? [] { p[j] = SIMD3(repeating: .nan) }
+        return p
+    }
 }
 
 struct MotionAGFormerLive<Payload> {
@@ -185,7 +194,8 @@ struct MotionAGFormerLive<Payload> {
                 continue
             }
             let (fixed, report) = constraints.apply(raw)
-            emitted.append((e.payload, Lifted3DFrame(frameIndex: e.frameIndex, state: report.bad ? .bad3D : .ok,
+            let state: Pose3DState = report.invalidJoints.isEmpty ? .ok : report.invalidJoints.count == 17 ? .bad3D : .partial3D
+            emitted.append((e.payload, Lifted3DFrame(frameIndex: e.frameIndex, state: state,
                                                      filled: min(realFrames, w), raw: raw, pose3D: fixed,
                                                      constraints: report, row: row)))
         }
