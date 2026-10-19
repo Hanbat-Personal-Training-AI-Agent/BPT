@@ -44,6 +44,12 @@ final class PipelineBench {
     }
 
     private static func now() -> Double { CACurrentMediaTime() }
+    /// Process user + system CPU seconds (all threads).
+    private static func cpuSeconds() -> Double {
+        var u = rusage()
+        getrusage(RUSAGE_SELF, &u)
+        return Double(u.ru_utime.tv_sec + u.ru_stime.tv_sec) + Double(u.ru_utime.tv_usec + u.ru_stime.tv_usec) / 1e6
+    }
     private static func thermal() -> String { WorkoutPerfLog.thermalName(ProcessInfo.processInfo.thermalState) }
     private static func battery() -> (Float, Int) {
         DispatchQueue.main.sync { (UIDevice.current.batteryLevel, UIDevice.current.batteryState.rawValue) }
@@ -94,6 +100,7 @@ final class PipelineBench {
             }
         }
 
+        let cpu0 = Self.cpuSeconds()
         let start = Self.now()
         var cameraFrame = 0, processed = 0, dropped = 0
         var processingMs: [Double] = [], convertMs: [Double] = [], estimateMs: [Double] = []
@@ -238,6 +245,7 @@ final class PipelineBench {
             if clipIndex == clips.count { completedFirstPass = true }
         }
         let wall = Self.now() - start
+        let cpuPct = (Self.cpuSeconds() - cpu0) / wall * 100
         liftQueue.sync {}
         DispatchQueue.main.sync {}  // drain the evaluator steps
         let (battery1, _) = Self.battery()
@@ -256,6 +264,7 @@ final class PipelineBench {
         let hs = handsMs.sorted(), ls = liftQueue.sync { liftMs.sorted() }
         print(String(format: "BENCH stages hands_p50=%.2f hands_p95=%.2f lift3d_p50=%.2f lift3d_p95=%.2f delay_frames=%d",
                      pct(hs, 0.5), pct(hs, 0.95), pct(ls, 0.5), pct(ls, 0.95), lift3D ? lookahead + cadence - 1 : 0))
+        print(String(format: "BENCH cpu process_cpu_pct=%.1f (100 = one core busy; GPU / Neural Engine use not measured)", cpuPct))
         print("BENCH thermal_trace " + thermalTrace.joined(separator: " "))
         perfLog?.close()
         let documents2 = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]

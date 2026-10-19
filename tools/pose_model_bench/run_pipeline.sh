@@ -40,10 +40,12 @@ case $1 in
   c) V='{"BENCH_3D":"1"}' ;;
   g) V="{\"BENCH_MODEL\":\"rtmpose_m_forward\",\"BENCH_3D\":\"1\",\"BENCH_HANDS\":\"1\",\"BENCH_3D_ASYNC\":\"${BPT_3D_ASYNC:-1}\",\"BENCH_3D_CADENCE\":\"${BPT_3D_CADENCE:-1}\"}" ;;  # lift-app: m + hands + live XS + 3D judgement
   h) V='{"BENCH_MODEL":"rtmpose_m_forward"}' ;;  # lift-app baseline: m, 2D only, no hands
+  i) V="{\"BENCH_MODEL\":\"rtmpose_m_forward\",\"BENCH_3D\":\"1\",\"BENCH_3D_ASYNC\":\"${BPT_3D_ASYNC:-1}\",\"BENCH_3D_CADENCE\":\"${BPT_3D_CADENCE:-1}\"}" ;;  # lift-app without hands
+  j) V='{"BENCH_MODEL":"rtmpose_m_forward","BENCH_HANDS":"1"}' ;;  # m + hands, 2D only
   d) V='{"BENCH_MODEL":"rtmpose_m_forward"}' ;;
   f) V='{"BENCH_MODEL":"rtmpose_m_halpe26_forward"}' ;;
   e) V="{\"BENCH_MODEL\":\"pose_landmarker_full\",\"BENCH_MP_DELEGATE\":\"${BPT_MP_DELEGATE:-gpu}\"}" ;;
-  *) echo "variant a|b|c|d|e|f|g|h"; exit 2 ;;
+  *) echo "variant a|b|c|d|e|f|g|h|i|j"; exit 2 ;;
 esac
 ENV=$(conda run -n bpt-eval python -c "import json,sys; v=json.loads(sys.argv[1]); v.update(BENCH_PIPELINE='1', BENCH_PACED='1' if sys.argv[2]=='paced' else '0', BENCH_SECONDS=sys.argv[3], BENCH_COOLDOWN=sys.argv[4]); print(json.dumps(v))" "$V" $2 ${3:-180} ${4:-60})
 xcrun devicectl device process launch --console --terminate-existing --environment-variables "$ENV" \
