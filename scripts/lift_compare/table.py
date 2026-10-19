@@ -112,6 +112,7 @@ def main():
         P('| 운동 | 입력 | 손목 L/R | 팔꿈치 L/R | 팔꿈치 렙 극값 | 팔꿈치 ROM | 손목 가속도 L/R | MediaPipe 교체율 L/R |'); P('|---|---|---|---|---|---|---|---|')
         for ex in LIMB:
             rs = [r for r in rows if r['exercise'] == ex]; n = np.array([r['frames'] for r in rs])
+            if not rs: continue
             for i in ('coco', 'coco_mp', 'ha', 'ha_mp'):
                 k = f'{lif}|{i}|{norm}|raw'
                 if k not in keys: continue

@@ -9,7 +9,7 @@ import argparse, json, os, sys
 from pathlib import Path
 import numpy as np
 
-sys.path[:0] = [str(Path(__file__).resolve().parents[2]), str(Path(__file__).resolve().parents[1])]
+sys.path[:0] = [str(Path(__file__).resolve().parents[2]), str(Path(__file__).resolve().parents[1]), str(Path(__file__).resolve().parent)]
 from eval_3d_angles import fit3d_jobs, near_side, view_and_side  # noqa: E402
 from eval_3d_mediapipe import EXERCISES, TUNING, angle_metrics, angles, angles_from_2d, load_mag, mag_predict, pose_metrics  # noqa: E402
 from finetune_motionagformer_fit3d import prep  # noqa: E402
@@ -18,8 +18,12 @@ from finetune_motionagformer_fit3d import prep  # noqa: E402
 def main():
     p = argparse.ArgumentParser(); p.add_argument('--root'); p.add_argument('--replay'); p.add_argument('--out')
     p.add_argument('--mag-repo', default=os.path.expanduser('~/models/MotionAGFormer'))
+    p.add_argument('--ftd', default=None); p.add_argument('--shapes', default=None)
     a = p.parse_args()
     model, dev = load_mag(f'{a.mag_repo}/checkpoint/motionagformer-xs-h36m.pth.tr', a.mag_repo)
+    if a.ftd:
+        from lift_eval import FiLMLifter
+        ftd, shapes = FiLMLifter.make(a.mag_repo, a.ftd, dev), json.load(open(a.shapes))
     out = []
     for subj, ex, cam, J, R, T, ann, csv in fit3d_jobs(a.root, a.replay, None, list(EXERCISES)):
         d = prep(a.root, subj, ex, cam, J, R, T, csv); pick = d['pick']
@@ -32,17 +36,24 @@ def main():
         res = dict(subject=subj, exercise=ex, cam=cam, view_deg=round(view, 1), group='tuning' if subj in TUNING else 'heldout',
                    csv=os.path.basename(csv), mag_orig={**angle_metrics(angles(P, side, up_c), ref, seg), **pose_metrics(P, G)},
                    **{'2d': angle_metrics(angles_from_2d(d['K'], side), ref, seg)})
+        if a.ftd:
+            Q = FiLMLifter.predict(ftd, d['x'], shapes[subj]['calibrated_cm'], dev).astype(float); Q = (Q - Q[:, :1]) * d['mm'][:, None, None] / 1000
+            res['ftd'] = {**angle_metrics(angles(Q, side, up_c), ref, seg), **pose_metrics(Q, G)}
         out.append(res); print(subj, ex, cam, round(np.mean(res['mag_orig']['mpjpe'])), round(np.mean(res['mag_orig']['pa_mpjpe'])), flush=True)
     json.dump(out, open(a.out, 'w'))
     for grp in ('heldout', 'tuning'):
         rs = [r for r in out if r['group'] == grp]
-        cat = lambda k: np.concatenate([r['mag_orig'][k] for r in rs])
-        print(grp, len(rs), 'MPJPE', round(cat('mpjpe').mean(), 1), 'PA', round(cat('pa_mpjpe').mean(), 1), 'accel', round(cat('accel').mean(), 2))
+        for src in ('mag_orig', 'ftd'):
+            if src not in rs[0]: continue
+            cat = lambda k: np.concatenate([r[src][k] for r in rs])
+            print(grp, src, len(rs), 'MPJPE', round(cat('mpjpe').mean(), 1), 'PA', round(cat('pa_mpjpe').mean(), 1), 'accel', round(cat('accel').mean(), 2))
         for ex in EXERCISES:
             for limb in ('knee', 'hip', 'elbow', 'torso', 'torso_g'):
                 x = [v for r in rs if r['exercise'] == ex and 40 <= r['view_deg'] < 75 for v in r['mag_orig'][limb]['rep']]
                 y = [v for r in rs if r['exercise'] == ex and 40 <= r['view_deg'] < 75 for v in r['2d'][limb]['rep']]
-                if x: print(' ', grp, ex, limb, 'XS', round(float(np.median(x)), 1), '2D', round(float(np.median(y)), 1))
+                z = [v for r in rs if r['exercise'] == ex and 40 <= r['view_deg'] < 75 and 'ftd' in r for v in r['ftd'][limb]['rep']]
+                if x: print(' ', grp, ex, limb, 'XS', round(float(np.median(x)), 1), '(p90', round(float(np.percentile(x, 90)), 1), ') ftd',
+                            round(float(np.median(z)), 1) if z else '-', '2D', round(float(np.median(y)), 1))
 
 
 if __name__ == '__main__':
