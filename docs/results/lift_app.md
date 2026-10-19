@@ -3,6 +3,13 @@
 기준: integration/ai `c113150`. 계획·운동별 명세: [lift_app_plan.md](lift_app_plan.md). 모델 정확도 비교(2D vs 3D 지표, 원래 vs Fit3D XS, COCO17 vs Halpe26)는 ai/lift-compare 담당 — 여기서는 앱 경로 통합·종단 평가·지연만 다룬다.
 **이 브랜치 한정 변경**(병합 전 사용자 승인 필요): `enableMotion3DForCamera = true`, `motionagformer_xs.mlpackage`(원래 H36M XS, 4.9 MB) Runner 번들 포함, 3D 경로에서 손 분기를 모든 운동에 켬. integration/ai의 기본값은 그대로다.
 
+## 요약
+- 3D가 없던 이유: 카메라 경로에 처음부터 3D 코드·모델이 없었고(a949023), 끈 채로 둔 것은 에이전트 결정(D-D-02 등). 사용자가 3D를 끄라고 한 기록은 없음(Q1).
+- 이 브랜치: 라이브 XS(과거 27프레임, L=5) → 해부학 제약 → 3D 자세 판정이 실제 카메라 경로에 연결됨. 상태(준비 중/추적 끊김/3D 불량)는 평가기와 화면에 그대로 나가고, 3D가 없는 렙은 판정 불가로 표시(2D로 대체 안 함).
+- iPhone 17(영상 입력, 카메라·미리보기 제외): 30 fps 유지(놓친 프레임 0.11%), 처리 p95 26.9 ms, 입력→판정 p50 193 ms(그중 lookahead 167 ms), 무제한 57 FPS.
+- 정확도(Fit3D 검증): Core ML = PyTorch(<1 mm). 제약·손목 교체는 정확도를 올리지 못함(±1 mm, 떨림 +5–9%). 렙 카운트는 2D 그대로(P2). 자세 키 검출은 2D와 거의 같고 오경보는 키마다 늘거나 줄었음(미검증 라벨).
+- 다음 기기 세션에 할 것: 실제 Runner 카메라 앱(사람 앞)으로 perf 로그(: pose2d_hands·lift3d·evaluate·입력→판정 지연·judged_fps), 30분 이상 발열·배터리(충전기 분리), GPU/ANE 사용률(Instruments),  중력 축 확인(폰을 앞뒤로 기울여 몸통 각이 변하지 않는지), lookahead 3 비교.
+
 ## iPhone 측정 — 전체 파이프라인 (iPhone 17, iOS 27.0, 2026-10-19 20:51–21:40)
 **D-D-05 “+17 ms”가 잰 것(코드 확인)**: `tools/ios_live3d_cost/Bench.swift` — 무작위 텐서(:17–29)로 RTMPose-s·XS 추론만(:35–36). 카메라·전처리·crop·디코딩·손·평가기 없음. 아래는 그것이 아니라 **앱과 같은 프레임 단위 코드 전체**다.
 
