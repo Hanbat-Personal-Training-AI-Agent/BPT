@@ -361,6 +361,7 @@ final class CameraPoseViewModel: ObservableObject {
                 lifter = MotionAGFormerLive(lookahead: CameraPreviewOptions.motion3DLookahead,
                                             cadence: CameraPreviewOptions.motion3DCadence,
                                             predict: MotionAGFormerCoreML.predictor(xs))
+                lifter?.constraints.reflectFlippedKnee = exercise == .squat  // Fit3D S6: squat only
                 formTracker?.common.form3DRequired = true
                 if CameraPreviewOptions.motion3DGravity {
                     motion = DeviceMotionMonitor()

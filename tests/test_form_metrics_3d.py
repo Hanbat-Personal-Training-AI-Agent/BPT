@@ -12,7 +12,9 @@ from pose_feedback.body.form_metrics_3d import frame_metrics, sequence_rep_metri
 
 def test_fixture_is_current():
     for c in json.loads((ROOT / "tests/fixtures/form_metrics_3d_cases.json").read_text()):
-        got = sequence_rep_metrics(np.array(c["poses"]), [tuple(i) for i in c["intervals"]], c["exercise"], side="left")
+        two_d = [{"hipY": 430.0, "shoulderY": 250.0, "torsoLength": float(np.hypot(42.0, 180.0))}] * len(c["poses"])
+        got = sequence_rep_metrics(np.array(c["poses"]), [tuple(i) for i in c["intervals"]], c["exercise"], side="left",
+                                   two_d=two_d)
         for g, w in zip(got, c["reps"]):
             assert set(g) == set(w)
             for k in w:

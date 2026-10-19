@@ -78,7 +78,7 @@ def clamp_angle(j, limit):
 class Pose3DConstraints:
     def __init__(self, enabled=True, bone_lengths=True, calibration_targets_cm=None, knee_correction=False,
                  knee_limit_deg=30.0, angle_limits=DEFAULT_ANGLE_LIMITS, bad_angle_deg=20.0, bad_bone_fraction=None,
-                 reflect_flipped_knee=True,
+                 reflect_flipped_knee=False,
                  session_min_frames=30, session_window_frames=300, prior_lengths=None):
         self.enabled = enabled
         self.bone_lengths = bone_lengths

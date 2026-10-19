@@ -122,6 +122,7 @@ final class PipelineBench {
             typealias Payload = (idx: Int, coco17: [PoseKeypoint], feet: FootKeypoints?, arrival: Double)
             var lifter = motion3D.map { MotionAGFormerLive<Payload>(lookahead: lookahead, cadence: cadence, predict: MotionAGFormerCoreML.predictor($0)) }
             if lifter != nil { session.tracker.common.form3DRequired = true }
+            lifter?.constraints.reflectFlippedKnee = session.exercise == .squat  // as the camera
             /// Main thread: evaluator + tracker + bridge change detection for one judged frame.
             func judge(_ p: Payload, _ frame3D: Lifted3DFrame?) {
                 DispatchQueue.main.async { [self] in

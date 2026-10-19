@@ -278,6 +278,7 @@ for video in videos {
     var lifter = predict3D.map { p -> MotionAGFormerLive<Int> in
         var l = MotionAGFormerLive<Int>(lookahead: lookahead, cadence: cadence, predict: p)
         l.constraints.enabled = constraintsOn
+        l.constraints.reflectFlippedKnee = exercise == .squat  // as the camera (Fit3D S6: squat only)
         return l
     }
     if lifter != nil, imageWidth == 0 { print("no image size for 3D: \(name) (pass --image-size)"); continue }

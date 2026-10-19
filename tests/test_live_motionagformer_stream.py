@@ -83,7 +83,7 @@ def test_flipped_knee_is_reflected_not_discarded():
     j[2][2] = 0.12  # right knee pushed the "wrong" way in depth: hyperextension-looking theta
     before = knee_theta_deg(j, "right")
     assert before < -30
-    out, report = Pose3DConstraints(bone_lengths=False).apply(j)
+    out, report = Pose3DConstraints(bone_lengths=False, reflect_flipped_knee=True).apply(j)
     assert report["knees_reflected"] == 1 and not report["bad"]
     assert knee_theta_deg(out, "right") > 30
     for p in (1, 3):

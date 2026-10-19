@@ -66,7 +66,9 @@ def main():
                 t += 1
             intervals.append((start, t - 1))
         poses = np.round(np.stack(poses), 8)  # the Swift test reads these rounded values
-        reps = sequence_rep_metrics(poses, intervals, exercise, side="left")
+        # 2D heights of the Swift test's constant COCO17 (near = left: shoulder 5 at (335, 250), hip 11 at (377, 430)).
+        two_d = [{"hipY": 430.0, "shoulderY": 250.0, "torsoLength": math.hypot(42.0, 180.0)}] * len(poses)
+        reps = sequence_rep_metrics(poses, intervals, exercise, side="left", two_d=two_d)
         cases.append({"exercise": exercise, "poses": poses.tolist(),
                       "intervals": intervals, "reps": reps})
     out = ROOT / "tests/fixtures/form_metrics_3d_cases.json"

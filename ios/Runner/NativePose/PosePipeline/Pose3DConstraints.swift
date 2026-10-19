@@ -54,8 +54,9 @@ struct Pose3DConstraints {
     var knee = KneeHingeLimit.Config(enabled: false, limitDegrees: 30)
     /// Knee depth flip fix (S3: in 100% of flagged legs the XS knee sits on the wrong side of the hip–ankle line in depth):
     /// reflect the knee across that line, so θ turns positive with the same interior angle and segment lengths. The frame
-    /// then stays usable. false = detection only (the flip marks bad3D). 제안값 — Fit3D 검증 결과는 lift_app.md.
-    var reflectFlippedKnee = true
+    /// then stays usable. false = detection only (the flip marks bad3D). Fit3D S6: right on squats (17/17 closer to mocap),
+    /// a coin flip on push-ups (40% / 30% closer) — so callers turn it on for the squat only. 제안값.
+    var reflectFlippedKnee = false
     var angleLimits: [AngleLimit] = Pose3DConstraints.defaultAngleLimits
     /// bad3D: an angle limit had to move a joint more than this, or the knee depth flipped. 제안값(사용자 미승인).
     var badAngleDegrees = 20.0

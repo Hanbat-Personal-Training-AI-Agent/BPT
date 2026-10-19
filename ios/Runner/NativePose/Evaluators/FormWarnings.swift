@@ -590,9 +590,11 @@ final class FormWarningTracker {
         s.headDeviation = FormGeometry.signedLineDeviation3D(point: j[10], a: j[0], b: j[8], up: up)
         let trunk = j[8] - j[0], torsoLength = simd_length(trunk)
         if torsoLength > 1e-8 {
-            s.torsoLength = torsoLength
-            s.hipY = simd_dot(j[0], -up)
-            s.shoulderY = simd_dot(j[8], -up)
+            // XS output is pelvis-relative, so 3D hip height is always 0 (S7 finding): hip / shoulder heights and the
+            // torso length that normalises their speeds come from the 2D sample of the same frame (image y, absolute).
+            s.torsoLength = s2.torsoLength
+            s.hipY = s2.hipY
+            s.shoulderY = s2.shoulderY
             // Back normal in the trunk's sagittal plane: −(L hip − R hip) × trunk, as the 2D "behind the torso".
             let chest = simd_cross(j[4] - j[1], trunk)
             if simd_length(chest) > 1e-8 {

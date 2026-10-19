@@ -41,8 +41,9 @@ def signed_line_deviation(point, a, b, up=UP):
     return float(np.dot(point - a, n / np.linalg.norm(n))) / length
 
 
-def frame_metrics(j, side="left", up=UP):
-    """FormWarningTracker.measure3D for one H36M17 frame."""
+def frame_metrics(j, side="left", up=UP, two_d=None):
+    """FormWarningTracker.measure3D for one H36M17 frame. two_d = {hipY, shoulderY, torsoLength} of the same frame
+    in 2D (image y, absolute): XS output is pelvis-relative, so heights come from 2D (None = not available)."""
     j = np.asarray(j, dtype="float64")
     k = SIDE[side]
     s = {"elbow": _angle(j[k["shoulder"]], j[k["elbow"]], j[k["wrist"]]),
@@ -55,8 +56,9 @@ def frame_metrics(j, side="left", up=UP):
          "kneeAnkleGapRatio": None}
     trunk = j[8] - j[0]
     tl = np.linalg.norm(trunk)
+    for key in ("hipY", "shoulderY", "torsoLength"):
+        s[key] = None if two_d is None else two_d.get(key)
     if tl > 1e-8:
-        s["torsoLength"], s["hipY"], s["shoulderY"] = tl, float(np.dot(j[0], -up)), float(np.dot(j[8], -up))
         chest = np.cross(j[4] - j[1], trunk)
         if np.linalg.norm(chest) > 1e-8:
             s["elbowBehind"] = float(np.dot(j[k["elbow"]] - j[0], -chest / np.linalg.norm(chest))) / tl
@@ -152,13 +154,14 @@ def rep_metrics(frames, exercise, is_first_rep=False, hips_first_window=8):
     return m
 
 
-def sequence_rep_metrics(poses, intervals, exercise, side="left", up=UP):
-    """Per-rep metrics for poses [N,17,3] and rep intervals [(start, end)] (inclusive frame indices)."""
+def sequence_rep_metrics(poses, intervals, exercise, side="left", up=UP, two_d=None):
+    """Per-rep metrics for poses [N,17,3] and rep intervals [(start, end)] (inclusive frame indices); two_d = per-frame
+    list of {hipY, shoulderY, torsoLength} from 2D or None."""
     out = []
     for r, (a, b) in enumerate(intervals):
         frames = []
         for t in range(a, b + 1):
-            f = frame_metrics(poses[t], side, up)
+            f = frame_metrics(poses[t], side, up, None if two_d is None else two_d[t])
             f["frame"] = t
             frames.append(f)
         out.append(rep_metrics(frames, exercise, is_first_rep=r == 0))
