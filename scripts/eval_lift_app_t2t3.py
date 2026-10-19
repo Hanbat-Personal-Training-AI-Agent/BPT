@@ -238,19 +238,133 @@ def run_t3(a):
     finish(a, 't3', summ, md, [d['csv'] for d in seqs] + [a.checkpoint])
 
 
+# ---------------------------------------------------------------- T4 Fit3D fine-tuned XS (NON-COMMERCIAL) vs original
+# S7 candidate thresholds = 1% exceedance values of normal ORIGINAL-XS reps (validation, cam up, eval_lift_app S7 rerun
+# 20261020-s7-rep-metrics-0dda987). Candidates only; circular for the original XS on the same reps (~1% by construction).
+CAND = {
+    'pushup_hip_pike': ('hip_dev_min', '<', -0.328), 'pushup_hip_sag': ('hip_dev_max', '>', 0.099),
+    'pushup_head_up': ('head_dev_change_min', '<', -0.275), 'pushup_head_drop': ('head_dev_change_max', '>', 0.261),
+    'pushup_hand_position': ('first_rep_top_wrist_ahead', 'out', (-0.325, 0.451)),
+    'pushup_shallow': ('q_over_base_elbow_min', '>', 2.6), 'pushup_no_lockout': ('q_below_setmax_elbow_max', '>', 13.1),
+    'squat_shallow': ('q_over_base_knee_min', '>', 8.5),
+    'squat_no_lockout': (('q_below_setmax_knee_max', 'q_below_setmax_hip_angle_max'), 'any>', (19.6, 13.3)),
+    'squat_hips_first': ('hips_first_torso_rise', 'hf', 8.6), 'valgus_if_front': ('knee_ankle_gap_ratio_min', '<', 0.675),
+    'row_torso_swing': ('torso_range', '>', 38.2), 'row_standing_up': ('q_standing_up', '>', 2.9),
+    'row_short_pull': ('q_short_pull', '>', 0.099), 'row_head_up': ('head_dev_change_min', '<', -0.15),
+}
+
+
+def judge_cand(m, ex):
+    out = set()
+    for rule, (q, op, t) in CAND.items():
+        if rule not in RULES_BY_EX[ex]: continue
+        if op == 'any>':
+            fire = any(qq in m and m[qq] > tt for qq, tt in zip(q, t))
+        elif q not in m:
+            continue
+        elif op == '<': fire = m[q] < t
+        elif op == '>': fire = m[q] > t
+        elif op == 'out': fire = m[q] < t[0] or m[q] > t[1]
+        else: fire = m[q] > t and m.get('hips_first_hip_rise_speed', -1) > m.get('hips_first_shoulder_rise_speed', 0)
+        if fire: out.add(rule)
+    return out
+
+
+def run_t4(a):
+    import torch
+    from finetune_motionagformer_fit3d import load
+    from pose_feedback.body.form_metrics_3d import UP
+    seqs = load_seqs(a); models = [kv.split('=', 1) for kv in a.models.split(',')]
+    dev = 'cuda' if torch.cuda.is_available() and not a.cpu else 'cpu'
+    recs, reps = [], []
+    for d in seqs:
+        td_app, td_gt = two_d(a, d); side = {'L': 'left', 'R': 'right'}[d['side']]
+        meta = dict(group=d['group'], exercise=d['ex'], subj=d['subj'], cam=d['cam'])
+        for r in rep_records(d['G'], d['seg'], d['ex'], side, UP, dict(meta, model='mocap'), td_gt):
+            r['cand'] = judge_cand(r['m'], d['ex']); r['judge_old'] = r['judge_new'] = True; reps.append(r)
+    for tag, ck in models:
+        model = load(a.mag_repo, ck, dev)[0].eval()
+        for d in seqs:
+            if d['subj'] in a.exclude.get(tag, ()): continue
+            raw = predict_rows(model, dev, d['x'], [5], None, batch=256 if dev == 'cuda' else 16)[5]
+            mm = d['mm'][:, None, None] / 1000; ref = ref_angles(d); side = {'L': 'left', 'R': 'right'}[d['side']]
+            td_app, _ = two_d(a, d)
+            Q, rp = apply_constraints(raw, dict(reflect_flipped_knee=d['ex'] == 'squat'))
+            P = (Q - Q[:, :1]) * mm; A = angles(P, d['side'], d['up_c']); Praw = (raw - raw[:, :1]) * mm
+            inv = [r.get('invalid_joints', []) for r in rp]
+            state = np.array([0 if not j else 2 if len(j) == 17 else 1 for j in inv])
+            Pm = P.copy()
+            for i, j in enumerate(inv):
+                if j: Pm[i, j] = np.nan
+            meta = dict(group=d['group'], exercise=d['ex'], subj=d['subj'], cam=d['cam'], model=tag)
+            recs.append(dict(meta, flip=np.concatenate([knee_theta(Praw, l)[0] < -30 for l in SIDES]),
+                             partial=(state == 1), bad17=(state == 2), **pose_metrics(P, d['G']), **angle_metrics(A, ref, d['seg'])))
+            for r, (s0, e0) in zip(rep_records(Pm, d['seg'], d['ex'], side, UP, meta, td_app), d['seg']):
+                st_ = state[s0:e0 + 1]
+                r['judge_old'] = bool((st_ == 0).mean() >= 0.5); r['judge_new'] = bool((st_ <= 1).mean() >= 0.5)
+                r['cand'] = judge_cand(r['m'], d['ex']); reps.append(r)
+            print(tag, d['subj'], d['ex'], d['cam'], flush=True)
+        del model
+    f = lambda q, kk='p50': q.get(kk, float('nan'))
+    tags = [t for t, _ in models]
+    summ = {'pose': {}, 'rules': {}, 'quant': {}, 'cand': {k: list(v) for k, v in CAND.items()}}
+    md = ['Fit3D 유래·비상업(NON-COMMERCIAL) 가중치 포함. L=5, Pose3DConstraints() 기본값(a03ddd9: 스쿼트만 무릎 반사, 지표별 무효화). '
+          '검증 s07–s11 (두 미세조정 모두 학습에 안 씀).', '',
+          '| 묶음 | 운동 | 모델 | 영상 | MPJPE | PA-MPJPE | 가속도 | knee 렙극값 (p90) | hip | elbow | torso_g | 무릎 뒤집힘(θ<−30 다리×프레임) | 무효 관절 프레임 (partial) | bad_3d(17) | 판정 불가 렙 옛 / 새 |',
+          '|---' * 15 + '|']
+    for k, rs in groups_of(recs, ('group', 'exercise', 'model')):
+        rr = [r for r in reps if r.get('model') == k[2] and r['group'] == k[0] and (k[1] == 'all' or r['exercise'] == k[1])]
+        s = dict(videos=len(rs), mpjpe=st(cat(rs, 'mpjpe')), pa=st(cat(rs, 'pa_mpjpe')), accel=st(cat(rs, 'accel')),
+                 flip=float(cat(rs, 'flip').mean()), partial=float(cat(rs, 'partial').mean()), bad17=float(cat(rs, 'bad17').mean()),
+                 unj_old=float(np.mean([not r['judge_old'] for r in rr])) if rr else None, unj_new=float(np.mean([not r['judge_new'] for r in rr])) if rr else None,
+                 **{g: st(cat(rs, g, 'rep')) for g in ANG})
+        summ['pose']['/'.join(k)] = s
+        md.append(f"| {k[0]} | {k[1]} | {k[2]} | {s['videos']} | {s['mpjpe']['mean']:.1f} | {s['pa']['mean']:.1f} | {s['accel']['mean']:.2f} | "
+                  f"{f(s['knee']):.1f} ({f(s['knee'], 'p90'):.0f}) | {f(s['hip']):.1f} | {f(s['elbow']):.1f} | {f(s['torso_g']):.1f} | {s['flip']:.2%} | "
+                  f"{s['partial']:.2%} | {s['bad17']:.2%} | {s['unj_old']:.1%} / {s['unj_new']:.1%} |")
+    for ex in EXERCISES:
+        rules = RULES_BY_EX[ex]
+        md += ['', f'**{ex} 정상 렙 오경보: 현재 앱 임계값 (judge_py) / S7 후보 임계값 (원래 XS 1% 초과값)**', '',
+               '| 묶음 | 모델 | 렙 | ' + ' | '.join(rules) + ' |', '|---' * (3 + len(rules)) + '|']
+        for grp in ('heldout', 'tuning'):
+            for tag in ['mocap'] + tags:
+                rs = [r for r in reps if r['exercise'] == ex and r['group'] == grp and r.get('model') == tag and r['judge_new']]
+                if not rs: continue
+                cur = {q: float(np.mean([q in r['fired'] for r in rs])) for q in rules}
+                cd = {q: float(np.mean([q in r['cand'] for r in rs])) for q in rules if q in CAND}
+                summ['rules'][f'{ex}/{grp}/{tag}'] = dict(reps=len(rs), current=cur, candidate=cd)
+                md.append(f"| {grp} | {tag} | {len(rs)} | " + ' | '.join(f"{cur[q]:.0%} / {'-' if q not in cd else f'{cd[q]:.0%}'}" for q in rules) + ' |')
+        qs = sorted({v[0] if isinstance(v[0], str) else x for k, v in CAND.items() if k in rules for x in ([v[0]] if isinstance(v[0], str) else v[0])})
+        md += ['', f'**{ex} 규칙 양 p1 / p99 (정상 렙, 모델별)**', '', '| 묶음 | 모델 | ' + ' | '.join(qs) + ' |', '|---' * (2 + len(qs)) + '|']
+        for grp in ('heldout', 'tuning'):
+            for tag in ['mocap'] + tags:
+                rs = [r for r in reps if r['exercise'] == ex and r['group'] == grp and r.get('model') == tag and r['judge_new']]
+                if not rs: continue
+                cells = []
+                for q in qs:
+                    v = np.array([r['m'][q] for r in rs if q in r['m']], float)
+                    pq = (float(np.percentile(v, 1)), float(np.percentile(v, 99))) if len(v) else None
+                    summ['quant'][f'{ex}/{grp}/{tag}/{q}'] = dict(n=int(len(v)), p1=pq and pq[0], p99=pq and pq[1])
+                    cells.append('-' if pq is None else f'{pq[0]:.3g} / {pq[1]:.3g}')
+                md.append(f"| {grp} | {tag} | " + ' | '.join(cells) + ' |')
+    finish(a, 't4', summ, md, [d['csv'] for d in seqs] + [ck for _, ck in models])
+
+
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument('cmd', choices=['t2', 't3'])
+    p.add_argument('cmd', choices=['t2', 't3', 't4'])
     p.add_argument('--root', required=True); p.add_argument('--replay', required=True); p.add_argument('--run-dir', required=True)
     p.add_argument('--subjects', type=lambda s: s.split(','), default=['s03', 's04', 's05', 's07', 's08', 's09', 's10', 's11'])
     p.add_argument('--exercises', type=lambda s: s.split(','), default=None)
     p.add_argument('--mag-repo', default=os.path.expanduser('~/models/MotionAGFormer'))
     p.add_argument('--checkpoint', default=None); p.add_argument('--cpu', action='store_true'); p.add_argument('--cache', default=None)
+    p.add_argument('--models', default=None, help='t4: tag=ckpt,... (Fit3D fine-tuned = NON-COMMERCIAL)')
+    p.add_argument('--exclude', type=json.loads, default={}, help='t4: {tag: [training subjects to skip]}')
     a = p.parse_args()
     a.exercises = a.exercises or (['pushup'] if a.cmd == 't2' else list(EXERCISES))
     a.checkpoint = a.checkpoint or f'{a.mag_repo}/checkpoint/motionagformer-xs-h36m.pth.tr'
     E.CACHE['dir'] = a.cache; os.makedirs(a.run_dir, exist_ok=True)
-    {'t2': run_t2, 't3': run_t3}[a.cmd](a)
+    {'t2': run_t2, 't3': run_t3, 't4': run_t4}[a.cmd](a)
 
 
 if __name__ == '__main__':
