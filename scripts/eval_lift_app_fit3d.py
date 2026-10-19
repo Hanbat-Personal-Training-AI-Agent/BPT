@@ -577,11 +577,14 @@ def run_s6(a):
 S7_KEYS = {
     'squat': ['knee_min', 'knee_max', 'hip_angle_max', 'torso_min', 'torso_max', 'torso_mean', 'torso_range', 'torso_at_bottom',
               'hips_first_torso_rise', 'hips_first_hip_rise_speed', 'hips_first_shoulder_rise_speed', 'hips_first_speed_diff',
-              'knee_ankle_gap_ratio_min', 'head_dev_change_min', 'head_dev_change_max', 'elbow_min'],
+              'knee_ankle_gap_ratio_min', 'head_dev_change_min', 'head_dev_change_max', 'elbow_min',
+              'q_over_base_knee_min', 'q_below_setmax_knee_max', 'q_below_setmax_hip_angle_max'],
     'pushup': ['elbow_min', 'elbow_max', 'hip_dev_min', 'hip_dev_max', 'head_dev_change_min', 'head_dev_change_max',
-               'first_rep_top_wrist_ahead', 'knee_min', 'hip_angle_max', 'torso_min', 'torso_max', 'torso_mean', 'torso_range'],
+               'first_rep_top_wrist_ahead', 'knee_min', 'hip_angle_max', 'torso_min', 'torso_max', 'torso_mean', 'torso_range',
+               'q_over_base_elbow_min', 'q_below_setmax_elbow_max'],
     'barbell_row': ['torso_min', 'torso_max', 'torso_mean', 'torso_range', 'elbow_min', 'elbow_max', 'elbow_behind_max',
-                    'head_dev_change_min', 'head_dev_change_max', 'hip_angle_max', 'knee_min', 'hip_dev_min', 'hip_dev_max'],
+                    'head_dev_change_min', 'head_dev_change_max', 'hip_angle_max', 'knee_min', 'hip_dev_min', 'hip_dev_max',
+                    'q_standing_up', 'q_short_pull'],
 }
 STAB = ('knee', 'elbow', 'torso')
 
@@ -644,12 +647,13 @@ RULES_BY_EX = {'pushup': ['pushup_hip_sag', 'pushup_hip_pike', 'pushup_shallow',
                'barbell_row': ['row_torso_swing', 'row_standing_up', 'row_short_pull', 'row_head_up']}
 
 
-def rep_records(P, intervals, exercise, side, up, meta):
-    """Per-rep metrics (form_metrics_3d mirror), stability and fired rules for one pose sequence."""
+def rep_records(P, intervals, exercise, side, up, meta, two_d=None):
+    """Per-rep metrics (form_metrics_3d mirror), stability and fired rules for one pose sequence.
+    two_d = per-frame {hipY, shoulderY, torsoLength} in image px (0dda987: 3D heights come from 2D)."""
     from pose_feedback.body.form_metrics_3d import frame_metrics, rep_metrics
     F = []
     for t, p in enumerate(P):
-        f = frame_metrics(p, side, up); f['frame'] = t; F.append(f)
+        f = frame_metrics(p, side, up, None if two_d is None else two_d[t]); f['frame'] = t; F.append(f)
     ms, recs = [], []
     for r, (s, e) in enumerate(intervals):
         fr = F[s:e + 1]; m = rep_metrics(fr, exercise, is_first_rep=r == 0)
@@ -659,6 +663,17 @@ def rep_records(P, intervals, exercise, side, up, meta):
             v = np.array([x[q] for x in fr if x[q] is not None], float)
             if len(v) > 1: m[f'stab_{q}'] = float(np.median(np.abs(np.diff(v))))
         ms.append(m)
+    # judge() quantities that need the set: baseline = median of the first 3 reps (from rep 4), set max incl. this rep
+    for i, m in enumerate(ms):
+        h = ms[:i]
+        for n in ('elbow_min', 'knee_min'):
+            if i >= 3 and n in m and [x[n] for x in h[:3] if n in x]: m[f'q_over_base_{n}'] = m[n] - float(np.median([x[n] for x in h[:3] if n in x]))
+        for n in ('elbow_max', 'knee_max', 'hip_angle_max'):
+            if n in m: m[f'q_below_setmax_{n}'] = max([x[n] for x in h if n in x] + [m[n]]) - m[n]
+        if i >= 3 and 'torso_mean' in m and [x['torso_mean'] for x in h[:3] if 'torso_mean' in x]:
+            m['q_standing_up'] = math.remainder(float(np.median([x['torso_mean'] for x in h[:3] if 'torso_mean' in x])) - m['torso_mean'], 360)
+        if i >= 3 and 'elbow_behind_max' in m and [x['elbow_behind_max'] for x in h[:3] if 'elbow_behind_max' in x]:
+            m['q_short_pull'] = float(np.median([x['elbow_behind_max'] for x in h[:3] if 'elbow_behind_max' in x])) - m['elbow_behind_max']
     for m, fired in zip(ms, judge_py(ms, exercise)):
         recs.append(dict(meta, m=m, fired=fired))
     return recs
@@ -707,17 +722,26 @@ def run_s7(a):
     recs = []
     for d in seqs:
         raw = predict_rows(model, dev, d['x'], [5], seq_key(d))[5]; mm = d['mm'][:, None, None] / 1000
-        Qh, _ = apply_constraints(raw, {})
-        srcs = {'gt': d['G'], 'xs_h_new': (Qh - Qh[:, :1]) * mm, 'xs_raw': (raw - raw[:, :1]) * mm}
+        Qh, _ = apply_constraints(raw, dict(reflect_flipped_knee=d['ex'] == 'squat'))  # 0dda987: the app reflects on squat only
         side = {'L': 'left', 'R': 'right'}[d['side']]
-        for src, P in srcs.items():
+        # 2D heights: XS = the app's own 2D (near-side COCO shoulder/hip, image px); mocap = mocap joints projected
+        sh, hp = {'left': (5, 11), 'right': (6, 12)}[side]
+        two = lambda S_, H_: [dict(hipY=float(b[1]), shoulderY=float(t[1]), torsoLength=float(np.hypot(*(t - b))))
+                              for t, b in zip(S_, H_)]
+        cam = json.load(open(f"{a.root}/train/{d['subj']}/camera_parameters/{d['cam']}/{d['ex']}.json"))
+        from pose_feedback.body.pose2d_data import project_fit3d
+        Jp = d['J'][d['pick']]; hs, hh = {'left': (11, 4), 'right': (14, 1)}[side]
+        td_app = two(d['K'][:, sh, :2], d['K'][:, hp, :2]); td_gt = two(project_fit3d(Jp[:, hs], cam), project_fit3d(Jp[:, hh], cam))
+        srcs = {'gt': (d['G'], td_gt), 'xs_h_new': ((Qh - Qh[:, :1]) * mm, td_app), 'xs_raw': ((raw - raw[:, :1]) * mm, td_app)}
+        for src, (P, td) in srcs.items():
             for up, u in (('cam', UP), ('grav', d['up_c'])):
-                recs += rep_records(P, d['seg'], d['ex'], side, u, dict(group=d['group'], exercise=d['ex'], subj=d['subj'], cam=d['cam'], src=src, up=up))
+                recs += rep_records(P, d['seg'], d['ex'], side, u, dict(group=d['group'], exercise=d['ex'], subj=d['subj'], cam=d['cam'], src=src, up=up), td)
         print(d['subj'], d['ex'], d['cam'], flush=True)
     s7_summary(a, recs, 's7', [d['csv'] for d in seqs] + [a.checkpoint],
-               ['Fit3D 정상 렙(rep_ann). 소스: gt = 모캡, xs_h_new = XS(L=5) + Pose3DConstraints() 기본값, xs_raw = XS 그대로. '
-                '위: cam = 카메라 −y(앱 기본), grav = 실제 중력(정답 카메라 자세). 3D 자세는 골반 기준이라 hipY ≡ 0 → '
-                'hips_first_hip_rise_speed ≡ 0 (앱 3D 경로와 같음).', ''])
+               ['Fit3D 정상 렙(rep_ann). 소스: gt = 모캡, xs_h_new = XS(L=5) + Pose3DConstraints() 기본값(스쿼트만 무릎 반사, 0dda987), '
+                'xs_raw = XS 그대로. 위: cam = 카메라 −y(앱 기본), grav = 실제 중력(정답 카메라 자세). 높이(hipY·shoulderY·torsoLength) = '
+                '같은 프레임 2D(이미지 px): XS는 앱 2D(RTMPose-m CSV 가까운 쪽 어깨·엉덩이), 모캡은 모캡 관절 투영. '
+                'q_* = judge()가 비교하는 양(기준선 = 첫 3렙 중앙값, 4번째 렙부터; set max = 이 렙 포함).', ''])
 
 
 def run_s7_ex3d(a):
