@@ -927,7 +927,8 @@
 - 상세 `docs/results/lift_compare.md`, 사전 등록 `docs/results/lift_compare_plan.md`(제안, 미승인), 제약용 통계 `docs/results/lift_compare_priors.md`. 실행 기록 Home `~/bpt-runs/lift-compare/<run-id>/manifest.json`. 채택·기각·앱 변경·병합 없음.
 - **실험 A(같은 RTMDet 상자, PyTorch), Fit3D 모캡 정답, 검증 s07–s11, 사선 56–75°** [Fit3D·verified 3D]:
   - 원래 H36M XS: Halpe26(변형 a = COCO 부분, 지금 앱 방식) − COCO17 = MPJPE −1.8 ~ −3.9 mm, P-MPJPE −2.2 ~ −4.4 mm(피험자 묶음 부트스트랩 95% CI가 0 미만; 상자 규칙 3 × 정규화 2 중 P-MPJPE 6/6, MPJPE 5/6이 사전 규칙상 "차이 있음"). 관절 각도 렙 극값·ROM·떨림은 구별 불가.
-  - Fit3D 미세조정 XS(D-D-08 d, 그리고 D-D-06 재현 s05 폴드): 차이 구별 불가(MPJPE −1.5 ~ +0.4 mm, CI가 0 포함).
+  - Fit3D 미세조정 XS(D-D-08 d, D-D-06 재현 2폴드): 차이 구별 불가(MPJPE −1.5 ~ +0.4 mm, P-MPJPE −1.4 ~ +0.3 mm; CI가 0 포함하거나 문턱 2 mm 미만).
+  - 원래 vs 미세조정(Q2, COCO17 입력, padded 53영상): MPJPE 116–144 → 52–58 mm, 렙 극값 중앙값 무릎 15–17 → 4–8°, 몸통(중력) 15–17 → 4°. 같은 Fit3D 실험실·사선 카메라 안에서의 결과.
   - 변형 b(Halpe 19/18/17을 골반·흉곽·머리로): 모든 리프터에서 나빠짐(MPJPE +6 ~ +11 mm).
   - MediaPipe 손목 교체: 구별 불가, 방향은 조금 나쁨(+0.3 ~ +1.3 mm, 2D 손목 오차·떨림 증가).
   - lift-app 제약(ed67a6e)·Fit3D 한계 제약: 위치 ±1–2 mm, 떨림 +0.1–0.5, 각도 거의 그대로.
