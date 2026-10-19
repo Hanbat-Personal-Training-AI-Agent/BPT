@@ -6,6 +6,12 @@
 - v1(최초 지시): 3D 각도·MPJPE를 COCO17 / Halpe26(a: COCO 부분집합, b: Halpe 고유 머리·목·엉덩이) × 원래 XS / Fit3D 미세조정 XS로, 실험 A(같은 상자)·B(앱 경로) 분리.
 - v2(코디네이터 추가 지시 4건, 같은 날, 결과 전): 목표 = 온디바이스 3D 개인 트레이너, 3D는 항상 켬. 렙 카운트는 선택 기준 아님(부록). 주 비교 = 파이프라인 A(m COCO17 → XS) vs B(m Halpe26 → COCO17 부분 → H36M17 → XS, 즉 변형 a), 변형 b는 부차. 2D 정확도·안정성, 3D(MPJPE, P-MPJPE, 관절별 위치 오차, 각도, ROM, 떨림, 시점별), 입력 분포 이동, 학습 설정과 좌표·정규화 일치 확인, 제약(관절 각 한계·뼈 길이) 적용 전/후, 손목 출처(rtmpose vs MediaPipe 손 교체), Fit3D 각도 분포·뼈 길이 비 통계(ai/lift-app용), D-D-01..07 재감사.
 
+- v3(2026-10-19, 결과 전 — 아래는 스모크 1–4영상으로 코드만 확인, 비교 수치는 아직 안 봄):
+  - **미세조정 XS**: D-D-06/07 가중치는 삭제됐지만, D-D-08(ai/smpl-train)의 **변형 d**(`~/models/bpt-smpl-train/d.pth`, Fit3D s03–s05로 미세조정한 XS + 뼈 길이 FiLM 조건 + 모듈별 손실, 검증 MPJPE 50.8 / PA 35.9)가 남아 있다. 새 학습 없이 쓸 수 있는 **유일한 Fit3D 미세조정 XS**라 이것을 `ftd`로 추론만 한다. 조건 입력 = 피험자별 `calibrated_cm`(`~/bpt-smpl/shapes.json`, SMPL β를 모캡 길이에 맞춘 값 = D-D-08의 oracle 설정; D-D-08에서 잡음 길이와 결과 같음). SMPL 유래(비상업) 주의. D-D-06/07의 미세조정 XS(변형 a와 같은 레시피)와 **같은 가중치가 아님**을 모든 표에 적는다. 정규화는 학습 설정인 `crop`만.
+  - **실험 B(앱 경로) Fit3D**: Home `~/bpt-smpl/replay`에 이전 트랙(smpl-train)이 만든 Fit3D 앱 경로 m COCO17 pose-replay CSV(160개, 2026-10-16)가 있다 → **COCO17만** 실험 B 리프팅 가능(D-D-07 재현에도 씀). m Halpe26 앱 경로 Fit3D CSV는 없음 → Halpe26 실험 B Fit3D는 **측정 안 함**. A와 B는 섞지 않음.
+  - Home GPU는 ai/lift-app 작업과 함께 쓴다 → GPU 작업은 `flock ~/.bpt-gpu.lock`(Home 관례)으로 순서를 맞춘다. 1단계 2D(이미 시작)는 잠금 없이 돌고 있음을 기록.
+  - 제약 `con_fit3d`: lift-app `Pose3DConstraints`(ed67a6e) 그대로에 각도 한계만 Fit3D s03–s05 모캡 p0.1/p99.9, 사전 길이만 s03–s05 비로 바꾼 것. 표 키 = `<리프터>|<입력>|<정규화>|<제약>`.
+
 ## 1. 질문
 1. (Q3, 주) 같은 XS에 m COCO17 2D와 m Halpe26 2D(변형 a)를 넣었을 때 3D 정확도가 달라지는가, 어느 쪽으로, 잡음보다 큰가.
 2. (Q2) 원래 H36M XS vs Fit3D 미세조정 XS — 증거만.

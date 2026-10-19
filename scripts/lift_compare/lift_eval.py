@@ -34,6 +34,39 @@ SEGS = {'thigh': [(1, 2), (4, 5)], 'shin': [(2, 3), (5, 6)], 'upper_arm': [(11, 
 ANG = ('knee', 'hip', 'elbow', 'torso', 'torso_g')
 
 
+class FiLMLifter:
+    """D-D-08 variant d (ai/smpl-train scripts/train_lifter_body_shape.py `build`, copied): MotionAGFormer-XS with a
+    zero-initialised FiLM on the joint embedding from log(L / mean L) of the subject's 18 calibrated bone lengths."""
+    @staticmethod
+    def make(mag_repo, ckpt, dev):
+        import torch, torch.nn as nn
+
+        class Lifter(nn.Module):
+            def __init__(self, base):
+                super().__init__(); self.base = base
+                self.film = nn.Sequential(nn.Linear(18, 64), nn.GELU(), nn.Linear(64, 2 * base.pos_embed.shape[-1]))
+
+            def forward(self, x, c):
+                m = self.base; h = m.joints_embed(x) + m.pos_embed
+                g, b = self.film(c).chunk(2, -1); h = h * (1 + g[:, None, None]) + b[:, None, None]
+                for layer in m.layers: h = layer(h)
+                return m.head(m.rep_logit(m.norm(h)))
+        base, _ = load(mag_repo, f'{mag_repo}/checkpoint/motionagformer-xs-h36m.pth.tr', 'cpu')
+        m = Lifter(base); m.load_state_dict(torch.load(ckpt, map_location='cpu', weights_only=False)['model']); return m.to(dev).eval()
+
+    @staticmethod
+    def predict(model, x, cal_cm, dev, batch=512):
+        import torch
+        from eval_3d_angles import LOOKAHEAD, WINDOW
+        L = np.asarray(cal_cm, np.float32); c = torch.from_numpy(np.log(L / L.mean())[None]).to(dev)
+        n = len(x); idx = np.clip(np.arange(n)[:, None] + LOOKAHEAD - (WINDOW - 1) + np.arange(WINDOW)[None], 0, n - 1); out = []
+        with torch.no_grad():
+            for s in range(0, n, batch):
+                xb = torch.from_numpy(x[idx[s:s + batch]]).to(dev)
+                out.append(model(xb, c.expand(len(xb), -1))[:, WINDOW - 1 - LOOKAHEAD].cpu().numpy())
+        return np.concatenate(out)
+
+
 def h36m_inputs(d, mp):
     co, ha = coco17_to_motionagformer_h36m17(d['coco']), coco17_to_motionagformer_h36m17(d['halpe'][:, :17])
     H = d['halpe']
@@ -125,10 +158,16 @@ def main():
     p.add_argument('--subjects', type=lambda s: s.split(','), default=None)
     p.add_argument('--mag-repo', default=os.path.expanduser('~/models/MotionAGFormer'))
     p.add_argument('--ckpt', default=None)
+    p.add_argument('--ftd', default=None, help='D-D-08 d.pth (Fit3D fine-tuned XS with bone-length FiLM)')
+    p.add_argument('--shapes', default=None, help='shapes.json with per-subject calibrated_cm (SMPL beta fit, D-D-08)')
     a = p.parse_args()
     import torch
     dev = 'cuda' if torch.cuda.is_available() else 'cpu'
     model = load(a.mag_repo, a.ckpt or f'{a.mag_repo}/checkpoint/motionagformer-xs-h36m.pth.tr', dev)[0].eval()
+    lifters = {'orig': (lambda X, subj: app_predict(model, X, dev), ('crop', 'screen'))}
+    if a.ftd:
+        ftd, shapes = FiLMLifter.make(a.mag_repo, a.ftd, dev), json.load(open(a.shapes))
+        lifters['ftd'] = (lambda X, subj: FiLMLifter.predict(ftd, X, shapes[subj]['calibrated_cm'], dev), ('crop',))
     priors = json.load(open(a.priors)); results = []
     for f in sorted(glob.glob(f'{a.pose2d}/*.npz')):
         name = os.path.basename(f)[:-4]; subj, cam, ex = name.split('_', 2)
@@ -166,18 +205,20 @@ def main():
         for key, (xy, cf) in inp.items():
             if key != 'gt2d': res['m2d'][key] = metrics2d(xy, cf, G2, scale)
             for norm in ('crop', 'screen'):
-                x, px = normalise(xy, cf, norm, w, h)
-                ys = x[..., 1]; res['scale_in'][f'{key}|{norm}'] = float(np.median(ys.max(1) - ys.min(1)))
-                X = np.concatenate([x, cf[..., None]], -1).astype(np.float32)
-                Praw = app_predict(model, X, dev).astype(float); Praw = Praw - Praw[:, :1]
-                unit_m = px * zroot / fpx
+              x, px = normalise(xy, cf, norm, w, h)
+              ys = x[..., 1]; res['scale_in'][f'{key}|{norm}'] = float(np.median(ys.max(1) - ys.min(1)))
+              X = np.concatenate([x, cf[..., None]], -1).astype(np.float32)
+              unit_m = px * zroot / fpx
+              for lname, (fn, norms) in lifters.items():
+                if norm not in norms: continue
+                Praw = fn(X, subj).astype(float); Praw = Praw - Praw[:, :1]
                 for con in ('raw', 'con_app', 'con_fit3d'):
                     if con == 'raw': Pu, badr = Praw, None
                     else: Pu, badr = constrain(Praw, con, priors)
                     P = Pu * unit_m[:, None, None]
                     r = metrics3d(P, G, side, up_c, seg)
                     if badr is not None: r['bad_rate'] = badr
-                    res['m3d'][f'{key}|{norm}|{con}'] = r
+                    res['m3d'][f'{lname}|{key}|{norm}|{con}'] = r
         print(name, f'view={view:.0f}', f"box_ok={res['box_ok']:.3f}",
               {k: (round(v['mpjpe']), round(v['pa'])) for k, v in res['m3d'].items() if k.endswith('|raw') and '|crop' in k}, flush=True)
         results.append(res)

@@ -45,7 +45,7 @@ def fmt_rep(x): return f'{np.median(x):.1f} ({np.percentile(x, 90):.1f})' if len
 
 def main():
     p = argparse.ArgumentParser(); p.add_argument('json'); p.add_argument('--group', default='heldout')
-    p.add_argument('--boot', type=int, default=2000); p.add_argument('--norms', default='crop,screen')
+    p.add_argument('--boot', type=int, default=2000); p.add_argument('--combos', default='orig|crop,orig|screen,ftd|crop')
     a = p.parse_args()
     allrows = json.load(open(a.json)); rows = [r for r in allrows if r['group'] == a.group]
     bad = [r for r in rows if r['box_ok'] < 0.99 or r['nodet'] > 0.01]
@@ -55,38 +55,40 @@ def main():
     P(f"피험자 {sorted({r['subject'] for r in rows})}, 시점각 범위 {min(r['view_deg'] for r in rows)}–{max(r['view_deg'] for r in rows)}°, "
       f"시점 분포 {[(n, sum(lo <= r['view_deg'] < hi for r in rows)) for n, lo, hi in VIEWS]}\n")
     keys = list(rows[0]['m3d'])
-    for norm in a.norms.split(','):
+    for combo in a.combos.split(','):
+        lif, norm = combo.split('|')
+        if not any(k.split('|')[0] == lif and k.split('|')[2] == norm for k in keys): P(f'### {combo}: 측정 안 함(결과 없음)\n'); continue
         for con in ('raw', 'con_app', 'con_fit3d'):
-            ks = [k for k in keys if k.split('|')[1] == norm and k.split('|')[2] == con]
-            P(f'### 3D 전체 — 정규화 {norm}, {con}\n')
+            ks = [k for k in keys if k.split('|')[0] == lif and k.split('|')[2] == norm and k.split('|')[3] == con]
+            P(f'### 3D 전체 — 리프터 {lif}, 정규화 {norm}, {con}\n')
             P('| 입력 | MPJPE | P-MPJPE | 가속도 오차 | ' + ' | '.join(f'{g} 렙 극값 중앙 (p90)' for g in ALL_ANG) + ' | ' + ' | '.join(f'{g} ROM' for g in ALL_ANG) + (' | 3D 불량 비율' if con != 'raw' else '') + ' |')
             P('|---|---|---|---|' + '---|' * (2 * len(ALL_ANG)) + ('---|' if con != 'raw' else ''))
             for k in ks:
                 angrows = lambda g: [r for r in rows if g in LIMB[r['exercise']]]
-                P(f"| {k.split('|')[0]} | {pooled(rows, k, 'mpjpe'):.1f} | {pooled(rows, k, 'pa'):.1f} | {pooled(rows, k, 'accel'):.2f} | "
+                P(f"| {k.split('|')[1]} | {pooled(rows, k, 'mpjpe'):.1f} | {pooled(rows, k, 'pa'):.1f} | {pooled(rows, k, 'accel'):.2f} | "
                   + ' | '.join(fmt_rep(reps(angrows(g), k, g)) for g in ALL_ANG) + ' | '
                   + ' | '.join(fmt_rep(reps(angrows(g), k, g, 'rom')) for g in ALL_ANG)
                   + (f" | {np.mean([r['m3d'][k]['bad_rate'] for r in rows]):.3f}" if con != 'raw' else '') + ' |')
             P('')
         # paired comparisons vs coco (raw)
-        P(f'### 쌍 비교 (정규화 {norm}, raw): 차이 = 변형 − coco, 95% 피험자 묶음 부트스트랩 CI, 피험자별 차이\n')
+        P(f'### 쌍 비교 (리프터 {lif}, 정규화 {norm}, raw): 차이 = 변형 − coco, 95% 피험자 묶음 부트스트랩 CI, 피험자별 차이\n')
         P('| 변형 | 지표 | 차이 | 95% CI | 판정 | 피험자별 |'); P('|---|---|---|---|---|---|')
-        base = f'coco|{norm}|raw'
+        base = f'{lif}|coco|{norm}|raw'
         for v in ('ha', 'hb', 'coco_mp', 'ha_mp'):
-            k = f'{v}|{norm}|raw'
+            k = f'{lif}|{v}|{norm}|raw'
             if k not in keys: continue
-            b0 = base if v != 'ha_mp' else f'ha|{norm}|raw'
+            b0 = base if v != 'ha_mp' else f'{lif}|ha|{norm}|raw'
             for met in ('mpjpe', 'pa', 'accel'):
                 est, lo, hi, per = boot_diff(rows, b0, k, lambda rr, kk: pooled(rr, kk, met), a.boot)
-                P(f"| {v} vs {b0.split('|')[0]} | {met} | {est:+.2f} | [{lo:+.2f}, {hi:+.2f}] | {verdict(est, lo, hi, THR[met])} | {' '.join(f'{x:+.1f}' for x in per)} |")
+                P(f"| {v} vs {b0.split('|')[1]} | {met} | {est:+.2f} | [{lo:+.2f}, {hi:+.2f}] | {verdict(est, lo, hi, THR[met])} | {' '.join(f'{x:+.1f}' for x in per)} |")
             for g in ALL_ANG:
                 rr0 = [r for r in rows if g in LIMB[r['exercise']]]
                 est, lo, hi, per = boot_diff(rr0, b0, k, lambda rr, kk: float(np.mean(reps(rr, kk, g))), a.boot)
-                P(f"| {v} vs {b0.split('|')[0]} | {g} 렙 극값 평균 | {est:+.2f} | [{lo:+.2f}, {hi:+.2f}] | {verdict(est, lo, hi, THR['ang'])} | {' '.join(f'{x:+.1f}' for x in per)} |")
+                P(f"| {v} vs {b0.split('|')[1]} | {g} 렙 극값 평균 | {est:+.2f} | [{lo:+.2f}, {hi:+.2f}] | {verdict(est, lo, hi, THR['ang'])} | {' '.join(f'{x:+.1f}' for x in per)} |")
         P('')
         # by exercise and view
-        P(f'### 운동·시점별 (정규화 {norm}, raw): MPJPE / P-MPJPE, 각도 렙 극값 중앙(p90)\n')
-        inps = [k.split('|')[0] for k in keys if k.endswith(f'|{norm}|raw')]
+        P(f'### 운동·시점별 (리프터 {lif}, 정규화 {norm}, raw): MPJPE / P-MPJPE, 각도 렙 극값 중앙(p90)\n')
+        inps = [k.split('|')[1] for k in keys if k.startswith(lif + '|') and k.endswith(f'|{norm}|raw')]
         P('| 운동 | 시점 | 영상 | ' + ' | '.join(inps) + ' |'); P('|---|---|---|' + '---|' * len(inps))
         for ex in LIMB:
             for vn, lo, hi in VIEWS:
@@ -94,24 +96,24 @@ def main():
                 if not rs: continue
                 cells = []
                 for i in inps:
-                    k = f'{i}|{norm}|raw'
+                    k = f'{lif}|{i}|{norm}|raw'
                     cells.append(f"{pooled(rs, k, 'mpjpe'):.0f} / {pooled(rs, k, 'pa'):.0f}; " + ', '.join(f'{g} {fmt_rep(reps(rs, k, g))}' for g in LIMB[ex]))
                 P(f'| {ex} | {vn} | {len(rs)} | ' + ' | '.join(cells) + ' |')
         P('')
-        P(f'### 관절별 3D 위치 오차 (mm, 정규화 {norm}, raw, 루트 기준 / P-정렬 후)\n')
+        P(f'### 관절별 3D 위치 오차 (mm, 리프터 {lif}, 정규화 {norm}, raw, 루트 기준 / P-정렬 후)\n')
         P('| 입력 | ' + ' | '.join(H36M_NAMES[1:]) + ' |'); P('|---|' + '---|' * 16)
         for i in inps:
-            k = f'{i}|{norm}|raw'; n = np.array([r['frames'] for r in rows])
+            k = f'{lif}|{i}|{norm}|raw'; n = np.array([r['frames'] for r in rows])
             j = (n[:, None] * np.array([r['m3d'][k]['joint'] for r in rows])).sum(0) / n.sum()
             jp = (n[:, None] * np.array([r['m3d'][k]['joint_pa'] for r in rows])).sum(0) / n.sum()
             P(f'| {i} | ' + ' | '.join(f'{x:.0f}/{y:.0f}' for x, y in zip(j[1:], jp[1:])) + ' |')
         P('')
-        P(f'### 손목 묶음 (정규화 {norm}, raw): 3D 손목·팔꿈치 오차(mm), 팔꿈치 렙 극값·ROM, 손목 가속도 오차\n')
+        P(f'### 손목 묶음 (리프터 {lif}, 정규화 {norm}, raw): 3D 손목·팔꿈치 오차(mm), 팔꿈치 렙 극값·ROM, 손목 가속도 오차\n')
         P('| 운동 | 입력 | 손목 L/R | 팔꿈치 L/R | 팔꿈치 렙 극값 | 팔꿈치 ROM | 손목 가속도 L/R | MediaPipe 교체율 L/R |'); P('|---|---|---|---|---|---|---|---|')
         for ex in LIMB:
             rs = [r for r in rows if r['exercise'] == ex]; n = np.array([r['frames'] for r in rs])
             for i in ('coco', 'coco_mp', 'ha', 'ha_mp'):
-                k = f'{i}|{norm}|raw'
+                k = f'{lif}|{i}|{norm}|raw'
                 if k not in keys: continue
                 j = (n[:, None] * np.array([r['m3d'][k]['joint'] for r in rs])).sum(0) / n.sum()
                 ja = (n[:, None] * np.array([r['m3d'][k]['joint_accel'] for r in rs])).sum(0) / n.sum()
