@@ -189,30 +189,52 @@ def run_t3(a):
         for L in (3, 5):
             Q, rp = apply_constraints(rows[L], dict(reflect_flipped_knee=d['ex'] == 'squat'))
             P = (Q - Q[:, :1]) * mm; A = angles(P, d['side'], d['up_c'])
-            recs.append(dict(meta, L=L, bad=[r['bad'] for r in rp], **pose_metrics(P, d['G']), **angle_metrics(A, ref, d['seg']), rom=rom_err(A, ref, d['seg'])))
-            reps += rep_records(P, d['seg'], d['ex'], side, UP, dict(meta, src=f'xs_L{L}'), td_app)
+            # a03ddd9: invalid joints -> NaN for the evaluators; frame state ok / partial_3d / bad_3d (all 17)
+            inv = [r.get('invalid_joints', []) for r in rp]
+            state = np.array([0 if not j else 2 if len(j) == 17 else 1 for j in inv])
+            Pm = P.copy()
+            for i, j in enumerate(inv):
+                if j: Pm[i, j] = np.nan
+            recs.append(dict(meta, L=L, bad=[r['bad'] for r in rp], partial=(state == 1).tolist(), bad17=(state == 2).tolist(),
+                             **pose_metrics(P, d['G']), **angle_metrics(A, ref, d['seg']), rom=rom_err(A, ref, d['seg'])))
+            rr = rep_records(Pm, d['seg'], d['ex'], side, UP, dict(meta, src=f'xs_L{L}'), td_app)
+            for r, (s0, e0) in zip(rr, d['seg']):
+                st_ = state[s0:e0 + 1]
+                r['judge_old'] = bool((st_ == 0).mean() >= 0.5); r['judge_new'] = bool((st_ <= 1).mean() >= 0.5)
+            reps += rr
         print(d['subj'], d['ex'], d['cam'], flush=True)
     f = lambda q, kk='p50': q.get(kk, float('nan'))
     summ = {'pose': {}, 'rules': {}}
     md = ['| 묶음 | 운동 | L | 지연 ms | 영상 | MPJPE | PA-MPJPE | 가속도 | ' + ' | '.join(f'{g} 렙극값 (p90) / 프레임' for g in ('knee', 'hip', 'elbow', 'torso_g'))
-          + ' | ' + ' | '.join(f'ROM {g}' for g in ROM_KEYS) + ' | 3D 불량 |', '|---' * 17 + '|']
+          + ' | ' + ' | '.join(f'ROM {g}' for g in ROM_KEYS) + ' | 무효 관절 있음 (partial+bad) | bad_3d(17) |', '|---' * 18 + '|']
     for k, rs in groups_of(recs, ('group', 'exercise', 'L')):
         s = dict(videos=len(rs), mpjpe=st(cat(rs, 'mpjpe')), pa=st(cat(rs, 'pa_mpjpe')), accel=st(cat(rs, 'accel')), bad=float(cat(rs, 'bad').mean()),
+                 bad17=float(cat(rs, 'bad17').mean()),
                  **{g: dict(rep=st(cat(rs, g, 'rep')), frame=st(cat(rs, g, 'frame'))) for g in ANG}, rom={g: st(cat(rs, 'rom', g)) for g in ROM_KEYS})
         summ['pose']['/'.join(map(str, k))] = s
         md.append(f"| {k[0]} | {k[1]} | {k[2]} | {k[2] / 30 * 1000:.0f} | {s['videos']} | {s['mpjpe']['mean']:.1f} | {s['pa']['mean']:.1f} | {s['accel']['mean']:.2f} | "
                   + ' | '.join(f"{f(s[g]['rep']):.1f} ({f(s[g]['rep'], 'p90'):.0f}) / {f(s[g]['frame']):.1f}" for g in ('knee', 'hip', 'elbow', 'torso_g')) + ' | '
-                  + ' | '.join(f"{f(s['rom'][g]):.1f}" for g in ROM_KEYS) + f" | {s['bad']:.2%} |")
+                  + ' | '.join(f"{f(s['rom'][g]):.1f}" for g in ROM_KEYS) + f" | {s['bad']:.2%} | {s['bad17']:.2%} |")
+    md += ['', '**판정 가능 렙 비율 (렙 프레임의 ≥50%: 옛 규칙 = ok만, 새 규칙 = ok 또는 partial_3d)**', '', '| 묶음 | 운동 | L | 렙 | 옛 규칙 | 새 규칙 |', '|---' * 6 + '|']
+    for grp in ('heldout', 'tuning'):
+        for ex in list(EXERCISES) + ['all']:
+            for L in (3, 5):
+                rs = [r for r in reps if r['group'] == grp and r['src'] == f'xs_L{L}' and (ex == 'all' or r['exercise'] == ex)]
+                if not rs: continue
+                jo, jn = float(np.mean([r['judge_old'] for r in rs])), float(np.mean([r['judge_new'] for r in rs]))
+                summ.setdefault('judgeable', {})[f'{grp}/{ex}/L{L}'] = dict(reps=len(rs), old=round(jo, 4), new=round(jn, 4))
+                md.append(f'| {grp} | {ex} | {L} | {len(rs)} | {jo:.1%} | {jn:.1%} |')
     for ex in EXERCISES:
-        md += ['', f'**{ex} 정상 렙 규칙 발화 (judge_py, sideView = 참, 카메라 위, 높이 = 2D)**', '',
+        md += ['', f'**{ex} 정상 렙 규칙 발화 (judge_py, sideView = 참, 카메라 위, 높이 = 2D, XS 무효 관절 = NaN → 그 지표만 빠짐)**', '',
                '| 묶음 | 소스 | 렙 | ' + ' | '.join(RULES_BY_EX[ex]) + ' |', '|---' * (3 + len(RULES_BY_EX[ex])) + '|']
         for grp in ('heldout', 'tuning'):
             for src in ('gt', 'xs_L3', 'xs_L5'):
-                rs = [r for r in reps if r['exercise'] == ex and r['group'] == grp and r['src'] == src]
-                if not rs: continue
-                fr = {q: round(float(np.mean([q in r['fired'] for r in rs])), 4) for q in RULES_BY_EX[ex]}
-                summ['rules'][f'{ex}/{grp}/{src}'] = dict(reps=len(rs), **fr)
-                md.append(f"| {grp} | {src} | {len(rs)} | " + ' | '.join(f'{fr[q]:.1%}' for q in RULES_BY_EX[ex]) + ' |')
+                for sub in (('all', lambda r: True), ('judgeable_new', lambda r: r.get('judge_new', True))):
+                    rs = [r for r in reps if r['exercise'] == ex and r['group'] == grp and r['src'] == src and sub[1](r)]
+                    if not rs or (src == 'gt' and sub[0] != 'all'): continue
+                    fr = {q: round(float(np.mean([q in r['fired'] for r in rs])), 4) for q in RULES_BY_EX[ex]}
+                    summ['rules'][f'{ex}/{grp}/{src}/{sub[0]}'] = dict(reps=len(rs), **fr)
+                    md.append(f"| {grp} | {src} ({sub[0]}) | {len(rs)} | " + ' | '.join(f'{fr[q]:.1%}' for q in RULES_BY_EX[ex]) + ' |')
     finish(a, 't3', summ, md, [d['csv'] for d in seqs] + [a.checkpoint])
 
 
