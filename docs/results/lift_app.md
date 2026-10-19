@@ -8,6 +8,7 @@
 - 이 브랜치: 라이브 XS(과거 27프레임, L=5) → 해부학 제약 → 3D 자세 판정이 실제 카메라 경로에 연결됨. 상태(준비 중/추적 끊김/3D 불량)는 평가기와 화면에 그대로 나가고, 3D가 없는 렙은 판정 불가로 표시(2D로 대체 안 함).
 - iPhone 17(영상 입력, 카메라·미리보기 제외): 30 fps 유지(놓친 프레임 0.11%), 처리 p95 26.9 ms, 입력→판정 p50 193 ms(그중 lookahead 167 ms), 무제한 57 FPS.
 - 정확도(Fit3D 검증): Core ML = PyTorch(<1 mm). 제약·손목 교체는 정확도를 올리지 못함(±1 mm, 떨림 +5–9%). 렙 카운트는 2D 그대로(P2). 자세 키 검출은 2D와 거의 같고 오경보는 키마다 늘거나 줄었음(미검증 라벨).
+- T4(미세조정 XS 재현본으로 재검증)는 **측정 안 함**: 2026-10-20 기준 Home `~/bpt-runs/lift-compare`에 ft-repro 결과·Core ML 패키지·패리티가 없음.
 - 다음 기기 세션에 할 것: 실제 Runner 카메라 앱(사람 앞)으로 perf 로그(: pose2d_hands·lift3d·evaluate·입력→판정 지연·judged_fps), 30분 이상 발열·배터리(충전기 분리), GPU/ANE 사용률(Instruments),  중력 축 확인(폰을 앞뒤로 기울여 몸통 각이 변하지 않는지), lookahead 3 비교.
 
 ## iPhone 측정 — 전체 파이프라인 (iPhone 17, iOS 27.0, 2026-10-19 20:51–21:40)
@@ -303,8 +304,8 @@ lift_app_plan.md (a)절: 3D 코드 재고(a2), 키 목록·2D/3D 구분(a3), 2D 
 
 테스트: Swift `MotionAGFormerLiveTests`(가짜 모델 4개 설정·Core ML XS 패리티, 손목 교체 패리티, 상태·시간 정렬, 브리지 상태별), `FormWarningsTests.testForm3DRequiredUses3DAndNeverFallsBackTo2D`, Python `tests/test_live_motionagformer_stream.py`(오프라인 `run_live_motionagformer_sequence`와 워밍업 뒤 프레임 동일 — 이 테스트가 flush 창 부호 버그를 잡음), Dart `native_pose_channel_test`. Core ML 패리티 최대 차 0.0076 crop 단위(fp16 출력 + Python float32 / Swift double 정규화).
 
-## 회귀 (ai/lift-app a87457c)
-- swift test(CalibrationEngineKit) 109 통과(기준 101 + 8: Live 패리티 4·브리지 상태·3D 판정·중력 매핑·3D 렙 지표 패리티), pytest(bpt-eval) 198 통과(+6), flutter test 80 통과(+1). 기기용 빌드 `flutter build ios --debug --no-codesign` 성공, 시뮬레이터 빌드는 아래 이유로 계속 실패.
+## 회귀 (ai/lift-app f953b47)
+- swift test(CalibrationEngineKit) 110 통과(기준 101 + 9: Live 패리티 4·브리지 상태·3D 판정·중력 매핑·3D 렙 지표 패리티·partial_3d), pytest(bpt-eval) 198 통과(+6), flutter test 80 통과(+1). 기기용 빌드 `flutter build ios --debug --no-codesign` 성공, 시뮬레이터 빌드는 아래 이유로 계속 실패.
 - 시뮬레이터 빌드: `192ad47`에서 `flutter build ios --simulator --debug` 성공(17:20). 18:05에 Mac의 Xcode가 27.1로 바뀐 뒤로는 시뮬레이터 빌드가 Flutter의 `Prepare Flutter Framework Script`에서 실패한다 — 새 `lipo -verify_arch arm64 x86_64 <파일>`이 “requires exactly one input file”로 거부(같은 `lipo` 명령을 그 Flutter.framework에 직접 실행해도 실패함을 확인 — 이 브랜치 코드와 무관한 도구 문제로 판단, 다른 브랜치에서의 재현은 하지 않음). 대신 `flutter build ios --debug --no-codesign`(기기용, 단일 아키텍처라 검사 통과)으로 최종 코드 전체 컴파일 성공, iPhone 벤치 앱(Release, 같은 PosePipeline·Evaluators·Bridge·Hands 소스)도 빌드·실행 성공.
 - 서버 테스트: 이 브랜치는 server/ 를 바꾸지 않아 **측정 안 함**.
 - **시뮬레이터 빌드 실패는 이 브랜치 탓이 아님(검증됨, 2026-10-20)**: 깨끗한 integration/ai `c113150`을 임시 워크트리(`.claude/worktrees/tmp-sim-check`, 확인 후 삭제)에 받아 `flutter pub get` → `pod install` → `flutter build ios --simulator --debug --no-pub`를 돌려도 같은 곳에서 실패(`Target debug_unpack_ios failed: … Flutter.framework/Flutter does not contain architectures "arm64 x86_64"`, Xcode 27.1 27A9275). 도구 설정은 바꾸지 않음. 고치려면 Flutter 업그레이드(새 lipo 인자 순서 대응) 또는 Xcode 되돌리기 — 사용자/팀 결정.
