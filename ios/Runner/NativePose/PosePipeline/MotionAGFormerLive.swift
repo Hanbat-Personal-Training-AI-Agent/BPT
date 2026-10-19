@@ -226,7 +226,10 @@ enum MotionAGFormerCoreML {
 /// built on, so a mirrored front camera stays consistent with the body's labels.
 /// Halpe26: its first 17 joints are COCO17, wrists 9 / 10 as here.
 enum MotionAGFormerWristSource {
-    static let leftWrist = 9, rightWrist = 10
+    static let leftWrist = 9, rightWrist = 10, leftElbow = 7, rightElbow = 8
+    /// Keep a MediaPipe wrist only within this × the RTMPose forearm of the RTMPose wrist (Python
+    /// gate_mediapipe_wrists; Fit3D S4: MediaPipe never beat RTMPose, 0.25 was the least harmful gate). 제안값. nil = no gate.
+    static let defaultMaxShiftForearm = 0.25
 
     struct Result {
         var input: [PoseKeypoint]
@@ -234,12 +237,17 @@ enum MotionAGFormerWristSource {
         var replacedRight = false
     }
 
-    static func input(raw: [PoseKeypoint], left: PosePoint?, right: PosePoint?) -> Result {
+    static func input(raw: [PoseKeypoint], left: PosePoint?, right: PosePoint?,
+                      maxShiftForearm: Double? = defaultMaxShiftForearm) -> Result {
         var result = Result(input: raw)
         guard raw.count == 17 else { return result }
         func distance(_ p: PosePoint, _ k: PoseKeypoint) -> Double { hypot(p.x - k.x, p.y - k.y) }
-        for (point, own, other) in [(left, leftWrist, rightWrist), (right, rightWrist, leftWrist)] {
+        for (point, own, other, elbow) in [(left, leftWrist, rightWrist, leftElbow), (right, rightWrist, leftWrist, rightElbow)] {
             guard let point, distance(point, raw[own]) <= distance(point, raw[other]) else { continue }
+            if let k = maxShiftForearm {
+                let forearm = hypot(raw[own].x - raw[elbow].x, raw[own].y - raw[elbow].y)
+                guard distance(point, raw[own]) < k * forearm else { continue }
+            }
             result.input[own] = PoseKeypoint(x: point.x, y: point.y, confidence: raw[own].confidence)
             if own == leftWrist { result.replacedLeft = true } else { result.replacedRight = true }
         }

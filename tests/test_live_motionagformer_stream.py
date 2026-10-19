@@ -66,6 +66,6 @@ def test_constraints_clamp_knee_and_keep_bone_lengths():
     for hip, knee, ankle in ((1, 2, 3), (4, 5, 6)):
         u, v = out[hip] - out[knee], out[ankle] - out[knee]
         ang = np.degrees(np.arccos(np.dot(u, v) / np.linalg.norm(u) / np.linalg.norm(v)))
-        assert abs(ang - 25.0) < 1e-6
+        assert abs(ang - 41.0) < 1e-6
         assert abs(np.linalg.norm(v) - 0.4) < 1e-9
-    assert abs(report["angle_corrections"]["left_knee_flexion"] - 15.0) < 1e-6 and not report["bad"]  # 15 <= 20 deg
+    assert abs(report["angle_corrections"]["left_knee_flexion"] - 31.0) < 1e-6 and report["bad"]  # 10 -> 41 deg: moved 31 > 20

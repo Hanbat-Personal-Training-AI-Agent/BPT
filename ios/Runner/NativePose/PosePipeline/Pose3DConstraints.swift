@@ -36,33 +36,40 @@ struct Pose3DConstraints {
     var boneLengths = true
     /// Calibration boneLengthData.segments (cm). nil = session median / population prior.
     var calibrationTargetsCm: [String: Double]?
-    /// Relative segment lengths when nothing better exists (only ratios matter). 임시값 — Fit3D 모캡으로 확인.
+    /// Relative segment lengths for the first `sessionMinFrames` frames (only ratios matter): Fit3D mocap, 8 subjects,
+    /// upper arm / thigh 0.60–0.63, forearm / thigh 0.54–0.57, shin / thigh 0.95–1.06 (lift_app.md S2).
     var priorLengths: [String: Double] = [
         "right_hip-right_knee": 1.0, "left_hip-left_knee": 1.0,
         "right_knee-right_ankle": 1.0, "left_knee-left_ankle": 1.0,
-        "left_shoulder-left_elbow": 0.76, "right_shoulder-right_elbow": 0.76,
-        "left_elbow-left_wrist": 0.60, "right_elbow-right_wrist": 0.60,
+        "left_shoulder-left_elbow": 0.61, "right_shoulder-right_elbow": 0.61,
+        "left_elbow-left_wrist": 0.55, "right_elbow-right_wrist": 0.55,
     ]
     /// Session median replaces the prior after this many frames.
     var sessionMinFrames = 30
     var sessionWindowFrames = 300
-    /// Correction stays off until its false-positive cause is fixed (D-12, lift_app.md); detection marks bad.
-    var knee = KneeHingeLimit.Config(enabled: false, limitDegrees: 10)
+    /// Knee θ < −30°: XS put the knee depth on the wrong side (S3: 100% of flagged legs; mocap never below −7°).
+    /// Detection only — correction changed the knee error by 0.2° (S5 e), and the interior angle is usually still right.
+    var knee = KneeHingeLimit.Config(enabled: false, limitDegrees: 30)
     var angleLimits: [AngleLimit] = Pose3DConstraints.defaultAngleLimits
-    /// 임시값 — Fit3D 모캡·XS 분포로 확인.
+    /// bad3D: an angle limit had to move a joint more than this, or the knee depth flipped. 제안값(사용자 미승인).
     var badAngleDegrees = 20.0
-    var badBoneFraction = 0.30
+    /// Bone corrections are applied but do not mark bad3D by default (nil): at 0.30 they flagged 43% of normal Fit3D
+    /// push-up frames and do not predict angle error (S5). Set a fraction to gate on them.
+    var badBoneFraction: Double?
 
-    /// Interior-angle limits (H36M17). 임시값: literature ROM norms, to be replaced by Fit3D mocap p0.1–p99.9.
+    /// Interior-angle limits (H36M17) from Fit3D mocap p0.1 / p99.9 over 47 exercises, 8 subjects (lift_app.md S2; partly
+    /// validation subjects, so optimistic). 제안값(사용자 미승인). Knee ≥ 41°, elbow ≥ 22°, hip ≥ 32°, spine ≥ 120°
+    /// (row p0.1 123°), shoulder (trunk-down vs upper arm) ≤ 172°.
     static let defaultAngleLimits: [AngleLimit] = [
-        // Knee / elbow flexion ≤ 155° → interior angle ≥ 25°.
-        AngleLimit(name: "right_knee_flexion", refFrom: 2, refTo: 1, joint: 2, child: 3, minDegrees: 25, maxDegrees: 180),
-        AngleLimit(name: "left_knee_flexion", refFrom: 5, refTo: 4, joint: 5, child: 6, minDegrees: 25, maxDegrees: 180),
-        AngleLimit(name: "right_elbow_flexion", refFrom: 15, refTo: 14, joint: 15, child: 16, minDegrees: 25, maxDegrees: 180),
-        AngleLimit(name: "left_elbow_flexion", refFrom: 12, refTo: 11, joint: 12, child: 13, minDegrees: 25, maxDegrees: 180),
+        AngleLimit(name: "right_knee_flexion", refFrom: 2, refTo: 1, joint: 2, child: 3, minDegrees: 41, maxDegrees: 180),
+        AngleLimit(name: "left_knee_flexion", refFrom: 5, refTo: 4, joint: 5, child: 6, minDegrees: 41, maxDegrees: 180),
+        AngleLimit(name: "right_elbow_flexion", refFrom: 15, refTo: 14, joint: 15, child: 16, minDegrees: 22, maxDegrees: 180),
+        AngleLimit(name: "left_elbow_flexion", refFrom: 12, refTo: 11, joint: 12, child: 13, minDegrees: 22, maxDegrees: 180),
         // Hip: trunk (pelvis → thorax) vs thigh; 180 = standing, small = deep flexion.
-        AngleLimit(name: "right_hip", refFrom: 0, refTo: 8, joint: 1, child: 2, minDegrees: 20, maxDegrees: 180),
-        AngleLimit(name: "left_hip", refFrom: 0, refTo: 8, joint: 4, child: 5, minDegrees: 20, maxDegrees: 180),
+        AngleLimit(name: "right_hip", refFrom: 0, refTo: 8, joint: 1, child: 2, minDegrees: 32, maxDegrees: 180),
+        AngleLimit(name: "left_hip", refFrom: 0, refTo: 8, joint: 4, child: 5, minDegrees: 32, maxDegrees: 180),
+        AngleLimit(name: "right_shoulder", refFrom: 8, refTo: 0, joint: 14, child: 15, minDegrees: 0, maxDegrees: 172),
+        AngleLimit(name: "left_shoulder", refFrom: 8, refTo: 0, joint: 11, child: 12, minDegrees: 0, maxDegrees: 172),
         // Spine: pelvis–spine–thorax interior angle.
         AngleLimit(name: "spine", refFrom: 7, refTo: 0, joint: 7, child: 8, minDegrees: 120, maxDegrees: 180),
     ]
@@ -108,7 +115,7 @@ struct Pose3DConstraints {
         for limit in angleLimits {
             if let moved = Self.clamp(&joints, limit), moved > 0 { report.angleCorrections[limit.name] = moved }
         }
-        report.bad = report.maxAngleCorrection > badAngleDegrees || report.boneMaxCorrection > badBoneFraction
+        report.bad = report.maxAngleCorrection > badAngleDegrees || badBoneFraction.map { report.boneMaxCorrection > $0 } == true
             || (report.kneeHyperextended && !knee.enabled)
         return (joints, report)
     }

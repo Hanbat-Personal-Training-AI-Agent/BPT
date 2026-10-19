@@ -6,8 +6,8 @@ tests/fixtures/pose3d_constraints_cases.json.
 Order: XS output -> bone lengths (bone_lengths.apply_bone_lengths: calibration cm when present, else the
 session running median lengths, L/R averaged, else population ratios) -> knee hyperextension
 (hinge_limit) -> interior joint-angle limits (knee/elbow flexion, hip, shoulder, spine). No smoothing.
-report["bad"] (moved more than bad_angle_deg / bad_bone_fraction, or a detected knee hyperextension while
-its correction is off) is the "3D 불량" quality signal (LiveMotionAGFormer state bad_3d).
+report["bad"] (an angle limit moved a joint more than bad_angle_deg, the knee depth flipped (theta < -30, detection
+only), or - when bad_bone_fraction is set - a bone correction above it) is the "3D 불량" quality signal (LiveMotionAGFormer state bad_3d).
 """
 
 import math
@@ -18,23 +18,26 @@ import numpy as np
 from pose_feedback.geometry.bone_lengths import H36M17_PARENTS, MIN_BONE_LENGTH, SEGMENT_NAMES, apply_bone_lengths
 from pose_feedback.geometry.hinge_limit import clamp_knee_hyperextension, is_bad_3d
 
-# Relative segment lengths when nothing better exists (only ratios matter). 임시값 — Fit3D 모캡으로 확인.
+# Relative segment lengths for the first session_min_frames frames (only ratios matter): Fit3D mocap, 8 subjects,
+# upper arm / thigh 0.60-0.63, forearm / thigh 0.54-0.57, shin / thigh 0.95-1.06 (docs/results/lift_app.md S2).
 PRIOR_LENGTHS = {
     "right_hip-right_knee": 1.0, "left_hip-left_knee": 1.0,
     "right_knee-right_ankle": 1.0, "left_knee-left_ankle": 1.0,
-    "left_shoulder-left_elbow": 0.76, "right_shoulder-right_elbow": 0.76,
-    "left_elbow-left_wrist": 0.60, "right_elbow-right_wrist": 0.60,
+    "left_shoulder-left_elbow": 0.61, "right_shoulder-right_elbow": 0.61,
+    "left_elbow-left_wrist": 0.55, "right_elbow-right_wrist": 0.55,
 }
 
 # (name, ref_from, ref_to, joint, child, min_deg, max_deg): angle between (ref_to - ref_from) and
-# (child - joint). 임시값: literature ROM norms, to be replaced by Fit3D mocap p0.1-p99.9.
+# (child - joint). Fit3D mocap p0.1 / p99.9 over 47 exercises (lift_app.md S2; partly validation subjects). 제안값.
 DEFAULT_ANGLE_LIMITS = (
-    ("right_knee_flexion", 2, 1, 2, 3, 25.0, 180.0),
-    ("left_knee_flexion", 5, 4, 5, 6, 25.0, 180.0),
-    ("right_elbow_flexion", 15, 14, 15, 16, 25.0, 180.0),
-    ("left_elbow_flexion", 12, 11, 12, 13, 25.0, 180.0),
-    ("right_hip", 0, 8, 1, 2, 20.0, 180.0),
-    ("left_hip", 0, 8, 4, 5, 20.0, 180.0),
+    ("right_knee_flexion", 2, 1, 2, 3, 41.0, 180.0),
+    ("left_knee_flexion", 5, 4, 5, 6, 41.0, 180.0),
+    ("right_elbow_flexion", 15, 14, 15, 16, 22.0, 180.0),
+    ("left_elbow_flexion", 12, 11, 12, 13, 22.0, 180.0),
+    ("right_hip", 0, 8, 1, 2, 32.0, 180.0),
+    ("left_hip", 0, 8, 4, 5, 32.0, 180.0),
+    ("right_shoulder", 8, 0, 14, 15, 0.0, 172.0),
+    ("left_shoulder", 8, 0, 11, 12, 0.0, 172.0),
     ("spine", 7, 0, 7, 8, 120.0, 180.0),
 )
 
@@ -74,7 +77,7 @@ def clamp_angle(j, limit):
 
 class Pose3DConstraints:
     def __init__(self, enabled=True, bone_lengths=True, calibration_targets_cm=None, knee_correction=False,
-                 knee_limit_deg=10.0, angle_limits=DEFAULT_ANGLE_LIMITS, bad_angle_deg=20.0, bad_bone_fraction=0.30,
+                 knee_limit_deg=30.0, angle_limits=DEFAULT_ANGLE_LIMITS, bad_angle_deg=20.0, bad_bone_fraction=None,
                  session_min_frames=30, session_window_frames=300, prior_lengths=None):
         self.enabled = enabled
         self.bone_lengths = bone_lengths
@@ -131,7 +134,8 @@ class Pose3DConstraints:
             if moved:
                 report["angle_corrections"][limit[0]] = moved
         max_angle = max([report["knee_correction_deg"]] + list(report["angle_corrections"].values()))
-        report["bad"] = bool(max_angle > self.bad_angle_deg or report["bone_max_correction"] > self.bad_bone_fraction
+        report["bad"] = bool(max_angle > self.bad_angle_deg
+                             or (self.bad_bone_fraction is not None and report["bone_max_correction"] > self.bad_bone_fraction)
                              or (report["knee_hyperextended"] and not self.knee_correction))
         return j, report
 

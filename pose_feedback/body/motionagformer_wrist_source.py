@@ -103,3 +103,26 @@ def _as_wrist_xy(value):
 
 def _xy_list(value):
     return [float(value[0]), float(value[1])]
+
+
+COCO_ELBOW_INDEX = {"left": 7, "right": 8}
+# Fit3D validation (docs/results/lift_app.md S4): MediaPipe wrists were further from the mocap wrist than RTMPose on
+# every exercise and crop size; |MP - RTM| < 0.25 x forearm was the least harmful gate (3D neutral). 제안값.
+DEFAULT_MAX_SHIFT_FOREARM = 0.25
+
+
+def gate_mediapipe_wrists(raw_body_2d, mediapipe_wrists_px, max_shift_forearm=DEFAULT_MAX_SHIFT_FOREARM):
+    """Keep a MediaPipe wrist only when it is within max_shift_forearm x the RTMPose forearm of the RTMPose wrist
+    (None = no gate). Run after reject_crossed_mediapipe_wrists. ios MotionAGFormerWristSource mirrors it."""
+    if max_shift_forearm is None:
+        return dict(mediapipe_wrists_px or {})
+    raw = np.asarray(raw_body_2d, dtype="float64")
+    kept = {}
+    for side, wrist in (mediapipe_wrists_px or {}).items():
+        xy = _as_wrist_xy(wrist)
+        if xy is None:
+            continue
+        w, e = raw[COCO_WRIST_INDEX[side], :2], raw[COCO_ELBOW_INDEX[side], :2]
+        if np.linalg.norm(xy - w) < max_shift_forearm * np.linalg.norm(w - e):
+            kept[side] = wrist
+    return kept
