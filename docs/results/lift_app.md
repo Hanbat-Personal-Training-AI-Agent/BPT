@@ -189,6 +189,29 @@ Home `~/bpt-runs/lift-app/20261019-s7-rep-metrics`(Fit3D), `20261019-s7-ex3d-mac
 - **버그 발견(검증됨, 0dda987에서 수정)**: XS 출력은 골반 기준이라 3D의 엉덩이 높이가 항상 0 → `squat_hips_first`의 “엉덩이가 어깨보다 빨리 올라감”과 무릎 모임의 “바닥 프레임”이 3D 경로에서 망가져 있었다. 이제 높이·몸통 길이는 같은 프레임의 2D 값을 쓴다(2D 보조 신호). 위 표의 hips_first·valgus 행은 수정 전 정의.
 - 해석(제안): 3D 판정 임계값은 2D 값을 옮겨 쓸 수 없다 — 특히 hip_pike·valgus·no_lockout. 모캡 분포가 아니라 **앱 경로 XS 출력의 정상 렙 분포**로(XS 편향 포함) 다시 정해야 하고, 틀린 자세 검출률은 사람이 검수한 영상으로 확인해야 한다.
 
+**S7 재측정(0dda987, 높이를 2D에서; Home `~/bpt-runs/lift-app/20261020-s7-rep-metrics-0dda987`)**: 규칙 발동률은 바뀌지 않음(스쿼트 hips_first 0 → 3%, valgus-if-3D 92 → 90%, 조정 100 → 87%). hips_first는 8° 몸통 상승이 결정한다(모캡 p99 4.3°, XS p99 8.6°); “엉덩이가 더 빨리”는 XS 렙 약 55%에서 참이라 단독으로는 거르지 못함. XS 경로의 높이·속도는 RTMPose 2D 값.
+
+**후보 임계값(확정 아님 — 앱 경로 XS의 정상 렙(Fit3D 검증 s07–s11, 카메라 위)에서 1% / 5%가 넘는 값; 괄호 = 조정 s03–s05)**:
+| 규칙 | 비교량 | 정상 XS p1/p5 (또는 p95/p99) | 현재 값 | 메모 |
+|---|---|---|---|---|
+| pushup_hip_pike | hip_dev_min | −0.328 / −0.276 (조정 p1 −0.177) | −0.08 | 현재 값은 정상 범위 안(모캡 p5도 −0.107) |
+| pushup_hip_sag | hip_dev_max | p95 0.043 / p99 0.099 (0.062 / 0.078) | 0.14 | 유지 가능 |
+| pushup_head_up | head_dev_change_min | −0.275 / −0.24 (−0.469 / −0.356) | −0.15 | 현재 ≈ p20 |
+| pushup_head_drop | head_dev_change_max | p95 0.221 / p99 0.261 (0.228 / 0.328) | 0.376 | 유지 가능 |
+| pushup_hand_position | first_rep_top_wrist_ahead | p1 −0.325 / p99 +0.451 (n=20) | ±0.35 | n이 작아 못 정함 |
+| pushup_shallow | elbow_min − 기준선 | p95 2.1 / p99 2.6 (13.3 / 15.0) | 15 | 조정에서 p99 |
+| pushup_no_lockout | 세트 최대 − elbow_max | p95 12.1 / p99 13.1 (5.8 / 9.6) | 10 | 12% 발동 |
+| squat_shallow | knee_min − 기준선 | p95 7.2 / p99 8.5 (0.3 / 2.4) | 15 | 유지 가능 |
+| squat_no_lockout | 세트 최대 − knee_max / hip_angle_max | 13.8 / 19.6 · 7.3 / 13.3 (21.0 / 31.6 · 12.0 / 16.5) | 10 | 12–18% 발동 |
+| squat_hips_first | 몸통 상승 · 속도 차 | p95 6.9 / p99 8.6 · +0.022 / +0.026 | 8° · >0 | |
+| squat_knee_valgus(3D로 옮길 때) | knee_ankle_gap_ratio_min | p1 0.675 / p5 0.689 (0.576 / 0.662) | 1.0 | 1.0은 3D에서 87–100% 발동 |
+| row_torso_swing | 몸통 범위 | p95 29.1 / p99 38.2 (21.6 / 24.2) | 39.9 | p99에 가까움 |
+| row_standing_up | 기준선 − torso_mean | p95 2.7 / p99 2.9 (7.1 / 8.5) | 10 | 유지 가능 |
+| row_short_pull | 기준선 − elbow_behind_max | p95 0.047 / p99 0.099 (0.29 / 0.34) | 0.10 | 조정에서 3.3% 발동 |
+| row_head_up | head_dev_change_min | p1 −0.15 / p5 −0.078 | −0.15 | ≈ p1 |
+추세 규칙(squat_lean_drift·depth_fade, pushup_depth_fade)은 Fit3D 세트가 5렙이라 **측정 안 함**. 피험자 5명(검증)·3명(조정) 기준이라 사람 사이 차이가 크다(예: valgus 피험자 중앙값 0.76–1.04). 정상 렙만으로 정한 값은 오경보 상한일 뿐 검출률을 보장하지 않는다.
+
+
 ## Q1. 3D 리프팅이 앱에 없던 이유 (증거)
 - **처음부터 카메라 경로에 3D 실행 코드가 없었다.** `enableMotion3DForCamera = false`는 첫 네이티브 카메라 커밋 `a949023`(2026-06-03, 06-month)에서 이미 false였고, 쓰임은 로그 한 줄뿐(CameraPosePreview.swift:19, :352). `git log --all -G 'enableMotion3DForCamera *= *true'` 결과 없음 — 어느 브랜치에서도 true였던 적이 없다. MotionAGFormer mlpackage는 어떤 커밋에도 Runner에 들어간 적이 없다(`assets/coreml/`은 gitignore).
 - Swift 3D 실행 코드는 앱 밖에만 있었다: `tools/ios_coreml_pose_minimal`(e5397d4, 2026-08-17, README "does not integrate MotionAGFormer into the app"), `tools/ios_live3d_cost`(450be2c), `tools/pose_model_bench/Host/PipelineBench.swift`(17d1363, 인과 창 lookahead 0), pose-replay `lift3D`(오프라인, 미래 프레임 사용).
