@@ -191,5 +191,5 @@ lift_app_plan.md (a)절: 3D 코드 재고(a2), 키 목록·2D/3D 구분(a3), 2D 
 
 ## 회귀 (ai/lift-app 9196bb9)
 - swift test(CalibrationEngineKit) 108 통과(기준 101 + 7: Live 패리티 4·브리지 상태·3D 판정·중력 매핑), pytest(bpt-eval) 195 통과(+3), flutter test 80 통과(+1).
-- 시뮬레이터 빌드: `192ad47`에서 `flutter build ios --simulator --debug` 성공(17:20). 18:05에 Mac의 Xcode가 27.1로 바뀐 뒤로는 시뮬레이터 빌드가 Flutter의 `Prepare Flutter Framework Script`에서 실패한다 — 새 `lipo -verify_arch arm64 x86_64 <파일>`이 “requires exactly one input file”로 거부(코드와 무관한 도구 문제, 이 브랜치 코드 이전에도 같은 명령으로 재현). 대신 `flutter build ios --debug --no-codesign`(기기용, 단일 아키텍처라 검사 통과)으로 최종 코드 전체 컴파일 성공, iPhone 벤치 앱(Release, 같은 PosePipeline·Evaluators·Bridge·Hands 소스)도 빌드·실행 성공.
+- 시뮬레이터 빌드: `192ad47`에서 `flutter build ios --simulator --debug` 성공(17:20). 18:05에 Mac의 Xcode가 27.1로 바뀐 뒤로는 시뮬레이터 빌드가 Flutter의 `Prepare Flutter Framework Script`에서 실패한다 — 새 `lipo -verify_arch arm64 x86_64 <파일>`이 “requires exactly one input file”로 거부(같은 `lipo` 명령을 그 Flutter.framework에 직접 실행해도 실패함을 확인 — 이 브랜치 코드와 무관한 도구 문제로 판단, 다른 브랜치에서의 재현은 하지 않음). 대신 `flutter build ios --debug --no-codesign`(기기용, 단일 아키텍처라 검사 통과)으로 최종 코드 전체 컴파일 성공, iPhone 벤치 앱(Release, 같은 PosePipeline·Evaluators·Bridge·Hands 소스)도 빌드·실행 성공.
 - 서버 테스트: 이 브랜치는 server/ 를 바꾸지 않아 **측정 안 함**.
