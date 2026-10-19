@@ -129,6 +129,50 @@ final class FormWarningsTests: XCTestCase {
         XCTAssertEqual(tracker.drainEvents(), [], "praise_fixed and pike not enabled")
     }
 
+    /// form3DRequired: keys come from the 3D judgement; a rep without usable 3D says nothing (never the 2D result),
+    /// the 2D judgement stays in warnings2D for comparison.
+    func testForm3DRequiredUses3DAndNeverFallsBackTo2D() {
+        let tracker = FormWarningTracker(exercise: .pushUp)
+        tracker.common.enabledFeedbackKeys = FormWarningTracker.allKeys
+        tracker.common.form3DRequired = true
+        // Plank along +z, face down (+y is the floor side); pelvis `sag` below the thorax–ankle line.
+        func plank(_ sag: Double) -> [SIMD3<Double>] {
+            var j = [SIMD3<Double>](repeating: .zero, count: 17)
+            j[1] = [-0.1, sag, 0]; j[4] = [0.1, sag, 0]; j[0] = [0, sag, 0]
+            j[8] = [0, 0, -0.5]; j[7] = [0, sag / 2, -0.25]; j[10] = [0, 0.05, -0.75]
+            j[3] = [-0.1, 0, 1.0]; j[6] = [0.1, 0, 1.0]
+            j[2] = [-0.1, sag / 2, 0.5]; j[5] = [0.1, sag / 2, 0.5]
+            j[11] = [0.15, 0, -0.5]; j[12] = [0.15, 0.25, -0.5]; j[13] = [0.15, 0.5, -0.5]
+            j[14] = [-0.15, 0, -0.5]; j[15] = [-0.15, 0.25, -0.5]; j[16] = [-0.15, 0.5, -0.5]
+            return j
+        }
+        func rep(_ frame: Int, hipDrop2D: Double, pose3D: [SIMD3<Double>]?, state: Pose3DState) -> FormRepReport {
+            tracker.observe(frameIndex: frame, coco17: sidePushUp(hipDrop: hipDrop2D), pose3D: pose3D, pose3DState: state, phase: "descending")
+            tracker.beginRep()
+            tracker.observe(frameIndex: frame + 1, coco17: sidePushUp(hipDrop: hipDrop2D, elbowBend: 60), pose3D: pose3D,
+                            pose3DState: state, phase: "bottom")
+            tracker.recordCurrentFrame()
+            return tracker.finishRep(repIndex: frame / 2 + 1)
+        }
+        let warming = rep(0, hipDrop2D: 70, pose3D: nil, state: .warmingUp)
+        XCTAssertEqual(warming.formSource, "3d_unavailable")
+        XCTAssertEqual(warming.warnings, [])
+        XCTAssertNil(warming.warnings3D)
+        XCTAssertEqual(warming.warnings2D, ["pushup_hip_sag"], "2D still judged for comparison")
+        XCTAssertEqual(warming.states3D, ["warming_up": 2])
+        XCTAssertEqual(tracker.drainEvents(), [], "no posture key from 2D")
+
+        let sag3D = rep(2, hipDrop2D: 0, pose3D: plank(0.3), state: .ok)
+        XCTAssertEqual(sag3D.formSource, "3d")
+        XCTAssertEqual(sag3D.warnings, ["pushup_hip_sag"], "\(sag3D.metrics3D)")
+        XCTAssertEqual(sag3D.warnings2D, [])
+        XCTAssertEqual(try XCTUnwrap(sag3D.metrics3D["hip_dev_max"]), 0.2, accuracy: 1e-9)
+
+        let bad = rep(4, hipDrop2D: 0, pose3D: plank(0.3), state: .bad3D)
+        XCTAssertEqual(bad.formSource, "3d_unavailable")
+        XCTAssertEqual(bad.bad3DFrames, 2)
+    }
+
     func testPushUpHipSagPikeAndDelivery() throws {
         let tracker = FormWarningTracker(exercise: .pushUp)
         tracker.common.enabledFeedbackKeys = FormWarningTracker.allKeys
