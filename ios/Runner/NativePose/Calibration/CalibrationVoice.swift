@@ -14,6 +14,7 @@ final class CalibrationVoice: NSObject {
     private let tick = CalibrationVoice.tone(frequency: 880, duration: 0.06)
     private let chime = CalibrationVoice.tone(frequency: 1320, duration: 0.16)
 
+    private var gate: GuidanceSpeechGate
     private var lastSpokenMessage: String?
     private var lastSpokenAt: TimeInterval = -.infinity
     private var lastBeepAt: TimeInterval = -.infinity
@@ -21,6 +22,7 @@ final class CalibrationVoice: NSObject {
 
     init(config: CalibrationConfig.Voice = CalibrationConfig.default.voice) {
         self.config = config
+        gate = GuidanceSpeechGate(settle: config.settleSeconds, gap: config.gapSeconds)
         super.init()
         speaker.onFinish = { [weak self] in self?.speakerDidFinish() }
     }
@@ -32,15 +34,12 @@ final class CalibrationVoice: NSObject {
         try? session.setActive(true)
     }
 
-    /// Speaks when the guidance changes, and repeats the same line a few seconds after it ends.
+    /// Speaks a guidance line once it has settled (see `GuidanceSpeechGate`), and repeats the
+    /// same line a few seconds after it ends.
     func speak(_ guidance: CalibrationGuidance, now: TimeInterval) {
         let message = guidance.message
-        let changed = message != lastSpokenMessage
-        guard changed || now - lastSpokenAt >= repeatInterval(for: message) else { return }
-
-        if !guidance.interrupts, speaker.isSpeaking {
-            return
-        }
+        guard gate.shouldSpeak(guidance, now: now, isSpeaking: speaker.isSpeaking, lastSpoken: lastSpokenMessage,
+                               quietSince: lastSpokenAt, repeatAfter: repeatInterval(for: message)) else { return }
         speaker.speak(message)
         lastSpokenMessage = message
         lastSpokenAt = now

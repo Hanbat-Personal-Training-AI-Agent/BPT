@@ -94,6 +94,11 @@ struct CalibrationConfig {
     }
 
     struct Voice {
+        /// A new line is spoken only after it has stayed the guidance this long, so a check that
+        /// flips frame to frame (phone shake ↔ "좋아") is not read out line after line.
+        var settleSeconds: Double = 1.0
+        /// Quiet between the end of one line and the start of a different one.
+        var gapSeconds: Double = 1.5
         var repeatIntervalMin: Double = 3.0
         var repeatIntervalMax: Double = 4.5
         var beepIntervalMax: Double = 0.9
