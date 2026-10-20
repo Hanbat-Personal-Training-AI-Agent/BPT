@@ -232,8 +232,8 @@ def real_seq_from(K30, pk, s, ex, c, P, cams, ann=None, w=900, h=900):
     Xc = (P[pk][:, FIT3D_TO_H36M] - T) @ R.T
     y, mm = target(Xc, crops, float(np.mean(cam['intrinsics_w_distortion']['f'])))
     ang, side = view_and_side(P[pk][:, FIT3D_TO_H36M], R, T, UP)
-    return dict(kind='R', name=f'{s}/{ex}/{c}', subject=s, exercise=ex, group=GROUP[ex], x=x, y=y, mm=mm, view=ang,
-                side=side, up_c=(R @ UP).tolist(), seg=segments(ann, pk))
+    return dict(kind='R', name=f'{s}/{ex}/{c}', subject=s, exercise=ex, cam=c, src='app', group=GROUP[ex], x=x, y=y, mm=mm,
+                view=ang, side=side, up_c=(R @ UP).tolist(), seg=segments(ann, pk))
 
 
 def segments(ann, pk):
@@ -356,6 +356,22 @@ def build(a):
                         v = virtual_seq(P, offs, pool_, rng, GROUP[ex], cam, f'{s}/{ex}/v{k}', ann=d[2])
                         if v['inframe'] >= 0.98: break
                     seqs.append(v)
+    if 'A' in kinds:  # lift-compare stage-1 2D: same RTMDet box, RTMPose-m COCO17 and m Halpe26 (COCO-shared joints 0-16)
+        for s in a.subjects.split(','):
+            for ex in ('squat', 'pushup', 'barbell_row'):
+                d = fit3d_seq(a.fit3d, s, ex)
+                if d is None:
+                    continue
+                P, cams, ann = d
+                for c in CAMS:
+                    f = f'{a.pose2d}/{s}_{c}_{ex}.npz'
+                    if not os.path.exists(f):
+                        continue
+                    z = np.load(f); pk = z['pick']; n = int(np.searchsorted(pk, len(P)))
+                    for src in a.a_sources.split(','):
+                        r = real_seq_from(z[src][:n, :17], pk[:n], s, ex, c, P, cams, ann)
+                        r['src'] = 'A' + src; r['name'] += '/A' + src
+                        seqs.append(r)
     if 'E' in kinds:
         for seq in a.ex3d_seqs.split(','):
             assert a.eval_only or seq not in HELD_E3D, f'{seq} is held out (P2/P3): evaluation only'
@@ -398,6 +414,8 @@ def main():
     ap.add_argument('--exercises', default=','.join(APP_EX + ('deadlift',)))
     ap.add_argument('--ex3d-seqs', default=','.join(P1))
     ap.add_argument('--vcams', type=int, default=4); ap.add_argument('--seed', type=int, default=0)
+    ap.add_argument('--pose2d', default=os.path.expanduser('~/bpt-runs/lift-compare/A-pose2d-20261019/pose2d'))
+    ap.add_argument('--a-sources', default='coco,halpe', help='build --kinds A: stage-1 keypoint arrays to use')
     ap.add_argument('--pool-subjects', default=','.join(TUNING), help='pool: Fit3D subjects whose real-camera residuals go in')
     ap.add_argument('--eval-only', action='store_true', help='allow Exercise3D held-out (P2/P3) sequences: evaluation sets only')
     ap.add_argument('--out', required=True)
