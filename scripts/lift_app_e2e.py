@@ -49,11 +49,12 @@ def run(a):
                     "--package-path", str(ROOT / "ios/CalibrationEngineKit"), "-j", "4"], check=True)
     in_dir, out_dir = Path(a.in_dir), Path(a.out_dir)
     stems = defaultdict(list)
-    for csv in sorted(in_dir.glob("*_mcoco17.csv")):
+    pm = a.pose_model
+    for csv in sorted(in_dir.glob(f"*_{pm}.csv")):
         if csv.name.endswith("_3d.csv") or csv.name.endswith("_crops.csv"):
             continue
         for ex in EXERCISES:
-            suffix = f"_{ex}_mcoco17.csv"
+            suffix = f"_{ex}_{pm}.csv"
             if csv.name.endswith(suffix):
                 stems[ex].append(csv.name[: -len(suffix)])
     commands = []
@@ -62,10 +63,10 @@ def run(a):
         (out_dir / mode).mkdir(parents=True, exist_ok=True)
         for ex, all_names in stems.items():
             # Batches (each holds the heavy lock only while it runs); a clip whose JSON exists is skipped (resume).
-            todo = [n for n in all_names if not (out_dir / mode / f"{n}_{ex}_mcoco17.json").exists()]
+            todo = [n for n in all_names if not (out_dir / mode / f"{n}_{ex}_{pm}.json").exists()]
             for i in range(0, len(todo), a.batch or len(todo) or 1):
                 names = todo[i:i + (a.batch or len(todo))]
-                cmd = [str(binary), "--exercise", EXERCISES[ex], "--model", "mcoco17", "--keypoints-dir", str(in_dir),
+                cmd = [str(binary), "--exercise", EXERCISES[ex], "--model", pm, "--keypoints-dir", str(in_dir),
                        "--output-dir", str(out_dir / mode)] + MODES[mode]
                 if mode != "2d":
                     cmd += ["--motion3d", a.xs]
@@ -80,8 +81,9 @@ def run(a):
                                 capture_output=True, text=True).stdout.strip())
     manifest = {
         "created": time.strftime("%Y-%m-%dT%H:%M:%S%z"), "argv": sys.argv, "git_commit": git, "git_dirty": dirty,
-        "pose_replay_sha256": sha256(binary), "xs_mlpackage": {"path": a.xs, "sha256": tree_sha(a.xs)},
-        "inputs": {"dir": str(in_dir), "csv_sha256": {p.name: sha256(p) for p in sorted(in_dir.glob("*_mcoco17.csv"))}},
+        "pose_replay_sha256": sha256(binary), "pose_model": pm,
+        "xs_mlpackage": {"path": a.xs, "sha256": tree_sha(a.xs) if Path(a.xs).exists() else None},
+        "inputs": {"dir": str(in_dir), "csv_sha256": {p.name: sha256(p) for p in sorted(in_dir.glob(f"*_{pm}.csv"))}},
         "commands": commands,
         "outputs": {mode: {p.name: sha256(p) for p in sorted((out_dir / mode).glob("*.json"))} for mode in a.modes.split(",")},
     }
@@ -130,6 +132,7 @@ def main():
     r.add_argument("out_dir")
     r.add_argument("--modes", default="2d,3d,3d_raw,3d_c2")
     r.add_argument("--xs", default=str(ROOT / "assets/coreml/motionagformer_xs.mlpackage"))
+    r.add_argument("--pose-model", default="mcoco17", help="2D CSV layout / file suffix: mcoco17 or halpe26")
     r.add_argument("--batch", type=int, default=0, help="clips per pose-replay call (0 = all); existing outputs are skipped")
     r.add_argument("--lock", default="", help="run each call under lockf -k LOCK nice -n 10 (e.g. /tmp/bpt-heavy.lock)")
     s = sub.add_parser("summary")

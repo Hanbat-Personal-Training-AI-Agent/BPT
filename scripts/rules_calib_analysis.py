@@ -140,6 +140,8 @@ def run_analyze(a):
     sets = []
     for p in a.sets.split(","):
         sets += load(p)
+    if a.pose2d:  # one 2D family at a time (Fit3D experiment-A sets: halpe26A / cocoA match their prefix)
+        sets = [s for s in sets if s.get("pose2d", "mcoco17").startswith(a.pose2d)]
     prepare(sets)
     models = sorted({s["model"] for s in sets}, key=lambda m: ["mocap", "orig", "c1", "c2"].index(m) if m in ["mocap", "orig", "c1", "c2"] else 9)
     cam = [s for s in sets if s.get("up", "cam") == "cam"]
@@ -356,6 +358,18 @@ def run_analyze(a):
             byv[s.get("view_label")] += 1
         out["label_counts"][lab] = dict(byv)
         md.append(f"| {lab} | {byv.get('side', 0)} | {byv.get('diag', 0)} | {byv.get('front', 0)} | {len(ss)} |")
+
+    # ---- parity on real data: Python judge (app defaults) vs the Swift warnings_3d in the pose-replay outputs
+    agree = total = 0
+    for s in sets:
+        if s["src"] == "fit3d" or s.get("impl") == "python" or not s["jreps"] or s.get("rules") not in (None, "app_default"):
+            continue
+        got = judge([r["m"] for r in s["jreps"]], s["exercise"], load_preset("app_default")[0], side_view=[r["side_view"] for r in s["jreps"]])
+        for r, g in zip(s["jreps"], got):
+            want = [k for k in (r.get("warnings_3d") or []) if k != "setup_side_view"]
+            total += 1; agree += [k for k in g if k != "setup_side_view"] == want
+    out["parity_real"] = dict(agree=agree, total=total)
+    md += ["", f"## 확인: Python judge(앱 기본값) = Swift warnings_3d — 실제 pose-replay 렙 {agree}/{total} 일치(setup_side_view 제외)"]
 
     rd = Path(a.run_dir)
     (rd / "presets").mkdir(exist_ok=True)

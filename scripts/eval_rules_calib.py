@@ -144,6 +144,17 @@ def run_fit3d(a):
     torch.set_num_threads(a.threads)
     E.CACHE["dir"] = None
     seqs = load_seqs(a)
+    pose2d = "mcoco17"
+    if a.pose2d_dir:  # experiment-A 2D (RTMDet box + mmpose) instead of the app CSV, e.g. Halpe26 (first 17 = COCO17 order)
+        from finetune_motionagformer_fit3d import mag_input
+        pose2d = f"{a.pose2d_key}A"
+        for d in seqs:
+            z = np.load(f"{a.pose2d_dir}/{d['subj']}_{d['cam']}_{d['ex']}.npz")
+            idx = np.searchsorted(z["pick"], d["pick"])
+            assert (z["pick"][np.clip(idx, 0, len(z["pick"]) - 1)] == d["pick"]).all(), seq_key(d)
+            d["K"] = z[a.pose2d_key][idx][:, :17].astype(float)
+            w, h = (float(v) for v in z["wh"])
+            d["x"], _ = mag_input(d["K"], w, h)
     models = [kv.split("=", 1) for kv in a.models.split(",")] if a.models else []
     dev = "cuda" if torch.cuda.is_available() and not a.cpu else "cpu"
     sets = []
@@ -155,12 +166,12 @@ def run_fit3d(a):
         model = None if ck is None else load_ckpt(a.mag_repo, ck, dev)[0].eval()
         for d in seqs:
             side = {"L": "left", "R": "right"}[d["side"]]
-            meta = dict(src="fit3d", model=tag, subj=d["subj"], cam=d["cam"], exercise=d["ex"], group=d["group"],
+            meta = dict(src="fit3d", model=tag, pose2d=pose2d, subj=d["subj"], cam=d["cam"], exercise=d["ex"], group=d["group"],
                         view=round(float(d["view"]), 1), view_bin=d["bin"], set_id=f"fit3d/{seq_key(d)}")
             if model is None:
                 P, td, state = d["G"], d["td_gt"], np.zeros(len(d["G"]), int)
             else:
-                cache = Path(a.cache) / tag / f"{seq_key(d)}.npz" if a.cache else None
+                cache = Path(a.cache) / f"{tag}_{pose2d}" / f"{seq_key(d)}.npz" if a.cache else None
                 if cache and cache.exists():
                     raw = np.load(cache)["L5"].astype(float)
                 else:
@@ -188,7 +199,7 @@ def run_fit3d(a):
                                  cam_tilt=round(float(np.degrees(np.arccos(np.clip(-d["up_c"][1] / np.linalg.norm(d["up_c"]), -1, 1)))), 2)))
             print(tag, d["subj"], d["ex"], d["cam"], flush=True)
         del model
-    out = Path(a.run_dir) / "sets_fit3d.json.gz"
+    out = Path(a.run_dir) / f"sets_fit3d_{pose2d}.json.gz"
     dump(out, sets)
     write_manifest(a, [d["csv"] for d in seqs] + [ck for _, ck in models], [out],
                    dict(note="Fit3D-derived per-rep metrics (Home only); fine-tuned checkpoints = NON-COMMERCIAL"))
@@ -237,13 +248,13 @@ def run_pub(a):
     sets, inputs = [], []
     for kv in a.e2e.split(","):
         tag, root = kv.split("=", 1)
-        for js in sorted(glob.glob(f"{root}/*/3d/*_mcoco17.json")):
+        for js in sorted(glob.glob(f"{root}/*/3d/*_*.json")):
             ds = js.split("/")[-3]
             j = json.load(open(js))
             inputs.append(js)
             ex = j["exercise"] if j["exercise"] in EXERCISES else {"row": "barbell_row"}.get(j["exercise"], j["exercise"])
-            stem = os.path.basename(js)[: -len(f"_{EX_FILE.get(ex, ex)}_mcoco17.json")]
-            meta = dict(src=None, model=tag, dataset=ds, clip=stem, exercise=ex, set_id=f"{ds}/{stem}")
+            stem = os.path.basename(js)[: -len(f"_{EX_FILE.get(ex, ex)}_{j.get('model', 'mcoco17')}.json")]
+            meta = dict(src=None, model=tag, pose2d=j.get("model", "mcoco17"), dataset=ds, clip=stem, exercise=ex, set_id=f"{ds}/{stem}")
             if stem in L:
                 lb = L[stem]
                 meta.update(src="public", subj=lb["person"], group="tuning" if lb["split"] == "tuning" else "heldout",
@@ -315,15 +326,32 @@ def run_pub_py(a):
     ex3d_views = {f"{seq}_{cam}": v.get("angle_deg") for seq, g in (json.load(open(a.ex3d_gt)).items() if a.ex3d_gt else [])
                   for cam, v in g.get("views", {}).items()}
     csv_dirs = dict(kv.split("=", 1) for kv in a.csv_dirs.split(","))
-    refs = sorted(glob.glob(f"{a.ref}/*/3d/*_mcoco17.json"))
+    pm = a.pose_model
+    refs = sorted(glob.glob(f"{a.ref}/*/3d/*_{pm}.json") + glob.glob(f"{a.ref}/*/2d/*_{pm}.json"))
     sets, inputs = [], []
     for tag, ck in [kv.split("=", 1) for kv in a.models.split(",")]:
         model = load_ckpt(a.mag_repo, ck, "cpu")[0].eval()
         inputs.append(ck)
 
-        def predict(w):
+        def run_live(K, W, H, ex):
+            """Two passes: the windows depend on the 2D only (crop tracker, validity), so record them first, run the model
+            once in batches, then replay with the outputs in the same call order (constraints see the real 3D)."""
+            rec = []
+            live = LiveMotionAGFormer(lambda w: rec.append(w.copy()) or np.zeros((27, 17, 3), np.float32), lookahead=5,
+                                      constraints=Pose3DConstraints(reflect_flipped_knee=ex == "squat"))
+            for t, k in enumerate(K):
+                live.push(t, k, W, H)
+            live.flush()
+            outs = []
             with torch.no_grad():
-                return model(torch.from_numpy(w[None]))[0].numpy()
+                for i in range(0, len(rec), 128):
+                    outs.append(model(torch.from_numpy(np.stack(rec[i:i + 128]))).numpy())
+            it = iter(np.concatenate(outs) if outs else [])
+            live = LiveMotionAGFormer(lambda w: next(it), lookahead=5, constraints=Pose3DConstraints(reflect_flipped_knee=ex == "squat"))
+            fr = []
+            for t, k in enumerate(K):
+                fr += live.push(t, k, W, H)
+            return fr + live.flush()
 
         for js in refs:
             ds = js.split("/")[-3]
@@ -331,16 +359,12 @@ def run_pub_py(a):
                 continue
             j = json.load(open(js))
             ex = {"row": "barbell_row"}.get(j["exercise"], j["exercise"])
-            stem = os.path.basename(js)[: -len(f"_{EX_FILE.get(ex, ex)}_mcoco17.json")]
-            csv = f"{csv_dirs[ds]}/{stem}_{EX_FILE.get(ex, ex)}_mcoco17.csv"
+            stem = os.path.basename(js)[: -len(f"_{EX_FILE.get(ex, ex)}_{pm}.json")]
+            csv = f"{csv_dirs[ds]}/{stem}_{EX_FILE.get(ex, ex)}_{pm}.csv"
             K = read_csv(csv)
             inputs.append(csv)
             W, H = j.get("image_size", [720, 1280])
-            live = LiveMotionAGFormer(predict, lookahead=5, constraints=Pose3DConstraints(reflect_flipped_knee=ex == "squat"))
-            fr = []
-            for t, k in enumerate(K):
-                fr += live.push(t, k, W, H)
-            fr += live.flush()
+            fr = run_live(K, W, H, ex)
             state = {f["frame"]: f["state"] for f in fr}
             pose = {}
             for f in fr:
@@ -371,7 +395,7 @@ def run_pub_py(a):
                 reps.append(dict(rep=r["rep_index"], judged=judged, side_view=sv, m=m,
                                  all_ok=all(state.get(t) == "ok" for t in range(s0, e0 + 1))))
                 hist_empty = hist_empty and not judged
-            meta = dict(model=tag, dataset=ds, clip=stem, exercise=ex, set_id=f"{ds}/{stem}", impl="python")
+            meta = dict(model=tag, pose2d=pm, dataset=ds, clip=stem, exercise=ex, set_id=f"{ds}/{stem}", impl="python")
             if stem in L:
                 lb = L[stem]
                 meta.update(src="public", subj=lb["person"], group="tuning" if lb["split"] == "tuning" else "heldout",
@@ -387,7 +411,7 @@ def run_pub_py(a):
             sets.append(dict(meta, up="cam", reps=reps, rules=None))
         print(tag, "done", len(sets), flush=True)
         del model
-    out = Path(a.run_dir) / f"sets_pubpy_{'_'.join(kv.split('=')[0] for kv in a.models.split(','))}.json.gz"
+    out = Path(a.run_dir) / f"sets_pubpy_{pm}_{'_'.join(kv.split('=')[0] for kv in a.models.split(','))}.json.gz"
     dump(out, sets)
     write_manifest(a, inputs, [out], dict(note="Python app path (LiveMotionAGFormer mirror), PyTorch; fine-tuned = NON-COMMERCIAL"))
 
@@ -409,6 +433,10 @@ def main():
     p.add_argument("--sets", default="")
     p.add_argument("--ref", default="", help="pubpy: Swift pose-replay dir (<dataset>/3d/*.json) for rep intervals / row gate")
     p.add_argument("--csv-dirs", default="", help="pubpy: dataset=dir of the 2D CSVs, ...")
+    p.add_argument("--pose-model", default="mcoco17", help="pubpy: 2D CSV / JSON suffix (mcoco17 or halpe26)")
+    p.add_argument("--pose2d-dir", default="", help="fit3d: experiment-A 2D npz dir (lift-compare A-pose2d .../pose2d)")
+    p.add_argument("--pose2d-key", default="halpe", help="fit3d: npz key (halpe or coco)")
+    p.add_argument("--pose2d", default="", help="analyze: 2D family to analyse (mcoco17 or halpe26; Fit3D A sets match the prefix)")
     a = p.parse_args()
     os.makedirs(a.run_dir, exist_ok=True)
     if a.cmd == "fit3d":
