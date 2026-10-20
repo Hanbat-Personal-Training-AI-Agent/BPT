@@ -72,6 +72,11 @@ DERIVE = {"mocap": [("fit3d", "tuning")], "orig": [("fit3d", "tuning"), ("public
           "c1": [("public", "tuning"), ("ex3d", "tuning")], "c2": [("public", "tuning")]}
 HELDOUT = [("fit3d", "heldout"), ("public", "heldout"), ("ex3d", "heldout")]
 MIN_N, FA_TARGET, MIN_BAD = 20, 0.05, 5
+# Coordinator 2026-10-20 ~22:10: C1's torso angle error on Exercise3D side views (10.4–10.7° vs original 1.8–2.5°) is
+# unexplained, so C1's trunk-inclination rules are shown apart and not recommended until that is resolved.
+TRUNK_RULES = {"row_hinge_shallow", "row_hinge_shallow(hip)", "row_torso_swing", "row_standing_up", "squat_hips_first",
+               "squat_torso_lean"}
+HOLD = {"c1": TRUNK_RULES}
 
 
 def wilson(k, n, z=1.96):
@@ -197,7 +202,7 @@ def run_analyze(a):
         vals = {}
         for rule, ex, branch, q, tail, field, sign in RULES:
             t = out["thresholds"][f"{m}/{rule}/{tail}"]["threshold"]
-            if t is not None:
+            if t is not None and rule not in HOLD.get(m, ()):
                 vals[field] = round(sign * t, 4)
                 if rule == "squat_heel_rise":
                     vals["squat.heelRiseEnabled"] = 1.0
@@ -263,7 +268,10 @@ def run_analyze(a):
                         verdict = "근거 약함"
                     else:
                         verdict = "데이터 없음 → 끄기 권장"
-                    out["verdict"][f"{m}/{rule}/{tail}"] = dict(verdict=verdict, fa_sources=fa_n_ok, fa_over=fa_bad_n, detection_ok=det_ok)
+                    if rule in HOLD.get(m, ()):
+                        verdict += " · C1 몸통 오차 미해결(추천 안 함)"
+                    out["verdict"][f"{m}/{rule}/{tail}"] = dict(verdict=verdict, fa_sources=fa_n_ok, fa_over=fa_bad_n, detection_ok=det_ok,
+                                                                 hold=rule in HOLD.get(m, ()))
                 label = rule + (f" ({'앞' if tail == 'upper' else '뒤'})" if rule == "pushup_hand_position" else "")
                 md.append(f"| {label} | {vname} | {t:.3g} | "
                           + " | ".join(cells) + f" | {sum(det)}/{len(det)} [{dl:.0%}–{dh:.0%}]" + f" | {sum(cdet)}/{len(cdet)} | "
