@@ -135,8 +135,10 @@ final class BenchDeadliftTests: XCTestCase {
                     "deadlift_hips_first", "deadlift_no_lockout", "deadlift_lean_back"]
         for exercise in [FormExercise.benchPress, .deadlift] {
             let tracker = FormWarningTracker(exercise: exercise)
-            XCTAssertEqual(tracker.common.enabledFeedbackKeys, ["setup_full_body", "tracking_lost"])
+            XCTAssertTrue(tracker.common.enabledFeedbackKeys.isDisjoint(with: keys))
+            XCTAssertTrue(tracker.common.enabledFeedbackKeys.isSuperset(of: ["setup_full_body", "tracking_lost"]))
         }
+        XCTAssertEqual(FormWarningTracker.keysWithoutFlutterLines, Set(keys))
         XCTAssertTrue(Set(keys).isSubset(of: FormWarningTracker.allKeys))
         XCTAssertEqual(FormWarningTracker.grade(of: "bench_hips_up"), .priority)
         XCTAssertEqual(FormWarningTracker.grade(of: "deadlift_lean_back"), .reference)
