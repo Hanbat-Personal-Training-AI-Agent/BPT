@@ -74,7 +74,7 @@ class NativePose3DStatus {
     );
   }
 
-  /// 사용자에게 보일 안내 (ok 이면 null — 표시 안 함).
+  /// 사용자에게 보일 안내 (ok·partial_3d 이면 null — 표시 안 함).
   String? message({required bool isKo}) {
     switch (state) {
       case 'warming_up':
@@ -83,8 +83,7 @@ class NativePose3DStatus {
         return isKo ? '사람이 잘 안 보여요 — 자세 판정 멈춤' : 'Person not visible — form check paused';
       case 'bad_3d':
         return isKo ? '3D 자세 인식이 불안정해요 — 이 구간은 판정 안 함' : '3D pose unreliable — not judged';
-      case 'partial_3d':
-        return isKo ? '일부 관절 3D 불안정 — 그 관절은 판정 안 함' : 'Some joints unreliable in 3D — those are not judged';
+      // partial_3d(일부 관절만 판정 안 함)는 내부 상태라 사용자에게 띄우지 않는다(사용자 요청). 상태는 로그·실행 기록에 그대로 남는다.
       default:
         return null;
     }

@@ -283,6 +283,11 @@ final class CameraPoseViewModel: ObservableObject {
     private var liveSeverity = OverlayState()
     private var severityTrack = OverlaySeverityTrack()
     private var overlaySmoother = OverlaySmoother()
+    /// Screen auto-lock while the workout camera runs (a set has no touches): the value before we disabled it, nil when
+    /// we hold nothing. Restored when the camera stops or the app goes to the background, set again on return.
+    private var idleTimerBefore: Bool?
+    private var cameraRunning = false
+    private var lifecycleObservers: [NSObjectProtocol] = []
 
     init(exercise: NativePoseExercise, bridge: WorkoutChannel? = nil) {
         self.exercise = exercise
@@ -305,6 +310,10 @@ final class CameraPoseViewModel: ObservableObject {
     }
 
     func stopCamera() {
+        cameraRunning = false
+        keepScreenAwake(false, reason: "camera_stop")
+        lifecycleObservers.forEach { NotificationCenter.default.removeObserver($0) }
+        lifecycleObservers = []
         videoSource?.stop()
         captureManager.stop()
         motion?.stop()
@@ -316,6 +325,37 @@ final class CameraPoseViewModel: ObservableObject {
         captureManager.perfLog?.close()
         captureManager.perfLog = nil
         bridge?.voice.stop()
+    }
+
+    private func keepScreenAwake(_ on: Bool, reason: String) {
+        let app = UIApplication.shared
+        if on, idleTimerBefore == nil {
+            idleTimerBefore = app.isIdleTimerDisabled
+            app.isIdleTimerDisabled = true
+        } else if !on, let before = idleTimerBefore {
+            app.isIdleTimerDisabled = before
+            idleTimerBefore = nil
+        } else {
+            return
+        }
+        print("[Workout] idle timer disabled=\(app.isIdleTimerDisabled) (\(reason))")
+        VideoRunLog.shared?.write("idle_timer", ["disabled": app.isIdleTimerDisabled, "reason": reason])
+    }
+
+    private func observeAppLifecycle() {
+        guard lifecycleObservers.isEmpty else { return }
+        let center = NotificationCenter.default
+        lifecycleObservers = [
+            center.addObserver(forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: .main) { [weak self] _ in
+                Task { @MainActor in self?.keepScreenAwake(false, reason: "background") }
+            },
+            center.addObserver(forName: UIApplication.willEnterForegroundNotification, object: nil, queue: .main) { [weak self] _ in
+                Task { @MainActor in
+                    guard let self, self.cameraRunning else { return }
+                    self.keepScreenAwake(true, reason: "foreground")
+                }
+            },
+        ]
     }
 
     private var formTracker: FormWarningTracker? {
@@ -513,6 +553,9 @@ final class CameraPoseViewModel: ObservableObject {
         startSet(1)
         startPerfLog()
         if let videoSource { videoSource.start() } else { captureManager.start() }
+        cameraRunning = true
+        keepScreenAwake(true, reason: "camera_start")
+        observeAppLifecycle()
         statusText = "Running"
         VideoRunLog.shared?.write("camera_started", [
             "exercise": exercise.rawValue, "hands": handEnabled, "xs": lifter != nil,
@@ -525,6 +568,7 @@ final class CameraPoseViewModel: ObservableObject {
             "bone_targets": VideoCameraOptions.boneTargetsCm.map { ["file": VideoCameraOptions.environment["BPT_BONE_TARGETS"] ?? "",
                                                                      "segments": $0.count] as Any } ?? NSNull(),
             "hand_dedupe": CameraPreviewOptions.handDedupe,
+            "idle_timer_disabled": UIApplication.shared.isIdleTimerDisabled,
             "rtmpose": RTMPoseModel.workout.rawValue,
         ])
         print("CameraPosePreview started exercise=\(exercise.rawValue) hand=\(handEnabled) 3d=\(lifter != nil) lookahead=\(CameraPreviewOptions.motion3DLookahead) cadence=\(CameraPreviewOptions.motion3DCadence) async=\(CameraPreviewOptions.motion3DAsync)")
