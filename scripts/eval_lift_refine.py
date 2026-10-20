@@ -291,24 +291,45 @@ def ex3d_items(a):
         up_w = -np.mean([R[1] for R in Rs.values()], axis=0); up_w /= np.linalg.norm(up_w)
         rf = g['rep_frames']; half = int(np.median(np.diff(rf)) / 2) if len(rf) > 1 else 15
         for cam, v in sorted(g['views'].items()):
-            csv = f"{a.ex3d_csv}/{seq}/{cam}_{EX3D_EX[g['exercise']]}_mcoco17.csv"
+            csv = a.ex3d_csv_pattern.format(csv=a.ex3d_csv, seq=seq, cam=cam, ex=EX3D_EX[g['exercise']])
             if not os.path.exists(csv) or cam not in Rs: continue
             K = read_csv(csv); n = min(len(K), len(J)); R = Rs[cam]
+            meta = csv.replace('.csv', '.json')
+            w, h = json.load(open(meta))['image_size'] if os.path.exists(meta) else a.ex3d_size
             G = J[:n] @ R.T; G = G - G[:, :1]
             seg = [(max(0, r - half), min(n - 1, r + half)) for r in rf if r < n]
             yield dict(seq=seq, cam=cam, ex=EX3D_EX[g['exercise']], subj=subject.get(seq), K=K[:n], G=G, up_c=R @ up_w, seg=seg,
                        side='L' if v['near_side'] == 'left' else 'R', view=v['angle_deg'], csv=csv,
-                       group='heldout' if seq in EX3D_HELD else 'tuning', w=a.ex3d_size[0], h=a.ex3d_size[1])
+                       group='heldout' if seq in EX3D_HELD else 'tuning', w=w, h=h)
+
+
+def replay_raw(csv, n):
+    """Raw XS rows [n,17,3] from pose-replay's <stem>_3d.csv next to the 2D CSV (NaN where the frame had no 3D)."""
+    rows = {}
+    with open(csv.replace('.csv', '_3d.csv')) as f:
+        head = f.readline().strip().split(','); i0 = head.index('r0_x')
+        for line in f:
+            c = line.rstrip('\n').split(',')
+            rows[int(c[0])] = [float(x) if x not in ('', 'nan') else np.nan for x in c[i0:i0 + 51]]
+    return np.array([rows.get(i, [np.nan] * 51) for i in range(n)], float).reshape(n, 17, 3)
 
 
 def run_ex3d(a):
     from finetune_motionagformer_fit3d import mag_input
     from pose_feedback.body.form_metrics_3d import UP
-    model, dev = load_model(a); shapes = json.load(open(a.shapes)) if a.shapes else {}
+    model, dev = (None, None) if a.raw_from_replay else load_model(a)
+    shapes = json.load(open(a.shapes)) if a.shapes else {}
     recs, reps, inputs = [], [], []
     for d in ex3d_items(a):
-        x, _ = mag_input(d['K'], d['w'], d['h']); inputs.append(d['csv'])
-        raw = predict_rows(model, dev, x, [5], f"ex3d_{d['seq']}_{d['cam']}")[5]
+        inputs.append(d['csv'])
+        if a.raw_from_replay:  # the app's own Core ML XS rows (pose-replay), frames without 3D dropped
+            raw = replay_raw(d['csv'], len(d['K'])); keep = np.isfinite(raw).all((1, 2))
+            raw, d['K'], d['G'] = raw[keep], d['K'][keep], d['G'][keep]
+            idx = np.cumsum(keep) - 1
+            d['seg'] = [(int(idx[s0]), int(idx[e0])) for s0, e0 in d['seg'] if keep[s0:e0 + 1].any() and keep[s0] and keep[e0]]
+        else:
+            x, _ = mag_input(d['K'], d['w'], d['h'])
+            raw = predict_rows(model, dev, x, [5], f"ex3d_{d['seq']}_{d['cam']}")[5]
         G = d['G']; torso = float(np.nanmedian(np.linalg.norm(G[:, 8] - G[:, 0], axis=-1)))
         sq = d['ex'] == 'squat'; old = dict(knee_clamp_deg=None, reflect_flipped_knee=sq)
         Gc = np.nan_to_num(G)
@@ -385,7 +406,7 @@ def run_ex3d_wrist(a):
         lab = np.load(f"{a.labels}/exercise3d_labels/{d['seq']}/view/{d['cam']}_pose_2d.npz")
         fi = {int(f): t for t, f in enumerate(lab['frame_index']) if lab['target_present'][t]}
         ex_dir = {'barbell_row': 'barbellrow'}.get(d['ex'], d['ex'])
-        cap = cv2.VideoCapture(f"{a.ex3d_videos}/{ex_dir}/{d['seq']}/{d['cam']}.mp4")
+        cap = cv2.VideoCapture(a.ex3d_video_pattern.format(videos=a.ex3d_videos, exdir=ex_dir, seq=d['seq'], cam=d['cam']))
         W, H = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)); sl = max(W, H) / 1280.0
         lms = {s: mk() for s in SIDES}; K = d['K']
         c = dict(frames=0, same=0, crossed_raw=0, det=0)
@@ -442,6 +463,9 @@ def main():
     p.add_argument('--ex3d-csv', default=os.path.expanduser('~/bpt-smpl/ex3dcsv'))
     p.add_argument('--ex3d-videos', default=os.path.expanduser('~/workspace/exercise3d-dataset/BPT/synced_video'))
     p.add_argument('--ex3d-size', type=lambda s: [int(v) for v in s.split('x')], default=[1080, 1920])
+    p.add_argument('--ex3d-csv-pattern', default='{csv}/{seq}/{cam}_{ex}_mcoco17.csv')
+    p.add_argument('--ex3d-video-pattern', default='{videos}/{exdir}/{seq}/{cam}.mp4')
+    p.add_argument('--raw-from-replay', action='store_true', help='ex3d: XS rows from pose-replay <stem>_3d.csv (Mac, Core ML)')
     p.add_argument('--root'); p.add_argument('--replay'); p.add_argument('--run-dir', required=True)
     p.add_argument('--subjects', type=lambda s: s.split(','), default=['s07', 's08', 's09', 's10', 's11'])
     p.add_argument('--exercises', type=lambda s: s.split(','), default=list(EXERCISES))
