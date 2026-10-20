@@ -4,6 +4,19 @@
 
 **이 문서는 실험 결과만 적는다.** 모델 채택, 앱 기본값·번들 변경, 병합은 하지 않았다(사용자 승인 필요).
 
+## 진행 상태와 재개 방법 (2026-10-20 20:35 KST, Home 시계)
+
+**Home에서 무인으로 도는 사슬**(모두 `setsid nohup`, GPU 단계는 `flock ~/.bpt-gpu.lock`, 로그·manifest는 `~/bpt-runs/finetune3/`):
+1. `xs_c1_gpu.sh` — C1 검증 평가(T4 끝, xs_eval 진행 중: XS 순전파가 GTX 1060에서 초당 ~150창이라 모델당 ~50분) → **C2를 처음부터 다시 학습**(같은 명령·시드, `_code/e8fd720`) → `xs_chain4.log`에 ALLDONE.
+2. `xs_final_waiter.sh` → `xs_final_eval.sh`: ALLDONE 직후 **C2만** T4 + xs_eval(C1·원래·ft-repro는 같은 데이터·코드로 이미 평가함) → `xs-final-t4-heldout-C2/`, `xs-final-xseval-heldout-C2/`.
+3. `rtm26_chain.sh`(ALLDONE 대기) → Halpe26 2D h1(lr 5e-5)·h2(lr 2e-5) → `rtm26-h1-lr5e-5/`, `rtm26-h2-lr2e-5/`.
+4. `rtm26_post.sh` → 사전 등록 선택 → `rtm26_eval.sh`(검증 1회: Fit3D s07–s11 + SMPL-X 발, COCO val, Exercise3D, 실험 A 2D) → Core ML trace(`coreml-h26ft/`).
+5. `det_chain.sh`(2D 끝 대기) → RTMDet-m 미세조정 `det-ft1/` + 조정 평가 `det-tune-eval/` → `det_post.sh` → 선택 → 검증 1회 `det-final-eval/` + 상자(`det-boxes-ft/`: 처음 잡기용 클립, Fit3D s07–s11).
+6. `e2e_chain.sh` → 종단 E2·E3(새 2D·새 det → XS) `e2e-fit3d-heldout/`.
+- 끊긴 실행은 지우지 않고 이름표: `xs-dev-RV-INTERRUPTED-homeoffline-1527`(Home 재부팅), `xs-dev-RV-STOPPED-1730-xs-moved-to-mac`, `xs-C2-STOPPED-for-C1-eval`, `xs-final-t4-heldout-C1-STOPPED-cpu-too-slow`, `xs-dev-eval-base-ABORTED-cpu-contention`.
+- **재개**: 사슬이 멈췄으면 `~/bpt-runs/finetune3/*chain*.log`·`*_post.log`·`xs_c1_gpu.log`로 어디까지 갔는지 보고, 같은 스크립트를 `SHA=<그 스크립트의 코드 스냅숏> setsid nohup ./<script>.sh > <script>.out 2>&1 < /dev/null &`로 다시 띄운다(각 단계는 결과 파일이 있으면 건너뜀). 실행 중인지 볼 때 `pgrep -f`에 스크립트 이름을 쓰지 말 것(자기 명령줄과 겹침 — `ps -eo pid,cmd | grep -E '^ *[0-9]+ /bin/bash ./<name>.sh'`).
+- **Mac에서 남은 일**(Home 결과 뒤): C2·2D 후보 Core ML 변환·패리티(`scratchpad/ft3/xs_coreml.sh`, `coreml_rtm_export.py convert`), 앱 경로 실행(`scripts/finetune3/apppath.py`: 2D 후보 `cur`, det 후보 상자 `det`, 흔들림 `sway_ft3.py`), Exercise3D 종단(새 2D CSV → Home에서 XS).
+
 ## 0. 데이터와 등급
 | 등급 | 데이터 | 쓰임 |
 |---|---|---|
@@ -25,7 +38,16 @@
 - 잔차 풀: Fit3D 조정 실제 영상 60클립 + Exercise3D P1 30클립(Sapiens2 대비, 관절별 평균 제거). 중앙 크기 crop 한 변의 0.6–1.7%, p90 1.7–5.3%.
 - 학습 세트: dev(s03+s05) R 40시퀀스 7,840창, V 48시퀀스; 최종 C1 = R 60 + V 72, C2 = C1 + E 30.
 
-(결과 대기)
+### 1.2 C1 검증 결과 — Fit3D s07–s11 실제 카메라, 앱 경로 COCO17, L=5, a03ddd9 기본 제약 (T4, 1회)
+| 모델 | MPJPE | PA-MPJPE | 떨림(가속도) | 무릎 렙 극값 (p90) | 엉덩이 | 팔꿈치 | 몸통(중력) | 무릎 뒤집힘 | 무효 관절 프레임 |
+|---|---|---|---|---|---|---|---|---|---|
+| 원래 XS (B0) | 144.7 | 87.7 | 8.56 | 17.1 (66) | 12.9 | 9.0 | 18.4 | 0.14% | 0.90% |
+| ft-repro-trains05 (B1, D-D-06 재현) | 56.3 | 40.6 | 4.77 | 4.9 (16) | 4.0 | 6.8 | 3.3 | 0 | 0 |
+| **C1** (R 혼합 + V, s03–s05) | **53.2** | **37.5** | **4.56** | **4.0 (12)** | **3.1** | 7.0 | 4.5 | 0 | 0 |
+- 단위 mm, 각도 °(렙 극값 오차 중앙값), 떨림 = 가속도 오차(mm/프레임²). 운동별 MPJPE(B1 → C1): 스쿼트 53.4 → 53.0, 푸시업 64.8 → **55.7**, 로우 53.0 → 51.4. 몸통(중력) 렙 극값: 스쿼트 3.5 → 5.7, 로우 4.0 → 6.5, 푸시업 3.0 → 2.3.
+- 정상 렙 오경보(현재 앱 임계값, B1 → C1): pushup_no_lockout 24 → **2%**, pushup_hand_position 7 → 2%, pushup_hip_pike 23 → 21%, squat_hips_first 1 → 4%, squat_no_lockout 5 → 5%, 로우 키 0 → 0%.
+- Core ML(규칙 D): computeUnits ALL 0.25%, CPU_ONLY 0.74% → 통과(패키지는 Home `coreml-xs-C1/`에만, Fit3D 유래·비상업).
+- **사전 등록 규칙 A는 불통과**: 몸통(중력) 렙 극값 중앙값 4.5° > B1 + 1.0° = 4.3°. 나머지 A 항목(MPJPE·PA·무릎·엉덩이·팔꿈치·운동별·뒤집힘·무효)은 통과, B(i)(MPJPE ≤ B1 − 2.0 mm = 54.3) 통과, D 통과. A′(Halpe26 입력)·B(ii)(가상 측면)·Exercise3D는 xs_eval이 끝나면 아래에 추가.
 
 ## 2. 2D RTMPose-m Halpe26 (D-F3-05)
 
