@@ -3,12 +3,17 @@
   conda run -n bpt-eval python -I scripts/device_video_runs.py push   <clips_dir> [names...]
   conda run -n bpt-eval python -I scripts/device_video_runs.py run    <clips_dir> <out_dir> [--clips a,b,...] [--env K=V ...]
                                                                      [--tag TAG] [--loops N] [--timeout-pad S]
+                                                                     [--reps-from-gt GT.json]
   conda run -n bpt-eval python -I scripts/device_video_runs.py pull   <out_dir>
 
 push copies clips into the app's Documents/e3d_clips (never into git or the bundle). run launches com.bpt.liftdev once
 per clip with BPT_CAMERA_VIDEO=e3d_clips/<clip>.mp4 + BPT_AUTOSTART_WORKOUT=<exercise> (+ --env extras), waits for the
 run log's video_end (polling the device), pulls Documents/video_runs and workout_form_logs into <out_dir>, and writes
 <out_dir>/manifest.json (clip sha256, env, app binary hashes, commands). Heavy: wrap in lockf -k /tmp/bpt-heavy.lock.
+--no-pull (phone on Wi-Fi, where CoreDevice file copies stall): launch, wait the clip length + --wait-pad, go on; the
+logs stay in the app's Documents/video_runs and are pulled later over USB (`pull`).
+--reps-from-gt sets BPT_AUTOSTART_REPS to the clip's truth reps (Exercise3D pseudo labels), so Flutter's workout screen
+reaches its rep target and sends endSet (3D tail flush, set-scope keys, onSetEnd) like a real set.
 Exercise3D frames are never opened here; only the app's logs are read.
 """
 import argparse
@@ -111,18 +116,27 @@ def run(a):
         want = a.clips.split(",")
         clips = [c for c in clips if c.stem in want]
     extra = dict(kv.split("=", 1) for kv in a.env)
+    gt = json.load(open(a.reps_from_gt)) if a.reps_from_gt else None
     runs = []
     for c in clips:
         exercise = EXERCISE[c.stem.split("_")[0]]
         tag = f"{a.tag}_{c.stem}"
         env = {"BPT_CAMERA_VIDEO": f"e3d_clips/{c.name}", "BPT_AUTOSTART_WORKOUT": exercise, "BPT_PERF_LOG": "1",
-               "BPT_RUN_TAG": tag, **({"BPT_CAMERA_VIDEO_LOOPS": str(a.loops)} if a.loops > 1 else {}), **extra}
+               "BPT_RUN_TAG": tag, **({"BPT_CAMERA_VIDEO_LOOPS": str(a.loops)} if a.loops > 1 else {}),
+               **({"BPT_AUTOSTART_REPS": str(gt[c.stem.rsplit("_", 1)[0]]["truth_reps"])} if gt else {}), **extra}
         frames = int(sh(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=nb_frames",
                          "-of", "csv=p=0", str(c)]).stdout.strip() or 0)
         expected = frames / 30 * a.loops
         print(f"== {tag} exercise={exercise} frames={frames} expected={expected:.0f}s", flush=True)
         started = time.time()
         launch(env)
+        if a.no_pull:
+            time.sleep(expected + a.wait_pad)
+            runs.append({"clip": c.name, "clip_sha256": sha256(c), "exercise": exercise, "env": env, "frames": frames,
+                         "log": f"run_{tag}.jsonl", "log_sha256": None, "ended": None,
+                         "pulled": False, "wall_s": round(time.time() - started, 1)})
+            print(f"   launched, waited {time.time() - started:.0f}s (log stays on the phone)", flush=True)
+            continue
         deadline = started + expected + a.timeout_pad
         time.sleep(max(5, expected * 0.9))
         log, ended = None, False
@@ -138,7 +152,8 @@ def run(a):
                      "log": log.name if log else None, "log_sha256": sha256(log) if log else None,
                      "ended": ended, "wall_s": round(time.time() - started, 1)})
         print(f"   log={log.name if log else None} ended={ended}", flush=True)
-    pull_runs(out / "all_logs")
+    if a.pull_all:  # every run log + perf log on the phone: big over Wi-Fi
+        pull_runs(out / "all_logs")
     manifest = {"created": time.strftime("%Y-%m-%dT%H:%M:%S%z"), "argv": sys.argv, "device": DEVICE, "bundle": BUNDLE,
                 "app": a.app_hashes and json.load(open(a.app_hashes)), "runs": runs,
                 "git_commit": sh(["git", "rev-parse", "HEAD"]).stdout.strip()}
@@ -160,6 +175,10 @@ def main():
     r.add_argument("--loops", type=int, default=1)
     r.add_argument("--timeout-pad", type=float, default=90)
     r.add_argument("--app-hashes", default="")
+    r.add_argument("--reps-from-gt", default="")
+    r.add_argument("--pull-all", action="store_true")
+    r.add_argument("--no-pull", action="store_true")
+    r.add_argument("--wait-pad", type=float, default=12)
     q = sub.add_parser("pull")
     q.add_argument("out_dir")
     a = ap.parse_args()

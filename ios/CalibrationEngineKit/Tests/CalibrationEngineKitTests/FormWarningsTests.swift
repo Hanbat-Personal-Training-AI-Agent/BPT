@@ -142,13 +142,22 @@ final class FormWarningsTests: XCTestCase {
         return tracker.finishRep(repIndex: frame / 2 + 1)
     }
 
-    func testFeedbackOffByDefaultPerKeyFlag() {
+    func testFeedbackDefaultAndPerKeyFlag() {
         XCTAssertEqual(RTMPoseModel.active, .coco17)
-        let tracker = FormWarningTracker(exercise: .pushUp)
-        XCTAssertEqual(tracker.common.enabledFeedbackKeys, ["setup_full_body", "tracking_lost"])
-        XCTAssertEqual(FormWarningTracker(exercise: .squat).common.enabledFeedbackKeys, ["setup_full_body", "tracking_lost"])
+        // Default: every key with a Flutter line is sent (bench press / deadlift keys wait for theirs).
+        let delivered = FormWarningTracker.allKeys.subtracting(FormWarningTracker.keysWithoutFlutterLines)
+        XCTAssertEqual(FormWarningTracker(exercise: .squat).common.enabledFeedbackKeys, delivered)
         XCTAssertEqual(FormWarningTracker(exercise: .barbellRow).common.enabledFeedbackKeys,
-                       ["setup_full_body", "tracking_lost", "setup_side_view"])
+                       delivered.union(["setup_side_view"]))
+        let defaultTracker = FormWarningTracker(exercise: .pushUp)
+        XCTAssertEqual(defaultTracker.common.enabledFeedbackKeys, delivered)
+        _ = pushUpRep(defaultTracker, hipDrop: 0, frame: 0)
+        _ = pushUpRep(defaultTracker, hipDrop: 70, frame: 2)
+        XCTAssertEqual(defaultTracker.drainEvents().map(\.key), ["pushup_hip_sag"], "sent by default")
+
+        // A key left out is still judged and logged, just not sent.
+        let tracker = FormWarningTracker(exercise: .pushUp)
+        tracker.common.enabledFeedbackKeys = ["setup_full_body", "tracking_lost"]
         _ = pushUpRep(tracker, hipDrop: 0, frame: 0)
         let sag = pushUpRep(tracker, hipDrop: 70, frame: 2)
         XCTAssertEqual(sag.warnings, ["pushup_hip_sag"], "still judged and logged")
@@ -363,8 +372,9 @@ final class FormWarningsTests: XCTestCase {
         XCTAssertEqual(tracker.endSet(), [:], "counts are per set")
         XCTAssertEqual(tracker.drainEvents(), [])
         XCTAssertEqual(tracker.warningRepCounts["pushup_no_lockout"], 2, "session counts stay")
-        // Default keys: judged and counted, but nothing is sent.
+        // Keys turned off: judged and counted, but nothing is sent.
         let quiet = FormWarningTracker(exercise: .pushUp)
+        quiet.common.enabledFeedbackKeys = ["setup_full_body", "tracking_lost"]
         for i in 0..<3 { _ = pushUpRep(quiet, hipDrop: 0, frame: i * 2) }
         quiet.observe(frameIndex: 6, coco17: sidePushUp(hipDrop: 0, elbowBend: 30), phase: "top")
         quiet.beginRep()
@@ -396,5 +406,71 @@ final class FormWarningsTests: XCTestCase {
         XCTAssertEqual(try XCTUnwrap(m["torso_max"]) - (try XCTUnwrap(m["torso_min"])), 20, accuracy: 1e-9)
         XCTAssertEqual(try XCTUnwrap(m["torso_mean"]), 180, accuracy: 1e-9)
         XCTAssertFalse(tracker.judge(m, history: [], repIndex: 1).contains("row_torso_swing"))
+    }
+}
+
+/// Overlay colour table (display only): rule → segments → per-frame quantity → normal / threshold.
+extension FormWarningsTests {
+    func testOverlayTableMatchesTheRulesAndDrawnSegments() {
+        let drawn = Set(OverlaySegment.edges + [.neck])
+        for (exercise, rules) in OverlayRule.table {
+            let keys = (FormWarningTracker.rules[exercise] ?? []).map(\.key)
+            let tracker = FormWarningTracker(exercise: exercise)
+            for rule in rules {
+                XCTAssertTrue(keys.contains(rule.key), "\(rule.key) is not a \(exercise) rule")
+                XCTAssertNotEqual(rule.threshold(tracker), rule.normal, "\(rule.key): normal == threshold")
+                for side in [FormSide.left, .right] {
+                    let segs = rule.segments(side)
+                    XCTAssertFalse(segs.isEmpty, rule.key)
+                    XCTAssertTrue(Set(segs).isSubset(of: drawn), "\(rule.key) colours a segment the overlay does not draw")
+                }
+            }
+        }
+        // The request's examples: hip sag/pike = shoulder–hip–knee–ankle, valgus = both legs, swing = shoulder–hip.
+        let rule = { (e: FormExercise, k: String) in OverlayRule.table[e]!.first { $0.key == k }! }
+        XCTAssertEqual(Set(rule(.pushUp, "pushup_hip_pike").segments(.left)), [.edge(5, 11), .edge(11, 13), .edge(13, 15)])
+        XCTAssertEqual(Set(rule(.squat, "squat_knee_valgus").segments(.right)), [.edge(11, 13), .edge(13, 15), .edge(12, 14), .edge(14, 16)])
+        XCTAssertEqual(rule(.barbellRow, "row_torso_swing").segments(.right), [.edge(6, 12)])
+        XCTAssertEqual(Set(rule(.pushUp, "pushup_no_lockout").segments(.right)), [.edge(6, 8), .edge(8, 10)])
+    }
+
+    func testOverlaySeverityRamp() {
+        XCTAssertEqual(OverlayRule.severity(0, normal: 0, threshold: 0.14), 0)
+        XCTAssertEqual(OverlayRule.severity(0.07, normal: 0, threshold: 0.14), 0.5, accuracy: 1e-12)
+        XCTAssertEqual(OverlayRule.severity(0.3, normal: 0, threshold: 0.14), 1, "past the threshold stays red")
+        XCTAssertEqual(OverlayRule.severity(-0.2, normal: 0, threshold: 0.14), 0, "the other direction is not this rule")
+        XCTAssertEqual(OverlayRule.severity(-0.04, normal: 0, threshold: -0.08), 0.5, accuracy: 1e-12, "pike: negative threshold")
+        XCTAssertEqual(OverlayRule.severity(1.125, normal: 1.25, threshold: 1.0), 0.5, accuracy: 1e-12, "valgus: smaller ratio = worse")
+    }
+
+    func testLiveSeverityFollowsTheHipLineAndIsNeutralWithoutEvidence() throws {
+        let tracker = FormWarningTracker(exercise: .pushUp)
+        func severity(hipDrop: Double) -> [OverlaySegment: Double] {
+            tracker.observe(frameIndex: 0, coco17: sidePushUp(hipDrop: hipDrop), phase: "top")
+            return tracker.liveSeverity()
+        }
+        let chain: [OverlaySegment] = [.edge(5, 11), .edge(11, 13), .edge(13, 15)]
+        for seg in chain { XCTAssertEqual(try XCTUnwrap(severity(hipDrop: 0)[seg]), 0, accuracy: 1e-9) }
+        // hipDrop 30 px ≈ 0.07 of the shoulder–ankle line (half of the 0.14 sag threshold); 70 px is past it.
+        XCTAssertEqual(try XCTUnwrap(severity(hipDrop: 30)[.edge(5, 11)]), 0.504, accuracy: 0.01)
+        XCTAssertEqual(try XCTUnwrap(severity(hipDrop: 70)[.edge(11, 13)]), 1)
+        XCTAssertEqual(try XCTUnwrap(severity(hipDrop: -17)[.edge(13, 15)]), 0.5, accuracy: 0.02, "pike half way")
+        XCTAssertNil(severity(hipDrop: 0)[.neck], "head rules need an open rep")
+
+        // 3D required but this frame has no 3D (warming up / lost / bad): every segment neutral, none green.
+        let required = FormWarningTracker(exercise: .pushUp)
+        required.common.form3DRequired = true
+        required.observe(frameIndex: 0, coco17: sidePushUp(hipDrop: 70), pose3DState: .warmingUp, phase: "top")
+        XCTAssertTrue(required.liveSeverity().isEmpty)
+    }
+
+    func testOverlaySeverityTrackSmoothsAndHoldsThenGoesNeutral() {
+        var track = OverlaySeverityTrack()
+        let seg = OverlaySegment.edge(5, 11)
+        XCTAssertEqual(track.update([seg: 0], at: 0)[seg], 0)
+        let mid = try? XCTUnwrap(track.update([seg: 1], at: 0.2)[seg])
+        XCTAssertEqual(mid ?? -1, 1 - exp(-1), accuracy: 1e-9, "one time constant: 63%")
+        XCTAssertNotNil(track.update([:], at: 0.3)[seg], "brief gap: last colour held")
+        XCTAssertNil(track.update([:], at: 0.6)[seg], "after the hold: neutral")
     }
 }

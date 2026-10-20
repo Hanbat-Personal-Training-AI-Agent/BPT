@@ -1,0 +1,35 @@
+{
+  "about": "Anatomical limits on the final MotionAGFormer-XS H36M17 3D (Pose3DConstraints). Single source of truth: pose_feedback/geometry/pose3d_constraints.py loads this file, ios Pose3DConstraints.swift mirrors the numbers and PoseConstraintLimitsTests fails when they differ. Evidence: docs/results/lift_refine.md section 2. 제안값(사용자 미승인).",
+  "angle_limits": [
+    {"name": "right_knee_flexion", "ref_from": 2, "ref_to": 1, "joint": 2, "child": 3, "min_deg": 41.0, "max_deg": 180.0,
+     "evidence": "Fit3D mocap interior p0.1 41.1 (8 subjects, 47 exercises); CDC normal ROM knee flexion mean 137.7-141.9 deg = interior 38-42"},
+    {"name": "left_knee_flexion", "ref_from": 5, "ref_to": 4, "joint": 5, "child": 6, "min_deg": 41.0, "max_deg": 180.0,
+     "evidence": "as right"},
+    {"name": "right_elbow_flexion", "ref_from": 15, "ref_to": 14, "joint": 15, "child": 16, "min_deg": 22.0, "max_deg": 180.0,
+     "evidence": "Fit3D mocap interior p0.1 23.9 (all), 22.0 (squat); CDC elbow flexion mean 144.6-150.0 deg = interior 30-35 (mocap is more permissive, kept)"},
+    {"name": "left_elbow_flexion", "ref_from": 12, "ref_to": 11, "joint": 12, "child": 13, "min_deg": 22.0, "max_deg": 180.0,
+     "evidence": "as right"},
+    {"name": "right_hip", "ref_from": 0, "ref_to": 8, "joint": 1, "child": 2, "min_deg": 32.0, "max_deg": 180.0,
+     "evidence": "trunk (pelvis->thorax) vs thigh; Fit3D mocap p0.1 31.7; CDC hip flexion mean 130.4-133.8 deg plus lumbar flexion, no harder literature bound"},
+    {"name": "left_hip", "ref_from": 0, "ref_to": 8, "joint": 4, "child": 5, "min_deg": 32.0, "max_deg": 180.0,
+     "evidence": "as right"},
+    {"name": "right_shoulder", "ref_from": 8, "ref_to": 0, "joint": 14, "child": 15, "min_deg": 0.0, "max_deg": 172.0,
+     "evidence": "trunk-down vs upper arm; Fit3D mocap p99.9 171.6; CDC shoulder flexion mean 168.8-172.0 deg"},
+    {"name": "left_shoulder", "ref_from": 8, "ref_to": 0, "joint": 11, "child": 12, "min_deg": 0.0, "max_deg": 172.0,
+     "evidence": "as right"},
+    {"name": "spine", "ref_from": 7, "ref_to": 0, "joint": 7, "child": 8, "min_deg": 120.0, "max_deg": 180.0,
+     "evidence": "pelvis-spine-thorax interior; Fit3D mocap p0.1 128.2 (all), 122.7 (barbell row)"}
+  ],
+  "knee_hyperextension_max_deg": 15.0,
+  "knee_hyperextension_evidence": "signed knee hinge theta >= -15: CDC normal knee extension mean 1.0-1.6 deg; Beighton hypermobility criterion is > 10 deg; Fit3D mocap squat/push-up/row never below -10 (p0.1 -6.6), 0.59% of all-exercise leg-frames below -10",
+  "knee_flip_deg": 30.0,
+  "knee_flip_evidence": "theta < -30: the XS knee is not trusted (lift_app.md S3/T2) - marked invalid, and reflected across the hip-ankle line on squats (S6)",
+  "bad_angle_deg": 20.0,
+  "prior_lengths": {
+    "right_hip-right_knee": 1.0, "left_hip-left_knee": 1.0,
+    "right_knee-right_ankle": 1.0, "left_knee-left_ankle": 1.0,
+    "left_shoulder-left_elbow": 0.61, "right_shoulder-right_elbow": 0.61,
+    "left_elbow-left_wrist": 0.55, "right_elbow-right_wrist": 0.55
+  },
+  "prior_lengths_evidence": "relative to the thigh, Fit3D mocap 8 subjects: shin 0.954-1.060, upper arm 0.560-0.679, forearm 0.522-0.586 (lift_compare_priors.md)"
+}

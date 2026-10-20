@@ -11,6 +11,8 @@ Per clip (run_<tag>_<clip>.jsonl), the six items the user asked for, kept separa
    (b) onFeedback actually sent to Flutter, (c) what Flutter asked the Kori voice to speak, split into lines that
    follow a native onFeedback (real) and the main screen's demo lines (praise_fixed / demo warning, no native event).
  4 tracking lost / bad 3D / partial invalidation frequency.
+ 6 sets: Flutter startSet / endSet as received natively, the 3D tail flushed at endSet (and whether those frames were
+   judged), set-scope keys sent, onSetEnd; rep-scope keys sent after the set ended (Flutter drops them).
  Reps vs Exercise3D gt.json truth (pseudo-GT labels) for context only.
 """
 import argparse
@@ -78,6 +80,13 @@ def analyze(path, gt, lines):
     sent = by("feedback_sent")
     reps = by("rep")
     speaks = by("speak")
+    rep_sent = [r for r in sent if r.get("scope", "rep") != "set"]
+    set_sent = [r for r in sent if r.get("scope") == "set"]
+    end_sets = by("end_set_received")
+    flushes = by("end_set_flush")
+    end_t = min((r["t"] for r in end_sets if not r.get("between_sets")), default=None)
+    tail = {i for f in flushes for i in f.get("tail_frame_index", [])}
+    judged_idx = {r["frame"] for r in judged}
     # (c) speech: classify each line; "real" = its key was sent natively before it was spoken
     sent_keys_seen, spoken = set(), []
     events = sorted([("sent", r["t"], r["key"]) for r in sent] + [("speak", r["t"], r["text"]) for r in speaks],
@@ -132,6 +141,10 @@ def analyze(path, gt, lines):
             "a_native_fired_2d": dict(Counter(k for r in reps for k in (r.get("warnings_2d") or []))),
             "a_form_sources": dict(Counter(r.get("form_source") for r in reps)),
             "b_sent_to_flutter": dict(Counter(r["key"] for r in sent)),
+            "b_sent_rep_scope": dict(Counter(r["key"] for r in rep_sent)),
+            "b_sent_set_scope": {r["key"]: r.get("n") for r in set_sent},
+            "c_not_shown_after_set_end": dict(Counter(r["key"] for r in rep_sent if end_t is not None and r["t"] > end_t)),
+            "c_not_shown_no_flutter_line": dict(Counter(r["key"] for r in sent if r["key"] not in lines)),
             "c_spoken_by_flutter": dict(Counter(f'{s["key"]} [{s["origin"]}]' for s in spoken)),
             "c_onFeedback_replies": dict(Counter(str(r.get("reply")) for r in feedbacks)),
         },
@@ -142,6 +155,17 @@ def analyze(path, gt, lines):
             "knees_reflected_frames": sum(1 for r in judged if r.get("knees_reflected")),
             "angle_limit_frames": sum(1 for r in judged if r.get("angle_corr")),
             "wrist_replaced_frames": [sum(1 for r in judged if r.get("wrists", [0, 0])[i]) for i in (0, 1)],
+        },
+        "item6_sets": {
+            "start_set": [r["set"] for r in by("start_set")],
+            "end_set_received": [{"set": r["set"], "t": r["t"], "duplicate": r["between_sets"]} for r in end_sets],
+            "rep_at_end_set": max((r["rep"] for r in judged if end_t is not None and r["t"] <= end_t), default=None),
+            "flush": [{"set": f["set"], "tail_frames": f["tail_frames"], "tail_states": dict(Counter(f["tail_states"]))}
+                      for f in flushes],
+            "tail_frames_judged": f"{len(tail & judged_idx)}/{len(tail)}" if flushes else None,
+            "set_scope_sent": [{"key": r["key"], "n": r.get("n")} for r in set_sent],
+            "set_scope_replies": [str(r.get("reply")) for r in feedbacks if r.get("scope") == "set"],
+            "set_end_sent": by("set_end_sent"),
         },
         "reps": {"app_last_rep": last_rep, "truth_pseudo_gt": truth},
         "device": {"cpu_pct_p50": pct(perf_cpu, 0.5), "thermal_start_end": [thermal[0], thermal[-1]] if thermal else None,

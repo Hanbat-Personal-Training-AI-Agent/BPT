@@ -32,6 +32,9 @@
 // from the 3D judgement (--form-source 2d = old 2D judgement); every rep also logs warnings_2d / warnings_3d.
 // Works with --keypoints-csv/-dir too (image size from --image-size WxH or the JSON next to the CSV).
 // Also writes <base>_3d.csv: per frame state, window row, constraint sizes, raw and constrained H36M17.
+// --bone-targets PATH: the person's bone lengths for Pose3DConstraints (calibration result / boneLengthData JSON, as
+// BoneLengthConstraint.loadTargets), or {"byClip": {"<video name prefix>": <that JSON>}} — the longest prefix of the video
+// name picks the entry (one run over clips of several people). Without it: session median / population prior (the app).
 //
 // Writes <video>_<exercise>_<model>.json (per rep: index, start/end frame and time, 2D/3D metrics,
 // warnings with grades, the spoken key, bad-3D frames; every onFeedback event; session totals) and <video>_<exercise>_<model>.csv (status, rep and
@@ -77,9 +80,10 @@ var squatHeightRange: Double?
 var readyPosePreset = false
 var personCrop = true
 var cropEdgeRefit = true
+var boneTargetsPath: String?
 var videos: [URL] = []
 var arguments = CommandLine.arguments.dropFirst().makeIterator()
-let usage = "usage: pose-replay [--exercise squat|pushup|row|bench|deadlift] [--model coco17|halpe26|mcoco17] [--model-path PATH] [--motion3d PATH|none] [--lookahead N] [--cadence K] [--constraints on|off] [--adaptive on|off] [--form-source 3d|2d] [--image-size WxH] [--row-shrug] [--side-cutoff R] [--row-offside off] [--pushup-ankle on|off] [--pushup-wrist-conf C] [--pushup-min-frames N] [--pushup-height on|off] [--squat-hold on|off] [--squat-near-leg on|off] [--squat-rebaseline N] [--squat-height on|off] [--squat-height-range R] [--ready-pose off|preset] [--input crop|full] [--crop-edge on|off] [--keypoints-csv PATH] [--keypoints-dir DIR] [--output-dir PATH] <video.mp4>..."
+let usage = "usage: pose-replay [--bone-targets PATH] [--exercise squat|pushup|row|bench|deadlift] [--model coco17|halpe26|mcoco17] [--model-path PATH] [--motion3d PATH|none] [--lookahead N] [--cadence K] [--constraints on|off] [--adaptive on|off] [--form-source 3d|2d] [--image-size WxH] [--row-shrug] [--side-cutoff R] [--row-offside off] [--pushup-ankle on|off] [--pushup-wrist-conf C] [--pushup-min-frames N] [--pushup-height on|off] [--squat-hold on|off] [--squat-near-leg on|off] [--squat-rebaseline N] [--squat-height on|off] [--squat-height-range R] [--ready-pose off|preset] [--input crop|full] [--crop-edge on|off] [--keypoints-csv PATH] [--keypoints-dir DIR] [--output-dir PATH] <video.mp4>..."
 while let argument = arguments.next() {
     switch argument {
     case "--model":
@@ -171,6 +175,9 @@ while let argument = arguments.next() {
     case "--keypoints-dir":
         guard let path = arguments.next() else { exit(2) }
         keypointsDir = path
+    case "--bone-targets":
+        guard let path = arguments.next() else { exit(2) }
+        boneTargetsPath = path
     case "--output-dir":
         guard let path = arguments.next() else { exit(2) }
         outputDir = URL(fileURLWithPath: path, isDirectory: true)
@@ -202,6 +209,17 @@ func f(_ value: Double?) -> String { value.map { String(format: "%.4f", $0) } ??
 
 /// 3D: MotionAGFormerLive (past frames only, like the app camera), one per video.
 let predict3D = motion3D.map { MotionAGFormerCoreML.predictor($0) }
+
+/// --bone-targets for one video: the whole file, or the byClip entry whose key is the longest prefix of the name.
+func boneTargets(for name: String) throws -> [String: Double]? {
+    guard let boneTargetsPath else { return nil }
+    let data = try Data(contentsOf: URL(fileURLWithPath: boneTargetsPath))
+    guard let byClip = (try JSONSerialization.jsonObject(with: data) as? [String: Any])?["byClip"] as? [String: Any] else {
+        return try BoneLengthConstraint.loadTargets(json: data)
+    }
+    guard let key = byClip.keys.filter({ name.hasPrefix($0) }).max(by: { $0.count < $1.count }) else { return nil }
+    return try BoneLengthConstraint.loadTargets(json: JSONSerialization.data(withJSONObject: byClip[key]!))
+}
 
 var readers: [AVAssetReader] = []
 for video in videos {
@@ -287,6 +305,8 @@ for video in videos {
         if adaptiveOn { l.adaptive = AdaptiveRelationConstraint(exercise: exercise) }
         return l
     }
+    let targets = try boneTargets(for: name)
+    lifter?.constraints.calibrationTargetsCm = targets
     if lifter != nil, imageWidth == 0 { print("no image size for 3D: \(name) (pass --image-size)"); continue }
 
     // Pass 3: evaluator + form tracker, frame by frame like the app.
@@ -410,6 +430,7 @@ for video in videos {
         "cadence": cadence,
         "constraints": constraintsOn,
         "adaptive": adaptiveOn,
+        "bone_targets": targets.map { $0 as Any } ?? NSNull(),
         "form_source": tracker.common.form3DRequired ? "3d" : "2d",
         "delay_frames_3d": lifter.map { $0.delayFrames as Any } ?? NSNull(),
         "inferences_3d": lifter.map { $0.inferences as Any } ?? NSNull(),

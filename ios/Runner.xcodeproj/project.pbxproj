@@ -28,7 +28,7 @@
 		40E3761BDF18FECA75D4155D /* BarbellRowEvaluator.swift in Sources */ = {isa = PBXBuildFile; fileRef = D17BBF73154938F9C729D2C4 /* BarbellRowEvaluator.swift */; };
 		511C8B1A5E3231BB606B95BE /* SquatTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66A9249975D25A56873258E4 /* SquatTypes.swift */; };
 		7A3F0C1E9B2D4E5F6A7B8C01 /* FormWarnings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A3F0C1E9B2D4E5F6A7B8C02 /* FormWarnings.swift */; };
-		55B007C91D57370B112B9A8F /* HandOverlayRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36C9903487E33B6D811F2A8D /* HandOverlayRenderer.swift */; };
+		55B007C91D57370B112B9A8F /* PoseOverlayRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36C9903487E33B6D811F2A8D /* PoseOverlayRenderer.swift */; };
 		622CB33062458ACA0B781D8B /* NativePoseCameraPlatformView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCEB665660D0A67B817FFAB4 /* NativePoseCameraPlatformView.swift */; };
 		680C86C56462486E58B77C3F /* BenchPressEvaluator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F9D88DA5CB850FD0093B2DD /* BenchPressEvaluator.swift */; };
 		6A92035D6C60A5B2C3F40A9D /* SquatEvaluator.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6B6AACE97A047453F5ADE62 /* SquatEvaluator.swift */; };
@@ -103,7 +103,7 @@
 		331C807B294A618700263BE5 /* RunnerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunnerTests.swift; sourceTree = "<group>"; };
 		331C8081294A63A400263BE5 /* RunnerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RunnerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		362E1818C5D438F73E7CD41A /* DeadliftEvaluator.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DeadliftEvaluator.swift; sourceTree = "<group>"; };
-		36C9903487E33B6D811F2A8D /* HandOverlayRenderer.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = HandOverlayRenderer.swift; sourceTree = "<group>"; };
+		36C9903487E33B6D811F2A8D /* PoseOverlayRenderer.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PoseOverlayRenderer.swift; sourceTree = "<group>"; };
 		3B3967151E833CAA004F5970 /* AppFrameworkInfo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = AppFrameworkInfo.plist; path = Flutter/AppFrameworkInfo.plist; sourceTree = "<group>"; };
 		4FF7A798DDF28A668B7AB568 /* Pods_Runner.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_Runner.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		5F9D88DA5CB850FD0093B2DD /* BenchPressEvaluator.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BenchPressEvaluator.swift; sourceTree = "<group>"; };
@@ -347,7 +347,7 @@
 		BAECE759670DF5700C16E55B /* Overlays */ = {
 			isa = PBXGroup;
 			children = (
-				36C9903487E33B6D811F2A8D /* HandOverlayRenderer.swift */,
+				36C9903487E33B6D811F2A8D /* PoseOverlayRenderer.swift */,
 			);
 			path = Overlays;
 			sourceTree = "<group>";
@@ -635,7 +635,7 @@
 				08C943D98F2961D3E7FD292C /* HandCropBuilder.swift in Sources */,
 				05A1975E6E323360F6D4A55A /* HandLandmarkTypes.swift in Sources */,
 				E373932DEE26C31DD346DEB5 /* MediaPipeHandLandmarkerRunner.swift in Sources */,
-				55B007C91D57370B112B9A8F /* HandOverlayRenderer.swift in Sources */,
+				55B007C91D57370B112B9A8F /* PoseOverlayRenderer.swift in Sources */,
 				40E3761BDF18FECA75D4155D /* BarbellRowEvaluator.swift in Sources */,
 				EF3784812C6EE0FD8DEF1387 /* BarbellRowTypes.swift in Sources */,
 				680C86C56462486E58B77C3F /* BenchPressEvaluator.swift in Sources */,
