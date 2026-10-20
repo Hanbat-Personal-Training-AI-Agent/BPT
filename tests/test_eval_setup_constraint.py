@@ -45,3 +45,9 @@ def test_damage_models_and_schedule():
     sched = E.schedule(0, 400, 60, np.random.default_rng(2))
     assert all(b - a == 60 for a, b in sched) and all(n[0] - p[1] >= 45 for p, n in zip(sched, sched[1:]))
     assert sched[-1][1] + E.RECOVERY <= 400
+
+
+def test_lag_frames_detects_a_delay():
+    t = np.arange(300); r = np.sin(t / 10)
+    late = np.roll(r, 3); late[:3] = r[0]
+    assert E.lag_frames(late, r) == 3 and E.lag_frames(r, r) == 0

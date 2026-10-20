@@ -416,8 +416,9 @@ def run_evaluate(a):
                 if a.rules and v in a.rules_variants:
                     r['reps'] = rule_reps(P, inv, d, z['K'] if cond != 'clean' else d['K'])
                 if cond == 'clean':
-                    am = angle_metrics(angles(P, d['side'], d['up_c']), ref, d['seg'])
-                    r['angles'] = {g: dict(rep=float(np.mean(am[g]['rep'])), frame=float(np.mean(am[g]['frame'])), jitter=float(np.mean(am[g]['jitter'])))
+                    A_ = angles(P, d['side'], d['up_c']); am = angle_metrics(A_, ref, d['seg'])
+                    r['angles'] = {g: dict(rep=float(np.mean(am[g]['rep'])), frame=float(np.mean(am[g]['frame'])), jitter=float(np.mean(am[g]['jitter'])),
+                                           lag=lag_frames(A_[g][lo:hi], ref[g][lo:hi]))
                                    for g in ('knee', 'hip', 'elbow', 'torso_g')}
                 recs.append(r)
         inputs.append(d['csv']); print(seq_key(d), flush=True)
@@ -435,6 +436,16 @@ def rule_reps(P, inv, d, K):
     if inv is not None: Pm[inv] = np.nan
     out = lf.rep_records(Pm, d['seg'], d['ex'], side, UP, {}, two)
     return [dict(fired=sorted(r['fired']), keys=sorted(r['m'])) for r in out]
+
+
+def lag_frames(a, r, max_lag=10):
+    """Delay of trajectory a behind r in frames (argmax of the normalised cross-correlation, -10..10; > 0 = late)."""
+    a, r = np.asarray(a, float), np.asarray(r, float); ok = np.isfinite(a) & np.isfinite(r)
+    if ok.sum() < 3 * max_lag: return float('nan')
+    a, r = (a - np.nanmean(a[ok])) * ok, (r - np.nanmean(r[ok])) * ok
+    a, r = np.nan_to_num(a), np.nan_to_num(r); n = len(a)
+    c = [float(np.dot(a[k:], r[:n - k]) if k >= 0 else np.dot(a[:n + k], r[-k:])) for k in range(-max_lag, max_lag + 1)]
+    return float(np.argmax(c) - max_lag)
 
 
 def boot_ci(x, n=2000, seed=0):
@@ -469,7 +480,7 @@ def summarize_eval(a, recs, inputs, params):
                                    or (m == 'moved' and e['moved'] > 50) or (m == 'static' and e['moved'] <= 50)]
                             if sel: g[f'err_{m}'] = float(np.mean([e['err'] for e in sel])); g[f'n_{m}'] = len(sel)
                     if 'angles' in rs[0]:
-                        g['angles'] = {k: {q: float(np.mean([r['angles'][k][q] for r in rs])) for q in ('rep', 'frame', 'jitter')} for k in rs[0]['angles']}
+                        g['angles'] = {k: {q: float(np.nanmean([r['angles'][k].get(q, np.nan) for r in rs])) for q in ('rep', 'frame', 'jitter', 'lag')} for k in rs[0]['angles']}
                     summ['groups'][f'{grp}/{cond}/{ex}/{v}'] = g
                     f = lambda k, fmt='{:.1f}': fmt.format(g[k]) if k in g else '-'
                     md.append(f"| {grp} | {cond} | {ex} | {v} | {g['videos']} | {g['mpjpe']:.1f} | {g['pa']:.1f} | {g['accel']:.2f} | {g['invalid']:.1%} | {g['changed']:.1%} | "
