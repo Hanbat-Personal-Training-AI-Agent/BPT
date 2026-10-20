@@ -213,6 +213,8 @@ def run_wrist(a):
         Jp = d['J'][d['pick']]; gw = {s: project_fit3d(Jp[:, E.H_WRIST[s]], cam) for s in SIDES}
         _, crops0 = mag_input(K); ratio = d['mm'] / 1000 / (crops0[:, 2] / 2)
         G = d['G']; mm = d['mm'][:, None, None] / 1000
+        both = np.isfinite(Hd[:, :, 0, 0]).all(1)
+        changed = bool((both & np.array([same_hand(Hd[i, 0], Hd[i, 1]) for i in range(n)])).any())
         for var in ('rtm', 'mp_raw', 'mp', 'mp_dedupe'):
             Kp = K.copy(); rep = np.zeros((n, 2), bool); same = np.zeros(n, bool)
             for i in range(n):
@@ -230,7 +232,8 @@ def run_wrist(a):
                      w2d=np.concatenate([e[s] for s in SIDES]), replaced=rep.ravel(),
                      crossed_all=np.concatenate([crossed[s] for s in SIDES]),
                      crossed_rep=np.concatenate([crossed[s][rep[:, si]] for si, s in enumerate(SIDES)]))
-            if var != 'mp_raw':
+            # XS 3D: rtm from the cache; mp / mp_dedupe only where the dedupe changed a frame (elsewhere they are equal)
+            if var == 'rtm' or (var in ('mp', 'mp_dedupe') and changed):
                 x, crops = mag_input(Kp)
                 Q = predict_rows(model, dev, x, [5], seq_key(d) if var == 'rtm' else None)[5]
                 Q, _ = apply_constraints(Q, dict(knee_clamp_deg=None, reflect_flipped_knee=d['ex'] == 'squat'))
@@ -241,20 +244,24 @@ def run_wrist(a):
                          elbow_ang=np.concatenate([np.abs(interior(P[:, s], P[:, el], P[:, w]) - interior(G[:, s], G[:, el], G[:, w]))
                                                    for s, el, w in ((11, 12, 13), (14, 15, 16))]),
                          mpjpe=pose_metrics(P, G)['mpjpe'])
+            r['changed'] = changed
             recs.append(r)
-        print(d['subj'], d['ex'], d['cam'], flush=True)
+        print(d['subj'], d['ex'], d['cam'], 'dedupe changed' if changed else '', flush=True)
     f = lambda q, kk='p50': q.get(kk, float('nan'))
     summ = {}
-    md = ['| 묶음 | 운동 | 변형 | 영상 | 같은 손 프레임 | 교체 | 손목 2D 오차 중앙값 (p90) px | 교체 중 교차 | 그린 손목 교차(전체) | 손목 3D mm | 손목 가속도 | 팔꿈치각 ° | MPJPE |',
+    md = ['3D(손목·팔꿈치·MPJPE): rtm = 모든 영상, mp / mp_dedupe = 중복 제거가 프레임을 바꾼 영상에서만(나머지 영상은 두 입력이 같음).', '',
+          '| 묶음 | 운동 | 변형 | 영상 | 같은 손 프레임 | 교체 | 손목 2D 오차 중앙값 (p90) px | 교체 중 교차 | 그린 손목 교차(전체) | 손목 3D mm | 손목 가속도 | 팔꿈치각 ° | MPJPE |',
           '|---' * 13 + '|']
     for k, rs in groups_of(recs, ('group', 'exercise', 'var')):
         s = dict(videos=len(rs), same=float(cat(rs, 'same').mean()), replaced=float(cat(rs, 'replaced').mean()), w2d=st(cat(rs, 'w2d')),
                  crossed_rep=float(cat(rs, 'crossed_rep').mean()) if len(cat(rs, 'crossed_rep')) else 0.0,
                  crossed_all=float(cat(rs, 'crossed_all').mean()))
-        if 'wrist3d' in rs[0]:
-            s.update(wrist3d=st(cat(rs, 'wrist3d')), wrist_acc=st(cat(rs, 'wrist_acc')), elbow_ang=st(cat(rs, 'elbow_ang')), mpjpe=st(cat(rs, 'mpjpe')))
+        r3 = [r for r in rs if 'wrist3d' in r]
+        if r3:
+            s.update(videos_3d=len(r3), wrist3d=st(cat(r3, 'wrist3d')), wrist_acc=st(cat(r3, 'wrist_acc')),
+                     elbow_ang=st(cat(r3, 'elbow_ang')), mpjpe=st(cat(r3, 'mpjpe')))
         summ['/'.join(k)] = s
-        tail = (f"{s['wrist3d']['mean']:.1f} | {s['wrist_acc']['mean']:.2f} | {f(s['elbow_ang']):.1f} | {s['mpjpe']['mean']:.1f}"
+        tail = (f"{s['wrist3d']['mean']:.1f} | {s['wrist_acc']['mean']:.2f} | {f(s['elbow_ang']):.1f} | {s['mpjpe']['mean']:.1f} ({s['videos_3d']}영상)"
                 if 'wrist3d' in s else '- | - | - | -')
         md.append(f"| {k[0]} | {k[1]} | {k[2]} | {s['videos']} | {s['same']:.2%} | {s['replaced']:.1%} | {f(s['w2d']):.2f} ({f(s['w2d'], 'p90'):.1f}) | "
                   f"{s['crossed_rep']:.2%} | {s['crossed_all']:.2%} | {tail} |")

@@ -31,3 +31,33 @@ MediaPipe 손목 교체 전체의 판정: 2D 손목 오차와 XS 3D 손목 오�
 **R-OVERLAY-WRIST (몸 오버레이 손목 = XS 입력에 들어간 손목)**: Exercise3D 측면 클립(의사 정답)에서 그린 손목이 반대쪽 라벨 손목에 더 가까운 프레임 비율이 RTMPose 손목 자체의 비율보다 크지 않음.
 
 오버레이 색·붉은 강조는 화면 변경이라 정답으로 검증하지 않는다. 붉은 강조가 정상 자세에서도 켜지는 빈도 = 기존 규칙의 정상 렙 오경보율(임계값은 바꾸지 않음).
+
+## 1. 구현 (이 브랜치 한정, 병합 안 함)
+| 항목 | 파일 | 내용 | 끄기 |
+|---|---|---|---|
+| 관절 각 한계 한 설정 | `pose_feedback/geometry/anatomical_limits.json` ↔ `Pose3DConstraints.swift` | 모든 한계(내각 9개, 무릎 과신전, 뒤집힘 감지, bad 각, 사전 비율)와 근거를 한 파일에. Python은 파일을 읽고 Swift는 같은 값(`PoseConstraintLimitsTests`가 다르면 실패) | – |
+| 무릎 과신전 클램프 | `Pose3DConstraints.kneeClampDegrees = 15` ↔ `knee_clamp_deg` | 반사(스쿼트, θ<−30°) 뒤 θ<−15°인 무릎의 정강이를 경첩축으로 −15°까지 돌림(길이 유지). θ<−30°는 그대로 무효 관절(품질 신호) | `kneeClampDegrees = nil` |
+| 사람별 뼈 길이 목표 | `scripts/calib_subject_shapes.py` | 제품 캘리브레이션(fitting.py)과 같은 단계를 로컬 CPU로: 서 있는 프레임(앱 2D로 고름, 카메라 여러 대) → SAM 3D Body(사진별, 카메라 내부값) → MHR→SMPL 공식 변환기 β 하나 공유 → (키 모름: 투영 생략) → SMPL 휴식 자세 H36M 관절 → `body.bone_lengths_cm` | – |
+| 앱(영상 모드)·pose-replay에 목표 넣기 | `VideoCameraOptions.boneTargetsCm`(`BPT_BONE_TARGETS`), pose-replay `--bone-targets`(파일 하나 또는 `{"byClip": …}`) | 캘리브레이션 결과와 같은 JSON(`BoneLengthConstraint.loadTargets`) → `calibrationTargetsCm` | 변수 없음 = 기존(세션 중앙값/사전 비율) |
+| 손 crop 같은 손 중복 제거 | `MotionAGFormerWristSource.sameHand/input(sameHand:)` ↔ `same_hand`·`dedupe_same_hand` | 두 crop의 손 랜드마크 상자 IoU > 0.5면 같은 손 → 두 MediaPipe 손목 모두 안 씀(RTMPose 손목), 그다음 reject_crossed·0.25 게이트 | `BPT_HAND_DEDUPE=0` |
+| 몸 오버레이 손목 | `CameraPosePreview.processFrame` | 오버레이 = XS 입력 2D(받아들인 손목만). 이전엔 crop에서 찾은 손을 거르기 전에 그렸다(`useMediaPipeWristFor2DBodyOverlay`, 삭제) | – |
+| 오버레이 모양 | `Overlays/PoseOverlayRenderer.swift`(옛 HandOverlayRenderer) | 연두(#BFED5F, 앱 AppColors.green) 빛나는 선(넓은 흐린 선 2겹 + 본선 + 밝은 중심선, 둥근 끝), 신뢰도 0.3 미만 관절·연결은 그리지 않음, 얼굴 선 대신 코에 고리 하나, 귀–어깨(목) 선, 손 안 그림(crop 상자도). 표시 전용 One-Euro 평활(`OverlaySmoother`, 판정·XS 입력에 안 들어감) | – |
+| 틀린 자세 원인 붉게 | `FormGeometry.causeEdges` / `overlayEdges`(FormWarnings.swift) | 렙이 판정되면 그 렙의 `warnings`(FormWarningTracker 판정, enabledFeedbackKeys와 무관) → 판정한 쪽의 연결 → 붉은 빛, 0.3초 유지 후 1.3초까지 흐려짐. 예: hip_sag/pike = 어깨–엉덩이–무릎–발목, knee_valgus = 양 다리, torso_swing = 어깨–엉덩이, no_lockout(푸시업) = 어깨–팔꿈치–손목 | – |
+| 발 고정 | – | 범위 변경으로 ai/setup-constraint 담당. 이 브랜치에는 코드 없음 | – |
+
+Flutter 3D 상태 안내 배너는 그대로(팀원 화면 안 건드림). 실제 앱에서 캘리브레이션 결과는 지금 가져오지 않는다(D-M-01로 main의 분석 화면을 써서 작업 조회가 없음) → 제품 경로 연결은 막혀 있고, 그 화면은 바꾸지 않았다.
+
+## 2. 관절 각 한계의 근거 (`anatomical_limits.json` 한 곳)
+값 고르는 규칙: Fit3D 모캡(8명·47운동, 집계 `~/bpt-runs/lift-compare/priors-20261019/priors.json`, lift-app S2)의 p0.1/p99.9를 쓰되, 정상 관절 가동 범위 문헌과 어긋나지 않는지 확인한다. 문헌: CDC Joint Range of Motion Study(Soucie 외, Haemophilia 2011;17:500–507, 건강한 674명, 20–44세 평균) — 무릎 굽힘 137.7–141.9°(내각 38–42°), 무릎 폄(과신전) 1.0–1.6°, 팔꿈치 굽힘 144.6–150.0°, 엉덩이 굽힘 130.4–133.8°, 엉덩이 폄 17.4–18.1°, 어깨 굽힘 168.8–172.0°. Beighton 과유연성 기준은 무릎 과신전 10° 초과.
+
+| 한계 | 값 | 모캡(8명·47운동) | 문헌 | 이전(618ee11) |
+|---|---|---|---|---|
+| 무릎 내각 하한 | 41° | p0.1 41.1° (스쿼트 47.8°) | 굽힘 평균 최대 138–142° = 내각 38–42° | 41° (같음) |
+| 팔꿈치 내각 하한 | 22° | p0.1 23.9° (스쿼트 22.0°) | 굽힘 145–150° = 내각 30–35° — 모캡이 더 넓어 모캡 유지 | 22° (같음) |
+| 엉덩이(몸통–허벅지) 하한 | 32° | p0.1 31.7° | 엉덩이 굽힘 130–134° + 허리 굽힘, 단단한 한계 없음 | 32° (같음) |
+| 척추 내각 하한 | 120° | p0.1 128.2° (로우 122.7°) | – | 120° (같음) |
+| 어깨(몸통 아래–위팔) 상한 | 172° | p99.9 171.6° | 어깨 굽힘 168.8–172.0° | 172° (같음) |
+| **무릎 과신전 상한(새)** | θ ≥ −15° | 스쿼트·푸시업·로우는 −10° 아래 없음(p0.1 −6.6°), 47운동 다리-프레임 0.59%가 −10° 아래 | 폄 평균 1.0–1.6°, 과유연성 > 10° | 없음(−30° 감지만, 출력에 뒤로 꺾인 무릎이 남았음) |
+
+- 이전 판단 정정: 작업 지시의 “한계가 모캡보다 느슨하다(위팔 0.76, 무릎·엉덩이·척추 하한)”는 ed67a6e 값 이야기이고, lift-app 384e684부터 이미 모캡 p0.1/p99.9(41/22/32/120/172, 사전 비율 0.61/0.55)로 바뀌어 있었다. 남은 구멍은 **무릎이 뒤로 꺾인 출력**이었다(θ < −30°는 무효 표시만, 기하는 그대로).
+- 팔꿈치 과신전은 H36M17에 아래팔 회전 정보가 없어 굽힘 방향을 정할 수 없다 → 내각 하한만. 엉덩이 과신전·벌림은 골반 축으로 잴 수는 있지만 이번에 넣지 않았다(XS 출력에서 얼마나 나오는지 **측정 안 함**).
