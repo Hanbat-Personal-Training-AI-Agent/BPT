@@ -7,7 +7,8 @@ E="$PY $W/scripts/eval_setup_constraint.py"
 COMMON="--dataset ex3d --ex3d $S/ex3d --mag-repo $S/mag/MotionAGFormer --device mps --cache $S/cache_ex3d"
 cd $W
 # A waiting or running phone run (device agent) goes first: wait until none is queued, then take the lock.
-L() { while pgrep -f device_video_runs >/dev/null; do sleep 30; done; lockf -k /tmp/bpt-heavy.lock "$@"; }
+phone_busy() { ps -axo command= | grep "device_video_runs.py run" | grep -v -e "^/bin/zsh" -e "^zsh" -e "^bash" -e "grep" >/dev/null; }
+L() { while phone_busy; do sleep 30; done; lockf -k /tmp/bpt-heavy.lock "$@"; }
 echo "== swift test $(date)"; L swift test --package-path ios/CalibrationEngineKit 2>&1 | grep -E "Executed|error:" | tail -3
 echo "== E6 cost $(date)"; L env BPT_COST=1 swift test -c release --package-path ios/CalibrationEngineKit --filter AdaptiveSetupCostTests 2>&1 | grep -E "E6 cost|passed|failed|error" | head -10
 echo "== replay parity $(date)"; L swift build -c release --package-path ios/CalibrationEngineKit --product pose-replay 2>&1 | tail -1
