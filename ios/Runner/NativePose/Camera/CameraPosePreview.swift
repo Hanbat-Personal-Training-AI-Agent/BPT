@@ -341,6 +341,7 @@ final class CameraPoseViewModel: ObservableObject {
     // MARK: Sets (Flutter startSet / endSet)
 
     private func startSet(_ index: Int) {
+        VideoRunLog.shared?.write("start_set", ["set": index])
         betweenSets = false
         guard WorkoutDebugFlags.setRecording, let directory = WorkoutSetRecorder.directory() else { return }
         recording = true
@@ -351,6 +352,7 @@ final class CameraPoseViewModel: ObservableObject {
 
     /// Set-scope feedback (참고 keys, n = reps in the set), then onSetEnd once the file is closed.
     private func endSet(_ index: Int) {
+        VideoRunLog.shared?.write("end_set_received", ["set": index, "between_sets": betweenSets])
         guard !betweenSets else { return }
         betweenSets = true
         recording = false
@@ -360,6 +362,9 @@ final class CameraPoseViewModel: ObservableObject {
         liftQueue.async { [weak self] in
             guard let self else { return }
             let tail = (try? self.lifter?.flush()) ?? []
+            VideoRunLog.shared?.write("end_set_flush", ["set": index, "tail_frames": tail.count,
+                                                        "tail_states": tail.map { $0.1.state.rawValue },
+                                                        "tail_frame_index": tail.map { $0.1.frameIndex }])
             Task { @MainActor in
                 for (result, frame3D) in tail { self.handleLifted(result, frame3D) }
                 self.finishEndSet(index)
@@ -373,7 +378,18 @@ final class CameraPoseViewModel: ObservableObject {
             FeedbackJoint.worst(setCounts: $0.endSet(), enabled: $0.common.enabledFeedbackKeys,
                                 ruleOrder: (FormWarningTracker.rules[$0.exercise] ?? []).map(\.key))
         }
-        for event in tracker?.drainEvents() ?? [] { bridge?.sendFeedback(event) }
+        for event in tracker?.drainEvents() ?? [] {
+            guard let log = VideoRunLog.shared else { bridge?.sendFeedback(event); continue }
+            var line: [String: Any] = ["key": event.key, "scope": event.scope.rawValue, "frame": -1, "set": index]
+            if let n = event.n { line["n"] = n }
+            log.write("feedback_sent", line)
+            bridge?.sendFeedback(event) { reply in
+                var done = line
+                done["reply"] = reply.map { "\($0)" } ?? NSNull()
+                log.write("feedback_reply", done)
+            }
+        }
+        VideoRunLog.shared?.write("set_end_sent", ["set": index, "worst_joint": worstJoint ?? NSNull()])
         captureManager.finishRecording { [weak self] url in
             Task { @MainActor in
                 self?.bridge?.sendSetEnd(setIndex: index, videoLocalPath: url?.path, worstJoint: worstJoint)

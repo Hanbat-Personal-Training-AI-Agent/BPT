@@ -60,6 +60,20 @@ def main(path, gt_path, label=""):
         print(f'| {r["clip"].removesuffix(".mp4")} | {len(p["a_native_reps"])} | {p["a_form_sources"].get("3d", 0)} | '
               f'{fmt(p["a_native_fired_3d"])} | {fmt(p["a_native_fired_2d"])} | {fmt(p["b_sent_to_flutter"])} | {fmt(p["c_spoken_by_flutter"])} |')
     print()
+    if any(r.get("item6_sets", {}).get("end_set_received") for r in rows):
+        print(f"### {label} 3(b·c)·6. 세트 경계 — endSet, 3D 꼬리 flush, 세트 범위 키, Flutter가 버린 키 — per clip")
+        print("| clip | startSet | endSet(렙 시점) | flush 꼬리 프레임(상태) | 꼬리 판정됨 | (b) 렙 범위 보냄 | (b) 세트 범위 보냄(n) | onSetEnd worstJoint | (c) 세트 끝 뒤라 안 보임 | (c) 대사 없어 안 보임 |")
+        print("|---|---|---|---|---|---|---|---|---|---|")
+        for r in rows:
+            s6, p = r["item6_sets"], r["item3_posture"]
+            fmt = lambda d: ", ".join(f"{k} {v}" for k, v in sorted(d.items())) or "–"  # noqa: E731
+            fl = "; ".join(f'{f["tail_frames"]} ({fmt(f["tail_states"])})' for f in s6["flush"]) or "–"
+            ends = ", ".join(f'set {e["set"]}{" (중복)" if e["duplicate"] else ""}' for e in s6["end_set_received"]) or "없음"
+            wj = ", ".join(str(e.get("worst_joint")) for e in s6["set_end_sent"]) or "–"
+            print(f'| {r["clip"].removesuffix(".mp4")} | {s6["start_set"] or "–"} | {ends} (렙 {s6["rep_at_end_set"]}) | {fl} | '
+                  f'{s6["tail_frames_judged"]} | {fmt(p["b_sent_rep_scope"])} | {fmt(p["b_sent_set_scope"])} | {wj} | '
+                  f'{fmt(p["c_not_shown_after_set_end"])} | {fmt(p["c_not_shown_no_flutter_line"])} |')
+        print()
     print(f"### {label} 운동별 합계")
     for ex, c in totals.items():
         print(f"- **{ex}**: 클립 {c['clips']}, 렙 {c['reps']}, 3D 판정 렙 {c['reps_3d']}")
