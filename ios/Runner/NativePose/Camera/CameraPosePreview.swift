@@ -37,7 +37,9 @@ private enum CameraPreviewOptions {
     static let personCropInput = true
     static let handCropSize = 256.0
     static let wristConfidenceThreshold = 0.3
-    static let useMediaPipeWristFor2DBodyOverlay = true
+    /// Both wrist crops returned the same hand (landmark-box IoU > 0.5): neither MediaPipe wrist is used
+    /// (MotionAGFormerWristSource.sameHand). ai/lift-refine only; BPT_HAND_DEDUPE=0 = old behaviour.
+    static let handDedupe = ProcessInfo.processInfo.environment["BPT_HAND_DEDUPE"] != "0"
     static let debugLogEveryNFrames = 60
 }
 
@@ -48,6 +50,7 @@ struct CameraFrameData: Identifiable {
     let frameIndex: Int
     let imageWidth: Double
     let imageHeight: Double
+    /// What the overlay draws: the XS input 2D (accepted wrists only), display-smoothed.
     let coco17: [PoseKeypoint]
     let rawCoco17: [PoseKeypoint]
     let handResults: [HandLandmarkResult]
@@ -55,12 +58,16 @@ struct CameraFrameData: Identifiable {
     let statusText: String
     let rep: Int
     let done: Bool
+    /// Overlay edges behind the last judged rep's posture warnings and when it was judged (red highlight).
+    var warning: (edges: [[Int]], at: CFTimeInterval)?
 }
 
 struct CameraProcessingResult {
     let frameIndex: Int
     let imageWidth: Double
     let imageHeight: Double
+    /// The XS input 2D (RTMPose + accepted MediaPipe wrists): drawn by the overlay, so a drawn wrist never sits on a
+    /// hand the XS input refused.
     let visualCoco17: [PoseKeypoint]
     let rawCoco17: [PoseKeypoint]
     let feet: FootKeypoints?
@@ -69,6 +76,8 @@ struct CameraProcessingResult {
     var arrivedAt: CFTimeInterval = 0
     /// XS input wrists replaced by MediaPipe (left, right); raw wrists stay in rawCoco17.
     var wristsReplaced = (left: false, right: false)
+    /// Both wrist crops returned the same hand and neither MediaPipe wrist was used (CameraPreviewOptions.handDedupe).
+    var sameHandDropped = false
 }
 
 // MARK: - Camera capture manager
@@ -270,6 +279,9 @@ final class CameraPoseViewModel: ObservableObject {
     @Published var videoDisplayLayer: AVSampleBufferDisplayLayer?
     /// Frame being judged (handleLifted), for the run log's Flutter reply latencies.
     private var judgingFrame: (index: Int, arrival: CFTimeInterval)?
+    /// Red overlay highlight: cause edges of the last judged rep's warnings (FormWarningTracker judgement).
+    private var lastWarning: (edges: [[Int]], at: CFTimeInterval)?
+    private var overlaySmoother = OverlaySmoother()
 
     init(exercise: NativePoseExercise, bridge: WorkoutChannel? = nil) {
         self.exercise = exercise
@@ -317,6 +329,9 @@ final class CameraPoseViewModel: ObservableObject {
         for report in tracker.reports where report.repIndex > lastLoggedRep {
             formLog?.append(report)
             lastLoggedRep = report.repIndex
+            let side = FormSide(rawValue: report.side) ?? .left
+            let edges = Set(report.warnings.flatMap { FormGeometry.causeEdges(of: $0, side: side) })
+            if !edges.isEmpty { lastWarning = (Array(edges), CACurrentMediaTime()) }
             if let log = VideoRunLog.shared {
                 var line = report.dictionary
                 line["judged_frame"] = judgingFrame?.index ?? -1
@@ -420,6 +435,8 @@ final class CameraPoseViewModel: ObservableObject {
                                             cadence: CameraPreviewOptions.motion3DCadence,
                                             predict: MotionAGFormerCoreML.predictor(xs))
                 lifter?.constraints.reflectFlippedKnee = exercise == .squat  // Fit3D S6: squat only
+                // Test-only (video mode driver): the clip subject's calibration bone lengths, as a calibration result would give.
+                lifter?.constraints.calibrationTargetsCm = VideoCameraOptions.boneTargetsCm
                 formTracker?.common.form3DRequired = true
                 if VideoCameraOptions.allFeedbackKeys {
                     // NON-DEFAULT test flag: show what every warning key WOULD send to the user.
@@ -490,6 +507,9 @@ final class CameraPoseViewModel: ObservableObject {
             "enabled_feedback_keys": Array(formTracker?.common.enabledFeedbackKeys ?? []).sorted(),
             "form3d_required": formTracker?.common.form3DRequired ?? false,
             "reflect_flipped_knee": lifter?.constraints.reflectFlippedKnee ?? false,
+            "bone_targets": VideoCameraOptions.boneTargetsCm.map { ["file": VideoCameraOptions.environment["BPT_BONE_TARGETS"] ?? "",
+                                                                     "segments": $0.count] as Any } ?? NSNull(),
+            "hand_dedupe": CameraPreviewOptions.handDedupe,
             "rtmpose": RTMPoseModel.workout.rawValue,
         ])
         print("CameraPosePreview started exercise=\(exercise.rawValue) hand=\(handEnabled) 3d=\(lifter != nil) lookahead=\(CameraPreviewOptions.motion3DLookahead) cadence=\(CameraPreviewOptions.motion3DCadence) async=\(CameraPreviewOptions.motion3DAsync)")
@@ -541,12 +561,16 @@ final class CameraPoseViewModel: ObservableObject {
                     rightHand = nil
                 }
 
-                let visualCoco17 = HandCropBuilder.visualBodyKeypoints(
-                    rawBodyKeypoints: rawCoco17,
-                    leftHand: leftHand,
-                    rightHand: rightHand,
-                    useMediaPipeWrist: CameraPreviewOptions.useMediaPipeWristFor2DBodyOverlay
-                )
+                // XS input wrists: MediaPipe where accepted (same-hand dedupe, reject crossed, forearm gate), else RTMPose.
+                // The overlay draws the same 2D, so its wrist never jumps to the other hand (lift-refine).
+                let point = { (hand: HandLandmarkResult?) in hand?.wristFramePoint.map { PosePoint(x: $0.x, y: $0.y) } }
+                let landmarks = { (hand: HandLandmarkResult?) in hand?.frameLandmarks.map { PosePoint(x: $0.x, y: $0.y) } ?? [] }
+                let sameHand = CameraPreviewOptions.handDedupe
+                    && MotionAGFormerWristSource.sameHand(landmarks(leftHand), landmarks(rightHand))
+                let wrists = (lifter == nil || CameraPreviewOptions.motion3DWristFromHands)
+                    ? MotionAGFormerWristSource.input(raw: rawCoco17, left: point(leftHand), right: point(rightHand), sameHand: sameHand)
+                    : MotionAGFormerWristSource.Result(input: rawCoco17)
+                let visualCoco17 = wrists.input
 
                 var result = CameraProcessingResult(
                     frameIndex: frameIdx,
@@ -570,11 +594,8 @@ final class CameraPoseViewModel: ObservableObject {
                 }
                 // 3D path: the XS input gets the MediaPipe wrists (same frame, computed above); the overlay shows the
                 // 2D at once, the evaluators get frame t with its own 3D `lookahead` frames later.
-                let point = { (hand: HandLandmarkResult?) in hand?.wristFramePoint.map { PosePoint(x: $0.x, y: $0.y) } }
-                let wrists = CameraPreviewOptions.motion3DWristFromHands
-                    ? MotionAGFormerWristSource.input(raw: rawCoco17, left: point(leftHand), right: point(rightHand))
-                    : MotionAGFormerWristSource.Result(input: rawCoco17)
                 result.wristsReplaced = (wrists.replacedLeft, wrists.replacedRight)
+                result.sameHandDropped = sameHand && leftHand != nil && rightHand != nil
                 perfLog?.sample("pose2d_hands", ms: (CACurrentMediaTime() - arrivedAt) * 1000)
                 let shown = result
                 Task { @MainActor [weak self] in self?.showFrame(shown) }
@@ -612,9 +633,10 @@ final class CameraPoseViewModel: ObservableObject {
     private func showFrame(_ result: CameraProcessingResult) {
         currentFrame = CameraFrameData(
             id: result.frameIndex, frameIndex: result.frameIndex, imageWidth: result.imageWidth,
-            imageHeight: result.imageHeight, coco17: result.visualCoco17, rawCoco17: result.rawCoco17,
-            handResults: result.handResults, exerciseTitle: exercise.displayName,
-            statusText: lastReportedStatus ?? "", rep: lastReportedRep ?? 0, done: lastReportedDone ?? false)
+            imageHeight: result.imageHeight, coco17: overlaySmoother.smooth(result.visualCoco17, at: CACurrentMediaTime()),
+            rawCoco17: result.rawCoco17, handResults: result.handResults, exerciseTitle: exercise.displayName,
+            statusText: lastReportedStatus ?? "", rep: lastReportedRep ?? 0, done: lastReportedDone ?? false,
+            warning: lastWarning)
     }
 
     /// 3D path: frame t with its own 2D and 3D (state never hidden: it goes to the evaluators and to Flutter).
@@ -657,6 +679,7 @@ final class CameraPoseViewModel: ObservableObject {
                 "status": statusText, "rep": rep, "judge_ms": (now - result.arrivedAt) * 1000,
                 "eval_ms": (now - t0) * 1000, "wrists": [result.wristsReplaced.left, result.wristsReplaced.right],
             ]
+            if result.sameHandDropped { line["same_hand"] = true }
             if let row = frame3D.row { line["row"] = row }
             if frame3D.state == .warmingUp { line["filled"] = frame3D.filled }
             if let c = frame3D.constraints {
@@ -683,13 +706,14 @@ final class CameraPoseViewModel: ObservableObject {
             frameIndex: result.frameIndex,
             imageWidth: result.imageWidth,
             imageHeight: result.imageHeight,
-            coco17: result.visualCoco17,
+            coco17: overlaySmoother.smooth(result.visualCoco17, at: CACurrentMediaTime()),
             rawCoco17: result.rawCoco17,
             handResults: result.handResults,
             exerciseTitle: self.exercise.displayName,
             statusText: statusText,
             rep: rep,
-            done: done
+            done: done,
+            warning: lastWarning
         )
 
         self.currentFrame = frameData
@@ -870,7 +894,6 @@ private struct CameraLiveView: View {
                 if let frame {
                     Canvas { context, size in
                         drawSkeleton(frame: frame, context: &context, size: size)
-                        drawHands(frame: frame, context: &context, size: size)
                     }
                     .frame(width: proxy.size.width, height: proxy.size.height)
                 } else {
@@ -891,38 +914,12 @@ private struct CameraLiveView: View {
         }
     }
 
+    /// Glowing lime skeleton, red cause edges of the last warnings, no hands (PoseOverlayRenderer).
     private func drawSkeleton(frame: CameraFrameData, context: inout GraphicsContext, size: CGSize) {
         let rect = aspectFillRect(imageWidth: frame.imageWidth, imageHeight: frame.imageHeight, in: size)
-        for edge in coco17Edges {
-            guard edge.0 < frame.coco17.count, edge.1 < frame.coco17.count else { continue }
-            let a = frame.coco17[edge.0]
-            let b = frame.coco17[edge.1]
-            let minConfidence = min(a.confidence, b.confidence)
-            let color = minConfidence >= 0.3 ? Color.green : Color.gray.opacity(0.35)
-            var path = Path()
-            path.move(to: viewPoint(a, frame: frame, rect: rect))
-            path.addLine(to: viewPoint(b, frame: frame, rect: rect))
-            context.stroke(path, with: .color(color), lineWidth: minConfidence >= 0.3 ? 4.0 : 2.0)
+        PoseOverlayRenderer.draw(frame.coco17, warning: frame.warning, in: &context) {
+            viewPoint($0, frame: frame, rect: rect)
         }
-
-        for keypoint in frame.coco17 {
-            let point = viewPoint(keypoint, frame: frame, rect: rect)
-            let radius = keypoint.confidence >= 0.3 ? 5.0 : 3.0
-            let color = keypoint.confidence >= 0.3 ? Color.yellow : Color.gray.opacity(0.35)
-            let circle = CGRect(x: point.x - radius, y: point.y - radius, width: radius * 2.0, height: radius * 2.0)
-            context.fill(Path(ellipseIn: circle), with: .color(color))
-        }
-    }
-
-    private func drawHands(frame: CameraFrameData, context: inout GraphicsContext, size: CGSize) {
-        let rect = aspectFillRect(imageWidth: frame.imageWidth, imageHeight: frame.imageHeight, in: size)
-        HandOverlayRenderer.drawHands(
-            frame.handResults,
-            context: &context,
-            imageWidth: frame.imageWidth,
-            imageHeight: frame.imageHeight,
-            rect: rect
-        )
     }
 
     private func viewPoint(_ keypoint: PoseKeypoint, frame: CameraFrameData, rect: CGRect) -> CGPoint {
@@ -945,15 +942,6 @@ private struct CameraLiveView: View {
             width: width,
             height: height
         )
-    }
-
-    private var coco17Edges: [(Int, Int)] {
-        [
-            (0, 1), (0, 2), (1, 3), (2, 4),
-            (5, 6), (5, 7), (7, 9), (6, 8), (8, 10),
-            (5, 11), (6, 12), (11, 12),
-            (11, 13), (13, 15), (12, 14), (14, 16),
-        ]
     }
 }
 

@@ -398,3 +398,31 @@ final class FormWarningsTests: XCTestCase {
         XCTAssertFalse(tracker.judge(m, history: [], repIndex: 1).contains("row_torso_swing"))
     }
 }
+
+/// Warning key -> overlay edges (the red highlight): every posture rule has a cause the overlay draws.
+final class FormWarningCauseEdgeTests: XCTestCase {
+    func testEveryPostureRuleMapsToDrawnEdges() {
+        let drawn = Set(FormGeometry.overlayEdges)
+        for (_, rules) in FormWarningTracker.rules {
+            for (key, _) in rules where key != "setup_side_view" {
+                for side in [FormSide.left, .right] {
+                    let edges = FormGeometry.causeEdges(of: key, side: side)
+                    XCTAssertFalse(edges.isEmpty, "\(key) has no cause edges")
+                    XCTAssertTrue(Set(edges).isSubset(of: drawn), "\(key) \(side): \(edges) not all drawn")
+                }
+            }
+        }
+        for key in ["setup_side_view", "setup_full_body", "tracking_lost", "praise_fixed"] {
+            XCTAssertTrue(FormGeometry.causeEdges(of: key, side: .left).isEmpty)
+        }
+    }
+
+    func testExamplesFromTheRequest() {
+        // pushup_hip_sag/pike: shoulder–hip–knee–ankle; squat_knee_valgus: both hip–knee–ankle; row_torso_swing:
+        // shoulder–hip; pushup_no_lockout: shoulder–elbow–wrist.
+        XCTAssertEqual(Set(FormGeometry.causeEdges(of: "pushup_hip_pike", side: .left)), [[5, 11], [11, 13], [13, 15]])
+        XCTAssertEqual(Set(FormGeometry.causeEdges(of: "squat_knee_valgus", side: .right)), [[11, 13], [13, 15], [12, 14], [14, 16]])
+        XCTAssertEqual(FormGeometry.causeEdges(of: "row_torso_swing", side: .right), [[6, 12]])
+        XCTAssertEqual(Set(FormGeometry.causeEdges(of: "pushup_no_lockout", side: .right)), [[6, 8], [8, 10]])
+    }
+}

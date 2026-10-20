@@ -1065,6 +1065,35 @@ final class FormWarningTracker {
     }
 }
 
+// MARK: - Overlay: segments behind a warning
+
+extension FormGeometry {
+    /// COCO17 edges the camera overlay draws (lower index first): ear–shoulder (neck), shoulders, arms, trunk sides,
+    /// hips, legs. No face lines, no hands.
+    static let overlayEdges: [[Int]] = [[3, 5], [4, 6], [5, 6], [5, 7], [7, 9], [6, 8], [8, 10], [5, 11], [6, 12],
+                                        [11, 12], [11, 13], [13, 15], [12, 14], [14, 16]]
+
+    /// The overlay edges a posture warning is measured on — its cause — for the red highlight: the rep's judged side
+    /// (`FormRepReport.side`); squat_knee_valgus compares both legs. Setup / tracking / praise keys have no body cause.
+    static func causeEdges(of key: String, side: FormSide) -> [[Int]] {
+        let j = joints(side)
+        let trunk = [[j.shoulder, j.hip]], arm = [[j.shoulder, j.elbow], [j.elbow, j.wrist]]
+        let thigh = [[j.hip, j.knee]], leg = [[j.hip, j.knee], [j.knee, j.ankle]], neck = [[j.ear, j.shoulder]]
+        let edges: [[Int]] = switch key {
+        case "pushup_hip_sag", "pushup_hip_pike", "squat_no_lockout", "deadlift_no_lockout": trunk + leg
+        case "pushup_shallow", "pushup_no_lockout", "pushup_depth_fade", "pushup_hand_position", "row_short_pull",
+             "bench_shallow", "bench_no_lockout": arm
+        case "pushup_head_drop", "pushup_head_up", "row_head_up", "row_shrug": neck
+        case "squat_hips_first", "bench_hips_up", "deadlift_hips_first": trunk + thigh
+        case "squat_knee_valgus": [[11, 13], [13, 15], [12, 14], [14, 16]]
+        case "squat_shallow", "squat_depth_fade", "squat_heel_rise": leg
+        case "squat_lean_drift", "row_torso_swing", "row_standing_up", "deadlift_lean_back": trunk
+        default: []
+        }
+        return edges.map { $0.sorted() }
+    }
+}
+
 // MARK: - Session log
 
 /// Debug-build JSONL of per-rep form reports (2D + 3D metrics, warnings, "3D 불량" counts) under
