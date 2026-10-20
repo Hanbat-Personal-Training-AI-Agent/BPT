@@ -406,7 +406,11 @@ def run_evaluate(a):
             else:
                 z = np.load(occl_path(a, d, cond)); raw, conf, unit = z['rows'].astype(float), z['x'][..., 2], z['unit'].astype(float)
                 eps = [tuple(e) for e in json.loads(str(z['episodes']))]; group = cond.split('-')[0]
-            for v, (Q, inv, W) in all_variants(raw, conf, unit, d, params, a.ema_alpha, a.lock_thr, a.variants).items():
+            V = all_variants(raw, conf, unit, d, params, a.ema_alpha, a.lock_thr, a.variants)
+            # clean input: joint-frames the app's own 2D left unobserved and E filled (natural occlusion, e.g. the far limb)
+            nat = (V['E'][2] > 0.5) & (np.arange(len(raw)) >= lo)[:, None] & (np.arange(len(raw)) < hi)[:, None] \
+                if cond == 'clean' and 'E' in V else None
+            for v, (Q, inv, W) in V.items():
                 P = to_metres(Q, d); E = np.linalg.norm(P - d['G'], axis=-1) * 1000; pm = pose_metrics(P[lo:hi], d['G'][lo:hi])
                 r = dict(group=d['group'], exercise=d['ex'], subj=d['subj'], cam=d['cam'], bin=d['bin'], cond=cond, var=v,
                          mpjpe=float(E[lo:hi].mean()), pa=float(np.mean(pm['pa_mpjpe'])), accel=float(np.mean(pm['accel'])),
@@ -415,6 +419,8 @@ def run_evaluate(a):
                          episodes=episode_records(P, E, inv, W, d, eps, group, E_clean, P_clean) if eps else [])
                 if a.rules and v in a.rules_variants:
                     r['reps'] = rule_reps(P, inv, d, z['K'] if cond != 'clean' else d['K'])
+                if nat is not None:
+                    r['natural'] = dict(n=int(nat.sum()), err=float(E[nat].mean()) if nat.any() else None)
                 if cond == 'clean':
                     A_ = angles(P, d['side'], d['up_c']); am = angle_metrics(A_, ref, d['seg'])
                     r['angles'] = {g: dict(rep=float(np.mean(am[g]['rep'])), frame=float(np.mean(am[g]['frame'])), jitter=float(np.mean(am[g]['jitter'])),
@@ -479,6 +485,10 @@ def summarize_eval(a, recs, inputs, params):
                             sel = [e for e in ep if (e['model'] == m) or (m == 'near' and e['near']) or (m == 'far' and not e['near'])
                                    or (m == 'moved' and e['moved'] > 50) or (m == 'static' and e['moved'] <= 50)]
                             if sel: g[f'err_{m}'] = float(np.mean([e['err'] for e in sel])); g[f'n_{m}'] = len(sel)
+                    nat_rs = [r['natural'] for r in rs if r.get('natural') and r['natural']['n']]
+                    if nat_rs:
+                        g['natural_n'] = int(sum(x['n'] for x in nat_rs))
+                        g['natural_err'] = float(sum(x['err'] * x['n'] for x in nat_rs) / g['natural_n'])
                     if 'angles' in rs[0]:
                         g['angles'] = {k: {q: float(np.nanmean([r['angles'][k].get(q, np.nan) for r in rs])) for q in ('rep', 'frame', 'jitter', 'lag')} for k in rs[0]['angles']}
                     summ['groups'][f'{grp}/{cond}/{ex}/{v}'] = g
@@ -500,6 +510,11 @@ def summarize_eval(a, recs, inputs, params):
                 else:
                     dif = [rx[k_]['mpjpe'] - ry[k_]['mpjpe'] for k_ in ks]
                     summ['paired'][f'{grp}/{cond}/{x}-{y}'] = dict(n=len(dif), mean=float(np.mean(dif)) if dif else None, ci95=boot_ci(dif))
+    nat_rows = [(k, g) for k, g in summ['groups'].items() if 'natural_n' in g]
+    if nat_rows:
+        md += ['', '**깨끗한 입력에서 앱 2D가 관측하지 못해 E가 채운 관절-프레임(자연 가림: 주로 먼 쪽 손목·발목) — 변형별 오차(정답/의사 정답 대비)**', '',
+               '| 키 | 관절-프레임 | 오차 mm |', '|---|---|---|']
+        md += [f"| {k} | {g['natural_n']} | {g['natural_err']:.1f} |" for k, g in nat_rows]
     md += ['', '**짝지은 차이 (영상 단위 평균, 부트스트랩 95% CI; 가림 조건 = 가림 관절 오차 mm, /dev = 깨끗한 입력 A와의 거리 mm(정답 없이), clean = 세트 MPJPE mm)**', '', '| 키 | n | 평균 | 95% CI |', '|---|---|---|---|']
     for k_, v in summ['paired'].items():
         md.append(f"| {k_} | {v['n']} | {v['mean']:.2f} | {v['ci95'][0]:.2f} – {v['ci95'][1]:.2f} |" if v['mean'] is not None else f'| {k_} | 0 | - | - |')
