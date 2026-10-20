@@ -269,9 +269,132 @@ def run_pub(a):
     print(len(sets), "sets", flush=True)
 
 
+# ---------------------------------------------------------------- Python app path for pose-replay 2D CSVs (Home)
+SIDE7 = {"left": [3, 5, 7, 9, 11, 13, 15], "right": [4, 6, 8, 10, 12, 14, 16]}
+
+
+def near_sides(K, margin=0.08):
+    """FormWarningTracker.updateSide per frame (mean confidence ear..ankle, switch past `margin`)."""
+    out, side = [], None
+    for k in K:
+        l, r = float(k[SIDE7["left"], 2].mean()), float(k[SIDE7["right"], 2].mean())
+        if side is None:
+            side = "left" if l >= r else "right"
+        elif side == "left" and r > l + margin:
+            side = "right"
+        elif side == "right" and l > r + margin:
+            side = "left"
+        out.append(side)
+    return out
+
+
+def two_d_px(K, sides, c=0.3):
+    """measure2D hipY / shoulderY / torsoLength of the near side (None when below confidence)."""
+    out = []
+    for k, sd in zip(K, sides):
+        sh, hp = (k[5], k[11]) if sd == "left" else (k[6], k[12])
+        if sh[2] >= c and hp[2] >= c:
+            tl = float(np.hypot(sh[0] - hp[0], sh[1] - hp[1]))
+            out.append(dict(hipY=float(hp[1]), shoulderY=float(sh[1]), torsoLength=tl if tl > 1e-8 else None))
+        else:
+            out.append(dict(hipY=None, shoulderY=None, torsoLength=None))
+    return out
+
+
+def run_pub_py(a):
+    """The app's 3D path in Python (LiveMotionAGFormer + Pose3DConstraints, the tested mirrors of the Swift classes) on the
+    same 2D CSVs, with PyTorch checkpoints. Rep intervals and the row gate come from the Swift pose-replay JSON of
+    --ref (2D state machine: the same for every 3D model). Output sets like `pub`."""
+    import torch
+    from eval_3d_angles import read_csv
+    from finetune_motionagformer_fit3d import load as load_ckpt
+    from pose_feedback.body.live_motionagformer import LiveMotionAGFormer
+    from pose_feedback.geometry.pose3d_constraints import Pose3DConstraints
+    torch.set_num_threads(a.threads)
+    L = read_labels(a.labels)
+    ex3d_views = {f"{seq}_{cam}": v.get("angle_deg") for seq, g in (json.load(open(a.ex3d_gt)).items() if a.ex3d_gt else [])
+                  for cam, v in g.get("views", {}).items()}
+    csv_dirs = dict(kv.split("=", 1) for kv in a.csv_dirs.split(","))
+    refs = sorted(glob.glob(f"{a.ref}/*/3d/*_mcoco17.json"))
+    sets, inputs = [], []
+    for tag, ck in [kv.split("=", 1) for kv in a.models.split(",")]:
+        model = load_ckpt(a.mag_repo, ck, "cpu")[0].eval()
+        inputs.append(ck)
+
+        def predict(w):
+            with torch.no_grad():
+                return model(torch.from_numpy(w[None]))[0].numpy()
+
+        for js in refs:
+            ds = js.split("/")[-3]
+            if ds not in csv_dirs:
+                continue
+            j = json.load(open(js))
+            ex = {"row": "barbell_row"}.get(j["exercise"], j["exercise"])
+            stem = os.path.basename(js)[: -len(f"_{EX_FILE.get(ex, ex)}_mcoco17.json")]
+            csv = f"{csv_dirs[ds]}/{stem}_{EX_FILE.get(ex, ex)}_mcoco17.csv"
+            K = read_csv(csv)
+            inputs.append(csv)
+            W, H = j.get("image_size", [720, 1280])
+            live = LiveMotionAGFormer(predict, lookahead=5, constraints=Pose3DConstraints(reflect_flipped_knee=ex == "squat"))
+            fr = []
+            for t, k in enumerate(K):
+                fr += live.push(t, k, W, H)
+            fr += live.flush()
+            state = {f["frame"]: f["state"] for f in fr}
+            pose = {}
+            for f in fr:
+                if f["state"] in ("ok", "partial_3d"):
+                    p = np.array(f["pose3d"], float)
+                    inv = (f["constraints"] or {}).get("invalid_joints", [])
+                    if inv:
+                        p[inv] = np.nan
+                    pose[f["frame"]] = p
+            sides = near_sides(K)
+            td = two_d_px(K, sides)
+            ratio = shoulder_ratio(K)
+            reps, hist_empty = [], True
+            for r in j["reps"]:
+                s0, e0 = r["start_frame"], r["end_frame"]
+                f3 = [t for t in range(s0, e0 + 1) if t in pose]
+                judged = len(f3) >= MIN_JUDGED * (e0 - s0 + 1)
+                frames = []
+                for t in f3:
+                    f = frame_metrics(pose[t], sides[t], UP, td[t])
+                    f["frame"] = t
+                    frames.append(f)
+                m = rep_metrics(frames, ex, is_first_rep=hist_empty) if frames else {}
+                fv = [bool(ratio[t] >= FRONT_RATIO) for t in f3 if np.isfinite(ratio[t])]
+                if frames and fv:
+                    m["front_view_fraction"] = float(np.mean(fv))
+                sv = r.get("side_view_judged") if ex == "barbell_row" else m.get("front_view_fraction", 0.0) < FRONT_FRACTION
+                reps.append(dict(rep=r["rep_index"], judged=judged, side_view=sv, m=m,
+                                 all_ok=all(state.get(t) == "ok" for t in range(s0, e0 + 1))))
+                hist_empty = hist_empty and not judged
+            meta = dict(model=tag, dataset=ds, clip=stem, exercise=ex, set_id=f"{ds}/{stem}", impl="python")
+            if stem in L:
+                lb = L[stem]
+                meta.update(src="public", subj=lb["person"], group="tuning" if lb["split"] == "tuning" else "heldout",
+                            view_label=lb["view"], label=lb["clip_label"], ai_form=lb["ai_form"], form_status=lb["form_status"],
+                            ai_keys=lb["ai_keys"], other=lb["other"], public_source=lb["source"])
+            elif stem.startswith(("squat_", "pushup_", "barbellrow_")):
+                seq = "_".join(stem.split("_")[:2])
+                ang = ex3d_views.get(stem)
+                meta.update(src="ex3d", subj=seq, group="heldout" if seq in EX3D_HELD else "tuning", label="good",
+                            view=ang, view_label=None if ang is None else ("side" if ang <= 40 else "diag" if ang <= 75 else "front"))
+            else:
+                meta.update(src="mmfit", subj=stem, group="dev", label="good")
+            sets.append(dict(meta, up="cam", reps=reps, rules=None))
+        print(tag, "done", len(sets), flush=True)
+        del model
+    out = Path(a.run_dir) / f"sets_pubpy_{'_'.join(kv.split('=')[0] for kv in a.models.split(','))}.json.gz"
+    dump(out, sets)
+    write_manifest(a, inputs, [out], dict(note="Python app path (LiveMotionAGFormer mirror), PyTorch; fine-tuned = NON-COMMERCIAL"))
+
+
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument("cmd", choices=["fit3d", "pub", "analyze"])
+    p.add_argument("cmd", choices=["fit3d", "pub", "pubpy", "analyze"])
     p.add_argument("--run-dir", required=True)
     p.add_argument("--root"); p.add_argument("--replay")
     p.add_argument("--subjects", type=lambda s: s.split(","), default=["s03", "s04", "s05", "s07", "s08", "s09", "s10", "s11"])
@@ -284,6 +407,8 @@ def main():
     p.add_argument("--labels", default=str(REPO / "data/eval_sources"))
     p.add_argument("--ex3d-gt", default=None, help="pub: outputs/rep_validation/gt.json (Exercise3D camera angles)")
     p.add_argument("--sets", default="")
+    p.add_argument("--ref", default="", help="pubpy: Swift pose-replay dir (<dataset>/3d/*.json) for rep intervals / row gate")
+    p.add_argument("--csv-dirs", default="", help="pubpy: dataset=dir of the 2D CSVs, ...")
     a = p.parse_args()
     os.makedirs(a.run_dir, exist_ok=True)
     if a.cmd == "fit3d":
@@ -291,6 +416,8 @@ def main():
         run_fit3d(a)
     elif a.cmd == "pub":
         run_pub(a)
+    elif a.cmd == "pubpy":
+        run_pub_py(a)
     else:
         from rules_calib_analysis import run_analyze
         run_analyze(a)
