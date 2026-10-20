@@ -70,10 +70,13 @@ def aggregate(records, run):
     runtimes = []
     passthrough_frames = 0
     passthrough_error = app_passthrough_error = 0.
+    app_invalid_frames = app_joint_frames = 0
     for r in records:
         diagnostics.update(r["diagnostics"])
         path = run / "predictions_HOME_ONLY" / (r["name"] + "_" + r["variant"] + ".npz")
         with np.load(path) as z:
+            app_invalid_frames += int(z["app_invalid"][90:].sum())
+            app_joint_frames += int(z["app_invalid"][90:].size)
             runtime = z["runtime_ms"][90:]
             runtimes.append(runtime[np.isfinite(runtime)])
             states = z["contacts"][90:]
@@ -98,6 +101,9 @@ def aggregate(records, run):
     result["diagnostics_since_frame21"] = dict(diagnostics)
     result["contact_joint_frames_from90"] = dict(contacts)
     result["contact_state_transitions_from90"] = dict(transitions)
+    result["after_existing_gates_abstention"] = dict(
+        invalid_joint_frames=app_invalid_frames, joint_frames=app_joint_frames,
+        fraction=app_invalid_frames / app_joint_frames if app_joint_frames else None)
     result["trusted_observation_passthrough_from90"] = dict(
         joint_frames=passthrough_frames, maximum_absolute_crop_unit_error=passthrough_error,
         after_existing_gates_maximum_absolute_crop_unit_error=app_passthrough_error)
