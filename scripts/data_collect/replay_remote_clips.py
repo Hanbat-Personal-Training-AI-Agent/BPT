@@ -1,11 +1,11 @@
-"""Run the app's pose path (pose-replay, RTMPose-m COCO17 default, crop input, ready-pose off, no 3D) on clips
+"""Run the app's pose path (pose-replay, RTMPose-m Halpe26 default (D-M-03), crop input, ready-pose off, no 3D) on clips
 stored on Home, one clip at a time: copy a batch -> replay -> keep the JSON + per-frame side-view ratio summary -> delete
 the video and the keypoint CSV (Mac disk is tight; data never leaves scratch).
 
 usage: python3 -I replay_remote_clips.py <remote_dir> <names.txt> <out_dir> [batch=15]
   names.txt: clip stems, e.g. subject_001_squat_bad_side; exercise from the name (squat / push_up / back->row,
   or a 'stem<TAB>exercise' line). Env: POSE_REPLAY (binary), BPT_HEAVY (lock wrapper), HOST (default Home),
-  POSE_MODELS (pose-replay --model names, comma-separated, default mcoco17; each batch is copied once and run per model).
+  POSE_MODELS (pose-replay --model names, comma-separated, default mhalpe26; each batch is copied once and run per model).
 """
 import json, os, subprocess, sys
 from pathlib import Path
@@ -17,7 +17,7 @@ REPLAY = os.environ["POSE_REPLAY"]
 HEAVY = os.environ.get("BPT_HEAVY")
 HOST = os.environ.get("HOST", "Home")
 FILE_EX = {"squat": "squat", "pushup": "pushup", "row": "barbell_row"}
-MODELS = os.environ.get("POSE_MODELS", "mcoco17").split(",")
+MODELS = os.environ.get("POSE_MODELS", "mhalpe26").split(",")
 
 
 def exercise_of(stem):

@@ -17,7 +17,7 @@ PRE, POST, FPS = 3.0, 1.5, 30
 HELD_SESSIONS = {"w00", "w05", "w12", "w13", "w19", "w20"}
 ZENODO = "https://zenodo.org/api/records/7672767/files/{w}_rgb.mp4/content"
 HEAVY = os.environ.get("BPT_HEAVY", "")  # optional lock wrapper (scratchpad/shared/heavy.sh)
-MODEL = os.environ.get("POSE_MODEL", "mcoco17")  # pose-replay --model (app workout default)
+MODEL = os.environ.get("POSE_MODEL", "mhalpe26")  # pose-replay --model (app workout default, D-M-03)
 REPLAY = os.environ.get("POSE_REPLAY", "/private/tmp/bpt-swiftpm-pushup-heldout/release/pose-replay")
 
 
