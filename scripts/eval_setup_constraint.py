@@ -123,6 +123,7 @@ BONE_REF = {9: 7, 10: 8, 7: 5, 8: 6, 15: 13, 16: 14, 13: 11, 14: 12, 5: 11, 6: 1
 GROUPS = {'wrist': {'L': [9], 'R': [10]}, 'ankle': {'L': [15], 'R': [16]}, 'knee': {'L': [13], 'R': [14]},
           'shoulder': {'L': [5], 'R': [6]}, 'arm': {'L': [7, 9], 'R': [8, 10]}, 'leg': {'L': [13, 15], 'R': [14, 16]}}
 DURATIONS = {'short': 10, 'long': 60, 'vlong': 150}
+MAX_EPISODES = {'short': 3, 'long': 2, 'vlong': 1}  # per video and condition (Home CPU budget, prereg change log)
 CORRUPTIONS = ('keep', 'drift', 'mirror', 'freeze')
 RECOVERY = 30
 
@@ -149,7 +150,9 @@ def schedule(lo, hi, length, rng, gap=45):
 def episodes_for(d, group, duration):
     """Deterministic (seeded by sequence and condition) episode list: (s, e, coco joints, corruption, side, near)."""
     rng = rng_for(seq_key(d), group, duration); lo, hi = set_range(d); out = []
-    for s, e in schedule(lo, hi, DURATIONS[duration], rng):
+    sched = schedule(lo, hi, DURATIONS[duration], rng)
+    keep = sorted(rng.choice(len(sched), min(len(sched), MAX_EPISODES[duration]), replace=False)) if sched else []
+    for s, e in [sched[i] for i in keep]:
         side = 'L' if rng.random() < 0.5 else 'R'
         out.append((s, e, GROUPS[group][side], CORRUPTIONS[int(rng.integers(0, len(CORRUPTIONS)))], side, side == d['side']))
     return out
@@ -179,7 +182,7 @@ def corrupt(K, episodes, rng):
     return K2
 
 
-def rows_partial(model, dev, x, changed, clean, batch=64):
+def rows_partial(model, dev, x, changed, clean, batch=256):
     """XS rows (L=5) for input x where only frames `changed` differ from the clean input: windows touching a changed
     frame are recomputed, the rest reuse `clean`. Frame t = window [t+L-26, t+L] edge-clamped, row 26-L (the app)."""
     import torch
@@ -328,11 +331,12 @@ def to_metres(Q, d):
     return (Q - Q[:, :1]) * d['mm'][:, None, None] / 1000
 
 
-def episode_records(P, E, inv, W, d, eps, group, E_clean):
+def episode_records(P, E, inv, W, d, eps, group, E_clean, P_clean=None):
     G, Jw = d['G'], d['J'][d['pick']]; n = len(P); out = []
     for s, e, joints, model, side, near in eps:
         H = [COCO2H[j] for j in joints]
         a_p, a_g = limb_angle(P, side, group), limb_angle(G, side, group)
+        a_c = limb_angle(P_clean, side, group) if P_clean is not None else a_p
         stepP = np.linalg.norm(np.diff(P[:, H], axis=0), axis=-1) * 1000; stepG = np.linalg.norm(np.diff(G[:, H], axis=0), axis=-1) * 1000
         lo_j, hi_j = max(s - 1, 0), min(e + RECOVERY, n - 1)
         ev = E[:, H].mean(1); ec = E_clean[:, H].mean(1); rec_k = RECOVERY * 2
@@ -342,7 +346,7 @@ def episode_records(P, E, inv, W, d, eps, group, E_clean):
         out.append(dict(model=model, near=bool(near), err=float(ev[s:e].mean()), err_clean=float(ec[s:e].mean()),
                         err_rec=float(ev[e:e + RECOVERY].mean()), err_rec_clean=float(ec[e:e + RECOVERY].mean()),
                         moved=float(np.linalg.norm(Jw[s:e][:, H] - Jw[s][None, H], axis=-1).max() * 1000),
-                        angle_err=float(np.nanmean(np.abs(a_p[s:e] - a_g[s:e]))),
+                        angle_err=float(np.nanmean(np.abs(a_p[s:e] - a_g[s:e]))), angle_err_clean=float(np.nanmean(np.abs(a_c[s:e] - a_g[s:e]))),
                         jump=float(np.max(stepP[lo_j:hi_j] - stepG[lo_j:hi_j])) if hi_j > lo_j else 0.0, recovery_frames=int(rec_k),
                         filled=float((W[s:e][:, H] > 0.5).mean()) if W is not None else 0.0,
                         invalid=float(inv[s:e][:, H].mean()) if inv is not None else 0.0))
@@ -357,7 +361,7 @@ def run_evaluate(a):
         clean = predict_rows(None, None, d['x'], [5], seq_key(d))[5]
         from finetune_motionagformer_fit3d import mag_input
         conf0, unit0 = d['x'][..., 2], mag_input(d['K'])[1][:, 2] / 2
-        E_clean = np.linalg.norm(to_metres(clean, d) - d['G'], axis=-1) * 1000
+        P_clean = to_metres(clean, d); E_clean = np.linalg.norm(P_clean - d['G'], axis=-1) * 1000
         lo, hi = set_range(d); ref = lf.ref_angles(d)
         for cond in a.conditions:
             if cond == 'clean':
@@ -371,7 +375,9 @@ def run_evaluate(a):
                          mpjpe=float(E[lo:hi].mean()), pa=float(np.mean(pm['pa_mpjpe'])), accel=float(np.mean(pm['accel'])),
                          invalid=float(inv[lo:hi].mean()) if inv is not None else 0.0,
                          changed=float((np.abs(Q - raw).max(-1) > 1e-9)[lo:hi].mean()),
-                         episodes=episode_records(P, E, inv, W, d, eps, group, E_clean) if eps else [])
+                         episodes=episode_records(P, E, inv, W, d, eps, group, E_clean, P_clean) if eps else [])
+                if a.rules and v in a.rules_variants:
+                    r['reps'] = rule_reps(P, inv, d, z['K'] if cond != 'clean' else d['K'])
                 if cond == 'clean':
                     am = angle_metrics(angles(P, d['side'], d['up_c']), ref, d['seg'])
                     r['angles'] = {g: dict(rep=float(np.mean(am[g]['rep'])), frame=float(np.mean(am[g]['frame'])), jitter=float(np.mean(am[g]['jitter'])))
@@ -379,6 +385,19 @@ def run_evaluate(a):
                 recs.append(r)
         inputs.append(d['csv']); print(seq_key(d), flush=True)
     summarize_eval(a, recs, inputs, params)
+
+
+def rule_reps(P, inv, d, K):
+    """E5: per rep the fired app rules (lift-app judge_py, camera up = app default) and the metric keys that could be
+    computed, on the 3D the evaluators would get (invalid joints NaN). Heights from the same frame's 2D (0dda987)."""
+    from pose_feedback.body.form_metrics_3d import UP
+    side = {'L': 'left', 'R': 'right'}[d['side']]; sh, hp = {'left': (5, 11), 'right': (6, 12)}[side]
+    two = [dict(hipY=float(K[t, hp, 1]), shoulderY=float(K[t, sh, 1]), torsoLength=float(np.hypot(*(K[t, sh, :2] - K[t, hp, :2]))))
+           for t in range(len(K))]
+    Pm = P.copy()
+    if inv is not None: Pm[inv] = np.nan
+    out = lf.rep_records(Pm, d['seg'], d['ex'], side, UP, {}, two)
+    return [dict(fired=sorted(r['fired']), keys=sorted(r['m'])) for r in out]
 
 
 def boot_ci(x, n=2000, seed=0):
@@ -392,7 +411,7 @@ def summarize_eval(a, recs, inputs, params):
     summ = dict(params=params, ema_alpha=a.ema_alpha, lock_thr=a.lock_thr, groups={}, paired={})
     keyf = lambda r: (r['group'], r['cond'], r['exercise'])
     md = [f"params={json.dumps(params)} ema_alpha={a.ema_alpha} lock_thr={a.lock_thr}", '',
-          '| 묶음 | 조건 | 운동 | 변형 | 영상 | MPJPE(세트) | PA | 가속도 | 무효 관절 | 바뀐 관절 | 가림 관절 오차 (깨끗한 입력 A) | 복구 30f 오차 | 복구 프레임 p50 | 사지 각 오차 | 점프 p95 | 채움 | 가림 중 무효 |',
+          '| 묶음 | 조건 | 운동 | 변형 | 영상 | MPJPE(세트) | PA | 가속도 | 무효 관절 | 바뀐 관절 | 가림 관절 오차 (깨끗한 입력 A) | 복구 30f 오차 | 복구 프레임 p50 | 사지 각 오차 (깨끗한 A) | 점프 p95 | 채움 | 가림 중 무효 |',
           '|---' * 17 + '|']
     conds = list(dict.fromkeys(r['cond'] for r in recs)); vs = list(dict.fromkeys(r['var'] for r in recs))
     for grp in dict.fromkeys(r['group'] for r in recs):
@@ -406,7 +425,7 @@ def summarize_eval(a, recs, inputs, params):
                              accel=float(np.mean([r['accel'] for r in rs])), invalid=float(np.mean([r['invalid'] for r in rs])),
                              changed=float(np.mean([r['changed'] for r in rs])), episodes=len(ep))
                     if ep:
-                        g.update({k: float(np.mean([e[k] for e in ep])) for k in ('err', 'err_clean', 'err_rec', 'err_rec_clean', 'angle_err', 'filled', 'invalid')},
+                        g.update({k: float(np.mean([e[k] for e in ep])) for k in ('err', 'err_clean', 'err_rec', 'err_rec_clean', 'angle_err', 'angle_err_clean', 'filled', 'invalid')},
                                  recovery_p50=float(np.median([e['recovery_frames'] for e in ep])), jump_p95=float(np.percentile([e['jump'] for e in ep], 95)))
                         for m in CORRUPTIONS + ('near', 'far', 'moved', 'static'):
                             sel = [e for e in ep if (e['model'] == m) or (m == 'near' and e['near']) or (m == 'far' and not e['near'])
@@ -417,7 +436,7 @@ def summarize_eval(a, recs, inputs, params):
                     summ['groups'][f'{grp}/{cond}/{ex}/{v}'] = g
                     f = lambda k, fmt='{:.1f}': fmt.format(g[k]) if k in g else '-'
                     md.append(f"| {grp} | {cond} | {ex} | {v} | {g['videos']} | {g['mpjpe']:.1f} | {g['pa']:.1f} | {g['accel']:.2f} | {g['invalid']:.1%} | {g['changed']:.1%} | "
-                              f"{f('err')} ({f('err_clean')}) | {f('err_rec')} | {f('recovery_p50', '{:.0f}')} | {f('angle_err')} | {f('jump_p95')} | {f('filled', '{:.0%}')} | {f('invalid', '{:.0%}')} |")
+                              f"{f('err')} ({f('err_clean')}) | {f('err_rec')} | {f('recovery_p50', '{:.0f}')} | {f('angle_err')} ({f('angle_err_clean')}) | {f('jump_p95')} | {f('filled', '{:.0%}')} | {f('invalid', '{:.0%}')} |")
             # paired per-video differences (bootstrap over videos) of the episode error / clean MPJPE
             for x, y in (('E', 'A'), ('E', 'B'), ('E', 'B0'), ('E', 'D'), ('F', 'E'), ('EC', 'C'), ('B', 'A'), ('C', 'A'), ('D', 'A')):
                 key = lambda r: (r['subj'], r['cam'], r['exercise'])
@@ -432,6 +451,21 @@ def summarize_eval(a, recs, inputs, params):
     md += ['', '**짝지은 차이 (영상 단위 평균, 부트스트랩 95% CI; 가림 조건 = 가림 관절 오차 mm, clean = 세트 MPJPE mm)**', '', '| 키 | n | 평균 | 95% CI |', '|---|---|---|---|']
     for k_, v in summ['paired'].items():
         md.append(f"| {k_} | {v['n']} | {v['mean']:.2f} | {v['ci95'][0]:.2f} – {v['ci95'][1]:.2f} |" if v['mean'] is not None else f'| {k_} | 0 | - | - |')
+    if any('reps' in r for r in recs):
+        md += ['', '**E5 정상 렙 규칙 발동률 (lift-app judge_py, 카메라 위 = 앱 기본; 판정 가능 = 그 규칙의 지표가 계산된 렙)**', '',
+               '| 묶음 | 조건 | 운동 | 변형 | 렙 | 규칙별 발동률 | 지표 계산 비율(elbow_min / knee_min / hip_dev_min / torso_mean) |', '|---' * 7 + '|']
+        for grp in dict.fromkeys(r['group'] for r in recs):
+            for cond in conds:
+                for ex in EXERCISES:
+                    for v in vs:
+                        rs = [r for r in recs if r['group'] == grp and r['cond'] == cond and r['var'] == v and r['exercise'] == ex and 'reps' in r]
+                        reps = [x for r in rs for x in r['reps']]
+                        if not reps: continue
+                        fire = {k: float(np.mean([k in x['fired'] for x in reps])) for k in lf.RULES_BY_EX[ex]}
+                        valid = {k: float(np.mean([k in x['keys'] for x in reps])) for k in ('elbow_min', 'knee_min', 'hip_dev_min', 'torso_mean')}
+                        summ['groups'].setdefault(f'{grp}/{cond}/{ex}/{v}', {})['rules'] = dict(reps=len(reps), fire=fire, valid=valid)
+                        md.append(f"| {grp} | {cond} | {ex} | {v} | {len(reps)} | " + ', '.join(f'{k.split("_", 1)[1]} {x:.0%}' for k, x in fire.items()) +
+                                  ' | ' + ' / '.join(f'{x:.0%}' for x in valid.values()) + ' |')
     out_j, out_m = Path(a.run_dir) / f'evaluate_{a.tag}.json', Path(a.run_dir) / f'evaluate_{a.tag}.md'
     json.dump(dict(summary=summ, records=recs), open(out_j, 'w')); out_m.write_text('\n'.join(md) + '\n')
     print('\n'.join(md[:3])); print(f'{len(recs)} records -> {out_m}')
@@ -502,7 +536,9 @@ def run_foot_shift(a):
             else:
                 if model is None: model, dev = load_model(a)
                 xs, crops = mag_input(K); unit = crops[:, 2] / 2
-                rows, _ = rows_partial(model, dev, xs, np.abs(xs - d['x']).max((1, 2)) > 1e-7, clean)
+                chg = np.abs(xs - d['x']).max((1, 2)) > 1e-7
+                chg[plan['start'] + plan['ramp'] + SHIFT_OCC_EXTRA + 70:] = False  # frames after W2 are never scored (CPU)
+                rows, _ = rows_partial(model, dev, xs, chg, clean)
                 os.makedirs(os.path.dirname(path), exist_ok=True); np.savez(path, rows=rows.astype(np.float32), x=xs, unit=unit.astype(np.float32))
             sh = all_variants(rows, xs[..., 2], unit, d, params, a.ema_alpha, a.lock_thr, a.variants)
             ank = LANK if plan['side'] == 'L' else RANK
@@ -757,6 +793,57 @@ def run_tune(a):
     write_manifest(a, [d['csv'] for d, *_ in S] + [a.checkpoint], [out_j, out_m], dict(conditions=conds, cache=a.cache))
 
 
+# ---------------------------------------------------------------- method 2: RGB occlusion (masks from eval_setup_rgb_occlusion.py)
+def run_rgb_eval(a):
+    """Same mmpose RTMPose-m 2D with and without the painted joint (same RTMDet box) -> XS -> variants. The clean
+    reference here is the unpainted mmpose 2D (A-pose2d), not the app CSV, so the paint is the only difference."""
+    from finetune_motionagformer_fit3d import mag_input
+    from pose_feedback.body.pose2d_data import project_fit3d
+    params = json.loads(a.params) if a.params else {}
+    model, dev = load_model(a); seqs = {seq_key(d): d for d in load_seqs(a)}; recs, inputs, twod = [], [], []
+    for path in sorted(Path(a.rgb).glob('*.npz')):
+        key = path.stem; subj, cam, ex = key.split('_', 2); d0 = seqs.get(f'{subj}_{cam}_{ex}')
+        if d0 is None: continue
+        A = np.load(f'{a.pose2d}/{key}.npz'); Ap = A['pick']; idx = np.searchsorted(Ap, d0['pick'])
+        assert (Ap[np.minimum(idx, len(Ap) - 1)] == d0['pick']).all(), key
+        Kmm = A['coco'][idx].astype(float)
+        x, crops = mag_input(Kmm); _, crops0 = mag_input(d0['K'])
+        d = dict(d0, K=Kmm, x=x, mm=d0['mm'] * crops[:, 2] / crops0[:, 2])
+        ck = f"{a.cache}/rgb/{key}_clean.npz"
+        if os.path.exists(ck): clean = np.load(ck)['rows'].astype(float)
+        else:
+            clean, _ = rows_partial(model, dev, x, np.ones(len(x), bool), np.zeros((len(x), 17, 3)))
+            os.makedirs(os.path.dirname(ck), exist_ok=True); np.savez(ck, rows=clean.astype(np.float32))
+        z = np.load(path); fr, kp = z['frames'], z['coco']; eps_j = json.loads(str(z['episodes']))
+        Km = Kmm.copy(); Km[fr] = kp
+        xm, cm = mag_input(Km); rows, nw = rows_partial(model, dev, xm, np.abs(xm - x).max((1, 2)) > 1e-7, clean)
+        camj = json.load(open(f'{a.root}/train/{subj}/camera_parameters/{cam}/{ex}.json')); Jp = d0['J'][d0['pick']]
+        P_clean = to_metres(clean, d); E_clean = np.linalg.norm(P_clean - d['G'], axis=-1) * 1000
+        for g in dict.fromkeys(e['group'] for e in eps_j):
+            eps = [(e['s'], e['e'], [e['coco']], 'rgb', e['side'], e['side'] == d['side']) for e in eps_j if e['group'] == g]
+            for s_, e_, joints, *_ in eps:
+                j = joints[0]; gt2 = project_fit3d(Jp[s_:e_, COCO2H[j]], camj)
+                twod.append(dict(group=g, conf_clean=float(Kmm[s_:e_, j, 2].mean()), conf_mask=float(Km[s_:e_, j, 2].mean()),
+                                 px_clean=float(np.linalg.norm(Kmm[s_:e_, j, :2] - gt2, axis=-1).mean()),
+                                 px_mask=float(np.linalg.norm(Km[s_:e_, j, :2] - gt2, axis=-1).mean())))
+            for v, (Q, inv, W) in all_variants(rows, xm[..., 2], cm[:, 2] / 2, d, params, a.ema_alpha, a.lock_thr, a.variants).items():
+                P = to_metres(Q, d); E = np.linalg.norm(P - d['G'], axis=-1) * 1000; lo, hi = set_range(d)
+                recs.append(dict(group=d['group'], exercise=ex, subj=subj, cam=cam, bin=d['bin'], cond=f'rgb-{g}', var=v,
+                                 mpjpe=float(E[lo:hi].mean()), pa=float('nan'), accel=float('nan'),
+                                 invalid=float(inv[lo:hi].mean()) if inv is not None else 0.0,
+                                 changed=float((np.abs(Q - rows).max(-1) > 1e-9)[lo:hi].mean()),
+                                 episodes=episode_records(P, E, inv, W, d, eps, g, E_clean, P_clean)))
+        inputs += [str(path), f'{a.pose2d}/{key}.npz']; print(key, nw, flush=True)
+    md2 = ['**RTMPose가 칠한 관절에 보인 반응 (같은 박스, 모캡 투영 대비 px)**', '', '| 묶음 | 가림 | 신뢰도 깨끗 → 칠함 | 2D 오차 px 깨끗 → 칠함 |', '|---|---|---|---|']
+    for g in dict.fromkeys(t['group'] for t in twod):
+        ts = [t for t in twod if t['group'] == g]
+        md2.append(f"| {g} | {len(ts)} | {np.mean([t['conf_clean'] for t in ts]):.2f} → {np.mean([t['conf_mask'] for t in ts]):.2f} | "
+                   f"{np.mean([t['px_clean'] for t in ts]):.1f} → {np.mean([t['px_mask'] for t in ts]):.1f} |")
+    a.tag = f'rgb_{a.tag}'
+    Path(a.run_dir).mkdir(parents=True, exist_ok=True); (Path(a.run_dir) / 'rgb_2d.md').write_text('\n'.join(md2) + '\n'); print('\n'.join(md2))
+    summarize_eval(a, recs, inputs, params)
+
+
 def load_model(a):
     import torch
     from finetune_motionagformer_fit3d import load
@@ -775,14 +862,19 @@ def run_cache_clean(a):
 
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument('cmd', choices=['gt-relations', 'cache-clean', 'occlude', 'evaluate', 'foot-shift', 'setup-measure', 'signals', 'tune'])
+    p.add_argument('cmd', choices=['gt-relations', 'cache-clean', 'occlude', 'evaluate', 'foot-shift', 'setup-measure', 'signals', 'tune', 'rgb-eval'])
+    p.add_argument('--rgb', help='dir of eval_setup_rgb_occlusion.py outputs'); p.add_argument('--pose2d', help='lift-compare A-pose2d pose2d dir')
     p.add_argument('--jobs', type=int, default=4)
     p.add_argument('--cases', type=lambda s: s.split(','), default=list(SHIFT_CASES))
     p.add_argument('--variants', type=lambda s: s.split(','), default=['A', 'B', 'B0', 'C', 'D', 'E', 'F', 'EC'])
     p.add_argument('--params', default='', help='JSON overrides of adaptive_relations.DEFAULTS (E / F / EC / D)')
     p.add_argument('--ema-alpha', type=float, default=0.5); p.add_argument('--lock-thr', type=float, default=0.5)
     p.add_argument('--tag', default='run')
-    p.add_argument('--conditions', type=lambda s: s.split(','), default=[f'{g}-{u}' for g in GROUPS for u in DURATIONS])
+    p.add_argument('--rules', action='store_true', help='E5: rule firing / metric validity per rep')
+    p.add_argument('--rules-variants', type=lambda s: s.split(','), default=['A', 'B', 'C', 'E', 'EC'])
+    # 10 conditions (Home CPU budget): the relations act on ankles / wrists only, so knee / shoulder / multi-joint get 'long'
+    p.add_argument('--conditions', type=lambda s: s.split(','), default=[f'{g}-{u}' for g in ('wrist', 'ankle') for u in DURATIONS]
+                   + ['knee-long', 'shoulder-long', 'arm-long', 'leg-long'])
     p.add_argument('--root'); p.add_argument('--replay'); p.add_argument('--run-dir', required=True)
     p.add_argument('--subjects', type=lambda s: s.split(','), default=['s03', 's04', 's05'])
     p.add_argument('--exercises', type=lambda s: s.split(','), default=list(EXERCISES))
@@ -796,7 +888,7 @@ def main():
     CACHE['dir'] = a.cache
     os.makedirs(a.run_dir, exist_ok=True)
     {'gt-relations': run_gt_relations, 'cache-clean': run_cache_clean, 'occlude': run_occlude, 'evaluate': run_evaluate, 'foot-shift': run_foot_shift, 'setup-measure': run_setup_measure,
-     'signals': run_signals, 'tune': run_tune}[a.cmd](a)
+     'signals': run_signals, 'tune': run_tune, 'rgb-eval': run_rgb_eval}[a.cmd](a)
 
 
 if __name__ == '__main__':
