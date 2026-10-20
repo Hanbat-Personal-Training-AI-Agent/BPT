@@ -1155,6 +1155,47 @@ def run_xs_relations(a):
     write_manifest(a, inputs + [a.checkpoint], [out_j, out_m])
 
 
+# ---------------------------------------------------------------- compact tables for the results doc
+def run_table(a):
+    """Pooled tables from an evaluate JSON: per variant over every occlusion condition, per joint group, and clean."""
+    recs = json.load(open(a.eval_json))['records']; grp = a.group
+    vs = list(dict.fromkeys(r['var'] for r in recs))
+    rows, md = {}, [f'**{Path(a.eval_json).name} ({grp}) — 가림 조건 전부 합침(가림 단위 평균)**', '',
+                    '| 변형 | 가림 | 가림 관절 오차 mm | 늘어난 오차(− 깨끗한 A) | 깨끗한 A와의 거리 | 복구 30f 오차 | 복구 프레임 p50 | 사지 각 오차 ° (깨끗한 A) | 점프 p95 mm | 채움 | 무효 |',
+                    '|---' * 11 + '|']
+    for v in vs:
+        ep = [e for r in recs if r['group'] == grp and r['var'] == v and r['cond'] != 'clean' for e in r['episodes']]
+        if not ep: continue
+        m = lambda k: float(np.mean([e[k] for e in ep]))
+        rows[v] = dict(n=len(ep), err=m('err'), added=m('err') - m('err_clean'), dev=m('dev_clean'), rec=m('err_rec'),
+                       recf=float(np.median([e['recovery_frames'] for e in ep])), ang=m('angle_err'), ang_c=m('angle_err_clean'),
+                       jump=float(np.percentile([e['jump'] for e in ep], 95)), filled=m('filled'), invalid=m('invalid'))
+        q = rows[v]
+        md.append(f"| {v} | {q['n']} | {q['err']:.1f} | {q['added']:+.1f} | {q['dev']:.1f} | {q['rec']:.1f} | {q['recf']:.0f} | {q['ang']:.1f} ({q['ang_c']:.1f}) | {q['jump']:.0f} | {q['filled']:.0%} | {q['invalid']:.0%} |")
+    md += ['', '**관절 묶음별 가림 관절 오차 mm (가림 단위 평균; 괄호 = 깨끗한 A 같은 프레임)**', '']
+    groups = sorted({r['cond'].split('-')[0] for r in recs if r['cond'] != 'clean'})
+    md += ['| 변형 | ' + ' | '.join(groups) + ' |', '|---' * (1 + len(groups)) + '|']
+    for v in vs:
+        cells = []
+        for g_ in groups:
+            ep = [e for r in recs if r['group'] == grp and r['var'] == v and r['cond'].startswith(g_ + '-') for e in r['episodes']]
+            cells.append(f"{np.mean([e['err'] for e in ep]):.0f} ({np.mean([e['err_clean'] for e in ep]):.0f})" if ep else '-')
+        md.append(f'| {v} | ' + ' | '.join(cells) + ' |')
+    md += ['', '**깨끗한 입력**', '', '| 변형 | 영상 | MPJPE | PA | 가속도 | 바뀐 관절-프레임 | 무효 | 자연 가림 관절-프레임 / 오차 mm | 렙 극값 각 오차(무릎/엉덩이/팔꿈치/몸통) | 각도 지연 프레임 |', '|---' * 10 + '|']
+    for v in vs:
+        rs = [r for r in recs if r['group'] == grp and r['var'] == v and r['cond'] == 'clean']
+        if not rs: continue
+        nat = [r['natural'] for r in rs if r.get('natural') and r['natural']['n']]
+        nn = sum(x['n'] for x in nat); ne = sum(x['err'] * x['n'] for x in nat) / nn if nn else float('nan')
+        ang = {k: float(np.nanmean([r['angles'][k]['rep'] for r in rs])) for k in ('knee', 'hip', 'elbow', 'torso_g')}
+        lag = float(np.nanmean([r['angles'][k].get('lag', np.nan) for r in rs for k in ('knee', 'hip', 'elbow')]))
+        md.append(f"| {v} | {len(rs)} | {np.mean([r['mpjpe'] for r in rs]):.1f} | {np.mean([r['pa'] for r in rs]):.1f} | {np.mean([r['accel'] for r in rs]):.2f} | "
+                  f"{np.mean([r['changed'] for r in rs]):.1%} | {np.mean([r['invalid'] for r in rs]):.1%} | {nn} / {ne:.1f} | "
+                  + ' / '.join(f'{ang[k]:.1f}' for k in ang) + f' | {lag:+.1f} |')
+    out = Path(a.run_dir) / f'table_{grp}.md'; out.write_text('\n'.join(md) + '\n'); print('\n'.join(md))
+    json.dump(rows, open(Path(a.run_dir) / f'table_{grp}.json', 'w'), indent=1)
+
+
 def load_model(a):
     import torch
     from finetune_motionagformer_fit3d import load
@@ -1174,7 +1215,7 @@ def run_cache_clean(a):
 
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument('cmd', choices=['gt-relations', 'cache-clean', 'occlude', 'evaluate', 'foot-shift', 'setup-measure', 'signals', 'tune', 'rgb-eval', 'setup-ex3d', 'verdicts', 'xs-relations'])
+    p.add_argument('cmd', choices=['gt-relations', 'cache-clean', 'occlude', 'evaluate', 'foot-shift', 'setup-measure', 'signals', 'tune', 'rgb-eval', 'setup-ex3d', 'verdicts', 'xs-relations', 'table'])
     p.add_argument('--eval-json'); p.add_argument('--shift-json'); p.add_argument('--group', default='heldout')
     p.add_argument('--shapes', default=None, help='lift-refine shapes run dir (targets/<subject>.json), non-oracle body for E1')
     p.add_argument('--ex3d', help='dir with gt.json, csv/<seq>/<cam>_<ex>_mcoco17.csv, labels/<seq>/geometry')
@@ -1206,7 +1247,7 @@ def main():
     CACHE['dir'] = a.cache
     os.makedirs(a.run_dir, exist_ok=True)
     {'gt-relations': run_gt_relations, 'cache-clean': run_cache_clean, 'occlude': run_occlude, 'evaluate': run_evaluate, 'foot-shift': run_foot_shift, 'setup-measure': run_setup_measure,
-     'signals': run_signals, 'tune': run_tune, 'rgb-eval': run_rgb_eval, 'setup-ex3d': run_setup_ex3d, 'verdicts': run_verdicts, 'xs-relations': run_xs_relations}[a.cmd](a)
+     'signals': run_signals, 'tune': run_tune, 'rgb-eval': run_rgb_eval, 'setup-ex3d': run_setup_ex3d, 'verdicts': run_verdicts, 'xs-relations': run_xs_relations, 'table': run_table}[a.cmd](a)
 
 
 if __name__ == '__main__':
