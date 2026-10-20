@@ -283,7 +283,7 @@ def ex3d_items(a):
     subject = {q: s for s, qs in EX3D_SUBJECTS.items() for q in qs}
     gt = json.load(open(f'{a.labels}/gt.json')); L = f'{a.labels}/exercise3d_labels'
     for seq, g in sorted(gt.items()):
-        if g['exercise'] not in EX3D_EX: continue
+        if g['exercise'] not in EX3D_EX or (a.only and not seq.startswith(a.only)): continue
         z = np.load(f'{L}/{seq}/geometry/canonical_3d.npz'); names = list(z['joint_names']); Pw = z['keypoints_3d'].astype(float)
         J = np.stack([Pw[:, names.index(nm)] if nm else np.full((len(Pw), 3), np.nan) for nm in EX3D_NAMES], 1)
         cg = json.load(open(f'{L}/{seq}/geometry/metadata.json'))['camera_geometry']
@@ -467,6 +467,7 @@ def main():
     p.add_argument('--ex3d-csv-pattern', default='{csv}/{seq}/{cam}_{ex}_mcoco17.csv')
     p.add_argument('--ex3d-video-pattern', default='{videos}/{exdir}/{seq}/{cam}.mp4')
     p.add_argument('--raw-from-replay', action='store_true', help='ex3d: XS rows from pose-replay <stem>_3d.csv (Mac, Core ML)')
+    p.add_argument('--only', default='', help='ex3d / ex3d-wrist: sequences starting with this')
     p.add_argument('--root'); p.add_argument('--replay'); p.add_argument('--run-dir', required=True)
     p.add_argument('--subjects', type=lambda s: s.split(','), default=['s07', 's08', 's09', 's10', 's11'])
     p.add_argument('--exercises', type=lambda s: s.split(','), default=list(EXERCISES))

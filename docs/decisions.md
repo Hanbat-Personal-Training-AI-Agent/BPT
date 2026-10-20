@@ -945,3 +945,13 @@
   - 분석 화면: 작업 상태 polling·진행률·실패 문구·결과 요약. 앱은 업로드만 하고 40초 뒤 결과 화면(자리표시)으로 간다. 서버 분석은 그대로 돈다. `CalibrationUploadService.fetchJob`은 남아 있다.
   - `ai/lift-app`의 3D 상태 안내(운동 화면 변경)는 main 화면 위에 다시 얹어야 한다.
 - **확인**: `flutter analyze` 문제 없음, `flutter test` 98 통과, `flutter build ios --debug --no-codesign`(아래 병합 커밋 기준).
+
+## D-D-10 3D 보정 다듬기 — 관절 각 한 설정·무릎 과신전 클램프·사람별 뼈 길이 목표·손 crop 중복 제거·오버레이 (2026-10-20, ai/lift-refine) — 제안, 결정 아님
+상세: `docs/results/lift_refine.md`(판정 규칙은 결과 전에 d305a49로 고정).
+- **관절 각 한계**: 값은 `pose_feedback/geometry/anatomical_limits.json` 한 곳(근거 포함), Swift는 같은 값(테스트로 강제). 내각 한계는 384e684 값 그대로(이미 모캡 p0.1/p99.9였다 — 작업 지시의 “느슨하다”는 ed67a6e 값 이야기). 새로 넣은 것은 **무릎 과신전 클램프 θ ≥ −15°**(CDC 정상 폄 평균 1.0–1.6°, Beighton > 10°, Fit3D 세 운동 −10° 아래 없음): 뒤로 꺾인 무릎이 출력에 남지 않는다. θ < −30° 무효 표시·스쿼트 반사는 그대로.
+- **사람별 뼈 길이**: 제품 캘리브레이션(SAM 3D Body → MHR→SMPL β 공유 → H36M 길이)을 로컬 CPU로 재현(`scripts/calib_subject_shapes.py`, 데이터는 Home/Mac 밖으로 안 나감). 키를 몰라 키 투영은 생략 — 제약은 비율만 쓰므로(프레임마다 s = median(관측/목표)) 단위·키가 상쇄됨. 앱(영상 모드) `BPT_BONE_TARGETS`, pose-replay `--bone-targets`. 실제 앱은 아직 결과를 안 받는다(D-M-01).
+- **손 crop 중복 제거**: 두 crop의 손 랜드마크 상자 IoU > 0.5면 두 MediaPipe 손목 모두 버림(`BPT_HAND_DEDUPE=0`으로 끔). 몸 오버레이 손목 = XS 입력 손목(거른 뒤).
+- **오버레이**(사용자 기기 피드백 2회 반영): 몸만 빛나는 선(얼굴·머리·손 안 그림), 저신뢰 숨김, 기본 연두, 연결마다 규칙 지표의 연속 색(연두→주황→빨강), 3D가 불확실하면 흐린 연두(빨강 안 됨) — 표시 전용, 판정·임계값 그대로.
+- **발 고정**: ai/setup-constraint로 넘김(코드 없음).
+- **검증 상태**: Fit3D 검증(정답)은 Home이 15:27에 꺼져 중단 → 모든 기능 “실험적 보정”으로 표시(규칙 미평가). Exercise3D(의사 정답) 결과만 보조 근거.
+- **되돌리기**: `kneeClampDegrees = nil`, `BPT_HAND_DEDUPE=0`, 오버레이는 커밋 revert.
