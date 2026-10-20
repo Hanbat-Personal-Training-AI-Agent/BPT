@@ -10,13 +10,12 @@ from .metrics import stats
 
 
 def apply_existing_gates(corrected, invalid, exercise, variant):
-    constraints = Pose3DConstraints(bone_lengths=variant not in ("E", "G", "H"),
-                                    reflect_flipped_knee=exercise == "squat")
+    constraints = Pose3DConstraints(bone_lengths=True, reflect_flipped_knee=exercise == "squat")
     pose, bad = corrected.copy(), invalid.copy()
     times = []
     for t in range(21, len(pose)):
         began = time.perf_counter_ns()
-        pose[t], report = constraints.apply(pose[t])
+        pose[t], report = constraints.apply(pose[t], project_bone_lengths=variant not in ("E", "G", "H"))
         times.append((time.perf_counter_ns() - began) / 1e6)
         bad[t, report["invalid_joints"]] = True
     return pose, bad, stats(times)

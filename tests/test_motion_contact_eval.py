@@ -12,7 +12,7 @@ from motion_contact.data import (BONES, Observations, ScoreReference, load_obser
                                  load_predicted_profiles, normalize_observations, sha256)
 from motion_contact.corruptions import corrupt_keypoints, infer_changed_xs
 from motion_contact.metrics import pa_error, score_pose
-from motion_contact.runner import run_variant
+from motion_contact.runner import online_profile, run_variant
 
 
 def observation(n=280):
@@ -74,6 +74,16 @@ def test_mocap_fitted_shapes_are_not_accepted_as_runtime_profiles(tmp_path):
         load_predicted_profiles([path])
 
 
+def test_online_profile_rejects_less_than_30_usable_observations():
+    o = observation()
+    confidence = np.ones((len(o.raw), 17))
+    confidence[21:81, 13] = 0
+    confidence[21:50, 13] = .9
+    assert "12-13" not in online_profile(o.raw, confidence)
+    confidence[50, 13] = .9
+    assert "12-13" in online_profile(o.raw, confidence)
+
+
 def test_keypoint_stress_precedes_lifter_and_preserves_calibration_prefix():
     torch = pytest.importorskip("torch")
     o = observation()
@@ -110,3 +120,15 @@ def test_scorer_metric_scale_and_pa_do_not_hide_raw_error():
                      np.zeros((len(o.raw), 17), bool), np.ones(len(o.raw)))
     assert out["per_joint_mm"]["left_wrist"]["mean"] == pytest.approx(1.)
     np.testing.assert_allclose(pa_error(o.raw * 2 + 10, o.raw), 0, atol=1e-10)
+
+
+def test_withheld_warning_is_abstention_not_true_negative():
+    from motion_contact.rule_proxies import score_warning_proxies
+    o = observation()
+    ref = ScoreReference(o.raw.copy(), np.ones(len(o.raw)), np.array([0, -1, 0]),
+                         ((100, 150), (160, 210)), {})
+    result = score_warning_proxies(o, ref, o.raw, np.ones((len(o.raw), 17), bool))
+    assert result["abstained_reps"] == 2
+    assert result["assessed_reps"] == 0
+    assert all(row["assessed_reps"] == 0 for row in result["by_rule"].values())
+    assert not result["human_error_labels"]

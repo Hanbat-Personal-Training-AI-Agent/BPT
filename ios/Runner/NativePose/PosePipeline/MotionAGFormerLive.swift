@@ -41,6 +41,12 @@ struct Lifted3DFrame {
     let constraints: Pose3DConstraints.Report?
     /// Output row of the 27-frame window this frame was read from (26 − effective lookahead).
     let row: Int?
+    /// Experimental estimator before the existing constraints; nil preserves the default path.
+    var motion: ExerciseMotionResult? = nil
+
+    var invalidForAssessment: Set<Int> {
+        (constraints?.invalidJoints ?? []).union(motion?.invalidForAssessment ?? [])
+    }
 
     /// 3D the evaluators may judge with: ok, or partial with the untrusted joints NaN.
     var usable3D: [SIMD3<Double>]? { state == .ok || state == .partial3D ? masked3D : nil }
@@ -48,7 +54,7 @@ struct Lifted3DFrame {
     /// `pose3D` with `constraints.invalidJoints` set to NaN (what the evaluators get; = pose3D when nothing is invalid).
     var masked3D: [SIMD3<Double>]? {
         guard var p = pose3D else { return nil }
-        for j in constraints?.invalidJoints ?? [] { p[j] = SIMD3(repeating: .nan) }
+        for j in invalidForAssessment { p[j] = SIMD3(repeating: .nan) }
         return p
     }
 }
@@ -62,6 +68,9 @@ struct MotionAGFormerLive<Payload> {
     /// 0.5 s at 30 fps.
     var resetAfterLostFrames = 15
     var constraints = Pose3DConstraints()
+    /// Explicit experiment only. No environment is read by the reusable lifter itself.
+    var motionEstimator: ExerciseMotionEstimator?
+    var motionOnlineCalibration = false
     /// [27 × 17 × 3] input (x, y, confidence) → [27 × 17 × 3] output, row-major. Core ML in the app.
     let predict: ([Float]) throws -> [Float]
 
@@ -70,6 +79,9 @@ struct MotionAGFormerLive<Payload> {
         let payload: Payload
         let input: [[Float]]
         let valid: Bool
+        let screen2D: [SIMD3<Double>]
+        let modelToImageScale: Double
+        let motionContext: ExerciseMotionFrameContext
     }
 
     private var normalizer = MotionAGFormerInputNormalizer()
@@ -81,6 +93,10 @@ struct MotionAGFormerLive<Payload> {
     private var lostRun = 0
     /// A changed capture orientation starts a new coordinate system, even when image dimensions stay the same.
     private var captureRotation: CaptureRotation?
+    private var personID: String?
+    private var onlineCalibration = ExerciseMotionOnlineCalibration()
+    private var onlineProfileApplied = false
+    private var ownsOnlineProfile = false
     /// Model runs (cost accounting).
     private(set) var inferences = 0
 
@@ -97,23 +113,31 @@ struct MotionAGFormerLive<Payload> {
     /// Push one frame (COCO17 in frame pixels; Halpe26 callers pass its first 17 joints, which are COCO17
     /// in the same order). Returns the frames that became ready, oldest first.
     mutating func push(frameIndex: Int, coco17: [PoseKeypoint], imageWidth: Int, imageHeight: Int,
-                       captureRotation: CaptureRotation = .up, payload: Payload) throws -> [(Payload, Lifted3DFrame)] {
+                       captureRotation: CaptureRotation = .up,
+                       motionContext: ExerciseMotionFrameContext? = nil,
+                       payload: Payload) throws -> [(Payload, Lifted3DFrame)] {
+        let context = motionContext ?? ExerciseMotionFrameContext(timestamp: Double(frameIndex) / 30)
         let valid = coco17.count == 17 && coco17.filter { $0.confidence >= minConfidence }.count >= minJoints
         var out: [(Payload, Lifted3DFrame)] = []
+        if motionEstimator != nil, let prior = personID, context.personID != prior {
+            out += try flush(resetReason: "person_change")
+        }
         if let previous = self.captureRotation, previous != captureRotation {
             // Emit old payloads with the old window before normalizing or buffering any new orientation.
             // flush also resets on prediction failure, so a retry can never combine coordinate systems.
-            out += try flush()
+            out += try flush(resetReason: "rotation")
         }
         self.captureRotation = captureRotation
+        self.personID = context.personID
         if valid {
             lostRun = 0
         } else {
             lostRun += 1
             if lostRun >= resetAfterLostFrames || entries.isEmpty {
                 if !entries.isEmpty {
-                    out += try flush()
+                    out += try flush(resetReason: "tracking_lost")
                 }
+                resetMotionState(reason: "tracking_lost")
                 out.append((payload, Lifted3DFrame(frameIndex: frameIndex, state: .trackingLost, filled: 0,
                                                    raw: nil, pose3D: nil, constraints: nil, row: nil)))
                 return out
@@ -121,7 +145,13 @@ struct MotionAGFormerLive<Payload> {
         }
         let h36m = try PoseCoordinateTransforms.coco17ToH36M17(coco17)
         let input = normalizer.normalize(h36m, imageWidth: imageWidth, imageHeight: imageHeight)
-        entries.append(Entry(frameIndex: frameIndex, payload: payload, input: input, valid: valid))
+        let crop = normalizer.normalization == .personCrop
+            ? normalizer.tracker.crop ?? SquareCrop.image(width: imageWidth, height: imageHeight, normalization: .longSide)
+            : SquareCrop.image(width: imageWidth, height: imageHeight, normalization: normalizer.normalization)
+        let height = Double(max(imageHeight, 1))
+        entries.append(Entry(frameIndex: frameIndex, payload: payload, input: input, valid: valid,
+                             screen2D: h36m.map { SIMD3($0.x / height, $0.y / height, $0.confidence) },
+                             modelToImageScale: crop.side / (2 * height), motionContext: context))
         pending += 1
         realFrames += 1
         if entries.count > Self.window { entries.removeFirst() }
@@ -137,8 +167,8 @@ struct MotionAGFormerLive<Payload> {
     }
 
     /// Emits every pending frame (window clamped at the newest frame) and resets. Call at set end.
-    mutating func flush() throws -> [(Payload, Lifted3DFrame)] {
-        defer { reset() }
+    mutating func flush(resetReason: String = "set_boundary") throws -> [(Payload, Lifted3DFrame)] {
+        defer { reset(reason: resetReason) }
         var out: [(Payload, Lifted3DFrame)] = []
         if realFrames < Self.window {
             out = emitWithout3D(count: pending)
@@ -158,13 +188,24 @@ struct MotionAGFormerLive<Payload> {
         return out
     }
 
-    mutating func reset() {
+    mutating func reset(reason: String = "explicit") {
         normalizer = MotionAGFormerInputNormalizer()
         entries = []
         pending = 0
         realFrames = 0
         lostRun = 0
         captureRotation = nil
+        personID = nil
+        resetMotionState(reason: reason)
+        if motionEstimator != nil { constraints.resetSessionBoneHistory() }
+    }
+
+    private mutating func resetMotionState(reason: String) {
+        motionEstimator?.reset(reason: reason)
+        if ownsOnlineProfile { motionEstimator?.setBoneProfile([:], confidence: 0) }
+        onlineCalibration = ExerciseMotionOnlineCalibration()
+        onlineProfileApplied = false
+        ownsOnlineProfile = false
     }
 
     private mutating func emitWithout3D(count: Int) -> [(Payload, Lifted3DFrame)] {
@@ -198,15 +239,52 @@ struct MotionAGFormerLive<Payload> {
                 SIMD3<Double>((0..<3).map { Double(output[(row * 17 + j) * 3 + $0]) })
             }
             guard e.valid else {
+                resetMotionState(reason: "tracking_lost")
                 emitted.append((e.payload, Lifted3DFrame(frameIndex: e.frameIndex, state: .trackingLost, filled: realFrames,
                                                          raw: raw, pose3D: nil, constraints: nil, row: row)))
                 continue
             }
-            let (fixed, report) = constraints.apply(raw)
-            let state: Pose3DState = report.invalidJoints.isEmpty ? .ok : report.invalidJoints.count == 17 ? .bad3D : .partial3D
+            let estimatorStart = ProcessInfo.processInfo.systemUptime
+            let imageRaw = raw.map { $0 * e.modelToImageScale }
+            if motionOnlineCalibration, motionEstimator != nil {
+                if e.motionContext.cameraMotion {
+                    resetMotionState(reason: "camera_motion")
+                } else if !onlineProfileApplied {
+                    if onlineCalibration.samples == 60 {
+                        let ratios = onlineCalibration.boneRatios
+                        if motionEstimator?.variant.usesSoftBones == true,
+                           motionEstimator?.boneProfile.isEmpty == true, !ratios.isEmpty {
+                            motionEstimator?.setBoneProfile(ratios, confidence: 0.4)
+                            ownsOnlineProfile = true
+                        }
+                        onlineProfileApplied = true
+                    } else {
+                        onlineCalibration.observe(imageRaw, screen: e.screen2D)
+                    }
+                }
+            }
+            var motion = motionEstimator?.update(raw: imageRaw,
+                                                   screen2D: e.screen2D, timestamp: e.motionContext.timestamp,
+                                                   fixedCamera: e.motionContext.fixedCameraEvidence,
+                                                   cameraMotion: e.motionContext.cameraMotion,
+                                                   personID: e.motionContext.personID, phase: e.motionContext.phase,
+                                                   gripConfirmed: e.motionContext.gripConfirmed)
+                .rescaled(1 / e.modelToImageScale)
+            if motion != nil {
+                motion?.raw = raw  // Exact XS Float->Double values, not a round-trip through normalized units.
+                motion?.diagnostics["elapsed_ms"] = (ProcessInfo.processInfo.systemUptime - estimatorStart) * 1000
+                motion?.diagnostics["model_to_image_scale"] = e.modelToImageScale
+                motion?.diagnostics["online_calibration_frames"] = onlineCalibration.samples
+                motion?.diagnostics["online_calibration_applied"] = ownsOnlineProfile
+            }
+            let projectBones = !(motionEstimator?.variant.usesSoftBones ?? false)
+            motion?.diagnostics["legacy_bone_projection"] = projectBones
+            let (fixed, report) = constraints.apply(motion?.corrected ?? raw, projectBoneLengths: projectBones)
+            let invalid = report.invalidJoints.union(motion?.invalidForAssessment ?? [])
+            let state: Pose3DState = invalid.isEmpty ? .ok : invalid.count == 17 ? .bad3D : .partial3D
             emitted.append((e.payload, Lifted3DFrame(frameIndex: e.frameIndex, state: state,
                                                      filled: min(realFrames, w), raw: raw, pose3D: fixed,
-                                                     constraints: report, row: row)))
+                                                     constraints: report, row: row, motion: motion)))
         }
         pending -= count
         return emitted

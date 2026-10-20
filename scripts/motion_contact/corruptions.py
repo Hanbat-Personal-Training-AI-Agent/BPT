@@ -78,6 +78,18 @@ def infer_changed_xs(model, x, original_x, original_raw, *, limit=LIMIT, batch=8
                      seconds=time.perf_counter() - began, output_row=21, lookahead=5)
 
 
+def check_cached_windows(model, observations):
+    """Small clean parity check before reusing a producer's raw cache."""
+    import torch
+    rows = np.asarray([90, 120, min(250, len(observations.raw) - 6)])
+    idx = np.clip(rows[:, None] + 5 - 26 + np.arange(27), 0, len(observations.raw) - 1)
+    with torch.inference_mode():
+        actual = model(torch.from_numpy(observations.normalized[idx])).cpu().numpy()[:, 21]
+    error = float(np.max(np.abs(actual - observations.raw[rows])))
+    assert error < 2e-5, (observations.name, "cache/input/model mismatch", error)
+    return dict(frames=rows.tolist(), maximum_absolute_error=error, tolerance=2e-5)
+
+
 def infer_rgb_masks(observations, model, dataset_root):
     """Mask RGB in memory on Home, run actual RTMPose on cached observed boxes.
 

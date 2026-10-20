@@ -110,7 +110,11 @@ struct Pose3DConstraints {
 
     private var history: [String: [Double]] = [:]
 
-    mutating func apply(_ input: [SIMD3<Double>]) -> ([SIMD3<Double>], Report) {
+    mutating func resetSessionBoneHistory() { history = [:] }
+
+    /// `projectBoneLengths=false` retains the bone report/gate and all existing angle gates, while
+    /// avoiding a second hard bone projection after an experimental soft personalized estimator.
+    mutating func apply(_ input: [SIMD3<Double>], projectBoneLengths: Bool = true) -> ([SIMD3<Double>], Report) {
         precondition(input.count == 17, "H36M17 expects 17 joints")
         var report = Report()
         guard enabled else { return (input, report) }
@@ -130,7 +134,7 @@ struct Pose3DConstraints {
             }
             record(input)
             let bones = BoneLengthConstraint.apply(joints, targetsCm: targets)
-            joints = bones.joints
+            if projectBoneLengths { joints = bones.joints }
             report.boneMaxCorrection = bones.segments.values.filter(\.constrained)
                 .map { abs($0.output - $0.observed) / max($0.observed, BoneLengthConstraint.minBoneLength) }.max() ?? 0
         }

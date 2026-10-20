@@ -21,7 +21,7 @@ import numpy as np
 from motion_contact.data import (EXERCISES, HELDOUT, TUNING, load_observations,
                                  load_predicted_profiles, load_score_reference, sha256)
 from motion_contact.corruptions import (
-    BLOCKS, LIMIT, corrupt_keypoints, damage_schedule, infer_changed_xs,
+    BLOCKS, LIMIT, check_cached_windows, corrupt_keypoints, damage_schedule, infer_changed_xs,
     infer_rgb_masks, observation_with_keypoints,
 )
 
@@ -145,6 +145,7 @@ def run_inference(a):
         if dest.exists() and dest.with_suffix(".json").exists():
             continue
         o = load_observations(cache, pose)
+        parity = check_cached_windows(model, o)
         inputs = dict(o.inputs)
         if a.command == "infer-keypoints":
             keypoints, damage = corrupt_keypoints(o)
@@ -160,7 +161,7 @@ def run_inference(a):
         np.savez_compressed(dest, raw=raw.astype(np.float32), keypoints=keypoints.astype(np.float32), damage=damage)
         report.update(name=o.name, scenario=scenario, inputs=inputs, checkpoint_sha256=sha256(a.checkpoint),
                       output_sha256=sha256(dest), blocks=BLOCKS, evaluation_limit=a.limit or LIMIT,
-                      no_output_3d_noise=True, gt_files_read=0)
+                      no_output_3d_noise=True, gt_files_read=0, clean_cache_parity=parity)
         json_write(dest.with_suffix(".json"), report)
         print(json.dumps({k: report[k] for k in ("name", "scenario", "recomputed_windows", "seconds")}), flush=True)
 

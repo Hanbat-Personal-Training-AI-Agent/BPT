@@ -32,6 +32,14 @@ private enum CameraPreviewOptions {
     /// CoreMotion gravity as "up" for the 3D trunk/hip metrics (D-D-07: oblique trunk needs gravity). Off until the
     /// XS-frame axis mapping (FormGeometry.cameraUp) is checked on a device; BPT_3D_GRAVITY=1 turns it on.
     static let motion3DGravity = ProcessInfo.processInfo.environment["BPT_3D_GRAVITY"] == "1"
+    /// Separate experiment, default OFF. A-H/HOLD are defined in motion_contact_contract.md.
+    static let motionEstimatorVariant = ExerciseMotionVariant.environment(
+        ProcessInfo.processInfo.environment["BPT_MOTION_ESTIMATOR"])
+    /// An explicit fixed-camera/tripod condition; IMU stillness alone never enables an anchor.
+    static let motionFixedCamera = ProcessInfo.processInfo.environment["BPT_MOTION_FIXED_CAMERA"] == "1"
+    static let motionGripConfirmed = ProcessInfo.processInfo.environment["BPT_MOTION_GRIP_CONFIRMED"] == "1"
+    static let motionProfile = ExerciseMotionCalibrationProfile.fromEnvironment()
+    static let motionOnlineCalibration = ProcessInfo.processInfo.environment["BPT_MOTION_ONLINE_CALIBRATION"] == "1"
     /// RTMPose input: 3:4 person crop from the previous frame's keypoints (RTMPoseCropTracker).
     /// false = old input, whole frame stretched to 192×256 every frame.
     static let personCropInput = true
@@ -83,6 +91,8 @@ struct CameraProcessingResult {
     var wristsReplaced = (left: false, right: false)
     /// Both wrist crops returned the same hand and neither MediaPipe wrist was used (CameraPreviewOptions.handDedupe).
     var sameHandDropped = false
+    /// Acquisition-time evidence, carried with the selected XS row rather than read on output.
+    var motionContext: ExerciseMotionFrameContext?
 }
 
 // MARK: - Camera capture manager
@@ -257,6 +267,7 @@ final class CameraPoseViewModel: ObservableObject {
     private var lastReportedStatus: String?
     private var lastReportedDone: Bool?
     private var formLog: WorkoutFormLog?
+    private var motionTrace: ExerciseMotionTrace?
     private var lastLoggedRep = 0
     private var betweenSets = false
     private var recording = false
@@ -276,6 +287,8 @@ final class CameraPoseViewModel: ObservableObject {
     /// touched on the capture processing queue. The BPT_FORCE_CAPTURE_ROTATION launch override needs no CoreMotion.
     nonisolated(unsafe) private var rotationTracker = CaptureRotationTracker(rotation: CaptureRotation.forced ?? .up)
     nonisolated(unsafe) private let rotationMotion = CaptureRotation.forced == nil ? DeviceMotionMonitor() : nil
+    nonisolated(unsafe) private let contactMotion = CameraPreviewOptions.motionEstimatorVariant != nil
+        && !VideoCameraOptions.isActive ? DeviceMotionMonitor() : nil
 
     /// Only touched on the capture processing queue (one frame at a time), like the workspace.
     nonisolated(unsafe) private var cropTracker = RTMPoseCropTracker()
@@ -331,12 +344,16 @@ final class CameraPoseViewModel: ObservableObject {
         captureManager.finishRecording { _ in }
         if let tracker = formTracker { formLog?.close(tracker) }
         formLog = nil
+        motionTrace?.close()
+        motionTrace = nil
         perfTimer?.invalidate()
         perfTimer = nil
         captureManager.perfLog?.close()
         captureManager.perfLog = nil
         bridge?.voice.stop()
         rotationMotion?.stop()
+        contactMotion?.stop()
+        liftQueue.async { [weak self] in self?.lifter?.reset(reason: "camera_stop") }
     }
 
     private func keepScreenAwake(_ on: Bool, reason: String) {
@@ -414,6 +431,9 @@ final class CameraPoseViewModel: ObservableObject {
     private func startSet(_ index: Int) {
         VideoRunLog.shared?.write("start_set", ["set": index])
         betweenSets = false
+        if CameraPreviewOptions.motionEstimatorVariant != nil {
+            liftQueue.async { [weak self] in self?.lifter?.reset(reason: "set_boundary") }
+        }
         guard WorkoutDebugFlags.setRecording, let directory = WorkoutSetRecorder.directory() else { return }
         recording = true
         WorkoutSetRecorder.prune(directory: directory, keep: WorkoutSetRecorder.keepFiles - 1)
@@ -508,7 +528,43 @@ final class CameraPoseViewModel: ObservableObject {
                                             predict: MotionAGFormerCoreML.predictor(xs))
                 lifter?.constraints.reflectFlippedKnee = exercise == .squat  // Fit3D S6: squat only
                 // Test-only (video mode driver): the clip subject's calibration bone lengths, as a calibration result would give.
-                lifter?.constraints.calibrationTargetsCm = VideoCameraOptions.boneTargetsCm
+                if let variant = CameraPreviewOptions.motionEstimatorVariant {
+                    let name: String?
+                    switch exercise {
+                    case .pushUp: name = "pushup"
+                    case .squat: name = "squat"
+                    case .barbellRow: name = "barbell_row"
+                    default: name = nil
+                    }
+                    if let name {
+                        let profile = CameraPreviewOptions.motionProfile
+                        lifter?.motionEstimator = ExerciseMotionEstimator(
+                            exercise: name, variant: variant, boneProfile: profile?.boneRatios,
+                            calibrationConfidence: profile?.confidence ?? 0)
+                        lifter?.motionOnlineCalibration = CameraPreviewOptions.motionOnlineCalibration
+                        let config: [String: Any] = [
+                            "variant": variant.rawValue, "exercise": name,
+                            "fixed_camera_evidence": CameraPreviewOptions.motionFixedCamera,
+                            "grip_confirmed": CameraPreviewOptions.motionGripConfirmed,
+                            "profile": profile?.provenance as Any? ?? NSNull(),
+                            "profile_confidence": profile?.confidence ?? 0,
+                            "online_calibration": CameraPreviewOptions.motionOnlineCalibration,
+                            "legacy_bone_targets_ignored": VideoCameraOptions.boneTargetsCm != nil,
+                            "legacy_bone_projection": !variant.usesSoftBones,
+                            "coordinates": "image_height_root_relative_no_absolute_depth",
+                        ]
+                        VideoRunLog.shared?.write("motion_estimator_config", config)
+                        if !VideoCameraOptions.isActive {
+                            motionTrace = ExerciseMotionTrace()
+                            motionTrace?.write(config.merging(["type": "config"]) { _, new in new })
+                        }
+                    }
+                    // The historical test target file may be mocap-derived; it is never a personal
+                    // profile for this experiment, even if the launcher happens to provide it.
+                    lifter?.constraints.calibrationTargetsCm = nil
+                } else {
+                    lifter?.constraints.calibrationTargetsCm = VideoCameraOptions.boneTargetsCm
+                }
                 formTracker?.common.form3DRequired = true
                 if VideoCameraOptions.allFeedbackKeys {
                     // NON-DEFAULT test flag: show what every warning key WOULD send to the user.
@@ -567,7 +623,14 @@ final class CameraPoseViewModel: ObservableObject {
 
         bridge?.onStartSet = { [weak self] in self?.startSet($0) }
         bridge?.onEndSet = { [weak self] in self?.endSet($0) }
+        bridge?.onResetMotionTracking = { [weak self] in
+            guard let self, CameraPreviewOptions.motionEstimatorVariant != nil else { return }
+            self.motionTrace?.write(["type": "reset", "reason": "person_change"])
+            VideoRunLog.shared?.write("motion_estimator_reset", ["reason": "person_change"])
+            self.liftQueue.async { [weak self] in self?.lifter?.reset(reason: "person_change") }
+        }
         rotationMotion?.start()
+        contactMotion?.start()
         startSet(1)
         startPerfLog()
         if let videoSource { videoSource.start() } else { captureManager.start() }
@@ -666,6 +729,18 @@ final class CameraPoseViewModel: ObservableObject {
                     handResults: handResults
                 )
                 result.arrivedAt = arrivedAt
+                if CameraPreviewOptions.motionEstimatorVariant != nil {
+                    let evidence = contactMotion?.state
+                    let fresh = evidence?.isAvailable == true
+                        && evidence?.timestamp.map { abs(arrivedAt - $0) < 0.5 } == true
+                    // Engineering motion veto; a low value is not evidence of zero translation.
+                    let moving = fresh && ((evidence?.userAccelerationG ?? 0) > 0.03
+                        || (evidence?.rotationRateRadPerSec ?? 0) > 0.08)
+                    result.motionContext = ExerciseMotionFrameContext(
+                        timestamp: Double(timestampMs) / 1000,
+                        fixedCameraEvidence: CameraPreviewOptions.motionFixedCamera,
+                        cameraMotion: moving, gripConfirmed: CameraPreviewOptions.motionGripConfirmed)
+                }
 
                 guard lifter != nil else {
                     Task { @MainActor [weak self] in
@@ -687,6 +762,7 @@ final class CameraPoseViewModel: ObservableObject {
                         let before = self.lifter?.inferences ?? 0
                         let ready = try self.lifter?.push(frameIndex: frameIdx, coco17: wrists.input, imageWidth: cgImage.width,
                                                           imageHeight: cgImage.height, captureRotation: shown.rotation,
+                                                          motionContext: shown.motionContext,
                                                           payload: shown) ?? []
                         let liftMs = (CACurrentMediaTime() - t0) * 1000
                         self.perfLog?.sample("lift3d", ms: liftMs)
@@ -731,6 +807,22 @@ final class CameraPoseViewModel: ObservableObject {
         }
         let t0 = CACurrentMediaTime()
         judgingFrame = (result.frameIndex, result.arrivedAt)
+        if let elapsed = frame3D.motion?.diagnostics["elapsed_ms"] as? Double {
+            perfLog?.sample("motion_estimator", ms: elapsed)
+        }
+        if let trace = motionTrace {
+            var line: [String: Any] = [
+                "type": "frame", "frame": result.frameIndex, "state": frame3D.state.rawValue,
+                "timestamp": result.motionContext?.timestamp as Any? ?? NSNull(),
+                "capture_rotation": result.rotation.rawValue,
+                "invalid_for_assessment": Array(frame3D.invalidForAssessment).sorted(),
+            ]
+            if let estimated = frame3D.motion { line["motion_estimator"] = estimated.dictionary }
+            if let pose = frame3D.pose3D {
+                line["pose3d_final"] = pose.map { p in [p.x, p.y, p.z].map { $0.isFinite ? $0 as Any : NSNull() } }
+            }
+            trace.write(line)
+        }
         let (statusText, rep, done) = runEvaluator(frameIndex: result.frameIndex, rawCoco17: result.rawCoco17,
                                                    feet: result.feet, pose3D: frame3D.masked3D, pose3DState: frame3D.state)
         let now = CACurrentMediaTime()
@@ -783,6 +875,14 @@ final class CameraPoseViewModel: ObservableObject {
                 if c.kneeHyperextended { line["knee_flip"] = true }
                 if !c.angleCorrections.isEmpty { line["angle_corr"] = c.angleCorrections }
                 line["bone_corr"] = (c.boneMaxCorrection * 1000).rounded() / 1000
+            }
+            if let estimated = frame3D.motion {
+                line["motion_estimator"] = estimated.dictionary
+                line["invalid_for_assessment"] = Array(frame3D.invalidForAssessment).sorted()
+                // The estimator output and the final gate/constraint output are distinct artifacts.
+                line["pose3d_final"] = frame3D.pose3D?.map { p in
+                    [p.x, p.y, p.z].map { $0.isFinite ? $0 as Any : NSNull() }
+                }
             }
             log.write("judged", line)
         }

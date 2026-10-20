@@ -442,6 +442,9 @@ final class WorkoutChannel {
     let voice = WorkoutVoice()
     var onStartSet: ((Int) -> Void)?
     var onEndSet: ((Int) -> Void)?
+    /// Identity-aware hosts can explicitly break all temporal/contact and personal-profile state.
+    /// The camera path itself does not claim to identify a person from skeleton coordinates.
+    var onResetMotionTracking: (() -> Void)?
 
     init(channel: FlutterMethodChannel) {
         self.channel = channel
@@ -456,6 +459,8 @@ final class WorkoutChannel {
                 if let index = (args?["setIndex"] as? NSNumber)?.intValue { self.onStartSet?(index) }
             case "endSet":
                 if let index = (args?["setIndex"] as? NSNumber)?.intValue { self.onEndSet?(index) }
+            case "resetMotionTracking":
+                self.onResetMotionTracking?()
             default:
                 return result(FlutterMethodNotImplemented)
             }

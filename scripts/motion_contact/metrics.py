@@ -90,6 +90,9 @@ def score_pose(observations, reference, corrected_crop, uncertainty_crop, invali
     speed = np.linalg.norm(derivative(screen, o.timestamps), axis=-1)
     categories["observed_moving"] = use[:, None] & (speed > .10) & (conf >= .45)
     categories["observed_still"] = use[:, None] & (speed < .02) & (conf >= .45)
+    gt_speed = np.linalg.norm(derivative(gt, o.timestamps), axis=-1)
+    categories["gt_root_relative_moving_score_only"] = use[:, None] & (gt_speed > .10)
+    categories["gt_moving_artificially_occluded"] = use[:, None] & (gt_speed > .10) & damage
     result = {
         "mpjpe_mm": stats(error[use]),
         "limb_mpjpe_mm": stats(error[use][:, LIMBS]),
@@ -109,6 +112,27 @@ def score_pose(observations, reference, corrected_crop, uncertainty_crop, invali
     result["velocity_error_mm_s"] = stats(np.linalg.norm(v - vg, axis=-1)[use] * 1000)
     result["acceleration_error_mm_s2"] = stats(np.linalg.norm(a - ag, axis=-1)[use] * 1000)
     result["jerk_mm_s3"] = stats(np.linalg.norm(jerk, axis=-1)[use] * 1000)
+    # Fixed 5-output-frame displacement. This uses future GT only inside the
+    # offline scorer; no such direction/phase is passed to the estimator.
+    delta_gt, delta_p = gt[5:] - gt[:-5], p[5:] - p[:-5]
+    distance = np.linalg.norm(delta_gt, axis=-1)
+    eligible = use[:-5, None] & use[5:, None] & (distance > .020)
+    gain = np.sum(delta_p * delta_gt, axis=-1) / np.maximum(distance ** 2, 1e-12)
+    masked_pair = damage[:-5] | damage[5:]
+    gain_groups = {}
+    for name, mask in (("all", eligible), ("artificially_occluded", eligible & masked_pair),
+                       ("assessable", eligible & ~invalid[:-5] & ~invalid[5:])):
+        gain_groups[name] = dict(eligible_joint_frames=int(mask.sum()),
+                                displacement_gain=stats(gain[mask]),
+                                suppressed_fraction=float(np.mean(gain[mask] < .5)) if mask.any() else None)
+    stationary = use[:-5, None] & use[5:, None] & (distance < .005)
+    result["motion_preservation_proxy"] = dict(
+        groups=gain_groups, displacement_frames=5, minimum_gt_displacement_m=.020,
+        suppression_gain_threshold=.5,
+        gt_stationary_joint_frames=int(stationary.sum()),
+        false_movement_fraction=float(np.mean(np.linalg.norm(delta_p, axis=-1)[stationary] > .020))
+        if stationary.any() else None,
+        note="Root-relative GT motion scorer proxy, not contact success or human form-error FN.")
     lengths = np.stack([np.linalg.norm(p[:, c] - p[:, b], axis=-1) for b, c in LIMB_EDGES], 1)
     result["limb_length_cv"] = stats(lengths[use].std(0) / lengths[use].mean(0).clip(1e-9))
     pa, ga = pose_angles(p, ref.up_camera), pose_angles(gt, ref.up_camera)

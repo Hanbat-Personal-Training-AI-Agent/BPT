@@ -29,7 +29,7 @@ def online_profile(raw_image_units, confidence):
     for a, b in BONES:
         good = (conf[:, a] >= .45) & (conf[:, b] >= .45) & np.isfinite(p[:, [a, b]]).all(axis=(1, 2))
         values = np.linalg.norm(p[:, a] - p[:, b], axis=-1)[good]
-        lengths.append(np.median(values) if len(values) >= 15 else np.nan)
+        lengths.append(np.median(values) if len(values) >= 30 else np.nan)
     return profile_ratios(lengths)
 
 
