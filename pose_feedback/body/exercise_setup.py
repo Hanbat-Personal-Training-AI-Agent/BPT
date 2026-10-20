@@ -46,7 +46,8 @@ BY_EXERCISE = {
 WIDTH_VECTORS = {"feet_width": ((R_ANKLE, L_ANKLE), (R_HIP, L_HIP)), "feet_width_shoulder": ((R_ANKLE, L_ANKLE), (R_SHOULDER, L_SHOULDER)),
                  "hand_width": ((R_WRIST, L_WRIST), (R_SHOULDER, L_SHOULDER)), "grip_width": ((R_WRIST, L_WRIST), (R_SHOULDER, L_SHOULDER))}
 # 임시값 until E1 (tuning subjects) replaces them: stillness tolerance over the window, by kind.
-DEFAULTS = dict(reliable_conf=0.5, low_conf=0.3, depth_max=0.7, stable_frames=30, tol_ratio=0.10, tol_deg=5.0)
+DEFAULTS = dict(reliable_conf=0.5, low_conf=0.3, depth_max=0.7, stable_frames=30, tol_ratio=0.10, tol_deg=5.0, tol_items=None)
+# tol_items {item: tolerance} overrides the per-kind tolerance (E1: 2 x measured repeatability per item).
 
 
 def _n(v):
@@ -123,6 +124,8 @@ class ExerciseSetup:
         return "depth_estimated" if depth_share(P, key) > self.p["depth_max"] else "good"
 
     def tolerance(self, key):
+        if self.p["tol_items"] and key in self.p["tol_items"]:
+            return self.p["tol_items"][key]
         return self.p["tol_deg"] if ITEMS[key][2] == "deg" else self.p["tol_ratio"]
 
     def seeds(self, relations):

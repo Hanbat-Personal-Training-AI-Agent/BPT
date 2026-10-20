@@ -24,6 +24,8 @@ struct ExerciseSetup {
         var stableFrames = 30
         var tolRatio = 0.10
         var tolDeg = 5.0
+        /// Per-item tolerance overriding the per-kind one (Python tol_items; E1: 2 × measured repeatability).
+        var tolItems: [String: Double] = [:]
     }
 
     enum Quality: String {
@@ -197,7 +199,8 @@ struct ExerciseSetup {
     }
 
     func tolerance(_ key: String) -> Double {
-        Self.items[key]?.degrees == true ? params.tolDeg : params.tolRatio
+        if let t = params.tolItems[key] { return t }
+        return Self.items[key]?.degrees == true ? params.tolDeg : params.tolRatio
     }
 
     /// At ready: {name: (median px vector, p90 deviation px)} over the ready window — the stable relation the adaptive
