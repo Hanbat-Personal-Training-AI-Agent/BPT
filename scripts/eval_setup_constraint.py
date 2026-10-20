@@ -438,6 +438,325 @@ def summarize_eval(a, recs, inputs, params):
     write_manifest(a, inputs + [a.checkpoint], [out_j, out_m], dict(conditions=a.conditions, variants=a.variants, params=params, cache=a.cache))
 
 
+# ---------------------------------------------------------------- foot shifts (semi-synthetic; user 2026-10-20)
+SHIFT_CASES = {  # amp m, ramp frames (30 fps), occluded while shifting (+15 f), between reps
+    'grad2': dict(amp=0.02, ramp=30, occl=False, step=False), 'grad5': dict(amp=0.05, ramp=60, occl=False, step=False),
+    'step': dict(amp=0.08, ramp=9, occl=False, step=True),
+    'occ_grad5': dict(amp=0.05, ramp=60, occl=True, step=False), 'occ_step': dict(amp=0.08, ramp=9, occl=True, step=True),
+}
+SHIFT_TAIL, SHIFT_OCC_EXTRA = 90, 15
+
+
+def shift_plan(d, case):
+    """Seeded: which foot ('L' / 'R'), start frame, ramp, damage model. None when the set is too short."""
+    c = SHIFT_CASES[case]; rng = rng_for(seq_key(d), 'shift', case); lo, hi = set_range(d); n = len(d['x'])
+    side = 'L' if rng.random() < 0.5 else 'R'
+    if c['step']:
+        cands = [e for _, e in d['seg'][1:-1] if e + c['ramp'] + SHIFT_TAIL < n]
+        if not cands: return None
+        start = int(cands[int(rng.integers(0, len(cands)))])
+    else:
+        if hi - c['ramp'] - SHIFT_TAIL <= lo + 30: return None
+        start = int(rng.integers(lo + 30, hi - c['ramp'] - SHIFT_TAIL))
+    return dict(side=side, start=start, ramp=c['ramp'], amp=c['amp'], occl=c['occl'], model=('keep', 'drift', 'freeze')[int(rng.integers(0, 3))])
+
+
+def apply_shift(d, plan, a):
+    """Moves one ankle (and its knee by half) outward in the world, horizontally; returns damaged K, G and the
+    camera-frame shift of the ankle per frame (m)."""
+    from pose_feedback.body.pose2d_data import project_fit3d
+    cam = json.load(open(f"{a.root}/train/{d['subj']}/camera_parameters/{d['cam']}/{d['ex']}.json"))
+    Jp = d['J'][d['pick']]; n = len(Jp); t = np.arange(n)
+    lr = Jp[plan['start'], LHIP] - Jp[plan['start'], RHIP]; lr[2] = 0; lr /= np.linalg.norm(lr)
+    ank, kne, cank, ckne = (LANK, LKNE, 15, 13) if plan['side'] == 'L' else (RANK, RKNE, 16, 14)
+    outward = lr if plan['side'] == 'L' else -lr
+    delta = plan['amp'] * np.clip((t - plan['start']) / plan['ramp'], 0, 1)[:, None] * outward[None]  # world m
+    K = d['K'].copy(); G = d['G'].copy(); R = d['R']
+    for j, cj, f in ((ank, cank, 1.0), (kne, ckne, 0.5)):
+        moved = t >= plan['start']
+        K[moved, cj, :2] += project_fit3d(Jp[moved, j] + f * delta[moved], cam) - project_fit3d(Jp[moved, j], cam)
+        G[:, j] += f * delta @ R.T
+    if plan['occl']:
+        s0, e0 = plan['start'], min(n, plan['start'] + plan['ramp'] + SHIFT_OCC_EXTRA)
+        K = corrupt(K, [(s0, e0, [cank], plan['model'])], rng_for(seq_key(d), 'shift-damage'))
+    return K, G, delta @ R.T
+
+
+def run_foot_shift(a):
+    """XS on the shifted input of every case (cache), then variants on clean vs shifted input (paired)."""
+    from finetune_motionagformer_fit3d import mag_input
+    params = json.loads(a.params) if a.params else {}
+    model = dev = None; seqs = load_seqs(a); recs, inputs = [], []
+    for d in seqs:
+        clean = predict_rows(None, None, d['x'], [5], seq_key(d))[5]
+        conf0, unit0 = d['x'][..., 2], mag_input(d['K'])[1][:, 2] / 2
+        base = all_variants(clean, conf0, unit0, d, params, a.ema_alpha, a.lock_thr, a.variants)
+        mm = d['mm'][:, None] / 1000
+        for case in a.cases:
+            plan = shift_plan(d, case)
+            if plan is None: continue
+            path = f"{a.cache}/shift/{case}/{seq_key(d)}.npz"
+            K, G, dcam = apply_shift(d, plan, a)
+            if os.path.exists(path):
+                z = np.load(path); rows, xs, unit = z['rows'].astype(float), z['x'], z['unit'].astype(float)
+            else:
+                if model is None: model, dev = load_model(a)
+                xs, crops = mag_input(K); unit = crops[:, 2] / 2
+                rows, _ = rows_partial(model, dev, xs, np.abs(xs - d['x']).max((1, 2)) > 1e-7, clean)
+                os.makedirs(os.path.dirname(path), exist_ok=True); np.savez(path, rows=rows.astype(np.float32), x=xs, unit=unit.astype(np.float32))
+            sh = all_variants(rows, xs[..., 2], unit, d, params, a.ema_alpha, a.lock_thr, a.variants)
+            ank = LANK if plan['side'] == 'L' else RANK
+            sign = 1.0 if plan['side'] == 'L' else -1.0  # v = left - right ankle
+            dv_true = sign * dcam
+            end = plan['start'] + plan['ramp']; occ_end = end + SHIFT_OCC_EXTRA
+            W = dict(ramp=(plan['start'], end), W1=(end, occ_end), W2=(occ_end + 5, occ_end + 65))
+            vec = lambda Q: (Q[:, LANK] - Q[:, RANK]) * mm
+            dvA = vec(sh['A'][0]) - vec(base['A'][0])
+            for v in sh:
+                dv = vec(sh[v][0]) - vec(base[v][0])
+                P = to_metres(sh[v][0], d); err = np.linalg.norm(P[:, ank] - G[:, ank], axis=-1) * 1000
+                r = dict(group=d['group'], exercise=d['ex'], subj=d['subj'], cam=d['cam'], case=case, var=v, side=plan['side'],
+                         near=plan['side'] == d['side'], model=plan['model'] if plan['occl'] else None)
+                for w, (x0, x1) in W.items():
+                    x1 = min(x1, len(dv))
+                    if x1 - x0 < 3: continue
+                    tt = slice(x0, x1)
+                    r[f'supp_true_{w}'] = float(1 - (dv[tt] * dv_true[tt]).sum(-1).mean() / (dv_true[tt] ** 2).sum(-1).mean())
+                    den = (dvA[tt] ** 2).sum(-1).mean()
+                    r[f'supp_A_{w}'] = float(1 - (dv[tt] * dvA[tt]).sum(-1).mean() / den) if den > 1e-10 else None
+                    r[f'ank_err_{w}'] = float(err[tt].mean())
+                recs.append(r)
+        inputs.append(d['csv']); print(seq_key(d), flush=True)
+    summ, md = {}, ['억제율 = 1 − (Δv_변형·Δv)/|Δv|²: 1 = 이동을 완전히 지움, 0 = 그대로 따라감. 참 = 실제 이동 기준, A = XS 원출력이 본 이동 기준.', '',
+                    '| 묶음 | 케이스 | 운동 | 변형 | n | 억제(참) 이동 중 / W1 / W2 | 억제(A 대비) 이동 중 / W1 / W2 | 발목 오차 W1 / W2 mm |', '|---' * 8 + '|']
+    f = lambda rs, k: (lambda x: f'{np.mean(x):.2f}' if x else '-')([r[k] for r in rs if r.get(k) is not None])
+    for grp in dict.fromkeys(r['group'] for r in recs):
+        for case in a.cases:
+            for ex in list(EXERCISES) + ['all']:
+                for v in dict.fromkeys(r['var'] for r in recs):
+                    rs = [r for r in recs if r['group'] == grp and r['case'] == case and r['var'] == v and (ex == 'all' or r['exercise'] == ex)]
+                    if not rs: continue
+                    g = {k: float(np.mean([r[k] for r in rs if r.get(k) is not None])) for k in rs[0] if k.startswith(('supp', 'ank')) and any(r.get(k) is not None for r in rs)}
+                    summ[f'{grp}/{case}/{ex}/{v}'] = dict(n=len(rs), **g)
+                    md.append(f"| {grp} | {case} | {ex} | {v} | {len(rs)} | {f(rs, 'supp_true_ramp')} / {f(rs, 'supp_true_W1')} / {f(rs, 'supp_true_W2')} | "
+                              f"{f(rs, 'supp_A_ramp')} / {f(rs, 'supp_A_W1')} / {f(rs, 'supp_A_W2')} | {f(rs, 'ank_err_W1')} / {f(rs, 'ank_err_W2')} |")
+    out_j, out_m = Path(a.run_dir) / f'foot_shift_{a.tag}.json', Path(a.run_dir) / f'foot_shift_{a.tag}.md'
+    json.dump(dict(summary=summ, records=recs, params=params), open(out_j, 'w')); out_m.write_text('\n'.join(md) + '\n')
+    print(f'{len(recs)} records -> {out_m}')
+    write_manifest(a, inputs + [a.checkpoint], [out_j, out_m], dict(cases=a.cases, params=params, variants=a.variants, cache=a.cache))
+
+
+# ---------------------------------------------------------------- E1 setup measurement accuracy
+SETUP_WINDOW = 30
+WIDTH_ITEMS = ('feet_width', 'feet_width_shoulder', 'hand_width', 'grip_width')
+
+
+def item_series(P, ex, up):
+    from pose_feedback.body.exercise_setup import measure
+    rows = [measure(p, ex, up) for p in P]
+    return {k: np.array([np.nan if r.get(k) is None else r[k] for r in rows]) for k in rows[0]}
+
+
+def run_setup_measure(a):
+    """E1: setup items from XS (A raw, C constrained) vs mocap over the setup window; 2D pixel ratio; oracle-body
+    transfer; repeatability; rep-top drift (false cues against the session's own setup value); cm via oracle widths."""
+    from pose_feedback.body.exercise_setup import depth_share
+    from pose_feedback.body.form_metrics_3d import UP
+    seqs = load_seqs(a); recs, inputs = [], []
+    for d in seqs:
+        ex = d['ex']; f0 = d['seg'][0][0]; w = slice(max(0, f0 - SETUP_WINDOW), f0)
+        if f0 < SETUP_WINDOW // 2: continue
+        raw = predict_rows(None, None, d['x'], [5], seq_key(d))[5]
+        C, _ = v_constraints(raw, ex)
+        G = d['G']; Jw = d['J'][d['pick']]
+        dims = body_dims(Jw); hipw_cm, shw_cm, thigh_cm = (float(np.median(dims[k])) * 100 for k in ('hip_width', 'shoulder_width', 'thigh'))
+        srcs = {'xs_raw': item_series(raw, ex, UP), 'xs_c': item_series(C, ex, UP), 'gt': item_series(G, ex, d['up_c'])}
+        K = d['K']; px = lambda i, j: np.linalg.norm(K[:, i, :2] - K[:, j, :2], axis=-1)
+        two = {'feet_width': px(15, 16) / px(11, 12), 'feet_width_shoulder': px(15, 16) / px(5, 6), 'hand_width': px(9, 10) / px(5, 6), 'grip_width': px(9, 10) / px(5, 6)}
+        thigh_xs = (np.linalg.norm(raw[:, RHIP] - raw[:, RKNE], axis=-1) + np.linalg.norm(raw[:, LHIP] - raw[:, LKNE], axis=-1)) / 2
+        transfer = np.linalg.norm(raw[:, LANK] - raw[:, RANK], axis=-1) / (thigh_xs * hipw_cm / thigh_cm)
+        tops = [s_ for s_, _ in d['seg']]
+        rec = dict(group=d['group'], exercise=ex, subj=d['subj'], cam=d['cam'], view=float(d['view']), bin=d['bin'], items={})
+        for k in srcs['gt']:
+            g = float(np.nanmedian(srcs['gt'][k][w]))
+            r = dict(gt=g, depth=float(np.median([depth_share(p, k) for p in G[w]])))
+            for src in ('xs_raw', 'xs_c'):
+                v = srcs[src][k]
+                r[src] = float(np.nanmedian(v[w])); r[f'{src}_sd'] = float(np.nanstd(v[w]))
+                r[f'{src}_tops'] = [float(v[t]) for t in tops if np.isfinite(v[t])]
+            r['gt_tops'] = [float(srcs['gt'][k][t]) for t in tops]
+            if k in two: r['2d'] = float(np.nanmedian(two[k][w]))
+            if k == 'feet_width':
+                r['transfer'] = float(np.nanmedian(transfer[w]))
+                gt_cm = float(np.median(np.linalg.norm(G[w, LANK] - G[w, RANK], axis=-1))) * 100
+                r['cm'] = dict(gt=gt_cm, xs=r['xs_raw'] * hipw_cm, transfer=r['transfer'] * hipw_cm)
+            if k in ('hand_width', 'grip_width'):
+                gt_cm = float(np.median(np.linalg.norm(G[w, LWRI] - G[w, RWRI], axis=-1))) * 100
+                r['cm'] = dict(gt=gt_cm, xs=r['xs_raw'] * shw_cm)
+            rec['items'][k] = r
+        recs.append(rec); inputs.append(d['csv']); print(seq_key(d), flush=True)
+    # tolerance per item = 2 x median within-window SD of xs_raw on tuning subjects (prereg section 6)
+    tol = {}
+    for k in sorted({k for r in recs for k in r['items']}):
+        sds = [r['items'][k]['xs_raw_sd'] for r in recs if r['group'] == 'tuning' and k in r['items'] and np.isfinite(r['items'][k]['xs_raw_sd'])]
+        if sds: tol[k] = 2 * float(np.median(sds))
+    summ = dict(tolerance=tol, groups={})
+    md = ['허용폭(조정 피험자, 2 × 셋업 창 안 표준편차 중앙값): ' + ', '.join(f'{k} {v:.3f}' for k, v in tol.items()), '',
+          '| 묶음 | 운동 | 항목 | 시점 | n | 모캡 중앙값 | XS 오차 |중앙값| (p90) | XS+제약 | 2D 오차 | 체형 전이 오차 | 창 안 SD | 렙 꼭대기 오경보(같은 영상) | 다른 카메라 오경보 | cm 오차 XS / 전이 (모캡 cm 중앙값) |',
+          '|---' * 15 + '|']
+    for grp in ('tuning', 'heldout'):
+        for ex in EXERCISES:
+            items = sorted({k for r in recs if r['exercise'] == ex for k in r['items']})
+            for k in items:
+                for b in ['all'] + sorted({r['bin'] for r in recs}):
+                    rs = [r for r in recs if r['group'] == grp and r['exercise'] == ex and k in r['items'] and (b == 'all' or r['bin'] == b)]
+                    if not rs: continue
+                    it = [r['items'][k] for r in rs]
+                    e = np.array([abs(i['xs_raw'] - i['gt']) for i in it]); ec = np.array([abs(i['xs_c'] - i['gt']) for i in it])
+                    e2 = np.array([abs(i['2d'] - i['gt']) for i in it if '2d' in i]); et = np.array([abs(i['transfer'] - i['gt']) for i in it if 'transfer' in i])
+                    t_ = tol.get(k, float('nan'))
+                    fc = [abs(x - i['xs_raw']) > t_ for i in it for x in i['xs_raw_tops'][1:]]
+                    xc = []
+                    if b == 'all':
+                        for subj in {r['subj'] for r in rs}:
+                            vals = [r['items'][k]['xs_raw'] for r in rs if r['subj'] == subj]
+                            xc += [abs(u - v) > t_ for i_, u in enumerate(vals) for v in vals[i_ + 1:]]
+                    cm = [i['cm'] for i in it if 'cm' in i]
+                    g = dict(n=len(rs), gt_median=float(np.median([i['gt'] for i in it])), xs_abs_err_p50=float(np.median(e)), xs_abs_err_p90=float(np.percentile(e, 90)),
+                             xs_c_abs_err_p50=float(np.median(ec)), err_2d_p50=float(np.median(e2)) if len(e2) else None, transfer_err_p50=float(np.median(et)) if len(et) else None,
+                             sd_p50=float(np.median([i['xs_raw_sd'] for i in it])), false_cue_reptops=float(np.mean(fc)) if fc else None,
+                             false_cue_cross_cam=float(np.mean(xc)) if xc else None, depth_p50=float(np.median([i['depth'] for i in it])))
+                    if cm:
+                        g['cm_err_xs_p50'] = float(np.median([abs(c['xs'] - c['gt']) for c in cm])); g['cm_gt_p50'] = float(np.median([c['gt'] for c in cm]))
+                        if 'transfer' in cm[0]: g['cm_err_transfer_p50'] = float(np.median([abs(c['transfer'] - c['gt']) for c in cm]))
+                    summ['groups'][f'{grp}/{ex}/{k}/{b}'] = g
+                    fmt = lambda v, f_='{:.2f}': '-' if v is None else f_.format(v)
+                    md.append(f"| {grp} | {ex} | {k} | {b} | {g['n']} | {g['gt_median']:.2f} | {g['xs_abs_err_p50']:.2f} ({g['xs_abs_err_p90']:.2f}) | {g['xs_c_abs_err_p50']:.2f} | "
+                              f"{fmt(g['err_2d_p50'])} | {fmt(g['transfer_err_p50'])} | {g['sd_p50']:.3f} | {fmt(g['false_cue_reptops'], '{:.0%}')} | {fmt(g['false_cue_cross_cam'], '{:.0%}')} | "
+                              f"{fmt(g.get('cm_err_xs_p50'), '{:.1f}')} / {fmt(g.get('cm_err_transfer_p50'), '{:.1f}')} ({fmt(g.get('cm_gt_p50'), '{:.0f}')}) |")
+    out_j, out_m = Path(a.run_dir) / 'setup_measure.json', Path(a.run_dir) / 'setup_measure.md'
+    json.dump(dict(summary=summ, records=recs), open(out_j, 'w')); out_m.write_text('\n'.join(md) + '\n'); print('\n'.join(md[:2]))
+    write_manifest(a, inputs + [a.checkpoint], [out_j, out_m])
+
+
+# ---------------------------------------------------------------- E4 quality signals
+LIMB_PARENT = {2: 1, 3: 2, 5: 4, 6: 5, 12: 11, 13: 12, 15: 14, 16: 15, 11: 8, 14: 8}
+
+
+def auc(score, label):
+    """ROC AUC (Mann-Whitney, ties averaged): P(score of a positive > score of a negative)."""
+    from scipy.stats import rankdata
+    score, label = np.asarray(score, float), np.asarray(label, bool)
+    ok = np.isfinite(score); score, label = score[ok], label[ok]
+    npos, nneg = label.sum(), (~label).sum()
+    if npos == 0 or nneg == 0: return None
+    r = rankdata(score)
+    return float((r[label].sum() - npos * (npos + 1) / 2) / (npos * nneg))
+
+
+def run_signals(a):
+    from finetune_motionagformer_fit3d import mag_input
+    seqs = load_seqs(a); feats = {k: [] for k in ('conf', 'temporal', 'reproj', 'bone')}; err, jt, cond_of, inputs = [], [], [], []
+    J = sorted(LIMB_PARENT)
+    for d in seqs:
+        clean = predict_rows(None, None, d['x'], [5], seq_key(d))[5]
+        for cond in a.conditions:
+            if cond == 'clean':
+                raw, x, unit = clean, d['x'], mag_input(d['K'])[1][:, 2] / 2
+            else:
+                z = np.load(occl_path(a, d, cond)); raw, x, unit = z['rows'].astype(float), z['x'], z['unit'].astype(float)
+            lo, hi = set_range(d); X = raw * unit[:, None, None]
+            E = np.linalg.norm(to_metres(raw, d) - d['G'], axis=-1) * 1000
+            leg = np.median(np.linalg.norm(X[:, 1] - X[:, 2], axis=-1) + np.linalg.norm(X[:, 2] - X[:, 3], axis=-1))
+            acc = np.zeros_like(X[..., 0]); acc[2:] = np.linalg.norm(X[2:] - 2 * X[1:-1] + X[:-2], axis=-1) / leg
+            rp = np.linalg.norm((raw[:, :, :2] - raw[:, :1, :2]) - (x[:, :, :2] - x[:, :1, :2]), axis=-1)
+            bone = np.zeros_like(E)
+            for j, p_ in LIMB_PARENT.items():
+                Lj = np.linalg.norm(raw[:, j] - raw[:, p_], axis=-1); bone[:, j] = np.abs(Lj - np.median(Lj)) / np.median(Lj)
+            sl = slice(lo, hi)
+            feats['conf'].append(-x[sl][:, J, 2].ravel()); feats['temporal'].append(acc[sl][:, J].ravel())
+            feats['reproj'].append(rp[sl][:, J].ravel()); feats['bone'].append(bone[sl][:, J].ravel())
+            err.append(E[sl][:, J].ravel()); jt.append(np.tile(J, hi - lo)); cond_of.append(np.full((hi - lo) * len(J), cond))
+        inputs.append(d['csv']); print(seq_key(d), flush=True)
+    F = {k: np.concatenate(v) for k, v in feats.items()}; err = np.concatenate(err); jt = np.concatenate(jt); cond_of = np.concatenate(cond_of)
+    groups = {'all': np.ones_like(err, bool), 'ankle': np.isin(jt, [3, 6]), 'knee': np.isin(jt, [2, 5]), 'wrist': np.isin(jt, [13, 16]),
+              'elbow': np.isin(jt, [12, 15]), 'shoulder': np.isin(jt, [11, 14]), 'clean': cond_of == 'clean', 'occluded': cond_of != 'clean'}
+    summ, md = {}, ['| 표적 | 묶음 | 관절-프레임 | 양성 비율 | AUC 신뢰도 | 시간 잔차 | 재투영 불일치 | 뼈 길이 편차 |', '|---' * 8 + '|']
+    for thr in (100, 150):
+        for gname, m in groups.items():
+            lab = err[m] > thr
+            s_ = {k: auc(F[k][m], lab) for k in F}
+            summ[f'{thr}/{gname}'] = dict(n=int(m.sum()), pos=float(lab.mean()), **s_)
+            fa = lambda v: '-' if v is None else f'{v:.3f}'
+            md.append(f"| >{thr} mm | {gname} | {int(m.sum())} | {lab.mean():.1%} | " + ' | '.join(fa(s_[k]) for k in ('conf', 'temporal', 'reproj', 'bone')) + ' |')
+    out_j, out_m = Path(a.run_dir) / f'signals_{a.tag}.json', Path(a.run_dir) / f'signals_{a.tag}.md'
+    json.dump(summ, open(out_j, 'w'), indent=1); out_m.write_text('\n'.join(md) + '\n'); print('\n'.join(md))
+    write_manifest(a, inputs + [a.checkpoint], [out_j, out_m], dict(conditions=a.conditions, cache=a.cache))
+
+
+# ---------------------------------------------------------------- tuning (tuning subjects only, prereg section 2)
+_TUNE = {}
+
+
+def _tune_one(params):
+    """Pooled episode error of E with `params` over every cached condition of the tuning sequences + clean change."""
+    seqs, conds = _TUNE['seqs'], _TUNE['conds']; ep, clean_d = [], []
+    for d, clean, conf0, unit0 in seqs:
+        Q, _, _ = v_adaptive(clean, conf0, unit0, d['ex'], params); lo, hi = set_range(d)
+        E0 = np.linalg.norm(to_metres(clean, d) - d['G'], axis=-1) * 1000; E1 = np.linalg.norm(to_metres(Q, d) - d['G'], axis=-1) * 1000
+        clean_d.append(float(E1[lo:hi].mean() - E0[lo:hi].mean()))
+        for cond in conds:
+            z = _TUNE['occl'][(seq_key(d), cond)]
+            Q, inv, W = v_adaptive(z['rows'], z['conf'], z['unit'], d['ex'], params)
+            P = to_metres(Q, d); E = np.linalg.norm(P - d['G'], axis=-1) * 1000
+            for s_, e_, joints, *_ in z['eps']:
+                ep.append(float(E[s_:e_][:, [COCO2H[j] for j in joints]].mean()))
+    return dict(params=params, ep_err=float(np.mean(ep)), clean_delta=float(np.mean(clean_d)), n_ep=len(ep))
+
+
+def run_tune(a):
+    import itertools
+    from multiprocessing import Pool
+    from finetune_motionagformer_fit3d import mag_input
+    seqs = load_seqs(a); conds = [c for c in a.conditions if c != 'clean']; occl = {}; S = []
+    for d in seqs:
+        assert d['group'] == 'tuning', 'tune runs on tuning subjects only'
+        clean = predict_rows(None, None, d['x'], [5], seq_key(d))[5]
+        S.append((d, clean, d['x'][..., 2], mag_input(d['K'])[1][:, 2] / 2))
+        for cond in conds:
+            z = np.load(occl_path(a, d, cond))
+            occl[(seq_key(d), cond)] = dict(rows=z['rows'].astype(float), conf=z['x'][..., 2], unit=z['unit'].astype(float),
+                                            eps=[tuple(e) for e in json.loads(str(z['episodes']))])
+    _TUNE.update(seqs=S, conds=conds, occl=occl)
+    balls = [None, (0.08, 0.002), (0.15, 0.002)]
+    grid = [dict(reliable_conf=c, decay_frames=dc, max_gap_frames=g, **({} if b is None else dict(ball_base=b[0], ball_growth=b[1])))
+            for c, dc, g, b in itertools.product((0.4, 0.5, 0.6), (15.0, 45.0, 135.0), (45, 90, 180), balls)]
+    with Pool(a.jobs) as pool:
+        res = pool.map(_tune_one, grid)
+    # baselines on the same episodes: A (no change), B per alpha, B0 per threshold
+    base = {}
+    for name, fn in [('A', lambda d, r, c, u: r)] + [(f'B{al}', lambda d, r, c, u, al=al: v_ema(r, al)) for al in (0.3, 0.5, 0.7)] + \
+            [(f'B0_{th}', lambda d, r, c, u, th=th: v_lock(r, c, u, th)) for th in (0.4, 0.5, 0.6)]:
+        ep = []
+        for d, clean, conf0, unit0 in S:
+            for cond in conds:
+                z = occl[(seq_key(d), cond)]; P = to_metres(fn(d, z['rows'], z['conf'], z['unit']), d)
+                E = np.linalg.norm(P - d['G'], axis=-1) * 1000
+                ep += [float(E[s_:e_][:, [COCO2H[j] for j in joints]].mean()) for s_, e_, joints, *_ in z['eps']]
+        base[name] = float(np.mean(ep))
+    ok = [r for r in res if r['clean_delta'] <= 0.5]
+    best = min(ok, key=lambda r: r['ep_err']) if ok else None
+    md = [f"조정 피험자 {sorted({d['subj'] for d, *_ in S})}, 조건 {len(conds)}개, 가림 {res[0]['n_ep']}개. 기준선: " + ', '.join(f'{k} {v:.1f}' for k, v in base.items()),
+          f"선택(깨끗한 입력 변화 ≤ +0.5 mm 중 가림 관절 오차 최소): {json.dumps(best['params']) if best else '없음'}", '',
+          '| reliable_conf | decay | max_gap | ball | 가림 관절 오차 | 깨끗한 입력 MPJPE 변화 |', '|---|---|---|---|---|---|']
+    for r in sorted(res, key=lambda r: r['ep_err']):
+        q = r['params']
+        md.append(f"| {q['reliable_conf']} | {q['decay_frames']:.0f} | {q['max_gap_frames']} | {q.get('ball_base', '-')} | {r['ep_err']:.2f} | {r['clean_delta']:+.3f} |")
+    out_j, out_m = Path(a.run_dir) / 'tune.json', Path(a.run_dir) / 'tune.md'
+    json.dump(dict(results=res, baselines=base, best=best), open(out_j, 'w'), indent=1); out_m.write_text('\n'.join(md) + '\n'); print('\n'.join(md[:12]))
+    write_manifest(a, [d['csv'] for d, *_ in S] + [a.checkpoint], [out_j, out_m], dict(conditions=conds, cache=a.cache))
+
+
 def load_model(a):
     import torch
     from finetune_motionagformer_fit3d import load
@@ -456,7 +775,9 @@ def run_cache_clean(a):
 
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument('cmd', choices=['gt-relations', 'cache-clean', 'occlude', 'evaluate'])
+    p.add_argument('cmd', choices=['gt-relations', 'cache-clean', 'occlude', 'evaluate', 'foot-shift', 'setup-measure', 'signals', 'tune'])
+    p.add_argument('--jobs', type=int, default=4)
+    p.add_argument('--cases', type=lambda s: s.split(','), default=list(SHIFT_CASES))
     p.add_argument('--variants', type=lambda s: s.split(','), default=['A', 'B', 'B0', 'C', 'D', 'E', 'F', 'EC'])
     p.add_argument('--params', default='', help='JSON overrides of adaptive_relations.DEFAULTS (E / F / EC / D)')
     p.add_argument('--ema-alpha', type=float, default=0.5); p.add_argument('--lock-thr', type=float, default=0.5)
@@ -474,7 +795,8 @@ def main():
     a.checkpoint = a.checkpoint or f'{a.mag_repo}/checkpoint/motionagformer-xs-h36m.pth.tr'
     CACHE['dir'] = a.cache
     os.makedirs(a.run_dir, exist_ok=True)
-    {'gt-relations': run_gt_relations, 'cache-clean': run_cache_clean, 'occlude': run_occlude, 'evaluate': run_evaluate}[a.cmd](a)
+    {'gt-relations': run_gt_relations, 'cache-clean': run_cache_clean, 'occlude': run_occlude, 'evaluate': run_evaluate, 'foot-shift': run_foot_shift, 'setup-measure': run_setup_measure,
+     'signals': run_signals, 'tune': run_tune}[a.cmd](a)
 
 
 if __name__ == '__main__':

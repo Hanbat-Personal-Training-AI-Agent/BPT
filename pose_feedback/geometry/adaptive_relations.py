@@ -14,7 +14,8 @@ This is NOT a world-frame contact constraint - XS has no global position, so a s
     <= init_spread x body scale). Before that (setup) there is no constraint at all.
   - both observed: a small deviation (<= track_tol x scale) moves the reference slowly (EMA `beta`: gradual foot
     shifts are followed); reanchor_frames deviating frames in a row replace it (real motion: re-anchor, no snap back).
-  - one observed, the other not: the other joint becomes w * (anchor + reference) + (1 - w) * XS,
+  - one observed, the other not: the other joint becomes w * target + (1 - w) * XS, target = anchor + reference
+    (or, with ball_base set, XS pulled back onto a ball around it - only implausible XS guesses move),
     w = (1 - r) * exp(-gap / decay_frames), r = confidence ramp low_conf..reliable_conf, gap = frames since the joint
     was last observed. sigma^2 = spread^2 + growth * gap (x scale) is reported, never hidden.
   - gap > max_gap_frames: the relation no longer fills that joint (expired); with confidence < low_conf the joint is
@@ -40,7 +41,11 @@ RELATIONS = {
 }
 
 DEFAULTS = dict(reliable_conf=0.5, low_conf=0.3, init_frames=15, init_spread=0.10, track_tol=0.08, beta=0.05,
-                reanchor_frames=6, decay_frames=45.0, max_gap_frames=90, growth=0.0004, scale_window=300)
+                reanchor_frames=6, decay_frames=45.0, max_gap_frames=90, growth=0.0004, scale_window=300,
+                ball_base=None, ball_growth=0.0)
+# ball_base (fraction of the body scale) switches the fill from "replace" to "bounded": the unobserved joint keeps its
+# XS position when that is within ball_base + ball_growth * gap (x scale) of anchor + reference, and is only pulled back
+# onto that ball when XS puts it farther away - a plausible XS guess is never replaced, the ball grows with the gap.
 
 
 def _median(values):
@@ -140,7 +145,13 @@ class AdaptiveRelations:
             r = min(max((conf[other] - p["low_conf"]) / (p["reliable_conf"] - p["low_conf"]), 0.0), 1.0)
             w = (1.0 - r) * math.exp(-gap / p["decay_frames"])
             sigma = math.sqrt((st["spread"] / s) ** 2 + p["growth"] * gap)
-            estimates.setdefault(other, []).append((X[anchor] + sign * st["ref"], w, sigma))
+            target = X[anchor] + sign * st["ref"]
+            if p["ball_base"] is not None:
+                radius = (p["ball_base"] + p["ball_growth"] * gap) * s
+                off = X[other] - target
+                dist = float(np.linalg.norm(off))
+                target = X[other] if dist <= radius else target + off * (radius / dist)
+            estimates.setdefault(other, []).append((target, w, sigma))
         for j, est in estimates.items():
             w = sum(e[1] for e in est) / len(est)
             target = sum(e[0] for e in est) / len(est)
