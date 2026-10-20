@@ -21,8 +21,11 @@ Video-as-camera traces add `motion_estimator` and `pose3d_final` to each judged 
 | `BPT_MOTION_GRIP_CONFIRMED=1` | Explicit grip evidence; exercise name alone does not enable a grip constraint |
 | `BPT_MOTION_PROFILE=<path>` | Absolute or Documents-relative profile JSON |
 | `BPT_MOTION_ONLINE_CALIBRATION=1` | Collect uncertain proportions from the first 60 usable selected XS rows; default off |
+| `BPT_MOTION_LOG_DETAIL=0` or `1` | Logging only: 0 keeps estimator milliseconds, variant and invalid count; 1 also writes full numerical arrays (default 1 when enabled) |
 
 For an actual camera, recent CoreMotion acceleration above `0.03 g` or angular rate above `0.08 rad/s` vetoes contact evidence and resets temporal state. Freshness tolerance is `0.5 s`. These are engineering experiment settings. Low IMU motion does not prove absence of camera translation. Video playback does not use the phone IMU as evidence about the recorded camera.
+
+Device overhead comparisons should use the same build and input in three launches: estimator unset, estimator enabled with `BPT_MOTION_LOG_DETAIL=0`, and the same estimator with `BPT_MOTION_LOG_DETAIL=1`. The last comparison isolates the added numerical trace cost. Detail 0 does not construct the large estimator serialization dictionary or final-pose arrays; it does not change estimation or assessment.
 
 The profile loader requires `source_type` equal to `rgb_smpl_calibration` or `rgb_smpl_crossfit`, a nonempty `source_id`, finite `calibration_confidence` in `[0,1]`, and positive finite `bone_ratios` keyed by H36M parent-child index such as `"12-13"`. Ratios use thigh-plus-shank normalization. It rejects declared GT usage and `uses_evaluation_sequence=true`. Exact mocap targets and the historical `BPT_BONE_TARGETS` input are not personal calibration inputs for this experiment. The legacy target file is ignored whenever a motion experiment is selected.
 

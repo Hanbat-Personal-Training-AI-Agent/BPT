@@ -40,6 +40,9 @@ private enum CameraPreviewOptions {
     static let motionGripConfirmed = ProcessInfo.processInfo.environment["BPT_MOTION_GRIP_CONFIRMED"] == "1"
     static let motionProfile = ExerciseMotionCalibrationProfile.fromEnvironment()
     static let motionOnlineCalibration = ProcessInfo.processInfo.environment["BPT_MOTION_ONLINE_CALIBRATION"] == "1"
+    /// Separate estimator cost from full numerical trace cost in same-build device comparisons.
+    /// This changes logging only. Detailed traces remain the default for an enabled experiment.
+    static let motionLogDetail = ProcessInfo.processInfo.environment["BPT_MOTION_LOG_DETAIL"] != "0"
     /// RTMPose input: 3:4 person crop from the previous frame's keypoints (RTMPoseCropTracker).
     /// false = old input, whole frame stretched to 192×256 every frame.
     static let personCropInput = true
@@ -549,6 +552,7 @@ final class CameraPoseViewModel: ObservableObject {
                             "profile": profile?.provenance as Any? ?? NSNull(),
                             "profile_confidence": profile?.confidence ?? 0,
                             "online_calibration": CameraPreviewOptions.motionOnlineCalibration,
+                            "motion_log_detail": CameraPreviewOptions.motionLogDetail,
                             "legacy_bone_targets_ignored": VideoCameraOptions.boneTargetsCm != nil,
                             "legacy_bone_projection": !variant.usesSoftBones,
                             "coordinates": "image_height_root_relative_no_absolute_depth",
@@ -815,10 +819,17 @@ final class CameraPoseViewModel: ObservableObject {
                 "type": "frame", "frame": result.frameIndex, "state": frame3D.state.rawValue,
                 "timestamp": result.motionContext?.timestamp as Any? ?? NSNull(),
                 "capture_rotation": result.rotation.rawValue,
-                "invalid_for_assessment": Array(frame3D.invalidForAssessment).sorted(),
+                "invalid_for_assessment_count": frame3D.invalidForAssessment.count,
             ]
-            if let estimated = frame3D.motion { line["motion_estimator"] = estimated.dictionary }
-            if let pose = frame3D.pose3D {
+            if let estimated = frame3D.motion {
+                line["motion_estimator_ms"] = estimated.diagnostics["elapsed_ms"]
+                line["motion_estimator_variant"] = estimated.diagnostics["variant"]
+                if CameraPreviewOptions.motionLogDetail {
+                    line["motion_estimator"] = estimated.dictionary
+                    line["invalid_for_assessment"] = Array(frame3D.invalidForAssessment).sorted()
+                }
+            }
+            if CameraPreviewOptions.motionLogDetail, let pose = frame3D.pose3D {
                 line["pose3d_final"] = pose.map { p in [p.x, p.y, p.z].map { $0.isFinite ? $0 as Any : NSNull() } }
             }
             trace.write(line)
@@ -877,11 +888,16 @@ final class CameraPoseViewModel: ObservableObject {
                 line["bone_corr"] = (c.boneMaxCorrection * 1000).rounded() / 1000
             }
             if let estimated = frame3D.motion {
-                line["motion_estimator"] = estimated.dictionary
-                line["invalid_for_assessment"] = Array(frame3D.invalidForAssessment).sorted()
-                // The estimator output and the final gate/constraint output are distinct artifacts.
-                line["pose3d_final"] = frame3D.pose3D?.map { p in
-                    [p.x, p.y, p.z].map { $0.isFinite ? $0 as Any : NSNull() }
+                line["motion_estimator_ms"] = estimated.diagnostics["elapsed_ms"]
+                line["motion_estimator_variant"] = estimated.diagnostics["variant"]
+                line["invalid_for_assessment_count"] = frame3D.invalidForAssessment.count
+                if CameraPreviewOptions.motionLogDetail {
+                    line["motion_estimator"] = estimated.dictionary
+                    line["invalid_for_assessment"] = Array(frame3D.invalidForAssessment).sorted()
+                    // The estimator output and final gate/constraint output remain distinct artifacts.
+                    line["pose3d_final"] = frame3D.pose3D?.map { p in
+                        [p.x, p.y, p.z].map { $0.isFinite ? $0 as Any : NSNull() }
+                    }
                 }
             }
             log.write("judged", line)
