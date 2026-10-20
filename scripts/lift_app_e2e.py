@@ -45,8 +45,8 @@ def tree_sha(path):
 
 def run(a):
     binary = ROOT / "ios/CalibrationEngineKit/.build/release/pose-replay"
-    subprocess.run(["swift", "build", "-c", "release", "--product", "pose-replay", "--package-path",
-                    str(ROOT / "ios/CalibrationEngineKit")], check=True)
+    subprocess.run((["lockf", "-k", a.lock] if a.lock else []) + ["swift", "build", "-c", "release", "--product", "pose-replay",
+                    "--package-path", str(ROOT / "ios/CalibrationEngineKit"), "-j", "4"], check=True)
     in_dir, out_dir = Path(a.in_dir), Path(a.out_dir)
     stems = defaultdict(list)
     for csv in sorted(in_dir.glob("*_mcoco17.csv")):
@@ -57,19 +57,24 @@ def run(a):
             if csv.name.endswith(suffix):
                 stems[ex].append(csv.name[: -len(suffix)])
     commands = []
+    lock = ["lockf", "-k", a.lock, "nice", "-n", "10"] if a.lock else []
     for mode in a.modes.split(","):
         (out_dir / mode).mkdir(parents=True, exist_ok=True)
-        for ex, names in stems.items():
-            cmd = [str(binary), "--exercise", EXERCISES[ex], "--model", "mcoco17", "--keypoints-dir", str(in_dir),
-                   "--output-dir", str(out_dir / mode)] + MODES[mode]
-            if mode != "2d":
-                cmd += ["--motion3d", a.xs]
-            cmd += [f"{n}.mp4" for n in names]
-            t0 = time.time()
-            subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL)
-            commands.append({"mode": mode, "exercise": ex, "clips": len(names), "seconds": round(time.time() - t0, 1),
-                             "argv": cmd[:12] + ["..."]})
-            print(mode, ex, len(names), f"{time.time() - t0:.0f}s", flush=True)
+        for ex, all_names in stems.items():
+            # Batches (each holds the heavy lock only while it runs); a clip whose JSON exists is skipped (resume).
+            todo = [n for n in all_names if not (out_dir / mode / f"{n}_{ex}_mcoco17.json").exists()]
+            for i in range(0, len(todo), a.batch or len(todo) or 1):
+                names = todo[i:i + (a.batch or len(todo))]
+                cmd = [str(binary), "--exercise", EXERCISES[ex], "--model", "mcoco17", "--keypoints-dir", str(in_dir),
+                       "--output-dir", str(out_dir / mode)] + MODES[mode]
+                if mode != "2d":
+                    cmd += ["--motion3d", a.xs]
+                cmd += [f"{n}.mp4" for n in names]
+                t0 = time.time()
+                subprocess.run(lock + cmd, check=True, stdout=subprocess.DEVNULL)
+                commands.append({"mode": mode, "exercise": ex, "clips": len(names), "seconds": round(time.time() - t0, 1),
+                                 "argv": (lock + cmd)[:18] + ["..."]})
+                print(mode, ex, len(names), f"{time.time() - t0:.0f}s", flush=True)
     git = subprocess.run(["git", "-C", str(ROOT), "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
     dirty = bool(subprocess.run(["git", "-C", str(ROOT), "status", "--porcelain", "--untracked-files=no"],
                                 capture_output=True, text=True).stdout.strip())
@@ -125,6 +130,8 @@ def main():
     r.add_argument("out_dir")
     r.add_argument("--modes", default="2d,3d,3d_raw,3d_c2")
     r.add_argument("--xs", default=str(ROOT / "assets/coreml/motionagformer_xs.mlpackage"))
+    r.add_argument("--batch", type=int, default=0, help="clips per pose-replay call (0 = all); existing outputs are skipped")
+    r.add_argument("--lock", default="", help="run each call under lockf -k LOCK nice -n 10 (e.g. /tmp/bpt-heavy.lock)")
     s = sub.add_parser("summary")
     s.add_argument("out_dir")
     s.add_argument("out")
