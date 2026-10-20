@@ -274,6 +274,7 @@ def report(res):
     exs = list(EXERCISES)
     cols = ['A2D', 'A', 'B', 'C', 'Bw', 'Cw', 'floor']
     print('\n## joint-angle mean abs error (deg), frames inside reps')
+    print('| exercise | angle | A2D | A | B | C | Bw | Cw | floor |\n|' + '---|' * 9)
     for ex in exs:
         rows = [r for r in res if r['exercise'] == ex]
         if not rows: continue
@@ -284,15 +285,18 @@ def report(res):
                 vals.append(f'{np.mean(v):.1f}' if v else '-')
             print(f'| {ex} | {q} | ' + ' | '.join(vals) + ' |')
     print('\n## PA-MPJPE (mm)')
+    print('| exercise | A | B | C | floor |\n|' + '---|' * 5)
     for ex in exs:
         rows = [r for r in res if r['exercise'] == ex]
         if rows: print(f'| {ex} | ' + ' | '.join(f"{np.mean([r['pa_mpjpe_mm'][k] for r in rows if k in r['pa_mpjpe_mm']]):.1f}"
                                          if any(k in r['pa_mpjpe_mm'] for r in rows) else '-' for k in ('A', 'B', 'C', 'floor')) + ' |')
     print('\n## rep accuracy (simple counter, count_reps_3d_vs_2d.count)')
+    print('| exercise | GT | A2D | A | B | C | Bw | Cw | floor |\n|' + '---|' * 9)
     for ex in exs:
         rows = [r for r in res if r['exercise'] == ex]
-        if rows: print(f'| {ex} | ' + ' | '.join('-' if rep_acc(rows, k) is None else f'{100 * rep_acc(rows, k):.1f}%' for k in ['GT'] + cols[:6]) + ' |')
+        if rows: print(f'| {ex} | ' + ' | '.join('-' if rep_acc(rows, k) is None else f'{100 * rep_acc(rows, k):.1f}%' for k in ['GT'] + cols) + ' |')
     print('\n## decision agreement with GT: all reps / reps within ±5 of threshold')
+    print('| key | A2D | A | B | C | Bw | Cw |\n|' + '---|' * 7)
     for key in KEYS:
         d = decisions(res, key)
         print(f'| {key} | ' + ' | '.join(f'{d[k][0]}/{d[k][1]} ; {d[k][2]}/{d[k][3]}' if k in d else '-' for k in cols[:6]) + ' |')

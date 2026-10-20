@@ -9,8 +9,8 @@ Licences (read before using the output anywhere):
 
 Same stages as tools/demo/demo.py with --static_cam: YOLOv8x track -> ViTPose-H COCO17 -> HMR2 ViT features ->
 GVHMR network. Differences, all outside the network:
-  - the input is first re-encoded to 30 fps (GVHMR assumes 30 fps) with OpenCV, which applies the phone's
-    rotation metadata, so portrait iPhone clips arrive upright;
+  - the input is first re-encoded to 30 fps (GVHMR assumes 30 fps), rotated by the phone's rotation metadata
+    (neither OpenCV nor GVHMR's reader applies it), so portrait iPhone clips arrive upright;
   - crops go to the GPU batch by batch (demo puts the whole video's crops on the GPU);
   - half=True stores the ViTPose-H / HMR2 Linear weights in fp16 (computed in fp32, see `_half`) so they fit a
     3 GB GPU. Default: plain fp32 as upstream.
