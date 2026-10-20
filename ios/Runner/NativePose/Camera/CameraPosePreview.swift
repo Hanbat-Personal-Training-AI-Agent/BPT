@@ -658,6 +658,17 @@ final class CameraPoseViewModel: ObservableObject {
                 "eval_ms": (now - t0) * 1000, "wrists": [result.wristsReplaced.left, result.wristsReplaced.right],
             ]
             if let row = frame3D.row { line["row"] = row }
+            if let src = log.clipFrame(result.frameIndex) { line["src"] = src }
+            // RTMPose keypoints the evaluators used (frame px, 1 decimal) and the raw MediaPipe wrist per crop side, for
+            // the left/right analysis against the Exercise3D labels (scripts/ex3d_lr_swap_device.py).
+            line["kp"] = result.rawCoco17.flatMap { [($0.x * 10).rounded() / 10, ($0.y * 10).rounded() / 10,
+                                                     ($0.confidence * 1000).rounded() / 1000] }
+            var hands: [String: [Double]] = [:]
+            for hand in result.handResults {
+                if let w = hand.wristFramePoint { hands[hand.side.rawValue] = [(w.x * 10).rounded() / 10, (w.y * 10).rounded() / 10] }
+            }
+            if !hands.isEmpty { line["hands"] = hands }
+            line["size"] = [Int(result.imageWidth), Int(result.imageHeight)]
             if frame3D.state == .warmingUp { line["filled"] = frame3D.filled }
             if let c = frame3D.constraints {
                 line["invalid"] = Array(c.invalidJoints).sorted()

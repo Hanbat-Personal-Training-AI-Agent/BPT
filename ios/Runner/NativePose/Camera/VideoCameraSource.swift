@@ -39,6 +39,10 @@ enum VideoCameraOptions {
     /// (vImage, on the feeder thread — the camera does it in hardware, so the processing queue pays nothing extra) and
     /// shows the mirrored frame. BPT_CAMERA_VIDEO_MIRROR=0 feeds the clip as recorded.
     static let mirror = environment["BPT_CAMERA_VIDEO_MIRROR"] != "0"
+    /// Phone held in landscape while the capture connection stays portrait (CameraCaptureManager sets .portrait): the
+    /// scene reaches the pipeline rotated by 90°. BPT_CAMERA_VIDEO_ROTATE=90 | 270 rotates each frame clockwise by that
+    /// much (after mirroring) to emulate it; unset = as recorded.
+    static let rotate = Int(environment["BPT_CAMERA_VIDEO_ROTATE"] ?? "") ?? 0
 }
 
 // MARK: - Source
@@ -53,8 +57,11 @@ final class VideoCameraSource: @unchecked Sendable {
     private let lock = NSLock()
     private var cancelled = false
     private let mirror = VideoCameraOptions.mirror
+    private let rotate = VideoCameraOptions.rotate
     private var pool: CVPixelBufferPool?
     private var poolSize = (0, 0)
+    private var rotatePool: CVPixelBufferPool?
+    private var rotatePoolSize = (0, 0)
 
     init(urls: [URL], loops: Int, deliver: @escaping (CMSampleBuffer, CFTimeInterval) -> Bool,
          onFinish: @escaping () -> Void) {
@@ -109,6 +116,7 @@ final class VideoCameraSource: @unchecked Sendable {
         reader.add(output)
         reader.startReading()
         VideoRunLog.shared?.write("clip_start", ["clip": url.lastPathComponent, "loop": loop, "mirrored": mirror,
+                                                 "rotate": rotate,
                                                  "fps": Double(track.nominalFrameRate),
                                                  "size": [Int(track.naturalSize.width), Int(track.naturalSize.height)]])
         let clipStart = CACurrentMediaTime()
@@ -121,10 +129,14 @@ final class VideoCameraSource: @unchecked Sendable {
             let wait = due - CACurrentMediaTime()
             if wait > 0 { Thread.sleep(forTimeInterval: wait) }
             let arrival = CACurrentMediaTime()
-            let frame = mirror ? (mirrored(sampleBuffer) ?? sampleBuffer) : sampleBuffer
+            var frame = mirror ? (mirrored(sampleBuffer) ?? sampleBuffer) : sampleBuffer
+            if rotate != 0 { frame = rotated(frame, degrees: rotate) ?? frame }
             show(frame)
             frames += 1
-            if deliver(frame, arrival) { accepted += 1 }
+            if deliver(frame, arrival) {
+                accepted += 1
+                VideoRunLog.shared?.noteDelivered(clipFrame: frames - 1)
+            }
         }
         reader.cancelReading()
         VideoRunLog.shared?.write("clip_end", ["clip": url.lastPathComponent, "loop": loop, "frames": frames,
@@ -155,6 +167,48 @@ final class VideoCameraSource: @unchecked Sendable {
         var dst = vImage_Buffer(data: CVPixelBufferGetBaseAddress(target), height: vImagePixelCount(height),
                                 width: vImagePixelCount(width), rowBytes: CVPixelBufferGetBytesPerRow(target))
         let error = vImageHorizontalReflect_ARGB8888(&src, &dst, vImage_Flags(kvImageNoFlags))
+        CVPixelBufferUnlockBaseAddress(target, [])
+        CVPixelBufferUnlockBaseAddress(source, .readOnly)
+        guard error == kvImageNoError else { return nil }
+        var format: CMVideoFormatDescription?
+        CMVideoFormatDescriptionCreateForImageBuffer(allocator: nil, imageBuffer: target, formatDescriptionOut: &format)
+        var timing = CMSampleTimingInfo()
+        CMSampleBufferGetSampleTimingInfo(sampleBuffer, at: 0, timingInfoOut: &timing)
+        guard let format else { return nil }
+        var out: CMSampleBuffer?
+        CMSampleBufferCreateReadyWithImageBuffer(allocator: nil, imageBuffer: target, formatDescription: format,
+                                                 sampleTiming: &timing, sampleBufferOut: &out)
+        return out
+    }
+
+    /// Clockwise rotation by 90 / 180 / 270° into a pooled IOSurface BGRA buffer, same timing.
+    private func rotated(_ sampleBuffer: CMSampleBuffer, degrees: Int) -> CMSampleBuffer? {
+        guard let source = CMSampleBufferGetImageBuffer(sampleBuffer) else { return nil }
+        let width = CVPixelBufferGetWidth(source), height = CVPixelBufferGetHeight(source)
+        let quarter = ((degrees / 90) % 4 + 4) % 4
+        let (outW, outH) = quarter % 2 == 1 ? (height, width) : (width, height)
+        if rotatePool == nil || rotatePoolSize != (outW, outH) {
+            let attributes: [String: Any] = [
+                kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA,
+                kCVPixelBufferWidthKey as String: outW, kCVPixelBufferHeightKey as String: outH,
+                kCVPixelBufferIOSurfacePropertiesKey as String: [String: Any](),
+            ]
+            CVPixelBufferPoolCreate(nil, nil, attributes as CFDictionary, &rotatePool)
+            rotatePoolSize = (outW, outH)
+        }
+        guard let rotatePool else { return nil }
+        var target: CVPixelBuffer?
+        guard CVPixelBufferPoolCreatePixelBuffer(nil, rotatePool, &target) == kCVReturnSuccess, let target else { return nil }
+        CVPixelBufferLockBaseAddress(source, .readOnly)
+        CVPixelBufferLockBaseAddress(target, [])
+        var src = vImage_Buffer(data: CVPixelBufferGetBaseAddress(source), height: vImagePixelCount(height),
+                                width: vImagePixelCount(width), rowBytes: CVPixelBufferGetBytesPerRow(source))
+        var dst = vImage_Buffer(data: CVPixelBufferGetBaseAddress(target), height: vImagePixelCount(outH),
+                                width: vImagePixelCount(outW), rowBytes: CVPixelBufferGetBytesPerRow(target))
+        var black: [UInt8] = [0, 0, 0, 255]
+        let constant = UInt8([kRotate0DegreesClockwise, kRotate90DegreesClockwise, kRotate180DegreesClockwise,
+                              kRotate270DegreesClockwise][quarter])
+        let error = vImageRotate90_ARGB8888(&src, &dst, constant, &black, vImage_Flags(kvImageNoFlags))
         CVPixelBufferUnlockBaseAddress(target, [])
         CVPixelBufferUnlockBaseAddress(source, .readOnly)
         guard error == kvImageNoError else { return nil }
@@ -240,6 +294,21 @@ final class VideoRunLog: @unchecked Sendable {
     private var timer: DispatchSourceTimer?
     private var lastTick = CACurrentMediaTime()
     private var lastCPU = VideoRunLog.cpuSeconds()
+    /// Clip frame number of each delivered frame, in delivery order (= the app's processed frame index).
+    private var delivered: [Int] = []
+
+    func noteDelivered(clipFrame: Int) {
+        lock.lock()
+        delivered.append(clipFrame)
+        lock.unlock()
+    }
+
+    /// Clip frame number of the app's processed frame `index` (nil when unknown).
+    func clipFrame(_ index: Int) -> Int? {
+        lock.lock()
+        defer { lock.unlock() }
+        return delivered.indices.contains(index) ? delivered[index] : nil
+    }
 
     private init?() {
         let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
