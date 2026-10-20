@@ -580,6 +580,7 @@ final class CameraPoseViewModel: ObservableObject {
             "lookahead": CameraPreviewOptions.motion3DLookahead, "cadence": CameraPreviewOptions.motion3DCadence,
             "async": CameraPreviewOptions.motion3DAsync, "wrists_from_hands": CameraPreviewOptions.motion3DWristFromHands,
             "gravity": CameraPreviewOptions.motion3DGravity,
+            "forced_capture_rotation": CaptureRotation.forced.map { $0.rawValue as Any } ?? NSNull(),
             "enabled_feedback_keys": Array(formTracker?.common.enabledFeedbackKeys ?? []).sorted(),
             "form3d_required": formTracker?.common.form3DRequired ?? false,
             "reflect_flipped_knee": lifter?.constraints.reflectFlippedKnee ?? false,
@@ -758,6 +759,7 @@ final class CameraPoseViewModel: ObservableObject {
             log.count("judged")
             var line: [String: Any] = [
                 "frame": result.frameIndex, "arrival": log.rel(result.arrivedAt), "state": frame3D.state.rawValue,
+                "capture_rotation": result.rotation.rawValue,
                 "status": statusText, "rep": rep, "judge_ms": (now - result.arrivedAt) * 1000,
                 "eval_ms": (now - t0) * 1000, "wrists": [result.wristsReplaced.left, result.wristsReplaced.right],
             ]
