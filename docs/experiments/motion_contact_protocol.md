@@ -49,3 +49,9 @@ Primary metrics measure estimator output before existing hard constraints, prese
 Home only, conda Python, CPU at most2 threads and `nice -n15`. Existing C2/2D/det/e2e/C3/rules processes and locks remain untouched. Clean comparison reuses cached XS. Benchmark before additional real inference; report actual scope and timing. Immutable source snapshot, input inventory, protocol hash, per-sequence result files, per-frame Home-only arrays and final manifest permit continuation without duplicate completed work.
 
 This is an experiment. Failure, greater abstention or no improvement is a valid outcome; do not tune against held-out or silently enable a variant.
+
+## Observation-priority v2 addendum
+
+The user subsequently required trusted current observations to pass through unchanged. The v1 run remains frozen at source `83b20fa` / estimator `40e5edc` / protocol SHA256 `07a4addf5c3a3d6e827b92e888beb20300403e2d7c4163919ccd7c9231a6d222`. The v2 estimator is `b29e7c9`: G/H return current raw XS exactly for joints that pass reliability and coherence acceptance; prediction and soft corrections apply to uncertainty. A rejected joint cannot supply trusted relational evidence. Thresholds, pretrained weights, splits, damage schedules, scorers and calibration are unchanged.
+
+Freeze this addendum and the v2 source before the additional G/H clean and damaged evaluations. Evaluate G/H online and RGB-SMPL only, reusing the exact same clean/keypoint/RGB inference caches. Report v1/v2 separately. This is a user-directed policy change, not a parameter choice based on held-out results. The v2 run cannot establish that phase handling generally improves tracking, that confidence alone guarantees truth, or that XS preserves a true pose when its reliable 2D input still produces a biased 3D estimate.
