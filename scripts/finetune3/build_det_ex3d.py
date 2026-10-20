@@ -5,8 +5,11 @@ to the Sapiens2 triangulation, so pseudo labels, NOT ground truth) projected wit
 the same body-surface definition as build_det_fit3d.py (SMPL-X mesh on Fit3D). SMPL model = the official pkl of the fit's
 gender (read with stubs for chumpy / scipy.sparse, which are not needed for the arrays). P1 sequences for training,
 --eval-only allows P2 / P3 (held out, D-F3-02). Writes <out>/<seq>_<cam>_<frame>.jpg + COCO-format <out>/<name>.json.
---check prints, per sequence, the RMSE between the fit's SMPL joints and canonical_3d (arbitrary units -> m) to verify
-the frame / scale convention before any box is used.
+--check prints, per sequence, the median distance between the fit's SMPL joints and canonical_3d / scale (m) to verify
+the frame / scale convention before any box is used. Note: the fit (Exercise3D-Dataset-Pipeline tools/fit_smpl_sequence.py)
+minimises |joints * scale - canonical| and stores scale as "arbitrary_to_meters", so metres = canonical / scale; its
+reported per_frame_joint_rmse_m multiplies by scale instead of dividing (about 1/scale^2 = ~18x too small).
+QA per image: IoU between the mesh box and the tight box of the Sapiens2 keypoints (conf > 0.5).
 
 usage: build_det_ex3d.py --labels DIR --videos DIR --gt gt.json --smpl DIR --out DIR --name ex3d_p1 [--seqs ...] [--stride 10]
 """
@@ -78,6 +81,12 @@ def smpl_forward(m, betas, pose, transl):
     return v + transl[:, None], joints + transl[:, None]
 
 
+def iou_xyxy(a, b):
+    x0, y0, x1, y1 = max(a[0], b[0]), max(a[1], b[1]), min(a[2], b[2]), min(a[3], b[3])
+    i = max(0.0, x1 - x0) * max(0.0, y1 - y0)
+    return float(i / ((a[2] - a[0]) * (a[3] - a[1]) + (b[2] - b[0]) * (b[3] - b[1]) - i + 1e-9))
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--labels', required=True); ap.add_argument('--videos', required=True); ap.add_argument('--gt', required=True)
@@ -98,7 +107,7 @@ def main():
         V, Jt = smpl_forward(m, fit['betas'][0], pose, fit['transl'][fr])
         s = float(fit['scale_arbitrary_to_meters'])
         z = np.load(f'{L}/geometry/canonical_3d.npz'); names = list(z['joint_names'])
-        C = z['keypoints_3d'][fr].astype(float) * s
+        C = z['keypoints_3d'][fr].astype(float) / s  # metres = canonical / scale (see docstring)
         err = [np.nanmedian(np.linalg.norm(Jt[:, j] - C[:, names.index(n)], axis=-1)) for j, n in SMPL_TO_CANON.items()]
         report[seq] = dict(gender=gender, joint_err_m_median=round(float(np.median(err)), 3), frames=int(len(fr)))
         if a.check:
@@ -108,10 +117,11 @@ def main():
         ex = gt[seq]['exercise']
         for cam in ('cam1', 'cam2', 'cam3'):
             E = np.array(cg[cam]['extrinsic_world_to_camera']); K = np.array(cg[cam]['intrinsic_working_frame'])
+            lab = np.load(f'{L}/view/{cam}_pose_2d.npz')  # Sapiens2 2D (QA only: IoU of its keypoint box vs the mesh box)
             cap = cv2.VideoCapture(f'{a.videos}/{ex}/{seq}/{cam}.mp4')
             Wv, Hv = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
             k = max(Wv, Hv) / 1280.0  # working frame -> video px
-            Xc = (V / s) @ E[:, :3].T + E[:, 3]  # back to the gauge's arbitrary units, camera frame
+            Xc = (V * s) @ E[:, :3].T + E[:, 3]  # metres -> the gauge's arbitrary units (x scale), camera frame
             uv = (Xc[..., :2] / Xc[..., 2:3]) @ K[:2, :2].T + K[:2, 2]
             uv *= k
             want, t = dict(zip(fr.tolist(), range(len(fr)))), 0
@@ -122,15 +132,20 @@ def main():
                 if t in want:
                     i = want.pop(t); p = uv[i]
                     x0, y0 = np.clip(p.min(0), 0, [Wv - 1, Hv - 1]); x1, y1 = np.clip(p.max(0), 0, [Wv - 1, Hv - 1])
+                    kv = lab['valid_mask'][t] & (lab['confidence'][t] > 0.5)
+                    q = lab['keypoints_xy'][t][kv] * k
+                    kiou = iou_xyxy([x0, y0, x1, y1], [*q.min(0), *q.max(0)]) if len(q) >= 8 else None
                     name = f'{seq}_{cam}_{t:05d}.jpg'
                     cv2.imwrite(f'{a.out}/{name}', img, [cv2.IMWRITE_JPEG_QUALITY, 90])
                     iid = len(images) + 1
                     images.append(dict(id=iid, file_name=name, width=Wv, height=Hv, seq=seq, cam=cam, frame=t))
                     anns.append(dict(id=iid, image_id=iid, category_id=1, bbox=[float(x0), float(y0), float(x1 - x0), float(y1 - y0)],
                                      area=float((x1 - x0) * (y1 - y0)), iscrowd=0,
-                                     vis=float(((p >= 0) & (p < [Wv, Hv])).all(1).mean())))
+                                     vis=float(((p >= 0) & (p < [Wv, Hv])).all(1).mean()), sapiens_box_iou=kiou))
                 t += 1
             cap.release()
+        ious = [x['sapiens_box_iou'] for x in anns if x['sapiens_box_iou'] is not None and images[x['image_id'] - 1]['seq'] == seq]
+        report[seq]['mesh_vs_sapiens_box_iou_median'] = round(float(np.median(ious)), 3) if ious else None
         print(seq, report[seq], len(images), flush=True)
     if not a.check:
         json.dump(dict(images=images, annotations=anns, categories=[dict(id=1, name='person')], report=report),
