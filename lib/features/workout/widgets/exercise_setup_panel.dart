@@ -95,7 +95,7 @@ class ExerciseSetupPanel extends StatelessWidget {
 
   static String? qualityText(NativeSetupItem item, {required bool isKo}) {
     if (!item.measured) return isKo ? '측정 중' : 'Measuring';
-    if (item.quality == 'depth_estimated') return isKo ? '측면이라 추정치' : 'Side view — estimate';
+    if (item.quality == 'depth_estimated') return isKo ? '카메라 깊이 방향이라 추정치' : 'Along the camera depth — estimate';
     return null;
   }
 

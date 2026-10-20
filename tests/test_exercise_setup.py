@@ -51,3 +51,10 @@ def test_personal_reference_cue_and_depth_share():
     assert item["cue"] == "increase" and item["ref"] == 2.6
     side = ExerciseSetup("squat").update(standing(z_feet=0.6), np.full(17, 0.9))  # feet apart along the camera depth
     assert next(i for i in side["items"] if i["key"] == "feet_width")["quality"] == "depth_estimated"
+
+
+def test_torso_lean_seen_head_on_is_only_an_estimate():
+    P = standing()
+    P[8] = [0, -0.1, -0.49]  # trunk pointing at the camera (push-up seen from the front)
+    r = ExerciseSetup("squat").update(P, np.full(17, 0.9))
+    assert next(i for i in r["items"] if i["key"] == "torso_incline")["quality"] == "depth_estimated"

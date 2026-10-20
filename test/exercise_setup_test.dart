@@ -82,7 +82,7 @@ void main() {
     expect(ExerciseSetupPanel.valueText(NativeSetupItem.parse({'key': 'grip_width', 'value': 1.5, 'quality': 'good', 'approx': true})!, isKo: true),
         '어깨 너비의 1.5배');
     expect(ExerciseSetupPanel.qualityText(NativeSetupItem.parse({'key': 'feet_width', 'value': 1.2, 'quality': 'depth_estimated'})!, isKo: true),
-        '측면이라 추정치');
+        '카메라 깊이 방향이라 추정치');
   });
 
   test('calibration result -> body profile (joint-centre cm, L/R averaged) and personal references', () async {

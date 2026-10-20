@@ -113,6 +113,8 @@ struct ExerciseSetup {
     static let widthVectors: [String: [(Int, Int)]] = [
         "feet_width": [(rAnkle, lAnkle), (rHip, lHip)], "feet_width_shoulder": [(rAnkle, lAnkle), (rShoulder, lShoulder)],
         "hand_width": [(rWrist, lWrist), (rShoulder, lShoulder)], "grip_width": [(rWrist, lWrist), (rShoulder, lShoulder)],
+        // Trunk lean seen head-on lies along the depth (E1b Exercise3D front views 15–34° off vs 1–4° from the side).
+        "torso_incline": [(pelvis, thorax)],
     ]
 
     let exercise: FormExercise
