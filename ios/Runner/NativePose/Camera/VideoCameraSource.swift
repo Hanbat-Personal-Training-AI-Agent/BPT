@@ -12,6 +12,9 @@ import UIKit
 ///   BPT_CAMERA_VIDEO=<file>[,<file>…]   paths relative to the app's Documents (or absolute)
 ///   BPT_CAMERA_VIDEO_LOOPS=N            play the list N times (default 1; thermal runs loop)
 ///   BPT_FEEDBACK_ALL_KEYS=1             NON-DEFAULT: every warning key reaches Flutter (what the user WOULD get)
+///   BPT_BONE_TARGETS=<file>             the clip subject's bone lengths for Pose3DConstraints (a calibration result /
+///                                       boneLengthData JSON, BoneLengthConstraint.loadTargets), Documents-relative or
+///                                       absolute; one subject per launch (the driver launches once per clip)
 ///
 /// The clip is decoded to BGRA (AVAssetReader) and paced at its own timestamps; every frame goes to the preview
 /// (AVSampleBufferDisplayLayer, so preview cost is included) and to the camera manager's frame entry with the same
@@ -33,6 +36,15 @@ enum VideoCameraOptions {
     static var isActive: Bool { !clips.isEmpty }
     static let loops = max(1, Int(environment["BPT_CAMERA_VIDEO_LOOPS"] ?? "") ?? 1)
     static let allFeedbackKeys = environment["BPT_FEEDBACK_ALL_KEYS"] == "1"
+    /// nil = the app default (session median / population prior, as without a calibration result).
+    static let boneTargetsCm: [String: Double]? = {
+        guard let name = environment["BPT_BONE_TARGETS"], !name.isEmpty else { return nil }
+        let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let url = name.hasPrefix("/") ? URL(fileURLWithPath: name) : documents.appendingPathComponent(name)
+        guard let data = try? Data(contentsOf: url), let targets = try? BoneLengthConstraint.loadTargets(json: data),
+              !targets.isEmpty else { return nil }
+        return targets
+    }()
 }
 
 // MARK: - Source
