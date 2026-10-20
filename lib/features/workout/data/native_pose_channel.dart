@@ -2,13 +2,14 @@
 /// 네이티브 쪽: ios/Runner/NativePose/Bridge/WorkoutSessionBridge.swift.
 ///
 /// 네이티브 → Flutter
-/// - `onPoseUpdate` {rep, status, done}
+/// - `onPoseUpdate` {rep, status, done, pose3d?, setup?} — setup 은 실험용 준비 자세 확인(BPT_EXERCISE_SETUP)일 때만
 /// - `onFeedback` {key, n?, scope: "rep"|"set"} → 답으로 {text, lang} 을 돌려주면 네이티브가 그 대사를
 ///   말한다 (대사 원문은 kori_feedback_lines.dart 에만 둔다). null 이면 말하지 않는다.
 /// - `onSetEnd` {setIndex, videoLocalPath?, worstJoint?}
 ///
 /// Flutter → 네이티브
 /// - `setVoiceMuted` {muted}, `startSet` {setIndex}, `endSet` {setIndex}
+/// - (실험용 준비 자세) `resetSetup`, `setSetupVariant` {variant, reference?}
 library;
 
 import 'kori_feedback_lines.dart';
@@ -22,6 +23,8 @@ class NativePoseChannel {
   static const String setVoiceMuted = 'setVoiceMuted';
   static const String startSet = 'startSet';
   static const String endSet = 'endSet';
+  static const String resetSetup = 'resetSetup';
+  static const String setSetupVariant = 'setSetupVariant';
 }
 
 /// `onFeedback` 인자. `isSetScope` = 세트 끝 요약(참고 등급, n = 세트 안 렙 수).
@@ -88,5 +91,102 @@ class NativePose3DStatus {
       default:
         return null;
     }
+  }
+}
+
+/// `onPoseUpdate` 의 `setup` 한 항목 (ExerciseSetupBridge.payload). value 는 같은 프레임의 관절 중심 너비에 대한
+/// 비율(또는 몸통 기울기 °)이다. quality: good | low | missing | depth_estimated(측면 — XS 깊이 추정).
+class NativeSetupItem {
+  const NativeSetupItem({
+    required this.key,
+    required this.quality,
+    this.value,
+    this.required = false,
+    this.depth = 0,
+    this.ref,
+    this.cue,
+    this.approx = false,
+  });
+
+  final String key;
+  final String quality;
+  final double? value;
+  final bool required;
+  final double depth;
+
+  /// 사용자가 저장한 내 기준 값 (없으면 null — 그때는 조정 안내도 없다).
+  final double? ref;
+
+  /// increase | decrease | null (내 기준 허용 범위 안).
+  final String? cue;
+
+  /// grip_width: 손목 중심 간격이라 그립(바 접촉) 너비의 근사.
+  final bool approx;
+
+  /// 숫자를 보여도 되는 관측 품질 (low / missing 은 숫자 없이 "측정 중").
+  bool get measured => value != null && (quality == 'good' || quality == 'depth_estimated');
+
+  static NativeSetupItem? parse(Object? raw) {
+    if (raw is! Map || raw['key'] is! String || raw['quality'] is! String) return null;
+    return NativeSetupItem(
+      key: raw['key'] as String,
+      quality: raw['quality'] as String,
+      value: (raw['value'] as num?)?.toDouble(),
+      required: raw['required'] == true,
+      depth: (raw['depth'] as num?)?.toDouble() ?? 0,
+      ref: (raw['ref'] as num?)?.toDouble(),
+      cue: raw['cue'] as String?,
+      approx: raw['approx'] == true,
+    );
+  }
+}
+
+/// `onPoseUpdate` 의 `setup` — 실험용 개인화 준비 자세 확인 (네이티브 ExerciseSetup.swift).
+/// phase: unavailable | measuring | holding | ready. ready 는 "관측이 안정적"이라는 뜻이지 올바른 자세 판정이 아니다.
+class NativeSetupStatus {
+  const NativeSetupStatus({
+    required this.phase,
+    this.exercise,
+    this.variant,
+    this.progress = 0,
+    this.moving = false,
+    this.items = const [],
+    this.snapshot,
+  });
+
+  final String phase;
+  final String? exercise;
+  final String? variant;
+  final double progress;
+  final bool moving;
+  final List<NativeSetupItem> items;
+
+  /// ready 순간의 항목 값 (내 기준으로 저장할 값).
+  final Map<String, double>? snapshot;
+
+  bool get isReady => phase == 'ready';
+
+  static NativeSetupStatus? parse(Object? arguments) {
+    if (arguments is! Map) return null;
+    final p = arguments['setup'];
+    if (p is! Map || p['phase'] is! String) return null;
+    final snap = p['snapshot'];
+    return NativeSetupStatus(
+      phase: p['phase'] as String,
+      exercise: p['exercise'] as String?,
+      variant: p['variant'] as String?,
+      progress: (p['progress'] as num?)?.toDouble() ?? 0,
+      moving: p['moving'] == true,
+      items: [
+        for (final raw in (p['items'] as List?) ?? const [])
+          if (NativeSetupItem.parse(raw) case final item?) item,
+      ],
+      snapshot: snap is Map
+          ? {
+              for (final e in snap.entries)
+                if (e.key is String && e.value is num) e.key as String: (e.value as num).toDouble(),
+            }
+          : null,
+    );
   }
 }

@@ -14,8 +14,10 @@ import '../../../core/widgets/app_toast.dart';
 import '../../../data/mock_data.dart';
 import '../../home/providers/home_provider.dart';
 import '../../../services/kori_voice_service.dart';
+import '../../onboarding/services/calibration_result_store.dart';
 import '../data/kori_feedback_lines.dart';
 import '../data/native_pose_channel.dart';
+import '../widgets/exercise_setup_panel.dart';
 
 /// Preparation phases shown before the native camera PlatformView appears.
 enum _PrepPhase { alignHint, countdown, live }
@@ -92,6 +94,14 @@ class _NativePoseWorkoutScreenState
   String? _feedbackKey;
   // 실시간 3D 상태 (onPoseUpdate.pose3d). null = 3D 경로 없음.
   NativePose3DStatus? _pose3d;
+
+  // 실험용 개인화 준비 자세 (--dart-define=BPT_EXERCISE_SETUP=true 일 때만, 기본 꺼짐). 첫 세트 첫 렙 전까지 패널을 띄운다.
+  static const bool _setupEnabled = CalibrationResultStore.enabled;
+  NativeSetupStatus? _setupStatus;
+  String _setupVariant = 'bodyweight';
+  Map<String, double> _setupReference = const {};
+  Map<String, double>? _bodyProfile;
+  bool _setupDismissed = false;
   int? _feedbackCount;
   bool _nativeFeedbackActive = false;
   int _badCountThisSet = 0;
@@ -149,6 +159,52 @@ class _NativePoseWorkoutScreenState
   void initState() {
     super.initState();
     _alignTimer = Timer(_alignHintDuration, _startCountdown);
+    if (_setupEnabled) _loadSetup();
+  }
+
+  // ── 실험용 준비 자세 (BPT_EXERCISE_SETUP) ─────────────────────────────────
+  Future<void> _loadSetup() async {
+    final store = CalibrationResultStore.instance;
+    final profile = await store.bodyProfile();
+    final reference = await store.loadReference(widget.exerciseId, _setupVariant);
+    if (!mounted) return;
+    setState(() {
+      _bodyProfile = profile;
+      _setupReference = reference;
+    });
+    // 카메라 뷰가 먼저 만들어졌으면 기준을 네이티브에 다시 알려 준다.
+    _channel?.invokeMethod<void>(NativePoseChannel.setSetupVariant, {'variant': _setupVariant, 'reference': reference});
+  }
+
+  Map<String, Object> get _setupCreationParams => {
+        'exerciseSetup': true,
+        'setupVariant': _setupVariant,
+        'setupReference': _setupReference,
+        if (_bodyProfile != null) 'bodyProfile': _bodyProfile!,
+      };
+
+  void _resetSetup() {
+    _channel?.invokeMethod<void>(NativePoseChannel.resetSetup);
+    setState(() => _setupStatus = null);
+  }
+
+  Future<void> _saveSetupReference() async {
+    final snapshot = _setupStatus?.snapshot;
+    if (snapshot == null) return;
+    await CalibrationResultStore.instance.saveReference(widget.exerciseId, _setupVariant, snapshot);
+    if (!mounted) return;
+    setState(() => _setupReference = snapshot);
+    _channel?.invokeMethod<void>(NativePoseChannel.setSetupVariant, {'variant': _setupVariant, 'reference': snapshot});
+  }
+
+  Future<void> _changeSetupVariant(String variant) async {
+    final reference = await CalibrationResultStore.instance.loadReference(widget.exerciseId, variant);
+    if (!mounted) return;
+    setState(() {
+      _setupVariant = variant;
+      _setupReference = reference;
+    });
+    _channel?.invokeMethod<void>(NativePoseChannel.setSetupVariant, {'variant': variant, 'reference': reference});
   }
 
   void _startCountdown() {
@@ -190,6 +246,10 @@ class _NativePoseWorkoutScreenState
       final pose3d = NativePose3DStatus.parse(args);
       if (pose3d != null && mounted && (pose3d.state != _pose3d?.state || pose3d.filled != _pose3d?.filled)) {
         setState(() => _pose3d = pose3d);
+      }
+      if (_setupEnabled) {
+        final setup = NativeSetupStatus.parse(args);
+        if (setup != null && mounted) setState(() => _setupStatus = setup);
       }
       _onNativeUpdate(rep);
     } else if (call.method == 'onFeedback') {
@@ -519,7 +579,10 @@ class _NativePoseWorkoutScreenState
         if (_isSupportedExercise && _isIOS)
           UiKitView(
             viewType: NativePoseWorkoutScreen.viewType,
-            creationParams: {'exerciseId': widget.exerciseId},
+            creationParams: {
+              'exerciseId': widget.exerciseId,
+              if (_setupEnabled) ..._setupCreationParams,
+            },
             creationParamsCodec: const StandardMessageCodec(),
             onPlatformViewCreated: _onPlatformViewCreated,
           )
@@ -542,6 +605,27 @@ class _NativePoseWorkoutScreenState
                 isPaused: _isPaused,
                 onTogglePause: _togglePause,
                 onEnd: _confirmEnd,
+              ),
+            ),
+          ),
+        if (_setupEnabled && !_setupDismissed && _currentSet == 1 && _latestNativeRep == 0 && !_setComplete && !_workoutComplete)
+          Positioned(
+            left: 12,
+            right: 12,
+            top: 150,
+            child: SafeArea(
+              child: ExerciseSetupPanel(
+                isKo: isKo,
+                exerciseId: widget.exerciseId,
+                exerciseName: exerciseName,
+                status: _setupStatus,
+                variant: _setupVariant,
+                bodyProfile: _bodyProfile,
+                hasReference: _setupReference.isNotEmpty,
+                onVariantChanged: _changeSetupVariant,
+                onReset: _resetSetup,
+                onSaveReference: _saveSetupReference,
+                onDismiss: () => setState(() => _setupDismissed = true),
               ),
             ),
           ),
