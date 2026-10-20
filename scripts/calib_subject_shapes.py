@@ -2,9 +2,12 @@
 (server/calibration_modal/fitting.py), on a local CPU. Evaluation only: nothing is uploaded anywhere.
 
   photos    a few standing frames per subject from several synchronized camera views, picked with the app's own
-            RTMPose-m 2D (pose-replay CSV): shoulders..ankles confidence >= 0.5, both knees and hips >= 165 deg, trunk
-            <= 12 deg from the image vertical, in every camera at once for >= 10 frames; the middle frame of the first
-            and of the last such run (>= 2 s apart) of each sequence, all cameras of each instant.
+            RTMPose-m 2D (pose-replay CSV): shoulders, hips, knees, ankles confidence >= 0.5 (arms may hold a bar), both
+            knees and hips >= 160 deg, trunk <= 15 deg from the image vertical, in at least two cameras at once for >= 10
+            frames; the middle frame of the first and of the last such run (>= 2 s apart) of each sequence, every camera
+            that sees the person standing at that instant. A sequence with no standing instant (bent-over rows that start
+            in the bent position) falls back to frames with those joints confident (tag suffix "~any_pose"). At most
+            --max-photos per subject, evenly spaced.
   per photo person box from the keypoints (fitting.person_box), the camera's own intrinsics (Fit3D frames are
             undistorted with its distortion model first), SAM 3D Body inference_type="body" -> MHR mesh.
   identity  MHR -> SMPL with MHR's converter, single_identity=True: one β for all photos of the subject (fitting.py 3).
@@ -13,8 +16,11 @@
             missing height changes nothing there except through the proportions; segments_h<H> (β projected to
             H cm) measure how much that step would move them.
   out       <out>/subjects.json {subject: {beta, segments_cm (body.bone_lengths_cm, H36M), segments_h160/170/180,
-            photos, timings}} + manifest.json. Per-subject lengths are body measurements of real people (Fit3D,
-            Exercise3D): they stay on this machine, never in git or reports (aggregates only).
+            photos, timings}} + manifest.json, and what the app / pose-replay read: <out>/targets/<subject>.json
+            ({"boneLengthData": {"segments": cm, "appDefinitionDiffers": [...]}}, = a calibration result, for
+            BPT_BONE_TARGETS) and <out>/targets/byclip.json ({"byClip": {<sequence or subject prefix>: that}}, for
+            pose-replay --bone-targets). Per-subject lengths are body measurements of real people (Fit3D, Exercise3D):
+            they stay on this machine (device runs copy them over USB), never in git or reports (aggregates only).
 
 The reprojection refinement (fitting.py step 4) is skipped: with refine_beta=False it moves pose / translation only,
 so it cannot change β or the lengths.
@@ -34,11 +40,13 @@ sys.path[:0] = [str(REPO / 'server/calibration_modal'), str(REPO / 'scripts')]
 import body  # noqa: E402  (the server's own β -> H36M -> length code)
 
 # The user's person split (docs/decisions.md D-B-01; Exercise3D has no subject ids, SUBJECT_MAPPING_UNAVAILABLE).
-EX3D_SUBJECTS = {'P1': ['squat_0000', 'squat_0001', 'squat_0003', 'barbellrow_0000', 'barbellrow_0002'],
+EX3D_SUBJECTS = {'P1': ['squat_0000', 'squat_0001', 'squat_0003', 'barbellrow_0000', 'barbellrow_0002',
+                        'pushup_0000', 'pushup_0001', 'pushup_0002', 'pushup_0003', 'pushup_0004'],
                  'P2': ['squat_0002', 'barbellrow_0003'], 'P3': ['barbellrow_0001']}
+# Photos come from the standing exercises; push-ups (all P1) never stand and only take the subject's lengths.
 EX3D_FILE = {'squat': 'squat', 'barbellrow': 'barbell_row'}
 FIT3D_EXERCISES = ('squat', 'barbell_row')
-REQUIRED = list(range(5, 17))
+REQUIRED = [5, 6, 11, 12, 13, 14, 15, 16]
 
 
 def sha256(path):
@@ -65,7 +73,21 @@ def standing(K):
     hips = np.minimum(interior(K[:, 5, :2], K[:, 11, :2], K[:, 13, :2]), interior(K[:, 6, :2], K[:, 12, :2], K[:, 14, :2]))
     trunk = (K[:, 5, :2] + K[:, 6, :2]) / 2 - (K[:, 11, :2] + K[:, 12, :2]) / 2
     tilt = np.degrees(np.arctan2(np.abs(trunk[:, 0]), -trunk[:, 1]))
-    return ok & (knees >= 165) & (hips >= 165) & (tilt <= 12)
+    return ok & (knees >= 160) & (hips >= 160) & (tilt <= 15)
+
+
+def confident(K):
+    return (K[:, REQUIRED, 2] >= 0.5).all(1)
+
+
+def pick_instants(Ks, fps):
+    """[(t, cams, fallback)] from the per-camera standing masks (>= 2 cameras at once), else confident frames."""
+    for test, fallback in ((standing, False), (confident, True)):
+        n = min(len(k) for k in Ks.values())
+        masks = {cam: test(k[:n]) for cam, k in Ks.items()}
+        ts = instants(np.sum(list(masks.values()), 0) >= 2, fps)
+        if ts: return [(t, [c for c in Ks if masks[c][t]], fallback) for t in ts]
+    return []
 
 
 def instants(mask, fps, min_run=10, min_gap_s=2.0):
@@ -92,10 +114,9 @@ def fit3d_photos(a, subj):
             csv = glob.glob(f'{a.replay}/{subj}/{cam}/{ex}_*coco17.csv')
             if csv: Ks[cam] = read_csv(csv[0])
         if len(Ks) < 2: continue
-        n = min(len(k) for k in Ks.values())
-        mask = np.all([standing(k[:n]) for k in Ks.values()], 0)
-        for t in instants(mask, fps=50):
-            for cam, K in Ks.items():
+        for t, cams, fallback in pick_instants(Ks, fps=50):
+            for cam in cams:
+                K = Ks[cam]
                 c = json.load(open(f'{a.root}/train/{subj}/camera_parameters/{cam}/{ex}.json'))
                 w, wo = c['intrinsics_w_distortion'], c['intrinsics_wo_distortion']
                 Kd = np.array([[w['f'][0][0], 0, w['c'][0][0]], [0, w['f'][0][1], w['c'][0][1]], [0, 0, 1]])
@@ -107,7 +128,7 @@ def fit3d_photos(a, subj):
                 img = cv2.cvtColor(cv2.undistort(frame, Kd, dist, newCameraMatrix=Ku), cv2.COLOR_BGR2RGB)
                 kp = K[t].copy()
                 kp[:, :2] = cv2.undistortPoints(kp[:, None, :2].astype(np.float64), Kd, dist, P=Ku)[:, 0]
-                photos.append((img, kp, (Ku[0, 0], Ku[1, 1], Ku[0, 2], Ku[1, 2]), f'{ex}/{cam}/{t}'))
+                photos.append((img, kp, (Ku[0, 0], Ku[1, 1], Ku[0, 2], Ku[1, 2]), f'{ex}/{cam}/{t}' + ('~any_pose' if fallback else '')))
     return photos
 
 
@@ -119,10 +140,9 @@ def ex3d_photos(a, seqs):
         meta = json.load(open(f'{a.labels}/{seq}/geometry/metadata.json'))
         cg = meta['camera_geometry']; cg = ast.literal_eval(cg) if isinstance(cg, str) else cg
         Ks = {cam: read_csv(f'{a.csv}/{seq}/{cam}_{EX3D_FILE[ex]}_mcoco17.csv') for cam in ('cam1', 'cam2', 'cam3')}
-        n = min(len(k) for k in Ks.values())
-        mask = np.all([standing(k[:n]) for k in Ks.values()], 0)
-        for t in instants(mask, fps=30):
-            for cam, K in Ks.items():
+        for t, cams, fallback in pick_instants(Ks, fps=30):
+            for cam in cams:
+                K = Ks[cam]
                 cap = cv2.VideoCapture(f'{a.videos}/{ex}/{seq}/{cam}.mp4')
                 cap.set(cv2.CAP_PROP_POS_FRAMES, int(t)); ok, frame = cap.read(); cap.release()
                 if not ok: continue
@@ -130,7 +150,7 @@ def ex3d_photos(a, seqs):
                 M = np.array(cg[cam]['intrinsic_working_frame']); wh, ww = cg[cam]['working_frame_hw']
                 s = W / ww  # working frame -> this video (same aspect)
                 photos.append((cv2.cvtColor(frame, cv2.COLOR_BGR2RGB), K[t], (M[0, 0] * s, M[1, 1] * s, M[0, 2] * s, M[1, 2] * s),
-                               f'{seq}/{cam}/{t}'))
+                               f'{seq}/{cam}/{t}' + ('~any_pose' if fallback else '')))
     return photos
 
 
@@ -196,6 +216,7 @@ def main():
     p.add_argument('--root'); p.add_argument('--replay'); p.add_argument('--subjects', type=lambda s: s.split(','))
     p.add_argument('--videos'); p.add_argument('--csv'); p.add_argument('--labels')
     p.add_argument('--out', required=True); p.add_argument('--threads', type=int, default=10)
+    p.add_argument('--max-photos', type=int, default=12)
     p.add_argument('--weights', default=os.path.expanduser('~/models/sam-3d-body-dinov3'))
     p.add_argument('--sam3db-src', default=os.path.expanduser('~/models/src/sam-3d-body'))
     p.add_argument('--conversion', default=os.path.expanduser('~/models/src/MHR/tools/mhr_smpl_conversion'))
@@ -203,14 +224,27 @@ def main():
     a = p.parse_args()
     os.makedirs(a.out, exist_ok=True)
     jobs = ({s: (lambda s=s: fit3d_photos(a, s)) for s in a.subjects} if a.source == 'fit3d'
-            else {s: (lambda q=q: ex3d_photos(a, q)) for s, q in EX3D_SUBJECTS.items() if not a.subjects or s in a.subjects})
+            else {s: (lambda q=q: ex3d_photos(a, [x for x in q if not x.startswith('pushup')]))
+                  for s, q in EX3D_SUBJECTS.items() if not a.subjects or s in a.subjects})
     cal, out = Calibrator(a), {}
+    targets_dir = Path(a.out) / 'targets'; targets_dir.mkdir(exist_ok=True)
     try:
         for subj, photos in jobs.items():
             ph = photos()
-            print(subj, len(ph), 'photos', flush=True)
+            if len(ph) > a.max_photos:  # evenly spaced over the sequences / instants / cameras
+                ph = [ph[int(i)] for i in np.linspace(0, len(ph) - 1, a.max_photos).round()]
+            print(subj, len(ph), 'photos', [p[3] for p in ph], flush=True)
             if ph: out[subj] = cal(ph)
             json.dump(out, open(Path(a.out) / 'subjects.json', 'w'), indent=1)
+            if subj in out:
+                seg = out[subj]['segments_cm']
+                doc = {'boneLengthData': {'segments': seg, 'appDefinitionDiffers': [k for k in seg if body.app_definition_differs(k)]},
+                       'subject': subj, 'source': 'calib_subject_shapes.py (SAM 3D Body -> MHR->SMPL single identity, no height)'}
+                json.dump(doc, open(targets_dir / f'{subj}.json', 'w'), indent=1)
+                keys = EX3D_SUBJECTS[subj] if a.source == 'ex3d' else [subj]
+                by = json.load(open(targets_dir / 'byclip.json'))['byClip'] if (targets_dir / 'byclip.json').exists() else {}
+                by.update({k: doc for k in keys})
+                json.dump({'byClip': by}, open(targets_dir / 'byclip.json', 'w'), indent=1)
     finally:
         cal.pkl.unlink(missing_ok=True)
     weights = [f'{a.weights}/model.ckpt', f'{a.weights}/assets/mhr_model.pt', f'{a.weights}/model_config.yaml', a.smpl]
