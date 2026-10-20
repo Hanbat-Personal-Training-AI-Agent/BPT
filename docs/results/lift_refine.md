@@ -43,6 +43,9 @@ MediaPipe 손목 교체 전체의 판정: 2D 손목 오차와 XS 3D 손목 오�
 | 몸 오버레이 손목 | `CameraPosePreview.processFrame` | 오버레이 = XS 입력 2D(받아들인 손목만). 이전엔 crop에서 찾은 손을 거르기 전에 그렸다(`useMediaPipeWristFor2DBodyOverlay`, 삭제) | – |
 | 오버레이 모양 | `Overlays/PoseOverlayRenderer.swift`(옛 HandOverlayRenderer) | **몸만**(어깨·팔·몸통·엉덩이·다리): 빛나는 선(넓은 흐린 선 2겹 + 본선 + 밝은 중심선, 둥근 끝), 신뢰도 0.3 미만 관절·연결은 그리지 않음. 얼굴·머리·목·손(crop 상자 포함)은 그리지 않음(사용자 3차 피드백). 표시 전용 One-Euro 평활(`OverlaySmoother`) | – |
 | 자세에 따른 연속 색(사용자 2·3차 피드백) | `OverlayRule.table` / `FormWarningTracker.liveSeverity()` / `OverlaySeverityTrack`(FormWarnings.swift) | 기본은 **연두 #9BE15D**(문제 없음·이 단계/시점에 해당 규칙 없음·기준선 전). 연결마다 그 연결로 재는 규칙의 프레임 지표로 severity = clamp((값−정상)/(임계값−정상), 0, 1) → 연두 → 주황 → 빨강 #FF5A4E. 임계값은 트래커 설정에서 그대로 읽음(바꾸지 않음). 렙 극값 규칙(깊이·락아웃·당김)은 해당 단계에서만. 3D가 불확실(준비 중·추적 끊김·불량 → 모든 연결, 필요한 관절이 partial/저신뢰 → 그 규칙의 연결)하면 **흐린 연두(불투명도 0.4), 빨강은 안 됨**. 머리 규칙은 판정·음성만(칠할 연결 없음). 200 ms 평활 | – |
+| 실제 판정 칭찬 `praise_good`(사용자 18:45) | FormWarningTracker.deliver / kori_feedback_lines.dart | 렙이 쓸 수 있는 데이터로 판정되고(3D 필요 시 렙의 모든 프레임 3D ok, 핵심 지표 있음) 울린 키가 없을 때만 “좋아, 잘하고 있어!”. 경고·praise_fixed 렙엔 안 냄, 3렙 쿨다운, 판정 못 한 렙엔 아무것도 안 냄. main 화면이 음성으로도 말함 | 키 끄기(enabledFeedbackKeys) |
+| 말풍선 제목 | native_pose_workout_screen.dart | real-feedback의 “자세 확인 중 · n/목표회”를 되돌려 첫 피드백 전까지 원래 대기 문구(사용자: “n/m회는 애초에 없었잖아”) | – |
+| 시험 모드 판정 자막 | CameraPosePreview / `FormRepReport.debugCaption` | `BPT_CAMERA_VIDEO`일 때만: 직전 렙 번호, 판정 원천·3D 상태 수, 울린 키 전부(참고·로그 표시), Flutter로 보낸 키, 운동별 핵심 지표 1–2개 | 일반 실행은 없음 |
 | 발 고정 | – | 범위 변경으로 ai/setup-constraint 담당. 이 브랜치에는 코드 없음 | – |
 
 Flutter 3D 상태 안내 배너는 그대로(팀원 화면 안 건드림). 실제 앱에서 캘리브레이션 결과는 지금 가져오지 않는다(D-M-01로 main의 분석 화면을 써서 작업 조회가 없음) → 제품 경로 연결은 막혀 있고, 그 화면은 바꾸지 않았다.
