@@ -260,15 +260,16 @@ final class PushUpEvaluator {
         readyPose = ReadyPoseGate(holdFrames: config.readyPoseHoldFrames, tolerance: config.readyPoseTolerance)
     }
 
-    /// `pose3D`: MotionAGFormer H36M17 selected3D when available (form metrics only; nil in the live app).
-    func evaluate(frameIndex: Int, coco17: [PoseKeypoint], pose3D: [SIMD3<Double>]? = nil) -> PushUpFrameResult {
+    /// `pose3D` / `pose3DState`: MotionAGFormerLive 3D and state of this frame (form judgement; FormWarningTracker).
+    func evaluate(frameIndex: Int, coco17: [PoseKeypoint], pose3D: [SIMD3<Double>]? = nil,
+                  pose3DState: Pose3DState? = nil) -> PushUpFrameResult {
         sideViewFixes = config.sideViewRepFixes && formTracker.sideView != false
         let measurements = computeMeasurements(coco17: coco17)
         let rawCandidate = classifyRawStatusCandidate(measurements)
         let previousStatus = stableStatus
         var status = updateStableStatus(rawCandidate: rawCandidate, measurements: measurements)
         updateTopBaselineIfNeeded(status: status, measurements: measurements)
-        formTracker.observe(frameIndex: frameIndex, coco17: coco17, pose3D: pose3D, phase: status.rawValue)
+        formTracker.observe(frameIndex: frameIndex, coco17: coco17, pose3D: pose3D, pose3DState: pose3DState, phase: status.rawValue)
         readyPose.update(atStartPose: status == .top, value: measurements.avgElbowAngleDegrees)
         let repUpdate = updateRepState(
             frameIndex: frameIndex,

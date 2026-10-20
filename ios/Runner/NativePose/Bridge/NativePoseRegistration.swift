@@ -8,7 +8,22 @@ enum NativePoseRegistration {
     /// Kept alive for the app's lifetime; see [KoriVoiceChannel].
     private static var koriVoice: KoriVoiceChannel?
 
+    /// Test-only (ai/lift-app device runs): BPT_AUTOSTART_WORKOUT / BPT_AUTOSTART_REPS from the launch environment go to
+    /// shared_preferences (`flutter.` prefix) for lib/core/router/app_router.dart; every other launch removes them.
+    private static func handOverAutostart() {
+        let env = ProcessInfo.processInfo.environment, defaults = UserDefaults.standard
+        if let workout = env["BPT_AUTOSTART_WORKOUT"], !workout.isEmpty {
+            defaults.set(workout, forKey: "flutter.bpt_autostart_workout")
+            defaults.set(env["BPT_AUTOSTART_REPS"] ?? "", forKey: "flutter.bpt_autostart_reps")
+        } else {
+            defaults.removeObject(forKey: "flutter.bpt_autostart_workout")
+            defaults.removeObject(forKey: "flutter.bpt_autostart_reps")
+        }
+    }
+
     static func register(with registry: FlutterPluginRegistry) {
+        VideoRunLog.shared?.write("app_registered", [:])  // test-only breadcrumb (video-as-camera launches)
+        handOverAutostart()
         if let registrar = registry.registrar(forPlugin: "KoriVoiceChannel") {
             koriVoice = KoriVoiceChannel(messenger: registrar.messenger())
         }

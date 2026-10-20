@@ -89,6 +89,8 @@ class _NativePoseWorkoutScreenState
   // 코리 피드백: 네이티브 판정이 `onFeedback` 으로 보낸 대사 키만 보여준다
   // (kori_feedback_lines.dart). 첫 피드백 전에는 운동별 기본 팁을 보여준다.
   String? _feedbackKey;
+  // 실시간 3D 상태 (onPoseUpdate.pose3d). null = 3D 경로 없음.
+  NativePose3DStatus? _pose3d;
   int? _feedbackCount;
   int _badCountThisSet = 0;
   final Set<String> _warningKeysThisSet = {};
@@ -182,6 +184,10 @@ class _NativePoseWorkoutScreenState
     if (call.method == 'onPoseUpdate') {
       final args = (call.arguments as Map).cast<String, dynamic>();
       final rep = (args['rep'] as num?)?.toInt() ?? _latestNativeRep;
+      final pose3d = NativePose3DStatus.parse(args);
+      if (pose3d != null && mounted && (pose3d.state != _pose3d?.state || pose3d.filled != _pose3d?.filled)) {
+        setState(() => _pose3d = pose3d);
+      }
       _onNativeUpdate(rep);
     } else if (call.method == NativePoseChannel.onFeedback) {
       // { key: 'squat_shallow', n?: 3, scope: 'rep'|'set' } — key는 kori_feedback_lines.dart 목록 기준.
@@ -539,6 +545,15 @@ class _NativePoseWorkoutScreenState
               ),
             ),
           ),
+        if (!_setComplete && !_workoutComplete && _pose3d?.message(isKo: isKo) != null)
+          Positioned(
+            left: 16,
+            right: 16,
+            top: 96,
+            child: SafeArea(
+              child: _Pose3DBanner(text: _pose3d!.message(isKo: isKo)!),
+            ),
+          ),
         // TODO(temp): 디버그 빌드에서만 보이는 테스트 버튼. 실제 기기 카메라
         // 연동 검증이 끝나면 제거할 것.
         if (kDebugMode && !_setComplete && !_workoutComplete)
@@ -827,6 +842,8 @@ class _LiveHud extends StatelessWidget {
           child: _KoriFeedbackRow(
             isKo: isKo,
             exerciseId: exerciseId,
+            repsDone: reps,
+            repsTarget: targetReps,
             feedbackKey: feedbackKey,
             feedbackCount: feedbackCount,
           ),
@@ -974,7 +991,7 @@ class _SoundToggleButtonState extends State<_SoundToggleButton> {
 
 /// 코리 피드백 말풍선. [feedbackKey] 대사를 보여주고, null이면 운동별 기본 팁.
 class _KoriFeedbackRow extends StatelessWidget {
-  // 첫 rep이 잡히기 전 기본 상태에서 운동별로 보여주는 한 줄 주의사항.
+  // 피드백 대사가 없을 때 운동별로 보여주는 한 줄 주의사항.
   static const Map<String, String> _idleTipsKo = {
     'squat': '무릎이 발끝 방향을 향하게 해줘',
     'benchpress': '가슴까지 천천히 바를 내려줘',
@@ -993,11 +1010,15 @@ class _KoriFeedbackRow extends StatelessWidget {
   const _KoriFeedbackRow({
     required this.isKo,
     required this.exerciseId,
+    required this.repsDone,
+    required this.repsTarget,
     required this.feedbackKey,
     required this.feedbackCount,
   });
   final bool isKo;
   final String exerciseId;
+  final int repsDone;
+  final int repsTarget;
   final String? feedbackKey;
   final int? feedbackCount;
 
@@ -1014,7 +1035,11 @@ class _KoriFeedbackRow extends StatelessWidget {
       characterAsset = 'assets/images/character/considering.png';
       bubbleColor = AppColors.purple;
       textColor = AppColors.black;
-      title = isKo ? '준비되면 시작해보자!' : "Start whenever you're ready!";
+      title = repsDone > 0
+          ? (isKo
+              ? '자세 확인 중 · $repsDone/$repsTarget회'
+              : 'Checking your form · $repsDone/$repsTarget')
+          : (isKo ? '준비되면 시작해보자!' : "Start whenever you're ready!");
       subtitle = isKo
           ? (_idleTipsKo[exerciseId] ?? _idleTipsKo['squat']!)
           : (_idleTipsEn[exerciseId] ?? _idleTipsEn['squat']!);
@@ -2222,4 +2247,28 @@ class _ConfettiPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_ConfettiPainter old) => false;
+}
+
+/// 실시간 3D 상태 안내 (3D를 쓸 수 없을 때만 보임).
+class _Pose3DBanner extends StatelessWidget {
+  const _Pose3DBanner({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.topCenter,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.6),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          child: Text(text, style: const TextStyle(color: Colors.white, fontSize: 13)),
+        ),
+      ),
+    );
+  }
 }

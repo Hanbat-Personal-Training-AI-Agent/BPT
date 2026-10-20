@@ -117,6 +117,7 @@ final class CalibrationVoice: NSObject {
         wav.append(contentsOf: Array("data".utf8)); append(dataSize.littleEndian)
         samples.withUnsafeBytes { wav.append(contentsOf: $0) }
         let player = try? AVAudioPlayer(data: wav)
+        player?.volume = WorkoutDebugFlags.outputVolume  // 0 only in test-only muted launches
         player?.prepareToPlay()
         return player
     }
