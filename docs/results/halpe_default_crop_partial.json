@@ -1,0 +1,68 @@
+[
+  {
+    "clip": "w20_s3",
+    "encoding": "mmfit_mac",
+    "status": "completed original-encoding crop counterfactual only; other encodings pending",
+    "H_own": {
+      "reps": 1,
+      "frames": 863,
+      "full_frame_inputs": 808,
+      "crops_in_missing": null,
+      "source_sha256": "03c3b1c31bd8b9fb4c62db4ffeae88fc02665f981023d03fe96c829ac216ffc6"
+    },
+    "C_own": {
+      "reps": 10,
+      "frames": 863,
+      "full_frame_inputs": 26,
+      "crops_in_missing": null,
+      "source_sha256": "22cfd5deddaa38a173e22c933426c495a1a25e096ed16b7a7e70cb6736d4ff5c"
+    },
+    "H_on_C_crop": {
+      "reps": 10,
+      "frames": 863,
+      "full_frame_inputs": 26,
+      "crops_in_missing": 0,
+      "source_sha256": "bfd0bb0348fbe1326f818d6ddc5e22a4076343cd77ff76b49b1ba70ccded65a6"
+    },
+    "C_on_H_crop": {
+      "reps": 0,
+      "frames": 863,
+      "full_frame_inputs": 808,
+      "crops_in_missing": 0,
+      "source_sha256": "0f12a41236bad72e5a78598c27aba624b4103d6357b7ddfc49f187834a7c33c2"
+    }
+  },
+  {
+    "clip": "w20_s2",
+    "encoding": "mmfit_mac",
+    "status": "completed original-encoding crop counterfactual only; other encodings pending",
+    "H_own": {
+      "reps": 8,
+      "frames": 768,
+      "full_frame_inputs": 178,
+      "crops_in_missing": null,
+      "source_sha256": "3335bdadbc2a81267cf35d55b96cc87e3e5e828404c9cb6683396f627b508969"
+    },
+    "C_own": {
+      "reps": 10,
+      "frames": 768,
+      "full_frame_inputs": 1,
+      "crops_in_missing": null,
+      "source_sha256": "8272c8c8598229f3f3bf470fc591a66aa7bd48deefa9b8f6ebf8b1d0edaa6db7"
+    },
+    "H_on_C_crop": {
+      "reps": 10,
+      "frames": 768,
+      "full_frame_inputs": 1,
+      "crops_in_missing": 0,
+      "source_sha256": "92629e4bf4c16586cc52a517fc16a54dce9236af7dc682f73054c9f816c47e55"
+    },
+    "C_on_H_crop": {
+      "reps": 8,
+      "frames": 768,
+      "full_frame_inputs": 178,
+      "crops_in_missing": 0,
+      "source_sha256": "30690fbf80ef52d7b01313967b4c39a7ac1071b4d1988978486fb44bab2ff710"
+    }
+  }
+]
