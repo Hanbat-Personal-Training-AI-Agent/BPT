@@ -142,13 +142,22 @@ final class FormWarningsTests: XCTestCase {
         return tracker.finishRep(repIndex: frame / 2 + 1)
     }
 
-    func testFeedbackOffByDefaultPerKeyFlag() {
+    func testFeedbackDefaultAndPerKeyFlag() {
         XCTAssertEqual(RTMPoseModel.active, .coco17)
-        let tracker = FormWarningTracker(exercise: .pushUp)
-        XCTAssertEqual(tracker.common.enabledFeedbackKeys, ["setup_full_body", "tracking_lost"])
-        XCTAssertEqual(FormWarningTracker(exercise: .squat).common.enabledFeedbackKeys, ["setup_full_body", "tracking_lost"])
+        // Default: every key with a Flutter line is sent (bench press / deadlift keys wait for theirs).
+        let delivered = FormWarningTracker.allKeys.subtracting(FormWarningTracker.keysWithoutFlutterLines)
+        XCTAssertEqual(FormWarningTracker(exercise: .squat).common.enabledFeedbackKeys, delivered)
         XCTAssertEqual(FormWarningTracker(exercise: .barbellRow).common.enabledFeedbackKeys,
-                       ["setup_full_body", "tracking_lost", "setup_side_view"])
+                       delivered.union(["setup_side_view"]))
+        let defaultTracker = FormWarningTracker(exercise: .pushUp)
+        XCTAssertEqual(defaultTracker.common.enabledFeedbackKeys, delivered)
+        _ = pushUpRep(defaultTracker, hipDrop: 0, frame: 0)
+        _ = pushUpRep(defaultTracker, hipDrop: 70, frame: 2)
+        XCTAssertEqual(defaultTracker.drainEvents().map(\.key), ["pushup_hip_sag"], "sent by default")
+
+        // A key left out is still judged and logged, just not sent.
+        let tracker = FormWarningTracker(exercise: .pushUp)
+        tracker.common.enabledFeedbackKeys = ["setup_full_body", "tracking_lost"]
         _ = pushUpRep(tracker, hipDrop: 0, frame: 0)
         let sag = pushUpRep(tracker, hipDrop: 70, frame: 2)
         XCTAssertEqual(sag.warnings, ["pushup_hip_sag"], "still judged and logged")
@@ -363,8 +372,9 @@ final class FormWarningsTests: XCTestCase {
         XCTAssertEqual(tracker.endSet(), [:], "counts are per set")
         XCTAssertEqual(tracker.drainEvents(), [])
         XCTAssertEqual(tracker.warningRepCounts["pushup_no_lockout"], 2, "session counts stay")
-        // Default keys: judged and counted, but nothing is sent.
+        // Keys turned off: judged and counted, but nothing is sent.
         let quiet = FormWarningTracker(exercise: .pushUp)
+        quiet.common.enabledFeedbackKeys = ["setup_full_body", "tracking_lost"]
         for i in 0..<3 { _ = pushUpRep(quiet, hipDrop: 0, frame: i * 2) }
         quiet.observe(frameIndex: 6, coco17: sidePushUp(hipDrop: 0, elbowBend: 30), phase: "top")
         quiet.beginRep()

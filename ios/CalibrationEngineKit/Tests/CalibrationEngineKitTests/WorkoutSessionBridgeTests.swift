@@ -19,13 +19,9 @@ final class WorkoutSessionBridgeTests: XCTestCase {
         return lines
     }
 
-    /// Bench press / deadlift keys (track G, all off): their lines are drafted in
-    /// docs/progress/2026-10-10.md for the teammate who owns kori_feedback_lines.dart. Remove a key from
-    /// here once its line is in the dart file; it must stay off (`enabledFeedbackKeys`) until then.
-    static let keysAwaitingDartLines: Set<String> = [
-        "bench_hips_up", "bench_shallow", "bench_no_lockout",
-        "deadlift_hips_first", "deadlift_no_lockout", "deadlift_lean_back",
-    ]
+    /// Keys whose dart line does not exist yet (`FormWarningTracker.keysWithoutFlutterLines`); remove a key
+    /// there once its line is in the dart file. They must stay off (`enabledFeedbackKeys`) until then.
+    static let keysAwaitingDartLines = FormWarningTracker.keysWithoutFlutterLines
 
     func testSwiftKeysMatchDartLines() throws {
         let dart = try dartLines()
@@ -53,8 +49,9 @@ final class WorkoutSessionBridgeTests: XCTestCase {
                        "hip", "tie: rule order")
         XCTAssertNil(FeedbackJoint.worst(setCounts: [:], enabled: all, ruleOrder: order))
         XCTAssertNil(FeedbackJoint.worst(setCounts: ["setup_full_body": 4], enabled: all, ruleOrder: order + ["setup_full_body"]))
-        // App default (no form key on) → always null today.
-        XCTAssertNil(FeedbackJoint.worst(setCounts: ["squat_shallow": 5], enabled: FormCommonConfig().enabledFeedbackKeys, ruleOrder: order))
+        // App default: form keys are on, so the set's worst joint is reported.
+        XCTAssertEqual(FeedbackJoint.worst(setCounts: ["squat_shallow": 5], enabled: FormCommonConfig().enabledFeedbackKeys, ruleOrder: order),
+                       "knee")
     }
 
     func testVoiceQueue() {

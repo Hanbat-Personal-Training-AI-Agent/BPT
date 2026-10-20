@@ -19,9 +19,10 @@ import simd
 // reps, praise_fixed once when the key spoken on the previous rep is gone. Fired keys that were not
 // chosen stay in the report / log / set counts (worstJoint) only.
 //
-// Nothing reaches Flutter unless its key is in `FormCommonConfig.enabledFeedbackKeys` (default:
-// setup_full_body, tracking_lost, plus setup_side_view for the row; every form warning is log only): rules still run and every would-be warning stays in `FormRepReport.warnings`,
-// the session log and pose-replay (which enables every key).
+// Nothing reaches Flutter unless its key is in `FormCommonConfig.enabledFeedbackKeys` (default since
+// 2026-10-20, user: every key that has a Flutter line; bench press / deadlift keys wait for theirs): rules
+// still run for disabled keys and every would-be warning stays in `FormRepReport.warnings`, the session
+// log and pose-replay (which enables every key). Thresholds are still unvalidated (임시값).
 //
 // Every threshold is TEMPORARY (임시값 — 테스트 영상으로 조정); tune with
 //   swift run -c release --package-path ios/CalibrationEngineKit pose-replay --exercise <name> <video>
@@ -54,10 +55,10 @@ struct FormCommonConfig {
     /// Forward/back (nose x vs ear x) flips only after this many agreeing frames. 임시값 — 테스트 영상으로 조정
     var facingFlipFrames = 5
     /// onFeedback keys sent to Flutter (scope "rep" or "set"), per key, e.g. ["pushup_hip_sag", "praise_fixed"].
-    /// Default: only the tracking guidance (setup_full_body, tracking_lost); form warnings are judged
-    /// and logged only. The barbell row tracker also adds setup_side_view (its side-view gate).
-    /// `FormWarningTracker.allKeys` turns everything on.
-    var enabledFeedbackKeys: Set<String> = ["setup_full_body", "tracking_lost"]
+    /// Default: the real judgement reaches the user (2026-10-20, user: "데모 경고 빼고 실제 우리 파이프라인대로
+    /// 평가해서 넣어줘") — every key except those still without a Flutter line. Was setup_full_body and
+    /// tracking_lost only (form warnings log only).
+    var enabledFeedbackKeys: Set<String> = FormWarningTracker.allKeys.subtracting(FormWarningTracker.keysWithoutFlutterLines)
     /// Side-view gate (row, push-up): once decided, the side flips only past the exercise's cutoff ± this. 임시값 — 테스트 영상으로 조정
     var sideViewHysteresis = 0.03
     /// Side-view gate: rolling window (frames, ~5 s) / frames needed before the first decision (nil until then).
@@ -445,6 +446,13 @@ final class FormWarningTracker {
 
     /// Every key the tracker can send: the rules plus praise_fixed, setup_full_body, tracking_lost.
     static let allKeys = Set(rules.values.flatMap { $0.map(\.key) } + ["praise_fixed", "setup_full_body", "tracking_lost"])
+
+    /// Bench press / deadlift keys (track G): their lines are drafted in docs/progress/2026-10-10.md for the
+    /// teammate who owns kori_feedback_lines.dart. They stay off until the dart file has them.
+    static let keysWithoutFlutterLines: Set<String> = [
+        "bench_hips_up", "bench_shallow", "bench_no_lockout",
+        "deadlift_hips_first", "deadlift_no_lockout", "deadlift_lean_back",
+    ]
 
     static func grade(of key: String) -> FormGrade {
         for list in rules.values { if let rule = list.first(where: { $0.key == key }) { return rule.grade } }
