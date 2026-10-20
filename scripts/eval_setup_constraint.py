@@ -1083,6 +1083,40 @@ def run_verdicts(a):
     write_manifest(a, [a.eval_json] + ([a.shift_json] if a.shift_json else []), [out_j, out_m])
 
 
+# ---------------------------------------------------------------- E0b: how stable are the relations in the XS output itself
+def run_xs_relations(a):
+    """Clean input: for every relation of the exercise, the spread of v = P[b] - P[a] over the set in XS (A raw) vs
+    the truth, and the error of v itself (mm). A relation can only help when XS's own v is steadier / closer than XS's
+    joint under occlusion; this measures the first part."""
+    from pose_feedback.geometry.adaptive_relations import RELATIONS as AR
+    seqs = load_any(a); recs, inputs = [], []
+    for d in seqs:
+        raw = predict_rows(None, None, d['x'], [5], seq_key(d))[5]; lo, hi = set_range(d)
+        P, G = to_metres(raw, d), d['G']; conf = d['x'][..., 2]
+        for name, j0, j1 in AR.get(d['ex'], ()):
+            ok = (conf[lo:hi, j0] >= 0.5) & (conf[lo:hi, j1] >= 0.5)
+            vp, vg = (P[lo:hi, j1] - P[lo:hi, j0])[ok], (G[lo:hi, j1] - G[lo:hi, j0])[ok]
+            if len(vp) < 10: continue
+            spread = lambda v: float(np.median(np.linalg.norm(v - np.median(v, 0), axis=-1)) * 1000)
+            recs.append(dict(group=d['group'], exercise=d['ex'], rel=name, observed=float(ok.mean()), spread_xs=spread(vp), spread_gt=spread(vg),
+                             err_v=float(np.median(np.linalg.norm(vp - vg, axis=-1)) * 1000),
+                             err_joint=float(np.median(np.linalg.norm(P[lo:hi, j1][ok] - G[lo:hi, j1][ok], axis=-1)) * 1000)))
+        inputs.append(d['csv'])
+    md = ['| 묶음 | 운동 | 관계 | 영상 | 두 관절 관측 비율 | v 퍼짐 XS / 정답 (mm, 중앙값) | v 오차 (mm) | 관절 b 자체 오차 (mm) |', '|---' * 8 + '|']
+    summ = {}
+    for grp in dict.fromkeys(r['group'] for r in recs):
+        for ex in EXERCISES:
+            for name in dict.fromkeys(r['rel'] for r in recs if r['exercise'] == ex):
+                rs = [r for r in recs if r['group'] == grp and r['exercise'] == ex and r['rel'] == name]
+                if not rs: continue
+                g = {k: float(np.median([r[k] for r in rs])) for k in ('observed', 'spread_xs', 'spread_gt', 'err_v', 'err_joint')}
+                summ[f'{grp}/{ex}/{name}'] = dict(n=len(rs), **g)
+                md.append(f"| {grp} | {ex} | {name} | {len(rs)} | {g['observed']:.0%} | {g['spread_xs']:.0f} / {g['spread_gt']:.0f} | {g['err_v']:.0f} | {g['err_joint']:.0f} |")
+    out_j, out_m = Path(a.run_dir) / 'xs_relations.json', Path(a.run_dir) / 'xs_relations.md'
+    json.dump(dict(summary=summ, records=recs), open(out_j, 'w'), indent=1); out_m.write_text('\n'.join(md) + '\n'); print('\n'.join(md))
+    write_manifest(a, inputs + [a.checkpoint], [out_j, out_m])
+
+
 def load_model(a):
     import torch
     from finetune_motionagformer_fit3d import load
@@ -1102,7 +1136,7 @@ def run_cache_clean(a):
 
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument('cmd', choices=['gt-relations', 'cache-clean', 'occlude', 'evaluate', 'foot-shift', 'setup-measure', 'signals', 'tune', 'rgb-eval', 'setup-ex3d', 'verdicts'])
+    p.add_argument('cmd', choices=['gt-relations', 'cache-clean', 'occlude', 'evaluate', 'foot-shift', 'setup-measure', 'signals', 'tune', 'rgb-eval', 'setup-ex3d', 'verdicts', 'xs-relations'])
     p.add_argument('--eval-json'); p.add_argument('--shift-json'); p.add_argument('--group', default='heldout')
     p.add_argument('--ex3d', help='dir with gt.json, csv/<seq>/<cam>_<ex>_mcoco17.csv, labels/<seq>/geometry')
     p.add_argument('--dataset', choices=['fit3d', 'ex3d'], default='fit3d'); p.add_argument('--device', choices=['cpu', 'mps'], default='cpu')
@@ -1133,7 +1167,7 @@ def main():
     CACHE['dir'] = a.cache
     os.makedirs(a.run_dir, exist_ok=True)
     {'gt-relations': run_gt_relations, 'cache-clean': run_cache_clean, 'occlude': run_occlude, 'evaluate': run_evaluate, 'foot-shift': run_foot_shift, 'setup-measure': run_setup_measure,
-     'signals': run_signals, 'tune': run_tune, 'rgb-eval': run_rgb_eval, 'setup-ex3d': run_setup_ex3d, 'verdicts': run_verdicts}[a.cmd](a)
+     'signals': run_signals, 'tune': run_tune, 'rgb-eval': run_rgb_eval, 'setup-ex3d': run_setup_ex3d, 'verdicts': run_verdicts, 'xs-relations': run_xs_relations}[a.cmd](a)
 
 
 if __name__ == '__main__':
