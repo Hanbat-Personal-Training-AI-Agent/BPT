@@ -215,6 +215,18 @@ def rows_partial(model, dev, x, changed, clean, batch=256):
     return out, int(len(t))
 
 
+def rows_at(model, dev, x, frames, batch=256):
+    """XS rows (L=5, the app's window) for the listed output frames only -> {frame: [17,3]}."""
+    import torch
+    n = len(x); t = np.asarray(sorted(frames)); out = {}
+    idx = np.clip(t[:, None] + L5 - (WIN - 1) + np.arange(WIN)[None], 0, n - 1)
+    with torch.no_grad():
+        for s0 in range(0, len(t), batch):
+            r = model(torch.from_numpy(x[idx[s0:s0 + batch]]).to(dev))[:, WIN - 1 - L5].cpu().numpy()
+            out.update({int(f): v.astype(float) for f, v in zip(t[s0:s0 + batch], r)})
+    return out
+
+
 def occl_path(a, d, cond):
     return f"{a.cache}/occl/{cond}/{seq_key(d)}.npz"
 
@@ -894,7 +906,9 @@ def run_setup_ex3d(a):
         w1 = rf[0] - half; w0 = max(0, w1 - SETUP_WINDOW)
         if w1 - w0 < SETUP_WINDOW // 2: continue
         w = slice(w0, w1)
-        P, _ = rows_partial(model, dev, d['x'], np.ones(n, bool), np.zeros((n, 17, 3)))
+        R_ = rows_at(model, dev, d['x'], range(w0, w1)); P = np.full((n, 17, 3), np.nan)
+        for f_, v_ in R_.items(): P[f_] = v_
+        P[:w0] = P[w0]; P[w1:] = P[w1 - 1]  # only the setup window is scored; the rest is filler for item_series
         G = d['G']; xs, gs = item_series(P, ex, UP), item_series(G, ex, d['up_c'])
         ank = np.linalg.norm(Pw[:, names.index('left_ankle')] - Pw[:, names.index('right_ankle')], axis=-1)
         heel = np.linalg.norm(foot['left_heel'] - foot['right_heel'], axis=-1); toe = np.linalg.norm(foot['left_big_toe'] - foot['right_big_toe'], axis=-1)
@@ -987,7 +1001,10 @@ def load_ex3d_seqs(a):
 
 
 def load_any(a):
-    return load_ex3d_seqs(a) if getattr(a, 'dataset', 'fit3d') == 'ex3d' else load_seqs(a)
+    seqs = load_ex3d_seqs(a) if getattr(a, 'dataset', 'fit3d') == 'ex3d' else load_seqs(a)
+    if getattr(a, 'cams', None):  # Home CPU budget: e.g. 2 of the 4 Fit3D cameras for the tuning grid
+        seqs = [d for d in seqs if d['cam'] in a.cams]
+    return seqs
 
 
 def load_model(a):
@@ -1013,6 +1030,7 @@ def main():
     p.add_argument('--ex3d', help='dir with gt.json, csv/<seq>/<cam>_<ex>_mcoco17.csv, labels/<seq>/geometry')
     p.add_argument('--dataset', choices=['fit3d', 'ex3d'], default='fit3d'); p.add_argument('--device', choices=['cpu', 'mps'], default='cpu')
     p.add_argument('--ex3d-view', choices=['all', 'side1'], default='all')
+    p.add_argument('--cams', type=lambda s: s.split(','), default=None, help='Fit3D camera ids to keep (default all 4)')
     p.add_argument('--rgb', help='dir of eval_setup_rgb_occlusion.py outputs'); p.add_argument('--pose2d', help='lift-compare A-pose2d pose2d dir')
     p.add_argument('--jobs', type=int, default=4)
     p.add_argument('--cases', type=lambda s: s.split(','), default=list(SHIFT_CASES))
