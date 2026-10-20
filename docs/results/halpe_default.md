@@ -45,7 +45,7 @@
 | C1 기기 대상 컴파일 | `flutter build ios --debug --no-codesign` 성공 | `hd/build_ios_c1.log`; C2 제거 뒤 앱 빌드와 구분 |
 | C2 + C3 | release `pose-replay`, `calibration-replay` 빌드 성공 | `hd/build_release_final.log` (29.77초); CSV 3종(각 362프레임) 모두 통과; 최종 Swift **105 통과**(22:43:19) |
 | C2 제거 정적 점검 | Runner/Swift 테스트/pbxproj의 m COCO17 enum 참조 없음 | 기존 평가 결과 이름 `_mcoco17`은 과거 데이터 호환용으로 남음 |
-| iPhone 실험 빌드 | C1 이식 `50194eb` + 회전 `ebcfb38` + 로그 `a8b29f1` | m COCO17은 동일 빌드 실험 기준선에만 남음; **Release arm64 서명 빌드 성공·iPhone 설치 완료**, smoke 대기 |
+| iPhone 실험 빌드 | C1 이식 `50194eb` + 회전 `ebcfb38` + 로그 `a8b29f1` | m COCO17은 동일 빌드 실험 기준선에만 남음; **Release arm64 서명 빌드 성공·iPhone 설치 완료**, COCO 세로 smoke 3개 완료 |
 
 C3 실제 검증: 같은 362프레임 CSV에서 26점과 17점 모두 2렙, 입력 좌표·신뢰도 전부 왕복 보존(오차 ≤ 0.000501). 26점의 `heel_rise_max`는 0.136901 / 0.002019, 17점 투영에서는 두 값 모두 없음. 발 위치만 바꾼 대조군은 0.003866 / 0.002244로 달라져 실제 지표 경로에 발이 전달됨을 확인했다. 경고 기본값은 그대로 OFF다. 해시·집계: `halpe_default_manifest.json`.
 
@@ -62,6 +62,14 @@ C3 실제 검증: 같은 362프레임 CSV에서 26점과 17점 모두 2렙, 입�
 - 같은 Mac 클립의 이전 바이너리 `f583d5d` 재실행에서도 w20_s3는 H 1 / C 10, w13_s2는 H 10 / C 11이다. 따라서 이 조건의 결과를 이번 모델 선택 코드 변경으로 생긴 회귀라고 해석할 근거는 없다.
 - 과거 보관된 `prior/macA_f583d5d`의 w13_s2 COCO17은 12렙인데 이번 같은 구버전 재실행은 11렙이다. 이 차이는 별도 재현성 한계로 남긴다. 모델 간 수치 차이와 섞지 않는다.
 - 이 표만으로 모델의 일반 성능이나 실패 원인을 확정하지 않는다. `mmfit_run.py`가 세 인코딩 × 각자 crop / 상대 모델 crop / 전체 프레임 입력을 비교 중이다.
+
+### iPhone 동일 빌드 비교: 23:00 회수 checkpoint (전체 결과 아님)
+
+- Runner SHA256 `674a755e8e3c7eff708b7f6bc92e98a2995abccf2047e60452f4fc78e71e2adb`, 소스 `a8b29f1`. 원본 H36M XS, 강제 캡처 회전 0, gravity OFF. 미세조정 모델이나 이후 motion/contact 실험은 넣지 않았다.
+- 기존 `de42b9a` 대비 COCO 세로 smoke(row0000cam2·pushup0003cam2·squat0001cam2)는 렙 10/10/10이 같다. 스쿼트 3D 경고는 no_lockout 2→4, knee_valgus 4→3으로 달라 경고까지 같다고 주장하지 않는다. 새 A/B 기준선은 두 모델을 모두 실행한 `a8b29f1`이다.
+- 회수·종료·해시를 확인한 **3쌍/39쌍**(row0000 세 시점)만 집계하면 두 모델 모두 정확 렙 3/3, 무릎 2D 좌우 바뀜은 C 0/1,734, H 0/1,737이다. 3D ok는 C 92.734%, H 92.746%, 실제 판정 프레임을 합친 E2E p50/p95는 C 190.35/201.97 ms, H 190.71/203.81 ms. 낮은 측면 푸시업이나 전체 39클립 결과로 일반화하지 않는다.
+- 이후 Wi-Fi 파일 서비스의 socket closed/timeout 때문에 일부 로그 회수가 지연됐다. 기기는 연결돼 있고 앱 실행은 가능했다. 사용자가 Wi-Fi 진행을 요청하여 폰 측정은 계속하며, `launch+wait`와 `session_end+SHA 검증완료`를 분리한다. 회수하지 못한 런은 완료 분모에 넣지 않는다. 모델·회전 불일치는 조용히 건너뛰지 않고 중단한다.
+- `setup_ready`는 현재 빌드에 setup gate가 없어 **미측정**. 기존 성공 기록은 s Halpe26 데모였고 m Halpe26 준비자세 실행은 없었다. 이후 setup 수정 브랜치에서 별도 m 모델 A/B가 필요하다.
 
 ## B. 가설
 
@@ -87,16 +95,18 @@ scratch 기준: `/private/tmp/claude-501/-Users-6-month-github-06-month-hanbat-r
 
 | 실행 | 파일 | 상태 |
 |---|---|---|
-| MM-Fit 세 인코딩 통제 비교 | `mmfit_run.py`, `runs/mmfit/`, 완료 시 `rows.json` | 기존 프로세스 계속 실행 중; 중복 실행 없음 |
-| Exercise3D + 비운동 회귀 | `ex3d_run.py`, `runs/ex3d/`, 완료 시 `rows.json` | 기존 프로세스 계속 실행 중 |
+| MM-Fit 세 인코딩 통제 비교 | `mmfit_run.py`, `runs/mmfit/`, 완료 시 `rows.json` | 완료 캐시를 보존해 재개, 폰 우선 대기; `phone_priority_resume.json`에 정확한 argv |
+| Exercise3D + 비운동 회귀 | `ex3d_run.py`, `runs/ex3d/`, 완료 시 `rows.json` | 완료 캐시 보존, 폰 뒤에서 계속 진행 |
 | 구 바이너리 재현 | `runs/oldbin/` | w20_s3 / w13_s2 두 모델 완료 |
 | CSV 보존 검증 | `verify_c3.py`, `runs/csv_c3/checks.json` | **통과**: 각 362프레임 26/17점 왕복, 두 입력 옵션, heel 지표 민감도 |
 | 회귀 | `swift_final.log` | **105 통과**, 실패 0, 22:43:19 |
-| iPhone | `runner-dev/build_liftdev_generic.sh`, 기존 `runner-dev/dd` 재사용 | 새 COCO17 세로 smoke 3개 → 39클립 × 2모델(같은 앱, 모델 순서 교대), 회전 기기 검증은 후순위 |
+| iPhone | `device_video_runs_continue.py`, `device_plan.py`, `device_transfer_recovery.py`, `device_results.py` | smoke3 완료 → full39×2 실행·지연 회수 → 모든 로그 검증·분모 집계 → Halpe 두 클립×90/270 → 고정 snapshot 보존 |
 
 보조 스크립트 백업: `~/Documents/bpt-handoff/tools-20261020/halpe-default/`(입력 영상 제외). 실행 스크립트에는 scratch 위치가 들어 있으므로 재부팅 후 복원 경로를 확인한다.
 
-무거운 Mac 실행은 `lockf -k /tmp/bpt-heavy.lock` 직렬화. 현재 iPhone은 Wi-Fi(localNetwork) 연결이므로 67 MB 발열 원본 로그의 완전 회수는 USB 확인까지 미완료다.
+23:00의 **partial3/39** snapshot은 Home `~/bpt-runs/lift-app/20261020-device-halpe-ab-a8b29f1-partial-20261020-230031/`에 38파일 SHA 검증으로 보존했다. 메타데이터는 `~/Documents/bpt-handoff/device-halpe-a8b29f1/`에 별도 해시 검증했다. 완료된 클립 로그만 복사했으며 원본 영상·이미지는 포함하지 않았다.
+
+무거운 Mac 실행은 `lockf -k /tmp/bpt-heavy.lock`으로 직렬화하며, 폰 작업이 대기하거나 실행 중일 때 새 Mac 작업은 잠금 밖에서 기다린다. Wi-Fi(localNetwork) 진행을 유지한다. 이전 67 MB 발열 원본 로그의 완전 회수는 별도 미완료이며 현재 39클립 비교와 섞지 않는다.
 
 ## F. 권고
 

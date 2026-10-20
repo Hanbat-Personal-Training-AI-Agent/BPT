@@ -156,5 +156,15 @@
       "model.mil": "9d834cb4672f9927c1bd70b0ae029da3db7edec9ac4546a72c9aa9703161e286",
       "weights/weight.bin": "f6f12b361030da6f4a786eec40174f94f6560837f0021f5393faf1233663e31d"
     }
+  },
+  "phone_partial_checkpoint": {
+    "at": "2026-10-20T23:00:36+0900",
+    "status": "partial; 3 paired row clips out of 39; not full result",
+    "comparison_sha256": "4dc73f0c6148d70cc3b62b9626e8020165b8c73899cd9ba6f1a3c9c1488dc2ac",
+    "home_manifest_sha256": "7df85c0e57104bdb845b66bd1547a64cef660fd32ee1c080a4243a5e06f87595",
+    "home_archive": "synced to Home ~/bpt-runs/lift-app/20261020-device-halpe-ab-a8b29f1-partial-20261020-230031/, sha256 verified 2026-10-20T23:00:36+0900",
+    "smoke_old_build_comparison_sha256": "ed4a8836c96545b9d579ab128a6db3cb46e2493f3d0796e7b19dcc0fcdba0340",
+    "setup_ready": "unmeasured: no setup gate in a8b29f1; earlier setup success used s Halpe26, not m",
+    "transfer_policy": "Wi-Fi per user: continue launches, preserve recordings, defer failed pulls; count completed only with expected model/rotation, session_end and local SHA match"
   }
 }
