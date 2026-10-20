@@ -165,6 +165,11 @@ class Calibrator:
         torch.set_num_threads(a.threads)
         sys.path.insert(0, a.sam3db_src)
         from sam_3d_body import SAM3DBodyEstimator, load_sam_3d_body
+        if not torch.cuda.is_available():
+            # ponytail: the estimator also moves every batch to "cuda" by name; CPU runs map it to "cpu".
+            import sam_3d_body.sam_3d_body_estimator as est
+            to = est.recursive_to
+            est.recursive_to = lambda x, target: to(x, 'cpu' if target == 'cuda' else target)
         import smplx
         self.torch, self.a = torch, a
         model, cfg = load_sam_3d_body(f'{a.weights}/model.ckpt', device='cpu', mhr_path=f'{a.weights}/assets/mhr_model.pt')
