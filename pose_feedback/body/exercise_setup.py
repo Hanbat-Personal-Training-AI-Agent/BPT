@@ -9,12 +9,14 @@ The setup never says a pose is correct - SMPL beta does not define an optimal st
      much of a width lies along the camera depth axis (a width seen side-on is XS's depth guess, not a measurement);
   2. expresses them relative to the same frame's own hip / shoulder joint width (calibration SMPL widths in cm are
      only shown as a labelled reference, never used to claim a cm measurement);
-  3. calls the setup ready when every required item has been measured with usable quality for `stable_frames`
-     frames in a row and the body was still over them (stillness, not correctness): with the frame's 2D at hand the
-     observed 2D left-right midpoints the required items use moved <= tol_2d x the 2D torso, and each item in the image
-     plane in every frame moved less than its tolerance. A width along the camera depth ("depth_estimated", a side
-     view) is XS's depth guess - its frame-to-frame wobble is not the user moving, so only the 2D holds it still.
-     Without 2D (offline callers) every required item is held to its tolerance;
+  3. calls the setup ready when every required item this view can observe has been measured with usable quality for
+     `stable_frames` frames in a row and the body was still over them (stillness, not correctness): with the frame's
+     2D at hand the 2D joints the required items use (left-right midpoints, or the one seen joint of a pair; a pair
+     with neither seen blocks) moved <= tol_2d x the 2D torso, and each item in the image plane in every frame moved
+     less than its tolerance. A width along the camera depth (a side view) is XS's depth guess: its wobble is not the user moving and
+     its far joint is often hidden, so with the 2D it neither blocks nor holds the setup - it is shown as an estimate
+     (no number when its joints are not observed). Without 2D (offline callers) every required item must be usable and
+     is held to its tolerance;
   4. compares with a reference only when the user saved one (personal "내 기준"), tolerance from measured
      repeatability - there is no built-in ideal band.
 Joint widths are between joint centres (H36M hips / shoulders, ankles, wrists): not foot or bar-contact widths.
@@ -182,18 +184,29 @@ class ExerciseSetup:
         return self.p["tol_deg"] if key in ITEMS and ITEMS[key][2] == "deg" else self.p["tol_ratio"]
 
     def motion_2d(self, required):
-        """Largest 2D range (px, x or y) over the window of the left-right midpoints (ankles, hips, shoulders, wrists..)
-        the required items use, both joints observed in every window frame, / the 2D torso (mid-shoulders to mid-hips,
-        median). Midpoints because in a side view the two hips (ankles) overlap and the 2D model trades them frame to
-        frame (device squat 2026-10-20: one hip spans 0.13 torso while standing). None: nothing observed to judge by."""
+        """Largest 2D range (px, x or y) over the window of the joints the required items use, / the 2D torso
+        (mid-shoulders to mid-hips, median). Per left-right pair: the midpoint when both joints were seen (confidence
+        >= low_conf) in every window frame (in a side view the two hips / ankles overlap and the 2D model trades them
+        frame to frame - device squat 2026-10-20: one hip spans 0.13 torso while standing), else the one joint that was
+        (the near side). None when a pair had neither (that body part may have moved unseen: a row pull with both
+        wrists lost) or there is no torso - the setup then cannot be ready."""
         K = np.stack([e[3] for e in self.window])
         used = {j for k in required for j in ITEMS[k][0]}
-        mids = [(K[:, a, :2] + K[:, b, :2]) / 2 for (ha, hb), (a, b) in PAIRS_2D.items()
-                if ha in used and hb in used and (K[:, [a, b], 2] >= self.p["reliable_conf"]).all()]
+        tracks = []
+        for (ha, hb), (a, b) in PAIRS_2D.items():
+            if ha not in used or hb not in used:
+                continue
+            seen_a, seen_b = (K[:, a, 2] >= self.p["low_conf"]).all(), (K[:, b, 2] >= self.p["low_conf"]).all()
+            if seen_a and seen_b:
+                tracks.append((K[:, a, :2] + K[:, b, :2]) / 2)
+            elif seen_a or seen_b:
+                tracks.append(K[:, a if seen_a else b, :2])
+            else:
+                return None
         torso = float(np.median(np.linalg.norm((K[:, 5, :2] + K[:, 6, :2] - K[:, 11, :2] - K[:, 12, :2]) / 2, axis=-1)))
-        if not mids or torso < 1e-6:
+        if not tracks or torso < 1e-6:
             return None
-        return max(float(np.ptp(m, axis=0).max()) for m in mids) / torso
+        return max(float(np.ptp(m, axis=0).max()) for m in tracks) / torso
 
     def seeds(self, relations):
         """At ready: {name: (median px vector, p90 deviation px)} of AdaptiveRelations-style (name, a, b) over the
@@ -235,7 +248,8 @@ class ExerciseSetup:
                 else:  # widths in the image need the feet line in the image plane
                     q[k] = "depth_estimated" if depth_share(P, "feet_width") > self.p["depth_max"] else "good"
         ok = ("good", "depth_estimated")
-        if not all(q[k] in ok for k in required):
+        need = [k for k in required if coco2d is None or not (k in WIDTH_VECTORS and depth_share(P, k) > self.p["depth_max"])]
+        if not need or not all(q[k] in ok for k in need):
             self.window = []  # stillness is counted over frames in a row with every required item observed
         else:
             self.window.append((values, q, P * unit, None if coco2d is None else np.asarray(coco2d, dtype="float64")))
@@ -249,8 +263,10 @@ class ExerciseSetup:
                            or not all(max(e[0][k] for e in self.window) - min(e[0][k] for e in self.window) <= self.tolerance(k)
                                       for k in gate))
         if self.ready is None and full and required and not moving:
-            self.ready = {k: float(np.median([e[0][k] for e in self.window if e[0][k] is not None])) for k in keys
-                          if any(e[0][k] is not None for e in self.window)}
+            # the snapshot (saved as "내 기준" on request) keeps only items measured in the image plane in every frame:
+            # a depth guess or a half-hidden joint is no reference to adjust against
+            self.ready = {k: float(np.median([e[0][k] for e in self.window])) for k in keys
+                          if all(e[1].get(k) == "good" for e in self.window)}
         items = []
         for k in keys:
             item = dict(key=k, value=values.get(k), quality=q[k], required=k in required,

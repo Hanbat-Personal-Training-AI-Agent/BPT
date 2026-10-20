@@ -10,11 +10,13 @@ import simd
 ///    observation quality (2D confidence of the joints it needs; a width lying mostly along the camera depth is XS's
 ///    depth guess → "depth_estimated", not a measurement);
 /// 2. expresses widths relative to the same frame's hip / shoulder joint width (calibration cm are display only);
-/// 3. is ready when every required item was observed for `stableFrames` frames in a row and the body was still
-///    (stillness, not correctness): with the frame's 2D the observed left-right 2D midpoints the required items use
-///    moved ≤ tol2D × the 2D torso, and each item in the image plane in every window frame moved less than its
-///    tolerance. A width along the camera depth (side view) is XS's depth guess — its wobble is not the user moving,
-///    so only the 2D holds it still. Without 2D every required item is held to its tolerance;
+/// 3. is ready when every required item this view can observe was observed for `stableFrames` frames in a row and the
+///    body was still (stillness, not correctness): with the frame's 2D the 2D joints the required items use (left-right
+///    midpoints, or the one seen joint of a pair; a pair with neither seen blocks) moved ≤ tol2D × the 2D torso, and
+///    each item in the image plane in every window frame moved less than its tolerance. A width along the camera depth (side view) is
+///    XS's depth guess and its far joint is often hidden, so with the 2D it neither blocks nor holds the setup — shown
+///    as an estimate (no number when its joints are not observed). Without 2D every required item must be usable and
+///    is held to its tolerance;
 /// 4. compares only with a reference the user saved ("내 기준"); there is no built-in ideal band.
 /// Widths are between joint centres (hips, shoulders, ankles, wrists): grip_width is a wrist-centre approximation of
 /// the grip, not the bar contact.
@@ -270,17 +272,22 @@ struct ExerciseSetup {
         return out
     }
 
-    /// Largest 2D range (px, x or y) over the window of the left-right midpoints the required items use, both joints
-    /// observed in every window frame, ÷ the 2D torso (mid-shoulders to mid-hips, median). Midpoints because in a side
-    /// view the two hips (ankles) overlap and the 2D model trades them frame to frame. nil: nothing observed to judge by.
+    /// Largest 2D range (px, x or y) over the window of the joints the required items use, ÷ the 2D torso (mid-shoulders
+    /// to mid-hips, median). Per left-right pair: the midpoint when both joints were seen (confidence ≥ lowConf) in
+    /// every window frame (in a side view the two hips / ankles overlap and the 2D model trades them frame to frame),
+    /// else the one joint that was (the near side). nil when a pair had neither (that body part may have moved unseen:
+    /// a row pull with both wrists lost) or there is no torso — the setup then cannot be ready.
     private func motion2D(required: [String]) -> Double? {
         let frames = window.compactMap(\.coco17)
         let used = Set(required.flatMap { Self.items[$0]?.joints ?? [] })
         var best: Double?
         for pair in Self.pairs2D where used.contains(pair.h36m.0) && used.contains(pair.h36m.1) {
             let (a, b) = pair.coco
-            guard frames.allSatisfy({ $0[a].confidence >= params.reliableConf && $0[b].confidence >= params.reliableConf }) else { continue }
-            let xs = frames.map { ($0[a].x + $0[b].x) / 2 }, ys = frames.map { ($0[a].y + $0[b].y) / 2 }
+            let seenA = frames.allSatisfy { $0[a].confidence >= params.lowConf }
+            let seenB = frames.allSatisfy { $0[b].confidence >= params.lowConf }
+            guard seenA || seenB else { return nil }
+            let xs = frames.map { seenA && seenB ? ($0[a].x + $0[b].x) / 2 : (seenA ? $0[a].x : $0[b].x) }
+            let ys = frames.map { seenA && seenB ? ($0[a].y + $0[b].y) / 2 : (seenA ? $0[a].y : $0[b].y) }
             let span = max((xs.max() ?? 0) - (xs.min() ?? 0), (ys.max() ?? 0) - (ys.min() ?? 0))
             best = max(best ?? span, span)
         }
@@ -338,7 +345,10 @@ struct ExerciseSetup {
                 }
             }
         }
-        if !required.allSatisfy({ q[$0]?.usable == true }) {
+        // with the 2D at hand, an item this view sees along the camera depth (a side-on width) is not required here
+        let twoDFrame = coco17?.count == 17
+        let need = required.filter { k in !twoDFrame || !(Self.widthVectors[k] != nil && Self.depthShare(P, key: k) > params.depthMax) }
+        if need.isEmpty || !need.allSatisfy({ q[$0]?.usable == true }) {
             window = []  // stillness is counted over frames in a row with every required item observed
         } else {
             window.append((values, q, P.map { $0 * unit }, coco17?.count == 17 ? coco17 : nil))
@@ -354,10 +364,11 @@ struct ExerciseSetup {
             return (v.max() ?? 0) - (v.min() ?? 0) <= tolerance(k)
         })
         if ready == nil && full && !required.isEmpty && !moving {
+            // the snapshot (saved as "내 기준" on request) keeps only items measured in the image plane in every frame:
+            // a depth guess or a half-hidden joint is no reference to adjust against
             var snapshot: [String: Double] = [:]
-            for k in keys {
-                let v = window.compactMap { $0.values[k] }
-                if !v.isEmpty { snapshot[k] = AdaptiveRelationConstraint.median(v) }
+            for k in keys where window.allSatisfy({ $0.quality[k] == .good }) {
+                snapshot[k] = AdaptiveRelationConstraint.median(window.compactMap { $0.values[k] })
             }
             ready = snapshot
         }

@@ -116,11 +116,20 @@ def test_side_view_widths_are_held_still_by_the_2d_not_by_xs_depth():
     assert q["feet_width"] == q["foot_symmetry"] == q["shoulder_over_pelvis"] == "depth_estimated"
     assert q["torso_incline"] == q["foot_stagger"] == "good"
     assert out[29]["phase"] == "ready" and out[29]["motion_2d"] == 0.0  # 30 frames, 2D still
+    assert "feet_width" not in s.ready and "torso_incline" in s.ready  # a depth guess is never saved as a reference
     old = ExerciseSetup("squat")  # no 2D: every required item is held to its tolerance, the depth wobble blocks
     assert all(old.update(P, conf)["phase"] != "ready" for P in frames)
     sink = ExerciseSetup("squat")  # 3D unchanged (pelvis-relative) but the body sinks 3 px a frame in the image
     out = [sink.update(frames[0], conf, coco2d=coco_of(frames[0], drop=3.0 * t)) for t in range(40)]
     assert out[-1]["moving"] and sink.ready is None
+    hidden, out = ExerciseSetup("squat"), []  # far ankle half hidden for 5 frames: a side-on width cannot block it
+    for t, P in enumerate(frames):
+        c, k = conf.copy(), coco_of(P)
+        if 10 <= t < 15:
+            c[6] = k[15, 2] = 0.4
+        out.append(hidden.update(P, c, coco2d=k))
+    assert out[12]["phase"] == "holding" and out[29]["phase"] == "ready"
+    assert next(i for i in out[12]["items"] if i["key"] == "feet_width")["quality"] == "low"
     far = conf.copy(); far[[4, 11]] = 0.4  # far hip / shoulder hidden: the trunk is still seen from the near side
     r = ExerciseSetup("squat").update(frames[0], far, coco2d=coco_of(frames[0]))
     assert {i["key"]: i["quality"] for i in r["items"]}["torso_incline"] == "good"

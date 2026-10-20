@@ -97,6 +97,7 @@ def setup_cases():
             if t < 20: P[6] += [0.05 * (t % 3), 0, 0]   # fidgeting
             if 30 <= t < 33: c[6] = 0.2                  # feet lost briefly
             if 85 <= t < 88: c[4] = 0.4                  # far hip half seen: torso still from the near side
+            if side and 60 <= t < 64: c[6] = 0.4         # side view: far ankle half seen, the side-on width does not block
             fr = dict(pose=P.tolist(), conf=c.tolist(), usable=not (45 <= t < 47), unit=200.0)
             drop = 4.0 * max(0, t - 90)                  # the body sinking in the image, 3D unchanged
             px = lambda v: [v[0] * 200 + 360, v[1] * 200 + 640 + drop]
