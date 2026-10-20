@@ -265,26 +265,26 @@ n 가중 중앙값), 도착→판정은 실행 로그의 프레임별 값. 표: 
   환경 변수만으로 가능 — 요청 시.
 
 ## 새 기본값 39클립 — 실제 판정 화면, 반전, nominal 발열 (항목 1·2·3·4·6의 기준 실행)
-로우 12클립 = e21a25f(praise_good 이전), 푸시업 15·스쿼트 12클립 = ai/lift-app-m2b98256 de42b9a(praise_good·말풍선 사양 포함). 목표 렙 = 정답(의사 정답),
-Wi-Fi(로그는 폰에 쓰고 나중에 가져옴), 음성 0. Home `20261020-device-video-newdefault-{row-e21a25f,pushup-de42b9a,squat-de42b9a}`(클립별 표 `tables.md`).
+세 운동 모두 ai/lift-app-m2b98256 de42b9a(praise_good·말풍선 사양 포함; 로우는 21:4x에 다시 돌림 — 처음 e21a25f 실행은 Home `…-newdefault-row-e21a25f`). 목표 렙 = 정답(의사 정답),
+Wi-Fi(로그는 폰에 쓰고 나중에 가져옴), 음성 0. 발열: 푸시업·스쿼트 nominal, 로우 재실행은 연속 실행 뒤라 serious. Home `20261020-device-video-newdefault-{row-de42b9a,pushup-de42b9a,squat-de42b9a}`(클립별 표 `tables.md`).
 
 | 항목 | 로우(12) | 푸시업(15) | 스쿼트(12) |
 |---|---|---|---|
-| 1 처리 FPS(클립 범위) | 28.4–30.0 | 27.6–30.1 | 29.7–30.0 |
-| 1 드롭 | 106/8,404 (1.3%) | 139/8,257 (1.7%) | 89/13,720 (0.6%) |
-| 1 도착→판정 p50 / p95(클립 범위) | 189.6–191.7 / 194.5–246.4 ms | 189.6–199.7 / 195.3–376.5 ms | 189.8–190.7 / 195.5–204.2 ms |
-| 1 도착→Flutter 응답 p95 | 197.3–275.0 ms | 196.1–382.8 ms | 197.8–232.0 ms |
-| 1 프로세스 CPU p50 | 56–60% | 57–85% | 54–59% |
-| 2 XS 추론/초 | 27.7 | 27.2 | 28.6 |
-| 2 ok / warming_up / tracking_lost / partial_3d / bad_3d | 93.7 / 5.1 / 1.1 / 0.2 / 0% | 81.9 / 6.3 / 0 / 11.8 / 0% | 96.7 / 3.3 / 0 / 0 / 0% |
-| 4 무릎 뒤집힘 / 각도 한계 걸린 프레임 | 15 / 13 | 35 / 1,353 | 0 / 1,353 |
-| 4 XS 입력 손목 MediaPipe 교체 L/R | 5,506 / 4,393 (8,252 중) | 1,258 / 1,667 (8,043 중) | 9,094 / 9,391 (13,571 중) |
+| 1 처리 FPS(클립 범위) | 29.8–30.1 | 27.6–30.1 | 29.7–30.0 |
+| 1 드롭 | 16/8,404 (0.2%) | 139/8,257 (1.7%) | 89/13,720 (0.6%) |
+| 1 도착→판정 p50 / p95(클립 범위) | 187.9–190.8 / 191.4–198.6 ms | 189.6–199.7 / 195.3–376.5 ms | 189.8–190.7 / 195.5–204.2 ms |
+| 1 도착→Flutter 응답 p95 | 188.7–197.6 ms | 196.1–382.8 ms | 197.8–232.0 ms |
+| 1 프로세스 CPU p50 | 51–60% | 57–85% | 54–59% |
+| 2 XS 추론/초 | 28.0 | 27.2 | 28.6 |
+| 2 ok / warming_up / tracking_lost / partial_3d / bad_3d | 93.7 / 5.0 / 1.0 / 0.2 / 0% | 81.9 / 6.3 / 0 / 11.8 / 0% | 96.7 / 3.3 / 0 / 0 / 0% |
+| 4 무릎 뒤집힘 / 각도 한계 걸린 프레임 | 16 / 10 | 35 / 1,353 | 0 / 1,353 |
+| 4 XS 입력 손목 MediaPipe 교체 L/R | 5,577 / 4,460 (8,342 중) | 1,258 / 1,667 (8,043 중) | 9,094 / 9,391 (13,571 중) |
 | 렙(앱/의사 정답), 정확한 클립 | 112/126, 9/12 | 151/150, 12/15 | 120/120, 12/12 |
-| 3 (a) 3D 경고(렙) | torso_swing 1, standing_up 1 | no_lockout 8, setup_side_view 5, hand_position 1 | knee_valgus 20, no_lockout 17 |
-| 3 (a) 비교용 2D 경고 | head_up 6, torso_swing 1, standing_up 1 | head_up 22, no_lockout 8, setup_side_view 5 … | no_lockout 19 |
-| 3 (b) 렙 범위로 보냄 | setup_side_view 4, torso_swing 1, tracking_lost 1 | praise_good 29, praise_fixed 6, setup_side_view 5, hand_position 1 | praise_good 30, knee_valgus 7, praise_fixed 1 |
+| 3 (a) 3D 경고(렙) | standing_up 1 (e21a25f 실행은 torso_swing 1 추가) | no_lockout 8, setup_side_view 5, hand_position 1 | knee_valgus 20, no_lockout 17 |
+| 3 (a) 비교용 2D 경고 | head_up 5, torso_swing 1, standing_up 1 | head_up 22, no_lockout 8, setup_side_view 5 … | no_lockout 19 |
+| 3 (b) 렙 범위로 보냄 | praise_good 32, setup_side_view 4, tracking_lost 1 | praise_good 29, praise_fixed 6, setup_side_view 5, hand_position 1 | praise_good 30, knee_valgus 7, praise_fixed 1 |
 | 3 (b) 세트 범위로 보냄(n 합) | 없음 | no_lockout 8 | no_lockout 17 |
-| 3 (c) 말풍선·음성 | setup_side_view 4(torso_swing·tracking_lost는 세트 끝 뒤라 안 보임) | 보낸 것 전부(41) | 보낸 렙 범위 전부(38) |
+| 3 (c) 말풍선·음성 | praise_good 32, setup_side_view 4(tracking_lost는 세트 끝 뒤라 안 보임) | 보낸 것 전부(41) | 보낸 렙 범위 전부(38) |
 | 6 endSet → 꼬리 flush 판정 | 10/12 클립(5/5); 2클립은 렙이 목표에 못 미쳐 endSet 없음 | 14/15 | 12/12 |
 
 - 데모 대사 0. 화면에 보이는 것 = 말한 것(같은 `_onNativeFeedback`). “세트 범위” 키(no_lockout)는 기록에만 들어가고 말하지 않는다.
@@ -360,7 +360,7 @@ Home `20261020-device-video-landscape-pushup-de42b9a`.
 2. **E2E**(카메라 입구 → Flutter 메서드 채널 응답): 측면 30 fps, 도착→판정 p50 188–191 ms(그중 167 ms는 3D lookahead 5프레임), Flutter 응답 p95
    측면 대부분 196–232 ms, 최악 275 ms(로우 한 클립)(nominal). 정면 푸시업만 27.6–29 fps·p95 최악 383 ms. 위젯 그리기는 **측정 안 함**. L=3이면 판정이 정확히 67 ms 빨라진다(FPS·CPU 같음).
 3. **자세 경고 전달**: 병합 전 main 화면에서는 3D 자세 키가 Flutter에 0건, 말한 대사의 95%가 데모(판정 아님). 병합 뒤(현재 main 2b98256과 같은 실제 판정
-   기본값)에는 판정 경고가 말풍선·음성으로 나간다 — 39클립에서 스쿼트 knee_valgus 7회, 푸시업 hand_position 1회, 칭찬(praise_good) 59회, 준비 안내
+   기본값)에는 판정 경고가 말풍선·음성으로 나간다 — 39클립에서 스쿼트 knee_valgus 7회, 푸시업 hand_position 1회, 칭찬(praise_good) 91회(로우 32·푸시업 29·스쿼트 30), 준비 안내
    (setup_side_view) 9회. 데모 0.
 4. **endSet**: Flutter가 목표 렙에서 보내고, 네이티브가 3D 꼬리 5프레임을 flush·판정(36/36 세트에서 5/5), 세트 범위 키(no_lockout)를 기록에만 보내고,
    onSetEnd(worstJoint)를 보낸다. 렙을 못 채운 3클립(로우 뒤쪽 2, 정면 푸시업 1)은 endSet 자체가 없다.
