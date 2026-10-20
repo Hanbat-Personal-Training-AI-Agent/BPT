@@ -33,11 +33,13 @@ EX3D_VIDEOS = os.environ.get('BPT_EX3D_VIDEOS', MAIN / 'outputs/exercise3d_synce
 GT_JSON = os.environ.get('BPT_EX3D_GT', MAIN / 'outputs/rep_validation/gt.json')
 EX3D_MODES = tuple(os.environ.get('BPT_EX3D_MODES', 'stretch,crop').split(','))
 EX3D_HELD = {'squat_0002', 'barbellrow_0003', 'barbellrow_0001'}  # P2 / P3 (D-B-01); the rest is P1
-LR_PAIRS = {'elbow': (7, 8), 'wrist': (9, 10), 'knee': (13, 14), 'ankle': (15, 16)}
+LR_PAIRS = {'elbow': (7, 8), 'wrist': (9, 10), 'knee': (13, 14), 'ankle': (15, 16),
+            'big_toe': (20, 21), 'small_toe': (22, 23), 'heel': (24, 25)}
 SAPIENS_COCO17 = [0, 1, 2, 3, 4, 5, 6, 7, 8, 62, 41, 9, 10, 11, 12, 13, 14]
 SAPIENS_HALPE_FEET = [15, 18, 16, 19, 17, 20]  # l/r big toe, l/r small toe, l/r heel (Halpe 20..25 order)
 GROUPS = {'face': [0, 1, 2, 3, 4], 'shoulder': [5, 6], 'elbow': [7, 8], 'wrist': [9, 10], 'hip': [11, 12],
-          'knee': [13, 14], 'ankle': [15, 16], 'body12': list(range(5, 17)), 'limbs8': [7, 8, 9, 10, 13, 14, 15, 16]}
+          'knee': [13, 14], 'ankle': [15, 16], 'body12': list(range(5, 17)), 'limbs8': [7, 8, 9, 10, 13, 14, 15, 16],
+          'big_toe': [20, 21], 'small_toe': [22, 23], 'heel': [24, 25], 'feet6': [20, 21, 22, 23, 24, 25]}  # Halpe26 feet
 FIT3D_EXERCISES = ('squat', 'pushup', 'diamond_pushup', 'barbell_row', 'barbell_dead_row')  # the app's exercises + close variants
 FIT3D_COCO = {5: 11, 6: 14, 7: 12, 8: 15, 9: 13, 10: 16, 11: 1, 12: 4, 13: 2, 14: 5, 15: 3, 16: 6}  # coco <- fit3d
 
@@ -46,18 +48,24 @@ def summarize(pred, gt, valid, box, extra=None):
     out = {'n_instances': int(len(pred))}
     for alpha in (0.05, 0.1):
         for g, idx in GROUPS.items():
+            if max(idx) >= valid.shape[1]:
+                continue
             v = valid[:, idx]
             if v.any():
                 out[f'pck{int(alpha * 100):02d}_{g}'] = round(pck(pred[:, idx], gt[:, idx], v, box, alpha), 4)
     d = np.linalg.norm(pred - gt, axis=-1) / box[:, None]
     out['mean_err_body12_pct_box'] = round(float(d[:, 5:][valid[:, 5:]].mean() * 100), 3)
-    for g in ('elbow', 'wrist', 'hip', 'knee', 'ankle', 'shoulder', 'limbs8'):  # mean error per group (% box)
+    for g in ('elbow', 'wrist', 'hip', 'knee', 'ankle', 'shoulder', 'limbs8', 'big_toe', 'small_toe', 'heel', 'feet6'):  # mean error per group (% box)
+        if max(GROUPS[g]) >= valid.shape[1]:
+            continue
         v = valid[:, GROUPS[g]]
         if v.any():
             out[f'err_{g}_pct_box'] = round(float(d[:, GROUPS[g]][v].mean() * 100), 3)
     # left/right swap: both joints of a pair closer to the other side's reference than to their own
     sw = []
     for g, (l, r) in LR_PAIRS.items():
+        if r >= valid.shape[1]:
+            continue
         ok = valid[:, l] & valid[:, r]
         cross = (np.linalg.norm(pred[:, l] - gt[:, r], axis=-1) < np.linalg.norm(pred[:, l] - gt[:, l], axis=-1)) & \
                 (np.linalg.norm(pred[:, r] - gt[:, l], axis=-1) < np.linalg.norm(pred[:, r] - gt[:, r], axis=-1))
@@ -67,7 +75,7 @@ def summarize(pred, gt, valid, box, extra=None):
             out[f'swap_{g}'] = round(float(cross[ok].mean()), 5); sw.append(cross[ok])
             out[f'cross_{g}'] = round(float(anyc[ok].mean()), 5)
     if sw:
-        out['swap_limbs8'] = round(float(np.concatenate(sw).mean()), 5)
+        out['swap_limbs8'] = round(float(np.concatenate(sw[:4]).mean()), 5)
     if extra:
         out.update(extra)
     return out
@@ -178,6 +186,12 @@ def weighted(rows):
 def fit3d(model, subjects, stride=10):
     root = os.environ.get('BPT_FIT3D', '/private/tmp/claude-501/-Users-6-month-github-06-month-hanbat-repositories-BPT/'
                           'd083b446-4e06-45ed-8204-8c6e9f22bd1c/scratchpad/d3/fit3d/train')
+    feet = None
+    if os.environ.get('BPT_SMPLX'):  # finetune3: Halpe26 feet from the official SMPL-X fits (scripts/finetune3/foot_labels.py)
+        import sys
+        sys.path.insert(0, str(ROOT / 'scripts' / 'finetune3'))
+        from foot_labels import FootMesh
+        feet = FootMesh(os.environ['BPT_SMPLX'])
     rows = {}
     for subj in subjects:
         for video in sorted(glob.glob(f'{root}/{subj}/videos/*/*.mp4')):
@@ -193,17 +207,28 @@ def fit3d(model, subjects, stride=10):
             idx = list(range(0, len(J), stride))
             frames = read_frames(video, idx)
             crops, back, gts, boxes = [], [], [], []
+            sj = f'{root}/{subj}/smplx/{ex}.json'
+            FV = None
+            if feet is not None and os.path.exists(sj):
+                nf = len(json.load(open(sj))['transl'])
+                FV = dict(zip(idx, feet(sj, np.minimum(np.array(idx), nf - 1))))
             for t in idx:
                 if t not in frames:
                     continue
                 p = project_fit3d(J[t], camera)
-                k = np.zeros((17, 2)); k[list(FIT3D_COCO)] = p[list(FIT3D_COCO.values())]
+                k = np.zeros((26 if FV is not None else 17, 2)); k[list(FIT3D_COCO)] = p[list(FIT3D_COCO.values())]
+                if FV is not None:
+                    k[20:26] = project_fit3d(FV[t], camera)
                 box = bbox_from_points(p)
                 cr, m = crop_box(frames[t], *box_to_center_scale(box))
                 crops.append(cr); back.append(invert_affine(m)); gts.append(k); boxes.append(max(box[2] - box[0], box[3] - box[1]))
             kp, conf = predict(model, crops)
-            full = np.array([apply_affine(b, q) for b, q in zip(back, kp[:, :17])])
-            valid = np.zeros((len(gts), 17), bool); valid[:, 5:] = True
+            nk = 26 if (FV is not None and kp.shape[1] >= 26) else 17
+            full = np.array([apply_affine(b, q) for b, q in zip(back, kp[:, :nk])])
+            gts = [g[:nk] for g in gts]
+            valid = np.zeros((len(gts), nk), bool); valid[:, 5:17] = True
+            if nk == 26:
+                valid[:, 20:26] = True
             rows[f'{subj}/{ex}/{cam}'] = dict(summarize(full, np.array(gts), valid, np.array(boxes), conf_stats(conf[:, 5:17])), exercise=ex)
     return {'aggregate': {'all': weighted(list(rows.values()))}, 'per_video': rows}
 
