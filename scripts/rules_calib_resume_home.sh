@@ -40,8 +40,39 @@ PY
 echo "$(date -Is) Waiting for existing evaluations; code $SHA"
 wait_for 20261020-pubpy-h26-held "$SETS" 182977
 wait_for 20261020-pubpy-h26-tune-ex3d "$SETS" 184446
-wait_for 20261020-fit3d-h26A-c1held sets_fit3d_halpeA.json.gz 193498
 wait_for 20261020-pubpy-h26-tune2d-part1 "$SETS" 195963
+# Claude deliberately SIGSTOPed the existing Fit3D process at 22:15 KST to
+# reduce CPU thrashing, then its session ended. Retain that intent: free the
+# other three CPU evaluations before continuing the same process. Never
+# restart it, and verify identity before sending a signal to a retained PID.
+"$PY" - <<'PY'
+import os, signal
+from pathlib import Path
+pid = 193498
+run = Path('20261020-fit3d-h26A-c1held')
+if (run / 'sets_fit3d_halpeA.json.gz').is_file() and (run / 'manifest.json').is_file():
+    print('Fit3D C1 held output already complete; no signal needed', flush=True)
+else:
+    proc = Path(f'/proc/{pid}')
+    # Captured while the original process was still stopped on 2026-10-20.
+    # Home's conda Python lacks pidfd_open; boot/start-time checks detect reuse.
+    assert Path('/proc/sys/kernel/random/boot_id').read_text().strip() == '6ad19fc5-4b6f-4080-8826-6ea5157e3b48'
+    assert proc.joinpath('stat').read_text().rsplit(')', 1)[1].split()[19] == '1818712'
+    argv = proc.joinpath('cmdline').read_bytes().rstrip(b'\0').decode().split('\0')
+    assert any(a.endswith('/scripts/eval_rules_calib.py') for a in argv), argv
+    assert 'fit3d' in argv and '--cpu' in argv, argv
+    assert argv[argv.index('--run-dir') + 1] == run.name, argv
+    assert argv[argv.index('--models') + 1].startswith('c1='), argv
+    state = next(line.split()[1] for line in proc.joinpath('status').read_text().splitlines()
+                 if line.startswith('State:'))
+    if state == 'T':
+        os.kill(pid, signal.SIGCONT)
+        print(f'Continued original Fit3D C1 held PID {pid} after public CPU evaluations', flush=True)
+    else:
+        assert state in ('R', 'S', 'D'), (pid, state)
+        print(f'Original Fit3D C1 held PID {pid} already active ({state}); no signal', flush=True)
+PY
+wait_for 20261020-fit3d-h26A-c1held sets_fit3d_halpeA.json.gz 193498
 wait_for 20261020-fit3d-h26A-orig sets_fit3d_halpeA.json.gz 0
 
 # The Mac finished all 62 normal tuning clips; the running part 1 captured the first 54.

@@ -2,10 +2,10 @@
 
 사전 등록: [rules_calib_prereg.md](rules_calib_prereg.md)(8eb5841, held-out 결과 보기 전). 실행 기록: Home `~/bpt-runs/rules-calib/<run-id>/manifest.json`. **실험 결과만 적는다.** 기본값·번들·병합은 바꾸지 않았다(새 규칙은 `BPT_RULES=<이름>` / pose-replay `--rules <이름>` 뒤에서만).
 
-## 2026-10-20 22:40 KST 복구 점검 — A–G
+## 2026-10-20 23:00 KST 복구 점검 — A–G
 
 ### A. 확인한 사실
-- Home의 공개 held-out(192클립), 기존 조정·Exercise3D(65+39클립), 추가 조정 part 1(54클립), Fit3D Halpe 실험 A C1 held-out 평가 프로세스 4개가 계속 실행 중이다. 재시작하지 않았다. Fit3D Halpe 원래 XS·모캡 출력은 `20261020-fit3d-h26A-orig`에 22:04 완료되었다.
+- Home의 공개 held-out(192클립), 기존 조정·Exercise3D(65+39클립), 추가 조정 part 1(54클립) 평가 3개가 실행 중이다. Fit3D Halpe 실험 A C1 held-out PID193498은 살아 있지만 **일시 정지(T)** 상태다. Claude 기록에서 22:15 CPU 경합을 줄이려고 `kill -STOP 193498`한 뒤 사용량 한도로 세션이 끝난 것을 확인했다. 완료로 오인하거나 재시작하지 않는다. Fit3D Halpe 원래 XS·모캡 출력은 `20261020-fit3d-h26A-orig`에 22:04 완료되었다.
 - Mac의 추가 정상 조정 Halpe26 2D는 62클립 모두 완료되었다. 실행 중인 part 1이 캡처한 54개 외 **8개가 후속 3D 처리 대상**이다.
 - C1 몸통 지표 추천 보류(`c4b8763`)에 구현상 빈틈이 있었다. 새 threshold를 생략해도 프리셋이 `app_default`와 합쳐져 기존 몸통 경고가 살아났다. 보류 키를 `off`에도 넣어 프리셋과 praise 계산에서 모두 제외했다.
 - 합성 회귀검증에서 C1 학습 피험자의 Fit3D 값은 도출에 쓰이지 않고, Exercise3D 조정 값만 쓰이며, held-out 값은 threshold를 바꾸지 않는 것을 확인했다. 몸통 보류 키가 기존 기본값으로 다시 발화하지 않는 것도 확인했다. 관련 pytest 5개 통과(`bpt-eval`).
@@ -16,6 +16,7 @@
 
 ### C. 이전 판단 수정
 - 아래 "C2 중단"은 과거 상태다. C2는 21:58 재시작되어 정상 학습 중이다. C2 threshold가 없는 이유는 아직 그 모델의 독립 조정·평가 결과가 없기 때문이다.
+- 22:40의 “평가 4개 실행 중”은 PID 존재만 확인한 부정확한 표현이었다. Fit3D C1은 의도적으로 멈춘 원래 프로세스이며, 다른 공개 CPU 평가 3개 완료 뒤 같은 PID에만 CONT하여 원래 자원 조절 의도를 유지한다.
 - C1의 몸통 오차 보류는 문구와 override 생략만으로 충분하지 않았다. 실제 비활성 목록과 praise 분석까지 일치하도록 수정했다.
 - Fit3D 지표 오차 표는 실제 중력으로 계산했는데 제목에 "카메라-위"라고 잘못 적혀 있었다. 표 제목을 계산 정의에 맞게 고쳤다. 수치 계산은 바꾸지 않았다.
 
@@ -26,7 +27,7 @@
 - 새 실행 manifest에는 2D CSV·가중치 외에 **렙 구간 JSON, 사람 분할·AI 라벨 CSV, Exercise3D 시점 metadata**의 hash도 기록한다. 이미 실행 중인 이전 manifest는 보존한다.
 
 ### E. 재현·재개
-- `scripts/rules_calib_resume_home.sh`는 기존 4개 평가의 완료 파일과 manifest hash를 기다린 뒤, 남은 8개 조정 클립만 처리한다. 그 다음 원래 XS/C1 분석 → C2 학습 완료 manifest 확인 → C2 공개·Exercise3D 및 Fit3D s07–s11 평가 → 전체 분석 순서다. CPU 4스레드를 쓰며 GPU 사슬에 새 작업을 넣지 않는다.
+- `scripts/rules_calib_resume_home.sh`는 공개 CPU 평가 3개의 완료 파일과 manifest hash를 검증한 뒤 Fit3D 원래 PID193498의 boot ID·시작 시각·명령행을 확인하고, T 상태일 때만 SIGCONT한다. 새 프로세스나 중복 추론은 만들지 않는다. 이어 Fit3D 완료를 기다린 뒤 남은 8개 조정 클립 → 원래 XS/C1 분석 → C2 학습 완료 manifest 확인 → C2 공개·Exercise3D 및 Fit3D s07–s11 평가 → 전체 분석 순서다. 새 단계는 CPU 4스레드를 쓰며 GPU 사슬에 새 작업을 넣지 않는다.
 - Home의 immutable `_code/<SHA>/`에서 `SHA=<SHA> setsid nohup bash _code/<SHA>/scripts/rules_calib_resume_home.sh > resume-20261020.log 2>&1 < /dev/null &`로 실행한다. 중복 실행은 `.resume-20261020.lock`으로 거부한다. 생산 프로세스가 사라졌는데 완료 파일이 없으면 실패로 기록한다.
 - 후속 출력: `20261020-pubpy-h26-tune2d-part2/`, `20261020-analysis-h26-orig-c1-resumed/`, `20261020-pubpy-h26-c2/`, `20261020-fit3d-h26A-c2/`, `20261020-analysis-h26-all-resumed/`.
 - 분석의 `presets/`는 Home의 실험 산출물이다. 저장소/Swift 기본값에 자동 적용하지 않는다. 최종 보고에는 `tables.md`, `analysis.json`, `manifest.json`을 대조한 집계만 옮긴다.
