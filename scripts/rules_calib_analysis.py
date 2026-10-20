@@ -394,6 +394,28 @@ def run_analyze(a):
     out["parity_real"] = dict(agree=agree, total=total)
     md += ["", f"## 확인: Python judge(앱 기본값) = Swift warnings_3d — 실제 pose-replay 렙 {agree}/{total} 일치(setup_side_view 제외)"]
 
+    # ---- summary: one row per rule and model (rc1 vs current), for the report
+    def fa_cell(key):
+        c = out["fa"].get(key)
+        return "–" if not c or not c["n"] else f"{c['k']}/{c['n']} ({c['rate']:.0%})"
+    summ = ["## 요약 (모델별: rc1 기준값 · held-out 정상 렙 오경보 Fit3D / 공개 / Ex3D · 검출(조건부) · 판정; 괄호 = 현재 앱 기준값의 오경보)", "",
+            "| 규칙 | 모델 | rc1 | 오경보 rc1 (현재) | 검출 rc1 (현재) | 변별 p | 판정 |", "|---|---|---|---|---|---|---|"]
+    for rule, ex, branch, q, tail, field, sign in RULES + VARIANTS:
+        for m in models:
+            if m == "mocap":
+                continue
+            th = out["thresholds"].get(f"{m}/{rule}/{tail}", {}).get("threshold")
+            fa = " / ".join(fa_cell(f"{m}/{rule}/{tail}/rc1/{src}") for src, _ in HELDOUT)
+            fc = " / ".join(fa_cell(f"{m}/{rule}/{tail}/current/{src}") for src, _ in HELDOUT)
+            d1, d0 = out["detection"].get(f"{m}/{rule}/{tail}/rc1"), out["detection"].get(f"{m}/{rule}/{tail}/current")
+            dc = lambda d: "–" if not d or not d["judged_clips"] else f"{d['fired_judged']}/{d['judged_clips']}"
+            v = out["verdict"].get(f"{m}/{rule}/{tail}", {}).get("verdict", "–") if rule in {r[0] for r in RULES} else "(분석 전용)"
+            label = rule + (f" ({'앞' if tail == 'upper' else '뒤'})" if rule == "pushup_hand_position" else "")
+            pv = "–" if not d1 or d1.get("fisher_p") is None else f"{d1['fisher_p']:.3f}"
+            ths = "없음" if th is None else f"{th:.3g}"
+            summ.append(f"| {label} | {m} | {ths} | {fa} ({fc}) | {dc(d1)} ({dc(d0)}) | {pv} | {v} |")
+    md = summ + [""] + md
+
     rd = Path(a.run_dir)
     (rd / "presets").mkdir(exist_ok=True)
     outs = []
