@@ -61,8 +61,8 @@ struct CameraFrameData: Identifiable {
     let statusText: String
     let rep: Int
     let done: Bool
-    /// Live posture severity per overlay segment (0 green … 1 red; absent = neutral), smoothed for display.
-    var severity: [OverlaySegment: Double] = [:]
+    /// Overlay colour per body segment: (severity 0 green … 1 red, opacity; dim = uncertain 3D), smoothed for display.
+    var shade: [OverlaySegment: (severity: Double, opacity: Double)] = [:]
 }
 
 struct CameraProcessingResult {
@@ -290,9 +290,14 @@ final class CameraPoseViewModel: ObservableObject {
     private var lastSetupSignature: String?
     private var lastSetupSent: CFTimeInterval = 0
     /// Overlay colour: FormWarningTracker.liveSeverity of the last judged frame (display only), and its smoothing.
-    private var liveSeverity: [OverlaySegment: Double] = [:]
+    private var liveSeverity = OverlayState()
     private var severityTrack = OverlaySeverityTrack()
     private var overlaySmoother = OverlaySmoother()
+    /// Screen auto-lock while the workout camera runs (a set has no touches): the value before we disabled it, nil when
+    /// we hold nothing. Restored when the camera stops or the app goes to the background, set again on return.
+    private var idleTimerBefore: Bool?
+    private var cameraRunning = false
+    private var lifecycleObservers: [NSObjectProtocol] = []
 
     init(exercise: NativePoseExercise, bridge: WorkoutChannel? = nil, setupOptions: ExerciseSetup.Options? = nil) {
         self.exercise = exercise
@@ -317,6 +322,10 @@ final class CameraPoseViewModel: ObservableObject {
     }
 
     func stopCamera() {
+        cameraRunning = false
+        keepScreenAwake(false, reason: "camera_stop")
+        lifecycleObservers.forEach { NotificationCenter.default.removeObserver($0) }
+        lifecycleObservers = []
         videoSource?.stop()
         captureManager.stop()
         motion?.stop()
@@ -328,6 +337,37 @@ final class CameraPoseViewModel: ObservableObject {
         captureManager.perfLog?.close()
         captureManager.perfLog = nil
         bridge?.voice.stop()
+    }
+
+    private func keepScreenAwake(_ on: Bool, reason: String) {
+        let app = UIApplication.shared
+        if on, idleTimerBefore == nil {
+            idleTimerBefore = app.isIdleTimerDisabled
+            app.isIdleTimerDisabled = true
+        } else if !on, let before = idleTimerBefore {
+            app.isIdleTimerDisabled = before
+            idleTimerBefore = nil
+        } else {
+            return
+        }
+        print("[Workout] idle timer disabled=\(app.isIdleTimerDisabled) (\(reason))")
+        VideoRunLog.shared?.write("idle_timer", ["disabled": app.isIdleTimerDisabled, "reason": reason])
+    }
+
+    private func observeAppLifecycle() {
+        guard lifecycleObservers.isEmpty else { return }
+        let center = NotificationCenter.default
+        lifecycleObservers = [
+            center.addObserver(forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: .main) { [weak self] _ in
+                Task { @MainActor in self?.keepScreenAwake(false, reason: "background") }
+            },
+            center.addObserver(forName: UIApplication.willEnterForegroundNotification, object: nil, queue: .main) { [weak self] _ in
+                Task { @MainActor in
+                    guard let self, self.cameraRunning else { return }
+                    self.keepScreenAwake(true, reason: "foreground")
+                }
+            },
+        ]
     }
 
     private var formTracker: FormWarningTracker? {
@@ -497,9 +537,6 @@ final class CameraPoseViewModel: ObservableObject {
                 onFinish: { [weak self] in Task { @MainActor in self?.videoFinished() } })
             videoSource = source
             videoDisplayLayer = source.displayLayer
-            // Test-only: unattended runs on an unplugged phone (no touches) must not auto-lock mid-clip.
-            // The workout screen itself does not disable the idle timer (product behaviour unchanged).
-            UIApplication.shared.isIdleTimerDisabled = true
         } else {
             do {
                 try captureManager.configure()
@@ -540,6 +577,9 @@ final class CameraPoseViewModel: ObservableObject {
         startSet(1)
         startPerfLog()
         if let videoSource { videoSource.start() } else { captureManager.start() }
+        cameraRunning = true
+        keepScreenAwake(true, reason: "camera_start")
+        observeAppLifecycle()
         statusText = "Running"
         VideoRunLog.shared?.write("camera_started", [
             "exercise": exercise.rawValue, "hands": handEnabled, "xs": lifter != nil,
@@ -680,7 +720,7 @@ final class CameraPoseViewModel: ObservableObject {
             imageHeight: result.imageHeight, coco17: overlaySmoother.smooth(result.visualCoco17, at: CACurrentMediaTime()),
             rawCoco17: result.rawCoco17, handResults: result.handResults, exerciseTitle: exercise.displayName,
             statusText: lastReportedStatus ?? "", rep: lastReportedRep ?? 0, done: lastReportedDone ?? false,
-            severity: severityTrack.update(liveSeverity, at: CACurrentMediaTime()))
+            shade: severityTrack.update(liveSeverity, at: CACurrentMediaTime()))
     }
 
     /// 3D path: frame t with its own 2D and 3D (state never hidden: it goes to the evaluators and to Flutter).
@@ -810,7 +850,7 @@ final class CameraPoseViewModel: ObservableObject {
             statusText: statusText,
             rep: rep,
             done: done,
-            severity: severityTrack.update(liveSeverity, at: CACurrentMediaTime())
+            shade: severityTrack.update(liveSeverity, at: CACurrentMediaTime())
         )
 
         self.currentFrame = frameData
@@ -1011,11 +1051,10 @@ private struct CameraLiveView: View {
         }
     }
 
-    /// Glowing skeleton coloured by live posture severity (neutral when unknown), neck + head ring, no hands.
+    /// Glowing body skeleton coloured by live posture severity (green default, dim green when uncertain), no head, no hands.
     private func drawSkeleton(frame: CameraFrameData, context: inout GraphicsContext, size: CGSize) {
         let rect = aspectFillRect(imageWidth: frame.imageWidth, imageHeight: frame.imageHeight, in: size)
-        PoseOverlayRenderer.draw(frame.coco17, severity: frame.severity, in: &context,
-                                 scale: frame.imageWidth > 0 ? rect.width / frame.imageWidth : 1) {
+        PoseOverlayRenderer.draw(frame.coco17, shade: frame.shade, in: &context) {
             viewPoint($0, frame: frame, rect: rect)
         }
     }

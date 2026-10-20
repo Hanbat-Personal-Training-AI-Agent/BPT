@@ -2,18 +2,16 @@ import QuartzCore
 import simd
 import SwiftUI
 
-/// Camera overlay: the body skeleton (COCO17 in frame pixels) as soft glowing lines with round caps, a neck from the
-/// shoulder midpoint to the head centre and one head ring (no face lines), joints below `minConfidence` hidden, hands
-/// never drawn (the hand branch still runs, for the XS input wrists only).
-/// Colour per segment = the live posture severity of the rules measured on it (FormWarningTracker.liveSeverity, smoothed
-/// by OverlaySeverityTrack): green #9BE15D → amber → red #FF5A4E as the quantity moves towards and past the rule
-/// threshold. A segment with no rule in this phase or an unknown quantity (warming up, tracking lost, partial / bad 3D,
-/// low confidence) is neutral white — never green, since green would claim "good" without evidence. Display only.
+/// Camera overlay: the body only (shoulders, arms, torso, hips, legs; COCO17 in frame pixels) as soft glowing lines with
+/// round caps. No face, head or neck, no hands (the hand branch still runs, for the XS input wrists only); joints below
+/// `minConfidence` hidden. Colour per segment (FormWarningTracker.liveSeverity, smoothed by OverlaySeverityTrack): green
+/// #9BE15D by default (no issue, or no rule applies in this phase / view, or no baseline yet), through amber to red
+/// #FF5A4E as a rule's quantity moves towards and past its threshold; dimmed green when the 3D is uncertain (warming
+/// up, tracking lost, bad or partial 3D, low confidence) — never red then. Display only.
 enum PoseOverlayRenderer {
     static let green = SIMD3<Double>(0x9B, 0xE1, 0x5D) / 255  // #9BE15D
     static let amber = SIMD3<Double>(0xFF, 0xB0, 0x3B) / 255
     static let red = SIMD3<Double>(0xFF, 0x5A, 0x4E) / 255  // #FF5A4E
-    static let neutral = Color(white: 0.93)
     static let minConfidence = 0.3
 
     /// Severity 0 … 1 → green … amber … red.
@@ -23,68 +21,35 @@ enum PoseOverlayRenderer {
         return Color(red: c.x, green: c.y, blue: c.z)
     }
 
-    /// Head centre (robust: per-axis median of the confident nose, eyes and ears; at least two) or nil.
-    static func headCentre(_ k: [PoseKeypoint]) -> CGPoint? {
-        let face = (0...4).map { k[$0] }.filter { $0.confidence >= minConfidence }
-        guard face.count >= 2 else { return nil }
-        let med = { (v: [Double]) -> Double in let s = v.sorted(); return s.count % 2 == 1 ? s[s.count / 2] : (s[s.count / 2 - 1] + s[s.count / 2]) / 2 }
-        return CGPoint(x: med(face.map(\.x)), y: med(face.map(\.y)))
-    }
-
-    /// `point` maps frame pixels to the view; `scale` frame px → view px (for the head size).
-    static func draw(_ k: [PoseKeypoint], severity: [OverlaySegment: Double], in context: inout GraphicsContext,
-                     scale: Double, point: (PoseKeypoint) -> CGPoint) {
+    /// `point` maps frame pixels to the view; `shade` = (severity, opacity) per segment (missing = plain green).
+    static func draw(_ k: [PoseKeypoint], shade: [OverlaySegment: (severity: Double, opacity: Double)],
+                     in context: inout GraphicsContext, point: (PoseKeypoint) -> CGPoint) {
         guard k.count == 17 else { return }
         let seen = k.map { $0.confidence >= minConfidence }
-        let style = { (s: OverlaySegment) -> (Color, Double) in severity[s].map { (color($0), 1.0) } ?? (neutral, 0.55) }
-        var joints = Set<Int>()
+        var joints: [Int: Double] = [:]  // joint → brightest opacity of its drawn segments
         for seg in OverlaySegment.edges {
             guard case let .edge(a, b) = seg, seen[a], seen[b] else { continue }
             var p = Path()
             p.move(to: point(k[a]))
             p.addLine(to: point(k[b]))
-            let (c, o) = style(seg)
-            glow(p, color: c, opacity: o, in: &context)
-            joints.formUnion([a, b])
+            let (severity, opacity) = shade[seg] ?? (severity: 0.0, opacity: 1.0)
+            glow(p, color: color(severity), opacity: opacity, in: &context)
+            for j in [a, b] { joints[j] = max(joints[j] ?? 0, opacity) }
         }
-        // Neck + head ring: shoulder midpoint (the confident shoulders) to the head centre; hidden without a face.
-        let shoulders = [5, 6].filter { seen[$0] }
-        if !shoulders.isEmpty, let head = headCentre(k) {
-            let neckBase = PoseKeypoint(x: shoulders.map { k[$0].x }.reduce(0, +) / Double(shoulders.count),
-                                        y: shoulders.map { k[$0].y }.reduce(0, +) / Double(shoulders.count), confidence: 1)
-            let headPoint = point(PoseKeypoint(x: head.x, y: head.y, confidence: 1))
-            // Radius ≈ 0.22 × shoulder width, or 0.18 × torso length when the shoulders overlap (side view).
-            let width = seen[5] && seen[6] ? hypot(k[5].x - k[6].x, k[5].y - k[6].y) : 0
-            let hips = [11, 12].filter { seen[$0] }
-            let torso = hips.isEmpty ? 0 : hypot(neckBase.x - hips.map { k[$0].x }.reduce(0, +) / Double(hips.count),
-                                                 neckBase.y - hips.map { k[$0].y }.reduce(0, +) / Double(hips.count))
-            let r = max(0.22 * width, 0.18 * torso, 6 / max(scale, 1e-6)) * scale
-            let (c, o) = style(.neck)
-            var neck = Path()
-            neck.move(to: point(neckBase))
-            // Stop at the ring so the line does not cross the face.
-            let dx = headPoint.x - point(neckBase).x, dy = headPoint.y - point(neckBase).y, d = max(hypot(dx, dy), 1e-6)
-            neck.addLine(to: CGPoint(x: headPoint.x - dx / d * r, y: headPoint.y - dy / d * r))
-            glow(neck, color: c, opacity: o, in: &context)
-            let ring = Path(ellipseIn: CGRect(x: headPoint.x - r, y: headPoint.y - r, width: 2 * r, height: 2 * r))
-            context.fill(ring, with: .color(c.opacity(0.10 * o)))
-            glow(ring, color: c, opacity: o, in: &context, core: 3)
-        }
-        var dots = Path()
-        for i in joints {
+        for (i, opacity) in joints {
             let p = point(k[i])
-            dots.addEllipse(in: CGRect(x: p.x - 3.5, y: p.y - 3.5, width: 7, height: 7))
+            context.fill(Path(ellipseIn: CGRect(x: p.x - 3.5, y: p.y - 3.5, width: 7, height: 7)),
+                         with: .color(.white.opacity(0.92 * opacity)))
         }
-        context.fill(dots, with: .color(.white.opacity(0.92)))
     }
 
     /// Neon look without blur filters (cheap at 30 fps): two wide faint strokes, the core line, a thin bright centre.
-    private static func glow(_ path: Path, color: Color, opacity: Double, in context: inout GraphicsContext, core: Double = 4) {
+    private static func glow(_ path: Path, color: Color, opacity: Double, in context: inout GraphicsContext) {
         for (width, alpha) in [(16.0, 0.10), (9.0, 0.22)] {
             context.stroke(path, with: .color(color.opacity(alpha * opacity)),
                            style: StrokeStyle(lineWidth: width, lineCap: .round, lineJoin: .round))
         }
-        context.stroke(path, with: .color(color.opacity(opacity)), style: StrokeStyle(lineWidth: core, lineCap: .round, lineJoin: .round))
+        context.stroke(path, with: .color(color.opacity(opacity)), style: StrokeStyle(lineWidth: 4, lineCap: .round, lineJoin: .round))
         context.stroke(path, with: .color(.white.opacity(0.45 * opacity)),
                        style: StrokeStyle(lineWidth: 1.4, lineCap: .round, lineJoin: .round))
     }
