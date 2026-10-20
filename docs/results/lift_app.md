@@ -325,3 +325,24 @@ lift_app_plan.md (a)절: 3D 코드 재고(a2), 키 목록·2D/3D 구분(a3), 2D 
 - 시뮬레이터 빌드: `192ad47`에서 `flutter build ios --simulator --debug` 성공(17:20). 18:05에 Mac의 Xcode가 27.1로 바뀐 뒤로는 시뮬레이터 빌드가 Flutter의 `Prepare Flutter Framework Script`에서 실패한다 — 새 `lipo -verify_arch arm64 x86_64 <파일>`이 “requires exactly one input file”로 거부(같은 `lipo` 명령을 그 Flutter.framework에 직접 실행해도 실패함을 확인 — 이 브랜치 코드와 무관한 도구 문제로 판단, 다른 브랜치에서의 재현은 하지 않음). 대신 `flutter build ios --debug --no-codesign`(기기용, 단일 아키텍처라 검사 통과)으로 최종 코드 전체 컴파일 성공, iPhone 벤치 앱(Release, 같은 PosePipeline·Evaluators·Bridge·Hands 소스)도 빌드·실행 성공.
 - 서버 테스트: 이 브랜치는 server/ 를 바꾸지 않아 **측정 안 함**.
 - **시뮬레이터 빌드 실패는 이 브랜치 탓이 아님(검증됨, 2026-10-20)**: 깨끗한 integration/ai `c113150`을 임시 워크트리(`.claude/worktrees/tmp-sim-check`, 확인 후 삭제)에 받아 `flutter pub get` → `pod install` → `flutter build ios --simulator --debug --no-pub`를 돌려도 같은 곳에서 실패(`Target debug_unpack_ios failed: … Flutter.framework/Flutter does not contain architectures "arm64 x86_64"`, Xcode 27.1 27A9275). 도구 설정은 바꾸지 않음. 고치려면 Flutter 업그레이드(새 lipo 인자 순서 대응) 또는 Xcode 되돌리기 — 사용자/팀 결정.
+
+## 2026-10-20 실제 Runner 앱 기기 검증 — 상태 기록 (ai/lift-app-m2b98256, 20:00 KST 무렵)
+상세 결과·표: `docs/results/lift_app_device.md`(이 브랜치). 모든 실행의 manifest·로그: Home `~/bpt-runs/lift-app/20261020-device-*`(sha256 Home에서 확인).
+- **브랜치**: `ai/lift-app-m2b98256` = main 2b98256(사용자 승인 D-M-02) + ai/lift-app(e21a25f까지) + ai/lift-refine 26b82fc(praise_good·말풍선·시험 자막).
+  `ai/lift-app`은 예전 스냅숏으로 그대로 둠. 통합(integration/main) 병합은 사용자 승인 전이라 **안 함**.
+- **끝난 것**: Exercise3D 39클립 × 2(반전 전·반전, main 데모 화면), 새 기본값(실제 판정) 3클립·로우 12클립, endSet·세트 범위 키 확인, lift-refine 오버레이
+  v1–v3·손 중복 제거 확인(사용자 관람), 오버레이 그리기 비용(차이 없음), xctrace Core AI(XS·RTMPose 모두 ANE), 30분 발열·배터리(100→80%, serious 19.4분,
+  드리프트 없음), 뼈 길이 목표 P1·P2(판정 변화 없음), 화면 자동 잠금 고침(기기에서 전환 확인), partial_3d 안내 숨김, setup-constraint (a)/(b)/(c)
+  (적응형 제약 제안 규칙 통과, 준비 자세는 COCO17에서 준비됨 0·s Halpe26 데모에서 1).
+- **남은 것(다음 세션)**:
+  1. 새 기본값 39클립 중 스쿼트 12클립(+ 로우 12클립을 de42b9a로 다시 — 로우는 e21a25f에서 돌아 praise_good 이전) → 운동별·클립별 (b)·(c) 표 완성,
+     기기 경로 좌우(`scripts/ex3d_lr_swap_device.py`) 푸시업·스쿼트.
+  2. L=3 vs L=5(측면 6클립 × 2, `--env BPT_3D_LOOKAHEAD=3`).
+  3. 가로 푸시업(15클립 `--env BPT_CAMERA_VIDEO_ROTATE=90`).
+  4. xctrace 새 오버레이 빌드(GPU·합성 비용 전후).
+  5. 테스트 브랜치 전용 m Halpe26 빌드(0024c50에서 뺀 enum 복구 + `~/bpt-models/rtmpose_m_halpe26_forward.mlpackage`를 git 밖에서 번들) →
+     m COCO17 vs m Halpe26(setup_ready·렙·E2E·드롭·lift3d), 이후 ai/finetune3-m2b98256의 미세조정 m Halpe26. “test build, not app default”.
+  6. 30분 발열 실행 로그 67 MB: Wi-Fi 복사가 60,000,000바이트에서 끊김 → **USB로 한 번 가져와야 함**(perf 로그는 완전, 결과는 이미 그걸로 냄).
+- 실행 방법: `scripts/device_video_runs.py run <clips> <out> --tag T --clips … --reps-from-gt outputs/rep_validation/gt.json --no-pull`(Wi-Fi일 때),
+  로그는 `devicectl device copy from …/Documents/video_runs/run_<tag>_<clip>.jsonl`, 분석 `scripts/analyze_device_video_runs.py`·`device_runs_tables.py`.
+  빌드는 scratchpad `runner-dev/build_liftdev_generic.sh`(com.bpt.liftdev, 무료 팀, pbxproj·lock 파일 원복).
