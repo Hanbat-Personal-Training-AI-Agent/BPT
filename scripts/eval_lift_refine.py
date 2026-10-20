@@ -17,6 +17,7 @@ eval_lift_app_t2t3.py (same prep, cache, metrics, judge_py, two_d heights).
   wrist        rtm / mp (= app: reject_crossed + 0.25 x forearm gate) / mp_dedupe (+ same-hand dedupe) / mp_raw (every
                detection, = the old overlay wrist): 2D wrist error vs projected mocap wrists, crossed rate (replaced
                wrist closer to the other mocap wrist), drawn-wrist crossed rate, XS 3D wrist error (rtm / mp / mp_dedupe).
+               mp / mp_dedupe 3D only on the videos the dedupe changed: `--vars rtm --changed-only` gives rtm on the same.
   ex3d         Exercise3D (pseudo-GT, canonical_3d = Sapiens triangulation, not metric): the constraint variants on the
                app 2D CSVs, PA-MPJPE in % of the label torso, angle errors, rule fires on the labelled reps. calib uses
                the subject's SAM 3D Body lengths (user's person split P1/P2/P3); pseudo_oracle the label lengths.
@@ -216,7 +217,8 @@ def run_wrist(a):
         G = d['G']; mm = d['mm'][:, None, None] / 1000
         both = np.isfinite(Hd[:, :, 0, 0]).all(1)
         changed = bool((both & np.array([same_hand(Hd[i, 0], Hd[i, 1]) for i in range(n)])).any())
-        for var in ('rtm', 'mp_raw', 'mp', 'mp_dedupe'):
+        if a.changed_only and not changed: continue
+        for var in a.vars:
             Kp = K.copy(); rep = np.zeros((n, 2), bool); same = np.zeros(n, bool)
             for i in range(n):
                 found = {s: Hd[i, si, 0] for si, s in enumerate(SIDES) if np.isfinite(Hd[i, si, 0, 0])}
@@ -526,6 +528,9 @@ def main():
     p.add_argument('--checkpoint', default=None); p.add_argument('--cpu', action='store_true')
     p.add_argument('--cache', default=None); p.add_argument('--shapes', default=None)
     p.add_argument('--task'); p.add_argument('--hands'); p.add_argument('--jobs', type=int, default=6)
+    p.add_argument('--vars', type=lambda s: s.split(','), default=['rtm', 'mp_raw', 'mp', 'mp_dedupe'], help='wrist: variants')
+    p.add_argument('--changed-only', action='store_true',
+                   help='wrist: only the videos where the dedupe changed a frame (= the videos with mp / mp_dedupe 3D)')
     p.add_argument('--threads', type=int, default=4, help='torch CPU threads (Home is shared: 8 spin-wait under contention)')
     a = p.parse_args()
     if a.cmd == 'verdict':
