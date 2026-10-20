@@ -409,30 +409,68 @@ final class FormWarningsTests: XCTestCase {
     }
 }
 
-/// Warning key -> overlay edges (the red highlight): every posture rule has a cause the overlay draws.
-final class FormWarningCauseEdgeTests: XCTestCase {
-    func testEveryPostureRuleMapsToDrawnEdges() {
-        let drawn = Set(FormGeometry.overlayEdges)
-        for (_, rules) in FormWarningTracker.rules {
-            for (key, _) in rules where key != "setup_side_view" {
+/// Overlay colour table (display only): rule → segments → per-frame quantity → normal / threshold.
+extension FormWarningsTests {
+    func testOverlayTableMatchesTheRulesAndDrawnSegments() {
+        let drawn = Set(OverlaySegment.edges + [.neck])
+        for (exercise, rules) in OverlayRule.table {
+            let keys = (FormWarningTracker.rules[exercise] ?? []).map(\.key)
+            let tracker = FormWarningTracker(exercise: exercise)
+            for rule in rules {
+                XCTAssertTrue(keys.contains(rule.key), "\(rule.key) is not a \(exercise) rule")
+                XCTAssertNotEqual(rule.threshold(tracker), rule.normal, "\(rule.key): normal == threshold")
                 for side in [FormSide.left, .right] {
-                    let edges = FormGeometry.causeEdges(of: key, side: side)
-                    XCTAssertFalse(edges.isEmpty, "\(key) has no cause edges")
-                    XCTAssertTrue(Set(edges).isSubset(of: drawn), "\(key) \(side): \(edges) not all drawn")
+                    let segs = rule.segments(side)
+                    XCTAssertFalse(segs.isEmpty, rule.key)
+                    XCTAssertTrue(Set(segs).isSubset(of: drawn), "\(rule.key) colours a segment the overlay does not draw")
                 }
             }
         }
-        for key in ["setup_side_view", "setup_full_body", "tracking_lost", "praise_fixed"] {
-            XCTAssertTrue(FormGeometry.causeEdges(of: key, side: .left).isEmpty)
-        }
+        // The request's examples: hip sag/pike = shoulder–hip–knee–ankle, valgus = both legs, swing = shoulder–hip.
+        let rule = { (e: FormExercise, k: String) in OverlayRule.table[e]!.first { $0.key == k }! }
+        XCTAssertEqual(Set(rule(.pushUp, "pushup_hip_pike").segments(.left)), [.edge(5, 11), .edge(11, 13), .edge(13, 15)])
+        XCTAssertEqual(Set(rule(.squat, "squat_knee_valgus").segments(.right)), [.edge(11, 13), .edge(13, 15), .edge(12, 14), .edge(14, 16)])
+        XCTAssertEqual(rule(.barbellRow, "row_torso_swing").segments(.right), [.edge(6, 12)])
+        XCTAssertEqual(Set(rule(.pushUp, "pushup_no_lockout").segments(.right)), [.edge(6, 8), .edge(8, 10)])
     }
 
-    func testExamplesFromTheRequest() {
-        // pushup_hip_sag/pike: shoulder–hip–knee–ankle; squat_knee_valgus: both hip–knee–ankle; row_torso_swing:
-        // shoulder–hip; pushup_no_lockout: shoulder–elbow–wrist.
-        XCTAssertEqual(Set(FormGeometry.causeEdges(of: "pushup_hip_pike", side: .left)), [[5, 11], [11, 13], [13, 15]])
-        XCTAssertEqual(Set(FormGeometry.causeEdges(of: "squat_knee_valgus", side: .right)), [[11, 13], [13, 15], [12, 14], [14, 16]])
-        XCTAssertEqual(FormGeometry.causeEdges(of: "row_torso_swing", side: .right), [[6, 12]])
-        XCTAssertEqual(Set(FormGeometry.causeEdges(of: "pushup_no_lockout", side: .right)), [[6, 8], [8, 10]])
+    func testOverlaySeverityRamp() {
+        XCTAssertEqual(OverlayRule.severity(0, normal: 0, threshold: 0.14), 0)
+        XCTAssertEqual(OverlayRule.severity(0.07, normal: 0, threshold: 0.14), 0.5, accuracy: 1e-12)
+        XCTAssertEqual(OverlayRule.severity(0.3, normal: 0, threshold: 0.14), 1, "past the threshold stays red")
+        XCTAssertEqual(OverlayRule.severity(-0.2, normal: 0, threshold: 0.14), 0, "the other direction is not this rule")
+        XCTAssertEqual(OverlayRule.severity(-0.04, normal: 0, threshold: -0.08), 0.5, accuracy: 1e-12, "pike: negative threshold")
+        XCTAssertEqual(OverlayRule.severity(1.125, normal: 1.25, threshold: 1.0), 0.5, accuracy: 1e-12, "valgus: smaller ratio = worse")
+    }
+
+    func testLiveSeverityFollowsTheHipLineAndIsNeutralWithoutEvidence() throws {
+        let tracker = FormWarningTracker(exercise: .pushUp)
+        func severity(hipDrop: Double) -> [OverlaySegment: Double] {
+            tracker.observe(frameIndex: 0, coco17: sidePushUp(hipDrop: hipDrop), phase: "top")
+            return tracker.liveSeverity()
+        }
+        let chain: [OverlaySegment] = [.edge(5, 11), .edge(11, 13), .edge(13, 15)]
+        for seg in chain { XCTAssertEqual(try XCTUnwrap(severity(hipDrop: 0)[seg]), 0, accuracy: 1e-9) }
+        // hipDrop 30 px ≈ 0.07 of the shoulder–ankle line (half of the 0.14 sag threshold); 70 px is past it.
+        XCTAssertEqual(try XCTUnwrap(severity(hipDrop: 30)[.edge(5, 11)]), 0.504, accuracy: 0.01)
+        XCTAssertEqual(try XCTUnwrap(severity(hipDrop: 70)[.edge(11, 13)]), 1)
+        XCTAssertEqual(try XCTUnwrap(severity(hipDrop: -17)[.edge(13, 15)]), 0.5, accuracy: 0.02, "pike half way")
+        XCTAssertNil(severity(hipDrop: 0)[.neck], "head rules need an open rep")
+
+        // 3D required but this frame has no 3D (warming up / lost / bad): every segment neutral, none green.
+        let required = FormWarningTracker(exercise: .pushUp)
+        required.common.form3DRequired = true
+        required.observe(frameIndex: 0, coco17: sidePushUp(hipDrop: 70), pose3DState: .warmingUp, phase: "top")
+        XCTAssertTrue(required.liveSeverity().isEmpty)
+    }
+
+    func testOverlaySeverityTrackSmoothsAndHoldsThenGoesNeutral() {
+        var track = OverlaySeverityTrack()
+        let seg = OverlaySegment.edge(5, 11)
+        XCTAssertEqual(track.update([seg: 0], at: 0)[seg], 0)
+        let mid = try? XCTUnwrap(track.update([seg: 1], at: 0.2)[seg])
+        XCTAssertEqual(mid ?? -1, 1 - exp(-1), accuracy: 1e-9, "one time constant: 63%")
+        XCTAssertNotNil(track.update([:], at: 0.3)[seg], "brief gap: last colour held")
+        XCTAssertNil(track.update([:], at: 0.6)[seg], "after the hold: neutral")
     }
 }

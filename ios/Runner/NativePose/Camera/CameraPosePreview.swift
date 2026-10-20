@@ -58,8 +58,8 @@ struct CameraFrameData: Identifiable {
     let statusText: String
     let rep: Int
     let done: Bool
-    /// Overlay edges behind the last judged rep's posture warnings and when it was judged (red highlight).
-    var warning: (edges: [[Int]], at: CFTimeInterval)?
+    /// Live posture severity per overlay segment (0 green … 1 red; absent = neutral), smoothed for display.
+    var severity: [OverlaySegment: Double] = [:]
 }
 
 struct CameraProcessingResult {
@@ -279,8 +279,9 @@ final class CameraPoseViewModel: ObservableObject {
     @Published var videoDisplayLayer: AVSampleBufferDisplayLayer?
     /// Frame being judged (handleLifted), for the run log's Flutter reply latencies.
     private var judgingFrame: (index: Int, arrival: CFTimeInterval)?
-    /// Red overlay highlight: cause edges of the last judged rep's warnings (FormWarningTracker judgement).
-    private var lastWarning: (edges: [[Int]], at: CFTimeInterval)?
+    /// Overlay colour: FormWarningTracker.liveSeverity of the last judged frame (display only), and its smoothing.
+    private var liveSeverity: [OverlaySegment: Double] = [:]
+    private var severityTrack = OverlaySeverityTrack()
     private var overlaySmoother = OverlaySmoother()
 
     init(exercise: NativePoseExercise, bridge: WorkoutChannel? = nil) {
@@ -325,13 +326,11 @@ final class CameraPoseViewModel: ObservableObject {
     /// Every frame: forward the tracker's feedback events and log each newly closed rep report.
     private func reportForm() {
         guard let tracker = formTracker else { return }
+        liveSeverity = tracker.liveSeverity()
         // Bench press closes a rep's report 0.5 s after the count (lockout window), so log by rep index.
         for report in tracker.reports where report.repIndex > lastLoggedRep {
             formLog?.append(report)
             lastLoggedRep = report.repIndex
-            let side = FormSide(rawValue: report.side) ?? .left
-            let edges = Set(report.warnings.flatMap { FormGeometry.causeEdges(of: $0, side: side) })
-            if !edges.isEmpty { lastWarning = (Array(edges), CACurrentMediaTime()) }
             if let log = VideoRunLog.shared {
                 var line = report.dictionary
                 line["judged_frame"] = judgingFrame?.index ?? -1
@@ -652,7 +651,7 @@ final class CameraPoseViewModel: ObservableObject {
             imageHeight: result.imageHeight, coco17: overlaySmoother.smooth(result.visualCoco17, at: CACurrentMediaTime()),
             rawCoco17: result.rawCoco17, handResults: result.handResults, exerciseTitle: exercise.displayName,
             statusText: lastReportedStatus ?? "", rep: lastReportedRep ?? 0, done: lastReportedDone ?? false,
-            warning: lastWarning)
+            severity: severityTrack.update(liveSeverity, at: CACurrentMediaTime()))
     }
 
     /// 3D path: frame t with its own 2D and 3D (state never hidden: it goes to the evaluators and to Flutter).
@@ -740,7 +739,7 @@ final class CameraPoseViewModel: ObservableObject {
             statusText: statusText,
             rep: rep,
             done: done,
-            warning: lastWarning
+            severity: severityTrack.update(liveSeverity, at: CACurrentMediaTime())
         )
 
         self.currentFrame = frameData
@@ -941,10 +940,11 @@ private struct CameraLiveView: View {
         }
     }
 
-    /// Glowing lime skeleton, red cause edges of the last warnings, no hands (PoseOverlayRenderer).
+    /// Glowing skeleton coloured by live posture severity (neutral when unknown), neck + head ring, no hands.
     private func drawSkeleton(frame: CameraFrameData, context: inout GraphicsContext, size: CGSize) {
         let rect = aspectFillRect(imageWidth: frame.imageWidth, imageHeight: frame.imageHeight, in: size)
-        PoseOverlayRenderer.draw(frame.coco17, warning: frame.warning, in: &context) {
+        PoseOverlayRenderer.draw(frame.coco17, severity: frame.severity, in: &context,
+                                 scale: frame.imageWidth > 0 ? rect.width / frame.imageWidth : 1) {
             viewPoint($0, frame: frame, rect: rect)
         }
     }
