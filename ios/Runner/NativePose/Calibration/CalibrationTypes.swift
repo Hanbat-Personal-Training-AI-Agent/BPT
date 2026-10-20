@@ -222,6 +222,36 @@ enum CalibrationGuidance: Equatable {
     }
 }
 
+/// When a guidance line may be spoken. The checks run every frame, so the guidance can flip
+/// between lines several times a second; speaking each flip came out as rapid-fire chatter.
+/// A line waits until it has been the guidance for `settle` seconds and the voice has been quiet
+/// for `gap` seconds (`repeatAfter` before the same line again). Interrupting lines skip both.
+struct GuidanceSpeechGate {
+    var settle: Double
+    var gap: Double
+    private var candidate: String?
+    private var candidateSince = 0.0
+
+    init(settle: Double, gap: Double) {
+        self.settle = settle
+        self.gap = gap
+    }
+
+    /// `quietSince`: when the last line ended (its start while it is still playing).
+    mutating func shouldSpeak(_ guidance: CalibrationGuidance, now: Double, isSpeaking: Bool,
+                              lastSpoken: String?, quietSince: Double, repeatAfter: Double) -> Bool {
+        let message = guidance.message
+        if message != candidate {
+            candidate = message
+            candidateSince = now
+        }
+        let same = message == lastSpoken
+        if guidance.interrupts { return !same || now - quietSince >= repeatAfter }
+        guard !isSpeaking, now - candidateSince >= settle else { return false }
+        return now - quietSince >= (same ? repeatAfter : gap)
+    }
+}
+
 /// What the engine decided for one frame.
 struct CalibrationEngineOutput {
     var guidance: CalibrationGuidance
