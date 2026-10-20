@@ -3,7 +3,8 @@ generator unchanged) with sources, models, binary and output folder as arguments
 own keypoints from its pose-replay run, kept CSVs) are looped ping-pong to 600 frames @30 fps, 11 perturbations (none, sideways
 sway, knee bob, weight shift, jitter, combo), replayed with pose-replay --keypoints-csv; truth = 0 reps. Mac, bpt-eval.
 
-usage: sway_ft3.py --kp-keep DIR --models mcoco17b,ft2d --exercises squat,row --replay BIN --out DIR
+usage: sway_ft3.py --kp-keep DIR --models halpe26 --layout halpe26 --exercises squat,row --replay BIN --out DIR
+       (--models = the keypoint-CSV name suffixes in --kp-keep; --layout = pose-replay --model for those CSVs)
 """
 import argparse, csv, itertools, json, os, subprocess
 
@@ -57,6 +58,7 @@ def main():
     p = argparse.ArgumentParser()
     p.add_argument('--kp-keep', required=True); p.add_argument('--models', required=True)
     p.add_argument('--exercises', default='squat,row'); p.add_argument('--replay', required=True); p.add_argument('--out', required=True)
+    p.add_argument('--layout', default='mcoco17', help='pose-replay --model for the keypoint CSVs (mcoco17 | halpe26)')
     a = p.parse_args()
     out, exs = [], a.exercises.split(',')
     for (name, (spec, s0, s1)), m, (kind, amp) in itertools.product(SRC.items(), a.models.split(','), CASES):
@@ -70,10 +72,10 @@ def main():
         row = dict(src=name, kind=kind, amp=amp, model=m)
         for ex in exs:
             d = f'{a.out}/out/{ex}'; os.makedirs(d, exist_ok=True)
-            subprocess.run(['lockf', '-k', '/tmp/bpt-heavy.lock', a.replay, '--exercise', ex, '--model', 'mcoco17', '--motion3d', 'none',
+            subprocess.run(['lockf', '-k', '/tmp/bpt-heavy.lock', a.replay, '--exercise', ex, '--model', a.layout, '--motion3d', 'none',
                             '--keypoints-csv', path, '--output-dir', d, f'/x/{tag}.mp4'], stdout=subprocess.DEVNULL, check=True)
             exn = {'squat': 'squat', 'row': 'barbell_row'}[ex]
-            row[ex] = json.load(open(f'{d}/{tag}_{exn}_mcoco17.json'))['session']['rep_count']
+            row[ex] = json.load(open(f'{d}/{tag}_{exn}_{a.layout}.json'))['session']['rep_count']
         out.append(row); print(row, flush=True)
     json.dump(out, open(f'{a.out}/result.json', 'w'), indent=1)
     print('SUM', {m: {ex: sum(r[ex] for r in out if r['model'] == m) for ex in exs} for m in a.models.split(',')}, len(out))
