@@ -48,7 +48,7 @@ void main() {
     expect(warm.message(isKo: true), '3D 자세 준비 중 (12/27)');
     expect(NativePose3DStatus.parse({'pose3d': {'state': 'tracking_lost'}})!.message(isKo: true), contains('판정 멈춤'));
     expect(NativePose3DStatus.parse({'pose3d': {'state': 'bad_3d'}})!.message(isKo: false), contains('not judged'));
-    expect(NativePose3DStatus.parse({'pose3d': {'state': 'partial_3d', 'usable': true}})!.message(isKo: true), contains('일부 관절'));
+    expect(NativePose3DStatus.parse({'pose3d': {'state': 'partial_3d', 'usable': true}})!.message(isKo: true), isNull);
     final ok = NativePose3DStatus.parse({'pose3d': {'state': 'ok', 'usable': true}})!;
     expect(ok.usable, isTrue);
     expect(ok.message(isKo: true), isNull);
