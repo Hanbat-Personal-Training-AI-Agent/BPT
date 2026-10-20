@@ -2,6 +2,7 @@
 
   tests/fixtures/adaptive_relations_cases.json  (AdaptiveRelationConstraint.swift)
   tests/fixtures/exercise_setup_cases.json      (ExerciseSetup.swift)
+  tests/fixtures/wrist_anchor_cases.json        (WristFloorAnchor.swift)
 usage: python scripts/make_setup_constraint_fixtures.py   (bpt-eval; rewrite after changing either module)
 """
 import json
@@ -14,6 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from pose_feedback.body.exercise_setup import ExerciseSetup  # noqa: E402
 from pose_feedback.geometry.adaptive_relations import RELATIONS, AdaptiveRelations  # noqa: E402
+from pose_feedback.geometry.wrist_anchor import WristFloorAnchor  # noqa: E402
 
 
 def body(t, rng, exercise, noise=0.003):
@@ -123,6 +125,39 @@ def setup_cases():
     return dict(cases=cases)
 
 
+def wrist_cases():
+    """Push-up 2D (COCO17 px): hands planted, jitter, a slide, flying frames, low confidence, an unseen elbow, a moved
+    hand; two parameter sets."""
+    cases = []
+    for params in (dict(), dict(radius=0.4, conf=0.4, reanchor_frames=12, init_frames=8)):
+        rng = np.random.default_rng(5)
+        frames = []
+        for t in range(200):
+            K = np.zeros((17, 3)); K[:, 2] = 0.85
+            K[:, :2] = rng.normal(0, 1.5, (17, 2)) + np.array([[300.0 + 10 * j, 400.0] for j in range(17)])
+            lw, rw = np.array([300.0, 600.0]), np.array([520.0, 600.0])
+            if 60 <= t < 100: lw += [0.6 * (t - 60), 0]           # slow slide (24 px over 40 frames)
+            if t >= 100: lw += [24, 0]
+            if 110 <= t < 116: lw += [150, -220]                   # flies off
+            if 120 <= t < 125: K[9, 2] = 0.05                      # not observed
+            if 130 <= t < 133: K[7, 2] = 0.1                       # elbow unseen (no effect once anchored)
+            if t >= 150: rw += [150, 0]                            # right hand put down elsewhere (1.4 forearm)
+            K[9, :2] = lw + rng.normal(0, 1.5, 2); K[10, :2] = rw + rng.normal(0, 1.5, 2)
+            K[7, :2] = lw + [0, -110]; K[8, :2] = rw + [0, -110]
+            if t < 10: K[9, :2] += [40 * (t % 2), 0]               # getting down: no reference yet
+            if 22 <= t < 26: K[10, 2] = 0.4                        # half seen: no reference from these
+            frames.append(K.tolist())
+        frames = _round(frames)
+        active = [t >= 20 for t in range(len(frames))]             # the set starts (rep 1 counted) at frame 20
+        a = WristFloorAnchor(**params)
+        exp = []
+        for K, on in zip(frames, active):
+            out, rep = a.update(np.array(K), active=on)
+            exp.append(dict(out=out[[9, 10]].tolist(), states=[rep[9], rep[10]]))
+        cases.append(dict(params=params, frames=frames, active=active, expected=exp))
+    return dict(cases=cases)
+
+
 def _round(x):
     """Inputs and expectations both rounded to 1e-7: the Swift test feeds the rounded inputs and compares at 1e-6."""
     if isinstance(x, float): return round(x, 7)
@@ -135,7 +170,8 @@ def main():
     out = ROOT / "tests/fixtures"
     (out / "adaptive_relations_cases.json").write_text(json.dumps(_round(adaptive_cases())))
     (out / "exercise_setup_cases.json").write_text(json.dumps(_round(setup_cases())))
-    print("wrote", out / "adaptive_relations_cases.json", out / "exercise_setup_cases.json")
+    (out / "wrist_anchor_cases.json").write_text(json.dumps(_round(wrist_cases())))
+    print("wrote", out / "adaptive_relations_cases.json", out / "exercise_setup_cases.json", out / "wrist_anchor_cases.json")
 
 
 if __name__ == "__main__":

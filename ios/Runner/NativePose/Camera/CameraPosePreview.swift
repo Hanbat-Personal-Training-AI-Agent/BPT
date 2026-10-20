@@ -35,6 +35,9 @@ private enum CameraPreviewOptions {
     /// EXPERIMENTAL confidence-aware relation constraint after Pose3DConstraints (AdaptiveRelationConstraint, ai/setup-constraint).
     /// Off unless BPT_ADAPTIVE_3D=1: not validated as a default (docs/results/setup_constraint_prereg.md).
     static let adaptive3D = ProcessInfo.processInfo.environment["BPT_ADAPTIVE_3D"] == "1"
+    /// EXPERIMENTAL push-up wrist floor anchor on the 2D (WristFloorAnchor, user 2026-10-20): on with BPT_WRIST_ANCHOR=1
+    /// or Flutter creationParams `wristAnchor` (dart-define BPT_WRIST_ANCHOR, set by the platform view factory).
+    nonisolated(unsafe) static var wristAnchor = ProcessInfo.processInfo.environment["BPT_WRIST_ANCHOR"] == "1"
     /// RTMPose input: 3:4 person crop from the previous frame's keypoints (RTMPoseCropTracker).
     /// false = old input, whole frame stretched to 192×256 every frame.
     static let personCropInput = true
@@ -81,6 +84,8 @@ struct CameraProcessingResult {
     var wristsReplaced = (left: false, right: false)
     /// Both wrist crops returned the same hand and neither MediaPipe wrist was used (CameraPreviewOptions.handDedupe).
     var sameHandDropped = false
+    /// WristFloorAnchor states (left, right) when that experiment is on; then visualCoco17 = rawCoco17 = XS input.
+    var wristAnchor: [String]?
 }
 
 // MARK: - Camera capture manager
@@ -273,6 +278,12 @@ final class CameraPoseViewModel: ObservableObject {
     nonisolated(unsafe) private var cropTracker = RTMPoseCropTracker()
     /// Live 3D. Only touched on `liftQueue` (serial, frame order kept).
     nonisolated(unsafe) private var lifter: MotionAGFormerLive<CameraProcessingResult>?
+    /// Push-up only, experimental (CameraPreviewOptions.wristAnchor); touched on the capture queue only.
+    nonisolated(unsafe) private var wristAnchor: WristFloorAnchor?
+    nonisolated(unsafe) private var wristAnchorLastFrame = Int.min / 2
+    nonisolated(unsafe) private var wristAnchorResetPending = false
+    /// The push-up set is underway (a rep counted, or the setup became ready): the wrist anchor may take its reference.
+    nonisolated(unsafe) private var wristAnchorActive = false
     private let liftQueue = DispatchQueue(label: "com.bpt.camera.lift3d", qos: .userInitiated)
     private var lastReportedPose3D: String?
     private var motion: DeviceMotionMonitor?
@@ -524,6 +535,7 @@ final class CameraPoseViewModel: ObservableObject {
             }
         }
 
+        if CameraPreviewOptions.wristAnchor && exercise == .pushUp { wristAnchor = WristFloorAnchor() }
         let handEnabled = (CameraPreviewOptions.enableMotion3DForCamera && CameraPreviewOptions.motion3DWristFromHands)
             || exercise.handBranchEnabled(override: CameraPreviewOptions.handBranchOverride)
         if handEnabled {
@@ -591,7 +603,7 @@ final class CameraPoseViewModel: ObservableObject {
             "enabled_feedback_keys": Array(formTracker?.common.enabledFeedbackKeys ?? []).sorted(),
             "form3d_required": formTracker?.common.form3DRequired ?? false,
             "reflect_flipped_knee": lifter?.constraints.reflectFlippedKnee ?? false,
-            "adaptive_3d": CameraPreviewOptions.adaptive3D, "exercise_setup": exerciseSetup != nil,
+            "adaptive_3d": CameraPreviewOptions.adaptive3D, "exercise_setup": exerciseSetup != nil, "wrist_anchor": wristAnchor != nil,
             "bone_targets": VideoCameraOptions.boneTargetsCm.map { ["file": VideoCameraOptions.environment["BPT_BONE_TARGETS"] ?? "",
                                                                      "segments": $0.count] as Any } ?? NSNull(),
             "hand_dedupe": CameraPreviewOptions.handDedupe,
@@ -656,14 +668,30 @@ final class CameraPoseViewModel: ObservableObject {
                 let wrists = (lifter == nil || CameraPreviewOptions.motion3DWristFromHands)
                     ? MotionAGFormerWristSource.input(raw: rawCoco17, left: point(leftHand), right: point(rightHand), sameHand: sameHand)
                     : MotionAGFormerWristSource.Result(input: rawCoco17)
-                let visualCoco17 = wrists.input
+                // Push-up wrist floor anchor (experimental): one wrist value for the overlay, the XS input and the
+                // evaluators; a gap of 0.5 s without a person starts it over (as the 3D window).
+                var anchoredInput = wrists.input
+                var anchorStates: [String]?
+                if wristAnchor != nil {
+                    if wristAnchorResetPending || frameIdx - wristAnchorLastFrame > 15 {
+                        wristAnchor?.reset()
+                        wristAnchorResetPending = false
+                    }
+                    wristAnchorLastFrame = frameIdx
+                    if let anchored = wristAnchor?.update(anchoredInput, active: wristAnchorActive) {
+                        anchoredInput = anchored.keypoints
+                        anchorStates = WristFloorAnchor.wrists.map { anchored.states[$0.0]?.rawValue ?? "none" }
+                    }
+                }
+                let input2D = anchoredInput
+                let visualCoco17 = input2D
 
                 var result = CameraProcessingResult(
                     frameIndex: frameIdx,
                     imageWidth: Double(cgImage.width),
                     imageHeight: Double(cgImage.height),
                     visualCoco17: visualCoco17,
-                    rawCoco17: rawCoco17,
+                    rawCoco17: anchorStates != nil ? input2D : rawCoco17,
                     feet: PoseCoordinateTransforms.applyInverseAffineToFeet(
                         decoded: decoded,
                         inverseAffine: inverseAffine
@@ -671,6 +699,7 @@ final class CameraPoseViewModel: ObservableObject {
                     handResults: handResults
                 )
                 result.arrivedAt = arrivedAt
+                result.wristAnchor = anchorStates
 
                 guard lifter != nil else {
                     Task { @MainActor [weak self] in
@@ -690,7 +719,7 @@ final class CameraPoseViewModel: ObservableObject {
                     let t0 = CACurrentMediaTime()
                     do {
                         let before = self.lifter?.inferences ?? 0
-                        let ready = try self.lifter?.push(frameIndex: frameIdx, coco17: wrists.input, imageWidth: cgImage.width,
+                        let ready = try self.lifter?.push(frameIndex: frameIdx, coco17: input2D, imageWidth: cgImage.width,
                                                           imageHeight: cgImage.height, payload: shown) ?? []
                         let liftMs = (CACurrentMediaTime() - t0) * 1000
                         self.perfLog?.sample("lift3d", ms: liftMs)
@@ -744,6 +773,7 @@ final class CameraPoseViewModel: ObservableObject {
         let pose3DKey = Pose3DBridge.key(frame3D)
         // the setup panel lives before the first rep; foot items only when the active 2D model gives Halpe26 feet
         let setup = rep == 0 ? updateSetup(frame3D, feet: result.feet, coco17: result.rawCoco17, now: now) : nil
+        if rep >= 1 || setupSeeded { wristAnchorActive = true }
         if rep != lastReportedRep || statusText != lastReportedStatus || done != lastReportedDone || pose3DKey != lastReportedPose3D
             || setup != nil {
             lastReportedRep = rep
@@ -771,6 +801,7 @@ final class CameraPoseViewModel: ObservableObject {
             if result.sameHandDropped { line["same_hand"] = true }
             if let row = frame3D.row { line["row"] = row }
             if rep == 0, let s = setupLog { line["setup"] = s }
+            if let a = result.wristAnchor { line["wrist_anchor"] = a }
             if let src = log.clipFrame(result.frameIndex) { line["src"] = src }
             // RTMPose keypoints the evaluators used (frame px, 1 decimal) and the raw MediaPipe wrist per crop side, for
             // the left/right analysis against the Exercise3D labels (scripts/ex3d_lr_swap_device.py).
@@ -832,6 +863,8 @@ final class CameraPoseViewModel: ObservableObject {
 
     /// Flutter "다시 설정": measure the setup again and drop the relations it seeded.
     private func resetSetup() {
+        wristAnchorResetPending = true
+        wristAnchorActive = false
         exerciseSetup?.reset()
         setupSeeded = false
         lastSetupSignature = nil
@@ -842,6 +875,7 @@ final class CameraPoseViewModel: ObservableObject {
     private func handleProcessingResult(_ result: CameraProcessingResult) {
         let (statusText, rep, done) = self.runEvaluator(frameIndex: result.frameIndex, rawCoco17: result.rawCoco17,
                                                         feet: result.feet, pose3D: nil, pose3DState: nil)
+        if rep >= 1 { wristAnchorActive = true }
 
         let frameData = CameraFrameData(
             id: result.frameIndex,

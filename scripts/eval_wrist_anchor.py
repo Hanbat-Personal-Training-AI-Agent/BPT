@@ -24,11 +24,12 @@ ELBOW = {9: 7, 10: 8}
 NEVER = 10 ** 9
 
 
-def simulate(K, **params):
-    """Anchored COCO17 2D for the whole sequence (the app runs it from the first push-up frame) + per-frame reports."""
+def simulate(K, active_from=0, **params):
+    """Anchored COCO17 2D for the whole sequence + per-frame reports; active from the frame the first rep is counted
+    (v2; the app: rep >= 1 or setup ready)."""
     a = WristFloorAnchor(**params); out = K.copy(); reps = []
     for t in range(len(K)):
-        out[t], r = a.update(K[t]); reps.append(r)
+        out[t], r = a.update(K[t], active=t >= active_from); reps.append(r)
     return out, reps
 
 
@@ -55,7 +56,7 @@ def held_rates(seqs, **params):
     """Pooled over set frames of both wrists: held among flying (e > 1.0) and among normal (e <= 0.5)."""
     hf, nf, hn, nn = 0, 0, 0, 0
     for d in seqs:
-        _, reps = simulate(d['K'], **params)
+        _, reps = simulate(d['K'], d['seg'][0][1], **params)
         for w in (9, 10):
             held = np.array([r[w] == 'held' for r in reps])[d['lo']:d['hi']]; e = d['e'][w][d['lo']:d['hi']]
             hf += int((held & (e > 1.0)).sum()); nf += int((e > 1.0).sum()); hn += int((held & (e <= 0.5)).sum()); nn += int((e <= 0.5).sum())
@@ -90,7 +91,7 @@ def run_tune(a):
     c_sel = max(GRID_C, key=lambda c: (round(grid[f'r{r_sel}_c{c}']['J'], 6), -c))
     runs = []  # tight out-of-radius observed runs with no re-anchoring
     for d in seqs:
-        _, reps = simulate(d['K'], radius=r_sel, conf=c_sel, reanchor_frames=NEVER)
+        _, reps = simulate(d['K'], d['seg'][0][1], radius=r_sel, conf=c_sel, reanchor_frames=NEVER)
         for w in (9, 10):
             out_seen = np.array([r[w] == 'held' for r in reps]) & (d['K'][:, w, 2] >= c_sel)
             out_seen[:d['lo']] = False; out_seen[d['hi']:] = False
@@ -133,7 +134,7 @@ def run_validate(a):
     recs, rules = [], {'raw': {}, 'anchor': {}}
     for d in seqs:
         lo, hi = d['lo'], d['hi']; K = d['K']
-        A, reps = simulate(K, **params)
+        A, reps = simulate(K, d['seg'][0][1], **params)
         rec = dict(key=lf.seq_key(d), view=d['view'])
         for w, (hw, he) in H36M_OF.items():
             ea = np.linalg.norm(A[:, w, :2] - d['G2'][:, hw], axis=-1) / d['f'][w]
@@ -160,12 +161,12 @@ def run_validate(a):
         # W4 moved hand (left wrist): 1.5 r forearm over 10 frames at mid-set, stays; then a 0.5 r slide over 60 frames
         mid = (lo + hi) // 2; f = d['f'][9]; step = np.zeros((len(K), 2)); step[mid:mid + 10, 0] = np.linspace(0, 1.5 * r_ * f, 10); step[mid + 10:, 0] = 1.5 * r_ * f
         Km = K.copy(); Km[:, 9, :2] += step
-        _, rm = simulate(Km, **params)
+        _, rm = simulate(Km, d['seg'][0][1], **params)
         ev = [t for t in range(mid, len(K)) if rm[t][9] == 'reanchored']
         rec['w4_reanchor_delay'] = (ev[0] - (mid + 10)) if ev else None
         slide = np.zeros((len(K), 2)); s0 = max(lo, mid - 90); slide[s0:s0 + 60, 0] = np.linspace(0, 0.5 * r_ * f, 60); slide[s0 + 60:, 0] = 0.5 * r_ * f
         Ks = K.copy(); Ks[:, 9, :2] += slide
-        _, rs = simulate(Ks, **params)
+        _, rs = simulate(Ks, d['seg'][0][1], **params)
         rec['w4_slide_extra_held'] = int(sum(rs[t][9] == 'held' for t in range(s0, s0 + 90)) - sum(reps[t][9] == 'held' for t in range(s0, s0 + 90)))
         recs.append(rec); print(rec['key'], {k: round(v, 3) if isinstance(v, float) else v for k, v in rec.items() if k != 'key'}, flush=True)
     summ = {}
@@ -207,8 +208,8 @@ def run_ex3d(a):
     params = json.load(open(a.params)) if a.params else dict(DEFAULTS)
     gt = json.load(open(f'{a.ex3d}/gt.json')); rows = []
 
-    def measure(name, K, span, extra=None):
-        A, reps = simulate(K, **params); lo, hi = span; rec = dict(name=name, **(extra or {}))
+    def measure(name, K, span, active_from, extra=None):
+        A, reps = simulate(K, active_from, **params); lo, hi = span; rec = dict(name=name, **(extra or {}))
         for w in (9, 10):
             good = K[lo:hi, w, 2] >= 0.5; fe = good & (K[lo:hi, ELBOW[w], 2] >= 0.5)
             if good.sum() < 10 or fe.sum() < 10: continue
@@ -230,7 +231,7 @@ def run_ex3d(a):
             K = np.array([[float(x) for x in r[4:4 + 26 * 3]] for r in R]).reshape(len(R), 26, 3)[:, :17]
         else:
             K = read_csv(csv)
-        measure(name, K, (max(0, rf[0] - half), min(len(K), rf[-1] + half)), dict(src='csv'))
+        measure(name, K, (max(0, rf[0] - half), min(len(K), rf[-1] + half)), rf[0] + half, dict(src='csv'))
     for log in sorted(glob.glob(a.devlogs)) if a.devlogs else []:
         J = [json.loads(l) for l in open(log) if l.strip()]
         jud = [d for d in J if d['type'] == 'judged']; reps = [d for d in J if d['type'] == 'rep']
@@ -240,7 +241,7 @@ def run_ex3d(a):
             for side, c, flag in (('left', 9, d['wrists'][0]), ('right', 10, d['wrists'][1])):
                 h = d.get('hands', {}).get(side)
                 if flag and h is not None: X[t, c, :2] = h
-        measure(Path(log).name, X, (reps[0]['start_frame'], reps[-1]['end_frame'] + 1), dict(src='device'))
+        measure(Path(log).name, X, (reps[0]['start_frame'], reps[-1]['end_frame'] + 1), reps[0]['end_frame'], dict(src='device'))
     out = Path(a.run_dir); json.dump(dict(params=params, rows=rows), open(out / 'wrist_ex3d.json', 'w'), indent=1)
     md = ['| 입력 | 손목 | > 0.5 아래팔 raw → anchor | > 1.0 raw → anchor | 최대 raw → anchor | held |', '|---|---|---|---|---|---|']
     for r in rows:

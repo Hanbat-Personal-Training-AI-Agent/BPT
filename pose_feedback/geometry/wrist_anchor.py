@@ -4,8 +4,10 @@ ios/Runner/NativePose/PosePipeline/WristFloorAnchor.swift mirrors this; tests/fi
 Rules and how the values were chosen: docs/results/setup_constraint_prereg.md section 8 (user request 2026-10-20 21:15:
 small hand moves are fine, a wrist flying off is not - the same principle as the feet).
 
-Per wrist (COCO17 px): once observed (confidence >= conf) wrists stayed within r of each other for init_frames frames,
-their median is the floor reference (r = radius x the 2D forearm of those frames). Then an observed wrist within r is
+Per wrist (COCO17 px): once the set is underway (`active`: rep >= 1 or setup ready) and the wrist and elbow were seen
+reliably (confidence >= init_conf) for init_frames frames within r of each other, their median is the floor reference
+(r = radius x the 2D forearm of those frames; v2: v1 also took low-confidence frames and frames before the set, and
+locked onto a screen-edge guess - section 8 change log). Then an observed wrist within r is
 kept and the reference follows it slowly (beta); a wrist out of r or not observed is replaced by the reference with
 confidence held_conf (just under the evaluators' 0.30 joint gate: never a new observation, still the floor contact for
 the push-up height samples) - "held". Observed positions out of r that stay within r/2 of each other for
@@ -14,8 +16,10 @@ evaluators alike.
 """
 import numpy as np
 
-# 임시값 until section 8 tuning (Fit3D s03-s05) replaces them
-DEFAULTS = dict(conf=0.3, radius=0.5, reanchor_frames=30, init_frames=15, beta=0.05, held_conf=0.29)
+# radius / conf / reanchor_frames: section 8 rules on Fit3D tuning subjects s03-s05 (RTMPose-m COCO17 app 2D; Home
+# 20261020-wrist-tune): mocap wrist motion p99 <= 0.21 forearm, every flying frame held at every radius, so the largest
+# grid radius; 17 flying runs, none >= 15 frames. 제안값 (사용자 미승인), validation: docs/results/setup_constraint.md.
+DEFAULTS = dict(conf=0.1, radius=1.0, reanchor_frames=15, init_frames=15, beta=0.05, held_conf=0.29, init_conf=0.5)
 WRISTS = ((9, 7), (10, 8))  # COCO17 (wrist, elbow): left, right
 
 
@@ -27,15 +31,16 @@ class WristFloorAnchor:
     def reset(self):
         self.state = {w: dict(ref=None, f=None, init=[], out=[]) for w, _ in WRISTS}
 
-    def update(self, K):
-        """K [17,3] COCO17 px (x, y, confidence) -> (K with the wrists anchored, {wrist: none|observed|held|reanchored})."""
+    def update(self, K, active=True):
+        """K [17,3] COCO17 px (x, y, confidence) -> (K with the wrists anchored, {wrist: none|observed|held|reanchored}).
+        active: the push-up set is underway (a reference is only taken then; one taken stays)."""
         K = np.asarray(K, dtype="float64")
         out, report = K.copy(), {}
         for w, e in WRISTS:
             s, seen = self.state[w], K[w, 2] >= self.p["conf"]
             if s["ref"] is None:
                 report[w] = "none"
-                if not seen or K[e, 2] < self.p["conf"]:
+                if not active or K[w, 2] < self.p["init_conf"] or K[e, 2] < self.p["init_conf"]:
                     s["init"] = []
                     continue
                 s["init"] = (s["init"] + [(K[w, :2].copy(), float(np.hypot(*(K[w, :2] - K[e, :2]))))])[-self.p["init_frames"]:]

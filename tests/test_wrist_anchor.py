@@ -14,7 +14,7 @@ def frame(lw=(300.0, 600.0), conf=0.9):
 
 
 def test_small_moves_kept_jumps_and_low_confidence_held_moved_hand_reanchored():
-    a = WristFloorAnchor(radius=0.5, reanchor_frames=10, init_frames=5)
+    a = WristFloorAnchor(radius=0.5, conf=0.3, reanchor_frames=10, init_frames=5)
     for _ in range(5):
         a.update(frame())
     K, rep = a.update(frame((320, 600)))  # 0.2 forearm: a small slide, the observation stays
@@ -26,7 +26,10 @@ def test_small_moves_kept_jumps_and_low_confidence_held_moved_hand_reanchored():
     reps = [a.update(frame((420, 600)))[1][9] for _ in range(10)]  # put down 1.2 forearm away and kept there
     assert reps[:9] == ["held"] * 9 and reps[9] == "reanchored" and abs(a.state[9]["ref"][0] - 420) < 1e-9
     assert a.update(frame((425, 600)))[1][9] == "observed" and a.state[10]["ref"] is not None
-    b = WristFloorAnchor(init_frames=5)
+    c = WristFloorAnchor(init_frames=5)  # v2: no reference before the set, none from half-seen frames
+    assert all(c.update(frame(), active=False)[1][9] == "none" for _ in range(8))
+    assert all(c.update(frame(conf=0.4))[1][9] == "none" for _ in range(8)) and c.state[9]["ref"] is None
+    b = WristFloorAnchor(radius=0.5, init_frames=5)
     for t in range(5):
         Kb = frame((300 + 80 * (t % 2), 600))  # moving hands while getting down: no reference yet
         assert b.update(Kb)[1][9] == "none"

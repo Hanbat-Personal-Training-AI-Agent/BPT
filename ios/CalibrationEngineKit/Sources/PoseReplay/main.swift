@@ -63,6 +63,8 @@ var constraintsOn = true
 /// --adaptive on: experimental AdaptiveRelationConstraint after the constraints (as BPT_ADAPTIVE_3D=1 in the camera);
 /// <base>_3d.csv then also has the adapted H36M17 (a*_x…) and the filled joints.
 var adaptiveOn = false
+/// --wrist-anchor on: experimental push-up WristFloorAnchor on the 2D (as BPT_WRIST_ANCHOR=1 in the camera).
+var wristAnchorOn = false
 var formSource3D = true
 var imageSizeOverride: (Int, Int)?
 var rowShrug = false
@@ -83,7 +85,7 @@ var cropEdgeRefit = true
 var boneTargetsPath: String?
 var videos: [URL] = []
 var arguments = CommandLine.arguments.dropFirst().makeIterator()
-let usage = "usage: pose-replay [--bone-targets PATH] [--exercise squat|pushup|row|bench|deadlift] [--model coco17|halpe26|mcoco17] [--model-path PATH] [--motion3d PATH|none] [--lookahead N] [--cadence K] [--constraints on|off] [--adaptive on|off] [--form-source 3d|2d] [--image-size WxH] [--row-shrug] [--side-cutoff R] [--row-offside off] [--pushup-ankle on|off] [--pushup-wrist-conf C] [--pushup-min-frames N] [--pushup-height on|off] [--squat-hold on|off] [--squat-near-leg on|off] [--squat-rebaseline N] [--squat-height on|off] [--squat-height-range R] [--ready-pose off|preset] [--input crop|full] [--crop-edge on|off] [--keypoints-csv PATH] [--keypoints-dir DIR] [--output-dir PATH] <video.mp4>..."
+let usage = "usage: pose-replay [--bone-targets PATH] [--exercise squat|pushup|row|bench|deadlift] [--model coco17|halpe26|mcoco17] [--model-path PATH] [--motion3d PATH|none] [--lookahead N] [--cadence K] [--constraints on|off] [--adaptive on|off] [--wrist-anchor on|off] [--form-source 3d|2d] [--image-size WxH] [--row-shrug] [--side-cutoff R] [--row-offside off] [--pushup-ankle on|off] [--pushup-wrist-conf C] [--pushup-min-frames N] [--pushup-height on|off] [--squat-hold on|off] [--squat-near-leg on|off] [--squat-rebaseline N] [--squat-height on|off] [--squat-height-range R] [--ready-pose off|preset] [--input crop|full] [--crop-edge on|off] [--keypoints-csv PATH] [--keypoints-dir DIR] [--output-dir PATH] <video.mp4>..."
 while let argument = arguments.next() {
     switch argument {
     case "--model":
@@ -120,6 +122,8 @@ while let argument = arguments.next() {
         constraintsOn = arguments.next() != "off"
     case "--adaptive":
         adaptiveOn = arguments.next() == "on"
+    case "--wrist-anchor":
+        wristAnchorOn = arguments.next() == "on"
     case "--form-source":
         formSource3D = arguments.next() != "2d"
     case "--image-size":
@@ -397,7 +401,15 @@ for video in videos {
                 + (coco17Frames[i] + extraFrames[i]).flatMap { [f($0.x), f($0.y), f($0.confidence)] })
             .joined(separator: ",") + "\n"
     }
+    // --wrist-anchor on (push-up, experimental): WristFloorAnchor on the 2D before the 3D and the evaluators, active once
+    // a rep has been counted (the camera: rep >= 1 or setup ready; with no MediaPipe here it anchors the RTMPose 2D).
+    var wristAnchor = wristAnchorOn && exercise == .pushUp ? WristFloorAnchor() : nil
+    var wristAnchorStates: [String: Int] = [:]
     for i in coco17Frames.indices {
+        if wristAnchor != nil, let r = wristAnchor?.update(coco17Frames[i], active: rep >= 1) {
+            coco17Frames[i] = r.keypoints
+            for (_, st) in r.states { wristAnchorStates[st.rawValue, default: 0] += 1 }
+        }
         guard lifter != nil else { evaluateFrame(i, nil); continue }
         let start = Date()
         let ready = try lifter!.push(frameIndex: i, coco17: coco17Frames[i], imageWidth: imageWidth,
@@ -430,6 +442,7 @@ for video in videos {
         "cadence": cadence,
         "constraints": constraintsOn,
         "adaptive": adaptiveOn,
+        "wrist_anchor": wristAnchorOn ? wristAnchorStates as Any : NSNull(),
         "bone_targets": targets.map { $0 as Any } ?? NSNull(),
         "form_source": tracker.common.form3DRequired ? "3d" : "2d",
         "delay_frames_3d": lifter.map { $0.delayFrames as Any } ?? NSNull(),

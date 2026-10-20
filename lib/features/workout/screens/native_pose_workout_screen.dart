@@ -586,6 +586,8 @@ class _NativePoseWorkoutScreenState
             creationParams: {
               'exerciseId': widget.exerciseId,
               if (_setupEnabled) ..._setupCreationParams,
+              // 실험용 푸시업 손목 바닥 고정 (--dart-define=BPT_WRIST_ANCHOR=true 일 때만, 기본 꺼짐)
+              if (const bool.fromEnvironment('BPT_WRIST_ANCHOR')) 'wristAnchor': true,
             },
             creationParamsCodec: const StandardMessageCodec(),
             onPlatformViewCreated: _onPlatformViewCreated,
