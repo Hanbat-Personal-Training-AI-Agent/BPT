@@ -28,9 +28,12 @@ from pose_feedback.body.pose2d_data import (
 
 SCRATCH = os.environ.get('BPT_C2D', '/private/tmp/bpt-c2d')
 MAIN = ROOT if (ROOT / 'outputs/exercise3d_labels').exists() else ROOT.parents[2]  # worktree -> main checkout
-EX3D_LABELS = MAIN / 'outputs/exercise3d_labels'
-EX3D_VIDEOS = MAIN / 'outputs/exercise3d_synced'
-GT_JSON = MAIN / 'outputs/rep_validation/gt.json'
+EX3D_LABELS = os.environ.get('BPT_EX3D_LABELS', MAIN / 'outputs/exercise3d_labels')  # finetune3: Home paths via env
+EX3D_VIDEOS = os.environ.get('BPT_EX3D_VIDEOS', MAIN / 'outputs/exercise3d_synced')
+GT_JSON = os.environ.get('BPT_EX3D_GT', MAIN / 'outputs/rep_validation/gt.json')
+EX3D_MODES = tuple(os.environ.get('BPT_EX3D_MODES', 'stretch,crop').split(','))
+EX3D_HELD = {'squat_0002', 'barbellrow_0003', 'barbellrow_0001'}  # P2 / P3 (D-B-01); the rest is P1
+LR_PAIRS = {'elbow': (7, 8), 'wrist': (9, 10), 'knee': (13, 14), 'ankle': (15, 16)}
 SAPIENS_COCO17 = [0, 1, 2, 3, 4, 5, 6, 7, 8, 62, 41, 9, 10, 11, 12, 13, 14]
 SAPIENS_HALPE_FEET = [15, 18, 16, 19, 17, 20]  # l/r big toe, l/r small toe, l/r heel (Halpe 20..25 order)
 GROUPS = {'face': [0, 1, 2, 3, 4], 'shoulder': [5, 6], 'elbow': [7, 8], 'wrist': [9, 10], 'hip': [11, 12],
@@ -48,6 +51,20 @@ def summarize(pred, gt, valid, box, extra=None):
                 out[f'pck{int(alpha * 100):02d}_{g}'] = round(pck(pred[:, idx], gt[:, idx], v, box, alpha), 4)
     d = np.linalg.norm(pred - gt, axis=-1) / box[:, None]
     out['mean_err_body12_pct_box'] = round(float(d[:, 5:][valid[:, 5:]].mean() * 100), 3)
+    for g in ('elbow', 'wrist', 'hip', 'knee', 'ankle', 'shoulder', 'limbs8'):  # mean error per group (% box)
+        v = valid[:, GROUPS[g]]
+        if v.any():
+            out[f'err_{g}_pct_box'] = round(float(d[:, GROUPS[g]][v].mean() * 100), 3)
+    # left/right swap: both joints of a pair closer to the other side's reference than to their own
+    sw = []
+    for g, (l, r) in LR_PAIRS.items():
+        ok = valid[:, l] & valid[:, r]
+        cross = (np.linalg.norm(pred[:, l] - gt[:, r], axis=-1) < np.linalg.norm(pred[:, l] - gt[:, l], axis=-1)) & \
+                (np.linalg.norm(pred[:, r] - gt[:, l], axis=-1) < np.linalg.norm(pred[:, r] - gt[:, r], axis=-1))
+        if ok.any():
+            out[f'swap_{g}'] = round(float(cross[ok].mean()), 5); sw.append(cross[ok])
+    if sw:
+        out['swap_limbs8'] = round(float(np.concatenate(sw).mean()), 5)
     if extra:
         out.update(extra)
     return out
@@ -105,7 +122,7 @@ def ex3d(model, stride=15):
             video = EX3D_VIDEOS / g['exercise'] / seq / f'{cam}.mp4'
             idx = [int(t) for t in range(0, len(lab['frame_index']), stride) if lab['target_present'][t]]
             frames = read_frames(video, [int(lab['frame_index'][t]) for t in idx])
-            for mode in ('stretch', 'crop'):
+            for mode in EX3D_MODES:
                 crops, back, gts, valid, boxes, feet = [], [], [], [], [], []
                 for t in idx:
                     fr = frames.get(int(lab['frame_index'][t]))
@@ -135,20 +152,22 @@ def ex3d(model, stride=15):
                     extra['pck05_heel'] = round(float((d[:, 4:] < 0.05).mean()), 4)
                     extra['pck05_toes'] = round(float((d[:, :4] < 0.05).mean()), 4)
                 rows[f'{seq}/{cam}/{mode}'] = dict(summarize(full[:, :17], np.array(gts), np.array(valid), np.array(boxes), extra),
-                                                   exercise=g['exercise'], angle=view['angle_deg'], mode=mode)
+                                                   exercise=g['exercise'], angle=view['angle_deg'], mode=mode,
+                                                   split='heldout' if seq in EX3D_HELD else 'P1')
     agg = {}
-    for mode in ('stretch', 'crop'):
+    for mode in EX3D_MODES:
         for side in ('side40', 'other'):
             sel = [r for r in rows.values() if r['mode'] == mode and (round(r['angle']) <= 40) == (side == 'side40')]
             for ex in ('all', 'squat', 'pushup', 'barbellrow'):
-                s = [r for r in sel if ex == 'all' or r['exercise'] == ex]
-                if s:
-                    agg[f'{mode}/{side}/{ex}'] = weighted(s)
+                for split in ('all', 'heldout', 'P1'):
+                    s = [r for r in sel if (ex == 'all' or r['exercise'] == ex) and (split == 'all' or r['split'] == split)]
+                    if s:
+                        agg[f'{mode}/{side}/{ex}' + ('' if split == 'all' else f'/{split}')] = weighted(s)
     return {'aggregate': agg, 'per_video': rows}
 
 
 def weighted(rows):
-    keys = [k for k in rows[0] if k.startswith(('pck', 'mean_err', 'conf'))]
+    keys = sorted({k for r in rows for k in r if k.startswith(('pck', 'mean_err', 'conf', 'err_', 'swap_'))})
     n = np.array([r['n_instances'] for r in rows], float)
     return {'n_instances': int(n.sum()), **{k: round(float(np.average([r.get(k, np.nan) for r in rows], weights=n)), 4) for k in keys}}
 
