@@ -82,13 +82,9 @@ class NativePose3DStatus {
     );
   }
 
-  /// 사용자에게 보일 안내 (ok 이면 null — 표시 안 함).
+  /// 사용자에게 보일 안내 (ok 이면 null — 표시 안 함). `occluded`(적응형 제약이 채운 관절)는 개발용 상태라
+  /// 사용자 문구를 띄우지 않는다(사용자 지시 2026-10-20: "일부관절이 직전자세로 그 멘트 안보이게"). 로그에만 남는다.
   String? message({required bool isKo}) {
-    if ((state == 'ok' || state == 'partial_3d') && occluded.isNotEmpty) {
-      return isKo
-          ? '일부 관절이 가려져 직전 관계로 추정하고 있어요 — 그 관절의 판정은 신뢰도가 낮아요'
-          : 'Some joints are hidden and estimated from the last relation — lower confidence for them';
-    }
     switch (state) {
       case 'warming_up':
         return isKo ? '3D 자세 준비 중 ($filled/$window)' : 'Preparing 3D pose ($filled/$window)';
