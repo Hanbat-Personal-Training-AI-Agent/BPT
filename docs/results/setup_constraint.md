@@ -1,6 +1,8 @@
 # 개인화 준비 자세 · 적응형 가림 제약 (ai/setup-constraint)
 
-기준: `origin/ai/lift-app` 104ea89에서 분기. 사전등록: [setup_constraint_prereg.md](setup_constraint_prereg.md)(검증 결과 보기 전에 커밋, 변경 기록 포함). **모든 기능은 기본 끔이며, integration 병합이나 기본값 변경은 하지 않았다.**
+> **다음 세션은 6절(체크포인트: 상태·남은 일)부터 읽는다.** 브랜치 `ai/setup-constraint-m2b98256`(main 2b98256 위, D-M-02). 이전 브랜치 `ai/setup-constraint`는 35321ac 스냅숏으로 남겨 둠.
+
+기준: `origin/ai/lift-app` 104ea89에서 분기 → D-M-02로 main 2b98256 위에 다시 만듦. 사전등록: [setup_constraint_prereg.md](setup_constraint_prereg.md)(검증 결과 보기 전에 커밋, 변경 기록 포함). **모든 기능은 기본 끔이며, integration 병합이나 기본값 변경은 하지 않았다.**
 
 ## 1. 조사 — 기존 구현과 데이터 흐름 (코드로 확인)
 1. **캘리브레이션 서버가 돌려주는 값**(`server/calibration_modal/worker.py build_result`, `body.py`):
@@ -241,3 +243,32 @@ Mac scratch `runs/20261020-ex3d-*`.
   - 기본값(decay 45, max_gap 90)으로는 1–9%였다.
   - 측면 촬영에서 E를 켜려면 "먼 발"의 관측 판정 기준을 따로 다뤄야 한다(가설: 2D 위치가 안정적이면 관측으로 보기).
 - 가림이 풀린 뒤(W2) 되돌림은 없다: occ_grad5 / occ_step W2 억제 0.12 / 0.04(P1), −0.00 / 0.01(P2·P3).
+
+## 6. 체크포인트 — 상태·남은 일 (2026-10-20 20:10, 메인 세션 사용량 한도 대비)
+
+### 지금까지 결과 (요약)
+- **조정(Fit3D s03–s05)**: 가림 관절 오차 E 257.9 vs A 267.7 mm(가림으로 늘어난 오차 약 30% 감소), 깨끗한 입력 MPJPE A 165.7 / E 165.8. 자연 가림은 E가 더 나쁨(358.4 → 365.6). 관측된 발 이동 억제 1%(측면 Exercise3D에서는 5–17%, R3 초과).
+- **기기**(기기 에이전트, 2026-10-20): (a) 기본 / (b) `BPT_ADAPTIVE_3D=1`가 규칙 통과 — lift3d p95 −0.07…−0.19 ms, E2E p95 ±5 ms 안, 렙 수 같음. (c) 준비 자세: **COCO17(m)은 setup_ready 0회**, s Halpe26 데모에서만 1회(7.4 s, 첫 렙 전). a1·a2·b1·b2 라운드는 시작 줄이 `exercise_setup:false`라 준비 자세가 꺼져 있었음(0회가 당연, 실패 아님).
+- **검증(Home, s07–s11 카메라 4대, 60영상) — evaluate 끝, R1–R6 판정은 아직(아래 체인이 계산)**. 예비 짝지은 차이 E−A(가림 관절 오차 mm, 95% CI): wrist-long −10.0 (−25.5…5.4), wrist-vlong −11.3 (−23.7…0.2), ankle-short **+11.5 (4.0…19.3, 나빠짐)**, ankle-long −16.8 (−34.3…0.05), ankle-vlong −30.9 (−45.7…−16.9), arm-long −26.8 (−37.9…−16.0), leg-long −12.2 (−19.3…−4.6), knee·shoulder 0(관계 없음). 깨끗한 입력 E−A +0.35 mm (0.02…0.73). 자연 가림 A 343.4 → E 357.5(나빠짐), F 339.4, C 321.0. 판정은 사전등록 규칙으로만 내린다.
+- **RGB 가림(방법 2, Home, 끝)**: 관절을 칠해도 RTMPose 신뢰도가 0.74–0.79 → 0.51–0.54로만 떨어지고 2D 오차는 7–13 → 19–26 px로 커짐 = "자신 있게 틀린" 경우가 많아 신뢰도 0.5 기준의 E가 거의 발동하지 않음. E−A wrist +3.9 (−5.5…18.4), ankle +3.6 (−5.6…14.5) mm, 유의하지 않음. 합성 손상(신뢰도 0.05–0.25)이 실제보다 E에 유리하다는 뜻.
+
+### 준비 자세가 COCO17에서 "준비 완료"가 안 된 원인 (기기 로그 재현)
+기기 로그의 judged `kp`(그 기기가 실제로 쓴 2D)를 Python 앱 경로(XS L=5 → 제약 → 적응형 → ExerciseSetup)에 다시 넣어 확인(Mac scratch `setupfix/dev_repro.py`, 기기 run `setup3_c_view`·`setup3_c_halpe`, d6dd1e9).
+- squat_0001 cam2(측면)는 0–57프레임 서 있고 58프레임부터 내려간다. 3D는 21프레임부터 나오므로 서 있는 3D는 37프레임뿐이다.
+- 막은 항목은 **feet_width 하나**다. 측면이라 두 발목 벡터가 깊이 방향(depth_estimated)이고, 그 값은 XS의 깊이 추측이라 서 있어도 30프레임 범위가 0.106–0.129(골반 너비 배)로 허용폭 0.10을 넘었다 → 계속 "moving". 신뢰도는 문제가 아니었다(발목 0.81–0.92, 엉덩이 0.73–0.76). 몸통 기울기 범위 1.1–1.9°(허용 5°)는 통과.
+- s Halpe26에서 된 것은 같은 값이 0.053으로 우연히 허용폭 안이었기 때문이다(그 run도 depth_estimated). 측정이 더 좋아서가 아니다.
+- 푸시업(측면): 먼 쪽 엉덩이 신뢰도 중앙값 0.40 → feet_width·torso_incline이 "낮음"이라 창이 계속 초기화. 로우(측면): feet·grip가 깊이 방향이고 범위 0.58 / 0.39, 손목 신뢰도가 0.35까지 떨어지는 구간.
+- **수정(b636b13, Python; Swift 미러 진행 중)**:
+  1. 깊이 방향 너비는 3D 범위로 정지를 판정하지 않는다(XS 깊이 흔들림은 사용자 움직임이 아님). 대신 **2D 정지**: 필수 항목이 쓰는 좌우 관절 쌍(발목·엉덩이·어깨·손목…)의 2D 중점이 창 동안 2D 몸통 길이의 0.10배(임시값) 이내. 두 관절 모두 신뢰도 0.5 이상인 쌍만 쓰고, 쓸 쌍이 없으면 준비 완료를 주지 않는다. 화면 평면 항목(모든 창 프레임에서 good)은 기존 허용폭을 그대로 지킨다. 저신뢰도("낮음") 항목은 여전히 창을 초기화한다.
+  2. 몸통 기울기 신뢰도는 한쪽(어깨+엉덩이)으로 본다 — 측면에서 먼 쪽이 가려져도 몸통 선은 보인다.
+  3. 푸시업 feet_width는 필수에서 뺐다(측면에서 먼 발·엉덩이가 가려짐).
+  4. 결과(같은 기기 2D 재현): COCO17(m)·Halpe26(s) 모두 **50프레임**(3D 시작 21 + 30프레임)에 준비 완료, 하강(58–60프레임 시작) 전. 하강 창은 2D 0.17–1.06으로 "moving".
+- **foot_symmetry −1.99의 이유**: 이 항목은 두 발목의 골반 선 방향 성분 합 ÷ 골반 너비다. 측면에서는 골반 선이 깊이 방향(깊이 비율 0.79–0.91)이라 XS 깊이 추측이 그대로 들어간다. 재현에서 왼발목 −0.1, 오른발목 −1.7 골반 너비(골반 기울기는 3–5°라 수직 성분 누출이 아님) → 합 −1.8…−2.0. 실제 비대칭이 아니라 측면 깊이 추측이며, 이 항목이 깊이 확인 목록에 없어 "good"으로 보인 것이 버그다. 고침(진행 중): foot_symmetry·shoulder_over_pelvis·foot_stagger도 측정 축의 깊이 비율로 "추정치" 표시(표시 전용 항목, 준비 판정과 무관).
+- **적응형 무효 과다(기기 squat 61% partial_3d)**: 무효 규칙이 17관절 전체에 걸려 관계가 없는 먼 손목(신뢰도 0.2)이 90프레임 뒤 계속 무효가 됐다. 고침(b636b13, Python+Swift): 확립된 관계의 관절만 무효로 표시.
+
+### 남은 일 (이 순서)
+1. Swift `ExerciseSetup` 미러(2D 정지·한쪽 몸통·푸시업 필수·깊이 표시), 픽스처 재생성(`scripts/make_setup_constraint_fixtures.py`), swift test·pytest·flutter test, `flutter build ios --debug --no-codesign`(heavy lock), pubspec.lock/Podfile.lock 원복 확인, 푸시.
+2. 기기 에이전트에 (c) 재측정 요청: COCO17(m) squat_0001_cam2 + pushup_0003_cam2 + barbellrow_0000_cam2, `BPT_ADAPTIVE_3D=1` + `BPT_EXERCISE_SETUP=true`. 기대: squat 준비 완료(첫 렙 전), 적응형 무효가 먼 손목 때문에 생기지 않음.
+3. Home 체인 B2(무인, nohup): foot-shift heldout → **verdicts R1–R6** → signals heldout → xs-relations → setup-measure(SAM 체형) → gt-relations all. 로그 `~/bpt-runs/setup-constraint/chain_b2.log`. 중간에 끊기면 그 run 폴더 이름에 `-interrupted` 를 붙이고 캐시로 이어 돌린다.
+4. 판정·E1·E5(사후 분석 표시: 무효 규칙 변경 뒤 재실행)·§17 12문항·A–G 최종 보고를 이 문서 7절에 쓰고 docs/decisions.md 갱신, 푸시.
+
