@@ -1196,6 +1196,76 @@ def run_table(a):
     json.dump(rows, open(Path(a.run_dir) / f'table_{grp}.json', 'w'), indent=1)
 
 
+# ---------------------------------------------------------------- Halpe26 feet (being EVALUATED, not adopted; user 2026-10-20)
+def run_halpe_feet(a):
+    """Exercise3D clips through RTMPose-m Halpe26 (pose-replay CSV j0..j25): setup foot measures from ankles only vs
+    heels / big toes, against the canonical_3d PSEUDO ground truth (its own heels / toes), per view, over the setup
+    window; plus the 2D error of the Halpe26 foot points against the projected pseudo-GT ones."""
+    import ast
+    from eval_3d_angles import EX3D_NAMES
+    gt = json.load(open(f'{a.ex3d}/gt.json')); recs, inputs = [], []
+    for csvp in sorted(Path(a.halpe_dir).glob('*_halpe26.csv')):
+        name = csvp.name.split('_squat_')[0].split('_pushup_')[0].split('_barbell_row_')[0]
+        seq, cam = name.rsplit('_', 1)
+        g = gt.get(seq)
+        if g is None or cam not in g['views']: continue
+        rows = [l.rstrip('\n').split(',') for l in open(csvp)][1:]
+        K = np.array([[float(x) for x in r[4:4 + 26 * 3]] for r in rows]).reshape(len(rows), 26, 3)
+        z = np.load(f'{a.ex3d}/labels/{seq}/geometry/canonical_3d.npz'); names = list(z['joint_names']); Pw = z['keypoints_3d'].astype(float)
+        cg = json.load(open(f'{a.ex3d}/labels/{seq}/geometry/metadata.json'))['camera_geometry']; cg = ast.literal_eval(cg) if isinstance(cg, str) else cg
+        E_ = np.array(cg[cam]['extrinsic_world_to_camera'], float); R, T = E_[:, :3], E_[:, 3]; Kin = np.array(cg[cam]['intrinsic_working_frame'], float)
+        up_w = -np.mean([np.array(v['extrinsic_world_to_camera'])[1, :3] for v in cg.values()], axis=0); up_w /= np.linalg.norm(up_w)
+        n = min(len(K), len(Pw)); K, Pw = K[:n], Pw[:n]
+        J = lambda nm: Pw[:, names.index(nm)]
+        proj = lambda X: (lambda c: (c[:, :2] / c[:, 2:3]) @ Kin[:2, :2].T + Kin[:2, 2])(X @ R.T + T)
+        # Halpe26 indices: 15/16 ankles, 11/12 hips, 13/14 knees, 20/21 big toes, 24/25 heels
+        pairs = {'ankle': (15, 16, 'left_ankle', 'right_ankle'), 'heel': (24, 25, 'left_heel', 'right_heel'), 'toe': (20, 21, 'left_big_toe', 'right_big_toe'),
+                 'hip': (11, 12, 'left_hip', 'right_hip')}
+        # source-video px vs label working frame: from the hip -> ankle segments (in the image plane in every view; the
+        # left-right pairs collapse in side views and gave a wrong scale)
+        sc = float(np.median([np.median(np.linalg.norm(K[:, h, :2] - K[:, an, :2], axis=-1)) /
+                              max(np.median(np.linalg.norm(proj(J(hn)) - proj(J(anm)), axis=-1)), 1e-9)
+                              for h, an, hn, anm in ((11, 15, 'left_hip', 'left_ankle'), (12, 16, 'right_hip', 'right_ankle'))]))
+        rf = g['rep_frames']; half = int(np.median(np.diff(rf)) / 2) if len(rf) > 1 else 15
+        w1 = rf[0] - half; w0 = max(0, w1 - SETUP_WINDOW)
+        if w1 - w0 < SETUP_WINDOW // 2: continue
+        w = slice(w0, w1)
+        d2 = {k: np.linalg.norm(K[w, i, :2] - K[w, j, :2], axis=-1) for k, (i, j, _, _) in pairs.items()}
+        d3 = {k: np.linalg.norm(J(a_)[w] - J(b_)[w], axis=-1) for k, (_, _, a_, b_) in pairs.items()}
+        conf = {k: np.minimum(K[w, i, 2], K[w, j, 2]) for k, (i, j, _, _) in pairs.items()}
+        # toe-out angle (pseudo-GT, ground plane): heel -> big toe vs the body's forward axis, mean of both feet
+        lr = J('left_hip') - J('right_hip'); lr = lr - np.outer(lr @ up_w, up_w); fwd = np.cross(lr, up_w); fwd /= np.linalg.norm(fwd, axis=-1, keepdims=True)  # x fwd, y left, z up: y x z = +x
+        ang = []
+        for side, sgn in (('left', 1), ('right', -1)):
+            f = J(f'{side}_big_toe') - J(f'{side}_heel'); f = f - np.outer(f @ up_w, up_w)
+            lr_u = lr / np.linalg.norm(lr, axis=-1, keepdims=True)
+            ang.append(np.degrees(np.arctan2(sgn * (f * lr_u).sum(-1), (f * fwd).sum(-1))))  # > 0 = toe turned out
+        toe_out_deg = np.mean(ang, 0)
+        err2 = {k: float(np.median(np.linalg.norm(K[w, i, :2] - sc * proj(J(a_)[w]), axis=-1)) / np.median(np.linalg.norm(K[w, 13, :2] - K[w, 15, :2], axis=-1)))
+                for k, (i, _, a_, _) in pairs.items()}
+        rec = dict(seq=seq, cam=cam, exercise=g['exercise'], view=float(g['views'][cam]['angle_deg']),
+                   vbin='side' if g['views'][cam]['angle_deg'] <= 40 else 'diag' if g['views'][cam]['angle_deg'] <= 75 else 'front',
+                   conf={k: float(np.median(v)) for k, v in conf.items()}, err2d_over_shin=err2,
+                   ratio2d={k: float(np.median(d2[k] / d2['hip'])) for k in ('ankle', 'heel', 'toe')},
+                   ratio3d={k: float(np.median(d3[k] / d3['hip'])) for k in ('ankle', 'heel', 'toe')},
+                   sd2d={k: float(np.std(d2[k] / d2['hip'])) for k in ('ankle', 'heel', 'toe')},
+                   toe_out2d=float(np.median(d2['toe'] / d2['heel'])), toe_out3d=float(np.median(d3['toe'] / d3['heel'])),
+                   toe_out_deg=float(np.median(toe_out_deg)))
+        rec['px_scale'] = sc
+        recs.append(rec); inputs.append(str(csvp)); print(name, rec['vbin'], f'scale {sc:.2f}', flush=True)
+    md = ['**Halpe26(RTMPose-m) 발 점 — 평가 중, 미채택.** Exercise3D 셋업 창, 의사 정답(canonical_3d의 뒤꿈치·엄지발가락) 기준 — 정확도 아님.', '',
+          '| 클립 | 시점 | 발 점 신뢰도 뒤꿈치 / 발가락 | 2D 오차 ÷ 정강이: 발목 / 뒤꿈치 / 발가락 | 간격 ÷ 골반 2D: 발목 / 뒤꿈치 / 발가락 | 의사 정답 3D: 발목 / 뒤꿈치 / 발가락 | 창 SD 2D 발목 / 뒤꿈치 | 발끝 벌림 비 2D / 3D | 발끝 각 3D ° |',
+          '|---' * 9 + '|']
+    for r in recs:
+        md.append(f"| {r['seq']} {r['cam']} | {r['vbin']} {r['view']:.0f}° | {r['conf']['heel']:.2f} / {r['conf']['toe']:.2f} | "
+                  f"{r['err2d_over_shin']['ankle']:.2f} / {r['err2d_over_shin']['heel']:.2f} / {r['err2d_over_shin']['toe']:.2f} | "
+                  f"{r['ratio2d']['ankle']:.2f} / {r['ratio2d']['heel']:.2f} / {r['ratio2d']['toe']:.2f} | {r['ratio3d']['ankle']:.2f} / {r['ratio3d']['heel']:.2f} / {r['ratio3d']['toe']:.2f} | "
+                  f"{r['sd2d']['ankle']:.3f} / {r['sd2d']['heel']:.3f} | {r['toe_out2d']:.2f} / {r['toe_out3d']:.2f} | {r['toe_out_deg']:.0f} |")
+    out_j, out_m = Path(a.run_dir) / 'halpe_feet.json', Path(a.run_dir) / 'halpe_feet.md'
+    json.dump(recs, open(out_j, 'w'), indent=1); out_m.write_text('\n'.join(md) + '\n'); print('\n'.join(md))
+    write_manifest(a, inputs + [f'{a.ex3d}/gt.json'], [out_j, out_m], dict(model='rtmpose_m_halpe26_forward (pose-replay, Core ML) - being evaluated, not adopted'))
+
+
 def load_model(a):
     import torch
     from finetune_motionagformer_fit3d import load
@@ -1215,7 +1285,8 @@ def run_cache_clean(a):
 
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument('cmd', choices=['gt-relations', 'cache-clean', 'occlude', 'evaluate', 'foot-shift', 'setup-measure', 'signals', 'tune', 'rgb-eval', 'setup-ex3d', 'verdicts', 'xs-relations', 'table'])
+    p.add_argument('cmd', choices=['gt-relations', 'cache-clean', 'occlude', 'evaluate', 'foot-shift', 'setup-measure', 'signals', 'tune', 'rgb-eval', 'setup-ex3d', 'verdicts', 'xs-relations', 'table', 'halpe-feet'])
+    p.add_argument('--halpe-dir', help='pose-replay output dir with <clip>_<exercise>_halpe26.csv')
     p.add_argument('--eval-json'); p.add_argument('--shift-json'); p.add_argument('--group', default='heldout')
     p.add_argument('--shapes', default=None, help='lift-refine shapes run dir (targets/<subject>.json), non-oracle body for E1')
     p.add_argument('--ex3d', help='dir with gt.json, csv/<seq>/<cam>_<ex>_mcoco17.csv, labels/<seq>/geometry')
@@ -1247,7 +1318,7 @@ def main():
     CACHE['dir'] = a.cache
     os.makedirs(a.run_dir, exist_ok=True)
     {'gt-relations': run_gt_relations, 'cache-clean': run_cache_clean, 'occlude': run_occlude, 'evaluate': run_evaluate, 'foot-shift': run_foot_shift, 'setup-measure': run_setup_measure,
-     'signals': run_signals, 'tune': run_tune, 'rgb-eval': run_rgb_eval, 'setup-ex3d': run_setup_ex3d, 'verdicts': run_verdicts, 'xs-relations': run_xs_relations, 'table': run_table}[a.cmd](a)
+     'signals': run_signals, 'tune': run_tune, 'rgb-eval': run_rgb_eval, 'setup-ex3d': run_setup_ex3d, 'verdicts': run_verdicts, 'xs-relations': run_xs_relations, 'table': run_table, 'halpe-feet': run_halpe_feet}[a.cmd](a)
 
 
 if __name__ == '__main__':
