@@ -68,6 +68,9 @@ struct FormCommonConfig {
     /// 3D frames gets no posture keys (formSource "3d_unavailable") — never the 2D judgement instead.
     /// false = no 3D pipeline: 2D judgement (old behaviour, tests). lift-app turns it on wherever 3D runs.
     var form3DRequired = false
+    /// Experimental motion estimates must never turn withheld assessment into
+    /// "you fixed it". Legacy delivery remains unchanged when this is false.
+    var requireObservedPraise = false
     /// A rep's 3D judgement needs at least this fraction of its frames in state ok. 임시값 — 테스트 영상으로 조정
     var min3DRepFraction = 0.5
 }
@@ -802,7 +805,9 @@ final class FormWarningTracker {
             lastSpokenRep[key] = repIndex
             // n only for set scope: rep-scope lines have no {n}, and the app adds `n ?? 1` per event to feedbackCounts.
             emit(FormFeedbackEvent(key: key, n: nil))
-        } else if let last = previousSpoken, !fired.contains(last), common.enabledFeedbackKeys.contains("praise_fixed") {
+        } else if let last = previousSpoken, !fired.contains(last),
+                  (!common.requireObservedPraise || judged),
+                  common.enabledFeedbackKeys.contains("praise_fixed") {
             spoken = "praise_fixed"
             emit(FormFeedbackEvent(key: "praise_fixed", n: nil))
         } else if judged, fired.isEmpty, common.enabledFeedbackKeys.contains("praise_good"),

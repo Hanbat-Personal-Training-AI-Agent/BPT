@@ -250,6 +250,36 @@ final class FormWarningsTests: XCTestCase {
         XCTAssertEqual(tracker.warningRepCounts["pushup_hip_pike"], 6)
     }
 
+    func testMotionExperimentNeverPraisesWithheldPostureAsFixed() {
+        for missingState: Pose3DState in [.partial3D, .bad3D, .trackingLost] {
+            let tracker = FormWarningTracker(exercise: .pushUp)
+            tracker.common.form3DRequired = true
+            tracker.common.requireObservedPraise = true
+            tracker.common.enabledFeedbackKeys = ["pushup_hip_sag", "praise_fixed", "praise_good"]
+            var sag = [SIMD3<Double>](repeating: .zero, count: 17)
+            sag[1] = [-0.1, 0, 0]; sag[4] = [0.1, 0, 0]
+            sag[8] = [0, -0.3, -0.5]
+            sag[3] = [-0.1, -0.3, 1]; sag[6] = [0.1, -0.3, 1]
+            sag[11] = [0.15, -0.3, -0.5]; sag[12] = [0.15, 0, -0.5]; sag[13] = [0.15, 0.3, -0.5]
+            sag[14] = [-0.15, -0.3, -0.5]; sag[15] = [-0.15, 0, -0.5]; sag[16] = [-0.15, 0.3, -0.5]
+            func rep(_ first: Int, pose: [SIMD3<Double>], state: Pose3DState) -> FormRepReport {
+                tracker.observe(frameIndex: first, coco17: sidePushUp(hipDrop: 0),
+                                pose3D: pose, pose3DState: state, phase: "descending")
+                tracker.beginRep()
+                tracker.observe(frameIndex: first + 1, coco17: sidePushUp(hipDrop: 0, elbowBend: 60),
+                                pose3D: pose, pose3DState: state, phase: "bottom")
+                tracker.recordCurrentFrame()
+                return tracker.finishRep(repIndex: first / 2 + 1)
+            }
+            XCTAssertEqual(rep(0, pose: sag, state: .ok).spoken, "pushup_hip_sag")
+            _ = tracker.drainEvents()
+            let missing = [SIMD3<Double>](repeating: SIMD3(repeating: .nan), count: 17)
+            let report = rep(2, pose: missing, state: missingState)
+            XCTAssertNil(report.spoken, "\(missingState) is unknown, not fixed form")
+            XCTAssertTrue(tracker.drainEvents().isEmpty)
+        }
+    }
+
     func testBaselineAndTrendRules() {
         let tracker = FormWarningTracker(exercise: .pushUp)
         // Baseline elbow_min ≈106° (60 px bend); a 15 px bend (≈159°) is shallow vs the baseline.

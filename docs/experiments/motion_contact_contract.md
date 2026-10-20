@@ -93,7 +93,8 @@ Fit3D stays on Home; use existing conda environments. No image viewing/export/cl
 Separate actual RGB-derived personal calibration estimates from mocap-fitted/GT shape simulations. The latter must not enter estimator input. Calibration frames should be independent of the evaluated sequence; if existing profiles use that sequence, cross-fit/exclude those estimates or mark the separate-calibration assumption explicitly and do not claim strictly causal deployment validation.
 
 Only scoring may read GT, camera depth, labels, exercise phase/rep bounds or validity annotations. Corruption schedules and mask placement use fixed frame counts, observed 2D, and seeded randomness. Keep raw input/cache hashes and per-variant manifests. Synthetic posture perturbations assess behavior preservation; without human error labels they are not clinical false-negative measurements.
-# User clarification: trusted observations pass through (v2)
+
+## User clarification: trusted observations pass through (v2)
 
 On 2026-10-20 the user explicitly clarified that genuinely observed joints must
 follow current observations and that prediction/constraints are for uncertain
@@ -115,4 +116,16 @@ estimator output, final constrained output and invalid masks are separately
 observable. B and D/E remain smoothing/filter comparison arms. In G/H, visible
 raw jitter can therefore remain; suppressing valid visible movement is not an
 acceptable way to reduce it. Report v1 and v2 as distinct algorithms.
+
+The experimental G/H live boundary also restores those same trusted joints
+after existing constraints have calculated their proposals and quality gates.
+The exact raw XS position survives to the final pose; existing invalidation
+still withholds assessment where appropriate. Log proposed, restored and
+actually applied corrections distinctly. The disabled/default path and other
+variants retain their original downstream behavior.
+
+Any experiment that withholds posture assessment also requires sufficient
+observations before saying a previously reported problem was fixed. The
+experimental `requireObservedPraise` setting prevents a missing warning due
+to uncertainty from becoming a false improvement claim.
 
