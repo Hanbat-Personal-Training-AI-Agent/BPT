@@ -932,3 +932,27 @@
   - 분석 화면: 작업 상태 polling·진행률·실패 문구·결과 요약. 앱은 업로드만 하고 40초 뒤 결과 화면(자리표시)으로 간다. 서버 분석은 그대로 돈다. `CalibrationUploadService.fetchJob`은 남아 있다.
   - `ai/lift-app`의 3D 상태 안내(운동 화면 변경)는 main 화면 위에 다시 얹어야 한다.
 - **확인**: `flutter analyze` 문제 없음, `flutter test` 98 통과, `flutter build ios --debug --no-codesign`(아래 병합 커밋 기준).
+
+## 트랙 finetune3 — det · 2D · 3D 리프팅 미세조정 (Fit3D + Exercise3D) — 2026-10-20
+사전 등록 `docs/results/finetune3_plan.md`(판정 규칙은 에이전트 제안·미승인). 앱 기본값·번들·병합은 바꾸지 않는다.
+
+### D-F3-01 사용자 지시: 세 모델(det·2D·3D 리프팅) 모두 Fit3D와 우리 데이터셋으로 미세조정 — 2D 미세조정 동결 해제 (2026-10-20 14:20경, 사용자)
+- **사용자 지시**(원문): "fit3d랑 우리 데이터셋 기반으로 파인튜닝 하도록 지시해줘. 우리 저거 모델 3개있잖아. 다 잘 파인튜닝하도록. det 2d 3dlifting".
+- 이 지시로 ai/rtmpose-ft의 "Frozen: no more fine-tuning(사용자 지시)"과 D-C-10의 동결이 풀린다. D-C-08(채택 규칙)·D-C-09(라벨 판정)는 그대로 참고하고, 새 규칙은 finetune3_plan.md에 따로 둔다.
+- 범위: 실험·후보·근거·Core ML 변환까지. 모델 채택, 앱 기본값·번들 변경, integration 병합은 사용자 승인 필요(그대로).
+- Home GPU: 사용자 지시("홈 gpu로 돌리던거 다 죽여버려 그냥 우리가 우선이야")로 이 트랙이 우선. 모든 GPU 작업은 `flock ~/.bpt-gpu.lock`.
+
+### D-F3-02 사용자 결정: "우리 데이터셋" = Exercise3D, 라벨 주의 사항을 알고 학습 허용 (2026-10-20, 사용자)
+- **결정**: Exercise3D 라벨로 학습해도 된다. D-C-01("Exercise3D 2D 라벨로는 학습하지 않음")을 이 트랙에서 대신한다.
+- **주의(미해결 그대로)**: 라벨은 Sapiens2 출력이다(2D = `facebook/sapiens2-pose-5b`, 3D = 그 2D의 삼각측량, 비계량·정답 아님). Sapiens2 라이선스의 출력 사용·생체정보 조항(D-C-01)과 "Sapiens2를 쓰지 말 것" 규칙은 열린 질문이다. 사용자는 이를 알고 골랐다. Sapiens2 모델 자체는 돌리지 않는다.
+- **사용 규칙**:
+  - 사람 단위 분할(D-B-01, `SUBJECT_MAPPING_UNAVAILABLE`로 외모 추정): P1(squat_0000/0001/0003, barbellrow_0000/0002, pushup_0000–0004)만 학습. P2(squat_0002, barbellrow_0003)·P3(barbellrow_0001)는 학습 금지 — Exercise3D 평가 세트로 남김. 이미 공개된 P2/P3 평가와 비교 가능하게 두고, 그 위에서 규칙을 다시 맞추지 않는다.
+  - 푸시업은 Exercise3D 검증 피험자가 없다 → 푸시업 평가는 Fit3D s07–s11에 의존(보고서에 명시).
+  - 의사 정답이므로 가중치를 낮추고(XS: 팔다리 8점만, 0.5), 영향은 "Fit3D만" vs "Fit3D + Exercise3D"로 따로 보고. Exercise3D 수치를 정확도라고 부르지 않는다. 주 정답은 Fit3D s07–s11.
+  - 데이터는 Home·Mac에만. Exercise3D 프레임을 클라우드에 올리지 않음(올리려면 먼저 코디네이터 확인). Read 도구로 프레임을 열지 않음.
+  - 벤치프레스·데드리프트·랫풀다운 시퀀스는 사람 분할이 정해져 있지 않아 쓰지 않는다.
+
+### D-F3-03 검출기 확인: 파이프라인 실험의 det = RTMDet-m COCO (2026-10-20)
+- eval-reliability 실험 A, reacquire `det` 설정(D-T3-20), lift-compare 실험 A 모두 `rtmdet_m_8xb32-300e_coco_20220719_112220-229f527c`(mmdet 3.3.0, Apache-2.0, Home `~/models/rtmpose_ft/src/`)의 사람 클래스(점수 ≥ 0.2, 점수×넓이 최대 / IoU 트랙)를 쓴다. 이 트랙의 det 미세조정 대상은 이것.
+- `pose_feedback/body/yolo26_runner.py`(Ultralytics YOLO26, **AGPL-3.0**)는 2D 포즈 비교 스크립트(`compare_yolo26_*`)에만 쓰였고 파이프라인 검출기가 아니다. 다른 세션의 GVHMR 평가도 YOLOv8(AGPL)을 쓰지만 우리 파이프라인과 무관. 트랙 B의 RTMDet-tiny(`outputs/rtmdet_tiny`)는 Fit3D s12 시험만.
+- 앱은 검출기를 돌리지 않는다(D-B-01 crop 추적). 미세조정 검출기를 앱에 넣는 것은 별도 결정(번들·지연).
