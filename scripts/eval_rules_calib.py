@@ -243,6 +243,15 @@ def read_labels(labels_dir):
     return L
 
 
+def label_inputs(a):
+    """Files that determine subject split, normal/bad status and AI consensus labels."""
+    root = Path(a.labels)
+    paths = [root / f"{name}_labels.csv" for name in ("mendeley_mv7", "youtube_cc")]
+    paths += [root / "passes" / f"{name}_pass{k}.csv"
+              for name in ("mendeley_mv7", "youtube_cc") for k in (1, 2)]
+    return [str(p) for p in paths] + ([a.ex3d_gt] if a.ex3d_gt else [])
+
+
 def run_pub(a):
     L = read_labels(a.labels)
     ex3d_views = {}
@@ -250,7 +259,7 @@ def run_pub(a):
         for seq, g in json.load(open(a.ex3d_gt)).items():
             for cam, v in g.get("views", {}).items():
                 ex3d_views[f"{seq}_{cam}"] = v.get("angle_deg")
-    sets, inputs = [], []
+    sets, inputs = [], label_inputs(a)
     for kv in a.e2e.split(","):
         tag, root = kv.split("=", 1)
         for js in sorted(glob.glob(f"{root}/*/3d/*_*.json")):
@@ -354,7 +363,7 @@ def run_pub_py(a):
     csv_dirs = dict(kv.split("=", 1) for kv in a.csv_dirs.split(","))
     pm = a.pose_model
     refs = sorted(glob.glob(f"{a.ref}/*/3d/*_{pm}.json") + glob.glob(f"{a.ref}/*/2d/*_{pm}.json"))
-    sets, inputs = [], []
+    sets, inputs = [], label_inputs(a)
     for tag, ck in [kv.split("=", 1) for kv in a.models.split(",")]:
         model = load_ckpt(a.mag_repo, ck, "cpu")[0].eval()
         inputs.append(ck)
@@ -384,6 +393,7 @@ def run_pub_py(a):
             if ds not in csv_dirs:
                 continue
             j = json.load(open(js))
+            inputs.append(js)  # rep intervals, view gate and image size are experiment inputs too
             ex = {"row": "barbell_row"}.get(j["exercise"], j["exercise"])
             stem = os.path.basename(js)[: -len(f"_{EX_FILE.get(ex, ex)}_{pm}.json")]
             csv = f"{csv_dirs[ds]}/{stem}_{EX_FILE.get(ex, ex)}_{pm}.csv"

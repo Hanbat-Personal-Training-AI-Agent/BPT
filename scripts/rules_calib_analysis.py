@@ -287,6 +287,9 @@ def run_analyze(a):
     def off_list(m):
         bad = lambda r: out["verdict"].get(f"{m}/{r[0]}/{r[4]}", {}).get("verdict", "").startswith("데이터 없음")
         offs = {r[0] for r in RULES if r[0] != "pushup_hand_position" and bad(r)}
+        # Omitting an override does not disable an existing rule: presets merge over app_default.
+        # Keep held rules out of both the exported preset and the praise calculation.
+        offs.update(r[0] for r in RULES if r[0] in HOLD.get(m, ()))
         if all(bad(r) for r in RULES if r[0] == "pushup_hand_position"):
             offs.add("pushup_hand_position")
         return sorted(offs)
@@ -348,7 +351,7 @@ def run_analyze(a):
                 md.append(f"| {m} | {ex} | {src} | {n} | {c0 / n:.0%} | {c1 / n:.0%} |" if n else f"| {m} | {ex} | {src} | 0 | – | – |")
 
     # ---- metric error vs mocap (Fit3D held-out, same rep) and camera-up vs gravity
-    md += ["", "## 지표 오차 (Fit3D s07–s11, 같은 렙의 모캡 대비 |모델 − 모캡| 중앙값 (p90); 카메라-위)", ""]
+    md += ["", "## 지표 오차 (Fit3D s07–s11, 같은 렙의 모캡 대비 |모델 − 모캡| 중앙값 (p90); 실제 중력)", ""]
     qs = sorted({q for _, _, _, q, _, _, _ in RULES + VARIANTS})
     ref = {(s["set_id"], r["rep"]): r["m"] for s in cam if s["model"] == "mocap" and s.get("group") == "heldout" for r in s["jreps"]}
     md += ["| 지표 | " + " | ".join(m for m in models if m != "mocap") + " |", "|---" * (1 + len([m for m in models if m != "mocap"])) + "|"]
@@ -440,7 +443,7 @@ def run_analyze(a):
         p = rd / "presets" / f"xs_{m}_rc1.json"
         json.dump(dict(name=f"xs_{m}_rc1", model=m, pose2d=a.pose2d or "mcoco17", values=vals, off=off,
                        sources=[f"{src}/{group}" for src, group in DERIVE.get(m, [])],
-                       note="rules-calib candidate (proposal, not adopted): pre-registered derivation, off = verdict '데이터 없음 → 끄기 권장'"),
+                       note="rules-calib candidate (proposal, not adopted): pre-registered derivation, off = verdict '데이터 없음 → 끄기 권장' or unresolved model-metric hold"),
                   open(p, "w"), indent=1, ensure_ascii=False)
         outs.append(p)
     (rd / "analysis.json").write_text(json.dumps(out, ensure_ascii=False, indent=1, default=float))

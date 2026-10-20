@@ -2,6 +2,42 @@
 
 사전 등록: [rules_calib_prereg.md](rules_calib_prereg.md)(8eb5841, held-out 결과 보기 전). 실행 기록: Home `~/bpt-runs/rules-calib/<run-id>/manifest.json`. **실험 결과만 적는다.** 기본값·번들·병합은 바꾸지 않았다(새 규칙은 `BPT_RULES=<이름>` / pose-replay `--rules <이름>` 뒤에서만).
 
+## 2026-10-20 22:40 KST 복구 점검 — A–G
+
+### A. 확인한 사실
+- Home의 공개 held-out(192클립), 기존 조정·Exercise3D(65+39클립), 추가 조정 part 1(54클립), Fit3D Halpe 실험 A C1 held-out 평가 프로세스 4개가 계속 실행 중이다. 재시작하지 않았다. Fit3D Halpe 원래 XS·모캡 출력은 `20261020-fit3d-h26A-orig`에 22:04 완료되었다.
+- Mac의 추가 정상 조정 Halpe26 2D는 62클립 모두 완료되었다. 실행 중인 part 1이 캡처한 54개 외 **8개가 후속 3D 처리 대상**이다.
+- C1 몸통 지표 추천 보류(`c4b8763`)에 구현상 빈틈이 있었다. 새 threshold를 생략해도 프리셋이 `app_default`와 합쳐져 기존 몸통 경고가 살아났다. 보류 키를 `off`에도 넣어 프리셋과 praise 계산에서 모두 제외했다.
+- 합성 회귀검증에서 C1 학습 피험자의 Fit3D 값은 도출에 쓰이지 않고, Exercise3D 조정 값만 쓰이며, held-out 값은 threshold를 바꾸지 않는 것을 확인했다. 몸통 보류 키가 기존 기본값으로 다시 발화하지 않는 것도 확인했다. 관련 pytest 5개 통과(`bpt-eval`).
+
+### B. 가설과 남은 불확실성
+- 최종 Halpe26 임계값·오경보·검출 판정은 아직 없다. 오래된 COCO17 Fit3D 전용 분석 `20261020-analysis-c17-fit3d-v3`는 비교용 부분 결과이며, 전체 Halpe26 결과나 제품 권고로 쓰지 않는다.
+- 기존 CPU 실행은 진행 로그를 자주 쓰지 않는 스냅숏으로 시작되어 남은 시간을 정확히 추정할 수 없다. C2도 아직 학습 중이며 완료 뒤 별도 평가가 필요하다.
+
+### C. 이전 판단 수정
+- 아래 "C2 중단"은 과거 상태다. C2는 21:58 재시작되어 정상 학습 중이다. C2 threshold가 없는 이유는 아직 그 모델의 독립 조정·평가 결과가 없기 때문이다.
+- C1의 몸통 오차 보류는 문구와 override 생략만으로 충분하지 않았다. 실제 비활성 목록과 praise 분석까지 일치하도록 수정했다.
+- Fit3D 지표 오차 표는 실제 중력으로 계산했는데 제목에 "카메라-위"라고 잘못 적혀 있었다. 표 제목을 계산 정의에 맞게 고쳤다. 수치 계산은 바꾸지 않았다.
+
+### D. 데이터 신뢰도
+- C1은 Fit3D s03–s05를 threshold 도출에 쓰지 않는다. C2는 Fit3D s03–s05와 Exercise3D P1을 도출에 쓰지 않는다. 공개 사람 분할과 정상 판정 조건은 사전 등록 그대로다.
+- Fit3D Halpe26 입력은 실험 A이며 앱 crop 추적 경로가 아니다. Fit3D·Exercise3D 정상 렙은 정상 시범이라는 전제이며, 공개 키별 틀린 자세 라벨은 사람이 검수하지 않은 AI 2패스 합의다.
+- C1 몸통 오차 원인은 미확인이다. 관련 키를 추천하지 않는다. 앱 시점 게이트 때문에 측면 지표를 잴 수 없는 표본은 정답 근거로 확대 해석하지 않는다.
+- 새 실행 manifest에는 2D CSV·가중치 외에 **렙 구간 JSON, 사람 분할·AI 라벨 CSV, Exercise3D 시점 metadata**의 hash도 기록한다. 이미 실행 중인 이전 manifest는 보존한다.
+
+### E. 재현·재개
+- `scripts/rules_calib_resume_home.sh`는 기존 4개 평가의 완료 파일과 manifest hash를 기다린 뒤, 남은 8개 조정 클립만 처리한다. 그 다음 원래 XS/C1 분석 → C2 학습 완료 manifest 확인 → C2 공개·Exercise3D 및 Fit3D s07–s11 평가 → 전체 분석 순서다. CPU 4스레드를 쓰며 GPU 사슬에 새 작업을 넣지 않는다.
+- Home의 immutable `_code/<SHA>/`에서 `SHA=<SHA> setsid nohup bash _code/<SHA>/scripts/rules_calib_resume_home.sh > resume-20261020.log 2>&1 < /dev/null &`로 실행한다. 중복 실행은 `.resume-20261020.lock`으로 거부한다. 생산 프로세스가 사라졌는데 완료 파일이 없으면 실패로 기록한다.
+- 후속 출력: `20261020-pubpy-h26-tune2d-part2/`, `20261020-analysis-h26-orig-c1-resumed/`, `20261020-pubpy-h26-c2/`, `20261020-fit3d-h26A-c2/`, `20261020-analysis-h26-all-resumed/`.
+- 분석의 `presets/`는 Home의 실험 산출물이다. 저장소/Swift 기본값에 자동 적용하지 않는다. 최종 보고에는 `tables.md`, `analysis.json`, `manifest.json`을 대조한 집계만 옮긴다.
+
+### F. 권고
+- 완성되지 않은 부분 분석에서 기준값을 채택하지 않는다. 전체 정상·틀린 자세 분포와 게이트별 표본 수를 함께 보고 판단한다.
+- C1 몸통 계열 규칙은 오차 원인이 해결될 때까지 보류한다.
+
+### G. 사용자 승인이 필요한 결정
+- 모델별 threshold 채택, 새 규칙 활성화, 기존 키 비활성화, 중력 사용, 앱 기본값·번들 변경, integration 병합은 별도 제품 결정이다. 이번 복구는 승인된 실험과 분석의 연속 실행만 준비한다.
+
 ## 입력 2D 변경 — 사용자 제품 결정 (2026-10-20 20:50, 결과 보기 전)
 
 사용자는 "할페만 남기자"고 결정했다. 앱 기본 2D가 RTMPose-m Halpe26이 되고 COCO17은 빠진다(전환 작업은 ai/halpe-default-m2b98256). 그래서 이 문서의 **주 결과는 m Halpe26 입력의 정상 렙 분포로 도출한 기준값**이다.
