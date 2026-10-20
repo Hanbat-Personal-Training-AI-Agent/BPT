@@ -28,12 +28,25 @@ import Flutter
 /// frame's 3D. Never a 2D stand-in: without usable 3D no posture key is sent for the rep (FormWarningTracker).
 enum Pose3DBridge {
     static func payload(_ frame: Lifted3DFrame) -> [String: Any] {
-        [
+        var p: [String: Any] = [
             "state": frame.state.rawValue,
             "filled": min(frame.filled, MotionAGFormerLive<Int>.window),
             "window": MotionAGFormerLive<Int>.window,
             "usable": frame.usable3D != nil,
         ]
+        // Experimental adaptive constraint only (BPT_ADAPTIVE_3D=1): joints estimated from a relation because their 2D was
+        // not observed (temporary occlusion), and whether a relation was re-anchored (real motion accepted) this frame.
+        if let a = frame.adaptive {
+            p["occluded"] = a.filled.keys.sorted()
+            p["reanchored"] = a.relations.values.contains { $0.event == "reanchored" }
+        }
+        return p
+    }
+
+    /// Change-detection key for onPoseUpdate (state, warm-up count, and with the adaptive constraint the occluded set).
+    static func key(_ frame: Lifted3DFrame) -> String {
+        "\(frame.state.rawValue)/\(frame.state == .warmingUp ? frame.filled : 0)"
+            + (frame.adaptive.map { "/" + $0.filled.keys.sorted().map(String.init).joined(separator: ",") } ?? "")
     }
 }
 

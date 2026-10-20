@@ -658,7 +658,7 @@ final class CameraPoseViewModel: ObservableObject {
         perfLog?.sample("latency_input_to_judgement", ms: (now - result.arrivedAt) * 1000)
         perfLog?.judged()
         let pose3D = Pose3DBridge.payload(frame3D)
-        let pose3DKey = "\(frame3D.state.rawValue)/\(frame3D.state == .warmingUp ? frame3D.filled : 0)"
+        let pose3DKey = Pose3DBridge.key(frame3D)
         let setup = rep == 0 ? updateSetup(frame3D, now: now) : nil  // the setup panel lives before the first rep
         if rep != lastReportedRep || statusText != lastReportedStatus || done != lastReportedDone || pose3DKey != lastReportedPose3D
             || setup != nil {

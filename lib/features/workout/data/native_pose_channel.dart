@@ -58,12 +58,16 @@ Map<String, String>? koriVoiceReply(String key, int? n, {required bool isKo}) {
 /// 자세 판정은 3D로만 하므로 3D가 쓸 수 없는 상태를 화면에 숨기지 않고 보여준다.
 /// 네이티브 쪽: WorkoutSessionBridge.swift `Pose3DBridge`.
 class NativePose3DStatus {
-  const NativePose3DStatus({required this.state, this.filled = 0, this.window = 27, this.usable = false});
+  const NativePose3DStatus(
+      {required this.state, this.filled = 0, this.window = 27, this.usable = false, this.occluded = const []});
 
   final String state; // warming_up | tracking_lost | partial_3d | bad_3d | ok
   final int filled;
   final int window;
   final bool usable;
+
+  /// 실험용 적응형 관계 제약(BPT_ADAPTIVE_3D=1)일 때만: 2D가 관측되지 않아 관계로 추정한 관절(H36M 번호).
+  final List<int> occluded;
 
   static NativePose3DStatus? parse(Object? arguments) {
     if (arguments is! Map) return null;
@@ -74,11 +78,17 @@ class NativePose3DStatus {
       filled: (p['filled'] as num?)?.toInt() ?? 0,
       window: (p['window'] as num?)?.toInt() ?? 27,
       usable: p['usable'] == true,
+      occluded: (p['occluded'] as List?)?.whereType<num>().map((e) => e.toInt()).toList() ?? const [],
     );
   }
 
   /// 사용자에게 보일 안내 (ok 이면 null — 표시 안 함).
   String? message({required bool isKo}) {
+    if ((state == 'ok' || state == 'partial_3d') && occluded.isNotEmpty) {
+      return isKo
+          ? '일부 관절이 가려져 직전 관계로 추정하고 있어요 — 그 관절의 판정은 신뢰도가 낮아요'
+          : 'Some joints are hidden and estimated from the last relation — lower confidence for them';
+    }
     switch (state) {
       case 'warming_up':
         return isKo ? '3D 자세 준비 중 ($filled/$window)' : 'Preparing 3D pose ($filled/$window)';

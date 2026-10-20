@@ -244,7 +244,11 @@ class _NativePoseWorkoutScreenState
       final args = (call.arguments as Map).cast<String, dynamic>();
       final rep = (args['rep'] as num?)?.toInt() ?? _latestNativeRep;
       final pose3d = NativePose3DStatus.parse(args);
-      if (pose3d != null && mounted && (pose3d.state != _pose3d?.state || pose3d.filled != _pose3d?.filled)) {
+      if (pose3d != null &&
+          mounted &&
+          (pose3d.state != _pose3d?.state ||
+              pose3d.filled != _pose3d?.filled ||
+              pose3d.occluded.length != (_pose3d?.occluded.length ?? 0))) {
         setState(() => _pose3d = pose3d);
       }
       if (_setupEnabled) {
