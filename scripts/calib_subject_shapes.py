@@ -29,6 +29,8 @@ usage (Home, conda bpt-sam3db):
   calib_subject_shapes.py fit3d --root ~/datasets/fit3d --replay ~/bpt-smpl/replay --subjects s03,...,s11 --out RUN
   calib_subject_shapes.py ex3d --videos ~/workspace/exercise3d-dataset/BPT/synced_video --csv ~/bpt-smpl/ex3dcsv \
       --labels ~/bpt-smpl/ex3d/exercise3d_labels --out RUN
+  calib_subject_shapes.py accuracy --shapes RUN1/subjects.json,RUN2/subjects.json --mocap ~/bpt-smpl/shapes.json --out RUN
+      (Fit3D: limb/thigh ratios vs the subject's mocap, aggregates only)
 """
 import argparse, ast, contextlib, glob, hashlib, json, os, pickle, socket, sys, time
 from pathlib import Path
@@ -221,9 +223,39 @@ class Calibrator:
         return body.bone_lengths_cm(body.h36m_joints(body.shaped_vertices(self.v_template, self.shapedirs, beta), self.reg))
 
 
+def accuracy(a):
+    """Aggregates only (no per-subject numbers): limb/thigh ratio error of the calibration, its height projections and
+    the population prior vs each subject's mocap lengths (shapes.json mocap_cm, body.bone_lengths_cm order)."""
+    cal = {}
+    for f in a.shapes.split(','): cal.update(json.load(open(f)))
+    ref, subs = json.load(open(a.mocap)), sorted(cal)
+    keys = list(body.bone_lengths_cm(np.random.rand(17, 3)).keys())
+    pair = lambda g, a_, b_: (g[a_] + g[b_]) / 2
+    rat = lambda g: np.array([pair(g, 'right_knee-right_ankle', 'left_knee-left_ankle'), pair(g, 'left_shoulder-left_elbow', 'right_shoulder-right_elbow'),
+                              pair(g, 'left_elbow-left_wrist', 'right_elbow-right_wrist')]) / pair(g, 'right_hip-right_knee', 'left_hip-left_knee')
+    M = np.array([rat(dict(zip(keys, ref[s]['mocap_cm']))) for s in subs])
+    C = np.array([rat(cal[s]['segments_cm']) for s in subs])
+    pct = lambda v: [round(float(x) * 100, 1) for x in v]
+    err = lambda X: dict(zip(('shin', 'upper_arm', 'forearm'), pct(np.abs(X / M - 1).mean(0))), mean=pct([np.abs(X / M - 1).mean()])[0])
+    bias = (C / M - 1).mean(0)
+    res = dict(subjects=len(subs), calib=err(C), prior=err(np.broadcast_to([1.0, 0.61, 0.55], M.shape)),  # anatomical_limits prior
+               **{f'calib_h{h}': err(np.array([rat(cal[s][f'segments_h{h}']) for s in subs])) for h in (160, 170, 180)},
+               bias_pct=pct(bias), debiased_mean_err_pct=pct([np.abs(C / (1 + bias) / M - 1).mean()])[0],
+               spread_std_over_mean_pct=dict(mocap=pct(M.std(0) / M.mean(0)), calib=pct(C.std(0) / C.mean(0))),
+               pearson_r_calib_vs_mocap=[round(float(np.corrcoef(C[:, k], M[:, k])[0, 1]), 2) for k in range(3)])
+    print(json.dumps(res, indent=1))
+    json.dump(res, open(Path(a.out) / 'accuracy.json', 'w'), indent=1)
+    ins = a.shapes.split(',') + [a.mocap, str(REPO / 'scripts/calib_subject_shapes.py')]
+    json.dump(dict(argv=sys.argv, python=sys.executable, host=socket.gethostname(), finished=time.strftime('%Y-%m-%d %H:%M:%S'),
+                   code_commit=(REPO / 'CODE_SHA').read_text().strip() if (REPO / 'CODE_SHA').exists() else None,
+                   inputs={f: sha256(f) for f in ins}, outputs={str(Path(a.out) / 'accuracy.json'): sha256(Path(a.out) / 'accuracy.json')}),
+              open(Path(a.out) / 'manifest.json', 'w'), indent=1)
+
+
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument('source', choices=['fit3d', 'ex3d'])
+    p.add_argument('source', choices=['fit3d', 'ex3d', 'accuracy'])
+    p.add_argument('--shapes', help='accuracy: subjects.json files, comma separated'); p.add_argument('--mocap')
     p.add_argument('--root'); p.add_argument('--replay'); p.add_argument('--subjects', type=lambda s: s.split(','))
     p.add_argument('--videos'); p.add_argument('--csv'); p.add_argument('--labels')
     p.add_argument('--out', required=True); p.add_argument('--threads', type=int, default=10)
@@ -237,6 +269,7 @@ def main():
     p.add_argument('--smpl', default=os.path.expanduser('~/bpt-smpl/smpl/smpl_neutral_h36m.npz'))
     a = p.parse_args()
     os.makedirs(a.out, exist_ok=True)
+    if a.source == 'accuracy': return accuracy(a)
     jobs = ({s: (lambda s=s: fit3d_photos(a, s)) for s in a.subjects} if a.source == 'fit3d'
             else {s: (lambda q=q: ex3d_photos(a, [x for x in q if not x.startswith('pushup')]))
                   for s, q in EX3D_SUBJECTS.items() if not a.subjects or s in a.subjects})
