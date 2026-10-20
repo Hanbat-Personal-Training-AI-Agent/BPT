@@ -48,11 +48,12 @@ void main() {
     expect(warm.message(isKo: true), '3D 자세 준비 중 (12/27)');
     expect(NativePose3DStatus.parse({'pose3d': {'state': 'tracking_lost'}})!.message(isKo: true), contains('판정 멈춤'));
     expect(NativePose3DStatus.parse({'pose3d': {'state': 'bad_3d'}})!.message(isKo: false), contains('not judged'));
-    expect(NativePose3DStatus.parse({'pose3d': {'state': 'partial_3d', 'usable': true}})!.message(isKo: true), contains('일부 관절'));
+    expect(NativePose3DStatus.parse({'pose3d': {'state': 'partial_3d', 'usable': true}})!.message(isKo: true), isNull);
     // 실험용 적응형 제약: 채운 관절은 개발용 상태로만 받고 사용자 문구는 띄우지 않는다(사용자 지시 2026-10-20).
     final occ = NativePose3DStatus.parse({'pose3d': {'state': 'ok', 'usable': true, 'occluded': [6]}})!;
     expect(occ.occluded, [6]);
     expect(occ.message(isKo: true), isNull);
+    expect(NativePose3DStatus.parse({'pose3d': {'state': 'partial_3d', 'usable': true, 'occluded': [6]}})!.message(isKo: true), isNull);
     expect(NativePose3DStatus.parse({'pose3d': {'state': 'ok', 'usable': true}})!.occluded, isEmpty);
     final ok = NativePose3DStatus.parse({'pose3d': {'state': 'ok', 'usable': true}})!;
     expect(ok.usable, isTrue);

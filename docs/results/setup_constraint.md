@@ -80,7 +80,7 @@
 | 실제 움직임 발생 | 두 관절이 관측된 채 관계가 바뀌어 재기준 | 없음(사용자 움직임을 그대로 따라감) | `adaptive_events: reanchored` |
 | 기준 상태 재설정 필요 | 추적 끊김 0.5초 이상 → 창·관계 초기화, 또는 사용자가 "다시 설정" | 준비 패널이 다시 "현재 자세를 확인하고 있습니다" | `relations reset` (창 초기화와 같이) |
 | 추적 실패 | tracking_lost (기존) | "사람이 잘 안 보여요 — 자세 판정 멈춤" (기존) | state |
-| 신뢰할 수 없는 3D | bad_3d / partial_3d (기존 제약 무효 ∪ 적응형 만료 관절) | 기존 문구, 해당 지표만 판정 안 함 | `invalid`, `adaptive_invalid` |
+| 신뢰할 수 없는 3D | bad_3d / partial_3d (기존 제약 무효 ∪ 적응형 만료 관절) | bad_3d만 기존 문구. partial_3d는 화면에 띄우지 않음(lift-app 334a409, 사용자 요청), 해당 지표만 판정 안 함 | `invalid`, `adaptive_invalid` |
 
 ## 5. 실험 결과
 
