@@ -6,11 +6,13 @@ import Flutter
 
 // App bridge for the workout camera (channel `bpt/native_pose_camera/<viewId>`):
 //
-//   native → Flutter  onPoseUpdate {rep, status, done, pose3d?: {state, filled, window, usable}} (Pose3DBridge)
+//   native → Flutter  onPoseUpdate {rep, status, done, pose3d?: {state, filled, window, usable}} (Pose3DBridge),
+//                                  setup?: ExerciseSetupBridge payload (experimental, only with exerciseSetup)
 //                     onFeedback  {key, n?, scope: "rep"|"set"}  → Flutter replies {text, lang} (or null);
 //                                                                  the reply is what WorkoutVoice says
 //                     onSetEnd    {setIndex, videoLocalPath?, worstJoint?}
-//   Flutter → native  setVoiceMuted {muted}, startSet {setIndex}, endSet {setIndex}
+//   Flutter → native  setVoiceMuted {muted}, startSet {setIndex}, endSet {setIndex},
+//                     resetSetup, setSetupVariant {variant, reference?} (experimental exercise setup)
 //
 // Line texts live only in lib/features/workout/data/kori_feedback_lines.dart: Flutter renders the
 // line ({n}, locale) when it handles onFeedback and returns it, so there is no native copy.
@@ -442,6 +444,8 @@ final class WorkoutChannel {
     let voice = WorkoutVoice()
     var onStartSet: ((Int) -> Void)?
     var onEndSet: ((Int) -> Void)?
+    var onResetSetup: (() -> Void)?
+    var onSetSetupVariant: ((String?, [String: Double]?) -> Void)?
 
     init(channel: FlutterMethodChannel) {
         self.channel = channel
@@ -456,6 +460,11 @@ final class WorkoutChannel {
                 if let index = (args?["setIndex"] as? NSNumber)?.intValue { self.onStartSet?(index) }
             case "endSet":
                 if let index = (args?["setIndex"] as? NSNumber)?.intValue { self.onEndSet?(index) }
+            case "resetSetup":
+                self.onResetSetup?()
+            case "setSetupVariant":
+                let reference = (args?["reference"] as? [String: Any])?.compactMapValues { ($0 as? NSNumber)?.doubleValue }
+                self.onSetSetupVariant?(args?["variant"] as? String, reference)
             default:
                 return result(FlutterMethodNotImplemented)
             }
@@ -464,9 +473,11 @@ final class WorkoutChannel {
     }
 
     /// `onReply` (test-only timing): called with Flutter's reply once its handler has completed.
-    func sendUpdate(rep: Int, status: String, done: Bool, pose3d: [String: Any]? = nil, onReply: ((Any?) -> Void)? = nil) {
+    func sendUpdate(rep: Int, status: String, done: Bool, pose3d: [String: Any]? = nil, setup: [String: Any]? = nil,
+                    onReply: ((Any?) -> Void)? = nil) {
         var arguments: [String: Any] = ["rep": rep, "status": status, "done": done]
         if let pose3d { arguments["pose3d"] = pose3d }
+        if let setup { arguments["setup"] = setup }
         if let onReply {
             channel.invokeMethod("onPoseUpdate", arguments: arguments) { onReply($0) }
         } else {

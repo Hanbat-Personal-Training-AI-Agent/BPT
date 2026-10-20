@@ -28,7 +28,8 @@ final class NativePoseCameraPlatformViewFactory: NSObject, FlutterPlatformViewFa
             viewId: viewId,
             messenger: messenger,
             exercise: exercise,
-            exerciseId: exerciseId
+            exerciseId: exerciseId,
+            setupOptions: ExerciseSetup.Options(creationParams: params)  // nil unless exerciseSetup: true
         )
     }
 }

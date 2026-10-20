@@ -57,6 +57,9 @@ var motion3DPath: String? = {
 var lookahead = 5
 var cadence = 1
 var constraintsOn = true
+/// --adaptive on: experimental AdaptiveRelationConstraint after the constraints (as BPT_ADAPTIVE_3D=1 in the camera);
+/// <base>_3d.csv then also has the adapted H36M17 (a*_x…) and the filled joints.
+var adaptiveOn = false
 var formSource3D = true
 var imageSizeOverride: (Int, Int)?
 var rowShrug = false
@@ -76,7 +79,7 @@ var personCrop = true
 var cropEdgeRefit = true
 var videos: [URL] = []
 var arguments = CommandLine.arguments.dropFirst().makeIterator()
-let usage = "usage: pose-replay [--exercise squat|pushup|row|bench|deadlift] [--model coco17|halpe26|mcoco17] [--model-path PATH] [--motion3d PATH|none] [--lookahead N] [--cadence K] [--constraints on|off] [--form-source 3d|2d] [--image-size WxH] [--row-shrug] [--side-cutoff R] [--row-offside off] [--pushup-ankle on|off] [--pushup-wrist-conf C] [--pushup-min-frames N] [--pushup-height on|off] [--squat-hold on|off] [--squat-near-leg on|off] [--squat-rebaseline N] [--squat-height on|off] [--squat-height-range R] [--ready-pose off|preset] [--input crop|full] [--crop-edge on|off] [--keypoints-csv PATH] [--keypoints-dir DIR] [--output-dir PATH] <video.mp4>..."
+let usage = "usage: pose-replay [--exercise squat|pushup|row|bench|deadlift] [--model coco17|halpe26|mcoco17] [--model-path PATH] [--motion3d PATH|none] [--lookahead N] [--cadence K] [--constraints on|off] [--adaptive on|off] [--form-source 3d|2d] [--image-size WxH] [--row-shrug] [--side-cutoff R] [--row-offside off] [--pushup-ankle on|off] [--pushup-wrist-conf C] [--pushup-min-frames N] [--pushup-height on|off] [--squat-hold on|off] [--squat-near-leg on|off] [--squat-rebaseline N] [--squat-height on|off] [--squat-height-range R] [--ready-pose off|preset] [--input crop|full] [--crop-edge on|off] [--keypoints-csv PATH] [--keypoints-dir DIR] [--output-dir PATH] <video.mp4>..."
 while let argument = arguments.next() {
     switch argument {
     case "--model":
@@ -111,6 +114,8 @@ while let argument = arguments.next() {
         cadence = value
     case "--constraints":
         constraintsOn = arguments.next() != "off"
+    case "--adaptive":
+        adaptiveOn = arguments.next() == "on"
     case "--form-source":
         formSource3D = arguments.next() != "2d"
     case "--image-size":
@@ -279,6 +284,7 @@ for video in videos {
         var l = MotionAGFormerLive<Int>(lookahead: lookahead, cadence: cadence, predict: p)
         l.constraints.enabled = constraintsOn
         l.constraints.reflectFlippedKnee = exercise == .squat  // as the camera (Fit3D S6: squat only)
+        if adaptiveOn { l.adaptive = AdaptiveRelationConstraint(exercise: exercise) }
         return l
     }
     if lifter != nil, imageWidth == 0 { print("no image size for 3D: \(name) (pass --image-size)"); continue }
@@ -341,7 +347,8 @@ for video in videos {
     tracker.common.form3DRequired = lifter != nil && formSource3D
     var states3D: [String: Int] = [:]
     var csv3D = "frame,state,row,filled,bone_corr,angle_corr," + (0..<17).map { "r\($0)_x,r\($0)_y,r\($0)_z" }.joined(separator: ",")
-        + "," + (0..<17).map { "c\($0)_x,c\($0)_y,c\($0)_z" }.joined(separator: ",") + "\n"
+        + "," + (0..<17).map { "c\($0)_x,c\($0)_y,c\($0)_z" }.joined(separator: ",")
+        + (adaptiveOn ? ",adaptive_filled,adaptive_invalid," + (0..<17).map { "a\($0)_x,a\($0)_y,a\($0)_z" }.joined(separator: ",") : "") + "\n"
     var seconds3D = 0.0
     func evaluateFrame(_ i: Int, _ frame3D: Lifted3DFrame?) {
         if let frame3D {
@@ -349,7 +356,10 @@ for video in videos {
             let xyz = { (p: [SIMD3<Double>]?) in (p ?? Array(repeating: SIMD3<Double>(repeating: .nan), count: 17)).flatMap { [f($0.x), f($0.y), f($0.z)] } }
             csv3D += ([String(i), frame3D.state.rawValue, frame3D.row.map(String.init) ?? "", String(frame3D.filled),
                        f(frame3D.constraints?.boneMaxCorrection), f(frame3D.constraints?.maxAngleCorrection)]
-                      + xyz(frame3D.raw) + xyz(frame3D.pose3D)).joined(separator: ",") + "\n"
+                      + xyz(frame3D.raw) + xyz(frame3D.pose3D)
+                      + (adaptiveOn ? [(frame3D.adaptive?.filled.keys.sorted() ?? []).map(String.init).joined(separator: " "),
+                                       (frame3D.adaptive?.invalid ?? []).map(String.init).joined(separator: " ")] + xyz(frame3D.adapted) : []))
+                .joined(separator: ",") + "\n"
         }
         let result = step(i, coco17Frames[i], frame3D?.masked3D, frame3D?.state, feetFrames[i])
         if result.rep > rep { repEndFrames.append(i) }
@@ -399,6 +409,7 @@ for video in videos {
         "lookahead": lookahead,
         "cadence": cadence,
         "constraints": constraintsOn,
+        "adaptive": adaptiveOn,
         "form_source": tracker.common.form3DRequired ? "3d" : "2d",
         "delay_frames_3d": lifter.map { $0.delayFrames as Any } ?? NSNull(),
         "inferences_3d": lifter.map { $0.inferences as Any } ?? NSNull(),

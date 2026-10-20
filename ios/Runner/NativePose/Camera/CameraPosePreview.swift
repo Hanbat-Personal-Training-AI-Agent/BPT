@@ -32,6 +32,9 @@ private enum CameraPreviewOptions {
     /// CoreMotion gravity as "up" for the 3D trunk/hip metrics (D-D-07: oblique trunk needs gravity). Off until the
     /// XS-frame axis mapping (FormGeometry.cameraUp) is checked on a device; BPT_3D_GRAVITY=1 turns it on.
     static let motion3DGravity = ProcessInfo.processInfo.environment["BPT_3D_GRAVITY"] == "1"
+    /// EXPERIMENTAL confidence-aware relation constraint after Pose3DConstraints (AdaptiveRelationConstraint, ai/setup-constraint).
+    /// Off unless BPT_ADAPTIVE_3D=1: not validated as a default (docs/results/setup_constraint_prereg.md).
+    static let adaptive3D = ProcessInfo.processInfo.environment["BPT_ADAPTIVE_3D"] == "1"
     /// RTMPose input: 3:4 person crop from the previous frame's keypoints (RTMPoseCropTracker).
     /// false = old input, whole frame stretched to 192×256 every frame.
     static let personCropInput = true
@@ -270,10 +273,19 @@ final class CameraPoseViewModel: ObservableObject {
     @Published var videoDisplayLayer: AVSampleBufferDisplayLayer?
     /// Frame being judged (handleLifted), for the run log's Flutter reply latencies.
     private var judgingFrame: (index: Int, arrival: CFTimeInterval)?
+    /// Personalized exercise setup (experimental): only when Flutter sent `exerciseSetup: true`.
+    private let setupOptions: ExerciseSetup.Options?
+    private var exerciseSetup: ExerciseSetup?
+    private var setupVariant: String?
+    private var setupSeeded = false
+    private var lastSetupSignature: String?
+    private var lastSetupSent: CFTimeInterval = 0
 
-    init(exercise: NativePoseExercise, bridge: WorkoutChannel? = nil) {
+    init(exercise: NativePoseExercise, bridge: WorkoutChannel? = nil, setupOptions: ExerciseSetup.Options? = nil) {
         self.exercise = exercise
         self.bridge = bridge
+        self.setupOptions = setupOptions
+        self.setupVariant = setupOptions?.variant
     }
 
     func requestCameraAndStart() {
@@ -420,6 +432,9 @@ final class CameraPoseViewModel: ObservableObject {
                                             cadence: CameraPreviewOptions.motion3DCadence,
                                             predict: MotionAGFormerCoreML.predictor(xs))
                 lifter?.constraints.reflectFlippedKnee = exercise == .squat  // Fit3D S6: squat only
+                if CameraPreviewOptions.adaptive3D, let formExercise = formTracker?.exercise {
+                    lifter?.adaptive = AdaptiveRelationConstraint(exercise: formExercise)
+                }
                 formTracker?.common.form3DRequired = true
                 if VideoCameraOptions.allFeedbackKeys {
                     // NON-DEFAULT test flag: show what every warning key WOULD send to the user.
@@ -478,6 +493,15 @@ final class CameraPoseViewModel: ObservableObject {
 
         bridge?.onStartSet = { [weak self] in self?.startSet($0) }
         bridge?.onEndSet = { [weak self] in self?.endSet($0) }
+        if let options = setupOptions, lifter != nil, let formExercise = formTracker?.exercise {
+            exerciseSetup = ExerciseSetup(exercise: formExercise, reference: options.reference)
+            bridge?.onResetSetup = { [weak self] in self?.resetSetup() }
+            bridge?.onSetSetupVariant = { [weak self] variant, reference in
+                self?.setupVariant = variant
+                if let reference { self?.exerciseSetup?.reference = reference }
+                self?.lastSetupSignature = nil
+            }
+        }
         startSet(1)
         startPerfLog()
         if let videoSource { videoSource.start() } else { captureManager.start() }
@@ -490,6 +514,7 @@ final class CameraPoseViewModel: ObservableObject {
             "enabled_feedback_keys": Array(formTracker?.common.enabledFeedbackKeys ?? []).sorted(),
             "form3d_required": formTracker?.common.form3DRequired ?? false,
             "reflect_flipped_knee": lifter?.constraints.reflectFlippedKnee ?? false,
+            "adaptive_3d": CameraPreviewOptions.adaptive3D, "exercise_setup": exerciseSetup != nil,
             "rtmpose": RTMPoseModel.workout.rawValue,
         ])
         print("CameraPosePreview started exercise=\(exercise.rawValue) hand=\(handEnabled) 3d=\(lifter != nil) lookahead=\(CameraPreviewOptions.motion3DLookahead) cadence=\(CameraPreviewOptions.motion3DCadence) async=\(CameraPreviewOptions.motion3DAsync)")
@@ -634,20 +659,22 @@ final class CameraPoseViewModel: ObservableObject {
         perfLog?.judged()
         let pose3D = Pose3DBridge.payload(frame3D)
         let pose3DKey = "\(frame3D.state.rawValue)/\(frame3D.state == .warmingUp ? frame3D.filled : 0)"
-        if rep != lastReportedRep || statusText != lastReportedStatus || done != lastReportedDone || pose3DKey != lastReportedPose3D {
+        let setup = rep == 0 ? updateSetup(frame3D, now: now) : nil  // the setup panel lives before the first rep
+        if rep != lastReportedRep || statusText != lastReportedStatus || done != lastReportedDone || pose3DKey != lastReportedPose3D
+            || setup != nil {
             lastReportedRep = rep
             lastReportedStatus = statusText
             lastReportedDone = done
             lastReportedPose3D = pose3DKey
             if let log = VideoRunLog.shared {
                 let arrival = result.arrivedAt, frame = result.frameIndex
-                bridge?.sendUpdate(rep: rep, status: statusText, done: done, pose3d: pose3D) { _ in
+                bridge?.sendUpdate(rep: rep, status: statusText, done: done, pose3d: pose3D, setup: setup) { _ in
                     log.write("update_reply", ["frame": frame, "rep": rep, "status": statusText,
                                                "state3d": frame3D.state.rawValue,
                                                "e2e_ms": (CACurrentMediaTime() - arrival) * 1000])
                 }
             } else {
-                bridge?.sendUpdate(rep: rep, status: statusText, done: done, pose3d: pose3D)
+                bridge?.sendUpdate(rep: rep, status: statusText, done: done, pose3d: pose3D, setup: setup)
             }
         }
         if let log = VideoRunLog.shared {
@@ -659,6 +686,12 @@ final class CameraPoseViewModel: ObservableObject {
             ]
             if let row = frame3D.row { line["row"] = row }
             if frame3D.state == .warmingUp { line["filled"] = frame3D.filled }
+            if let a = frame3D.adaptive {
+                if !a.filled.isEmpty { line["adaptive_filled"] = a.filled.keys.sorted() }
+                if !a.invalid.isEmpty { line["adaptive_invalid"] = a.invalid }
+                let events = a.relations.compactMapValues(\.event)
+                if !events.isEmpty { line["adaptive_events"] = events }
+            }
             if let c = frame3D.constraints {
                 line["invalid"] = Array(c.invalidJoints).sorted()
                 if c.kneesReflected > 0 { line["knees_reflected"] = c.kneesReflected }
@@ -671,6 +704,38 @@ final class CameraPoseViewModel: ObservableObject {
         if result.frameIndex % CameraPreviewOptions.debugLogEveryNFrames == 0 {
             print("CameraPosePreview frame=\(result.frameIndex) status=\(statusText) rep=\(rep) 3d=\(frame3D.state.rawValue) row=\(frame3D.row.map(String.init) ?? "-") wrists=\(result.wristsReplaced)")
         }
+    }
+
+    /// Experimental exercise setup for this judged frame; the payload when it changed meaningfully (≤ 5 Hz), else nil.
+    /// On the first ready it seeds the adaptive relations (only when that constraint is on).
+    @MainActor
+    private func updateSetup(_ frame3D: Lifted3DFrame, now: CFTimeInterval) -> [String: Any]? {
+        guard exerciseSetup != nil else { return nil }
+        let up = formTracker?.up3D ?? FormGeometry.up3D
+        guard let state = exerciseSetup?.update(frame3D.usable3D, confidence: frame3D.confidence ?? [],
+                                                usable: frame3D.usable3D != nil, up: up, unit: frame3D.unit ?? 1),
+              let setup = exerciseSetup else { return nil }
+        if state.phase == .ready && !setupSeeded {
+            setupSeeded = true
+            let seeds = setup.seeds(AdaptiveRelationConstraint.relations(for: setup.exercise))
+            liftQueue.async { [weak self] in
+                for (name, seed) in seeds { self?.lifter?.adaptive?.seedReference(name: name, refPx: seed.ref, spreadPx: seed.spread) }
+            }
+            VideoRunLog.shared?.write("setup_ready", ["snapshot": setup.ready ?? [:], "seeds": Array(seeds.keys).sorted()])
+        }
+        let signature = ExerciseSetupBridge.signature(state)
+        guard signature != lastSetupSignature, now - lastSetupSent >= 0.2 else { return nil }
+        lastSetupSignature = signature
+        lastSetupSent = now
+        return ExerciseSetupBridge.payload(state, exercise: setup.exercise, variant: setupVariant, snapshot: setup.ready)
+    }
+
+    /// Flutter "다시 설정": measure the setup again and drop the relations it seeded.
+    private func resetSetup() {
+        exerciseSetup?.reset()
+        setupSeeded = false
+        lastSetupSignature = nil
+        liftQueue.async { [weak self] in self?.lifter?.adaptive?.reset() }
     }
 
     @MainActor
@@ -801,9 +866,9 @@ struct CameraPosePreview: View {
     let exercise: NativePoseExercise
     @StateObject private var model: CameraPoseViewModel
 
-    init(exercise: NativePoseExercise, bridge: WorkoutChannel? = nil) {
+    init(exercise: NativePoseExercise, bridge: WorkoutChannel? = nil, setupOptions: ExerciseSetup.Options? = nil) {
         self.exercise = exercise
-        _model = StateObject(wrappedValue: CameraPoseViewModel(exercise: exercise, bridge: bridge))
+        _model = StateObject(wrappedValue: CameraPoseViewModel(exercise: exercise, bridge: bridge, setupOptions: setupOptions))
     }
 
     var body: some View {
