@@ -940,3 +940,17 @@
   - 운동 화면 자동 잠금 끔(`ai/lift-app` 0a4d830을 integration 코드에 맞게 옮김, 카메라가 도는 동안만, 멈춤·백그라운드에서 원래 값).
   - `ai/teammate-notes` 4bba51a: docs/handoff/teammate_requests.md, PR 초안 갱신.
 - **제외**(검증 중): 3D 켜기·XS 번들(`ai/lift-app`), 새 뼈대 화면(`ai/lift-refine`), 가림 보정·준비 자세(`ai/setup-constraint`), 파인튜닝(`ai/finetune3`), 운동 중 대기 문구 변경(6a78a29, 사용자가 다른 사양을 줌).
+
+
+### D-M-03 운동 카메라 2D 모델은 RTMPose-m Halpe26 하나 — m COCO17은 운동 번들에서 뺌 (2026-10-20 20:50 무렵, 사용자 결정)
+- **사용자 결정**("할페만 남기자"): 두 가지를 승인.
+  1. D8: 운동 카메라 기본 2D 모델 = RTMPose-m Halpe26(`rtmpose_m_halpe26_forward`).
+  2. m COCO17(`rtmpose_m_forward.mlpackage`)을 운동 번들·pbxproj·`RTMPoseModel`에서 뺀다.
+- **이 결정에 들어가지 않은 것**(그대로 두고, 각각 따로 승인): integration/ai·main 병합, 캘리브레이션 캡처 모델(s COCO17 — 키포인트가 서버 체형 맞춤에 들어감), 미세조정 m Halpe26(ai/finetune3)으로 교체, 자세 경고 임계값.
+- **에이전트 판단**(사용자 결정 아님, 바꿀 수 있음):
+  - 브랜치 `ai/halpe-default-m2b98256`(integration/ai 2b98256 = main에서). 커밋을 나눔: C1 = m Halpe26 복구·기본값(m COCO17도 아직 번들에 있음, 기기 A/B용 `BPT_POSE_MODEL=mcoco17`), C2 = m COCO17 제거, C3 = pose-replay CSV 재생이 Halpe26 발 관절을 읽게(도구), C4 = 문서.
+  - m COCO17을 쓰는 곳을 먼저 찾음: 앱 코드는 `RTMPoseModel.workout` 기본값 하나뿐. 개발 도구(pose-replay `--model mcoco17`, 평가 스크립트 4개의 기본값)는 기본값을 `mhalpe26`으로 옮기고, m COCO17 기준선은 `~/bpt-models/rtmpose_m_forward.mlpackage`(마지막 번들과 sha256 같음)를 `--model coco17 --model-path`로 읽음. 기기 벤치(`tools/pose_model_bench`)는 모델을 경로로 받아 영향 없음.
+  - `workoutUsesMediumModel` 플래그 삭제(m 모델이 하나라 고를 것이 없음). s Halpe26(`halpe26`)은 10/9 사용자 지시대로 남김.
+  - 이 전환은 결과를 본 뒤의 제품 결정이다. D-T3-17 사전 등록 규칙(에이전트 제안, 미승인)을 통과해서 정한 것이 아니고, 그 규칙·기록은 고치지 않는다.
+- **확인**: `docs/results/halpe_default.md` A(테스트·재생)·E(재현 자료).
+- **되돌리기**: 기기 시험만이면 C1 빌드에서 `BPT_POSE_MODEL=mcoco17`. 제품을 되돌리려면 C2를 되돌리고(번들·pbxproj·enum) `RTMPoseModel.workout = .mcoco17`.
