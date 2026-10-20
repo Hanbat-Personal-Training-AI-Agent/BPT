@@ -80,23 +80,32 @@ def adaptive_cases():
     return dict(relations={k: [list(r) for r in v] for k, v in RELATIONS.items()}, cases=cases)
 
 
+COCO_H36M = ((5, 11), (6, 14), (7, 12), (8, 15), (9, 13), (10, 16), (11, 4), (12, 1), (13, 5), (14, 2), (15, 6), (16, 3))
+
+
 def setup_cases():
     cases = []
-    for exercise, ref in (("squat", {"feet_width": 2.4}), ("pushup", {"hand_width": 1.0}), ("barbell_row", {})):
+    for exercise, ref in (("squat", {"feet_width": 2.4}), ("pushup", {"hand_width": 1.0}), ("barbell_row", {}), ("squat", {})):
+        side = len(cases) == 3  # 4th case: squat seen side-on, XS's depth guess of the left ankle wobbling
         rng = np.random.default_rng(11)
         frames = []
-        for t in range(80):
+        for t in range(110):
             P = body(0, rng, exercise, noise=0.0005); c = np.full(17, 0.9)
+            if side:
+                P[:, 0], P[:, 2] = -P[:, 2].copy(), P[:, 0].copy()
+                P[6, 2] += 0.04 * (t % 3 - 1)
             if t < 20: P[6] += [0.05 * (t % 3), 0, 0]   # fidgeting
             if 30 <= t < 33: c[6] = 0.2                  # feet lost briefly
+            if 85 <= t < 88: c[4] = 0.4                  # far hip half seen: torso still from the near side
             fr = dict(pose=P.tolist(), conf=c.tolist(), usable=not (45 <= t < 47), unit=200.0)
-            if exercise != "pushup":  # Halpe26 foot points + COCO17 2D (px); push-up = COCO17 model (ankle fallback)
-                px = lambda v: [v[0] * 200 + 360, v[1] * 200 + 640]
-                coco = [[0.0, 0.0, 0.9] for _ in range(17)]
-                for cj, hj in ((15, 6), (16, 3), (13, 5), (14, 2), (11, 4), (12, 1)):
-                    coco[cj] = px(P[hj]) + [0.9]
+            drop = 4.0 * max(0, t - 90)                  # the body sinking in the image, 3D unchanged
+            px = lambda v: [v[0] * 200 + 360, v[1] * 200 + 640 + drop]
+            coco = [[0.0, 0.0, 0.9] for _ in range(17)]
+            for cj, hj in COCO_H36M:
+                coco[cj] = px(P[hj]) + [float(c[hj])]
+            fr["coco2d"] = coco  # COCO17 2D (px) every frame; Halpe26 feet only off push-up (push-up = COCO17 model)
+            if exercise != "pushup":
                 lf, rf = px(P[6]), px(P[3])
-                fr["coco2d"] = coco
                 fr["feet"] = {"left_heel": [lf[0] - 2, lf[1] + 9, 0.8], "right_heel": [rf[0] + 2, rf[1] + 9, 0.8],
                               "left_big_toe": [lf[0] + 14 + t % 3, lf[1] + 14, 0.25 if 60 <= t < 62 else 0.7],
                               "right_big_toe": [rf[0] - 14, rf[1] + 14, 0.7]}

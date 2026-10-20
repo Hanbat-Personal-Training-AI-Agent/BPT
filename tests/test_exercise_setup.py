@@ -88,3 +88,40 @@ def test_foot_items_only_with_halpe26_feet_and_ankle_fallback():
     low_feet, coco = feet_and_coco(P, conf=0.2)
     r = ExerciseSetup("squat").update(P, np.full(17, 0.9), feet=low_feet, coco2d=coco)
     assert {i["key"]: i["quality"] for i in r["items"]}["toe_out"] == "missing"
+
+
+def side(P, wobble=0.0):
+    """standing() turned side-on (the body's left-right axis along the camera depth); wobble = XS's depth guess of the
+    left ankle moving frame to frame."""
+    Q = P.copy()
+    Q[:, 0], Q[:, 2] = -P[:, 2], P[:, 0]
+    Q[6, 2] += wobble
+    return Q
+
+
+def coco_of(P, conf=0.9, drop=0.0):
+    """COCO17 2D (px = 200 x crop units, y down) of an H36M pose; drop = the whole body lower in the image (px)."""
+    k = np.zeros((17, 3)); k[:, 2] = conf
+    for c, h in ((5, 11), (6, 14), (7, 12), (8, 15), (9, 13), (10, 16), (11, 4), (12, 1), (13, 5), (14, 2), (15, 6), (16, 3)):
+        k[c, :2] = [P[h][0] * 200 + 360, P[h][1] * 200 + 640 + drop]
+    return k
+
+
+def test_side_view_widths_are_held_still_by_the_2d_not_by_xs_depth():
+    conf = np.full(17, 0.9)
+    frames = [side(standing(), wobble=0.04 * (t % 3 - 1)) for t in range(40)]  # feet_width wobbles 0.4 x hip width
+    s = ExerciseSetup("squat")
+    out = [s.update(P, conf, coco2d=coco_of(P)) for P in frames]
+    q = {i["key"]: i["quality"] for i in out[-1]["items"]}
+    assert q["feet_width"] == q["foot_symmetry"] == q["shoulder_over_pelvis"] == "depth_estimated"
+    assert q["torso_incline"] == q["foot_stagger"] == "good"
+    assert out[29]["phase"] == "ready" and out[29]["motion_2d"] == 0.0  # 30 frames, 2D still
+    old = ExerciseSetup("squat")  # no 2D: every required item is held to its tolerance, the depth wobble blocks
+    assert all(old.update(P, conf)["phase"] != "ready" for P in frames)
+    sink = ExerciseSetup("squat")  # 3D unchanged (pelvis-relative) but the body sinks 3 px a frame in the image
+    out = [sink.update(frames[0], conf, coco2d=coco_of(frames[0], drop=3.0 * t)) for t in range(40)]
+    assert out[-1]["moving"] and sink.ready is None
+    far = conf.copy(); far[[4, 11]] = 0.4  # far hip / shoulder hidden: the trunk is still seen from the near side
+    r = ExerciseSetup("squat").update(frames[0], far, coco2d=coco_of(frames[0]))
+    assert {i["key"]: i["quality"] for i in r["items"]}["torso_incline"] == "good"
+    assert not any(i["required"] for i in ExerciseSetup("pushup").update(standing(), conf)["items"] if i["key"] == "feet_width")

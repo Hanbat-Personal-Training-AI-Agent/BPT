@@ -10,8 +10,11 @@ import simd
 ///    observation quality (2D confidence of the joints it needs; a width lying mostly along the camera depth is XS's
 ///    depth guess → "depth_estimated", not a measurement);
 /// 2. expresses widths relative to the same frame's hip / shoulder joint width (calibration cm are display only);
-/// 3. is ready when every required item was observed for `stableFrames` frames in a row and moved less than its
-///    tolerance (stillness, not correctness);
+/// 3. is ready when every required item was observed for `stableFrames` frames in a row and the body was still
+///    (stillness, not correctness): with the frame's 2D the observed left-right 2D midpoints the required items use
+///    moved ≤ tol2D × the 2D torso, and each item in the image plane in every window frame moved less than its
+///    tolerance. A width along the camera depth (side view) is XS's depth guess — its wobble is not the user moving,
+///    so only the 2D holds it still. Without 2D every required item is held to its tolerance;
 /// 4. compares only with a reference the user saved ("내 기준"); there is no built-in ideal band.
 /// Widths are between joint centres (hips, shoulders, ankles, wrists): grip_width is a wrist-centre approximation of
 /// the grip, not the bar contact.
@@ -26,6 +29,9 @@ struct ExerciseSetup {
         var tolDeg = 5.0
         /// Per-item tolerance overriding the per-kind one (Python tol_items; E1: 2 × measured repeatability).
         var tolItems: [String: Double] = [:]
+        /// Largest 2D midpoint range over the window ÷ 2D torso (임시값, same 10 % as tolRatio). Exercise3D app-path 2D,
+        /// 15-frame windows: standing before the first squat p50 0.064, inside the first rep p50 0.336.
+        var tol2D = 0.10
     }
 
     enum Quality: String {
@@ -57,6 +63,8 @@ struct ExerciseSetup {
         let items: [Item]
         /// "halpe26" when the active 2D model gave heel / big-toe points (foot items present), "ankle" otherwise.
         var footSource = "ankle"
+        /// 2D stillness of the full window (nil until full, without 2D, or nothing observed to judge by). Debug only.
+        var motion2D: Double?
     }
 
     /// Flutter creationParams (`exerciseSetup: true`, optional `setupVariant`, `setupReference`, `bodyProfile`).
@@ -90,7 +98,9 @@ struct ExerciseSetup {
 
     /// item → (H36M joints it needs, exercises where it is required for ready, tolerance in degrees).
     static let items: [String: (joints: [Int], requiredIn: Set<FormExercise>, degrees: Bool)] = [
-        "feet_width": ([rAnkle, lAnkle, rHip, lHip], [.squat, .pushUp, .barbellRow], false),
+        // push-up feet: not required — from the side (the app's push-up view) the far hip / ankle are hidden (device
+        // 2026-10-20 pushup_0003: far hip confidence median 0.40), so requiring them made ready impossible
+        "feet_width": ([rAnkle, lAnkle, rHip, lHip], [.squat, .barbellRow], false),
         "feet_width_shoulder": ([rAnkle, lAnkle, rShoulder, lShoulder], [], false),
         "foot_symmetry": ([rAnkle, lAnkle, rHip, lHip], [], false),
         "foot_stagger": ([rAnkle, lAnkle, rHip, lHip, rKnee, lKnee], [], false),
@@ -142,6 +152,15 @@ struct ExerciseSetup {
         "hand_width": [(rWrist, lWrist), (rShoulder, lShoulder)], "grip_width": [(rWrist, lWrist), (rShoulder, lShoulder)],
         // Trunk lean seen head-on lies along the depth (E1b Exercise3D front views 15–34° off vs 1–4° from the side).
         "torso_incline": [(pelvis, thorax)],
+        // Offsets measured along the hip line: from the side that line is the camera depth (device squat 2026-10-20:
+        // foot_symmetry −1.99 was XS's depth guess, the hip line 79–91 % along the depth).
+        "foot_symmetry": [(rHip, lHip)], "shoulder_over_pelvis": [(rHip, lHip)],
+    ]
+
+    /// Left-right pairs (H36M → COCO17) whose 2D midpoints hold the body still (Python PAIRS_2D, same order).
+    static let pairs2D: [(h36m: (Int, Int), coco: (Int, Int))] = [
+        ((rAnkle, lAnkle), (16, 15)), ((rKnee, lKnee), (14, 13)), ((rHip, lHip), (12, 11)),
+        ((rShoulder, lShoulder), (6, 5)), ((rElbow, lElbow), (8, 7)), ((rWrist, lWrist), (10, 9)),
     ]
 
     let exercise: FormExercise
@@ -150,7 +169,7 @@ struct ExerciseSetup {
     var reference: [String: Double]
     /// Snapshot {item: median over the ready window} once ready.
     private(set) var ready: [String: Double]?
-    private var window: [(values: [String: Double], quality: [String: Quality], posePx: [SIMD3<Double>])] = []
+    private var window: [(values: [String: Double], quality: [String: Quality], posePx: [SIMD3<Double>], coco17: [PoseKeypoint]?)] = []
 
     init(exercise: FormExercise, reference: [String: Double] = [:], params: Params = Params()) {
         self.exercise = exercise
@@ -217,11 +236,17 @@ struct ExerciseSetup {
 
     /// Largest |z| / |v| over the vectors a width item is made of (0 = image plane, 1 = along the camera depth).
     static func depthShare(_ P: [SIMD3<Double>], key: String) -> Double {
-        (widthVectors[key] ?? []).map { a, b in abs(P[b].z - P[a].z) / max(simd_length(P[b] - P[a]), 1e-9) }.max() ?? 0
+        // foot_stagger is measured along the horizontal normal of the hip line: the depth when seen head-on.
+        // ponytail: exact only for a level hip line; use cross(hip line, up) if a tilted pelvis ever matters here
+        if key == "foot_stagger" { return sqrt(max(0, 1 - pow(depthShare(P, key: "foot_symmetry"), 2))) }
+        return (widthVectors[key] ?? []).map { a, b in abs(P[b].z - P[a].z) / max(simd_length(P[b] - P[a]), 1e-9) }.max() ?? 0
     }
 
     func quality(_ P: [SIMD3<Double>], _ confidence: [Double], key: String) -> Quality {
-        let c = (Self.items[key]?.joints ?? []).map { confidence[$0] }.min() ?? 0
+        // the trunk line is seen from either side (side view: the far shoulder / hip hidden)
+        let c = key == "torso_incline"
+            ? max(min(confidence[Self.rShoulder], confidence[Self.rHip]), min(confidence[Self.lShoulder], confidence[Self.lHip]))
+            : (Self.items[key]?.joints ?? []).map { confidence[$0] }.min() ?? 0
         if c < params.lowConf { return .missing }
         if c < params.reliableConf { return .low }
         return Self.depthShare(P, key: key) > params.depthMax ? .depthEstimated : .good
@@ -243,6 +268,27 @@ struct ExerciseSetup {
             out[rel.name] = (ref, Self.percentile90(v.map { simd_length($0 - ref) }))
         }
         return out
+    }
+
+    /// Largest 2D range (px, x or y) over the window of the left-right midpoints the required items use, both joints
+    /// observed in every window frame, ÷ the 2D torso (mid-shoulders to mid-hips, median). Midpoints because in a side
+    /// view the two hips (ankles) overlap and the 2D model trades them frame to frame. nil: nothing observed to judge by.
+    private func motion2D(required: [String]) -> Double? {
+        let frames = window.compactMap(\.coco17)
+        let used = Set(required.flatMap { Self.items[$0]?.joints ?? [] })
+        var best: Double?
+        for pair in Self.pairs2D where used.contains(pair.h36m.0) && used.contains(pair.h36m.1) {
+            let (a, b) = pair.coco
+            guard frames.allSatisfy({ $0[a].confidence >= params.reliableConf && $0[b].confidence >= params.reliableConf }) else { continue }
+            let xs = frames.map { ($0[a].x + $0[b].x) / 2 }, ys = frames.map { ($0[a].y + $0[b].y) / 2 }
+            let span = max((xs.max() ?? 0) - (xs.min() ?? 0), (ys.max() ?? 0) - (ys.min() ?? 0))
+            best = max(best ?? span, span)
+        }
+        let torso = AdaptiveRelationConstraint.median(frames.map { k in
+            hypot((k[5].x + k[6].x - k[11].x - k[12].x) / 2, (k[5].y + k[6].y - k[11].y - k[12].y) / 2)
+        })
+        guard let best, torso >= 1e-6 else { return nil }
+        return best / torso
     }
 
     /// numpy percentile(…, 90), linear interpolation.
@@ -295,14 +341,18 @@ struct ExerciseSetup {
         if !required.allSatisfy({ q[$0]?.usable == true }) {
             window = []  // stillness is counted over frames in a row with every required item observed
         } else {
-            window.append((values, q, P.map { $0 * unit }))
+            window.append((values, q, P.map { $0 * unit }, coco17?.count == 17 ? coco17 : nil))
             if window.count > params.stableFrames { window.removeFirst() }
         }
         let full = window.count == params.stableFrames
-        let moving = full && !required.allSatisfy { k in
+        let twoD = full && window.allSatisfy { $0.coco17 != nil }
+        let motion = twoD ? motion2D(required: required) : nil
+        // with the 2D at hand only items in the image plane in every window frame are held to their tolerance
+        let gate = required.filter { k in !twoD || window.allSatisfy { $0.quality[k] == .good } }
+        let moving = full && ((twoD && (motion.map { $0 > params.tol2D } ?? true)) || !gate.allSatisfy { k in
             let v = window.compactMap { $0.values[k] }
             return (v.max() ?? 0) - (v.min() ?? 0) <= tolerance(k)
-        }
+        })
         if ready == nil && full && !required.isEmpty && !moving {
             var snapshot: [String: Double] = [:]
             for k in keys {
@@ -324,7 +374,7 @@ struct ExerciseSetup {
         }
         let phase: Phase = ready != nil ? .ready : (window.isEmpty ? .measuring : .holding)
         return State(phase: phase, progress: min(1, Double(window.count) / Double(params.stableFrames)), moving: moving, items: items,
-                     footSource: footSource)
+                     footSource: footSource, motion2D: motion)
     }
 }
 

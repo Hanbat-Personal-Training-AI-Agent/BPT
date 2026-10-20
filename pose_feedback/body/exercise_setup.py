@@ -52,7 +52,10 @@ BY_EXERCISE = {
 WIDTH_VECTORS = {"feet_width": ((R_ANKLE, L_ANKLE), (R_HIP, L_HIP)), "feet_width_shoulder": ((R_ANKLE, L_ANKLE), (R_SHOULDER, L_SHOULDER)),
                  "hand_width": ((R_WRIST, L_WRIST), (R_SHOULDER, L_SHOULDER)), "grip_width": ((R_WRIST, L_WRIST), (R_SHOULDER, L_SHOULDER)),
                  # trunk lean seen head-on lies along the depth: E1b Exercise3D front views 15-34 deg off vs 1-4 deg from the side
-                 "torso_incline": ((PELVIS, THORAX),)}
+                 "torso_incline": ((PELVIS, THORAX),),
+                 # offsets measured along the hip line: from the side that line is the camera depth (device squat
+                 # 2026-10-20: foot_symmetry -1.99 = XS's depth guess, the hip line 79-91 % along the depth)
+                 "foot_symmetry": ((R_HIP, L_HIP),), "shoulder_over_pelvis": ((R_HIP, L_HIP),)}
 # Foot items need the Halpe26 foot points (heels, big toes; RTMPose-m Halpe26 is being evaluated, NOT adopted - the app
 # default COCO17 has none, then the feet are only seen through the ankles: foot_source "ankle"). 2D, display only.
 #   heel_width: feet_width x (heel distance / ankle distance in the image) - heel-to-heel stance relative to the hips
@@ -121,6 +124,9 @@ def measure(P, exercise, up=UP):
 
 def depth_share(P, key):
     """Largest |z| / |v| over the vectors a width item is made of (0 = in the image plane, 1 = along the depth)."""
+    if key == "foot_stagger":  # measured along the horizontal normal of the hip line: the depth when seen head-on
+        # ponytail: exact only for a level hip line; use cross(hip line, up) if a tilted pelvis ever matters here
+        return math.sqrt(max(0.0, 1.0 - depth_share(P, "foot_symmetry") ** 2))
     shares = [abs(float(P[b][2] - P[a][2])) / max(_n(P[b] - P[a]), 1e-9) for a, b in WIDTH_VECTORS.get(key, ())]
     return max(shares) if shares else 0.0
 
@@ -212,7 +218,7 @@ class ExerciseSetup:
         if P is None or not usable:
             self.window = []
             return dict(phase="ready" if self.ready is not None else "unavailable", progress=0.0, moving=False, items=[],
-                        foot_source=foot_source)
+                        foot_source=foot_source, motion_2d=None)
         P = np.asarray(P, dtype="float64")
         values = measure(P, self.exercise, up)
         q = {k: self.quality(P, conf, k) if values.get(k) is not None else "missing" for k in keys if k in ITEMS}

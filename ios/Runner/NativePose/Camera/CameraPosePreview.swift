@@ -287,6 +287,8 @@ final class CameraPoseViewModel: ObservableObject {
     private var exerciseSetup: ExerciseSetup?
     private var setupVariant: String?
     private var setupSeeded = false
+    /// This judged frame's setup state for VideoRunLog (debug only: why "ready" did or did not come).
+    private var setupLog: [String: Any]?
     private var lastSetupSignature: String?
     private var lastSetupSent: CFTimeInterval = 0
     /// Overlay colour: FormWarningTracker.liveSeverity of the last judged frame (display only), and its smoothing.
@@ -768,6 +770,7 @@ final class CameraPoseViewModel: ObservableObject {
             ]
             if result.sameHandDropped { line["same_hand"] = true }
             if let row = frame3D.row { line["row"] = row }
+            if rep == 0, let s = setupLog { line["setup"] = s }
             if let src = log.clipFrame(result.frameIndex) { line["src"] = src }
             // RTMPose keypoints the evaluators used (frame px, 1 decimal) and the raw MediaPipe wrist per crop side, for
             // the left/right analysis against the Exercise3D labels (scripts/ex3d_lr_swap_device.py).
@@ -810,6 +813,8 @@ final class CameraPoseViewModel: ObservableObject {
                                                 usable: frame3D.usable3D != nil, up: up, unit: frame3D.unit ?? 1,
                                                 feet: feet, coco17: coco17),
               let setup = exerciseSetup else { return nil }
+        setupLog = ["phase": state.phase.rawValue, "progress": state.progress, "moving": state.moving,
+                    "motion_2d": state.motion2D.map { ($0 * 1000).rounded() / 1000 } ?? NSNull()]
         if state.phase == .ready && !setupSeeded {
             setupSeeded = true
             let seeds = setup.seeds(AdaptiveRelationConstraint.relations(for: setup.exercise))

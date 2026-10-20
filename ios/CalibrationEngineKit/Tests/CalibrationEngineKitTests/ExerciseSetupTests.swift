@@ -30,6 +30,8 @@ final class ExerciseSetupTests: XCTestCase {
             let moving: Bool
             let items: [Item]
             let foot_source: String
+            /// rounded to 1e-4 by Python
+            let motion_2d: Double?
         }
         struct Case: Decodable {
             let exercise: String
@@ -71,6 +73,8 @@ final class ExerciseSetupTests: XCTestCase {
                 XCTAssertEqual(got.phase.rawValue, want.phase, tag)
                 XCTAssertEqual(got.progress, want.progress, accuracy: 1e-6, tag)
                 XCTAssertEqual(got.moving, want.moving, tag)
+                XCTAssertEqual(got.motion2D == nil, want.motion_2d == nil, "\(tag) motion_2d")
+                if let a = got.motion2D, let b = want.motion_2d { XCTAssertEqual(a, b, accuracy: 1e-4, "\(tag) motion_2d") }
                 XCTAssertEqual(got.items.map(\.key), want.items.map(\.key), tag)
                 for (g, w) in zip(got.items, want.items) {
                     XCTAssertEqual(g.quality.rawValue, w.quality, "\(tag) \(w.key)")
