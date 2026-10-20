@@ -1,4 +1,4 @@
-import 'dart:io' show Platform;
+import 'dart:io' show Directory, File, FileMode, Platform;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -65,7 +65,17 @@ String? _launchEnv(String name) {
   }
 }
 
-final String? _autostartWorkout = _launchEnv('BPT_AUTOSTART_WORKOUT');
+final String? _autostartWorkout = () {
+  final value = _launchEnv('BPT_AUTOSTART_WORKOUT');
+  if (value != null) {
+    // Test-only breadcrumb for the device runs (tmp/, never in normal launches).
+    try {
+      File('${Directory.systemTemp.path}/bpt_autostart.txt')
+          .writeAsStringSync('autostart=$value ${DateTime.now().toIso8601String()}\n', mode: FileMode.append);
+    } catch (_) {}
+  }
+  return value;
+}();
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   // ref.read (not watch) so GoRouter is not recreated on auth change.

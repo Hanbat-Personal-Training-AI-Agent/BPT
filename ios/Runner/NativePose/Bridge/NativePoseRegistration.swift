@@ -9,6 +9,7 @@ enum NativePoseRegistration {
     private static var koriVoice: KoriVoiceChannel?
 
     static func register(with registry: FlutterPluginRegistry) {
+        VideoRunLog.shared?.write("app_registered", [:])  // test-only breadcrumb (video-as-camera launches)
         if let registrar = registry.registrar(forPlugin: "KoriVoiceChannel") {
             koriVoice = KoriVoiceChannel(messenger: registrar.messenger())
         }

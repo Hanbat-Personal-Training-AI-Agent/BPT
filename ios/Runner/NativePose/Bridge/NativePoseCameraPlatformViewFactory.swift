@@ -21,6 +21,7 @@ final class NativePoseCameraPlatformViewFactory: NSObject, FlutterPlatformViewFa
         let params = args as? [String: Any]
         let exerciseId = params?["exerciseId"] as? String
         let exercise = exerciseId.flatMap { NativePoseExercise(flutterId: $0) }
+        VideoRunLog.shared?.write("platform_view_created", ["exerciseId": exerciseId ?? "", "supported": exercise != nil])
 
         return NativePoseCameraPlatformView(
             frame: frame,
