@@ -156,7 +156,7 @@ def run(a):
         print(f"   log={log.name if log else None} ended={ended}", flush=True)
     if a.pull_all:  # every run log + perf log on the phone: big over Wi-Fi
         pull_runs(out / "all_logs")
-    manifest = {"created": time.strftime("%Y-%m-%dT%H:%M:%S%z"), "argv": sys.argv, "device": DEVICE, "bundle": BUNDLE,
+    manifest = {"created": time.strftime("%Y-%m-%dT%H:%M:%S%z"), "argv": sys.argv, "note": a.note, "device": DEVICE, "bundle": BUNDLE,
                 "app": a.app_hashes and json.load(open(a.app_hashes)), "runs": runs,
                 "git_commit": sh(["git", "rev-parse", "HEAD"]).stdout.strip()}
     (out / "manifest.json").write_text(json.dumps(manifest, indent=1))
@@ -181,6 +181,7 @@ def main():
     r.add_argument("--pull-all", action="store_true")
     r.add_argument("--no-pull", action="store_true")
     r.add_argument("--wait-pad", type=float, default=12)
+    r.add_argument("--note", default="")
     q = sub.add_parser("pull")
     q.add_argument("out_dir")
     a = ap.parse_args()
