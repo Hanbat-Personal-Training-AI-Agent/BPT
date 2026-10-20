@@ -10,6 +10,8 @@ push copies clips into the app's Documents/e3d_clips (never into git or the bund
 per clip with BPT_CAMERA_VIDEO=e3d_clips/<clip>.mp4 + BPT_AUTOSTART_WORKOUT=<exercise> (+ --env extras), waits for the
 run log's video_end (polling the device), pulls Documents/video_runs and workout_form_logs into <out_dir>, and writes
 <out_dir>/manifest.json (clip sha256, env, app binary hashes, commands). Heavy: wrap in lockf -k /tmp/bpt-heavy.lock.
+--no-pull (phone on Wi-Fi, where CoreDevice file copies stall): launch, wait the clip length + --wait-pad, go on; the
+logs stay in the app's Documents/video_runs and are pulled later over USB (`pull`).
 --reps-from-gt sets BPT_AUTOSTART_REPS to the clip's truth reps (Exercise3D pseudo labels), so Flutter's workout screen
 reaches its rep target and sends endSet (3D tail flush, set-scope keys, onSetEnd) like a real set.
 Exercise3D frames are never opened here; only the app's logs are read.
@@ -128,6 +130,13 @@ def run(a):
         print(f"== {tag} exercise={exercise} frames={frames} expected={expected:.0f}s", flush=True)
         started = time.time()
         launch(env)
+        if a.no_pull:
+            time.sleep(expected + a.wait_pad)
+            runs.append({"clip": c.name, "clip_sha256": sha256(c), "exercise": exercise, "env": env, "frames": frames,
+                         "log": f"run_{tag}.jsonl", "log_sha256": None, "ended": None,
+                         "pulled": False, "wall_s": round(time.time() - started, 1)})
+            print(f"   launched, waited {time.time() - started:.0f}s (log stays on the phone)", flush=True)
+            continue
         deadline = started + expected + a.timeout_pad
         time.sleep(max(5, expected * 0.9))
         log, ended = None, False
@@ -143,7 +152,8 @@ def run(a):
                      "log": log.name if log else None, "log_sha256": sha256(log) if log else None,
                      "ended": ended, "wall_s": round(time.time() - started, 1)})
         print(f"   log={log.name if log else None} ended={ended}", flush=True)
-    pull_runs(out / "all_logs")
+    if a.pull_all:  # every run log + perf log on the phone: big over Wi-Fi
+        pull_runs(out / "all_logs")
     manifest = {"created": time.strftime("%Y-%m-%dT%H:%M:%S%z"), "argv": sys.argv, "device": DEVICE, "bundle": BUNDLE,
                 "app": a.app_hashes and json.load(open(a.app_hashes)), "runs": runs,
                 "git_commit": sh(["git", "rev-parse", "HEAD"]).stdout.strip()}
@@ -166,6 +176,9 @@ def main():
     r.add_argument("--timeout-pad", type=float, default=90)
     r.add_argument("--app-hashes", default="")
     r.add_argument("--reps-from-gt", default="")
+    r.add_argument("--pull-all", action="store_true")
+    r.add_argument("--no-pull", action="store_true")
+    r.add_argument("--wait-pad", type=float, default=12)
     q = sub.add_parser("pull")
     q.add_argument("out_dir")
     a = ap.parse_args()
