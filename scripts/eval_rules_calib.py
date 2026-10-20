@@ -1,0 +1,300 @@
+"""rules-calib (docs/results/rules_calib_prereg.md): per-rep posture metrics of normal / wrong reps per 3D model, threshold
+derivation and held-out evaluation of the app's form rules.
+
+  fit3d   (Home, Fit3D never leaves it) mocap + XS checkpoints on the app 2D CSVs -> per-set rep metrics, cam-up and true
+          gravity, the app's view gates mirrored from the app 2D. Writes <run-dir>/sets_fit3d.json.gz.
+  pub     pose-replay outputs (this branch, per model) of the public / Exercise3D / MM-Fit app 2D + labels ->
+          <run-dir>/sets_pub.json.gz.
+  analyze sets_*.json.gz -> thresholds per model (pre-registered rule), presets, held-out tables (Markdown + JSON).
+
+Each command writes <run-dir>/manifest.json (argv, code commit, sha256 of inputs and outputs). Only aggregates go to git.
+
+usage (Home, bpt-home; code synced to ~/bpt-runs/rules-calib/_code/<sha>/):
+  eval_rules_calib.py fit3d --root ~/datasets/fit3d --replay ~/bpt-smpl/replay --models orig=CKPT,c1=CKPT --cpu --threads 4 \
+      --cache ~/bpt-runs/rules-calib/_cache --run-dir RUN
+  eval_rules_calib.py pub --e2e orig=DIR,c1=DIR --labels data/eval_sources --run-dir RUN
+  eval_rules_calib.py analyze --sets RUN_F/sets_fit3d.json.gz,RUN_P/sets_pub.json.gz --run-dir RUN
+"""
+import argparse, glob, gzip, hashlib, json, math, os, re, socket, sys, time
+from pathlib import Path
+
+import numpy as np
+
+HERE = Path(__file__).resolve().parent
+REPO = HERE.parent
+sys.path[:0] = [str(REPO), str(HERE)]
+from pose_feedback.body.form_metrics_3d import UP, frame_metrics, rep_metrics  # noqa: E402
+from pose_feedback.feedback.form_rules import judge, load_preset  # noqa: E402
+
+EXERCISES = ("squat", "pushup", "barbell_row")
+FRONT_RATIO, FRONT_FRACTION = 0.5, 0.5          # FormCommonConfig.frontViewShoulderRatio / frontViewRepFraction
+ROW_CUT, ROW_H, GATE_WIN, GATE_MIN = 0.66, 0.03, 150, 30  # BarbellRowFormConfig.sideViewMaxShoulderRatio, hysteresis, window
+MIN_JUDGED = 0.5                                  # FormCommonConfig.min3DRepFraction
+
+
+def sha256(path):
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for b in iter(lambda: f.read(1 << 20), b""):
+            h.update(b)
+    return h.hexdigest()
+
+
+def write_manifest(a, inputs, outputs, extra=None):
+    code = REPO / "CODE_SHA"
+    commit = code.read_text().strip() if code.exists() else os.popen(f"git -C {REPO} rev-parse HEAD").read().strip()
+    m = dict(argv=sys.argv, python=sys.executable, host=socket.gethostname(), code_dir=str(REPO), git_commit=commit,
+             finished=time.strftime("%Y-%m-%d %H:%M:%S"), extra=extra or {},
+             inputs={p: sha256(p) for p in sorted(set(map(str, inputs))) if os.path.isfile(p)},
+             code={str(p): sha256(p) for p in sorted(list(REPO.glob("scripts/*.py")) + list(REPO.glob("pose_feedback/**/*.py")))},
+             outputs={str(p): sha256(p) for p in outputs if os.path.isfile(p)})
+    json.dump(m, open(Path(a.run_dir) / "manifest.json", "w"), indent=1)
+
+
+def dump(path, obj):
+    with gzip.open(path, "wt") as f:
+        json.dump(obj, f)
+
+
+def load(path):
+    with gzip.open(path, "rt") as f:
+        return json.load(f)
+
+
+# ---------------------------------------------------------------- shared per-rep quantities (judge() inputs)
+def add_set_quantities(ms):
+    """judge() quantities that need the set (on the judged reps, in order): baseline = median of the first 3 reps
+    (from the 4th rep), set max including this rep. Adds q_* keys in place."""
+    for i, m in enumerate(ms):
+        h = ms[:i]
+        for n in ("elbow_min", "knee_min"):
+            b = [x[n] for x in h[:3] if n in x]
+            if i >= 3 and n in m and b:
+                m[f"q_over_base_{n}"] = m[n] - float(np.median(b))
+        for n in ("elbow_max", "knee_max", "hip_angle_max"):
+            if n in m:
+                m[f"q_below_setmax_{n}"] = max([x[n] for x in h if n in x] + [m[n]]) - m[n]
+        b = [x["torso_mean"] for x in h[:3] if "torso_mean" in x]
+        if i >= 3 and "torso_mean" in m and b:
+            m["q_standing_up"] = math.remainder(float(np.median(b)) - m["torso_mean"], 360)
+        b = [x["elbow_behind_max"] for x in h[:3] if "elbow_behind_max" in x]
+        if i >= 3 and "elbow_behind_max" in m and b:
+            m["q_short_pull"] = float(np.median(b)) - m["elbow_behind_max"]
+        if "torso_min" in m and "torso_max" in m:
+            m["torso_range"] = m["torso_max"] - m["torso_min"]
+        if all(k in m for k in ("hips_first_torso_rise", "hips_first_hip_rise_speed", "hips_first_shoulder_rise_speed")):
+            m["q_hips_first"] = m["hips_first_torso_rise"] if m["hips_first_hip_rise_speed"] > m["hips_first_shoulder_rise_speed"] else -1e9
+        q = [m[k] for k in ("q_below_setmax_knee_max", "q_below_setmax_hip_angle_max") if k in m]
+        if q:
+            m["q_squat_no_lockout"] = max(q)
+
+
+# ---------------------------------------------------------------- Fit3D (Home)
+def shoulder_ratio(K, c=0.3):
+    """FormWarningTracker.measure2D shoulderRatio per frame (NaN when a shoulder / hip is below confidence c)."""
+    ls, rs, lh, rh = K[:, 5], K[:, 6], K[:, 11], K[:, 12]
+    ok = (ls[:, 2] >= c) & (rs[:, 2] >= c) & (lh[:, 2] >= c) & (rh[:, 2] >= c)
+    torso = np.hypot((ls[:, 0] + rs[:, 0] - lh[:, 0] - rh[:, 0]) / 2, (ls[:, 1] + rs[:, 1] - lh[:, 1] - rh[:, 1]) / 2)
+    r = np.abs(ls[:, 0] - rs[:, 0]) / np.where(torso > 1e-8, torso, np.nan)
+    r[~ok] = np.nan
+    return r
+
+
+def row_gate(ratio):
+    """FormWarningTracker.updateSideView: per-frame session side-view gate (None until GATE_MIN ratios)."""
+    out, buf, sv = [], [], None
+    for r in ratio:
+        if np.isfinite(r):
+            buf = (buf + [float(r)])[-GATE_WIN:]
+            if len(buf) >= GATE_MIN:
+                med = float(np.median(buf))
+                sv = med <= ROW_CUT if sv is None else (med <= ROW_CUT + ROW_H if sv else med < ROW_CUT - ROW_H)
+        out.append(sv)
+    return out
+
+
+def rep_gate(ex, ratio, gate, s, e):
+    """judge()'s side-view value for a rep [s, e]: row = the session gate at the rep's end, else front fraction < 0.5."""
+    r = ratio[s:e + 1]
+    r = r[np.isfinite(r)]
+    ff = float((r >= FRONT_RATIO).mean()) if len(r) else 0.0
+    if ex == "barbell_row" and gate[e] is not None:
+        return bool(gate[e]), ff
+    return ff < FRONT_FRACTION, ff
+
+
+def set_reps(P, seg, ex, side, up, td, judged):
+    frames = []
+    for t, p in enumerate(P):
+        f = frame_metrics(p, side, up, None if td is None else td[t])
+        f["frame"] = t
+        frames.append(f)
+    ms = []
+    for r, (s, e) in enumerate(seg):
+        ms.append(rep_metrics(frames[s:e + 1], ex, is_first_rep=r == 0))
+    return ms
+
+
+def run_fit3d(a):
+    import torch
+    import eval_lift_app_fit3d as E
+    from eval_lift_app_fit3d import apply_constraints, load_seqs, predict_rows, seq_key
+    from eval_lift_app_t2t3 import two_d
+    from finetune_motionagformer_fit3d import load as load_ckpt
+    torch.set_num_threads(a.threads)
+    E.CACHE["dir"] = None
+    seqs = load_seqs(a)
+    models = [kv.split("=", 1) for kv in a.models.split(",")] if a.models else []
+    dev = "cuda" if torch.cuda.is_available() and not a.cpu else "cpu"
+    sets = []
+    for d in seqs:
+        d["ratio"] = shoulder_ratio(d["K"])
+        d["gate"] = row_gate(d["ratio"])
+        d["td_app"], d["td_gt"] = two_d(a, d)
+    for tag, ck in [("mocap", None)] + models:
+        model = None if ck is None else load_ckpt(a.mag_repo, ck, dev)[0].eval()
+        for d in seqs:
+            side = {"L": "left", "R": "right"}[d["side"]]
+            meta = dict(src="fit3d", model=tag, subj=d["subj"], cam=d["cam"], exercise=d["ex"], group=d["group"],
+                        view=round(float(d["view"]), 1), view_bin=d["bin"], set_id=f"fit3d/{seq_key(d)}")
+            if model is None:
+                P, td, state = d["G"], d["td_gt"], np.zeros(len(d["G"]), int)
+            else:
+                cache = Path(a.cache) / tag / f"{seq_key(d)}.npz" if a.cache else None
+                if cache and cache.exists():
+                    raw = np.load(cache)["L5"].astype(float)
+                else:
+                    raw = predict_rows(model, dev, d["x"], [5], None, batch=256 if dev == "cuda" else 16)[5]
+                    if cache:
+                        cache.parent.mkdir(parents=True, exist_ok=True)
+                        np.savez(cache, L5=raw.astype(np.float32))
+                Q, rp = apply_constraints(raw, dict(reflect_flipped_knee=d["ex"] == "squat"))
+                inv = [r.get("invalid_joints", []) for r in rp]
+                state = np.array([0 if not j else 2 if len(j) == 17 else 1 for j in inv])
+                P = (Q - Q[:, :1]) * (d["mm"][:, None, None] / 1000)
+                for i, j in enumerate(inv):
+                    if j:
+                        P[i, j] = np.nan
+                td = d["td_app"]
+            for up_name, up in (("cam", UP), ("grav", d["up_c"])):
+                ms = set_reps(P, d["seg"], d["ex"], side, up, td, None)
+                reps = []
+                for r, ((s, e), m) in enumerate(zip(d["seg"], ms)):
+                    sv, ff = rep_gate(d["ex"], d["ratio"], d["gate"], s, e)
+                    m["front_view_fraction"] = ff
+                    reps.append(dict(rep=r + 1, judged=bool((state[s:e + 1] <= 1).mean() >= MIN_JUDGED), side_view=sv, m=m,
+                                     all_ok=bool((state[s:e + 1] == 0).all())))
+                sets.append(dict(meta, up=up_name, label="normal", reps=reps,
+                                 cam_tilt=round(float(np.degrees(np.arccos(np.clip(-d["up_c"][1] / np.linalg.norm(d["up_c"]), -1, 1)))), 2)))
+            print(tag, d["subj"], d["ex"], d["cam"], flush=True)
+        del model
+    out = Path(a.run_dir) / "sets_fit3d.json.gz"
+    dump(out, sets)
+    write_manifest(a, [d["csv"] for d in seqs] + [ck for _, ck in models], [out],
+                   dict(note="Fit3D-derived per-rep metrics (Home only); fine-tuned checkpoints = NON-COMMERCIAL"))
+
+
+# ---------------------------------------------------------------- public / Exercise3D / MM-Fit pose-replay outputs
+EX_FILE = {"squat": "squat", "pushup": "pushup", "barbell_row": "barbell_row"}
+OTHER_KEYS = {  # pre-registered regex: AI 'other:' observation -> rules-calib key (rules_calib_prereg.md §3)
+    "squat_torso_lean": r"forward lean|folds forward|torso folds|chest (drops|folds|pitched|collapsed)|pitches far forward|hip-hinge with chest|torso pitches|leans forward more",
+    "row_elbow_flare": r"elbows? flared|reverse-fly",
+    "row_straight_arm": r"kickback|swing straight back|swung back past hips with straighter|straighter arms",
+}
+EX3D_HELD = {"squat_0002", "barbellrow_0001", "barbellrow_0003"}
+
+
+def read_labels(labels_dir):
+    import csv
+    L = {}
+    for name, src in (("mendeley_mv7", "mendeley"), ("youtube_cc", "youtube")):
+        rows = {r["file"]: r for r in csv.DictReader(open(f"{labels_dir}/{name}_labels.csv"))}
+        passes = [{r["file"]: r for r in csv.DictReader(open(f"{labels_dir}/passes/{name}_pass{k}.csv"))} for k in (1, 2)]
+        for f, r in rows.items():
+            if src == "mendeley":
+                clip = r["dataset_label"]  # authors' good / bad
+            else:
+                it = re.search(r"intent:(\w+)", r["dataset_label"])
+                clip = {"normal": "good", "wrong": "bad"}.get(it.group(1) if it else "", "unknown")
+            other = {}
+            for key, pat in OTHER_KEYS.items():
+                hits = [bool(re.search(pat, (p.get(f, {}).get("wrong_keys", "") + " " + p.get(f, {}).get("notes", "")), re.I))
+                        for p in passes]
+                other[key] = "consensus" if all(hits) else "single" if any(hits) else None
+            L[f] = dict(source=src, person=r["person_id"], split=r["split"], view=r["angle_deg"], clip_label=clip,
+                        ai_form=r["form"], form_status=r["form_status"],
+                        ai_keys=[k for k in (r["wrong_key"] or "").split(";") if k], other=other)
+    return L
+
+
+def run_pub(a):
+    L = read_labels(a.labels)
+    ex3d_views = {}
+    if a.ex3d_gt and os.path.exists(a.ex3d_gt):
+        for seq, g in json.load(open(a.ex3d_gt)).items():
+            for cam, v in g.get("views", {}).items():
+                ex3d_views[f"{seq}_{cam}"] = v.get("angle_deg")
+    sets, inputs = [], []
+    for kv in a.e2e.split(","):
+        tag, root = kv.split("=", 1)
+        for js in sorted(glob.glob(f"{root}/*/3d/*_mcoco17.json")):
+            ds = js.split("/")[-3]
+            j = json.load(open(js))
+            inputs.append(js)
+            ex = j["exercise"] if j["exercise"] in EXERCISES else {"row": "barbell_row"}.get(j["exercise"], j["exercise"])
+            stem = os.path.basename(js)[: -len(f"_{EX_FILE.get(ex, ex)}_mcoco17.json")]
+            meta = dict(src=None, model=tag, dataset=ds, clip=stem, exercise=ex, set_id=f"{ds}/{stem}")
+            if stem in L:
+                lb = L[stem]
+                meta.update(src="public", subj=lb["person"], group="tuning" if lb["split"] == "tuning" else "heldout",
+                            view_label=lb["view"], label=lb["clip_label"], ai_form=lb["ai_form"], form_status=lb["form_status"],
+                            ai_keys=lb["ai_keys"], other=lb["other"], public_source=lb["source"])
+            elif stem.startswith(("squat_", "pushup_", "barbellrow_")):
+                seq = "_".join(stem.split("_")[:2])
+                ang = ex3d_views.get(stem)
+                meta.update(src="ex3d", subj=seq, group="heldout" if seq in EX3D_HELD else "tuning", label="good",
+                            view=ang, view_label=None if ang is None else ("side" if ang <= 40 else "diag" if ang <= 75 else "front"))
+            else:
+                meta.update(src="mmfit", subj=stem, group="dev", label="good")
+            reps = []
+            for r in j["reps"]:
+                st = r.get("states_3d", {})
+                reps.append(dict(rep=r["rep_index"], judged=r.get("warnings_3d") is not None, side_view=r.get("side_view_judged"),
+                                 m=r.get("metrics_3d") or {}, warnings_3d=r.get("warnings_3d"), states=st,
+                                 all_ok=bool(st) and all(k == "ok" for k, v in st.items() if v)))
+            sets.append(dict(meta, up="cam", reps=reps, rules=j.get("rules")))
+    out = Path(a.run_dir) / "sets_pub.json.gz"
+    dump(out, sets)
+    write_manifest(a, inputs, [out])
+    print(len(sets), "sets", flush=True)
+
+
+def main():
+    p = argparse.ArgumentParser()
+    p.add_argument("cmd", choices=["fit3d", "pub", "analyze"])
+    p.add_argument("--run-dir", required=True)
+    p.add_argument("--root"); p.add_argument("--replay")
+    p.add_argument("--subjects", type=lambda s: s.split(","), default=["s03", "s04", "s05", "s07", "s08", "s09", "s10", "s11"])
+    p.add_argument("--exercises", type=lambda s: s.split(","), default=list(EXERCISES))
+    p.add_argument("--mag-repo", default=os.path.expanduser("~/models/MotionAGFormer"))
+    p.add_argument("--models", default="", help="fit3d: tag=ckpt,... (fine-tuned = NON-COMMERCIAL)")
+    p.add_argument("--cpu", action="store_true"); p.add_argument("--threads", type=int, default=4)
+    p.add_argument("--cache", default=None)
+    p.add_argument("--e2e", default="", help="pub: tag=dir,... (dir holds <dataset>/3d/*.json)")
+    p.add_argument("--labels", default=str(REPO / "data/eval_sources"))
+    p.add_argument("--ex3d-gt", default=None, help="pub: outputs/rep_validation/gt.json (Exercise3D camera angles)")
+    p.add_argument("--sets", default="")
+    a = p.parse_args()
+    os.makedirs(a.run_dir, exist_ok=True)
+    if a.cmd == "fit3d":
+        a.checkpoint = None
+        run_fit3d(a)
+    elif a.cmd == "pub":
+        run_pub(a)
+    else:
+        from rules_calib_analysis import run_analyze
+        run_analyze(a)
+
+
+if __name__ == "__main__":
+    main()
