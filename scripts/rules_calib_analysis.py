@@ -276,6 +276,13 @@ def run_analyze(a):
         for rule, ex, branch, q, tail, field, sign in RULES:
             out["verdict"].setdefault(f"{m}/{rule}/{tail}", dict(verdict="데이터 없음 → 끄기 권장", fa_sources=0, fa_over=0, detection_ok=False))
 
+    def off_list(m):
+        bad = lambda r: out["verdict"].get(f"{m}/{r[0]}/{r[4]}", {}).get("verdict", "").startswith("데이터 없음")
+        offs = {r[0] for r in RULES if r[0] != "pushup_hand_position" and bad(r)}
+        if all(bad(r) for r in RULES if r[0] == "pushup_hand_position"):
+            offs.add("pushup_hand_position")
+        return sorted(offs)
+
     # ---- view and subject stability (rc1, gate as the app)
     md += ["## 시점·피험자별 오경보 (rc1; 게이트 = 앱, 괄호 = 게이트 무시(모든 시점에서 3D로 판정했다면); '최대' = 피험자별 오경보율의 최대, n≥10 피험자만)", "",
            "| 모델 | 규칙 | 출처 | 시점별 k/n (게이트 무시 k/n) | 피험자 최대 |", "|---|---|---|---|---|"]
@@ -313,6 +320,7 @@ def run_analyze(a):
         if m not in presets:
             continue
         rc1 = {**load_preset("app_default")[0], **presets[m]}
+        rc1_off = set(off_list(m))
         for ex in ("squat", "pushup", "barbell_row"):
             for src, group in HELDOUT:
                 ss = [s for s in pool(m, src, group) if s["exercise"] == ex and s["jreps"]]
@@ -323,7 +331,7 @@ def run_analyze(a):
                     ms = [r["m"] for r in s["jreps"]]
                     sv = [r["side_view"] for r in s["jreps"]]
                     f0 = judge(ms, ex, load_preset("app_default")[0], side_view=sv)
-                    f1 = judge(ms, ex, rc1, side_view=sv)
+                    f1 = judge(ms, ex, rc1, rc1_off, side_view=sv)
                     for r, a0, a1 in zip(s["jreps"], f0, f1):
                         if not r.get("all_ok", True):
                             continue
@@ -420,8 +428,7 @@ def run_analyze(a):
     (rd / "presets").mkdir(exist_ok=True)
     outs = []
     for m, vals in presets.items():
-        off = sorted({r[0] for r in RULES if out["verdict"].get(f"{m}/{r[0]}/{r[4]}", {}).get("verdict", "").startswith("데이터 없음")
-                      and r[0] not in ("pushup_hand_position",)})
+        off = off_list(m)
         p = rd / "presets" / f"xs_{m}_rc1.json"
         json.dump(dict(name=f"xs_{m}_rc1", model=m, pose2d=a.pose2d or "mcoco17", values=vals, off=off,
                        sources=[f"{src}/{group}" for src, group in DERIVE.get(m, [])],
