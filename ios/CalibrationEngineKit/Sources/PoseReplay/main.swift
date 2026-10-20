@@ -248,7 +248,13 @@ for video in videos {
             times.append(v[1])
             coco17Frames.append((0..<17).map { PoseKeypoint(x: v[4 + $0 * 3], y: v[5 + $0 * 3], confidence: v[6 + $0 * 3]) })
             extraFrames.append([])
-            feetFrames.append(nil)
+            // Halpe26 CSV (26 joints): the feet, so heel rise is measured as in the camera path.
+            func joint(_ i: Int) -> PoseKeypoint { PoseKeypoint(x: v[4 + i * 3], y: v[5 + i * 3], confidence: v[6 + i * 3]) }
+            feetFrames.append(cells.count >= 4 + 26 * 3
+                ? FootKeypoints(leftBigToe: joint(Halpe26.leftBigToe), rightBigToe: joint(Halpe26.rightBigToe),
+                                leftSmallToe: joint(Halpe26.leftSmallToe), rightSmallToe: joint(Halpe26.rightSmallToe),
+                                leftHeel: joint(Halpe26.leftHeel), rightHeel: joint(Halpe26.rightHeel))
+                : nil)
         }
     }
     let output: AVAssetReaderTrackOutput? = try {

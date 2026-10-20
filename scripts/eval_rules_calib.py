@@ -152,7 +152,8 @@ def run_fit3d(a):
             z = np.load(f"{a.pose2d_dir}/{d['subj']}_{d['cam']}_{d['ex']}.npz")
             idx = np.searchsorted(z["pick"], d["pick"])
             assert (z["pick"][np.clip(idx, 0, len(z["pick"]) - 1)] == d["pick"]).all(), seq_key(d)
-            d["K"] = z[a.pose2d_key][idx][:, :17].astype(float)
+            d["K26"] = z[a.pose2d_key][idx].astype(float)
+            d["K"] = d["K26"][:, :17]
             w, h = (float(v) for v in z["wh"])
             d["x"], _ = mag_input(d["K"], w, h)
     models = [kv.split("=", 1) for kv in a.models.split(",")] if a.models else []
@@ -162,6 +163,10 @@ def run_fit3d(a):
         d["ratio"] = shoulder_ratio(d["K"])
         d["gate"] = row_gate(d["ratio"])
         d["td_app"], d["td_gt"] = two_d(a, d)
+        if "K26" in d:  # Halpe26 feet: heel rise (2D) for every source of this sequence
+            sd = {"L": "left", "R": "right"}[d["side"]]
+            for t, k in enumerate(d["K26"]):
+                d["td_app"][t]["heelToe"] = d["td_gt"][t]["heelToe"] = heel_toe(k, sd)
     for tag, ck in [("mocap", None)] + models:
         model = None if ck is None else load_ckpt(a.mag_repo, ck, dev)[0].eval()
         for d in seqs:
@@ -299,8 +304,19 @@ def near_sides(K, margin=0.08):
     return out
 
 
+def heel_toe(k, sd, c=0.3, foot_c=0.3):
+    """measure2D heelToe: (heel y − big-toe y) / shin of the near side, Halpe26 feet (k has 26 joints), else None."""
+    if len(k) < 26:
+        return None
+    knee, ankle, heel, toe = (k[13], k[15], k[24], k[20]) if sd == "left" else (k[14], k[16], k[25], k[21])
+    if knee[2] < c or ankle[2] < c or heel[2] < foot_c or toe[2] < foot_c:
+        return None
+    shin = float(np.hypot(knee[0] - ankle[0], knee[1] - ankle[1]))
+    return float(heel[1] - toe[1]) / shin if shin > 1e-8 else None
+
+
 def two_d_px(K, sides, c=0.3):
-    """measure2D hipY / shoulderY / torsoLength of the near side (None when below confidence)."""
+    """measure2D hipY / shoulderY / torsoLength (+ heelToe with Halpe26 feet) of the near side (None below confidence)."""
     out = []
     for k, sd in zip(K, sides):
         sh, hp = (k[5], k[11]) if sd == "left" else (k[6], k[12])
@@ -309,7 +325,17 @@ def two_d_px(K, sides, c=0.3):
             out.append(dict(hipY=float(hp[1]), shoulderY=float(sh[1]), torsoLength=tl if tl > 1e-8 else None))
         else:
             out.append(dict(hipY=None, shoulderY=None, torsoLength=None))
+        out[-1]["heelToe"] = heel_toe(k, sd)
     return out
+
+
+def read_csv_all(path):
+    """pose-replay keypoint CSV with every joint (17 COCO17 or 26 Halpe26) -> [N, J, 3]."""
+    with open(path) as f:
+        head = f.readline().strip().split(",")
+        J = sum(1 for h in head if h.endswith("_c"))
+        rows = np.array([[float(x) for x in l.strip().split(",")[4:4 + 3 * J]] for l in f])
+    return rows.reshape(len(rows), J, 3)
 
 
 def run_pub_py(a):
@@ -361,7 +387,8 @@ def run_pub_py(a):
             ex = {"row": "barbell_row"}.get(j["exercise"], j["exercise"])
             stem = os.path.basename(js)[: -len(f"_{EX_FILE.get(ex, ex)}_{pm}.json")]
             csv = f"{csv_dirs[ds]}/{stem}_{EX_FILE.get(ex, ex)}_{pm}.csv"
-            K = read_csv(csv)
+            K26 = read_csv_all(csv)
+            K = K26[:, :17]
             inputs.append(csv)
             W, H = j.get("image_size", [720, 1280])
             fr = run_live(K, W, H, ex)
@@ -375,8 +402,9 @@ def run_pub_py(a):
                         p[inv] = np.nan
                     pose[f["frame"]] = p
             sides = near_sides(K)
-            td = two_d_px(K, sides)
+            td = two_d_px(K26, sides)
             ratio = shoulder_ratio(K)
+            gate = row_gate(ratio)  # row session gate mirror (== Swift side_view_judged on 71/71 held-out reps)
             reps, hist_empty = [], True
             for r in j["reps"]:
                 s0, e0 = r["start_frame"], r["end_frame"]
@@ -391,7 +419,12 @@ def run_pub_py(a):
                 fv = [bool(ratio[t] >= FRONT_RATIO) for t in f3 if np.isfinite(ratio[t])]
                 if frames and fv:
                     m["front_view_fraction"] = float(np.mean(fv))
-                sv = r.get("side_view_judged") if ex == "barbell_row" else m.get("front_view_fraction", 0.0) < FRONT_FRACTION
+                if ex == "barbell_row":
+                    sv = r.get("side_view_judged")
+                    if sv is None:  # 2ef3ced JSONs have no gate field: the Python mirror
+                        sv = rep_gate(ex, ratio, gate, s0, e0)[0]
+                else:
+                    sv = m.get("front_view_fraction", 0.0) < FRONT_FRACTION
                 reps.append(dict(rep=r["rep_index"], judged=judged, side_view=sv, m=m,
                                  all_ok=all(state.get(t) == "ok" for t in range(s0, e0 + 1))))
                 hist_empty = hist_empty and not judged

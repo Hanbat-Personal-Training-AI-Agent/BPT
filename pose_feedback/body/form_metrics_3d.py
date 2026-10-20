@@ -64,7 +64,7 @@ def frame_metrics(j, side="left", up=UP, two_d=None):
          "thighIncline": None, "tibiaAngle": None, "upperArmIncline": None}
     trunk = j[8] - j[0]
     tl = np.linalg.norm(trunk)
-    for key in ("hipY", "shoulderY", "torsoLength"):
+    for key in ("hipY", "shoulderY", "torsoLength", "heelToe"):  # 2D quantities of the same frame (heel: Halpe26 feet)
         s[key] = None if two_d is None else two_d.get(key)
     if tl > 1e-8:
         chest = np.cross(j[4] - j[1], trunk)
@@ -188,6 +188,9 @@ def rep_metrics(frames, exercise, is_first_rep=False, hips_first_window=8):
         b = next((i for i, f in enumerate(frames) if f["hipY"] is not None and f["hipY"] == hmax), None)
         if b is not None:
             put("knee_ankle_gap_ratio_min", min(vals("kneeAnkleGapRatio", frames[b:]), default=None))
+        h0 = first("heelToe")
+        if h0 is not None:
+            put("heel_rise_max", h0 - min(vals("heelToe")))
     elif exercise == "barbell_row":
         hips = vals("hipAngle")
         put("hip_angle_mean", sum(hips) / len(hips) if hips else None)

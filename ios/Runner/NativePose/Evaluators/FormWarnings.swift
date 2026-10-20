@@ -714,6 +714,8 @@ final class FormWarningTracker {
             s.torsoLength = s2.torsoLength
             s.hipY = s2.hipY
             s.shoulderY = s2.shoulderY
+            // Heel rise (Halpe26 feet) is a 2D-only quantity too: the 3D judgement reads the 2D value of the same frame.
+            s.heelToe = s2.heelToe
             // Back normal in the trunk's sagittal plane: −(L hip − R hip) × trunk, as the 2D "behind the torso".
             let chest = simd_cross(j[4] - j[1], trunk)
             if simd_length(chest) > 1e-8 {
@@ -1280,6 +1282,12 @@ enum FormRulePreset {
         "squat.valgusKneeAnkleGapRatio": \.squat.valgusKneeAnkleGapRatio,
         "row.torsoSwingRangeDegrees": \.row.torsoSwingRangeDegrees, "row.standingUpDegrees": \.row.standingUpDegrees,
         "row.shortPullBelowBaseline": \.row.shortPullBelowBaseline, "row.headUpDeviation": \.row.headUpDeviation,
+        "squat.heelRiseShinRatio": \.squat.heelRiseShinRatio,
+    ]
+
+    /// On/off switches (preset value 1 = on, 0 = off).
+    static let flags: [String: ReferenceWritableKeyPath<FormWarningTracker, Bool>] = [
+        "squat.heelRiseEnabled": \.squat.heelRiseEnabled,
     ]
 
     /// rules-calib rules: nil = off.
@@ -1309,6 +1317,7 @@ enum FormRulePreset {
     static func apply(_ preset: Preset, to tracker: FormWarningTracker) {
         for (field, value) in preset.values {
             if let path = doubles[field] { tracker[keyPath: path] = value } else if let path = optionals[field] { tracker[keyPath: path] = value }
+            else if let path = flags[field] { tracker[keyPath: path] = value != 0 }
         }
         tracker.common.disabledRules.formUnion(preset.off)
     }
@@ -1316,6 +1325,7 @@ enum FormRulePreset {
     /// Every preset field's current value on a tracker (optional rules that are off are absent).
     static func values(of tracker: FormWarningTracker) -> [String: Double] {
         var out = doubles.mapValues { tracker[keyPath: $0] }
+        for (field, path) in flags { out[field] = tracker[keyPath: path] ? 1 : 0 }
         for (field, path) in optionals { if let v = tracker[keyPath: path] { out[field] = v } }
         return out
     }

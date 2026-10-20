@@ -22,7 +22,7 @@ RANGES = {
     "squat": {"front_view_fraction": (0, 0.8), "hips_first_torso_rise": (0, 20), "hips_first_hip_rise_speed": (0, 0.05),
               "hips_first_shoulder_rise_speed": (0, 0.05), "knee_min": (40, 140), "knee_max": (150, 180),
               "hip_angle_max": (140, 180), "torso_at_bottom": (10, 70), "knee_ankle_gap_ratio_min": (0.4, 1.4),
-              "thigh_incline_min": (-30, 50), "torso_minus_tibia_at_bottom": (-30, 40)},
+              "thigh_incline_min": (-30, 50), "torso_minus_tibia_at_bottom": (-30, 40), "heel_rise_max": (0, 0.15)},
     "barbell_row": {"front_view_fraction": (0, 0.8), "torso_min": (10, 60), "torso_max": (40, 110), "torso_mean": (10, 80),
                     "elbow_behind_max": (-0.3, 0.6), "head_dev_change_min": (-0.4, 0), "knee_min": (90, 170),
                     "knee_max": (150, 180), "pull_peak_wrist_trunk": (-0.3, 1.3), "pull_peak_asym": (0, 0.4),
@@ -34,7 +34,8 @@ ALL_ON = {"pushUp.depthAbsUpperArmInclineDegrees": -5.0, "pushUp.lockoutAbsElbow
           "row.hingeShallowTorsoDegrees": 35.0, "row.kneesLockedDegrees": 172.0, "row.kneesBentDegrees": 115.0,
           "row.pullHighWristTrunk": 0.9, "row.pullLowWristTrunk": 0.1, "row.unevenPullRatio": 0.2,
           "row.elbowFlareDegrees": 45.0, "row.wristLeadDegrees": 30.0, "row.straightArmElbowDegrees": 130.0,
-          "row.shortPullAbsBehind": 0.05, "pushUp.hipSagDeviation": 0.1, "squat.valgusKneeAnkleGapRatio": 0.7}
+          "row.shortPullAbsBehind": 0.05, "pushUp.hipSagDeviation": 0.1, "squat.valgusKneeAnkleGapRatio": 0.7,
+          "squat.heelRiseEnabled": 1.0, "squat.heelRiseShinRatio": 0.06}
 OFF = ["pushup_hip_pike", "squat_no_lockout", "row_wrist_lead"]
 
 

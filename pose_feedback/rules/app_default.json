@@ -20,7 +20,9 @@
   "row.torsoSwingRangeDegrees": 39.9,
   "row.standingUpDegrees": 10.0,
   "row.shortPullBelowBaseline": 0.1,
-  "row.headUpDeviation": 0.15
+  "row.headUpDeviation": 0.15,
+  "squat.heelRiseShinRatio": 0.05,
+  "squat.heelRiseEnabled": 0.0
  },
  "off": []
 }

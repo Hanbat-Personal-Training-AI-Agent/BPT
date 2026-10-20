@@ -32,6 +32,8 @@ RULES = [
     ("squat_knee_valgus", "squat", "front", "knee_ankle_gap_ratio_min", "lower", "squat.valgusKneeAnkleGapRatio", 1),
     ("squat_depth_abs", "squat", "side", "thigh_incline_min", "upper", "squat.depthAbsThighInclineDegrees", 1),
     ("squat_torso_lean", "squat", "side", "torso_minus_tibia_at_bottom", "upper", "squat.torsoLeanOverTibiaDegrees", 1),
+    # Halpe26 feet (2D), added after the user's Halpe26 decision (20:50) — outside the pre-registration, judged in every view.
+    ("squat_heel_rise", "squat", "any", "heel_rise_max", "upper", "squat.heelRiseShinRatio", 1),
     ("row_torso_swing", "barbell_row", "side", "torso_range", "upper", "row.torsoSwingRangeDegrees", 1),
     ("row_standing_up", "barbell_row", "side", "q_standing_up", "upper", "row.standingUpDegrees", 1),
     ("row_short_pull", "barbell_row", "side", "q_short_pull", "upper", "row.shortPullBelowBaseline", 1),
@@ -120,7 +122,7 @@ def prepare(sets):
 
 
 def gate_ok(r, branch, gate=True):
-    if not gate:
+    if not gate or branch == "any":
         return True
     sv = r["side_view"]
     return bool(sv) if branch == "side" else (sv is False)
@@ -142,9 +144,19 @@ def run_analyze(a):
         sets += load(p)
     if a.pose2d:  # one 2D family at a time (Fit3D experiment-A sets: halpe26A / cocoA match their prefix)
         sets = [s for s in sets if s.get("pose2d", "mcoco17").startswith(a.pose2d)]
+    seen, uniq = set(), []
+    for s in sets:  # the same set from two runs (e.g. mocap in every Fit3D run) counts once
+        k = (s["src"], s["model"], s.get("pose2d"), s["set_id"], s.get("up"))
+        if k not in seen:
+            seen.add(k)
+            uniq.append(s)
+    sets = uniq
     prepare(sets)
     models = sorted({s["model"] for s in sets}, key=lambda m: ["mocap", "orig", "c1", "c2"].index(m) if m in ["mocap", "orig", "c1", "c2"] else 9)
-    cam = [s for s in sets if s.get("up", "cam") == "cam"]
+    # Primary "up": the app's camera −y with the phone upright. Fit3D cameras are pitched ~11° down, so their camera −y is
+    # not that condition; their true gravity is (an upright phone's camera −y ≈ gravity). Fit3D camera −y is used only for
+    # the camera-up vs gravity table. (Recorded in rules_calib.md before any held-out result was computed.)
+    cam = [s for s in sets if s.get("up", "cam") == ("grav" if s["src"] == "fit3d" else "cam")]
     out = dict(thresholds={}, fa={}, detection={}, discrimination={}, verdict={}, views={}, subjects={}, praise={},
                metric_error={}, grav={}, label_counts={}, n_reps={})
     md = []
@@ -187,6 +199,8 @@ def run_analyze(a):
             t = out["thresholds"][f"{m}/{rule}/{tail}"]["threshold"]
             if t is not None:
                 vals[field] = round(sign * t, 4)
+                if rule == "squat_heel_rise":
+                    vals["squat.heelRiseEnabled"] = 1.0
         presets[m] = vals
 
     # ---- held-out evaluation per rule and threshold variant
@@ -215,6 +229,8 @@ def run_analyze(a):
                 cells, fa_ok, fa_bad_n, fa_n_ok = [], [], 0, 0
                 for src, group in HELDOUT:
                     reps = [r for s in pool(m, src, group) if s["exercise"] == ex for r in s["jreps"] if gate_ok(r, branch)]
+                    if not any(vq in r["m"] for r in reps):
+                        reps = []  # quantity never measured here (e.g. heel rise without feet): not "0 false alarms"
                     k = sum(fires(r, rule, vq, vtail, t, branch) for r in reps)
                     n = len(reps)
                     lo, hi = wilson(k, n)
@@ -239,7 +255,7 @@ def run_analyze(a):
                                                                        good_fired=sum(gfire), fisher_p=p)
                 # verdict (rc1 only; prereg §6)
                 verdict = ""
-                if vname == "rc1":
+                if vname == "rc1" and m != "mocap":
                     det_ok = len(cdet) >= MIN_BAD and p is not None and p < 0.05
                     if fa_n_ok and fa_bad_n == 0 and det_ok:
                         verdict = "근거 있음(AI 라벨)"
@@ -255,12 +271,14 @@ def run_analyze(a):
         md.append("")
     # rules without a threshold anywhere (rc1 missing) also get a verdict
     for m in models:
+        if m == "mocap":
+            continue
         for rule, ex, branch, q, tail, field, sign in RULES:
             out["verdict"].setdefault(f"{m}/{rule}/{tail}", dict(verdict="데이터 없음 → 끄기 권장", fa_sources=0, fa_over=0, detection_ok=False))
 
     # ---- view and subject stability (rc1, gate as the app)
-    md += ["## 시점·피험자별 오경보 (rc1, 게이트 = 앱; '최대' = 피험자별 오경보율의 최대, n≥10 피험자만)", "",
-           "| 모델 | 규칙 | 출처 | 시점별 k/n | 피험자 최대 |", "|---|---|---|---|---|"]
+    md += ["## 시점·피험자별 오경보 (rc1; 게이트 = 앱, 괄호 = 게이트 무시(모든 시점에서 3D로 판정했다면); '최대' = 피험자별 오경보율의 최대, n≥10 피험자만)", "",
+           "| 모델 | 규칙 | 출처 | 시점별 k/n (게이트 무시 k/n) | 피험자 최대 |", "|---|---|---|---|---|"]
     for m in models:
         for rule, ex, branch, q, tail, field, sign in RULES:
             t = out["thresholds"].get(f"{m}/{rule}/{tail}", {}).get("threshold")
@@ -268,20 +286,24 @@ def run_analyze(a):
                 continue
             for src, group in HELDOUT:
                 ss = [s for s in pool(m, src, group) if s["exercise"] == ex]
-                byv, bys = defaultdict(lambda: [0, 0]), defaultdict(lambda: [0, 0])
+                byv, bys, bya = defaultdict(lambda: [0, 0]), defaultdict(lambda: [0, 0]), defaultdict(lambda: [0, 0])
                 for s in ss:
                     vk = s.get("view_bin") or s.get("view_label") or "?"
                     for r in s["jreps"]:
+                        if q in r["m"]:
+                            fa = (r["m"][q] > t) if tail == "upper" else (r["m"][q] < t)
+                            bya[vk][0] += fa; bya[vk][1] += 1
                         if gate_ok(r, branch):
                             f = fires(r, rule, q, tail, t, branch)
                             byv[vk][0] += f; byv[vk][1] += 1
                             bys[s.get("subj")][0] += f; bys[s.get("subj")][1] += 1
-                if not byv:
+                if not byv and not bya:
                     continue
                 mx = max((k / n for k, n in bys.values() if n >= 10), default=None)
-                out["views"][f"{m}/{rule}/{tail}/{src}"] = {k: v for k, v in byv.items()}
+                out["views"][f"{m}/{rule}/{tail}/{src}"] = dict(gated={k: v for k, v in byv.items()}, all={k: v for k, v in bya.items()})
                 out["subjects"][f"{m}/{rule}/{tail}/{src}"] = {k: v for k, v in bys.items()}
-                md.append(f"| {m} | {rule} | {src} | " + ", ".join(f"{k} {v[0]}/{v[1]}" for k, v in sorted(byv.items()))
+                md.append(f"| {m} | {rule} | {src} | " + ", ".join(f"{k} {byv[k][0]}/{byv[k][1]} ({bya[k][0]}/{bya[k][1]})"
+                                                                  for k in sorted(set(byv) | set(bya)))
                           + f" | {'–' if mx is None else f'{mx:.0%}'} |")
 
     # ---- praise effect: judged, all-ok reps with nothing fired (current defaults vs rc1), held-out normal sets
@@ -328,13 +350,14 @@ def run_analyze(a):
            "| 모델 | 운동 | 지표 | 차이 | 카메라 기울기(°) 중앙값 |", "|---|---|---|---|---|"]
     grav = {(s["model"], s["set_id"], r["rep"]): r["m"] for s in sets if s.get("up") == "grav" for r in s["jreps"]}
     tilt = {s["set_id"]: s.get("cam_tilt") for s in sets if s.get("up") == "grav"}
+    camup = [s for s in sets if s["src"] == "fit3d" and s.get("up") == "cam"]
     for m in models:
         for ex, q in (("barbell_row", "torso_mean"), ("barbell_row", "pull_peak_forearm_tilt"), ("squat", "thigh_incline_min"),
                       ("squat", "torso_minus_tibia_at_bottom"), ("squat", "torso_at_bottom"), ("pushup", "upper_arm_incline_max"),
                       ("pushup", "hip_dev_max")):
             d, tl = [], []
-            for s in cam:
-                if s["model"] != m or s["src"] != "fit3d" or s["exercise"] != ex:
+            for s in camup:
+                if s["model"] != m or s["exercise"] != ex:
                     continue
                 for r in s["jreps"]:
                     g = grav.get((m, s["set_id"], r["rep"]), {})
@@ -378,7 +401,8 @@ def run_analyze(a):
         off = sorted({r[0] for r in RULES if out["verdict"].get(f"{m}/{r[0]}/{r[4]}", {}).get("verdict", "").startswith("데이터 없음")
                       and r[0] not in ("pushup_hand_position",)})
         p = rd / "presets" / f"xs_{m}_rc1.json"
-        json.dump(dict(name=f"xs_{m}_rc1", model=m, values=vals, off=off,
+        json.dump(dict(name=f"xs_{m}_rc1", model=m, pose2d=a.pose2d or "mcoco17", values=vals, off=off,
+                       sources=[f"{src}/{group}" for src, group in DERIVE.get(m, [])],
                        note="rules-calib candidate (proposal, not adopted): pre-registered derivation, off = verdict '데이터 없음 → 끄기 권장'"),
                   open(p, "w"), indent=1, ensure_ascii=False)
         outs.append(p)

@@ -127,6 +127,8 @@ def judge_rep(m, history, exercise, values, off=(), side_view=None, baseline_rep
             _new(fire, m, v, "squat")
         else:
             fire("squat_knee_valgus", under("knee_ankle_gap_ratio_min", v["squat.valgusKneeAnkleGapRatio"]))
+        if v.get("squat.heelRiseEnabled"):
+            fire("squat_heel_rise", over("heel_rise_max", v["squat.heelRiseShinRatio"]))
     elif exercise == "barbell_row":
         fire("setup_side_view", first and not sv)
         if sv:
