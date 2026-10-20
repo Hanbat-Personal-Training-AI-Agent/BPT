@@ -482,6 +482,9 @@ final class CameraPoseViewModel: ObservableObject {
                 onFinish: { [weak self] in Task { @MainActor in self?.videoFinished() } })
             videoSource = source
             videoDisplayLayer = source.displayLayer
+            // Test-only: unattended runs on an unplugged phone (no touches) must not auto-lock mid-clip.
+            // The workout screen itself does not disable the idle timer (product behaviour unchanged).
+            UIApplication.shared.isIdleTimerDisabled = true
         } else {
             do {
                 try captureManager.configure()
@@ -525,6 +528,7 @@ final class CameraPoseViewModel: ObservableObject {
             "bone_targets": VideoCameraOptions.boneTargetsCm.map { ["file": VideoCameraOptions.environment["BPT_BONE_TARGETS"] ?? "",
                                                                      "segments": $0.count] as Any } ?? NSNull(),
             "hand_dedupe": CameraPreviewOptions.handDedupe,
+            "idle_timer_disabled": UIApplication.shared.isIdleTimerDisabled,
             "rtmpose": RTMPoseModel.workout.rawValue,
         ])
         print("CameraPosePreview started exercise=\(exercise.rawValue) hand=\(handEnabled) 3d=\(lifter != nil) lookahead=\(CameraPreviewOptions.motion3DLookahead) cadence=\(CameraPreviewOptions.motion3DCadence) async=\(CameraPreviewOptions.motion3DAsync)")
