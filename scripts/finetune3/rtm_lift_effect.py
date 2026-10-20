@@ -30,6 +30,7 @@ def main():
     p.add_argument('--exercises', default='squat,pushup,barbell_row')
     p.add_argument('--models', required=True); p.add_argument('--out-dir', required=True)
     p.add_argument('--box-tag', default='rtmdet', help='name of the box source, recorded as src = <box-tag>_<model tag>')
+    p.add_argument('--save-raw', default='', help='also write <dir>/<tag>/<subj>_<cam>_<exercise>.npz {pick, box, halpe|coco} (stage-1 layout)')
     a = p.parse_args()
     os.makedirs(a.out_dir, exist_ok=True)
     models = [(t, spec) for t, spec in (kv.split('=', 1) for kv in a.models.split(','))]
@@ -62,6 +63,10 @@ def main():
                 pk, crops, back = pick[:n], crops[:n], back[:n]
                 for t, _ in models:
                     kp, conf = predict(nets[t], crops)
+                    if a.save_raw:  # every keypoint of the model, image px + confidence, lift-compare stage-1 layout
+                        os.makedirs(f'{a.save_raw}/{t}', exist_ok=True)
+                        full = np.concatenate([np.array([apply_affine(b, q) for b, q in zip(back, kp)]), conf[..., None]], -1)
+                        np.savez(f'{a.save_raw}/{t}/{s}_{c}_{ex}.npz', pick=pk, box=box[:n], **{'halpe' if kp.shape[1] == 26 else 'coco': full.astype(np.float32)})
                     K = np.concatenate([np.array([apply_affine(b, q) for b, q in zip(back, kp[:, :17])]), conf[:, :17, None]], -1)
                     q = real_seq_from(K, pk, s, ex, c, P, cams, ann)
                     q['src'] = f'{a.box_tag}_{t}'; q['name'] += f'/{a.box_tag}_{t}'
