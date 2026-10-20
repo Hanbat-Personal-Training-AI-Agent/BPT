@@ -222,7 +222,12 @@ def real_seq(root, replay, s, ex, c, P, cams, ann=None):
     if not csv:
         return None
     K = read_csv(csv); n = min(len(K), len(P)); pk = pick30(n)
-    x, crops = mag_input(K[pk], 900, 900)
+    return real_seq_from(K[pk], pk, s, ex, c, P, cams, ann)
+
+
+def real_seq_from(K30, pk, s, ex, c, P, cams, ann=None, w=900, h=900):
+    """R sequence from COCO17 keypoints already at the picked 30 fps frames pk (50 fps indices)."""
+    x, crops = mag_input(K30, w, h)
     cam = cams[c]; R = np.array(cam['extrinsics']['R']); T = np.array(cam['extrinsics']['T']).reshape(3)
     Xc = (P[pk][:, FIT3D_TO_H36M] - T) @ R.T
     y, mm = target(Xc, crops, float(np.mean(cam['intrinsics_w_distortion']['f'])))
