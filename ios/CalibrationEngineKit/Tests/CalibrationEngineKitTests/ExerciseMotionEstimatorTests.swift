@@ -9,7 +9,7 @@ final class ExerciseMotionEstimatorTests: XCTestCase {
 
     func testPythonNumericalAndStateParity() throws {
         let result = try ExerciseMotionParity.verify(Self.root.appendingPathComponent("tests/fixtures/exercise_motion_cases.json"))
-        XCTAssertEqual(result.checked, 360)
+        XCTAssertEqual(result.checked, 630)
         XCTAssertTrue(result.errors.isEmpty, result.errors.prefix(10).joined(separator: "\n"))
     }
 
@@ -91,5 +91,85 @@ final class ExerciseMotionEstimatorTests: XCTestCase {
         XCTAssertNil(collector.boneRatios["12-13"])
         XCTAssertEqual(collector.boneRatios["1-2"]!, 0.5, accuracy: 1e-12)
         XCTAssertEqual(collector.boneRatios["2-3"]!, 0.5, accuracy: 1e-12)
+    }
+
+    private func firstFixturePose() throws -> ([SIMD3<Double>], [SIMD3<Double>]) {
+        let url = Self.root.appendingPathComponent("tests/fixtures/exercise_motion_cases.json")
+        let root = try JSONSerialization.jsonObject(with: Data(contentsOf: url)) as! [String: Any]
+        let sequence = (root["cases"] as! [[String: Any]])[0]
+        let frame = (sequence["frames"] as! [[String: Any]])[0]
+        return ((frame["raw"] as! [[Double]]).map { SIMD3($0) },
+                (frame["screen2d"] as! [[Double]]).map { SIMD3($0[0], $0[1], 0.95) })
+    }
+
+    func testUnobservedLegCannotCertifyAnotherJointsOutlier() throws {
+        let (pose, screen) = try firstFixturePose()
+        for variant in [ExerciseMotionVariant.G, .H] {
+            for corruptLeg in [false, true] {
+                var estimator = ExerciseMotionEstimator(exercise: "pushup", variant: variant)
+                for t in 0..<10 { _ = estimator.update(raw: pose, screen2D: screen, timestamp: Double(t) / 30) }
+                var jumped = pose, uncertain = screen
+                jumped[13].x += 1
+                if corruptLeg {
+                    jumped[3] = [0, 100, 0]
+                    uncertain[3].z = 0
+                }
+                let result = estimator.update(raw: jumped, screen2D: uncertain, timestamp: 10.0 / 30)
+                XCTAssertTrue((result.diagnostics["rejected_joints"] as! [Int]).contains(13))
+                XCTAssertFalse((result.diagnostics["observation_passthrough"] as! [Int]).contains(13))
+                XCTAssertTrue(result.invalidForAssessment.contains(13))
+                XCTAssertLessThan(result.diagnostics["scale"] as! Double, 1)
+            }
+        }
+    }
+
+    func testContactCandidatesExpireAcrossLongMissingIntervals() throws {
+        let (pose, screen) = try firstFixturePose()
+        var initial = ExerciseMotionEstimator(exercise: "pushup", variant: .F)
+        for t in 0..<7 {
+            _ = initial.update(raw: pose, screen2D: screen, timestamp: Double(t) / 30, fixedCamera: true)
+        }
+        var missing = screen
+        missing[13].z = 0
+        for t in 7..<68 {
+            _ = initial.update(raw: pose, screen2D: missing, timestamp: Double(t) / 30, fixedCamera: true)
+        }
+        let recovered = initial.update(raw: pose, screen2D: screen, timestamp: 68.0 / 30, fixedCamera: true)
+        XCTAssertEqual(recovered.contacts[13], "UNINITIALIZED")
+
+        var relocation = ExerciseMotionEstimator(exercise: "pushup", variant: .F)
+        for t in 0..<8 {
+            _ = relocation.update(raw: pose, screen2D: screen, timestamp: Double(t) / 30, fixedCamera: true)
+        }
+        var moved = screen
+        moved[13].x += 0.2
+        var result: ExerciseMotionResult?
+        for t in 8..<11 {
+            result = relocation.update(raw: pose, screen2D: moved, timestamp: Double(t) / 30, fixedCamera: true)
+        }
+        XCTAssertEqual(result?.contacts[13], "MOVING")
+        for t in 11..<15 {
+            result = relocation.update(raw: pose, screen2D: moved, timestamp: Double(t) / 30, fixedCamera: true)
+        }
+        XCTAssertEqual(result?.contacts[13], "REACQUIRE")
+        var hiddenMoved = moved
+        hiddenMoved[13].z = 0
+        for t in 15..<76 {
+            _ = relocation.update(raw: pose, screen2D: hiddenMoved, timestamp: Double(t) / 30, fixedCamera: true)
+        }
+        result = relocation.update(raw: pose, screen2D: moved, timestamp: 76.0 / 30, fixedCamera: true)
+        XCTAssertEqual(result?.contacts[13], "UNINITIALIZED")
+    }
+
+    func testFirstUnobservedFrameStaysInvalidWithFiniteUncertainty() throws {
+        let (pose, screen) = try firstFixturePose()
+        let missing = screen.map { SIMD3($0.x, $0.y, 0.0) }
+        for raw in [pose, Array(repeating: SIMD3<Double>(repeating: .nan), count: 17)] {
+            var estimator = ExerciseMotionEstimator(exercise: "barbell_row", variant: .H)
+            let result = estimator.update(raw: raw, screen2D: missing, timestamp: 0)
+            XCTAssertEqual(result.invalidForAssessment, Set(0..<17))
+            XCTAssertTrue(result.uncertainty.allSatisfy(\.isFinite))
+            XCTAssertEqual(result.phase, "unknown")
+        }
     }
 }

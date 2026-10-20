@@ -223,6 +223,7 @@ struct ExerciseMotionEstimator {
     private var time: Double?
     private var personID: String?
     private var scale = 0.3
+    private var imageScale = 0.3
     private var contacts: [Int: Contact] = [:]
     private var gripHistory: [Double] = []
     private var gripReference: Double?
@@ -264,6 +265,7 @@ struct ExerciseMotionEstimator {
         time = nil
         personID = nil
         scale = 0.3
+        imageScale = 0.3
         contacts = Dictionary(uniqueKeysWithValues: (exercise == "pushup" ? [3, 6, 13, 16] : [3, 6])
             .map { ($0, Contact()) })
         gripHistory = []
@@ -293,6 +295,9 @@ struct ExerciseMotionEstimator {
 
         mutating func update(_ point: SIMD2<Double>, reliable: Bool, now: Double, scale: Double, enabled: Bool) {
             guard enabled else { self = Contact(); return }
+            // Expire candidate-only history too; a long missing interval cannot count as stable
+            // contact evidence merely because a single new point lands near the old candidates.
+            if let lastSeen, now - lastSeen > 0.5 { self = Contact() }
             let radius = 0.035 * scale, release = 0.10 * scale
             guard reliable, ExerciseMotionEstimator.finite(point) else {
                 if anchor != nil {
@@ -411,12 +416,16 @@ struct ExerciseMotionEstimator {
         let dt = time.map { max(1e-4, now - $0) } ?? (1.0 / 30)
         time = now
         self.personID = personID
-        if let currentScale = Self.leg(raw) { scale = max(currentScale, 1e-4) }
-        let s = scale
         let conf = screen.map { $0.z.isNaN ? 0 : Self.clamp($0.z, 0, 1) }
         let finite = (0..<17).map { Self.finite(raw[$0]) && Self.finite(Self.xy(screen[$0])) }
         let measured = (0..<17).map { finite[$0] && conf[$0] >= 0.3 }
         let reliable = (0..<17).map { finite[$0] && conf[$0] >= 0.45 }
+        if !initialized.contains(true), let initialScale = Self.leg(raw, valid: reliable) {
+            scale = max(initialScale, 1e-4)
+        }
+        // Judge innovations against the previous trusted body scale. An unobserved leg must
+        // not inflate the tolerance enough to certify another joint's erroneous jump.
+        var s = scale
         let adaptive = variant == .G || variant == .H
         let kalman = [.D, .E, .G, .H].contains(variant)
         let contactEnabled = [.F, .G, .H].contains(variant)
@@ -462,6 +471,9 @@ struct ExerciseMotionEstimator {
         }
         let trusted = (0..<17).map { reliable[$0] && accepted[$0] }
         let passthrough = trusted.map { $0 && adaptive }
+        let currentScale = Self.leg(raw, valid: trusted)
+        if let currentScale { scale = max(currentScale, 1e-4) }
+        s = scale
         var corrected = raw
         var usedPrediction = Array(repeating: false, count: 17)
         var uncertainty = conf.map { (0.015 + 0.10 * (1 - $0)) * s }
@@ -542,7 +554,10 @@ struct ExerciseMotionEstimator {
         }
 
         let supportAvailable = fixedCamera && !cameraMotion
-        let leg2D = Self.leg(screen.map { SIMD3($0.x, $0.y, 0) }) ?? 0.3
+        if let currentImageScale = Self.leg(screen.map { SIMD3($0.x, $0.y, 0) }, valid: trusted) {
+            imageScale = max(currentImageScale, 1e-4)
+        }
+        let leg2D = imageScale
         var contactUsed: [Int] = []
         var ratios: [Double] = []
         for (a, b) in Self.edges {
@@ -649,15 +664,17 @@ struct ExerciseMotionEstimator {
             diagnostics: ["scale": s, "fixed_camera": supportAvailable, "contact_corrected": contactUsed,
                           "bone_corrected": kinematicUsed, "rejected_joints": (0..<17).filter { rejected[$0] },
                           "observation_passthrough": (0..<17).filter { passthrough[$0] },
-                          "observation_policy": "trusted_passthrough_v2",
+                          "observation_policy": "trusted_passthrough_v3",
+                          "body_scale_updated": currentScale != nil, "image_scale": leg2D,
                           "calibration_used": kinEnabled && !boneProfile.isEmpty,
                           "grip_used": gripReference != nil, "last_reset_reason": resetReason,
                           "variant": variant.rawValue, "timestamp": now])
     }
 
-    private static func leg(_ pose: [SIMD3<Double>]) -> Double? {
+    private static func leg(_ pose: [SIMD3<Double>], valid: [Bool]? = nil) -> Double? {
         var values: [Double] = []
         for (a, b, c) in [(1, 2, 3), (4, 5, 6)] where finite(pose[a]) && finite(pose[b]) && finite(pose[c]) {
+            if let valid, !valid[a] || !valid[b] || !valid[c] { continue }
             let value = simd_length(pose[a] - pose[b]) + simd_length(pose[b] - pose[c])
             if value > 1e-6 { values.append(value) }
         }
