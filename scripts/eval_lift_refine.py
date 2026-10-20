@@ -442,8 +442,17 @@ def main():
     p.add_argument('--checkpoint', default=None); p.add_argument('--cpu', action='store_true')
     p.add_argument('--cache', default=None); p.add_argument('--shapes', default=None)
     p.add_argument('--task'); p.add_argument('--hands'); p.add_argument('--jobs', type=int, default=6)
+    p.add_argument('--threads', type=int, default=4, help='torch CPU threads (Home is shared: 8 spin-wait under contention)')
     a = p.parse_args()
     E.CACHE['dir'] = a.cache
+    _load = E.load_model
+
+    def load_model_threads(a_):  # E.load_model pins 8 threads; Home is shared, so use --threads
+        import torch
+        m = _load(a_)
+        torch.set_num_threads(a.threads)
+        return m
+    globals()['load_model'] = load_model_threads
     a.checkpoint = a.checkpoint or f'{a.mag_repo}/checkpoint/motionagformer-xs-h36m.pth.tr'
     os.makedirs(a.run_dir, exist_ok=True)
     {'constraints': run_constraints, 'hands': run_hands, 'wrist': run_wrist, 'ex3d': run_ex3d, 'ex3d-wrist': run_ex3d_wrist}[a.cmd](a)
