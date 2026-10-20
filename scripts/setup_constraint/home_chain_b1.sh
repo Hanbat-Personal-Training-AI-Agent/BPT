@@ -9,7 +9,7 @@ P=$($PY -c "import json;b=json.load(open('20261020-tune/tune.json'));print(json.
 AL=$($PY -c "import json;b=json.load(open('20261020-tune/tune.json'))['baselines'];print(min((v,k) for k,v in b.items() if k in ('B0.3','B0.5','B0.7'))[1][1:])")
 TH=$($PY -c "import json;print(json.loads('$P').get('reliable_conf',0.5))")
 echo "params=$P ema_alpha=$AL lock_thr=$TH" | tee selected_params.txt
-echo "== evaluate tuning $(date)"; $E evaluate $R --run-dir 20261020-eval-tuning $TU --params "$P" --ema-alpha $AL --lock-thr $TH --rules --tag tuning 2>&1 | grep -v Warn | tail -2
+echo "== evaluate tuning $(date)"; $E evaluate $R --run-dir 20261020-eval-tuning $TU --conditions clean,wrist-short,wrist-long,wrist-vlong,ankle-short,ankle-long,ankle-vlong,knee-long,shoulder-long,arm-long,leg-long --params "$P" --ema-alpha $AL --lock-thr $TH --rules --tag tuning 2>&1 | grep -v Warn | tail -2
 echo "== foot-shift tuning $(date)"; $E foot-shift $R --run-dir 20261020-foot-shift-tuning $TU --params "$P" --ema-alpha $AL --lock-thr $TH --tag tuning --cases grad5,occ_grad5 2>&1 | grep -v Warn | tail -2
 echo "== signals tuning $(date)"; $E signals $R --run-dir 20261020-signals-tuning $TU --tag tuning 2>&1 | grep -v Warn | tail -20
 echo "== done B1 $(date)"
