@@ -43,9 +43,9 @@
 |---|---|---|
 | C1 `f715c3b` | Swift 105 통과, Flutter 98 통과, flutter analyze 문제 없음 | 원래 Claude 실행 로그 재확인 |
 | C1 기기 대상 컴파일 | `flutter build ios --debug --no-codesign` 성공 | `hd/build_ios_c1.log`; C2 제거 뒤 앱 빌드와 구분 |
-| C2 + C3 | release `pose-replay`, `calibration-replay` 빌드 성공 | `hd/build_release_final.log` (29.77초); CSV 3종(각 362프레임) 모두 통과; 최종 Swift 회귀 진행 중 |
+| C2 + C3 | release `pose-replay`, `calibration-replay` 빌드 성공 | `hd/build_release_final.log` (29.77초); CSV 3종(각 362프레임) 모두 통과; 최종 Swift **105 통과**(22:43:19) |
 | C2 제거 정적 점검 | Runner/Swift 테스트/pbxproj의 m COCO17 enum 참조 없음 | 기존 평가 결과 이름 `_mcoco17`은 과거 데이터 호환용으로 남음 |
-| iPhone 실험 빌드 | C1 이식 `50194eb` + 회전 `ebcfb38` + 로그 `a8b29f1` | m COCO17은 동일 빌드 실험 기준선에만 남음; 빌드 대기/진행 중 |
+| iPhone 실험 빌드 | C1 이식 `50194eb` + 회전 `ebcfb38` + 로그 `a8b29f1` | m COCO17은 동일 빌드 실험 기준선에만 남음; **Release arm64 서명 빌드 성공·iPhone 설치 완료**, smoke 대기 |
 
 C3 실제 검증: 같은 362프레임 CSV에서 26점과 17점 모두 2렙, 입력 좌표·신뢰도 전부 왕복 보존(오차 ≤ 0.000501). 26점의 `heel_rise_max`는 0.136901 / 0.002019, 17점 투영에서는 두 값 모두 없음. 발 위치만 바꾼 대조군은 0.003866 / 0.002244로 달라져 실제 지표 경로에 발이 전달됨을 확인했다. 경고 기본값은 그대로 OFF다. 해시·집계: `halpe_default_manifest.json`.
 
@@ -91,8 +91,8 @@ scratch 기준: `/private/tmp/claude-501/-Users-6-month-github-06-month-hanbat-r
 | Exercise3D + 비운동 회귀 | `ex3d_run.py`, `runs/ex3d/`, 완료 시 `rows.json` | 기존 프로세스 계속 실행 중 |
 | 구 바이너리 재현 | `runs/oldbin/` | w20_s3 / w13_s2 두 모델 완료 |
 | CSV 보존 검증 | `verify_c3.py`, `runs/csv_c3/checks.json` | **통과**: 각 362프레임 26/17점 왕복, 두 입력 옵션, heel 지표 민감도 |
-| 회귀 | `swift_final.log` | C2+C3 Swift 테스트 대기/진행 중 |
-| iPhone | `runner-dev/build_liftdev_generic.sh`, 기존 `runner-dev/dd` 재사용 | 새 COCO17 세로 기준선 확인 → 동일 빌드 Halpe26 → 90/270도 확인 |
+| 회귀 | `swift_final.log` | **105 통과**, 실패 0, 22:43:19 |
+| iPhone | `runner-dev/build_liftdev_generic.sh`, 기존 `runner-dev/dd` 재사용 | 새 COCO17 세로 smoke 3개 → 39클립 × 2모델(같은 앱, 모델 순서 교대), 회전 기기 검증은 후순위 |
 
 보조 스크립트 백업: `~/Documents/bpt-handoff/tools-20261020/halpe-default/`(입력 영상 제외). 실행 스크립트에는 scratch 위치가 들어 있으므로 재부팅 후 복원 경로를 확인한다.
 

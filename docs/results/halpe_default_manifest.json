@@ -101,5 +101,60 @@
         ]
       }
     }
+  },
+  "tests": {
+    "swift_final": {
+      "passed": 105,
+      "failures": 0,
+      "completed_kst": "2026-10-20 22:43:19",
+      "log_sha256": "3732efa219ac45b061f0d76779c8801803e11967eb8f8b2ec2ed4631bc2e75ca"
+    },
+    "device_release_build": {
+      "commit": "a8b29f1",
+      "exit_code": 0,
+      "installed": true,
+      "log_sha256": "05ffe9cb40bf2703a9a1079dd4e7388b15b20ea08aa99975dfcb631b88667df0"
+    }
+  },
+  "device_build": {
+    "runner_binary": "674a755e8e3c7eff708b7f6bc92e98a2995abccf2047e60452f4fc78e71e2adb",
+    "git": "a8b29f1fdc9ddcb302f03aae36c2eca7fd4fa81a",
+    "build": "Release iphoneos com.bpt.liftdev",
+    "phase": "experimental C1 plus rotation; baseline m COCO17 retained only for A/B",
+    "motionagformer_xs.mlmodelc": {
+      "analytics/coremldata.bin": "a4d9f8019a486accedf21cf856c3b26ef350216b279771e9f3562df22104a0e4",
+      "coremldata.bin": "ffff318336e8a75733d72f9a173f1f0c67d442854c4c851900c3c237e26b3767",
+      "metadata.json": "7068fccb43ab53bb4bcc0c5165af92e94f768d485a944fbad0f4d9d186dc27b5",
+      "model.mil": "768b5f53b06c471b667005b71d0e17d6c2a87cc15f1a975dbd135456ca910c49",
+      "weights/weight.bin": "37a5c83431601e421a4d3d1e6fa6af39951062a08a7372cea172b98110d2f38e"
+    },
+    "rtmpose_m_forward.mlmodelc": {
+      "analytics/coremldata.bin": "060c59d6608a0bab0f84f27d8031a29279f2b828327fc31c146064d835eba760",
+      "coremldata.bin": "2e5da3e0c2362aeb75bb4b2024acbc85d601d7a931215498974b2d2d57970e20",
+      "metadata.json": "34563435712e98f452dea2e0eaa61064eacdcaf2ed8e4463d8adac4c0c270f7d",
+      "model.mil": "687892d47cf3827252b87799bc083d2189c53bc203b92431936b2c4cabd98836",
+      "weights/weight.bin": "c03d3ca169b36b657262e719f9bac12fa6e4b4dc331745ce045a77890ff1cc74"
+    },
+    "rtmpose_m_halpe26_forward.mlmodelc": {
+      "analytics/coremldata.bin": "f952063422fff8768c9ca388ae422622b577e29cb1477bfe507f3d8b4aca5689",
+      "coremldata.bin": "02656bbcd6132d4b466e44b7f341e59d9641190040444a7cefbff59053a9a9c8",
+      "metadata.json": "7bea18fb8c741ed18dc2c98a791b59f43f3b4df61a8eab6c3277a08a843d5ee5",
+      "model.mil": "57d5145bb2116905290326ecef5e2485c864cbd1ed477724569fbc8a0835b3ea",
+      "weights/weight.bin": "eec87e9dccdb278f695669243e24f8a6c656c0ab98bd9de25ff3c5e0d1574b1e"
+    },
+    "rtmpose_s_forward.mlmodelc": {
+      "analytics/coremldata.bin": "54a25e99b4b6e1fa17ffc9520a373a02c785313ec0b94cef513aabb030f2388c",
+      "coremldata.bin": "2a9025daed8139a922c3532ca4b4fb3481fcdc4a55a9d7dd4b72098a494a5d50",
+      "metadata.json": "bf36183010ae9dd746acb8ea1d7a9663491d33922557e81ec79fc03153729f58",
+      "model.mil": "a1ee32ac3816709af62a0d1d68433dc18eb63596f95d83d3e87a32dd05759abd",
+      "weights/weight.bin": "bf1a64719c5e43b24708559d000d2f6a693d59e546e6fc5e2a7f45a1bacf7591"
+    },
+    "rtmpose_s_halpe26_forward.mlmodelc": {
+      "analytics/coremldata.bin": "5c5879b697016a7d78465e1c8b72a93e6ff54897634f1eb23822d8d772326861",
+      "coremldata.bin": "7586bee7ed8d8f2a31cbad48b7f56f3c29f7a2dc3e034419291ccc08c8aa1902",
+      "metadata.json": "a13b84f1c1c92f6956248955044e6b1c535bc659cddf00303a0d1a2fe04ea277",
+      "model.mil": "9d834cb4672f9927c1bd70b0ae029da3db7edec9ac4546a72c9aa9703161e286",
+      "weights/weight.bin": "f6f12b361030da6f4a786eec40174f94f6560837f0021f5393faf1233663e31d"
+    }
   }
 }
