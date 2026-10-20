@@ -56,6 +56,18 @@ final class FormRulePresetTests: XCTestCase {
         XCTAssertTrue(FormWarningTracker.rulesCalibKeys.isSubset(of: Set(FeedbackJoint.byKey.keys)))
     }
 
+    /// The camera's BPT_RULES handling (CameraPosePreview: apply, log name) — same expressions, no app target needed.
+    func testCameraFlagExpressions() {
+        for name in [nil, "no_such_preset"] + Array(FormRulePreset.presets.keys) as [String?] {
+            let tracker: FormWarningTracker? = FormWarningTracker(exercise: .barbellRow)
+            var unknown = false
+            if let name, let tracker, !FormRulePreset.apply(name, to: tracker) { unknown = true }
+            let logged: [String: Any] = ["rules": name.flatMap { FormRulePreset.presets[$0] != nil ? $0 : nil } ?? "app_default"]
+            XCTAssertEqual(unknown, name != nil && FormRulePreset.presets[name!] == nil)
+            XCTAssertEqual(logged["rules"] as? String, name.flatMap { FormRulePreset.presets[$0] != nil ? $0 : nil } ?? "app_default")
+        }
+    }
+
     func testJudgeMatchesPython() throws {
         struct Case: Decodable {
             let exercise: String

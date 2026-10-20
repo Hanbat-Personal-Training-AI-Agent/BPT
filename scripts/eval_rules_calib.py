@@ -442,6 +442,8 @@ def run_pub_py(a):
             else:
                 meta.update(src="mmfit", subj=stem, group="dev", label="good")
             sets.append(dict(meta, up="cam", reps=reps, rules=None))
+            if len(sets) % 20 == 0:
+                print(tag, len(sets), "clips", time.strftime("%H:%M:%S"), flush=True)
         print(tag, "done", len(sets), flush=True)
         del model
     out = Path(a.run_dir) / f"sets_pubpy_{pm}_{'_'.join(kv.split('=')[0] for kv in a.models.split(','))}.json.gz"
