@@ -14,6 +14,10 @@ public enum ErrorCode {
     PASSWORD_CONFIRM_MISMATCH(HttpStatus.BAD_REQUEST, "PASSWORD_CONFIRM_MISMATCH", "비밀번호가 일치하지 않습니다. 다시 확인해 주세요."),
     TERMS_NOT_AGREED(HttpStatus.BAD_REQUEST, "TERMS_NOT_AGREED", "이용약관 및 개인정보 처리방침에 동의해 주세요."),
     INVALID_CALENDAR_MONTH(HttpStatus.BAD_REQUEST, "INVALID_CALENDAR_MONTH", "월(month)은 1부터 12 사이의 값이어야 합니다."),
+    EMAIL_NOT_VERIFIED(HttpStatus.BAD_REQUEST, "EMAIL_NOT_VERIFIED", "이메일 인증이 완료되지 않았거나 인증번호가 일치하지 않습니다."),
+    TOO_MANY_VERIFICATION_ATTEMPTS(HttpStatus.BAD_REQUEST, "TOO_MANY_VERIFICATION_ATTEMPTS", "인증번호를 5회 잘못 입력하여 폐기되었습니다. 다시 요청해 주세요."),
+    INVALID_VERIFICATION_TOKEN(HttpStatus.BAD_REQUEST, "INVALID_VERIFICATION_TOKEN", "인증이 만료되었거나 유효하지 않은 인증 토큰입니다."),
+    RESEND_COOLDOWN_ACTIVE(HttpStatus.TOO_MANY_REQUESTS, "RESEND_COOLDOWN_ACTIVE", "인증번호 재발송은 1분 후에 가능합니다."),
 
     // 401 Unauthorized
     INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED, "INVALID_CREDENTIALS", "이메일 또는 비밀번호를 다시 확인해 주세요."),
@@ -35,7 +39,10 @@ public enum ErrorCode {
     USERNAME_ALREADY_EXISTS(HttpStatus.CONFLICT, "USERNAME_ALREADY_EXISTS", "이미 사용 중인 아이디입니다."),
 
     // 500 Internal Server Error
-    INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR", "서버 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.");
+    INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR", "서버 오류가 발생했습니다. 잠시 후 다시 시도해 주세요."),
+
+    // 503 Service Unavailable
+    EMAIL_SEND_FAILED(HttpStatus.SERVICE_UNAVAILABLE, "EMAIL_SEND_FAILED", "인증 이메일 발송에 실패했습니다. 잠시 후 다시 시도해 주세요.");
 
     private final HttpStatus status;
     private final String code;

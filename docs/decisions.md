@@ -920,3 +920,15 @@
 - **사용자 결정**: 운동 기본은 RTMPose-m COCO17 유지. Halpe26의 최종 채택·기각은 **결정하지 않음**(보류). 위 D-T3-17 판정 규칙과 D-T3-18 "결정"은 에이전트가 정한 것으로 사용자 승인을 받지 않았음 — 공식 채택 기준이 아니라 실험 기록으로만 봄.
 - **앱 구성**: m Halpe26(`rtmpose_m_halpe26_forward.mlpackage`, 27.8 MB)을 Runner 번들·pbxproj·`RTMPoseModel`에서 뺌(사용자 지시). 실험용 사본은 git 밖 `~/bpt-models/rtmpose_m_halpe26_forward.mlpackage`, 결과는 `docs/results/halpe_decision.md` 그대로. 재실험: pose-replay `--model halpe26 --model-path ~/bpt-models/rtmpose_m_halpe26_forward.mlpackage`, iPhone 속도는 벤치 앱 `run_pipeline.sh f`(extra models). s Halpe26은 10/9 사용자 지시("설정으로 켤 수 있게 유지")대로 남김.
 - **w20_s3 원인**: "사람 추적 실패"는 **검증 안 된 가설**(신뢰도·상태만 관찰). 같은 crop·검증된 bbox·프레임별 분석으로 원인 분리 중 — 결과 전에는 Halpe26 결론 없음.
+
+## main 병합 — 2026-10-20
+
+### D-M-01 충돌 파일은 main(팀원) 버전을 쓴다 (2026-10-20, 사용자 지시)
+- **사용자 결정**: "팀원 메인쪽이 더 중요함". origin/main(`52c2f61`, #35–#61)을 integration/ai에 병합하고, 충돌 난 Dart 파일 4개는 main 버전을 그대로 쓴다: `native_pose_workout_screen.dart`, `kori_feedback_lines.dart`, `onboarding_analyzing_screen.dart`, `test/onboarding_analyzing_test.dart`.
+- **예외**: `ios/Runner.xcodeproj/project.pbxproj`는 양쪽 등록을 다 남긴다(`WorkoutSessionBridge.swift`와 main의 `KoriSpeaker.swift`). 우리 줄을 빼면 네이티브 빌드가 깨지고, 팀원 동작은 바뀌지 않는다.
+- **결과로 빠진 것**(다시 넣으려면 main 화면 위에 새로 얹는다):
+  - 운동 화면: onFeedback 답(네이티브 WorkoutVoice 대사), startSet/endSet 알림(세트 요약 경고·세트별 녹화·onSetEnd), 음소거 버튼의 네이티브 연결. 음성은 main의 `KoriVoiceService`(ElevenLabs) 하나만 남는다 — E7의 (b) 쪽. WorkoutVoice는 답이 null이라 말하지 않는다.
+  - main 화면의 임시 데모 경고(`_advanceDemoFeedback`, 렙마다 칭찬 ↔ 운동별 대표 경고)는 남는다. 네이티브는 기본으로 setup_full_body·tracking_lost만 보내서 데모가 계속 돈다. 팀원에게는 사용자가 직접 전달하기로 함.
+  - 분석 화면: 작업 상태 polling·진행률·실패 문구·결과 요약. 앱은 업로드만 하고 40초 뒤 결과 화면(자리표시)으로 간다. 서버 분석은 그대로 돈다. `CalibrationUploadService.fetchJob`은 남아 있다.
+  - `ai/lift-app`의 3D 상태 안내(운동 화면 변경)는 main 화면 위에 다시 얹어야 한다.
+- **확인**: `flutter analyze` 문제 없음, `flutter test` 98 통과, `flutter build ios --debug --no-codesign`(아래 병합 커밋 기준).

@@ -39,17 +39,38 @@ public class AuthController {
         return ResponseEntity.ok(response);
     }
 
-    @Operation(summary = "이메일 인증번호 발송 요청 (Mock)", description = "아이디/비밀번호 찾기용으로 이메일에 6자리 인증번호를 전송합니다. (테스트 환경에서는 서버 로그에 출력)")
+    @Operation(summary = "이메일 인증번호 발송 요청", description = "회원가입 또는 아이디/비밀번호 찾기용으로 이메일에 6자리 인증번호를 전송합니다. (비밀번호 재설정 purpose=RESET_PASSWORD 및 username 전달 시 동일 계정 여부를 확인하며, 불일치 시 404 USER_NOT_FOUND를 반환합니다.)")
     @PostMapping("/verify-email/request")
     public ResponseEntity<EmailVerificationResponse> requestEmailVerification(@Valid @RequestBody EmailVerificationRequest request) {
         EmailVerificationResponse response = authService.requestEmailVerification(request);
         return ResponseEntity.ok(response);
     }
 
-    @Operation(summary = "이메일 인증번호 확인 (Mock)", description = "입력한 이메일과 인증코드를 검증합니다. (현재 테스트용으로 항상 true 반환)")
+    @Operation(summary = "이메일 인증번호 확인", description = "입력한 이메일과 인증코드를 검증합니다.")
     @PostMapping("/verify-email/confirm")
     public ResponseEntity<EmailVerificationConfirmResponse> confirmEmailVerification(@Valid @RequestBody EmailVerificationConfirmRequest request) {
         EmailVerificationConfirmResponse response = authService.confirmEmailVerification(request);
+        return ResponseEntity.ok(response);
+    }
+
+    @Operation(summary = "토큰 갱신", description = "리프레시 토큰(14일 유효)을 전달받아 새로운 액세스 토큰과 리프레시 토큰을 발급받습니다.")
+    @PostMapping("/refresh")
+    public ResponseEntity<TokenResponse> refresh(@Valid @RequestBody RefreshTokenRequest request) {
+        TokenResponse response = authService.refresh(request);
+        return ResponseEntity.ok(response);
+    }
+
+    @Operation(summary = "아이디 찾기", description = "이메일 인증 완료 후 해당 이메일로 가입된 아이디(마스킹 및 원본)를 조회합니다.")
+    @PostMapping("/find-username")
+    public ResponseEntity<FindUsernameResponse> findUsername(@Valid @RequestBody FindUsernameRequest request) {
+        FindUsernameResponse response = authService.findUsername(request);
+        return ResponseEntity.ok(response);
+    }
+
+    @Operation(summary = "비밀번호 재설정", description = "이메일 인증 완료 후 새 비밀번호로 계정 비밀번호를 재설정합니다.")
+    @PostMapping("/reset-password")
+    public ResponseEntity<ResetPasswordResponse> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        ResetPasswordResponse response = authService.resetPassword(request);
         return ResponseEntity.ok(response);
     }
 }

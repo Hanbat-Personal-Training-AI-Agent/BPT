@@ -5,6 +5,7 @@ import '../../../features/auth/providers/auth_provider.dart';
 import '../../../models/exercise_model.dart';
 import '../../../models/user_model.dart';
 import '../../../models/workout_record_model.dart';
+import '../../../services/dashboard_service.dart';
 import '../../../services/workout_records_service.dart';
 
 // ── Current user (auth first, mock fallback) ──────────────────────────────
@@ -19,11 +20,30 @@ final weeklyWorkoutGoalProvider = Provider<int>(
   (ref) => ref.watch(currentUserProvider).weeklyFrequency ?? 3,
 );
 
+// ── 서버 홈 요약 (GET /users/me/dashboard) ───────────────────────────────
+// 운동 기록이나 사용자 정보가 바뀌면 다시 받는다. 로그인 전, 연결 실패, 서버와
+// 기기의 날짜가 다를 때는 null 이고, 그때는 아래 Provider들이 기기 기록으로 계산한다.
+final dashboardSummaryProvider = FutureProvider<DashboardSummary?>((ref) async {
+  ref.watch(workoutRecordsProvider);
+  if (ref.watch(authNotifierProvider).currentUser == null) return null;
+  ref.watch(currentUserProvider);
+  try {
+    final summary = await ref.watch(dashboardServiceProvider).fetchSummary();
+    return summary.isFor(DateTime.now()) ? summary : null;
+  } catch (_) {
+    return null;
+  }
+});
+
 // ── 체형 재측정 주기 (홈 배너/프로필 카드가 공유하는 상태) ────────────────
 // 서버의 마지막 체형 측정일(lastBodyScanDate)에서 계산한다. 한 번도 측정하지
 // 않았으면 바로 측정이 필요한 상태(주기만큼 지난 것)로 본다.
 const bodyCheckCycleDays = 30;
 final daysSinceLastBodyCheckProvider = Provider<int>((ref) {
+  final server = ref.watch(dashboardSummaryProvider).valueOrNull;
+  if (server != null) {
+    return (server.daysSinceLastScan ?? bodyCheckCycleDays).clamp(0, 9999);
+  }
   final last = ref.watch(currentUserProvider).lastBodyScanDate;
   if (last == null) return bodyCheckCycleDays;
   final now = DateTime.now();
@@ -66,6 +86,8 @@ final recentRecordsProvider = Provider<List<WorkoutRecordModel>>((ref) {
 // 주간 목표는 "주 N회(일)" 기준이라, 기록 개수가 아니라 이번 주에 운동한 날 수를 센다.
 // 하루에 여러 종목/여러 번 운동해도 1회로 친다.
 final weeklyWorkoutsProvider = Provider<int>((ref) {
+  final server = ref.watch(dashboardSummaryProvider).valueOrNull;
+  if (server != null) return server.weeklyCompletedCount;
   final records = ref.watch(allRecordsProvider);
   final now = DateTime.now();
   final today = DateTime(now.year, now.month, now.day);
@@ -132,11 +154,14 @@ final todaySummaryProvider = Provider<Map<String, dynamic>>((ref) {
       : todayRecords.fold(0.0, (sum, r) => sum + r.postureScore) /
           todayRecords.length;
 
+  // 운동 시간·세트·반복은 서버 요약이 있으면 그 값을 쓴다.
+  final server = ref.watch(dashboardSummaryProvider).valueOrNull;
+
   return {
     'workoutsToday': todayRecords.length,
-    'totalReps': totalReps,
-    'totalMinutes': totalSecs ~/ 60,
-    'completedSets': completedSets,
+    'totalReps': server?.todayTotalReps ?? totalReps,
+    'totalMinutes': server?.todayWorkoutMinutes ?? totalSecs ~/ 60,
+    'completedSets': server?.todayCompletedSets ?? completedSets,
     'avgPostureScore': avgScore,
     'streak': streak,
     if (showMockTodayStats && todayRecords.isEmpty) ..._mockTodayStats,

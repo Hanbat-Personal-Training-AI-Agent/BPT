@@ -547,6 +547,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         return isKo
             ? '아이디 또는 비밀번호가 올바르지 않아.'
             : 'ID or password is incorrect.';
+      case 'network_error':
+        return isKo
+            ? '서버에 연결할 수 없어. 인터넷 연결을 확인하고 다시 시도해줘.'
+            : "Can't reach the server. Check your connection and try again.";
       case 'username_already_exists':
         return isKo ? '이미 사용 중인 이메일이에요.' : 'This email is already in use.';
       case 'password_too_weak':

@@ -73,6 +73,12 @@ class _SectionSlider extends StatelessWidget {
         // 나가는 화면은 애니메이션이 거꾸로 돌기 때문에 뒤집은 곡선을 써야
         // 들어오는 화면과 같은 속도로 붙어서 움직인다.
         switchOutCurve: _curve.flipped,
+        // 기본 레이아웃은 가운데 정렬이라, 내용이 짧은 탭(분석)이 화면 세로 가운데로
+        // 내려가 위가 비어 보였다. 탭 영역을 꽉 채워 위에서부터 그린다.
+        layoutBuilder: (current, previous) => Stack(
+          fit: StackFit.expand,
+          children: [...previous, if (current != null) current],
+        ),
         transitionBuilder: (child, animation) {
           final incoming = child.key == ValueKey(section);
           final offset = incoming

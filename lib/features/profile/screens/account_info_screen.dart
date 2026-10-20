@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/app_toast.dart';
 import '../../../features/auth/providers/auth_provider.dart';
 import '../providers/profile_provider.dart';
 import '../widgets/profile_confirm_dialog.dart';
@@ -325,8 +326,7 @@ class _MarketingConsentCard extends ConsumerWidget {
             scale: 0.95,
             child: Switch(
               value: enabled,
-              onChanged: (v) =>
-                  ref.read(marketingConsentEnabledProvider.notifier).state = v,
+              onChanged: (v) => saveMarketingConsent(ref, v),
               materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
               activeTrackColor: AppColors.green,
               thumbColor: const WidgetStatePropertyAll(AppColors.black),
@@ -370,6 +370,12 @@ void _confirmDeleteAccount(BuildContext context, WidgetRef ref) {
     title: '회원 탈퇴',
     message: '탈퇴하면 운동 기록, 체형 정보 등 모든 데이터가 삭제되고 복구할 수 없어. 정말 탈퇴할까?',
     confirmLabel: '탈퇴하기',
-    onConfirm: () => ref.read(authNotifierProvider).deleteAccount(),
+    onConfirm: () async {
+      final error = await ref.read(authNotifierProvider).deleteAccount();
+      // 실패하면 로그인 상태와 화면을 그대로 두고 안내한다. 다시 누르면 재시도.
+      if (error != null && context.mounted) {
+        showAppToast(context, error, type: AppToastType.error);
+      }
+    },
   );
 }

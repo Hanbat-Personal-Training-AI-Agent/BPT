@@ -52,4 +52,10 @@ public class UserUpdateRequestDto {
 
     @Schema(description = "마지막 체형 측정일 (YYYY-MM-DD)", example = "2026-10-09")
     private String lastBodyScanDate;
+
+    @Schema(description = "마케팅 정보 수신 동의 여부", example = "true")
+    private Boolean marketingConsent;
+
+    @Schema(description = "마케팅 정보 수신 동의 시각 (YYYY-MM-DDTHH:mm:ss, 생략 시 현재 시각)", example = "2026-10-12T14:00:00")
+    private String marketingConsentAt;
 }
