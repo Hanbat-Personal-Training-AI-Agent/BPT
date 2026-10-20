@@ -1007,6 +1007,82 @@ def load_any(a):
     return seqs
 
 
+# ---------------------------------------------------------------- prereg verdicts (section 5) from saved results
+def run_verdicts(a):
+    """R1-R6 of docs/results/setup_constraint_prereg.md from an evaluate JSON (+ foot_shift JSON). No new compute."""
+    ev = json.load(open(a.eval_json)); recs = ev['records']; grp = a.group
+    occl = [c for c in dict.fromkeys(r['cond'] for r in recs) if c != 'clean']
+    key = lambda r: (r['subj'], r['cam'], r['exercise'], r['cond'])
+    by = {}
+    for r in recs:
+        if r['group'] == grp: by.setdefault(r['var'], {})[key(r)] = r
+    def paired(x, y, metric='err', conds=occl):
+        ks = [k for k in by.get(x, {}) if k in by.get(y, {}) and k[3] in conds and by[x][k]['episodes']]
+        per = {}
+        for k in ks:  # per video: mean over its episodes of every condition
+            v = k[:3]; per.setdefault(v, [[], []])
+            per[v][0] += [e[metric] for e in by[x][k]['episodes']]; per[v][1] += [e[metric] for e in by[y][k]['episodes']]
+        d = [np.mean(p[0]) - np.mean(p[1]) for p in per.values()]
+        base = [np.mean(p[1]) for p in per.values()]
+        return dict(n=len(d), mean=float(np.mean(d)) if d else None, ci95=boot_ci(d), rel=float(np.mean(d) / np.mean(base)) if d else None)
+    out, md = {}, [f'**사전등록 판정 ({grp}, {Path(a.eval_json).name})** — 규칙은 제안(미승인)', '']
+    r1 = paired('E', 'A'); ok1 = r1['ci95'][1] < 0 and r1['rel'] <= -0.05
+    out['R1'] = dict(E_minus_A=r1, pass_=bool(ok1))
+    md.append(f"- R1 가림 이득(E − A, 가림 관절 오차): {r1['mean']:+.2f} mm (CI {r1['ci95'][0]:+.2f} – {r1['ci95'][1]:+.2f}, 상대 {r1['rel']:+.1%}, 영상 {r1['n']}) → {'통과' if ok1 else '실패'}")
+    for x, y in (('EC', 'C'), ('E', 'B'), ('E', 'B0'), ('E', 'D'), ('F', 'E'), ('B', 'A'), ('C', 'A'), ('D', 'A'), ('B0', 'A')):
+        q = paired(x, y); out[f'{x}-{y}'] = q
+        md.append(f"  - {x} − {y}: {q['mean']:+.2f} mm (CI {q['ci95'][0]:+.2f} – {q['ci95'][1]:+.2f}, 상대 {q['rel']:+.1%})" if q['mean'] is not None else f'  - {x} − {y}: -')
+    cl = lambda v: [r for k, r in by.get(v, {}).items() if k[3] == 'clean']
+    if cl('E') and cl('A'):
+        dm = float(np.mean([r['mpjpe'] for r in cl('E')]) - np.mean([r['mpjpe'] for r in cl('A')]))
+        da = float(np.mean([r['accel'] for r in cl('E')]) / np.mean([r['accel'] for r in cl('A')]) - 1)
+        ok2 = dm <= 0.5 and da <= 0.03; out['R2'] = dict(mpjpe_delta=dm, accel_rel=da, pass_=bool(ok2))
+        md.append(f"- R2 깨끗한 입력(E − A): MPJPE {dm:+.2f} mm, 가속도 {da:+.1%} → {'통과' if ok2 else '실패'}")
+    if a.shift_json:
+        fs = json.load(open(a.shift_json))['summary']
+        g = lambda case, v, w: fs.get(f'{grp}/{case}/all/{v}', {}).get(f'supp_A_{w}')
+        obs = [g(c, 'E', 'W2') for c in ('grad2', 'grad5', 'step')]; obs_r = [g(c, 'E', 'ramp') for c in ('grad2', 'grad5', 'step')]
+        o = [x for x in obs + obs_r if x is not None]
+        ok3a = bool(o) and max(o) <= 0.05
+        occ = {c: {w: (g(c, 'E', w), g(c, 'B0', w)) for w in ('W1', 'W2')} for c in ('occ_grad5', 'occ_step')}
+        ok3b = all(v[0] is not None and v[1] is not None and v[0] < v[1] for c in occ.values() for v in c.values()) and \
+            all(c['W2'][0] is not None and c['W2'][0] <= 0.10 for c in occ.values())
+        out['R3'] = dict(observed=o, occluded=occ, pass_=bool(ok3a and ok3b))
+        md.append(f"- R3 실제 움직임 보존: 관측된 이동 E 억제율(A 대비) 최대 {max(o) if o else float('nan'):.1%}; 가림 중 이동 " +
+                  ', '.join(f"{c} W1 {v['W1'][0]:.0%}(B0 {v['W1'][1]:.0%}) W2 {v['W2'][0]:.0%}(B0 {v['W2'][1]:.0%})" for c, v in occ.items() if None not in v['W1'] + v['W2']) +
+                  f" → {'통과' if ok3a and ok3b else '실패'}")
+    r4 = paired('E', 'B')
+    angle_ok = None
+    if cl('E') and cl('B'):
+        ae = np.mean([np.mean([r['angles'][g_]['rep'] for g_ in r['angles']]) for r in cl('E')]); ab = np.mean([np.mean([r['angles'][g_]['rep'] for g_ in r['angles']]) for r in cl('B')])
+        angle_ok = bool(ae <= ab)
+    ok4 = r4['ci95'][1] < 0 and bool(angle_ok)
+    out['R4'] = dict(E_minus_B=r4, clean_rep_angle_E_le_B=angle_ok, pass_=bool(ok4))
+    md.append(f"- R4 평활 대비: E − B {r4['mean']:+.2f} mm (CI {r4['ci95'][0]:+.2f} – {r4['ci95'][1]:+.2f}), 깨끗한 입력 렙 극값 각도 E ≤ B: {angle_ok} → {'통과' if ok4 else '실패'}")
+    rules = {}
+    for r in recs:
+        if r['group'] == grp and 'reps' in r and r['var'] in ('C', 'EC'):
+            for x in r['reps']:
+                rules.setdefault((r['cond'], r['exercise'], r['var']), []).append(x)
+    worst = 0.0; rows = []
+    for (cond, ex, v), reps in rules.items():
+        if v != 'EC' or (cond, ex, 'C') not in rules: continue
+        for k in lf.RULES_BY_EX[ex]:
+            fe = np.mean([k in x['fired'] for x in reps]); fc = np.mean([k in x['fired'] for x in rules[(cond, ex, 'C')]])
+            worst = max(worst, abs(fe - fc)); rows.append((cond, ex, k, fc, fe))
+    if rows:
+        ok5 = worst <= 0.03; out['R5'] = dict(max_abs_diff=float(worst), pass_=bool(ok5))
+        md.append(f"- R5 자세 평가 무해(정상 렙 규칙 발동, |EC − C| 최대): {worst:.1%} → {'통과' if ok5 else '실패'}")
+        for cond, ex, k, fc, fe in sorted(rows, key=lambda r: -abs(r[4] - r[3]))[:6]:
+            md.append(f"  - {cond} {ex} {k}: C {fc:.1%} → EC {fe:.1%}")
+    r6 = paired('F', 'E'); ok6 = r6['ci95'][1] < 0 if r6['mean'] is not None else False
+    out['R6'] = dict(F_minus_E=r6, pass_=bool(ok6))
+    md.append(f"- R6 셋업 초기화(F − E): {r6['mean']:+.2f} mm (CI {r6['ci95'][0]:+.2f} – {r6['ci95'][1]:+.2f}) → {'이득' if ok6 else '이득 없음'}")
+    out_j, out_m = Path(a.run_dir) / f'verdicts_{grp}.json', Path(a.run_dir) / f'verdicts_{grp}.md'
+    json.dump(out, open(out_j, 'w'), indent=1); out_m.write_text('\n'.join(md) + '\n'); print('\n'.join(md))
+    write_manifest(a, [a.eval_json] + ([a.shift_json] if a.shift_json else []), [out_j, out_m])
+
+
 def load_model(a):
     import torch
     from finetune_motionagformer_fit3d import load
@@ -1026,7 +1102,8 @@ def run_cache_clean(a):
 
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument('cmd', choices=['gt-relations', 'cache-clean', 'occlude', 'evaluate', 'foot-shift', 'setup-measure', 'signals', 'tune', 'rgb-eval', 'setup-ex3d'])
+    p.add_argument('cmd', choices=['gt-relations', 'cache-clean', 'occlude', 'evaluate', 'foot-shift', 'setup-measure', 'signals', 'tune', 'rgb-eval', 'setup-ex3d', 'verdicts'])
+    p.add_argument('--eval-json'); p.add_argument('--shift-json'); p.add_argument('--group', default='heldout')
     p.add_argument('--ex3d', help='dir with gt.json, csv/<seq>/<cam>_<ex>_mcoco17.csv, labels/<seq>/geometry')
     p.add_argument('--dataset', choices=['fit3d', 'ex3d'], default='fit3d'); p.add_argument('--device', choices=['cpu', 'mps'], default='cpu')
     p.add_argument('--ex3d-view', choices=['all', 'side1'], default='all')
@@ -1056,7 +1133,7 @@ def main():
     CACHE['dir'] = a.cache
     os.makedirs(a.run_dir, exist_ok=True)
     {'gt-relations': run_gt_relations, 'cache-clean': run_cache_clean, 'occlude': run_occlude, 'evaluate': run_evaluate, 'foot-shift': run_foot_shift, 'setup-measure': run_setup_measure,
-     'signals': run_signals, 'tune': run_tune, 'rgb-eval': run_rgb_eval, 'setup-ex3d': run_setup_ex3d}[a.cmd](a)
+     'signals': run_signals, 'tune': run_tune, 'rgb-eval': run_rgb_eval, 'setup-ex3d': run_setup_ex3d, 'verdicts': run_verdicts}[a.cmd](a)
 
 
 if __name__ == '__main__':
