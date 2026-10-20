@@ -11,6 +11,9 @@
 // --crop-edge off: keep a crop whose border pins confident joints (RTMPoseCropTracker.refitAtCropEdge = false, old).
 // --model-path: another RTMPose .mlpackage with the same 256x192 input and SimCC outputs (17 or 26 joints;
 // pass --model halpe26 for 26) — candidate models are compared on the same videos without replacing the bundled one.
+// --rotate 90|180|270: every frame turned clockwise first, like a phone held in landscape (the device video mode's
+// BPT_CAMERA_VIDEO_ROTATE). --capture-rotation 0|90|180|270: the app's analysis turn (CaptureRotation, as
+// BPT_FORCE_CAPTURE_ROTATION); N undoes --rotate N. Both off = the frames as recorded. docs/results/orientation.md
 //
 // halpe26 also feeds the decoded toes/heels to SquatEvaluator (heel_rise_max; squat_heel_rise is off). --row-shrug turns on
 // the experimental row_shrug rule (off in the app). --side-cutoff: row/push-up side-view gate cutoff (shoulder width ÷
@@ -64,6 +67,8 @@ var squatRebaseline: Int?
 var squatHeight: Bool?
 var squatHeightRange: Double?
 var readyPosePreset = false
+var sceneRotation = 0
+var captureRotation = CaptureRotation.up
 var personCrop = true
 var cropEdgeRefit = true
 var videos: [URL] = []
@@ -141,6 +146,12 @@ while let argument = arguments.next() {
         }
     case "--crop-edge":
         cropEdgeRefit = arguments.next() != "off"
+    case "--rotate":
+        guard let value = arguments.next().flatMap(Int.init), CaptureRotation(rawValue: value) != nil else { exit(2) }
+        sceneRotation = value
+    case "--capture-rotation":
+        guard let value = arguments.next().flatMap(Int.init).flatMap(CaptureRotation.init(rawValue:)) else { exit(2) }
+        captureRotation = value
     case "--keypoints-csv":
         guard let path = arguments.next() else { exit(2) }
         keypointsCSV = path
@@ -244,7 +255,9 @@ for video in videos {
     guard keypointsCSV != nil || output != nil else { continue }
     while let sampleBuffer = output?.copyNextSampleBuffer() {
         guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { continue }
-        let image = CIImage(cvPixelBuffer: pixelBuffer)
+        // Turning clockwise by N is the analysis turn of 360 − N; both .up = the frame as recorded.
+        let held = CaptureRotation(rawValue: (360 - sceneRotation) % 360)!.analysisImage(CIImage(cvPixelBuffer: pixelBuffer))
+        let image = captureRotation.analysisImage(held)
         guard let cgImage = context.createCGImage(image, from: image.extent) else { continue }
         imageWidth = cgImage.width
         imageHeight = cgImage.height
@@ -359,7 +372,7 @@ for video in videos {
         entry["end_time"] = times.indices.contains(report.endFrame) ? times[report.endFrame] : NSNull()
         return entry
     }
-    let json: [String: Any] = [
+    var json: [String: Any] = [
         "video": video.path,
         "exercise": exercise.rawValue,
         "model": "\(poseModel)",
@@ -385,6 +398,10 @@ for video in videos {
         "transitions": transitions,
         "events": events,
     ]
+    if sceneRotation != 0 || captureRotation != .up {  // only then, so as-recorded outputs keep their bytes
+        json["rotate"] = sceneRotation
+        json["capture_rotation"] = captureRotation.rawValue
+    }
     let base = "\(name)_\(exercise.rawValue)_\(poseModel)"
     try JSONSerialization.data(withJSONObject: json, options: [.prettyPrinted, .sortedKeys])
         .write(to: outputDir.appendingPathComponent("\(base).json"))
