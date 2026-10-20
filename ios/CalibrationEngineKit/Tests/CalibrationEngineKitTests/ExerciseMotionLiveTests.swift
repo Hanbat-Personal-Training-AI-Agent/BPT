@@ -145,6 +145,58 @@ final class ExerciseMotionLiveTests: XCTestCase {
         }
     }
 
+    func testChangingModelRootOffsetDoesNotChangeUncertainRelativeMotion() throws {
+        // Binary-representable coordinates isolate coordinate-basis correctness from Float
+        // quantization. Real XS residual root offsets can be much larger than roundoff.
+        let base = pose.map { p in SIMD3<Double>((p.x * 64).rounded() / 64,
+                                                 (p.y * 64).rounded() / 64,
+                                                 (p.z * 64).rounded() / 64) }
+        func make(shifted: Bool) -> MotionAGFormerLive<Int> {
+            var selected = 21
+            var pipeline = MotionAGFormerLive<Int>(predict: { _ in
+                let offset = shifted ? SIMD3<Double>(Double(selected % 7) / 32,
+                                                     Double(selected % 5) / 64,
+                                                     -Double(selected % 11) / 32) : .zero
+                selected += 1
+                let row = base.flatMap { p in [Float(p.x + offset.x), Float(p.y + offset.y), Float(p.z + offset.z)] }
+                return Array(repeating: row, count: 27).flatMap { $0 }
+            })
+            pipeline.constraints.enabled = false
+            pipeline.motionEstimator = ExerciseMotionEstimator(exercise: "barbell_row", variant: .H)
+            return pipeline
+        }
+        var centered = make(shifted: false), shifted = make(shifted: true)
+        var uncertainChecked = 0
+        for i in 0..<50 {
+            var observed = person
+            if (30..<38).contains(i) {
+                observed[9] = PoseKeypoint(x: observed[9].x, y: observed[9].y, confidence: 0.05)
+            }
+            let plain = try centered.push(frameIndex: i, coco17: observed, imageWidth: 720,
+                                          imageHeight: 1280, payload: i).map(\.1)
+            let translated = try shifted.push(frameIndex: i, coco17: observed, imageWidth: 720,
+                                               imageHeight: 1280, payload: i).map(\.1)
+            XCTAssertEqual(plain.map(\.frameIndex), translated.map(\.frameIndex))
+            for (a, b) in zip(plain, translated) {
+                guard let expected = a.motion, let result = b.motion, let raw = b.raw else { continue }
+                let offset = raw[0]
+                XCTAssertEqual(result.raw, raw)
+                XCTAssertEqual(result.invalidForAssessment, expected.invalidForAssessment)
+                XCTAssertEqual(result.usedPrediction, expected.usedPrediction)
+                for j in 0..<17 {
+                    let relative = result.corrected[j] - offset
+                    XCTAssertEqual(relative.x, expected.corrected[j].x, accuracy: 1e-12)
+                    XCTAssertEqual(relative.y, expected.corrected[j].y, accuracy: 1e-12)
+                    XCTAssertEqual(relative.z, expected.corrected[j].z, accuracy: 1e-12)
+                    XCTAssertEqual(result.correctionMagnitude[j], expected.correctionMagnitude[j], accuracy: 1e-12)
+                }
+                XCTAssertNotNil(result.diagnostics["original_model_root_offset"])
+                if result.invalidForAssessment.contains(13) { uncertainChecked += 1 }
+            }
+        }
+        XCTAssertGreaterThan(uncertainChecked, 0, "compare actual low-confidence wrist predictions")
+    }
+
     func testExistingGateAndEstimatorInvalidationAreBothPreserved() {
         var report = Pose3DConstraints.Report()
         report.invalidJoints = [2]

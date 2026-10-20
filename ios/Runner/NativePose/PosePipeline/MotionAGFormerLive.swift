@@ -254,7 +254,10 @@ struct MotionAGFormerLive<Payload> {
                 continue
             }
             let estimatorStart = ProcessInfo.processInfo.systemUptime
-            let imageRaw = raw.map { $0 * e.modelToImageScale }
+            // XS predicts a small (occasionally substantial) pelvis residual; its outputs are not
+            // guaranteed to have root exactly zero. Match the Python runner's root-relative input.
+            let originalRoot = raw[0]
+            let imageRaw = raw.map { ($0 - originalRoot) * e.modelToImageScale }
             if motionOnlineCalibration, motionEstimator != nil {
                 if e.motionContext.cameraMotion {
                     resetMotionState(reason: "camera_motion")
@@ -279,17 +282,25 @@ struct MotionAGFormerLive<Payload> {
                                                    personID: e.motionContext.personID, phase: e.motionContext.phase,
                                                    gripConfirmed: e.motionContext.gripConfirmed)
                 .rescaled(1 / e.modelToImageScale)
-            if motion != nil {
-                motion?.raw = raw  // Exact XS Float->Double values, not a round-trip through normalized units.
-                for joint in motion?.diagnostics["observation_passthrough"] as? [Int] ?? [] {
-                    motion?.corrected[joint] = raw[joint]
-                    motion?.correctionMagnitude[joint] = 0
+            if var estimated = motion {
+                estimated.raw = raw  // Exact XS Float->Double values, not a normalized round-trip.
+                // Return every corrected joint to the original XS basis. This is only the current
+                // model-root residual, not global camera/world translation or inferred body depth.
+                estimated.corrected = estimated.corrected.map { $0 + originalRoot }
+                for joint in estimated.diagnostics["observation_passthrough"] as? [Int] ?? [] {
+                    estimated.corrected[joint] = raw[joint]
+                    estimated.correctionMagnitude[joint] = 0
                 }
-                motion?.diagnostics["elapsed_ms"] = (ProcessInfo.processInfo.systemUptime - estimatorStart) * 1000
-                motion?.diagnostics["model_to_image_scale"] = e.modelToImageScale
-                motion?.diagnostics["online_calibration_frames"] = onlineCalibration.samples
-                motion?.diagnostics["online_calibration_applied"] = ownsOnlineProfile
-                motion?.diagnostics["available_bones"] = motionEstimator?.boneProfile.count ?? 0
+                estimated.diagnostics["original_model_root_offset"] = [originalRoot.x, originalRoot.y, originalRoot.z]
+                    .map { $0.isFinite ? $0 as Any : NSNull() }
+                let rootNorm = simd_length(originalRoot)
+                estimated.diagnostics["original_model_root_norm"] = rootNorm.isFinite ? rootNorm as Any : NSNull()
+                estimated.diagnostics["elapsed_ms"] = (ProcessInfo.processInfo.systemUptime - estimatorStart) * 1000
+                estimated.diagnostics["model_to_image_scale"] = e.modelToImageScale
+                estimated.diagnostics["online_calibration_frames"] = onlineCalibration.samples
+                estimated.diagnostics["online_calibration_applied"] = ownsOnlineProfile
+                estimated.diagnostics["available_bones"] = motionEstimator?.boneProfile.count ?? 0
+                motion = estimated
             }
             let projectBones = !(motionEstimator?.variant.usesSoftBones ?? false)
             motion?.diagnostics["legacy_bone_projection"] = projectBones
