@@ -38,7 +38,7 @@ import torch.nn.functional as F
 
 from pose2d_ft_common import DEVICE, MEAN, STD, forward, load_model
 from pose_feedback.body.pose2d_data import (
-    INPUT_H, INPUT_W, apply_affine, bbox_from_points, box_to_center_scale, crop_affine, decode_simcc, FLIP_PERM, flip_keypoints,
+    INPUT_H, INPUT_W, apply_affine, bbox_from_points, box_to_center_scale, crop_affine, decode_simcc, FLIP_PAIRS, flip_keypoints,
     simcc_targets,
 )
 
@@ -47,24 +47,39 @@ FACE_CONF = 0.5
 
 HIPS_SHOULDERS = [5, 6, 11, 12]
 LIMBS = [7, 8, 9, 10, 13, 14, 15, 16]
+FEET = [20, 21, 22, 23, 24, 25]  # Halpe26 L/R big toe, L/R small toe, L/R heel (finetune3, D-F3-05)
+FLIP_PAIRS_26 = tuple(FLIP_PAIRS) + ((20, 21), (22, 23), (24, 25))
 
 
-def load_split(data, subjects, face, hips_shoulders='fit3d', joints='body12'):
+def flip_perm(k):
+    perm = list(range(k))
+    for a, b in (FLIP_PAIRS_26 if k == 26 else FLIP_PAIRS):
+        perm[a], perm[b] = b, a
+    return perm
+
+
+def load_split(data, subjects, face, hips_shoulders='fit3d', joints='body12', n_kp=17):
     items = []
     for s in subjects:
         d = np.load(f'{data}/{s}/labels.npz')
         kp = d['keypoints'].copy()
-        w = np.ones((len(kp), 17), np.float32)
+        k0 = kp.shape[1]
+        w = np.ones((len(kp), k0), np.float32)
         kp[:, :5] = d['pseudo'][:, :5]
         w[:, :5] = (d['pseudo_conf'][:, :5] > FACE_CONF) if face == 'pseudo' else 0
         if hips_shoulders == 'pseudo':
             kp[:, HIPS_SHOULDERS] = d['pseudo'][:, HIPS_SHOULDERS]
             w[:, HIPS_SHOULDERS] = d['pseudo_conf'][:, HIPS_SHOULDERS] > FACE_CONF
-        if joints == 'limbs':
-            keep = np.zeros(17, np.float32); keep[LIMBS] = 1
+        if joints in ('limbs', 'limbs_feet'):
+            keep = np.zeros(k0, np.float32); keep[LIMBS] = 1
+            if joints == 'limbs_feet' and k0 == 26:
+                keep[FEET] = 1
             w *= keep
         if 'weights' in d:  # COCO replay: only labelled joints
             w *= d['weights']
+        if k0 < n_kp:  # COCO17 labels for a Halpe26 model: extra joints unlabelled (weight 0)
+            kp = np.concatenate([kp, np.zeros((len(kp), n_kp - k0, 2), kp.dtype)], 1)
+            w = np.concatenate([w, np.zeros((len(w), n_kp - k0), w.dtype)], 1)
         items += [(f'{data}/{s}/{n}', k, ww) for n, k, ww in zip(d['names'], kp, w)]
     return items
 
@@ -97,7 +112,7 @@ def sample(item, rng, train, aug='mmpose'):
     if train:
         if rng.random() < 0.5:
             img = img[:, ::-1].copy()
-            kp = flip_keypoints(kp, img.shape[1]); w = w[FLIP_PERM]
+            kp = flip_keypoints(kp, img.shape[1], FLIP_PAIRS_26 if len(kp) == 26 else FLIP_PAIRS); w = w[flip_perm(len(w))]
             c = np.array([img.shape[1] - 1 - c[0], c[1]])
         if aug == 'app':  # hysteresis keeps a crop up to 1.35x the target, person anywhere inside
             k = rng.uniform(0.95, 1.4)
@@ -154,19 +169,27 @@ def batches(items, bs, rng, train, aug='mmpose', workers=0, coco_prefix=None):
 
 
 @torch.no_grad()
-def validate(model, items, workers=0):
-    """-> (mean error / box, PCK@0.05) over the body joints that carry weight."""
+def validate(model, items, workers=0, groups=None):
+    """-> (mean error / box, PCK@0.05) over the body joints that carry weight (+ PCK@0.05 per group if `groups`)."""
     model.eval()
-    errs = []
+    errs, per = [], {g: [] for g in (groups or {})}
     rng = np.random.default_rng(0)
     for x, _, _, w, kp in batches(items, 64, rng, False, workers=workers):
         sx, sy = forward(model, x.to(DEVICE))
         for a, b, k, ww in zip(sx.float().cpu().numpy(), sy.float().cpu().numpy(), kp, w.numpy()):
             p, _ = decode_simcc(a, b)
-            box = bbox_from_points(k[5:], ww[5:] > 0) if (ww[5:] > 0).sum() >= 2 else bbox_from_points(k[5:])
+            body = [j for j in range(5, 17)] + [j for j in FEET if j < len(k)]
+            vb = ww[body] > 0
+            box = bbox_from_points(k[body], vb) if vb.sum() >= 2 else bbox_from_points(k[5:17])
             size = max(box[2] - box[0], box[3] - box[1], 1.0)
-            errs.append(np.linalg.norm(p[5:] - k[5:], axis=-1)[ww[5:] > 0] / size)
+            d = np.linalg.norm(p[:len(k)] - k, axis=-1) / size
+            errs.append(d[body][vb])
+            for g, idx in (groups or {}).items():
+                idx = [j for j in idx if j < len(k)]
+                per[g].append(d[idx][ww[idx] > 0])
     e = np.concatenate(errs)
+    if groups:
+        return float(e.mean()), float((e < 0.05).mean()), {g: float((np.concatenate(v) < 0.05).mean()) if sum(map(len, v)) else None for g, v in per.items()}
     return float(e.mean()), float((e < 0.05).mean())
 
 
@@ -177,7 +200,7 @@ def main():
     ap.add_argument('--val', required=True)
     ap.add_argument('--face', choices=('pseudo', 'zero'), default='pseudo')
     ap.add_argument('--hips-shoulders', choices=('fit3d', 'pseudo'), default='fit3d')
-    ap.add_argument('--fit3d-joints', choices=('body12', 'limbs'), default='body12')
+    ap.add_argument('--fit3d-joints', choices=('body12', 'limbs', 'limbs_feet'), default='body12')
     ap.add_argument('--coco')
     ap.add_argument('--coco-ratio', type=float, default=0.5)
     ap.add_argument('--coco-val', type=int, default=1500)
@@ -194,13 +217,14 @@ def main():
     a = ap.parse_args()
     torch.manual_seed(0)
     rng = np.random.default_rng(0)
-    train = load_split(a.data, a.train.split(','), a.face, a.hips_shoulders, a.fit3d_joints)
+    n_kp = 26 if 'halpe26' in a.variant else 17
+    train = load_split(a.data, a.train.split(','), a.face, a.hips_shoulders, a.fit3d_joints, n_kp)
     for ex in filter(None, a.extra.split(',')):
-        train += load_split(os.path.dirname(ex), [os.path.basename(ex)], 'pseudo', 'pseudo', 'body12')
-    val = load_split(a.data, a.val.split(','), a.face, a.hips_shoulders, a.fit3d_joints)[::3]
+        train += load_split(os.path.dirname(ex), [os.path.basename(ex)], 'pseudo', 'pseudo', 'body12', n_kp)
+    val = load_split(a.data, a.val.split(','), a.face, a.hips_shoulders, a.fit3d_joints, n_kp)[::3]
     coco, coco_val = [], []
     if a.coco:
-        c = load_split(os.path.dirname(a.coco), [os.path.basename(a.coco)], 'pseudo', 'pseudo')
+        c = load_split(os.path.dirname(a.coco), [os.path.basename(a.coco)], 'pseudo', 'pseudo', 'body12', n_kp)
         perm = np.random.default_rng(1).permutation(len(c))
         coco_val, coco = [c[i] for i in perm[:a.coco_val]], [c[i] for i in perm[a.coco_val:]]
     n_coco = int(len(train) * a.coco_ratio / (1 - a.coco_ratio)) if coco else 0
@@ -218,9 +242,10 @@ def main():
     sched = torch.optim.lr_scheduler.OneCycleLR(opt, a.lr, total_steps=steps, pct_start=0.05)
 
     def evaluate():
-        f = validate(model, val, a.workers)
+        f = validate(model, val, a.workers, groups=dict(limbs=LIMBS, feet=FEET))
         c = validate(model, coco_val, a.workers) if coco_val else (float('nan'), float('nan'))
-        return dict(fit3d_err=f[0], fit3d_pck05=f[1], coco_err=c[0], coco_pck05=c[1])
+        return dict(fit3d_err=f[0], fit3d_pck05=f[1], fit3d_limbs_pck05=f[2]['limbs'], fit3d_feet_pck05=f[2]['feet'],
+                    coco_err=c[0], coco_pck05=c[1])
 
     log = [dict(epoch=0, **evaluate())]
     floor = log[0]['coco_pck05'] - 0.005
