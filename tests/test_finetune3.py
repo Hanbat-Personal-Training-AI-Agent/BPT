@@ -72,3 +72,16 @@ def test_rodrigues_and_iou():
     Rz = bde.rodrigues(np.array([[0, 0, math.pi / 2]]))[0]
     assert np.allclose(Rz @ [1, 0, 0], [0, 1, 0], atol=1e-9)
     assert det.iou([0, 0, 2, 2], [1, 0, 3, 2]) == pytest.approx(1 / 3)
+
+
+def test_halpe_mapping_uses_halpe_pelvis_neck_head():
+    K = np.random.default_rng(0).uniform(0, 100, (3, 26, 3))
+    app, _ = xd.to_h36m(K, 'app')
+    hm, conf = xd.to_h36m(K, 'halpe')
+    assert np.allclose(hm[:, 0], K[:, 19, :2]) and np.allclose(hm[:, 8], K[:, 18, :2]) and np.allclose(hm[:, 10], K[:, 17, :2])
+    assert np.allclose(hm[:, 7], (K[:, 19, :2] + K[:, 18, :2]) / 2) and np.allclose(hm[:, 9], (K[:, 0, :2] + K[:, 18, :2]) / 2)
+    assert np.allclose(np.delete(hm, [0, 7, 8, 9, 10], 1), np.delete(app, [0, 7, 8, 9, 10], 1))  # limbs unchanged
+    assert np.allclose(conf[:, 0], K[:, 19, 2])
+    x_app, _ = xd.mag_in(K[:, :17], 100, 100, 'app')
+    x_ref, _ = xd.mag_input(K[:, :17], 100, 100)
+    assert np.allclose(x_app, x_ref)  # mapping='app' is exactly the app path
