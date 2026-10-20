@@ -134,7 +134,8 @@ def run(a):
             time.sleep(expected + a.wait_pad)
             runs.append({"clip": c.name, "clip_sha256": sha256(c), "exercise": exercise, "env": env, "frames": frames,
                          "log": f"run_{tag}.jsonl", "log_sha256": None, "ended": None,
-                         "pulled": False, "wall_s": round(time.time() - started, 1)})
+                         "pulled": False, "wall_s": round(time.time() - started, 1),
+                         "launched_at": time.strftime("%Y-%m-%dT%H:%M:%S%z", time.localtime(started))})
             print(f"   launched, waited {time.time() - started:.0f}s (log stays on the phone)", flush=True)
             continue
         deadline = started + expected + a.timeout_pad
@@ -150,7 +151,8 @@ def run(a):
         log = pull_log(out, tag) or log
         runs.append({"clip": c.name, "clip_sha256": sha256(c), "exercise": exercise, "env": env, "frames": frames,
                      "log": log.name if log else None, "log_sha256": sha256(log) if log else None,
-                     "ended": ended, "wall_s": round(time.time() - started, 1)})
+                     "ended": ended, "wall_s": round(time.time() - started, 1),
+                     "launched_at": time.strftime("%Y-%m-%dT%H:%M:%S%z", time.localtime(started))})
         print(f"   log={log.name if log else None} ended={ended}", flush=True)
     if a.pull_all:  # every run log + perf log on the phone: big over Wi-Fi
         pull_runs(out / "all_logs")
