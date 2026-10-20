@@ -2,6 +2,21 @@
 
 사전 등록: [rules_calib_prereg.md](rules_calib_prereg.md)(8eb5841, held-out 결과 보기 전). 실행 기록: Home `~/bpt-runs/rules-calib/<run-id>/manifest.json`. **실험 결과만 적는다.** 기본값·번들·병합은 바꾸지 않았다(새 규칙은 `BPT_RULES=<이름>` / pose-replay `--rules <이름>` 뒤에서만).
 
+## 입력 2D 변경 — 사용자 제품 결정 (2026-10-20 20:50, 결과 보기 전)
+
+사용자는 "할페만 남기자"고 결정했다. 앱 기본 2D가 RTMPose-m Halpe26이 되고 COCO17은 빠진다(전환 작업은 ai/halpe-default-m2b98256). 그래서 이 문서의 **주 결과는 m Halpe26 입력의 정상 렙 분포로 도출한 기준값**이다.
+
+사전 등록 문서(8eb5841)는 고치지 않는다. 바뀐 것은 입력 출처뿐이고, 임계값 규칙·평가 규칙·판정 기준·도출 출처의 역할은 그대로다. 결정 시점에 held-out 결과는 하나도 보지 않았다.
+- 공개·Exercise3D: eval-reliability가 만든 앱 경로 Halpe26 2D CSV를 쓴다. held-out 2D와 같은 2ef3ced pose-replay에서 나왔다. 빠진 공개 조정 정상 클립(스쿼트·푸시업 62개)은 같은 코드의 Halpe26으로 채운다.
+- Fit3D: Halpe26 앱 경로 2D가 없다. Fit3D 영상은 Home 밖으로 못 나가고, Mac pose-replay도 쓸 수 없다. 그래서 lift-compare의 **실험 A 2D**(RTMDet 상자 + mmpose RTMPose-m Halpe26, 앞 17점)를 쓴다. 앱의 crop 추적·Core ML 경로가 아니라는 점을 결과마다 적는다.
+- COCO17로 이미 돌린 것은 비교 행으로 남긴다. Fit3D 전체(모캡·원래·C1, 앱 경로 COCO17 CSV)와 공개 held-out 일부(원래 XS 36클립 Swift)다. 남은 COCO17 전용 재생은 시간이 들어 뺐다.
+- 3D 재생 방법도 바꿨다. 공개·Exercise3D의 모델별 3D는 Mac pose-replay 대신 Home의 Python 앱 경로로 돌린다. Python 앱 경로는 LiveMotionAGFormer·Pose3DConstraints를 Swift와 패리티 테스트로 고정한 미러다. 바꾼 이유는 Mac이 다른 작업으로 붐벼 클립당 45초 이상 걸렸기 때문이다(앞서 8초).
+  - Swift와 같은지 확인한 범위(COCO17, 원래 XS, 공개 held-out 12클립 40렙): 판정 여부 40/40, 지표 키 40/40이 같다.
+  - 각도 차이 중앙값은 0.02–0.15°(p90 < 0.8°), 선 편차 차이 중앙값은 ≤ 0.001이다.
+  - 가장 큰 차이는 아래팔 기울기 5.3°와 torso_min 3.2°이고, 각각 렙 1개다. 정점 프레임이 바뀐 것으로 보인다(가설).
+  - 렙 구간과 로우 측면 게이트는 이 브랜치 pose-replay를 Halpe26 CSV에 2D 모드로 돌린 결과를 쓴다(2D 상태기계는 3D 모델과 무관).
+- C2 학습은 fine-tune 에이전트가 C1 평가를 위해 멈췄다(`xs-C2-STOPPED-for-C1-eval`). 그래서 C2의 기준값은 아직 없다.
+
 ## 진행 상황 (2026-10-20 ~20:45, 체크포인트)
 
 ### 끝난 것
