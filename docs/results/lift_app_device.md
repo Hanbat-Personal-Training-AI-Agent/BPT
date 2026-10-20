@@ -230,14 +230,17 @@ n 가중 중앙값), 도착→판정은 실행 로그의 프레임별 값. 표: 
 |---|---|---|---|---|---|---|---|---|
 | barbellrow_0000_cam2 | 7.40 / 7.18 ms | 7.37 / 7.08 | 200.9 / 209.9 ms | 199.7 / 200.8 | 10 / 10 | 없음 | 없음 | 122–123 / 0 / 15 (581 중) |
 | pushup_0003_cam2 | 7.04 / 7.11 | 6.88 / 7.04 | 195.9 / 199.9 | 197.1 / 196.7 | 10 / 10 | no_lockout 8 | no_lockout 8 | 80 / 133 / 43 (544 중) |
-| squat_0001_cam2 | 8.53 / 8.62 | 8.39 / –(perf 복사 실패) | 200.9 / 197.5 | 198.5 / 200.2 | 10 / 10 | knee_valgus 3·4, no_lockout 2 | knee_valgus 4·5, no_lockout 2 | 0 / 769–774 / 60 (1,251 중) |
+| squat_0001_cam2 | 8.53 / 8.62 | 8.39 / 8.29 | 200.9 / 197.5 | 198.5 / 200.2 | 10 / 10 | knee_valgus 3·4, no_lockout 2 | knee_valgus 4·5, no_lockout 2 | 0 / 769–774 / 60 (1,251 중) |
 
-- 제안 통과 규칙(미승인) 기준: lift3d p95 (b)−(a) = −0.07 / −0.12 / −0.19 ms(< +1 ms), 도착→판정 p95 −5.1 / −1.0 / +0.2 ms(로우의 −5.1은 (a) 2회의 209.9
+- 제안 통과 규칙(미승인) 기준: lift3d p95 (b)−(a) = −0.07 / −0.12 / −0.24 ms(< +1 ms), 도착→판정 p95 −5.1 / −1.0 / +0.2 ms(로우의 −5.1은 (a) 2회의 209.9
   이상값 때문), 렙 같음 — **통과**. 보낸 키도 같다(스쿼트 knee_valgus 2 + 세트 no_lockout 2; (b) 2회만 praise_fixed 1 추가).
 - 스쿼트 knee_valgus 렙 수는 (a)끼리도 3·4로 다르다 — 드롭이 판정되는 프레임을 바꿔서. (b)−(a) 차이(+1)는 이 실행 간 차이 안.
 - (b)에서 스쿼트 판정 프레임의 61%가 관계로 무효화(adaptive_invalid) — 그래도 렙·경고는 그대로. 이것이 의도대로인지는 setup-constraint 문서 쪽 판단.
-- (c) 준비 자세 패널(`--dart-define=BPT_EXERCISE_SETUP=true` + (b)), squat_0001_cam2: `exercise_setup`·`adaptive_3d` 켜짐 확인, **setup_ready 0** — 패널이
-  “준비됨”까지 가지 않았다. 가설: 클립에 첫 렙 전 30프레임 정지 자세가 없다(stableFrames 30, 허용 10%·5°). 판정·렙은 (b)와 같다.
+- (c) 준비 자세 패널(`--dart-define=BPT_EXERCISE_SETUP=true` + (b)), squat_0001_cam2: `exercise_setup`·`adaptive_3d` 켜짐 확인.
+  COCO17(앱 기본 m)로는 7579aab·d6dd1e9 두 빌드 모두 **setup_ready 0** — 패널이 “준비됨”까지 가지 않았다. 같은 빌드에서 **s Halpe26 데모**
+  (`BPT_POSE_MODEL=halpe26`, 번들에 있는 s 모델 — 계획한 m Halpe26 아님)로는 **setup_ready 1**: 클립 시작 1.9초 뒤(7.4초, 첫 렙 전) 준비됨, 발 관계(feet)
+  씨앗, 스냅숏 feet_width 1.55·heel_width 1.68·toe_out 1.18·torso_incline 11.1° 등. 렙 10은 같다. 가설: COCO17에서는 준비에 필요한 항목 하나가
+  끝까지 안정·유효하지 않다(어느 항목인지는 setup-constraint 쪽 확인 필요).
 - 이 빌드들의 도착→판정 p50(189.5–190.2 ms)은 18:40 이전 lift-app 실행(187.6–188.3)보다 약 2 ms 높다. 같은 시간대 lift-app e21a25f 로우 실행도
   189.6–191.7이라 코드가 아니라 기기 상태(전원 뺀 뒤 배터리) 차이로 본다(가설).
 - m Halpe26 실행(발 항목): 번들에 없고 enum 항목도 0024c50에서 빠져, 넣으려면 코드·pbxproj 변경이 필요해 **안 함**. 번들의 s Halpe26(`BPT_POSE_MODEL=halpe26`)은
