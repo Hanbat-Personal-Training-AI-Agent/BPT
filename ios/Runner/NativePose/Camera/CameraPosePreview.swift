@@ -58,8 +58,8 @@ struct CameraFrameData: Identifiable {
     let statusText: String
     let rep: Int
     let done: Bool
-    /// Live posture severity per overlay segment (0 green … 1 red; absent = neutral), smoothed for display.
-    var severity: [OverlaySegment: Double] = [:]
+    /// Overlay colour per body segment: (severity 0 green … 1 red, opacity; dim = uncertain 3D), smoothed for display.
+    var shade: [OverlaySegment: (severity: Double, opacity: Double)] = [:]
 }
 
 struct CameraProcessingResult {
@@ -280,7 +280,7 @@ final class CameraPoseViewModel: ObservableObject {
     /// Frame being judged (handleLifted), for the run log's Flutter reply latencies.
     private var judgingFrame: (index: Int, arrival: CFTimeInterval)?
     /// Overlay colour: FormWarningTracker.liveSeverity of the last judged frame (display only), and its smoothing.
-    private var liveSeverity: [OverlaySegment: Double] = [:]
+    private var liveSeverity = OverlayState()
     private var severityTrack = OverlaySeverityTrack()
     private var overlaySmoother = OverlaySmoother()
 
@@ -651,7 +651,7 @@ final class CameraPoseViewModel: ObservableObject {
             imageHeight: result.imageHeight, coco17: overlaySmoother.smooth(result.visualCoco17, at: CACurrentMediaTime()),
             rawCoco17: result.rawCoco17, handResults: result.handResults, exerciseTitle: exercise.displayName,
             statusText: lastReportedStatus ?? "", rep: lastReportedRep ?? 0, done: lastReportedDone ?? false,
-            severity: severityTrack.update(liveSeverity, at: CACurrentMediaTime()))
+            shade: severityTrack.update(liveSeverity, at: CACurrentMediaTime()))
     }
 
     /// 3D path: frame t with its own 2D and 3D (state never hidden: it goes to the evaluators and to Flutter).
@@ -739,7 +739,7 @@ final class CameraPoseViewModel: ObservableObject {
             statusText: statusText,
             rep: rep,
             done: done,
-            severity: severityTrack.update(liveSeverity, at: CACurrentMediaTime())
+            shade: severityTrack.update(liveSeverity, at: CACurrentMediaTime())
         )
 
         self.currentFrame = frameData
@@ -940,11 +940,10 @@ private struct CameraLiveView: View {
         }
     }
 
-    /// Glowing skeleton coloured by live posture severity (neutral when unknown), neck + head ring, no hands.
+    /// Glowing body skeleton coloured by live posture severity (green default, dim green when uncertain), no head, no hands.
     private func drawSkeleton(frame: CameraFrameData, context: inout GraphicsContext, size: CGSize) {
         let rect = aspectFillRect(imageWidth: frame.imageWidth, imageHeight: frame.imageHeight, in: size)
-        PoseOverlayRenderer.draw(frame.coco17, severity: frame.severity, in: &context,
-                                 scale: frame.imageWidth > 0 ? rect.width / frame.imageWidth : 1) {
+        PoseOverlayRenderer.draw(frame.coco17, shade: frame.shade, in: &context) {
             viewPoint($0, frame: frame, rect: rect)
         }
     }

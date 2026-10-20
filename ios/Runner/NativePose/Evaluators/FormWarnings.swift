@@ -1075,19 +1075,18 @@ final class FormWarningTracker {
 
 // MARK: - Overlay: live posture colour (display only)
 
-/// A segment the camera overlay draws: a COCO17 edge (lower index first) or the neck (shoulder midpoint → head centre,
-/// drawn from the face points).
+/// A body edge the camera overlay draws (COCO17, lower index first). No face, head or neck: head rules are judged and
+/// voiced but have no segment to colour.
 enum OverlaySegment: Hashable {
     case edge(Int, Int)
-    case neck
 
-    /// Body edges drawn as lines: shoulders, arms, trunk sides, hips, legs (the neck and head are drawn separately).
+    /// Shoulders, arms, trunk sides, hips, legs.
     static let edges: [OverlaySegment] = [[5, 6], [5, 7], [7, 9], [6, 8], [8, 10], [5, 11], [6, 12], [11, 12],
                                           [11, 13], [13, 15], [12, 14], [14, 16]].map { OverlaySegment.edge($0[0], $0[1]) }
 }
 
 /// When a rule's per-frame quantity means something. Rep-extremum rules (depth, lockout, peak pull) only near their
-/// phase; elsewhere they say nothing and their segments stay neutral.
+/// phase; elsewhere the rule does not apply.
 enum OverlayPhase {
     case always, inRep, bottom, top, bottomOrAscending, ascending
 
@@ -1103,20 +1102,33 @@ enum OverlayPhase {
     }
 }
 
+/// A rule's quantity on one frame: not applicable here (view, no baseline yet → plain green), unknown (the joints it
+/// needs are partial / low confidence → dim green), or a value.
+enum OverlayValue {
+    case notApplicable, unknown
+    case value(Double)
+
+    static func measured(_ v: Double?) -> OverlayValue { v.map { $0.isFinite ? .value($0) : .unknown } ?? .unknown }
+
+    var number: Double? {
+        if case let .value(v) = self { return v }
+        return nil
+    }
+}
+
 /// One table for the overlay colour: rule → segments (judged side) → per-frame quantity → normal (severity 0) and the
 /// rule's own threshold (severity 1, read from the tracker config, so a threshold change moves the colour with it).
 /// severity = clamp((value − normal) / (threshold − normal), 0, 1). Display only: judge() does not read this.
 /// `normal` is the ideal value (a straight line, no change, the baseline), except valgus: knees 25% wider than the
-/// ankles (display anchor, 제안값). Trend rules (depth_fade, lean_drift), setup rules (hand_position, side view) and the
-/// rules that are off (heel_rise, shrug) are not coloured.
+/// ankles (display anchor, 제안값). Not coloured: head rules (no head is drawn), trend rules (depth_fade, lean_drift),
+/// setup rules (hand_position, side view) and rules that are off (heel_rise, shrug).
 struct OverlayRule {
     let key: String
     let phase: OverlayPhase
     let segments: (FormSide) -> [OverlaySegment]
     let normal: Double
     let threshold: (FormWarningTracker) -> Double
-    /// The per-frame quantity on the tracker's live sample (nil = unknown → neutral).
-    let value: (FormWarningTracker, FormFrameSample) -> Double?
+    let value: (FormWarningTracker, FormFrameSample) -> OverlayValue
 
     static func severity(_ value: Double, normal: Double, threshold: Double) -> Double {
         guard threshold != normal else { return 0 }
@@ -1130,17 +1142,15 @@ struct OverlayRule {
     }
     private static func thigh(_ s: FormSide) -> [OverlaySegment] { let j = side(s); return [.edge(j.hip, j.knee)] }
     private static func leg(_ s: FormSide) -> [OverlaySegment] { let j = side(s); return [.edge(j.hip, j.knee), .edge(j.knee, j.ankle)] }
+    /// Squat side-view rules do not apply in a front view (judge()), valgus only there.
+    private static func sideOnly(_ s: FormFrameSample, _ v: () -> OverlayValue) -> OverlayValue { s.frontView == true ? .notApplicable : v() }
 
     static let table: [FormExercise: [OverlayRule]] = [
         .pushUp: [
             OverlayRule(key: "pushup_hip_sag", phase: .always, segments: { trunk($0) + leg($0) }, normal: 0,
-                        threshold: { $0.pushUp.hipSagDeviation }, value: { _, s in s.hipDeviation }),
+                        threshold: { $0.pushUp.hipSagDeviation }, value: { _, s in .measured(s.hipDeviation) }),
             OverlayRule(key: "pushup_hip_pike", phase: .always, segments: { trunk($0) + leg($0) }, normal: 0,
-                        threshold: { -$0.pushUp.hipPikeDeviation }, value: { _, s in s.hipDeviation }),
-            OverlayRule(key: "pushup_head_drop", phase: .inRep, segments: { _ in [.neck] }, normal: 0,
-                        threshold: { $0.pushUp.headDropDeviation }, value: { t, s in t.liveHeadChange(s) }),
-            OverlayRule(key: "pushup_head_up", phase: .inRep, segments: { _ in [.neck] }, normal: 0,
-                        threshold: { -$0.pushUp.headUpDeviation }, value: { t, s in t.liveHeadChange(s) }),
+                        threshold: { -$0.pushUp.hipPikeDeviation }, value: { _, s in .measured(s.hipDeviation) }),
             OverlayRule(key: "pushup_shallow", phase: .bottom, segments: { arm($0) }, normal: 0,
                         threshold: { $0.pushUp.shallowOverBaselineDegrees },
                         value: { t, s in t.liveOverBaseline("elbow_min", s.elbow) }),
@@ -1152,53 +1162,63 @@ struct OverlayRule {
             OverlayRule(key: "squat_knee_valgus", phase: .bottomOrAscending, segments: { _ in
                 [.edge(11, 13), .edge(13, 15), .edge(12, 14), .edge(14, 16)] }, normal: 1.25,
                         threshold: { $0.squat.valgusKneeAnkleGapRatio },
-                        value: { _, s in s.frontView == true ? s.kneeAnkleGapRatio : nil }),
+                        value: { _, s in s.frontView == true ? .measured(s.kneeAnkleGapRatio) : .notApplicable }),
             OverlayRule(key: "squat_shallow", phase: .bottom, segments: { leg($0) }, normal: 0,
                         threshold: { $0.squat.shallowOverBaselineDegrees },
-                        value: { t, s in s.frontView == true ? nil : t.liveOverBaseline("knee_min", s.knee) }),
+                        value: { t, s in sideOnly(s) { t.liveOverBaseline("knee_min", s.knee) } }),
             OverlayRule(key: "squat_no_lockout", phase: .top, segments: { trunk($0) + leg($0) }, normal: 0,
                         threshold: { $0.squat.noLockoutBelowSetMaxDegrees },
-                        value: { t, s in
-                            guard s.frontView != true else { return nil }
+                        value: { t, s in sideOnly(s) {
                             let k = t.liveBelowSetMax("knee_max", \.knee, s.knee), h = t.liveBelowSetMax("hip_angle_max", \.hipAngle, s.hipAngle)
-                            return [k, h].compactMap { $0 }.max()
-                        }),
+                            return [k, h].compactMap(\.number).max().map { .value($0) } ?? .unknown
+                        } }),
             OverlayRule(key: "squat_hips_first", phase: .ascending, segments: { trunk($0) + thigh($0) }, normal: 0,
                         threshold: { $0.squat.hipsFirstTorsoRiseDegrees },
-                        value: { t, s in s.frontView == true ? nil : t.liveTorsoRiseSinceBottom(s) }),
+                        value: { t, s in sideOnly(s) { t.liveTorsoRiseSinceBottom(s) } }),
         ],
         .barbellRow: [
             OverlayRule(key: "row_torso_swing", phase: .inRep, segments: { trunk($0) }, normal: 0,
                         threshold: { $0.row.torsoSwingRangeDegrees }, value: { t, s in t.liveTorsoRange(s) }),
             OverlayRule(key: "row_standing_up", phase: .inRep, segments: { trunk($0) }, normal: 0,
                         threshold: { $0.row.standingUpDegrees },
-                        value: { t, s in t.liveBaseline("torso_mean").flatMap { b in s.torso.map { FormGeometry.wrapDegrees(b - $0) } } }),
+                        value: { t, s in t.liveFromBaseline("torso_mean", s.torso) { b, v in FormGeometry.wrapDegrees(b - v) } }),
             OverlayRule(key: "row_short_pull", phase: .top, segments: { arm($0) }, normal: 0,
                         threshold: { $0.row.shortPullBelowBaseline },
-                        value: { t, s in t.liveBaseline("elbow_behind_max").flatMap { b in s.elbowBehind.map { b - $0 } } }),
-            OverlayRule(key: "row_head_up", phase: .inRep, segments: { _ in [.neck] }, normal: 0,
-                        threshold: { -$0.row.headUpDeviation }, value: { t, s in t.liveHeadChange(s) }),
+                        value: { t, s in t.liveFromBaseline("elbow_behind_max", s.elbowBehind) { b, v in b - v } }),
         ],
     ]
 }
 
+/// The overlay's view of one frame: severities of the segments that have a measured rule, and the segments whose
+/// quantities are unknown (dim green). Every other drawn segment is plain green (no issue / rule not applicable).
+struct OverlayState {
+    var severity: [OverlaySegment: Double] = [:]
+    var uncertain: Set<OverlaySegment> = []
+}
+
 extension FormWarningTracker {
-    /// Live posture severity per overlay segment for the frame just observed, from the same source the warnings come
-    /// from (the 3D sample when form3DRequired, else 2D): 0 = normal … 1 = at or past the rule threshold, the maximum
-    /// over the rules on that segment. A segment is absent (→ neutral colour, never green) when no rule applies in
-    /// this phase / view or its quantity is unknown (warming up, tracking lost, bad or partial 3D, low confidence).
-    func liveSeverity() -> [OverlaySegment: Double] {
-        guard let s = common.form3DRequired ? current3D : current, let side else { return [:] }
-        // judge()'s side-view gate (row: the session gate once decided; otherwise this frame's view): rules that
-        // would not be judged here are not coloured.
-        if exercise == .pushUp || exercise == .barbellRow,
-           !((exercise == .barbellRow ? sideView : nil) ?? (s.frontView != true)) { return [:] }
-        var out: [OverlaySegment: Double] = [:]
-        for rule in OverlayRule.table[exercise] ?? [] where rule.phase.matches(s.phase, repOpen: repOpen) {
-            guard let v = rule.value(self, s), v.isFinite else { continue }
-            let severity = OverlayRule.severity(v, normal: rule.normal, threshold: rule.threshold(self))
-            for seg in rule.segments(side) { out[seg] = max(out[seg] ?? 0, severity) }
+    /// Live posture state for the frame just observed, from the same source the warnings come from (the 3D sample when
+    /// form3DRequired, else 2D). No usable 3D this frame (warming up, tracking lost, bad 3D) → every segment uncertain.
+    func liveSeverity() -> OverlayState {
+        var out = OverlayState()
+        guard let s = common.form3DRequired ? current3D : current, let side else {
+            out.uncertain = Set(OverlaySegment.edges)
+            return out
         }
+        // judge()'s side-view gate (row: the session gate once decided; otherwise this frame's view): nothing applies.
+        if exercise == .pushUp || exercise == .barbellRow,
+           !((exercise == .barbellRow ? sideView : nil) ?? (s.frontView != true)) { return out }
+        var unknown: Set<OverlaySegment> = []
+        for rule in OverlayRule.table[exercise] ?? [] where rule.phase.matches(s.phase, repOpen: repOpen) {
+            switch rule.value(self, s) {
+            case .notApplicable: continue
+            case .unknown: unknown.formUnion(rule.segments(side))
+            case let .value(v):
+                let severity = OverlayRule.severity(v, normal: rule.normal, threshold: rule.threshold(self))
+                for seg in rule.segments(side) { out.severity[seg] = max(out.severity[seg] ?? 0, severity) }
+            }
+        }
+        out.uncertain = unknown.subtracting(out.severity.keys)  // a measured rule on the segment wins
         return out
     }
 
@@ -1211,58 +1231,60 @@ extension FormWarningTracker {
         return Self.median(liveHistory.prefix(common.baselineRepCount).compactMap { $0[name] })
     }
 
-    fileprivate func liveOverBaseline(_ name: String, _ value: Double?) -> Double? {
-        guard let value, let b = liveBaseline(name) else { return nil }
-        return value - b
+    /// f(baseline, live value); no baseline yet → not applicable, no live value → unknown.
+    fileprivate func liveFromBaseline(_ name: String, _ value: Double?, _ f: (Double, Double) -> Double) -> OverlayValue {
+        guard let b = liveBaseline(name) else { return .notApplicable }
+        return .measured(value.map { f(b, $0) })
+    }
+
+    fileprivate func liveOverBaseline(_ name: String, _ value: Double?) -> OverlayValue {
+        liveFromBaseline(name, value) { b, v in v - b }
     }
 
     /// belowSetMax: the set's best so far (earlier reps and this rep's frames) minus the live value.
-    fileprivate func liveBelowSetMax(_ name: String, _ key: KeyPath<FormFrameSample, Double?>, _ value: Double?) -> Double? {
-        guard let value else { return nil }
+    fileprivate func liveBelowSetMax(_ name: String, _ key: KeyPath<FormFrameSample, Double?>, _ value: Double?) -> OverlayValue {
+        guard let value else { return .unknown }
         let best = (liveHistory.compactMap { $0[name] } + liveRepFrames.compactMap { $0[keyPath: key] } + [value]).max() ?? value
-        return best - value
-    }
-
-    /// Head line deviation change since the rep's first frame (head_dev_change_min / max).
-    fileprivate func liveHeadChange(_ s: FormFrameSample) -> Double? {
-        guard let h = s.headDeviation, let h0 = liveRepFrames.lazy.compactMap(\.headDeviation).first else { return nil }
-        return h - h0
+        return .measured(best - value)
     }
 
     /// Torso angle max − min within the rep so far, this frame included (row_torso_swing).
-    fileprivate func liveTorsoRange(_ s: FormFrameSample) -> Double? {
-        let torso = FormGeometry.unwrapDegrees(liveRepFrames.compactMap(\.torso) + [s.torso].compactMap { $0 })
-        guard let lo = torso.min(), let hi = torso.max() else { return nil }
-        return hi - lo
+    fileprivate func liveTorsoRange(_ s: FormFrameSample) -> OverlayValue {
+        guard let t = s.torso else { return .unknown }
+        let torso = FormGeometry.unwrapDegrees(liveRepFrames.compactMap(\.torso) + [t])
+        return .measured((torso.max() ?? t) - (torso.min() ?? t))
     }
 
     /// Torso rise since the rep's deepest (min knee) frame — squat_hips_first's angle part (its hip-faster-than-shoulder
     /// part is not shown).
-    fileprivate func liveTorsoRiseSinceBottom(_ s: FormFrameSample) -> Double? {
+    fileprivate func liveTorsoRiseSinceBottom(_ s: FormFrameSample) -> OverlayValue {
         let frames = liveRepFrames.filter { $0.knee != nil }
-        guard let bottom = frames.min(by: { $0.knee! < $1.knee! }), let t0 = bottom.torso, let t = s.torso else { return nil }
-        return FormGeometry.wrapDegrees(t - t0)
+        guard let bottom = frames.min(by: { $0.knee! < $1.knee! }), let t0 = bottom.torso else { return .notApplicable }
+        return .measured(s.torso.map { FormGeometry.wrapDegrees($0 - t0) })
     }
 }
 
-/// Display-only smoothing of the overlay severity (time constant `tau`, ~200 ms) so colours do not flicker. A segment
-/// that stops being known keeps its last colour for `holdSeconds`, then turns neutral.
+/// Display-only smoothing of the overlay colour: severity (time constant `tau`, ~200 ms) and opacity (1 = measured or
+/// not applicable, `dimOpacity` = uncertain). An uncertain segment snaps to severity 0 (dim green, never red).
 struct OverlaySeverityTrack {
     var tau = 0.2
-    var holdSeconds = 0.25
-    private var shown: [OverlaySegment: (value: Double, seen: Double)] = [:]
+    var dimOpacity = 0.4
+    private var shown: [OverlaySegment: (severity: Double, opacity: Double)] = [:]
     private var last: Double?
 
-    mutating func update(_ target: [OverlaySegment: Double], at now: Double) -> [OverlaySegment: Double] {
+    /// Every drawn segment → (severity, opacity) to draw.
+    mutating func update(_ state: OverlayState, at now: Double) -> [OverlaySegment: (severity: Double, opacity: Double)] {
         let dt = last.map { min(max(now - $0, 0), 1) } ?? 0
         last = now
         let a = 1 - exp(-dt / tau)
-        for (seg, v) in target {
-            let old = shown[seg]?.value ?? v
-            shown[seg] = (old + a * (v - old), now)
+        for seg in OverlaySegment.edges {
+            let uncertain = state.uncertain.contains(seg)
+            let target = (severity: uncertain ? 0 : state.severity[seg] ?? 0, opacity: uncertain ? dimOpacity : 1.0)
+            let old = shown[seg] ?? target
+            shown[seg] = (severity: uncertain ? 0 : old.severity + a * (target.severity - old.severity),
+                          opacity: old.opacity + a * (target.opacity - old.opacity))
         }
-        shown = shown.filter { target[$0.key] != nil || now - $0.value.seen <= holdSeconds }
-        return shown.mapValues(\.value)
+        return shown
     }
 }
 
