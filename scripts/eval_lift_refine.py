@@ -39,6 +39,7 @@ from eval_lift_app_fit3d import (ANG, EXERCISES, RULES_BY_EX, SIDES, angle_metri
                                  ref_angles, rep_records, rom_err, seq_key, st)
 from eval_lift_app_t2t3 import two_d  # noqa: E402
 from eval_3d_angles import interior  # noqa: E402
+from eval_3d_mediapipe import procrustes  # noqa: E402
 
 LIMBS = [('right_hip-right_knee', 1, 2), ('right_knee-right_ankle', 2, 3), ('left_hip-left_knee', 4, 5),
          ('left_knee-left_ankle', 5, 6), ('left_shoulder-left_elbow', 11, 12), ('left_elbow-left_wrist', 12, 13),
@@ -60,7 +61,7 @@ def impossible(P):
     bad = np.zeros(len(P), bool)
     for leg in SIDES:
         th = knee_theta(P, leg)[0]
-        bad |= np.nan_to_num(th, nan=0) < -15
+        bad |= np.nan_to_num(th, nan=0) < -15 - 1e-6  # past 15 deg; a knee clamped onto -15 is not (float noise)
     for a, b, c in ((1, 2, 3), (4, 5, 6), (11, 12, 13), (14, 15, 16)):
         bad |= interior(P[:, a], P[:, b], P[:, c]) < 20
     return bad
@@ -352,7 +353,7 @@ def run_ex3d(a):
             Pm = P.copy()
             for i, j in enumerate(inv):
                 if j: Pm[i, j] = np.nan
-            pa = np.linalg.norm(E.procrustes(P[:, PA_JOINTS], Gc[:, PA_JOINTS]) - Gc[:, PA_JOINTS], axis=-1).mean(-1) / torso * 100
+            pa = np.linalg.norm(procrustes(P[:, PA_JOINTS], Gc[:, PA_JOINTS]) - Gc[:, PA_JOINTS], axis=-1).mean(-1) / torso * 100
             rr = ratios(P); Lm = np.stack([limb_len(P, i, j) for _, i, j in LIMBS], 1)
             recs.append(dict(meta0, var=v, pa_pct=pa[np.isfinite(pa)], impossible=impossible(P), invalid=np.array([bool(j) for j in inv]),
                              bone_cv=np.median(Lm.std(0) / Lm.mean(0)),
