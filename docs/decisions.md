@@ -932,3 +932,11 @@
   - 분석 화면: 작업 상태 polling·진행률·실패 문구·결과 요약. 앱은 업로드만 하고 40초 뒤 결과 화면(자리표시)으로 간다. 서버 분석은 그대로 돈다. `CalibrationUploadService.fetchJob`은 남아 있다.
   - `ai/lift-app`의 3D 상태 안내(운동 화면 변경)는 main 화면 위에 다시 얹어야 한다.
 - **확인**: `flutter analyze` 문제 없음, `flutter test` 98 통과, `flutter build ios --debug --no-codesign`(아래 병합 커밋 기준).
+
+### D-M-02 main 업데이트: integration + 오늘 끝난 수정 (2026-10-20, 사용자 지시)
+- **사용자 결정**: "메인을 업데이트하라" → 선택지 "integration + 오늘 끝난 수정". 아래를 integration/ai에 병합한 뒤 main을 integration/ai로 빨리감기(일반 push).
+  - `ai/real-feedback` a938ab1: 데모 경고 제거, 실제 판정 경고 기본 전달(FormCommonConfig.enabledFeedbackKeys = Flutter 대사가 있는 모든 키), startSet/endSet 복구. 판정 임계값은 그대로(임시값).
+  - `ai/calib-voice-calm` 47cb42d: 촬영 음성 1초 안정 후 말하기, 대사 사이 1.5초 쉼.
+  - 운동 화면 자동 잠금 끔(`ai/lift-app` 0a4d830을 integration 코드에 맞게 옮김, 카메라가 도는 동안만, 멈춤·백그라운드에서 원래 값).
+  - `ai/teammate-notes` 4bba51a: docs/handoff/teammate_requests.md, PR 초안 갱신.
+- **제외**(검증 중): 3D 켜기·XS 번들(`ai/lift-app`), 새 뼈대 화면(`ai/lift-refine`), 가림 보정·준비 자세(`ai/setup-constraint`), 파인튜닝(`ai/finetune3`), 운동 중 대기 문구 변경(6a78a29, 사용자가 다른 사양을 줌).

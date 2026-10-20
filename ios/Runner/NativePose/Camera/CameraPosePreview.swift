@@ -207,6 +207,12 @@ final class CameraPoseViewModel: ObservableObject {
     /// Only touched on the capture processing queue (one frame at a time), like the workspace.
     nonisolated(unsafe) private var cropTracker = RTMPoseCropTracker()
 
+    /// Screen auto-lock while the workout camera runs (a set has no touches): the value before we disabled it, nil when
+    /// we hold nothing. Restored when the camera stops or the app goes to the background, set again on return.
+    private var idleTimerBefore: Bool?
+    private var cameraRunning = false
+    private var lifecycleObservers: [NSObjectProtocol] = []
+
     init(exercise: NativePoseExercise, bridge: WorkoutChannel? = nil) {
         self.exercise = exercise
         self.bridge = bridge
@@ -227,6 +233,10 @@ final class CameraPoseViewModel: ObservableObject {
     }
 
     func stopCamera() {
+        cameraRunning = false
+        keepScreenAwake(false, reason: "camera_stop")
+        lifecycleObservers.forEach { NotificationCenter.default.removeObserver($0) }
+        lifecycleObservers = []
         captureManager.stop()
         captureManager.finishRecording { _ in }
         if let tracker = formTracker { formLog?.close(tracker) }
@@ -236,6 +246,36 @@ final class CameraPoseViewModel: ObservableObject {
         captureManager.perfLog?.close()
         captureManager.perfLog = nil
         bridge?.voice.stop()
+    }
+
+    private func keepScreenAwake(_ on: Bool, reason: String) {
+        let app = UIApplication.shared
+        if on, idleTimerBefore == nil {
+            idleTimerBefore = app.isIdleTimerDisabled
+            app.isIdleTimerDisabled = true
+        } else if !on, let before = idleTimerBefore {
+            app.isIdleTimerDisabled = before
+            idleTimerBefore = nil
+        } else {
+            return
+        }
+        print("[Workout] idle timer disabled=\(app.isIdleTimerDisabled) (\(reason))")
+    }
+
+    private func observeAppLifecycle() {
+        guard lifecycleObservers.isEmpty else { return }
+        let center = NotificationCenter.default
+        lifecycleObservers = [
+            center.addObserver(forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: .main) { [weak self] _ in
+                Task { @MainActor in self?.keepScreenAwake(false, reason: "background") }
+            },
+            center.addObserver(forName: UIApplication.willEnterForegroundNotification, object: nil, queue: .main) { [weak self] _ in
+                Task { @MainActor in
+                    guard let self, self.cameraRunning else { return }
+                    self.keepScreenAwake(true, reason: "foreground")
+                }
+            },
+        ]
     }
 
     private var formTracker: FormWarningTracker? {
@@ -348,6 +388,9 @@ final class CameraPoseViewModel: ObservableObject {
         startSet(1)
         startPerfLog()
         captureManager.start()
+        cameraRunning = true
+        keepScreenAwake(true, reason: "camera_start")
+        observeAppLifecycle()
         statusText = "Running"
         print("CameraPosePreview started exercise=\(exercise.rawValue) hand=\(handEnabled) 3d=\(CameraPreviewOptions.enableMotion3DForCamera)")
     }

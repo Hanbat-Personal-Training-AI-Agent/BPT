@@ -4,9 +4,9 @@ main 병합 뒤 요청과 별도 AI 브랜치의 작업 상태를 정리했다.
 
 ## 1. 데모 경고
 
-- **상태**: main 운동 화면의 `_advanceDemoFeedback`(렙마다 칭찬 ↔ 운동별 대표 경고)과 `koriDemoWarningKeyByExercise` 때문에 실제 판정과 무관한 경고가 화면·음성·세트 기록·"자주 나온 실수"에 들어갔다. AI 쪽에서 데모를 제거하고 네이티브 판정 경고를 기본 전달하도록 바꿨으며(`FormCommonConfig.enabledFeedbackKeys`), 세트 시작·끝 알림(`startSet`/`endSet`)도 복구했다. integration 병합은 사용자 승인 대기.
+- **상태**: main 운동 화면의 `_advanceDemoFeedback`(렙마다 칭찬 ↔ 운동별 대표 경고)과 `koriDemoWarningKeyByExercise` 때문에 실제 판정과 무관한 경고가 화면·음성·세트 기록·"자주 나온 실수"에 들어갔다. AI 쪽에서 데모를 제거하고 네이티브 판정 경고를 기본 전달하도록 바꿨으며(`FormCommonConfig.enabledFeedbackKeys`), 세트 시작·끝 알림(`startSet`/`endSet`)도 복구했다. 2026-10-20 integration/ai와 main에 병합(사용자 승인, D-M-02).
 - **근거(파일·커밋)**: `lib/features/workout/screens/native_pose_workout_screen.dart`, `lib/features/workout/data/kori_feedback_lines.dart`, `ios/Runner/NativePose/Evaluators/FormWarnings.swift`. 수정: `ai/real-feedback`의 `a938ab1`.
-- **제안**: 승인 뒤 병합하고, 실제 판정 경고만 화면·음성·기록에 들어가는지 확인.
+- **제안**: 실제 판정 경고만 화면·음성·기록에 들어가는지 확인. 판정 기준값은 아직 검증 전이라 정상 자세에도 경고가 날 수 있다.
 
 ## 2. 음성 끊김
 
@@ -22,9 +22,9 @@ main 병합 뒤 요청과 별도 AI 브랜치의 작업 상태를 정리했다.
 
 ## 4. 화면 자동 꺼짐
 
-- **상태**: 운동 화면은 자동 잠금을 막지 않아 폰을 세워 두고 운동하면 세트 중간에 화면이 꺼진다(체형 촬영 화면만 막음). AI 쪽 네이티브 코드에서 수정했고, integration 병합은 사용자 승인 대기.
-- **근거(파일·커밋)**: `ios/Runner/NativePose/Camera/CameraPosePreview.swift`. 수정: `ai/lift-app`의 `0a4d830`.
-- **제안**: 승인 뒤 병합하고, 화면을 터치하지 않아도 세트 중 화면이 유지되는지 확인.
+- **상태**: 운동 화면은 자동 잠금을 막지 않아 폰을 세워 두고 운동하면 세트 중간에 화면이 꺼진다(체형 촬영 화면만 막음). AI 쪽 네이티브 코드에서 수정, 2026-10-20 integration/ai와 main에 반영(사용자 승인, D-M-02).
+- **근거(파일·커밋)**: `ios/Runner/NativePose/Camera/CameraPosePreview.swift`. 수정: `ai/lift-app`의 `0a4d830`을 integration에 맞게 옮김.
+- **제안**: 화면을 터치하지 않아도 세트 중 화면이 유지되는지 실제 기기에서 확인.
 
 ## 5. 소리 끄기 버튼
 
@@ -53,5 +53,5 @@ main 병합 뒤 요청과 별도 AI 브랜치의 작업 상태를 정리했다.
 ## 9. 벤치프레스·데드리프트 경고 대사
 
 - **상태**: 경고 키 6개는 Flutter 대사가 없어 꺼져 있다(`FormWarningTracker.keysWithoutFlutterLines`).
-- **근거(파일·커밋)**: `ios/Runner/NativePose/Evaluators/FormWarnings.swift`의 AI 쪽 변경(`ai/real-feedback` `a938ab1`; integration에는 아직 없음). 대사 초안은 `docs/progress/2026-10-10.md`.
+- **근거(파일·커밋)**: `ios/Runner/NativePose/Evaluators/FormWarnings.swift`의 AI 쪽 변경(`ai/real-feedback` `a938ab1`, integration·main 반영). 대사 초안은 `docs/progress/2026-10-10.md`.
 - **제안**: 초안을 확인해 `lib/features/workout/data/kori_feedback_lines.dart`에 대사를 넣으면 해당 키가 켜진다.
