@@ -556,3 +556,49 @@ final class CalibrationEngineTests: XCTestCase {
         }
     }
 }
+
+final class GuidanceSpeechGateTests: XCTestCase {
+    /// Runs the gate at 30 fps over a guidance sequence; returns (time, line) for each line spoken.
+    /// A spoken line plays for `lineSeconds`.
+    private func spoken(_ guidanceAt: (Int) -> CalibrationGuidance, frames: Int,
+                        lineSeconds: Double = 1.0) -> [(Double, String)] {
+        var gate = GuidanceSpeechGate(settle: 1.0, gap: 1.5)
+        var out: [(Double, String)] = []
+        var last: String?
+        var startedAt = -Double.infinity
+        for frame in 0..<frames {
+            let now = Double(frame) / 30
+            let speaking = now < startedAt + lineSeconds
+            let quietSince = speaking ? startedAt : startedAt + lineSeconds
+            let guidance = guidanceAt(frame)
+            if gate.shouldSpeak(guidance, now: now, isSpeaking: speaking, lastSpoken: last,
+                                quietSince: quietSince, repeatAfter: 3.0) {
+                out.append((now, guidance.message))
+                last = guidance.message
+                startedAt = now
+            }
+        }
+        return out
+    }
+
+    func testFlickeringGuidanceStaysQuiet() {
+        // Phone shake and "좋아" swap every 0.3 s for 6 s: never one line for a whole second.
+        let lines = spoken({ ($0 / 9) % 2 == 0 ? .holdPhoneStill : .holdStill }, frames: 180)
+        XCTAssertTrue(lines.isEmpty, "\(lines)")
+    }
+
+    func testSettledLinesAreSpokenWithQuietBetween() {
+        // 0–3 s step back, then hold still.
+        let lines = spoken({ $0 < 90 ? .stepBack : .holdStill }, frames: 180)
+        XCTAssertEqual(lines.map(\.1), [CalibrationGuidance.stepBack.message, CalibrationGuidance.holdStill.message])
+        XCTAssertEqual(lines[0].0, 1.0, accuracy: 0.05)  // after settling
+        XCTAssertEqual(lines[1].0, 4.0, accuracy: 0.05)  // settled at 4.0 s; quiet since 2.0 s
+    }
+
+    func testCaptureInterruptsAtOnce() {
+        let lines = spoken({ $0 < 45 ? .holdStill : .captured(.front) }, frames: 60)
+        XCTAssertEqual(lines.map(\.1), [CalibrationGuidance.holdStill.message,
+                                        CalibrationGuidance.captured(.front).message])
+        XCTAssertEqual(lines[1].0, 1.5, accuracy: 0.05)  // while the first line is still playing
+    }
+}
