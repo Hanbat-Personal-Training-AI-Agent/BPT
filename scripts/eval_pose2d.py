@@ -61,8 +61,11 @@ def summarize(pred, gt, valid, box, extra=None):
         ok = valid[:, l] & valid[:, r]
         cross = (np.linalg.norm(pred[:, l] - gt[:, r], axis=-1) < np.linalg.norm(pred[:, l] - gt[:, l], axis=-1)) & \
                 (np.linalg.norm(pred[:, r] - gt[:, l], axis=-1) < np.linalg.norm(pred[:, r] - gt[:, r], axis=-1))
-        if ok.any():
+        anyc = (np.linalg.norm(pred[:, l] - gt[:, r], axis=-1) < np.linalg.norm(pred[:, l] - gt[:, l], axis=-1)) | \
+               (np.linalg.norm(pred[:, r] - gt[:, l], axis=-1) < np.linalg.norm(pred[:, r] - gt[:, r], axis=-1))
+        if ok.any():  # swap = both joints crossed; cross = at least one (collapse onto one side included)
             out[f'swap_{g}'] = round(float(cross[ok].mean()), 5); sw.append(cross[ok])
+            out[f'cross_{g}'] = round(float(anyc[ok].mean()), 5)
     if sw:
         out['swap_limbs8'] = round(float(np.concatenate(sw).mean()), 5)
     if extra:
