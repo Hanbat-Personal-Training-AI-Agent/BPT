@@ -112,3 +112,13 @@ def synthetic_coco():
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def test_same_hand_detections_are_both_dropped():
+    from pose_feedback.body.motionagformer_wrist_source import dedupe_same_hand, same_hand
+    hand = np.array([[100 + (i % 5) * 10, 200 + (i // 5) * 10] for i in range(21)], dtype=float)
+    assert same_hand(hand, hand + [3, -2]) and not same_hand(hand, hand + [30, 0]) and not same_hand(hand, None)
+    wrists = {"left": [100.0, 200.0], "right": [103.0, 198.0]}
+    assert dedupe_same_hand(wrists, True) == {}
+    assert dedupe_same_hand(wrists, False) == wrists
+    assert dedupe_same_hand({"left": [1.0, 2.0]}, True) == {"left": [1.0, 2.0]}  # one detection: nothing to dedupe

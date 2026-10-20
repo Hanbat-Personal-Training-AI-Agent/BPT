@@ -12,7 +12,7 @@ void main() {
       'row_torso_swing', 'row_standing_up', 'row_short_pull', 'row_head_up',
       'row_shrug',
       'setup_side_view', 'setup_full_body', 'setup_phone_upright',
-      'setup_front_view', 'tracking_lost', 'praise_fixed', 'praise_clean_set',
+      'setup_front_view', 'tracking_lost', 'praise_fixed', 'praise_good', 'praise_clean_set',
       'set_summary',
     ];
     expect(koriFeedbackLines.keys.toSet(), keys.toSet());

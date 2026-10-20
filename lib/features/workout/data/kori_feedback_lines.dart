@@ -215,6 +215,13 @@ const List<KoriFeedbackLine> _lines = [
     ko: '좋아, 방금 렙 딱 좋았어!',
     en: 'Nice, that rep was spot on!',
   ),
+  // 실제 판정으로 문제없이 판정된 렙 칭찬(판정 불가 렙에는 안 옴, 3렙마다 최대 1번 — FormWarningTracker).
+  KoriFeedbackLine(
+    key: 'praise_good',
+    kind: KoriFeedbackKind.praise,
+    ko: '좋아, 잘하고 있어!',
+    en: 'Nice, keep it up!',
+  ),
   KoriFeedbackLine(
     key: 'praise_clean_set',
     kind: KoriFeedbackKind.praise,

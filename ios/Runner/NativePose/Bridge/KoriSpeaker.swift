@@ -89,6 +89,7 @@ final class KoriSpeaker: NSObject, AVAudioPlayerDelegate, AVSpeechSynthesizerDel
             return
         }
         player.delegate = self
+        player.volume = WorkoutDebugFlags.outputVolume  // 0 only in test-only muted launches
         player.play()
         self.player = player
     }
@@ -97,6 +98,7 @@ final class KoriSpeaker: NSObject, AVAudioPlayerDelegate, AVSpeechSynthesizerDel
         let utterance = AVSpeechUtterance(string: text)
         utterance.voice = AVSpeechSynthesisVoice(language: language)
         utterance.rate = AVSpeechUtteranceDefaultSpeechRate * 0.95
+        utterance.volume = WorkoutDebugFlags.outputVolume  // 0 only in test-only muted launches
         fallback.speak(utterance)
     }
 
@@ -148,6 +150,7 @@ final class KoriVoiceChannel {
                 result(nil)
                 return
             }
+            VideoRunLog.shared?.write("speak", ["text": text, "language": args?["language"] as? String ?? ""])  // test-only (video-as-camera)
             activateSession()
             speaker.speak(text, language: args?["language"] as? String ?? "ko-KR")
             result(nil)
