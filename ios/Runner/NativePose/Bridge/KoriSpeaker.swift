@@ -148,6 +148,7 @@ final class KoriVoiceChannel {
                 result(nil)
                 return
             }
+            VideoRunLog.shared?.write("speak", ["text": text, "language": args?["language"] as? String ?? ""])  // test-only (video-as-camera)
             activateSession()
             speaker.speak(text, language: args?["language"] as? String ?? "ko-KR")
             result(nil)

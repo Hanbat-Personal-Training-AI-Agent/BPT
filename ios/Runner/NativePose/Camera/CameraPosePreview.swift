@@ -80,7 +80,12 @@ private final class CameraCaptureManager: NSObject, AVCaptureVideoDataOutputSamp
     private let processingQueue = DispatchQueue(label: "com.coremlpose.camera.processing", qos: .userInitiated)
     nonisolated(unsafe) private var isProcessingFrame = false
     nonisolated(unsafe) private var frameIndex = 0
-    nonisolated(unsafe) var onFrame: (@Sendable (CMSampleBuffer, Int) -> Void)?
+    /// (frame, index, arrival time). Arrival = when the frame reached the app (camera: captureOutput entry; video
+    /// mode: its pacing slot), the start of the input → judgement latency.
+    nonisolated(unsafe) var onFrame: (@Sendable (CMSampleBuffer, Int, CFTimeInterval) -> Void)?
+    /// Video-as-camera: the processing queue is busy with a frame (drop rule of alwaysDiscardsLateVideoFrames).
+    private let busyLock = NSLock()
+    nonisolated(unsafe) private var externalBusy = false
     // Per-set recording of the processed frames + perf counters (WorkoutSessionBridge.swift). Processing queue.
     nonisolated(unsafe) private var recorder: WorkoutSetRecorder?
     nonisolated(unsafe) var perfLog: WorkoutPerfLog?
@@ -166,12 +171,41 @@ private final class CameraCaptureManager: NSObject, AVCaptureVideoDataOutputSamp
     ) {
         guard !isProcessingFrame else { perfLog?.frameDropped(); return }
         isProcessingFrame = true
+        handleFrame(sampleBuffer, arrival: CACurrentMediaTime())
+        isProcessingFrame = false
+    }
+
+    /// The per-frame entry both sources share (processing queue).
+    nonisolated private func handleFrame(_ sampleBuffer: CMSampleBuffer, arrival: CFTimeInterval) {
         let idx = frameIndex
         frameIndex += 1
-        onFrame?(sampleBuffer, idx)
+        onFrame?(sampleBuffer, idx, arrival)
         recorder?.append(sampleBuffer)
         perfLog?.frameProcessed()
-        isProcessingFrame = false
+        VideoRunLog.shared?.count("processed")
+    }
+
+    /// Video-as-camera (VideoCameraSource): same queue and entry as captureOutput. A frame that arrives while the
+    /// previous one is still being processed is dropped, as AVCaptureVideoDataOutput does with
+    /// alwaysDiscardsLateVideoFrames. Returns false when dropped.
+    nonisolated func deliverExternal(_ sampleBuffer: CMSampleBuffer, arrival: CFTimeInterval) -> Bool {
+        busyLock.lock()
+        if externalBusy {
+            busyLock.unlock()
+            perfLog?.frameDropped()
+            VideoRunLog.shared?.count("dropped")
+            return false
+        }
+        externalBusy = true
+        busyLock.unlock()
+        VideoRunLog.shared?.count("arrived")
+        processingQueue.async { [self] in
+            handleFrame(sampleBuffer, arrival: arrival)
+            busyLock.lock()
+            externalBusy = false
+            busyLock.unlock()
+        }
+        return true
     }
 
     nonisolated func captureOutput(_ output: AVCaptureOutput, didDrop sampleBuffer: CMSampleBuffer,
@@ -231,6 +265,11 @@ final class CameraPoseViewModel: ObservableObject {
     private var lastReportedPose3D: String?
     private var motion: DeviceMotionMonitor?
     nonisolated private var perfLog: WorkoutPerfLog? { captureManager.perfLog }
+    /// Video-as-camera (test-only, BPT_CAMERA_VIDEO); nil with the real camera.
+    private var videoSource: VideoCameraSource?
+    @Published var videoDisplayLayer: AVSampleBufferDisplayLayer?
+    /// Frame being judged (handleLifted), for the run log's Flutter reply latencies.
+    private var judgingFrame: (index: Int, arrival: CFTimeInterval)?
 
     init(exercise: NativePoseExercise, bridge: WorkoutChannel? = nil) {
         self.exercise = exercise
@@ -238,6 +277,7 @@ final class CameraPoseViewModel: ObservableObject {
     }
 
     func requestCameraAndStart() {
+        if VideoCameraOptions.isActive { return setup() }
         AVCaptureDevice.requestAccess(for: .video) { [weak self] granted in
             Task { @MainActor in
                 guard let self else { return }
@@ -252,6 +292,7 @@ final class CameraPoseViewModel: ObservableObject {
     }
 
     func stopCamera() {
+        videoSource?.stop()
         captureManager.stop()
         motion?.stop()
         captureManager.finishRecording { _ in }
@@ -276,8 +317,25 @@ final class CameraPoseViewModel: ObservableObject {
         for report in tracker.reports where report.repIndex > lastLoggedRep {
             formLog?.append(report)
             lastLoggedRep = report.repIndex
+            if let log = VideoRunLog.shared {
+                var line = report.dictionary
+                line["judged_frame"] = judgingFrame?.index ?? -1
+                log.write("rep", line)
+            }
         }
-        for event in tracker.drainEvents() { bridge?.sendFeedback(event) }
+        for event in tracker.drainEvents() {
+            guard let log = VideoRunLog.shared else { bridge?.sendFeedback(event); continue }
+            let frame = judgingFrame
+            var line: [String: Any] = ["key": event.key, "scope": event.scope.rawValue, "frame": frame?.index ?? -1]
+            if let n = event.n { line["n"] = n }
+            log.write("feedback_sent", line)
+            bridge?.sendFeedback(event) { reply in
+                var done = line
+                done["reply"] = reply.map { "\($0)" } ?? NSNull()
+                if let arrival = frame?.arrival { done["e2e_ms"] = (CACurrentMediaTime() - arrival) * 1000 }
+                log.write("feedback_reply", done)
+            }
+        }
     }
 
     // MARK: Sets (Flutter startSet / endSet)
@@ -363,6 +421,10 @@ final class CameraPoseViewModel: ObservableObject {
                                             predict: MotionAGFormerCoreML.predictor(xs))
                 lifter?.constraints.reflectFlippedKnee = exercise == .squat  // Fit3D S6: squat only
                 formTracker?.common.form3DRequired = true
+                if VideoCameraOptions.allFeedbackKeys {
+                    // NON-DEFAULT test flag: show what every warning key WOULD send to the user.
+                    formTracker?.common.enabledFeedbackKeys = FormWarningTracker.allKeys
+                }
                 if CameraPreviewOptions.motion3DGravity {
                     motion = DeviceMotionMonitor()
                     motion?.start()
@@ -380,22 +442,33 @@ final class CameraPoseViewModel: ObservableObject {
             print("CameraPosePreview hand landmarkers initialized: \(handLandmarkers?.statusDescription ?? "nil")")
         }
 
-        do {
-            try captureManager.configure()
-        } catch {
-            statusText = "Failed to configure camera: \(error.localizedDescription)"
-            return
+        if VideoCameraOptions.isActive {
+            let manager = captureManager
+            let source = VideoCameraSource(
+                urls: VideoCameraOptions.clips, loops: VideoCameraOptions.loops,
+                deliver: { sampleBuffer, arrival in manager.deliverExternal(sampleBuffer, arrival: arrival) },
+                onFinish: { [weak self] in Task { @MainActor in self?.videoFinished() } })
+            videoSource = source
+            videoDisplayLayer = source.displayLayer
+        } else {
+            do {
+                try captureManager.configure()
+            } catch {
+                statusText = "Failed to configure camera: \(error.localizedDescription)"
+                return
+            }
         }
 
         let rtmposeModel = self.rtmpose
         let handLandmarkRunner = self.handLandmarkers
         let context = self.ciContext
 
-        captureManager.onFrame = { [weak self, context] sampleBuffer, frameIdx in
+        captureManager.onFrame = { [weak self, context] sampleBuffer, frameIdx, arrival in
             guard let self, let rtmposeModel else { return }
             self.processFrame(
                 sampleBuffer,
                 frameIdx: frameIdx,
+                arrival: arrival,
                 rtmpose: rtmposeModel,
                 workspace: workspace,
                 handLandmarkers: handLandmarkRunner,
@@ -407,14 +480,25 @@ final class CameraPoseViewModel: ObservableObject {
         bridge?.onEndSet = { [weak self] in self?.endSet($0) }
         startSet(1)
         startPerfLog()
-        captureManager.start()
+        if let videoSource { videoSource.start() } else { captureManager.start() }
         statusText = "Running"
+        VideoRunLog.shared?.write("camera_started", [
+            "exercise": exercise.rawValue, "hands": handEnabled, "xs": lifter != nil,
+            "lookahead": CameraPreviewOptions.motion3DLookahead, "cadence": CameraPreviewOptions.motion3DCadence,
+            "async": CameraPreviewOptions.motion3DAsync, "wrists_from_hands": CameraPreviewOptions.motion3DWristFromHands,
+            "gravity": CameraPreviewOptions.motion3DGravity,
+            "enabled_feedback_keys": Array(formTracker?.common.enabledFeedbackKeys ?? []).sorted(),
+            "form3d_required": formTracker?.common.form3DRequired ?? false,
+            "reflect_flipped_knee": lifter?.constraints.reflectFlippedKnee ?? false,
+            "rtmpose": RTMPoseModel.workout.rawValue,
+        ])
         print("CameraPosePreview started exercise=\(exercise.rawValue) hand=\(handEnabled) 3d=\(lifter != nil) lookahead=\(CameraPreviewOptions.motion3DLookahead) cadence=\(CameraPreviewOptions.motion3DCadence) async=\(CameraPreviewOptions.motion3DAsync)")
     }
 
     private nonisolated func processFrame(
         _ sampleBuffer: CMSampleBuffer,
         frameIdx: Int,
+        arrival: CFTimeInterval,
         rtmpose: MLModel,
         workspace: RTMPoseInputWorkspace,
         handLandmarkers: MediaPipeHandLandmarkerPair?,
@@ -422,7 +506,7 @@ final class CameraPoseViewModel: ObservableObject {
     ) {
         autoreleasepool {
             do {
-                let arrivedAt = CACurrentMediaTime()
+                let arrivedAt = arrival
                 let timestampMs = Self.timestampMs(sampleBuffer, fallback: frameIdx)
                 let cgImage = try Self.cgImageFromSampleBuffer(sampleBuffer, ciContext: ciContext)
                 guard let estimate = try cropTracker.estimate(cgImage, model: rtmpose, workspace: workspace,
@@ -498,9 +582,15 @@ final class CameraPoseViewModel: ObservableObject {
                     guard let self else { return }
                     let t0 = CACurrentMediaTime()
                     do {
+                        let before = self.lifter?.inferences ?? 0
                         let ready = try self.lifter?.push(frameIndex: frameIdx, coco17: wrists.input, imageWidth: cgImage.width,
                                                           imageHeight: cgImage.height, payload: shown) ?? []
-                        self.perfLog?.sample("lift3d", ms: (CACurrentMediaTime() - t0) * 1000)
+                        let liftMs = (CACurrentMediaTime() - t0) * 1000
+                        self.perfLog?.sample("lift3d", ms: liftMs)
+                        if let log = VideoRunLog.shared {
+                            log.count("xs_inferences", (self.lifter?.inferences ?? 0) - before)
+                            log.count("lift_us", Int(liftMs * 1000))
+                        }
                         Task { @MainActor [weak self] in
                             for (r, frame3D) in ready { self?.handleLifted(r, frame3D) }
                         }
@@ -535,6 +625,7 @@ final class CameraPoseViewModel: ObservableObject {
                                                       frontCamera: isFrontCamera)
         }
         let t0 = CACurrentMediaTime()
+        judgingFrame = (result.frameIndex, result.arrivedAt)
         let (statusText, rep, done) = runEvaluator(frameIndex: result.frameIndex, rawCoco17: result.rawCoco17,
                                                    feet: result.feet, pose3D: frame3D.masked3D, pose3DState: frame3D.state)
         let now = CACurrentMediaTime()
@@ -548,7 +639,34 @@ final class CameraPoseViewModel: ObservableObject {
             lastReportedStatus = statusText
             lastReportedDone = done
             lastReportedPose3D = pose3DKey
-            bridge?.sendUpdate(rep: rep, status: statusText, done: done, pose3d: pose3D)
+            if let log = VideoRunLog.shared {
+                let arrival = result.arrivedAt, frame = result.frameIndex
+                bridge?.sendUpdate(rep: rep, status: statusText, done: done, pose3d: pose3D) { _ in
+                    log.write("update_reply", ["frame": frame, "rep": rep, "status": statusText,
+                                               "state3d": frame3D.state.rawValue,
+                                               "e2e_ms": (CACurrentMediaTime() - arrival) * 1000])
+                }
+            } else {
+                bridge?.sendUpdate(rep: rep, status: statusText, done: done, pose3d: pose3D)
+            }
+        }
+        if let log = VideoRunLog.shared {
+            log.count("judged")
+            var line: [String: Any] = [
+                "frame": result.frameIndex, "arrival": log.rel(result.arrivedAt), "state": frame3D.state.rawValue,
+                "status": statusText, "rep": rep, "judge_ms": (now - result.arrivedAt) * 1000,
+                "eval_ms": (now - t0) * 1000, "wrists": [result.wristsReplaced.left, result.wristsReplaced.right],
+            ]
+            if let row = frame3D.row { line["row"] = row }
+            if frame3D.state == .warmingUp { line["filled"] = frame3D.filled }
+            if let c = frame3D.constraints {
+                line["invalid"] = Array(c.invalidJoints).sorted()
+                if c.kneesReflected > 0 { line["knees_reflected"] = c.kneesReflected }
+                if c.kneeHyperextended { line["knee_flip"] = true }
+                if !c.angleCorrections.isEmpty { line["angle_corr"] = c.angleCorrections }
+                line["bone_corr"] = (c.boneMaxCorrection * 1000).rounded() / 1000
+            }
+            log.write("judged", line)
         }
         if result.frameIndex % CameraPreviewOptions.debugLogEveryNFrames == 0 {
             print("CameraPosePreview frame=\(result.frameIndex) status=\(statusText) rep=\(rep) 3d=\(frame3D.state.rawValue) row=\(frame3D.row.map(String.init) ?? "-") wrists=\(result.wristsReplaced)")
@@ -626,6 +744,23 @@ final class CameraPoseViewModel: ObservableObject {
         return ("inactive", 0, false)
     }
 
+    /// Video-as-camera: the clip list ended. Like the real app with main's workout screen, no endSet arrives, so the
+    /// frames still in the 3D window are not flushed and no set-scope keys / onSetEnd are produced.
+    private func videoFinished() {
+        guard let log = VideoRunLog.shared else { return }
+        let tracker = formTracker
+        log.write("session_end", [
+            "reps": tracker?.reports.count ?? 0,
+            "frames_3d": tracker?.sessionFrames3D ?? 0,
+            "bad_3d_frames": tracker?.sessionBad3DFrames ?? 0,
+            "warning_rep_counts": tracker?.warningRepCounts ?? [:],
+            "set_warning_rep_counts": tracker?.setWarningRepCounts ?? [:],
+            "last_rep": lastReportedRep ?? 0,
+            "last_status": lastReportedStatus ?? "",
+            "end_set_received": betweenSets,
+        ])
+    }
+
     private func loadModel(named name: String) throws -> MLModel {
         let config = MLModelConfiguration()
         config.computeUnits = .all
@@ -691,6 +826,7 @@ struct CameraPosePreview: View {
             } else {
                 CameraLiveView(
                     session: model.captureSession,
+                    videoLayer: model.videoDisplayLayer,
                     isMirrored: model.isFrontCamera,
                     frame: model.currentFrame,
                     statusText: model.statusText
@@ -713,6 +849,8 @@ struct CameraPosePreview: View {
 
 private struct CameraLiveView: View {
     let session: AVCaptureSession
+    /// Video-as-camera preview (test-only); nil = the camera preview.
+    let videoLayer: AVSampleBufferDisplayLayer?
     let isMirrored: Bool
     let frame: CameraFrameData?
     let statusText: String
@@ -720,7 +858,13 @@ private struct CameraLiveView: View {
     var body: some View {
         GeometryReader { proxy in
             ZStack(alignment: .topLeading) {
-                CameraPreviewLayerView(session: session, isMirrored: isMirrored)
+                Group {
+                    if let videoLayer {
+                        VideoPreviewLayerView(layer: videoLayer)
+                    } else {
+                        CameraPreviewLayerView(session: session, isMirrored: isMirrored)
+                    }
+                }
                     .frame(width: proxy.size.width, height: proxy.size.height)
 
                 if let frame {

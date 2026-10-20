@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -50,19 +52,46 @@ String? resolveAuthRedirect(
   return null;
 }
 
+/// ai/lift-app device-test hook (default OFF): launch environment BPT_AUTOSTART_WORKOUT=<exerciseId>
+/// (squat | pushup | barbell-row …) opens the native workout screen directly, without login, so Exercise3D clips
+/// can be fed through the real camera path (BPT_CAMERA_VIDEO, CameraPosePreview). BPT_AUTOSTART_REPS = target reps
+/// (default 999: the set never completes during a clip). Unset in every normal launch.
+String? _launchEnv(String name) {
+  try {
+    final value = Platform.environment[name];
+    return (value == null || value.isEmpty) ? null : value;
+  } catch (_) {
+    return null;
+  }
+}
+
+final String? _autostartWorkout = _launchEnv('BPT_AUTOSTART_WORKOUT');
+
 final appRouterProvider = Provider<GoRouter>((ref) {
   // ref.read (not watch) so GoRouter is not recreated on auth change.
   // refreshListenable handles dynamic redirects instead.
   final authNotifier = ref.read(authNotifierProvider);
 
   return GoRouter(
-    initialLocation: RouteConstants.splash,
+    initialLocation: _autostartWorkout != null
+        ? RouteConstants.nativePoseWorkout
+        : RouteConstants.splash,
+    initialExtra: _autostartWorkout == null
+        ? null
+        : {
+            'exerciseId': _autostartWorkout,
+            'targetReps': int.tryParse(_launchEnv('BPT_AUTOSTART_REPS') ?? '') ?? 999,
+            'targetSets': 1,
+          },
     refreshListenable: authNotifier,
     redirect: (BuildContext context, GoRouterState state) =>
-        resolveAuthRedirect(
-      loggedIn: authNotifier.isLoggedIn,
-      location: state.matchedLocation,
-    ),
+        _autostartWorkout != null &&
+                state.matchedLocation == RouteConstants.nativePoseWorkout
+            ? null
+            : resolveAuthRedirect(
+                loggedIn: authNotifier.isLoggedIn,
+                location: state.matchedLocation,
+              ),
     routes: [
       GoRoute(
         path: RouteConstants.splash,

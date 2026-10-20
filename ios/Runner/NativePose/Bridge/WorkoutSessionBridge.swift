@@ -450,17 +450,23 @@ final class WorkoutChannel {
         }
     }
 
-    func sendUpdate(rep: Int, status: String, done: Bool, pose3d: [String: Any]? = nil) {
+    /// `onReply` (test-only timing): called with Flutter's reply once its handler has completed.
+    func sendUpdate(rep: Int, status: String, done: Bool, pose3d: [String: Any]? = nil, onReply: ((Any?) -> Void)? = nil) {
         var arguments: [String: Any] = ["rep": rep, "status": status, "done": done]
         if let pose3d { arguments["pose3d"] = pose3d }
-        channel.invokeMethod("onPoseUpdate", arguments: arguments)
+        if let onReply {
+            channel.invokeMethod("onPoseUpdate", arguments: arguments) { onReply($0) }
+        } else {
+            channel.invokeMethod("onPoseUpdate", arguments: arguments)
+        }
     }
 
     /// {key, n?, scope}. Flutter answers {text, lang} for a line it showed / keeps; that is spoken.
-    func sendFeedback(_ event: FormFeedbackEvent) {
+    func sendFeedback(_ event: FormFeedbackEvent, onReply: ((Any?) -> Void)? = nil) {
         var arguments: [String: Any] = ["key": event.key, "scope": event.scope.rawValue]
         if let n = event.n { arguments["n"] = n }
         channel.invokeMethod("onFeedback", arguments: arguments) { [weak self] reply in
+            onReply?(reply)
             guard let reply = reply as? [String: Any], let text = reply["text"] as? String else { return }
             self?.voice.say(key: event.key, n: event.n, text: text, language: reply["lang"] as? String ?? "ko-KR")
         }
