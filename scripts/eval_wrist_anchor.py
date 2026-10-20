@@ -9,7 +9,7 @@ usage: python scripts/eval_wrist_anchor.py tune --root ~/datasets/fit3d --replay
        python scripts/eval_wrist_anchor.py validate ... --params RUN_TUNE/wrist_params.json --run-dir RUN
        python scripts/eval_wrist_anchor.py ex3d --ex3d EX3D_DIR --csv-glob 'GLOB' [--devlogs LOGS] --params P --run-dir RUN
 """
-import argparse, glob, json, os, sys
+import argparse, csv, glob, hashlib, json, os, sys
 from pathlib import Path
 
 import numpy as np
@@ -31,6 +31,27 @@ def simulate(K, active_from=0, **params):
     for t in range(len(K)):
         out[t], r = a.update(K[t], active=t >= active_from); reps.append(r)
     return out, reps
+
+
+def read_replay_input(path):
+    """Read the named COCO columns from either a 17- or 26-joint replay CSV.
+
+    The replay's rep counter determines when the first rep was counted. Ground
+    truth rep centres describe the scoring interval, not the app's activation.
+    """
+    with open(path, newline="") as stream:
+        rows = list(csv.DictReader(stream))
+    if not rows:
+        raise ValueError(f"Empty replay CSV: {path}")
+    K = np.array([
+        [float(row[f"j{j}_{axis}"]) for j in range(17) for axis in ("x", "y", "c")]
+        for row in rows
+    ]).reshape(-1, 17, 3)
+    frames = np.array([int(row["frame"]) for row in rows])
+    if np.any(np.diff(frames) <= 0):
+        raise ValueError(f"Replay frame IDs must increase: {path}")
+    active_from = next((i for i, row in enumerate(rows) if int(row["rep"]) >= 1), len(rows))
+    return K, frames, active_from
 
 
 def set_span(d):
@@ -203,35 +224,42 @@ def run_validate(a):
 def run_ex3d(a):
     """No ground truth: a push-up wrist stays on the floor, so the set reference is the median observed wrist (conf >=
     0.5) over the set and the forearm the median observed elbow-wrist; 'flying' = more than 1 forearm away."""
-    sys.path.insert(0, str(ROOT / 'scripts'))
-    from eval_3d_angles import read_csv
     params = json.load(open(a.params)) if a.params else dict(DEFAULTS)
-    gt = json.load(open(f'{a.ex3d}/gt.json')); rows = []
+    gt_path = Path(a.ex3d) / 'gt.json'
+    gt = json.load(open(gt_path)); rows = []; inputs = [gt_path]
+    if a.params:
+        inputs.append(Path(a.params))
 
     def measure(name, K, span, active_from, extra=None):
-        A, reps = simulate(K, active_from, **params); lo, hi = span; rec = dict(name=name, **(extra or {}))
+        A, reps = simulate(K, active_from, **params); lo, hi = span
+        rec = dict(name=name, active_from_index=active_from, scored_frames=hi - lo, **(extra or {}))
+        if not 0 <= lo < hi <= len(K):
+            raise ValueError(f"No valid scoring interval for {name}: {span}, {len(K)} frames")
         for w in (9, 10):
             good = K[lo:hi, w, 2] >= 0.5; fe = good & (K[lo:hi, ELBOW[w], 2] >= 0.5)
             if good.sum() < 10 or fe.sum() < 10: continue
             ref = np.median(K[lo:hi][good, w, :2], axis=0); f = np.median(np.linalg.norm(K[lo:hi, w, :2] - K[lo:hi, ELBOW[w], :2], axis=-1)[fe])
+            if not np.isfinite(f) or f <= 1e-6:
+                continue
             for tag, X in (('raw', K), ('anchor', A)):
                 dd = np.linalg.norm(X[lo:hi, w, :2] - ref, axis=-1) / f
                 rec[f'{tag}_{w}'] = dict(gt05=float((dd > 0.5).mean()), gt10=float((dd > 1.0).mean()), max=float(dd.max()))
             rec[f'held_{w}'] = float(np.mean([r[w] == 'held' for r in reps[lo:hi]]))
+            rec[f'reference_active_{w}'] = float(np.mean([r[w] != 'none' for r in reps[lo:hi]]))
         rows.append(rec)
         print(name, {k: v for k, v in rec.items() if k != 'name'}, flush=True)
 
-    for csv in sorted(glob.glob(a.csv_glob)):
-        pc = Path(csv); seq = pc.parent.name if pc.parent.name in gt else '_'.join(pc.name.split('_')[:2])
+    for csv_path in sorted(glob.glob(a.csv_glob)):
+        pc = Path(csv_path); seq = pc.parent.name if pc.parent.name in gt else '_'.join(pc.name.split('_')[:2])
         name = pc.name if pc.name.startswith(seq) else f'{seq}_{pc.name}'
         if seq not in gt or 'pushup' not in seq: continue
         rf = gt[seq]['rep_frames']; half = int(np.median(np.diff(rf)) / 2)
-        if name.endswith('_halpe26.csv'):
-            R = [l.rstrip('\n').split(',') for l in open(csv)][1:]
-            K = np.array([[float(x) for x in r[4:4 + 26 * 3]] for r in R]).reshape(len(R), 26, 3)[:, :17]
-        else:
-            K = read_csv(csv)
-        measure(name, K, (max(0, rf[0] - half), min(len(K), rf[-1] + half)), rf[0] + half, dict(src='csv'))
+        K, frames, active_from = read_replay_input(pc)
+        span = tuple(int(i) for i in np.searchsorted(frames, [max(0, rf[0] - half), rf[-1] + half]))
+        measure(name, K, span, active_from,
+                dict(src='csv', activation='recorded_rep_counter',
+                     first_counted_frame=int(frames[active_from]) if active_from < len(frames) else None))
+        inputs.append(pc)
     for log in sorted(glob.glob(a.devlogs)) if a.devlogs else []:
         J = [json.loads(l) for l in open(log) if l.strip()]
         jud = [d for d in J if d['type'] == 'judged']; reps = [d for d in J if d['type'] == 'rep']
@@ -241,7 +269,15 @@ def run_ex3d(a):
             for side, c, flag in (('left', 9, d['wrists'][0]), ('right', 10, d['wrists'][1])):
                 h = d.get('hands', {}).get(side)
                 if flag and h is not None: X[t, c, :2] = h
-        measure(Path(log).name, X, (reps[0]['start_frame'], reps[-1]['end_frame'] + 1), reps[0]['end_frame'], dict(src='device'))
+        frames = np.array([d['frame'] for d in jud])
+        if np.any(np.diff(frames) <= 0):
+            raise ValueError(f"Device frame IDs must increase: {log}")
+        span = tuple(int(i) for i in np.searchsorted(frames, [reps[0]['start_frame'], reps[-1]['end_frame'] + 1]))
+        active_from = int(np.searchsorted(frames, reps[0]['end_frame']))
+        measure(Path(log).name, X, span, active_from,
+                dict(src='device', activation='recorded_rep_end',
+                     first_counted_frame=reps[0]['end_frame']))
+        inputs.append(Path(log))
     out = Path(a.run_dir); json.dump(dict(params=params, rows=rows), open(out / 'wrist_ex3d.json', 'w'), indent=1)
     md = ['| 입력 | 손목 | > 0.5 아래팔 raw → anchor | > 1.0 raw → anchor | 최대 raw → anchor | held |', '|---|---|---|---|---|---|']
     for r in rows:
@@ -250,6 +286,22 @@ def run_ex3d(a):
                 md.append(f"| {r['name']} | {'L' if w == 9 else 'R'} | {r[f'raw_{w}']['gt05']:.1%} → {r[f'anchor_{w}']['gt05']:.1%} | "
                           f"{r[f'raw_{w}']['gt10']:.1%} → {r[f'anchor_{w}']['gt10']:.1%} | {r[f'raw_{w}']['max']:.2f} → {r[f'anchor_{w}']['max']:.2f} | {r[f'held_{w}']:.1%} |")
     (out / 'wrist_ex3d.md').write_text('\n'.join(md) + '\n'); print('\n'.join(md))
+    # Inputs stay local; hashes identify which replay/log was inspected.
+    def sha256(path):
+        digest = hashlib.sha256()
+        with open(path, 'rb') as stream:
+            for chunk in iter(lambda: stream.read(1024 * 1024), b''):
+                digest.update(chunk)
+        return digest.hexdigest()
+    source_paths = [Path(__file__), ROOT / 'pose_feedback/geometry/wrist_anchor.py']
+    manifest = dict(argv=sys.argv, python=sys.executable, params=params,
+                    activation='recorded rep counter/end; offline approximation, not live queue timing',
+                    scoring='label-centred interval for CSV; recorded rep interval for device',
+                    reference='within-set median observation; not ground truth or an accuracy score',
+                    inputs={str(p.resolve()): sha256(p) for p in inputs},
+                    code={str(p.resolve()): sha256(p) for p in source_paths},
+                    outputs={p.name: sha256(p) for p in [out / 'wrist_ex3d.json', out / 'wrist_ex3d.md']})
+    (out / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
 
 
 def main():
