@@ -19,7 +19,7 @@ final class FormMetrics3DParityTests: XCTestCase {
             PoseKeypoint(x: 300 + Double(i) * 7, y: 100 + Double(i) * 30, confidence: [3, 5, 7, 9, 11, 13, 15].contains(i) ? 0.9 : 0.5)
         }
         for c in cases {
-            let tracker = FormWarningTracker(exercise: c.exercise == "squat" ? .squat : .pushUp)
+            let tracker = FormWarningTracker(exercise: FormExercise(rawValue: c.exercise)!)
             for (r, interval) in c.intervals.enumerated() {
                 for t in interval[0]...interval[1] {
                     let pose = c.poses[t].map { SIMD3<Double>($0[0], $0[1], $0[2]) }

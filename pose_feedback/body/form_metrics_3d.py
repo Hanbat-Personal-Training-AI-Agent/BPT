@@ -41,6 +41,11 @@ def signed_line_deviation(point, a, b, up=UP):
     return float(np.dot(point - a, n / np.linalg.norm(n))) / length
 
 
+def _asin_deg(x):
+    """FormGeometry.asinDegrees: argument clamped to [-1, 1], NaN stays NaN (np.clip keeps NaN; Python min/max would not)."""
+    return math.degrees(math.asin(float(np.clip(x, -1.0, 1.0)))) if math.isfinite(x) else float("nan")
+
+
 def frame_metrics(j, side="left", up=UP, two_d=None):
     """FormWarningTracker.measure3D for one H36M17 frame. two_d = {hipY, shoulderY, torsoLength} of the same frame
     in 2D (image y, absolute): XS output is pelvis-relative, so heights come from 2D (None = not available)."""
@@ -53,7 +58,10 @@ def frame_metrics(j, side="left", up=UP, two_d=None):
          "hipDeviation": signed_line_deviation(j[0], j[8], (j[3] + j[6]) * 0.5, up),
          "headDeviation": signed_line_deviation(j[10], j[0], j[8], up),
          "torsoLength": None, "hipY": None, "shoulderY": None, "elbowBehind": None, "wristAhead": None,
-         "kneeAnkleGapRatio": None}
+         "kneeAnkleGapRatio": None,
+         # rules-calib quantities (Swift FormFrameSample: wristTrunk ... upperArmIncline)
+         "wristTrunk": None, "elbowBehindOther": None, "elbowFlare": None, "forearmTilt": None,
+         "thighIncline": None, "tibiaAngle": None, "upperArmIncline": None}
     trunk = j[8] - j[0]
     tl = np.linalg.norm(trunk)
     for key in ("hipY", "shoulderY", "torsoLength"):
@@ -62,10 +70,31 @@ def frame_metrics(j, side="left", up=UP, two_d=None):
         chest = np.cross(j[4] - j[1], trunk)
         if np.linalg.norm(chest) > 1e-8:
             s["elbowBehind"] = float(np.dot(j[k["elbow"]] - j[0], -chest / np.linalg.norm(chest))) / tl
+            o = SIDE["right" if side == "left" else "left"]
+            s["elbowBehindOther"] = float(np.dot(j[o["elbow"]] - j[0], -chest / np.linalg.norm(chest))) / tl
+        axis = trunk / tl
+        s["wristTrunk"] = float(np.dot(j[k["wrist"]] - j[0], axis)) / tl
+        outward = (j[k["shoulder"]] - j[8]) - axis * float(np.dot(j[k["shoulder"]] - j[8], axis))
+        ua = j[k["elbow"]] - j[k["shoulder"]]
+        if np.linalg.norm(outward) > 1e-8 and np.linalg.norm(ua) > 1e-8:
+            s["elbowFlare"] = _asin_deg(float(np.dot(ua, outward / np.linalg.norm(outward))) / np.linalg.norm(ua))
     arm = np.linalg.norm(j[k["shoulder"]] - j[k["elbow"]]) + np.linalg.norm(j[k["elbow"]] - j[k["wrist"]])
     headward = trunk - up * float(np.dot(trunk, up))
     if arm > 1e-8 and np.linalg.norm(headward) > 1e-8:
         s["wristAhead"] = float(np.dot(j[k["wrist"]] - j[k["shoulder"]], headward / np.linalg.norm(headward))) / arm
+    forward = np.cross(j[4] - j[1], up)
+    if np.linalg.norm(forward) > 1e-8:
+        f = forward / np.linalg.norm(forward)
+        fa, shin = j[k["wrist"]] - j[k["elbow"]], j[k["knee"]] - j[k["ankle"]]
+        if np.linalg.norm(fa) > 1e-8:
+            s["forearmTilt"] = math.degrees(math.atan2(float(np.dot(fa, f)), float(np.dot(fa, -up))))
+        if np.linalg.norm(shin) > 1e-8:
+            s["tibiaAngle"] = math.degrees(math.atan2(float(np.dot(shin, f)), float(np.dot(shin, up))))
+    thigh, ua = j[k["knee"]] - j[k["hip"]], j[k["elbow"]] - j[k["shoulder"]]
+    if np.linalg.norm(thigh) > 1e-8:
+        s["thighIncline"] = _asin_deg(float(np.dot(thigh, -up)) / np.linalg.norm(thigh))
+    if np.linalg.norm(ua) > 1e-8:
+        s["upperArmIncline"] = _asin_deg(float(np.dot(ua, up)) / np.linalg.norm(ua))
     lr = j[4] - j[1]
     if np.linalg.norm(lr) > 1e-8:
         u = lr / np.linalg.norm(lr)
@@ -145,16 +174,33 @@ def rep_metrics(frames, exercise, is_first_rep=False, hips_first_window=8):
                 if f["elbow"] > top["elbow"]:
                     top = f
             put("first_rep_top_wrist_ahead", top["wristAhead"])
+        put("upper_arm_incline_max", max(vals("upperArmIncline"), default=None))
     elif exercise == "squat":
         kmin = min(vals("knee"), default=None)
         b = next((i for i, f in enumerate(frames) if f["knee"] is not None and f["knee"] == kmin), None)
         if b is not None:
             put("torso_at_bottom", frames[b]["torso"])
             hips_first(b, hips_first_window)
+            if frames[b]["torso"] is not None and frames[b]["tibiaAngle"] is not None:
+                put("torso_minus_tibia_at_bottom", _wrap(frames[b]["torso"] - frames[b]["tibiaAngle"]))
+        put("thigh_incline_min", min(vals("thighIncline"), default=None))
         hmax = max(vals("hipY"), default=None)
         b = next((i for i, f in enumerate(frames) if f["hipY"] is not None and f["hipY"] == hmax), None)
         if b is not None:
             put("knee_ankle_gap_ratio_min", min(vals("kneeAnkleGapRatio", frames[b:]), default=None))
+    elif exercise == "barbell_row":
+        hips = vals("hipAngle")
+        put("hip_angle_mean", sum(hips) / len(hips) if hips else None)
+        peaks = [f for f in frames if f["elbowBehind"] is not None]
+        if peaks:
+            p = peaks[0]
+            for f in peaks:
+                if f["elbowBehind"] > p["elbowBehind"]:
+                    p = f
+            put("pull_peak_wrist_trunk", p["wristTrunk"])
+            put("pull_peak_asym", None if p["elbowBehindOther"] is None else abs(p["elbowBehind"] - p["elbowBehindOther"]))
+            put("pull_peak_flare", p["elbowFlare"])
+            put("pull_peak_forearm_tilt", p["forearmTilt"])
     return m
 
 

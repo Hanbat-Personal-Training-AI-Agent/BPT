@@ -78,9 +78,10 @@ var readyPosePreset = false
 var personCrop = true
 var cropEdgeRefit = true
 var boneTargetsPath: String?
+var rulesPreset: String?
 var videos: [URL] = []
 var arguments = CommandLine.arguments.dropFirst().makeIterator()
-let usage = "usage: pose-replay [--bone-targets PATH] [--exercise squat|pushup|row|bench|deadlift] [--model coco17|halpe26|mcoco17] [--model-path PATH] [--motion3d PATH|none] [--lookahead N] [--cadence K] [--constraints on|off] [--form-source 3d|2d] [--image-size WxH] [--row-shrug] [--side-cutoff R] [--row-offside off] [--pushup-ankle on|off] [--pushup-wrist-conf C] [--pushup-min-frames N] [--pushup-height on|off] [--squat-hold on|off] [--squat-near-leg on|off] [--squat-rebaseline N] [--squat-height on|off] [--squat-height-range R] [--ready-pose off|preset] [--input crop|full] [--crop-edge on|off] [--keypoints-csv PATH] [--keypoints-dir DIR] [--output-dir PATH] <video.mp4>..."
+let usage = "usage: pose-replay [--bone-targets PATH] [--exercise squat|pushup|row|bench|deadlift] [--model coco17|halpe26|mcoco17] [--model-path PATH] [--motion3d PATH|none] [--lookahead N] [--cadence K] [--constraints on|off] [--form-source 3d|2d] [--image-size WxH] [--row-shrug] [--side-cutoff R] [--row-offside off] [--pushup-ankle on|off] [--pushup-wrist-conf C] [--pushup-min-frames N] [--pushup-height on|off] [--squat-hold on|off] [--squat-near-leg on|off] [--squat-rebaseline N] [--squat-height on|off] [--squat-height-range R] [--ready-pose off|preset] [--input crop|full] [--crop-edge on|off] [--keypoints-csv PATH] [--keypoints-dir DIR] [--output-dir PATH] [--rules NAME] <video.mp4>..."
 while let argument = arguments.next() {
     switch argument {
     case "--model":
@@ -143,6 +144,12 @@ while let argument = arguments.next() {
         pushUpWristConf = arguments.next().flatMap(Double.init)
     case "--row-offside":
         rowNonSide = arguments.next()
+    case "--rules":
+        guard let name = arguments.next(), FormRulePreset.presets[name] != nil else {
+            print("--rules requires one of: \(FormRulePreset.presets.keys.sorted().joined(separator: ", "))")
+            exit(2)
+        }
+        rulesPreset = name
     case "--side-cutoff":
         guard let value = arguments.next().flatMap(Double.init) else { exit(2) }
         sideCutoff = value
@@ -351,6 +358,7 @@ for video in videos {
     }
     // Every key on (the app sends none by default) so `spoken` and `events` show what would be said.
     tracker.common.enabledFeedbackKeys = FormWarningTracker.allKeys
+    if let rulesPreset { FormRulePreset.apply(rulesPreset, to: tracker) }
     var csv = "frame,time,status,rep," + (0..<(17 + (extraFrames.first?.count ?? 0)))
         .map { "j\($0)_x,j\($0)_y,j\($0)_c" }.joined(separator: ",") + "\n"
     var transitions: [String] = []
@@ -421,6 +429,7 @@ for video in videos {
         "constraints": constraintsOn,
         "bone_targets": targets.map { $0 as Any } ?? NSNull(),
         "form_source": tracker.common.form3DRequired ? "3d" : "2d",
+        "rules": rulesPreset ?? "app_default",
         "delay_frames_3d": lifter.map { $0.delayFrames as Any } ?? NSNull(),
         "inferences_3d": lifter.map { $0.inferences as Any } ?? NSNull(),
         "ms_3d_per_frame_mac": coco17Frames.isEmpty ? 0 : seconds3D * 1000 / Double(coco17Frames.count),

@@ -70,6 +70,8 @@ struct FormCommonConfig {
     var form3DRequired = false
     /// A rep's 3D judgement needs at least this fraction of its frames in state ok. 임시값 — 테스트 영상으로 조정
     var min3DRepFraction = 0.5
+    /// Rule keys judge() never fires (set only by a `FormRulePreset`; default none).
+    var disabledRules: Set<String> = []
 }
 
 /// Push-up (side view).
@@ -99,6 +101,12 @@ struct PushUpFormConfig {
     var sideViewMaxShoulderRatio = 1.0
     /// pushup_depth_fade (참고): mean min elbow angle of the last N reps − first N reps above this (deg). 임시값 — 테스트 영상으로 조정
     var depthFadeDegrees = 15.0
+    // rules-calib (docs/results/rules_calib_prereg.md): nil = rule off (default). Set only by a `FormRulePreset`
+    // (BPT_RULES / pose-replay --rules). 3D only: the quantities come from measure3D.
+    /// pushup_depth_abs: the rep's highest upper-arm incline (deg; 0 = upper arm level with the floor) below this.
+    var depthAbsUpperArmInclineDegrees: Double?
+    /// pushup_lockout_abs: rep max elbow angle below this (deg).
+    var lockoutAbsElbowDegrees: Double?
 }
 
 /// Squat (side view; knee valgus front view only).
@@ -123,6 +131,11 @@ struct SquatFormConfig {
     var heelRiseEnabled = false
     /// squat_heel_rise: heel / big-toe confidence below this skips the frame. 임시값 — 테스트 영상으로 조정
     var footMinConfidence = 0.30
+    // rules-calib: nil = off (default), set by a `FormRulePreset`. 3D only.
+    /// squat_depth_abs: the rep's lowest thigh incline (deg below horizontal; 0 = thigh parallel) above this.
+    var depthAbsThighInclineDegrees: Double?
+    /// squat_torso_lean: torso lean minus shin lean at the bottom (deg; ≤ 0 = torso parallel to the shin or more upright) above this.
+    var torsoLeanOverTibiaDegrees: Double?
 }
 
 /// Barbell row (side view).
@@ -148,6 +161,27 @@ struct BarbellRowFormConfig {
     var shrugEarShoulderDrop = 0.20
     /// row_shrug: frames whose nose→ear head angle moved more than this from the rep start are skipped (deg). 임시값 — 테스트 영상으로 조정
     var shrugMaxHeadAngleChangeDegrees = 15.0
+    // rules-calib: nil = off (default), set by a `FormRulePreset`. 3D only. "Pull peak" = the rep frame whose elbow is
+    // furthest behind the torso line.
+    /// row_hinge_shallow: rep mean torso lean (deg from vertical) below this — not bent over enough.
+    var hingeShallowTorsoDegrees: Double?
+    /// row_knees_locked: rep max knee angle above this (deg).
+    var kneesLockedDegrees: Double?
+    /// row_knees_bent: rep min knee angle below this (deg) — squatting the row.
+    var kneesBentDegrees: Double?
+    /// row_pull_high / row_pull_low: pull-peak wrist along the trunk (0 = pelvis, 1 = thorax) above / below this.
+    var pullHighWristTrunk: Double?
+    var pullLowWristTrunk: Double?
+    /// row_uneven_pull: pull-peak |left − right elbow behind the torso line| (× torso length) above this.
+    var unevenPullRatio: Double?
+    /// row_elbow_flare: pull-peak upper arm out of the body's sagittal plane (deg) above this.
+    var elbowFlareDegrees: Double?
+    /// row_wrist_lead: pull-peak forearm tilt (deg from straight down, + = wrist ahead of the elbow) above this.
+    var wristLeadDegrees: Double?
+    /// row_straight_arm: rep min elbow angle above this (deg) — the arm swings back without bending.
+    var straightArmElbowDegrees: Double?
+    /// row_short_pull_abs: peak elbow distance behind the torso line (× torso length) below this.
+    var shortPullAbsBehind: Double?
 }
 
 /// Bench press (side view: camera beside the bench). Every key here is off (no wrong-form footage yet;
@@ -327,6 +361,9 @@ enum FormGeometry {
         return simd_dot(point - a, simd_normalize(n)) / length
     }
 
+    /// asin in degrees, argument clamped to [-1, 1] (NaN stays NaN).
+    static func asinDegrees(_ x: Double) -> Double { asin(min(max(x, -1), 1)) * 180 / .pi }
+
     /// Interior angle at b (deg), nil if a bone is ~0.
     static func angle3D(_ a: SIMD3<Double>, _ b: SIMD3<Double>, _ c: SIMD3<Double>) -> Double? {
         let u = a - b, v = c - b
@@ -364,6 +401,17 @@ struct FormFrameSample {
     var shoulderRatio: Double?
     var kneeAnkleGapRatio: Double?
     var heelToe: Double?
+    // rules-calib quantities, 3D only (nil in 2D): near-side wrist along the trunk (0 pelvis, 1 thorax), the other
+    // arm's elbow behind the torso line, upper arm out of the sagittal plane (deg, + out), forearm tilt from straight
+    // down (deg, + wrist ahead), thigh below horizontal (deg), shin lean from vertical (deg, + knee ahead), upper arm
+    // above horizontal (deg).
+    var wristTrunk: Double?
+    var elbowBehindOther: Double?
+    var elbowFlare: Double?
+    var forearmTilt: Double?
+    var thighIncline: Double?
+    var tibiaAngle: Double?
+    var upperArmIncline: Double?
     var has3D = false
     var bad3D = false
     /// MotionAGFormerLive state of this frame (nil = caller gave no 3D pipeline state).
@@ -392,6 +440,8 @@ struct FormRepReport {
     var formSource = "2d"
     /// Rep frames per MotionAGFormerLive state.
     var states3D: [String: Int] = [:]
+    /// The side-view gate judge() used for this rep's delivered source (false = only the setup / front-view rules ran).
+    var sideViewJudged: Bool?
 
     var dictionary: [String: Any] {
         [
@@ -409,6 +459,7 @@ struct FormRepReport {
             "warnings_3d": warnings3D.map { $0 as Any } ?? NSNull(),
             "form_source": formSource,
             "states_3d": states3D,
+            "side_view_judged": sideViewJudged.map { $0 as Any } ?? NSNull(),
             "grades": warnings.map { FormWarningTracker.grade(of: $0).name },
             "spoken": spoken.map { $0 as Any } ?? NSNull(),
         ]
@@ -459,15 +510,23 @@ final class FormWarningTracker {
             ("setup_side_view", .setup), ("pushup_hip_sag", .priority), ("pushup_hip_pike", .improve),
             ("pushup_shallow", .improve), ("pushup_no_lockout", .reference), ("pushup_head_drop", .reference),
             ("pushup_head_up", .reference), ("pushup_hand_position", .setup), ("pushup_depth_fade", .reference),
+            // rules-calib (off unless a FormRulePreset sets the threshold; no Flutter line yet; grades = proposal)
+            ("pushup_depth_abs", .improve), ("pushup_lockout_abs", .reference),
         ],
         .squat: [
             ("squat_hips_first", .priority), ("squat_knee_valgus", .priority), ("squat_shallow", .improve),
             ("squat_heel_rise", .improve), ("squat_no_lockout", .reference), ("squat_lean_drift", .reference),
             ("squat_depth_fade", .reference),
+            ("squat_depth_abs", .improve), ("squat_torso_lean", .improve),  // rules-calib
         ],
         .barbellRow: [
             ("setup_side_view", .setup), ("row_torso_swing", .priority), ("row_standing_up", .improve),
             ("row_short_pull", .improve), ("row_shrug", .improve), ("row_head_up", .reference),
+            // rules-calib
+            ("row_hinge_shallow", .improve), ("row_knees_locked", .reference), ("row_knees_bent", .reference),
+            ("row_pull_high", .improve), ("row_pull_low", .improve), ("row_uneven_pull", .reference),
+            ("row_elbow_flare", .improve), ("row_wrist_lead", .reference), ("row_straight_arm", .improve),
+            ("row_short_pull_abs", .improve),
         ],
         .benchPress: [
             ("setup_side_view", .setup), ("bench_hips_up", .priority), ("bench_shallow", .improve),
@@ -491,9 +550,17 @@ final class FormWarningTracker {
 
     /// Bench press / deadlift keys (track G): their lines are drafted in docs/progress/2026-10-10.md for the
     /// teammate who owns kori_feedback_lines.dart. They stay off until the dart file has them.
-    static let keysWithoutFlutterLines: Set<String> = [
+    static let keysWithoutFlutterLines: Set<String> = Set([
         "bench_hips_up", "bench_shallow", "bench_no_lockout",
         "deadlift_hips_first", "deadlift_no_lockout", "deadlift_lean_back",
+    ]).union(rulesCalibKeys)
+
+    /// rules-calib keys (docs/results/rules_calib_prereg.md): judged only when a `FormRulePreset` sets their threshold,
+    /// logged, never sent (no Flutter line; adopting one needs the user's approval and a dart line).
+    static let rulesCalibKeys: Set<String> = [
+        "pushup_depth_abs", "pushup_lockout_abs", "squat_depth_abs", "squat_torso_lean",
+        "row_hinge_shallow", "row_knees_locked", "row_knees_bent", "row_pull_high", "row_pull_low",
+        "row_uneven_pull", "row_elbow_flare", "row_wrist_lead", "row_straight_arm", "row_short_pull_abs",
     ]
 
     static func grade(of key: String) -> FormGrade {
@@ -651,8 +718,30 @@ final class FormWarningTracker {
             let chest = simd_cross(j[4] - j[1], trunk)
             if simd_length(chest) > 1e-8 {
                 s.elbowBehind = simd_dot(j[k.elbow] - j[0], -simd_normalize(chest)) / torsoLength
+                let other = FormGeometry.h36mSide(s2.side == .left ? .right : .left)
+                s.elbowBehindOther = simd_dot(j[other.elbow] - j[0], -simd_normalize(chest)) / torsoLength
+            }
+            // rules-calib: wrist along the trunk axis, and the upper arm out of the body's sagittal plane (+ = away from
+            // the midline: the thorax → this shoulder direction made perpendicular to the trunk).
+            let axis = trunk / torsoLength
+            s.wristTrunk = simd_dot(j[k.wrist] - j[0], axis) / torsoLength
+            let outward = (j[k.shoulder] - j[8]) - axis * simd_dot(j[k.shoulder] - j[8], axis)
+            let upperArm = j[k.elbow] - j[k.shoulder]
+            if simd_length(outward) > 1e-8, simd_length(upperArm) > 1e-8 {
+                s.elbowFlare = FormGeometry.asinDegrees(simd_dot(upperArm, simd_normalize(outward)) / simd_length(upperArm))
             }
         }
+        // rules-calib: sagittal tilts vs "up" (forward = (L hip − R hip) × up, as the torso angle).
+        let forward = simd_cross(j[4] - j[1], up)
+        if simd_length(forward) > 1e-8 {
+            let f = simd_normalize(forward)
+            let forearm = j[k.wrist] - j[k.elbow], shin = j[k.knee] - j[k.ankle]
+            if simd_length(forearm) > 1e-8 { s.forearmTilt = atan2(simd_dot(forearm, f), simd_dot(forearm, -up)) * 180 / .pi }
+            if simd_length(shin) > 1e-8 { s.tibiaAngle = atan2(simd_dot(shin, f), simd_dot(shin, up)) * 180 / .pi }
+        }
+        let thigh = j[k.knee] - j[k.hip], upperArm = j[k.elbow] - j[k.shoulder]
+        if simd_length(thigh) > 1e-8 { s.thighIncline = FormGeometry.asinDegrees(simd_dot(thigh, -up) / simd_length(thigh)) }
+        if simd_length(upperArm) > 1e-8 { s.upperArmIncline = FormGeometry.asinDegrees(simd_dot(upperArm, up) / simd_length(upperArm)) }
         let arm = simd_length(j[k.shoulder] - j[k.elbow]) + simd_length(j[k.elbow] - j[k.wrist])
         let headward = trunk - up * simd_dot(trunk, up)
         if arm > 1e-8, simd_length(headward) > 1e-8 {
@@ -667,7 +756,8 @@ final class FormWarningTracker {
         }
         // NaN joints (partial3D) give NaN metrics: drop them, keep the rest.
         for key in [\FormFrameSample.elbow, \.knee, \.hipAngle, \.torso, \.hipDeviation, \.headDeviation,
-                    \.wristAhead, \.elbowBehind, \.kneeAnkleGapRatio] where s[keyPath: key]?.isFinite == false {
+                    \.wristAhead, \.elbowBehind, \.kneeAnkleGapRatio, \.wristTrunk, \.elbowBehindOther, \.elbowFlare,
+                    \.forearmTilt, \.thighIncline, \.tibiaAngle, \.upperArmIncline] where s[keyPath: key]?.isFinite == false {
             s[keyPath: key] = nil
         }
     }
@@ -758,7 +848,8 @@ final class FormWarningTracker {
             warnings2D: fired2D,
             warnings3D: fired3D,
             formSource: formSource,
-            states3D: states
+            states3D: states,
+            sideViewJudged: judgedSideView(common.form3DRequired ? metrics3D : metrics)
         )
         reports.append(report)
         if reports.count > 100 { reports.removeFirst() }
@@ -984,12 +1075,16 @@ final class FormWarningTracker {
             if isFirstRep, let top = frames.filter({ $0.elbow != nil }).max(by: { $0.elbow! < $1.elbow! }) {
                 put("first_rep_top_wrist_ahead", top.wristAhead)
             }
+            put("upper_arm_incline_max", vals(\.upperArmIncline).max())  // rules-calib (3D)
         case .squat:
             let kneeMin = vals(\.knee).min()
             if let b = frames.firstIndex(where: { $0.knee != nil && $0.knee == kneeMin }) {
                 put("torso_at_bottom", frames[b].torso)
                 putHipsFirst(from: b, windowFrames: squat.hipsFirstWindowFrames)
+                // rules-calib (3D): torso lean minus shin lean at the bottom.
+                if let t = frames[b].torso, let shin = frames[b].tibiaAngle { put("torso_minus_tibia_at_bottom", FormGeometry.wrapDegrees(t - shin)) }
             }
+            put("thigh_incline_min", vals(\.thighIncline).min())  // rules-calib (3D)
             // Front view: bottom = lowest hip, then through the ascent.
             let hipYMax = vals(\.hipY).max()
             if let b = frames.firstIndex(where: { $0.hipY != nil && $0.hipY == hipYMax }) {
@@ -1005,6 +1100,15 @@ final class FormWarningTracker {
                     return d <= row.shrugMaxHeadAngleChangeDegrees
                 }
                 if let low = kept.compactMap(\.earShoulder).min() { put("ear_shoulder_drop", 1 - low / start) }
+            }
+            // rules-calib: body-relative hinge (mean hip angle) and the pull peak (elbow furthest behind the torso line).
+            let hips = vals(\.hipAngle)
+            put("hip_angle_mean", hips.isEmpty ? nil : hips.reduce(0, +) / Double(hips.count))
+            if let peak = frames.filter({ $0.elbowBehind != nil }).max(by: { $0.elbowBehind! < $1.elbowBehind! }) {
+                put("pull_peak_wrist_trunk", peak.wristTrunk)
+                put("pull_peak_asym", peak.elbowBehindOther.map { abs(peak.elbowBehind! - $0) })
+                put("pull_peak_flare", peak.elbowFlare)
+                put("pull_peak_forearm_tilt", peak.forearmTilt)
             }
         case .benchPress:
             // bench_hips_up: hip rise vs the rep start (image y down), over the rep-start torso length.
@@ -1030,10 +1134,15 @@ final class FormWarningTracker {
 
     // MARK: Rules (run on the 2D metrics and, separately, on the same metrics measured in 3D)
 
+    /// judge()'s side-view gate. Row: the session gate when decided, else the per-rep front-view fraction.
+    func judgedSideView(_ m: [String: Double]) -> Bool {
+        (exercise == .barbellRow ? sideView : nil) ?? ((m["front_view_fraction"] ?? 0) < common.frontViewRepFraction)
+    }
+
     /// Keys whose condition holds for this rep, in rule order. `history` = earlier reps' metrics.
     func judge(_ m: [String: Double], history: [[String: Double]], repIndex: Int) -> [String] {
         var fired: Set<String> = []
-        func fire(_ key: String, _ condition: Bool?) { if condition == true { fired.insert(key) } }
+        func fire(_ key: String, _ condition: Bool?) { if condition == true, !common.disabledRules.contains(key) { fired.insert(key) } }
         func over(_ name: String, _ t: Double) -> Bool? { m[name].map { $0 > t } }
         func under(_ name: String, _ t: Double) -> Bool? { m[name].map { $0 < t } }
         /// (current − baseline median of the first reps) > t; nil until the baseline exists.
@@ -1056,9 +1165,7 @@ final class FormWarningTracker {
             guard first.count == n, last.count == n else { return nil }
             return last.reduce(0, +) / Double(n) - first.reduce(0, +) / Double(n) > t
         }
-        // Row: the session gate when decided, else the per-rep front-view fraction.
-        let sideView = (exercise == .barbellRow ? self.sideView : nil)
-            ?? ((m["front_view_fraction"] ?? 0) < common.frontViewRepFraction)
+        let sideView = judgedSideView(m)
         let firstRep = history.isEmpty
 
         switch exercise {
@@ -1076,6 +1183,8 @@ final class FormWarningTracker {
                 fire("pushup_hand_position", ahead > c.handForwardRatio || ahead < -c.handBackwardRatio)
             }
             fire("pushup_depth_fade", trend("elbow_min", c.depthFadeDegrees))
+            if let t = c.depthAbsUpperArmInclineDegrees { fire("pushup_depth_abs", under("upper_arm_incline_max", t)) }
+            if let t = c.lockoutAbsElbowDegrees { fire("pushup_lockout_abs", under("elbow_max", t)) }
         case .squat:
             let c = squat
             if sideView {
@@ -1088,6 +1197,8 @@ final class FormWarningTracker {
                      || belowSetMax("hip_angle_max", c.noLockoutBelowSetMaxDegrees) == true)
                 fire("squat_lean_drift", trend("torso_at_bottom", c.leanDriftDegrees))
                 fire("squat_depth_fade", trend("knee_min", c.depthFadeDegrees))
+                if let t = c.depthAbsThighInclineDegrees { fire("squat_depth_abs", over("thigh_incline_min", t)) }
+                if let t = c.torsoLeanOverTibiaDegrees { fire("squat_torso_lean", over("torso_minus_tibia_at_bottom", t)) }
             } else {
                 fire("squat_knee_valgus", under("knee_ankle_gap_ratio_min", c.valgusKneeAnkleGapRatio))
             }
@@ -1109,6 +1220,16 @@ final class FormWarningTracker {
             }
             if c.shrugEnabled { fire("row_shrug", over("ear_shoulder_drop", c.shrugEarShoulderDrop)) }
             fire("row_head_up", under("head_dev_change_min", -c.headUpDeviation))
+            if let t = c.hingeShallowTorsoDegrees { fire("row_hinge_shallow", under("torso_mean", t)) }
+            if let t = c.kneesLockedDegrees { fire("row_knees_locked", over("knee_max", t)) }
+            if let t = c.kneesBentDegrees { fire("row_knees_bent", under("knee_min", t)) }
+            if let t = c.pullHighWristTrunk { fire("row_pull_high", over("pull_peak_wrist_trunk", t)) }
+            if let t = c.pullLowWristTrunk { fire("row_pull_low", under("pull_peak_wrist_trunk", t)) }
+            if let t = c.unevenPullRatio { fire("row_uneven_pull", over("pull_peak_asym", t)) }
+            if let t = c.elbowFlareDegrees { fire("row_elbow_flare", over("pull_peak_flare", t)) }
+            if let t = c.wristLeadDegrees { fire("row_wrist_lead", over("pull_peak_forearm_tilt", t)) }
+            if let t = c.straightArmElbowDegrees { fire("row_straight_arm", over("elbow_min", t)) }
+            if let t = c.shortPullAbsBehind { fire("row_short_pull_abs", under("elbow_behind_max", t)) }
         case .benchPress:
             fire("setup_side_view", firstRep && !sideView)
             guard sideView else { break }
@@ -1129,6 +1250,74 @@ final class FormWarningTracker {
             fire("deadlift_lean_back", under("torso_min", -c.leanBackDegrees))
         }
         return (Self.rules[exercise] ?? []).map(\.key).filter(fired.contains)
+    }
+}
+
+// MARK: - Rule presets (rules-calib)
+
+/// Named threshold sets behind a flag — app scheme env `BPT_RULES=<name>`, pose-replay `--rules <name>` — for the
+/// evidence-derived candidates per 3D model (docs/results/rules_calib.md). No preset = the app's own defaults, unchanged.
+/// A preset overrides fields by name and may switch rules off; each one equals pose_feedback/rules/<name>.json and
+/// app_default.json equals the defaults (FormRulePresetTests), so the Python judge (pose_feedback/feedback/form_rules.py)
+/// reads the same numbers.
+enum FormRulePreset {
+    struct Preset {
+        let values: [String: Double]
+        var off: Set<String> = []
+    }
+
+    static let doubles: [String: ReferenceWritableKeyPath<FormWarningTracker, Double>] = [
+        "pushUp.hipSagDeviation": \.pushUp.hipSagDeviation, "pushUp.hipPikeDeviation": \.pushUp.hipPikeDeviation,
+        "pushUp.shallowOverBaselineDegrees": \.pushUp.shallowOverBaselineDegrees,
+        "pushUp.noLockoutBelowSetMaxDegrees": \.pushUp.noLockoutBelowSetMaxDegrees,
+        "pushUp.headDropDeviation": \.pushUp.headDropDeviation, "pushUp.headUpDeviation": \.pushUp.headUpDeviation,
+        "pushUp.handForwardRatio": \.pushUp.handForwardRatio, "pushUp.handBackwardRatio": \.pushUp.handBackwardRatio,
+        "pushUp.depthFadeDegrees": \.pushUp.depthFadeDegrees,
+        "squat.hipsFirstTorsoRiseDegrees": \.squat.hipsFirstTorsoRiseDegrees,
+        "squat.shallowOverBaselineDegrees": \.squat.shallowOverBaselineDegrees,
+        "squat.noLockoutBelowSetMaxDegrees": \.squat.noLockoutBelowSetMaxDegrees,
+        "squat.leanDriftDegrees": \.squat.leanDriftDegrees, "squat.depthFadeDegrees": \.squat.depthFadeDegrees,
+        "squat.valgusKneeAnkleGapRatio": \.squat.valgusKneeAnkleGapRatio,
+        "row.torsoSwingRangeDegrees": \.row.torsoSwingRangeDegrees, "row.standingUpDegrees": \.row.standingUpDegrees,
+        "row.shortPullBelowBaseline": \.row.shortPullBelowBaseline, "row.headUpDeviation": \.row.headUpDeviation,
+    ]
+
+    /// rules-calib rules: nil = off.
+    static let optionals: [String: ReferenceWritableKeyPath<FormWarningTracker, Double?>] = [
+        "pushUp.depthAbsUpperArmInclineDegrees": \.pushUp.depthAbsUpperArmInclineDegrees,
+        "pushUp.lockoutAbsElbowDegrees": \.pushUp.lockoutAbsElbowDegrees,
+        "squat.depthAbsThighInclineDegrees": \.squat.depthAbsThighInclineDegrees,
+        "squat.torsoLeanOverTibiaDegrees": \.squat.torsoLeanOverTibiaDegrees,
+        "row.hingeShallowTorsoDegrees": \.row.hingeShallowTorsoDegrees, "row.kneesLockedDegrees": \.row.kneesLockedDegrees,
+        "row.kneesBentDegrees": \.row.kneesBentDegrees, "row.pullHighWristTrunk": \.row.pullHighWristTrunk,
+        "row.pullLowWristTrunk": \.row.pullLowWristTrunk, "row.unevenPullRatio": \.row.unevenPullRatio,
+        "row.elbowFlareDegrees": \.row.elbowFlareDegrees, "row.wristLeadDegrees": \.row.wristLeadDegrees,
+        "row.straightArmElbowDegrees": \.row.straightArmElbowDegrees, "row.shortPullAbsBehind": \.row.shortPullAbsBehind,
+    ]
+
+    /// Filled from pose_feedback/rules/<name>.json once the candidates exist (none is the default).
+    static let presets: [String: Preset] = [:]
+
+    /// Applies a named preset; false (tracker unchanged) for an unknown name.
+    @discardableResult
+    static func apply(_ name: String, to tracker: FormWarningTracker) -> Bool {
+        guard let preset = presets[name] else { return false }
+        apply(preset, to: tracker)
+        return true
+    }
+
+    static func apply(_ preset: Preset, to tracker: FormWarningTracker) {
+        for (field, value) in preset.values {
+            if let path = doubles[field] { tracker[keyPath: path] = value } else if let path = optionals[field] { tracker[keyPath: path] = value }
+        }
+        tracker.common.disabledRules.formUnion(preset.off)
+    }
+
+    /// Every preset field's current value on a tracker (optional rules that are off are absent).
+    static func values(of tracker: FormWarningTracker) -> [String: Double] {
+        var out = doubles.mapValues { tracker[keyPath: $0] }
+        for (field, path) in optionals { if let v = tracker[keyPath: path] { out[field] = v } }
+        return out
     }
 }
 

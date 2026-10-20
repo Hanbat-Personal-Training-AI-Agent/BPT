@@ -1,0 +1,26 @@
+{
+ "name": "app_default",
+ "note": "FormWarnings.swift config defaults (임시값). FormRulePresetTests keeps this equal to the Swift defaults; rules-calib rules are absent = off.",
+ "values": {
+  "pushUp.hipSagDeviation": 0.14,
+  "pushUp.hipPikeDeviation": 0.08,
+  "pushUp.shallowOverBaselineDegrees": 15.0,
+  "pushUp.noLockoutBelowSetMaxDegrees": 10.0,
+  "pushUp.headDropDeviation": 0.376,
+  "pushUp.headUpDeviation": 0.15,
+  "pushUp.handForwardRatio": 0.35,
+  "pushUp.handBackwardRatio": 0.35,
+  "pushUp.depthFadeDegrees": 15.0,
+  "squat.hipsFirstTorsoRiseDegrees": 8.0,
+  "squat.shallowOverBaselineDegrees": 15.0,
+  "squat.noLockoutBelowSetMaxDegrees": 10.0,
+  "squat.leanDriftDegrees": 8.0,
+  "squat.depthFadeDegrees": 10.0,
+  "squat.valgusKneeAnkleGapRatio": 1.0,
+  "row.torsoSwingRangeDegrees": 39.9,
+  "row.standingUpDegrees": 10.0,
+  "row.shortPullBelowBaseline": 0.1,
+  "row.headUpDeviation": 0.15
+ },
+ "off": []
+}

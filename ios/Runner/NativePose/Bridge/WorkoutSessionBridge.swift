@@ -67,6 +67,11 @@ enum FeedbackJoint {
         "deadlift_hips_first": "hip",
         "deadlift_no_lockout": "hip",
         "deadlift_lean_back": "back",
+        // rules-calib (never sent; FormWarningTracker.rulesCalibKeys)
+        "pushup_depth_abs": "elbow", "pushup_lockout_abs": "elbow", "squat_depth_abs": "knee", "squat_torso_lean": "back",
+        "row_hinge_shallow": "back", "row_knees_locked": "knee", "row_knees_bent": "knee", "row_pull_high": "elbow",
+        "row_pull_low": "elbow", "row_uneven_pull": "shoulder", "row_elbow_flare": "elbow", "row_wrist_lead": "elbow",
+        "row_straight_arm": "elbow", "row_short_pull_abs": "elbow",
     ]
 
     /// Joint of the set's most frequent warning key (reps it fired in), counting only keys that are

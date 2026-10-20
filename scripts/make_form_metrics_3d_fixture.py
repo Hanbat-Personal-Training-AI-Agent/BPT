@@ -52,17 +52,40 @@ def pushup_pose(depth, sag, rng):
     return j + rng.normal(0, 0.003, j.shape)
 
 
+def row_pose(pull, hinge, knee_bend, rng):
+    """Bent-over row facing -z (towards the camera), y down: trunk hinged forward by `hinge` deg, knees bent by
+    `knee_bend` deg, pull 0..1 takes the elbows back (+z) and up with the forearms near vertical."""
+    j = np.zeros((17, 3))
+    j[1], j[4] = [-0.12, 0, 0], [0.12, 0, 0]
+    k = math.radians(knee_bend)
+    for s, (hip, knee, ankle) in ((-1, (1, 2, 3)), (1, (4, 5, 6))):
+        j[knee] = j[hip] + [s * 0.02, 0.45 * math.cos(k / 2), -0.45 * math.sin(k / 2)]
+        j[ankle] = j[knee] + [s * 0.01, 0.42 * math.cos(k / 2), 0.42 * math.sin(k / 2)]
+    t = math.radians(hinge)
+    j[8] = [0, -0.5 * math.cos(t), -0.5 * math.sin(t)]
+    j[7] = j[8] / 2
+    j[9] = j[8] + [0, -0.05, -0.1]
+    j[10] = j[8] + [0, -0.08, -0.2]
+    a = math.radians(95 * pull)
+    for s, (sh, el, wr) in ((1, (11, 12, 13)), (-1, (14, 15, 16))):
+        j[sh] = j[8] + [s * 0.18, 0, 0]
+        j[el] = j[sh] + [s * (0.03 + 0.05 * pull), 0.28 * math.cos(a), 0.28 * math.sin(a)]
+        j[wr] = j[el] + [0, 0.27, -0.04 + 0.08 * pull * (1 if s > 0 else 0.6)]
+    return j + rng.normal(0, 0.003, j.shape)
+
+
 def main():
     rng = np.random.default_rng(1)
     cases = []
-    for exercise in ("squat", "pushup"):
+    for exercise in ("squat", "pushup", "barbell_row"):
         poses, intervals, t = [], [], 0
         for rep in range(4):
             start = t
             for f in range(30):
                 d = 0.5 - 0.5 * math.cos(2 * math.pi * f / 29)
                 poses.append(squat_pose(d, 5 + 2 * rep, 0.05 * rep, rng) if exercise == "squat"
-                             else pushup_pose(d, 0.02 * rep, rng))
+                             else pushup_pose(d, 0.02 * rep, rng) if exercise == "pushup"
+                             else row_pose(d, 45 + 3 * rep + 4 * d, 20 + 5 * rep, rng))
                 t += 1
             intervals.append((start, t - 1))
         poses = np.round(np.stack(poses), 8)  # the Swift test reads these rounded values

@@ -138,7 +138,7 @@ final class BenchDeadliftTests: XCTestCase {
             XCTAssertTrue(tracker.common.enabledFeedbackKeys.isDisjoint(with: keys))
             XCTAssertTrue(tracker.common.enabledFeedbackKeys.isSuperset(of: ["setup_full_body", "tracking_lost"]))
         }
-        XCTAssertEqual(FormWarningTracker.keysWithoutFlutterLines, Set(keys))
+        XCTAssertEqual(FormWarningTracker.keysWithoutFlutterLines, Set(keys).union(FormWarningTracker.rulesCalibKeys))
         XCTAssertTrue(Set(keys).isSubset(of: FormWarningTracker.allKeys))
         XCTAssertEqual(FormWarningTracker.grade(of: "bench_hips_up"), .priority)
         XCTAssertEqual(FormWarningTracker.grade(of: "deadlift_lean_back"), .reference)

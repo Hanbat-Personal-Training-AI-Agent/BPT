@@ -40,6 +40,8 @@ private enum CameraPreviewOptions {
     /// Both wrist crops returned the same hand (landmark-box IoU > 0.5): neither MediaPipe wrist is used
     /// (MotionAGFormerWristSource.sameHand). ai/lift-refine only; BPT_HAND_DEDUPE=0 = old behaviour.
     static let handDedupe = ProcessInfo.processInfo.environment["BPT_HAND_DEDUPE"] != "0"
+    /// Experiment only: `FormRulePreset` name for the form rules (docs/results/rules_calib.md); nil = app defaults.
+    static let rulesPreset = ProcessInfo.processInfo.environment["BPT_RULES"]
     static let debugLogEveryNFrames = 60
 }
 
@@ -488,6 +490,10 @@ final class CameraPoseViewModel: ObservableObject {
         case .pushUp: pushUpEvaluator = PushUpEvaluator()
         }
         if let tracker = formTracker { formLog = WorkoutFormLog(exercise: tracker.exercise) }
+        // NON-DEFAULT experiment flag (rules-calib): a named threshold preset, e.g. BPT_RULES=xs_orig_rc1. Unset = app defaults.
+        if let name = CameraPreviewOptions.rulesPreset, let tracker = formTracker, !FormRulePreset.apply(name, to: tracker) {
+            print("CameraPosePreview: unknown BPT_RULES preset \(name) — app default rules")
+        }
 
         if CameraPreviewOptions.enableMotion3DForCamera {
             // 3D is part of the analysis: no silent 2D-only fallback when the model is missing.
@@ -575,6 +581,7 @@ final class CameraPoseViewModel: ObservableObject {
             "bone_targets": VideoCameraOptions.boneTargetsCm.map { ["file": VideoCameraOptions.environment["BPT_BONE_TARGETS"] ?? "",
                                                                      "segments": $0.count] as Any } ?? NSNull(),
             "hand_dedupe": CameraPreviewOptions.handDedupe,
+            "rules": CameraPreviewOptions.rulesPreset.flatMap { FormRulePreset.presets[$0] != nil ? $0 : nil } ?? "app_default",
             "idle_timer_disabled": UIApplication.shared.isIdleTimerDisabled,
             "rtmpose": RTMPoseModel.workout.rawValue,
         ])
