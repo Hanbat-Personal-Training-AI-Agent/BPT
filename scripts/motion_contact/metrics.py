@@ -64,6 +64,44 @@ def pa_error(predicted, reference):
     return result
 
 
+def score_recovery(error_mm, baseline_error_mm, invalid, damage, timestamps, *, start=90):
+    """Score observed follow-up; never call a truncated clip a full 1s failure."""
+    timestamps = np.asarray(timestamps)
+    events, recovered_times = [], []
+    for j in range(17):
+        ends = np.flatnonzero(damage[:-1, j] & ~damage[1:, j]) + 1
+        acceptable = (~invalid[:, j]) & (error_mm[:, j] <= np.maximum(50, baseline_error_mm[:, j] + 20))
+        for end in ends:
+            if end < start:
+                continue
+            future_damage = np.flatnonzero(damage[end:, j])
+            next_damage = end + int(future_damage[0]) if len(future_damage) else len(timestamps)
+            origin, horizon = timestamps[end], timestamps[end] + 1.
+            next_time = timestamps[next_damage] if next_damage < len(timestamps) else np.inf
+            cutoff = min(horizon, timestamps[-1], next_time)
+            hits = [t for t in range(end, min(next_damage - 2, len(timestamps) - 2))
+                    if timestamps[t + 2] <= cutoff + 1e-9 and acceptable[t:t + 3].all()]
+            if hits:
+                recovery = float(timestamps[hits[0]] - origin)
+                recovered_times.append(recovery)
+                reason = "recovered"
+            else:
+                recovery = None
+                reason = ("full_1s_unrecovered" if cutoff >= horizon - 1e-9
+                          else "next_damage" if next_time <= timestamps[-1] else "clip_end")
+            events.append(dict(joint=j, end_frame=int(end), recovery_s=recovery,
+                               available_followup_s=float(max(0., cutoff - origin)), status=reason))
+    full = sum(e["status"] == "full_1s_unrecovered" for e in events)
+    limited = sum(e["status"] in ("clip_end", "next_damage") for e in events)
+    return dict(stats(recovered_times), eligible_events=len(events), recovered_events=len(recovered_times),
+                censored_after_1s=full, full_1s_unrecovered_events=full,
+                limited_followup_events=limited,
+                clip_end_censored_events=sum(e["status"] == "clip_end" for e in events),
+                next_damage_censored_events=sum(e["status"] == "next_damage" for e in events),
+                available_followup_s=stats([e["available_followup_s"] for e in events]), events=events,
+                definition="3 valid frames <= max(50mm, clean raw XS error +20mm), before next damage/clip end/1s")
+
+
 def score_pose(observations, reference, corrected_crop, uncertainty_crop, invalid,
                runtime_ms, *, start=90, damage=None, clean_raw=None):
     """Return aggregate metrics. Invalid outputs remain in all-frame errors."""
@@ -170,18 +208,6 @@ def score_pose(observations, reference, corrected_crop, uncertainty_crop, invali
     if clean_raw is not None:
         base = (clean_raw - clean_raw[:, :1]) * scale
         base_error = np.linalg.norm(base - gt, axis=-1) * 1000
-        recoveries, censored = [], 0
-        for j in range(17):
-            ends = np.flatnonzero(damage[:-1, j] & ~damage[1:, j]) + 1
-            for end in ends:
-                if end < start:
-                    continue
-                recovered = (~invalid[:, j]) & (error[:, j] <= np.maximum(50, base_error[:, j] + 20))
-                hits = [t for t in range(end, min(end + 31, len(p) - 2)) if recovered[t:t + 3].all()]
-                if hits:
-                    recoveries.append(float(o.timestamps[hits[0]] - o.timestamps[end]))
-                else:
-                    censored += 1
-        result["recovery_to_original_quality_s"] = dict(stats(recoveries), censored_after_1s=censored,
-            definition="3 valid frames <= max(50mm, clean raw XS error +20mm); not clinical recovery")
+        result["recovery_to_original_quality_s"] = score_recovery(
+            error, base_error, invalid, damage, o.timestamps, start=start)
     return result

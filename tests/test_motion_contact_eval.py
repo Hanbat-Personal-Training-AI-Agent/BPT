@@ -164,3 +164,70 @@ def test_v2_passthrough_mask_verifies_actual_runtime_boundary():
     assert trusted[90:].sum() > 0
     np.testing.assert_allclose(result["corrected"][trusted],
                                (o.raw - o.raw[:, :1])[trusted], atol=1e-14)
+
+
+def test_invalid_head_withholds_only_head_rules_instead_of_counting_fn():
+    from motion_contact.rule_proxies import score_warning_proxies
+    o = observation()
+    o.exercise = "pushup"
+    gt = o.raw.copy()
+    gt[:, 8] = [.5, 0, 0]
+    gt[:, 3] = [-.5, .05, 0]
+    gt[:, 6] = [-.5, -.05, 0]
+    gt[:, 10] = [.6, 0, 0]
+    gt[100:151, 10, 1] = np.linspace(0, .3, 51)
+    ref = ScoreReference(gt, np.ones(len(gt)), np.array([0, -1, 0]), ((100, 150),), {})
+    invalid = np.zeros((len(gt), 17), bool)
+    valid = score_warning_proxies(o, ref, gt, invalid)
+    assert valid["by_rule"]["pushup_head_drop"]["gt_mirror_fires"] == 1
+    invalid[:, 10] = True
+    result = score_warning_proxies(o, ref, gt, invalid)
+    head = result["by_rule"]["pushup_head_drop"]
+    assert head["assessed_reps"] == 0 and head["abstained_reps"] == 1
+    assert head["disagreement_fn_proxy"] == 0
+    assert result["by_rule"]["pushup_hip_sag"]["assessed_reps"] == 1
+
+
+def test_unavailable_rule_history_is_not_silently_seeded_by_sparse_metrics():
+    from motion_contact.rule_proxies import supported_rule
+    metrics = [{"elbow_min": 60}, {}, {"elbow_min": 65}, {"elbow_min": 100}]
+    assert supported_rule("pushup_shallow", 2, metrics) == (False, "history_warmup")
+    assert supported_rule("pushup_shallow", 3, metrics) == (False, "metric_or_history_unavailable")
+    metrics[1] = {"elbow_min": 70}
+    assert supported_rule("pushup_shallow", 3, metrics) == (True, "available")
+
+
+def test_recovery_distinguishes_full_horizon_clip_end_and_next_damage():
+    from motion_contact.metrics import score_recovery
+    o = observation(270)
+    damage = np.zeros((270, 17), bool)
+    for a, b in ((100, 103), (130, 140), (170, 194), (215, 245), (255, 256)):
+        damage[a:b, 13] = True
+    error = np.full((270, 17), 1000.)
+    baseline = np.zeros_like(error)
+    invalid = np.zeros_like(damage)
+    result = score_recovery(error, baseline, invalid, damage, o.timestamps)
+    events = {e["end_frame"]: e for e in result["events"]}
+    assert events[245]["status"] == "next_damage"
+    assert events[245]["available_followup_s"] < 1
+    assert events[256]["status"] == "clip_end"
+    assert events[256]["available_followup_s"] == pytest.approx(.42)
+    assert events[103]["status"] == "next_damage"
+    assert result["full_1s_unrecovered_events"] == 1
+    assert result["limited_followup_events"] == 4
+    # Two good samples before the next mask and a third inside it are not recovery.
+    error[128:131, 13] = 0
+    result = score_recovery(error, baseline, invalid, damage, o.timestamps)
+    assert next(e for e in result["events"] if e["end_frame"] == 103)["recovery_s"] is None
+
+
+def test_resume_guard_rejects_changed_configuration_or_inputs(tmp_path):
+    from motion_contact_eval import guard_run_directory
+    base = dict(code={"runner": "same"}, configuration={"variants": "G,H", "limit": 270},
+                runtime_input_hashes={"cache": "unchanged"})
+    guard_run_directory(tmp_path, base)
+    guard_run_directory(tmp_path, base)
+    with pytest.raises(AssertionError, match="Arguments changed"):
+        guard_run_directory(tmp_path, dict(base, configuration={"variants": "A", "limit": 270}))
+    with pytest.raises(AssertionError, match="Inputs changed"):
+        guard_run_directory(tmp_path, dict(base, runtime_input_hashes={"cache": "different"}))

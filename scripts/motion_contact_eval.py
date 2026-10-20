@@ -62,8 +62,24 @@ def selected(a):
 
 
 def run_spec(a):
+    inputs = {}
+    for cache, pose in selected(a):
+        for path in (cache, pose):
+            inputs[str(path)] = sha256(path)
+        if a.scenario_dir:
+            path = Path(a.scenario_dir) / cache.name
+            inputs[str(path)] = sha256(path)
+    for value in ([a.checkpoint, a.rtm_checkpoint, a.rtm_config] +
+                  (a.profiles.split(",") if a.profiles else [])):
+        if value and Path(value).is_file():
+            inputs[str(Path(value))] = sha256(value)
+    if a.profiles:
+        for value in a.profiles.split(","):
+            path = Path(value).parent / "manifest.json"
+            inputs[str(path)] = sha256(path)
     return dict(schema=1, argv=sys.argv, host=socket.gethostname(), python=sys.executable,
                 created=time.strftime("%Y-%m-%d %H:%M:%S %Z"), code=source_hashes(),
+                configuration=vars(a), runtime_input_hashes=inputs,
                 estimator_inputs="raw XS L5 + original image H36M2D/confidence + observed crop + optional predicted profile",
                 gt_role="score only; not estimator, profile, anchor, phase, or corruption",
                 first_usable_frame=21, calibration_frames=[21, 80], profile_activation=81, score_from=90,
@@ -76,6 +92,8 @@ def guard_run_directory(out, spec):
     if path.exists():
         prior = json.loads(path.read_text())
         assert prior["code"] == spec["code"], "Code/protocol changed: use a fresh run directory"
+        assert prior.get("configuration") == spec.get("configuration"), "Arguments changed: use a fresh run directory"
+        assert prior.get("runtime_input_hashes") == spec.get("runtime_input_hashes"), "Inputs changed: use a fresh run directory"
     else:
         json_write(path, spec)
 

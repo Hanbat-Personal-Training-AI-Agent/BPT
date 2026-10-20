@@ -46,8 +46,9 @@ def aggregate(records, run):
     by_rule = defaultdict(Counter)
     for r in records:
         w = r["metrics"]["legacy_warning_proxies"]
-        for key in ("reps", "assessed_reps", "abstained_reps"):
-            rules[key] += w[key]
+        for key in ("reps", "assessed_reps", "abstained_reps", "assessed_rule_reps",
+                    "abstained_rule_reps", "history_warmup_rule_reps", "not_applicable_rule_reps"):
+            rules[key] += w.get(key, 0)
         for name, metrics in w["by_rule"].items():
             by_rule[name].update(metrics)
     result["legacy_warning_proxies"] = dict(rules, by_rule=dict(by_rule),
@@ -110,6 +111,16 @@ def aggregate(records, run):
     result["recovery_censored_events"] = sum(
         r["metrics"].get("recovery_to_original_quality_s", {}).get("censored_after_1s", 0)
         for r in records)
+    result["recovery_events"] = {
+        key: sum(r["metrics"].get("recovery_to_original_quality_s", {}).get(key, 0) for r in records)
+        for key in ("eligible_events", "recovered_events", "full_1s_unrecovered_events",
+                    "limited_followup_events", "clip_end_censored_events", "next_damage_censored_events")}
+    followup = [e["available_followup_s"] for r in records
+                for e in r["metrics"].get("recovery_to_original_quality_s", {}).get("events", [])]
+    result["recovery_available_followup_s"] = dict(
+        n=len(followup), mean=float(np.mean(followup)) if followup else None,
+        minimum=float(np.min(followup)) if followup else None,
+        maximum=float(np.max(followup)) if followup else None)
     return result
 
 
