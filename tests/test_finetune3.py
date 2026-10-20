@@ -42,7 +42,7 @@ def test_pool_mirrors_a_clip_seen_from_the_other_side(tmp_path):
     assert np.allclose(r2[:, 13], [0.1, 0.0])  # same side: unchanged
 
 
-def test_virtual_side_camera_geometry():
+def _standing_mocap():
     # standing mocap-like body (Fit3D joints3d_25 layout), facing +y: a camera on the right (side=+1, az 0) sees view ~0
     P = np.zeros((60, 25, 3))
     P[:, 0] = [0, 0, 1.0]; P[:, 1] = [-0.1, 0, 0.95]; P[:, 4] = [0.1, 0, 0.95]
@@ -50,6 +50,11 @@ def test_virtual_side_camera_geometry():
     P[:, 7] = [0, 0, 1.2]; P[:, 8] = [0, 0, 1.45]; P[:, 9] = [0, 0.08, 1.6]; P[:, 10] = [0, 0, 1.72]
     P[:, 11] = [-0.2, 0, 1.45]; P[:, 14] = [0.2, 0, 1.45]; P[:, 12] = [-0.25, 0, 1.15]; P[:, 15] = [0.25, 0, 1.15]
     P[:, 13] = [-0.25, 0.05, 0.9]; P[:, 16] = [0.25, 0.05, 0.9]
+    return P
+
+
+def test_virtual_side_camera_geometry():
+    P = _standing_mocap()
     offs = {k: np.zeros(3) for k in ('nose', 'shoulder', 'elbow', 'wrist', 'hip', 'knee', 'ankle')}
     cam = dict(side=1.0, az=0.0, front=1.0, height=1.0, dist=3.0, f=913.0)
     v = xd.virtual_seq(P, offs, None, np.random.default_rng(0), 'squat', cam, 'sX/squat/g0', noisy=False)
@@ -57,6 +62,36 @@ def test_virtual_side_camera_geometry():
     assert v['y'][0, 0].tolist() == [0.0, 0.0, 0.0]
     assert v['y'][0, 10, 1] < v['y'][0, 3, 1]  # head above the ankle (y down)
     assert abs(v["y"][0, 11, 2] - v["y"][0, 14, 2]) > 0.1  # left / right shoulders differ in depth seen from the side
+
+
+def test_virtual_mapping_comparison_keeps_identical_noisy_2d(monkeypatch):
+    P = _standing_mocap()
+    offs = {k: np.zeros(3) for k in ('nose', 'shoulder', 'elbow', 'wrist', 'hip', 'knee', 'ankle',
+                                    'h_head', 'h_neck', 'h_hip')}
+    # Ensure the two mappings produce different crop extents.
+    offs['h_head'] = np.array([0.3, 0.0, 0.0])
+    cam = dict(side=1.0, az=20.0, front=1.0, height=1.0, dist=3.0, f=913.0)
+    refposes, observed = [], []
+
+    class FixedPool:
+        def noise(self, rng, group, angle, n, refpose):
+            refposes.append(refpose.copy())
+            return np.full((n, 20, 2), 0.02), np.full((n, 20), 0.8), 'synthetic'
+
+    mag_in = xd.mag_in
+
+    def capture(K, *args):
+        if np.allclose(K[..., 2], 0.8):
+            observed.append(K.copy())
+        return mag_in(K, *args)
+
+    monkeypatch.setattr(xd, 'mag_in', capture)
+    for mapping in ('halpe', 'app'):
+        monkeypatch.setattr(xd, 'V_MAPPING', mapping)
+        xd.virtual_seq(P, offs, FixedPool(), np.random.default_rng(0), 'squat', cam, 'sX/squat/g0')
+    assert len(observed) == 2
+    assert np.allclose(observed[0], observed[1])
+    assert np.allclose(refposes[0], refposes[1])
 
 
 def test_limb_loss_ignores_translation_and_masks():

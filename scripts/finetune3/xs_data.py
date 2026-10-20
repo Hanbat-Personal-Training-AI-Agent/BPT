@@ -404,7 +404,8 @@ V_MAPPING = None  # build/vgrid --v-mapping: force the H36M mapping of virtual 2
 
 
 def virtual_seq(P, offs, pool_, rng, group, cam, name, noisy=True, ann=None):
-    mapping = V_MAPPING or ('halpe' if 'h_hip' in offs else 'app')
+    source_mapping = 'halpe' if 'h_hip' in offs else 'app'
+    mapping = V_MAPPING or source_mapping
     """cam = dict(side=+-1, az deg from the pure side toward +-front, height m, dist m, f px)."""
     pk = pick30(len(P)); Pk = P[pk]
     right, front = body_dirs(Pk)
@@ -425,8 +426,11 @@ def virtual_seq(P, offs, pool_, rng, group, cam, name, noisy=True, ann=None):
     xcl, crops = mag_in(clean, W, H, mapping)
     src = 'clean'
     if noisy:
-        r, c, src = pool_.noise(rng, group, view, len(uv), xcl[..., :2].mean(0))
-        K = np.concatenate([uv + r * crops[:, 2:3, None], c[..., None]], -1)
+        # Residuals are measured in the source mapping's crop units. An evaluation-only mapping
+        # override must not change their pixel scale or mirror choice: both models see the same 2D.
+        noise_ref, noise_crops = (xcl, crops) if mapping == source_mapping else mag_in(clean, W, H, source_mapping)
+        r, c, src = pool_.noise(rng, group, view, len(uv), noise_ref[..., :2].mean(0))
+        K = np.concatenate([uv + r * noise_crops[:, 2:3, None], c[..., None]], -1)
         x, crops = mag_in(K, W, H, mapping)
     else:
         x = xcl
