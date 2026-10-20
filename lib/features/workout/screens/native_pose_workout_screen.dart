@@ -13,6 +13,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_toast.dart';
 import '../../../data/mock_data.dart';
 import '../../home/providers/home_provider.dart';
+import '../../../services/kori_voice_service.dart';
 import '../data/kori_feedback_lines.dart';
 import '../data/native_pose_channel.dart';
 
@@ -86,15 +87,19 @@ class _NativePoseWorkoutScreenState
   bool _isPaused = false;
 
   // 코리 피드백: 네이티브가 `onFeedback` 으로 보낸 대사 키를 보여준다
-  // (kori_feedback_lines.dart). 답으로 돌려준 대사를 네이티브가 말한다(native_pose_channel.dart).
-  // `scope: "set"`(세트 끝 요약)은 말풍선 없이 음성으로만. 첫 피드백 전에는 운동별 기본 팁을 보여준다.
+  // (kori_feedback_lines.dart). 키가 한 번도 안 왔으면 rep마다 칭찬과 운동별 대표
+  // 경고를 번갈아 보여주는 임시 동작을 쓴다. 첫 피드백 전에는 운동별 기본 팁을 보여준다.
   String? _feedbackKey;
   // 실시간 3D 상태 (onPoseUpdate.pose3d). null = 3D 경로 없음.
   NativePose3DStatus? _pose3d;
   int? _feedbackCount;
+  bool _nativeFeedbackActive = false;
   int _badCountThisSet = 0;
   final Set<String> _warningKeysThisSet = {};
-  bool _voiceMuted = false;
+
+  /// 운동 전체에서 네이티브 판정이 보낸 경고 키별 횟수 (기록의 feedbackCounts).
+  /// 임시 데모 피드백은 실제 판정이 아니라서 여기에 넣지 않는다.
+  final Map<String, int> _nativeFeedbackCounts = {};
 
   // 브레이크 타임: 세트 사이 휴식 타이머 + 세트별 기록.
   late int _restTotal = widget.restSeconds;
@@ -187,45 +192,67 @@ class _NativePoseWorkoutScreenState
         setState(() => _pose3d = pose3d);
       }
       _onNativeUpdate(rep);
-    } else if (call.method == NativePoseChannel.onFeedback) {
-      // { key: 'squat_shallow', n?: 3, scope: 'rep'|'set' } — key는 kori_feedback_lines.dart 목록 기준.
-      final feedback = NativeFeedback.parse(call.arguments);
-      if (feedback != null) return _onNativeFeedback(feedback);
+    } else if (call.method == 'onFeedback') {
+      // { key: 'squat_shallow', n?: 3 } — key는 kori_feedback_lines.dart 목록 기준.
+      final args = (call.arguments as Map).cast<String, dynamic>();
+      final key = args['key'] as String?;
+      if (key != null) _onNativeFeedback(key, (args['n'] as num?)?.toInt());
     }
     return null;
   }
 
-  /// 네이티브 음성이 말할 대사를 돌려준다 (안 보여준 키는 null → 말하지 않음).
-  Map<String, String>? _onNativeFeedback(NativeFeedback feedback) {
-    final key = feedback.key;
-    final count = feedback.n;
+  void _onNativeFeedback(String key, int? count) {
     final line = koriFeedbackLines[key];
-    if (!mounted || _isPaused || line == null) return null;
-    final reply = koriVoiceReply(key, count,
-        isKo: ref.read(appStringsProvider).locale == 'ko');
-    // 세트 끝 요약(참고 등급): 세트가 이미 끝난 뒤 오므로 음성으로만.
-    if (feedback.isSetScope) return reply;
-    if (_setComplete || _workoutComplete) return null;
+    if (!mounted || _isPaused || line == null) return;
+    if (_setComplete || _workoutComplete) return;
     setState(() {
+      _nativeFeedbackActive = true;
       _feedbackKey = key;
       _feedbackCount = count;
       if (line.kind == KoriFeedbackKind.warning) {
         _badCountThisSet += 1;
         _warningKeysThisSet.add(key);
+        // {n}이 있는 세트 요약형 경고는 해당 렙 수만큼, 나머지는 1회로 센다.
+        _nativeFeedbackCounts.update(key, (c) => c + (count ?? 1),
+            ifAbsent: () => count ?? 1);
       }
     });
-    return reply;
+    _speakFeedback();
   }
 
-  /// 세트 시작/끝을 네이티브에 알린다 (세트별 영상·세트 요약·onSetEnd).
-  void _notifySet(String method) {
-    _channel?.invokeMethod(method, {'setIndex': _currentSet});
+  bool get _isKo => ref.read(appStringsProvider).locale == 'ko';
+
+  /// 지금 말풍선에 뜬 코리 대사를 코리 목소리로 말한다.
+  void _speakFeedback() {
+    final line = koriFeedbackLines[_feedbackKey];
+    if (line == null) return;
+    final isKo = _isKo;
+    KoriVoiceService.speak(line.render(isKo: isKo, n: _feedbackCount),
+        isKo: isKo);
   }
 
-  void _toggleVoiceMuted() {
-    setState(() => _voiceMuted = !_voiceMuted);
-    _channel?.invokeMethod(
-        NativePoseChannel.setVoiceMuted, {'muted': _voiceMuted});
+  /// 방금 끝낸 세트에 대한 코멘트 (_KoriBreakMessage 와 같은 대사)를 말한다.
+  void _speakSetSummary() {
+    final result = _setResults.last;
+    final line = result.fixCount == 0
+        ? koriFeedbackLines['praise_clean_set']!
+        : koriFeedbackLines['set_summary']!;
+    final isKo = _isKo;
+    KoriVoiceService.speak(
+        line.render(isKo: isKo, reps: result.reps, k: result.fixCount),
+        isKo: isKo);
+  }
+
+  /// 네이티브 피드백 연동 전 임시 동작: rep마다 칭찬 ↔ 운동별 대표 경고.
+  void _advanceDemoFeedback() {
+    final warningKey = koriDemoWarningKeyByExercise[widget.exerciseId];
+    final showWarning = warningKey != null && _feedbackKey == 'praise_fixed';
+    _feedbackKey = showWarning ? warningKey : 'praise_fixed';
+    _feedbackCount = null;
+    if (showWarning) {
+      _badCountThisSet += 1;
+      _warningKeysThisSet.add(warningKey);
+    }
   }
 
   // TODO(temp): 시뮬레이터에서는 카메라가 없어 반복 수가 안 들어오므로,
@@ -236,12 +263,15 @@ class _NativePoseWorkoutScreenState
 
   void _onNativeUpdate(int rep) {
     if (!mounted || _isPaused) return;
-    final setEndedBefore = _setComplete || _workoutComplete;
+    final keyBefore = _feedbackKey;
+    final setCompleteBefore = _setComplete;
     setState(() {
+      final repIncreased = rep > _latestNativeRep;
       _latestNativeRep = rep;
       // Don't advance set state while a set-complete / done prompt is showing;
       // reps performed during the rest period are discarded on "next set".
       if (_setComplete || _workoutComplete) return;
+      if (repIncreased && !_nativeFeedbackActive) _advanceDemoFeedback();
       if (rep - _setStartRep >= _targetRepsThisSet) {
         _setResults.add(
           _SetResult(
@@ -259,8 +289,10 @@ class _NativePoseWorkoutScreenState
         }
       }
     });
-    if (!setEndedBefore && (_setComplete || _workoutComplete)) {
-      _notifySet(NativePoseChannel.endSet);
+    if (_setComplete && !setCompleteBefore) {
+      _speakSetSummary();
+    } else if (_feedbackKey != keyBefore && !_nativeFeedbackActive) {
+      _speakFeedback();
     }
   }
 
@@ -309,7 +341,6 @@ class _NativePoseWorkoutScreenState
       _feedbackKey = null;
       _feedbackCount = null;
     });
-    _notifySet(NativePoseChannel.startSet);
   }
 
   /// "끝내기"를 실수로 눌렀을 수 있으니 한 번 더 확인한다. 모달이 떠 있는 동안은
@@ -337,7 +368,6 @@ class _NativePoseWorkoutScreenState
 
   void _finishWorkout() {
     if (!mounted) return;
-    if (!_setComplete && !_workoutComplete) _notifySet(NativePoseChannel.endSet);
 
     // 실제로 수행한 세트만 모은다. 끝난 세트 + 진행 중이던 세트(1회 이상 했을 때).
     // 쉬는 시간/완료 화면에서는 방금 끝낸 세트가 이미 _setResults 에 들어 있다.
@@ -385,6 +415,7 @@ class _NativePoseWorkoutScreenState
         'elapsedSeconds': elapsedSeconds,
         'postureScore': null,
         'feedbackHistory': null,
+        'feedbackCounts': Map<String, int>.of(_nativeFeedbackCounts),
         'targetReps': _totalPlannedReps,
         // 계획한 세트 수가 아니라 실제로 수행한 세트 수를 기록한다.
         'targetSets': performedSets.length,
@@ -406,6 +437,7 @@ class _NativePoseWorkoutScreenState
     _elapsedTimer?.cancel();
     _restTimer?.cancel();
     _channel?.setMethodCallHandler(null);
+    KoriVoiceService.stop();
     super.dispose();
   }
 
@@ -509,8 +541,6 @@ class _NativePoseWorkoutScreenState
                 feedbackCount: _feedbackCount,
                 isPaused: _isPaused,
                 onTogglePause: _togglePause,
-                voiceMuted: _voiceMuted,
-                onToggleVoiceMuted: _toggleVoiceMuted,
                 onEnd: _confirmEnd,
               ),
             ),
@@ -709,8 +739,6 @@ class _LiveHud extends StatelessWidget {
     required this.feedbackCount,
     required this.isPaused,
     required this.onTogglePause,
-    required this.voiceMuted,
-    required this.onToggleVoiceMuted,
     required this.onEnd,
   });
 
@@ -727,8 +755,6 @@ class _LiveHud extends StatelessWidget {
   final int? feedbackCount;
   final bool isPaused;
   final VoidCallback onTogglePause;
-  final bool voiceMuted;
-  final VoidCallback onToggleVoiceMuted;
   final VoidCallback onEnd;
 
   String get _elapsedLabel {
@@ -784,8 +810,7 @@ class _LiveHud extends StatelessWidget {
                   ],
                 ),
               ),
-              _SoundToggleButton(
-                  muted: voiceMuted, onTap: onToggleVoiceMuted),
+              const _SoundToggleButton(),
             ],
           ),
         ),
@@ -929,17 +954,21 @@ class _StatCard extends StatelessWidget {
 }
 
 /// 음소거 토글 버튼: 탭할 때마다 스피커 ↔ 음소거 아이콘으로 바뀐다.
-/// 상태는 화면이 들고 네이티브 음성에 `setVoiceMuted` 로 전한다.
-class _SoundToggleButton extends StatelessWidget {
-  const _SoundToggleButton({required this.muted, required this.onTap});
+/// (아직 실제 음성 피드백 재생 로직은 없어서 시각적 토글만 담당)
+class _SoundToggleButton extends StatefulWidget {
+  const _SoundToggleButton();
 
-  final bool muted;
-  final VoidCallback onTap;
+  @override
+  State<_SoundToggleButton> createState() => _SoundToggleButtonState();
+}
+
+class _SoundToggleButtonState extends State<_SoundToggleButton> {
+  bool _muted = false;
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onTap,
+      onTap: () => setState(() => _muted = !_muted),
       child: Container(
         width: 44,
         height: 44,
@@ -949,7 +978,7 @@ class _SoundToggleButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(14),
         ),
         child: Icon(
-          muted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
+          _muted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
           color: Colors.white,
           size: 18,
         ),

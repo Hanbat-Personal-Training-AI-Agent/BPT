@@ -32,4 +32,24 @@ public class Exercise {
 
     @Column(precision = 5, scale = 2)
     private BigDecimal standardRomMax;
+
+    @Column(length = 30)
+    private String appExerciseId;
+
+    public String getAppExerciseId() {
+        if (this.appExerciseId != null && !this.appExerciseId.isBlank()) {
+            return this.appExerciseId;
+        }
+        if (this.exerciseCode != null) {
+            return switch (this.exerciseCode.toUpperCase()) {
+                case "SQUAT" -> "squat";
+                case "BENCH_PRESS" -> "benchpress";
+                case "BARBELL_ROW" -> "barbell-row";
+                case "PUSH_UP" -> "pushup";
+                case "DEADLIFT" -> "deadlift";
+                default -> this.exerciseCode.toLowerCase().replace("_", "-");
+            };
+        }
+        return null;
+    }
 }

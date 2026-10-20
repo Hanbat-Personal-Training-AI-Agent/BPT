@@ -19,6 +19,14 @@ class UserModel {
 
   /// 마지막 체형 측정일. 서버 /users/me 의 lastBodyScanDate, 측정 전이면 null.
   final DateTime? lastBodyScanDate;
+
+  /// 알림 켜짐 여부와 코리 잔소리 시각("HH:mm"). 서버 값이 없으면 null.
+  final bool? notificationEnabled;
+  final String? notificationTime;
+
+  /// 광고성 정보 수신 동의와 동의 시각(서버 형식 "YYYY-MM-DDTHH:mm:ss"). 서버 값이 없으면 null.
+  final bool? marketingConsent;
+  final String? marketingConsentAt;
   final int totalWorkouts;
   final int streakDays;
   final DateTime joinedAt;
@@ -38,6 +46,10 @@ class UserModel {
     this.phone,
     this.weeklyFrequency,
     this.lastBodyScanDate,
+    this.notificationEnabled,
+    this.notificationTime,
+    this.marketingConsent,
+    this.marketingConsentAt,
     this.totalWorkouts = 0,
     this.streakDays = 0,
     required this.joinedAt,
@@ -69,6 +81,10 @@ class UserModel {
     String? phone,
     int? weeklyFrequency,
     DateTime? lastBodyScanDate,
+    bool? notificationEnabled,
+    String? notificationTime,
+    bool? marketingConsent,
+    String? marketingConsentAt,
     int? totalWorkouts,
     int? streakDays,
   }) {
@@ -87,6 +103,10 @@ class UserModel {
       phone: phone ?? this.phone,
       weeklyFrequency: weeklyFrequency ?? this.weeklyFrequency,
       lastBodyScanDate: lastBodyScanDate ?? this.lastBodyScanDate,
+      notificationEnabled: notificationEnabled ?? this.notificationEnabled,
+      notificationTime: notificationTime ?? this.notificationTime,
+      marketingConsent: marketingConsent ?? this.marketingConsent,
+      marketingConsentAt: marketingConsentAt ?? this.marketingConsentAt,
       totalWorkouts: totalWorkouts ?? this.totalWorkouts,
       streakDays: streakDays ?? this.streakDays,
       joinedAt: joinedAt,
@@ -108,10 +128,40 @@ class UserModel {
         'phone': phone,
         'weeklyFrequency': weeklyFrequency,
         'lastBodyScanDate': lastBodyScanDate?.toIso8601String(),
+        'notificationEnabled': notificationEnabled,
+        'notificationTime': notificationTime,
+        'marketingConsent': marketingConsent,
+        'marketingConsentAt': marketingConsentAt,
         'totalWorkouts': totalWorkouts,
         'streakDays': streakDays,
         'joinedAt': joinedAt.toIso8601String(),
       };
+
+  /// PUT /users/me 요청 본문 (서버 UserUpdateRequestDto 필드 이름·형식).
+  /// toJson 은 기기 저장용이라 서버와 이름(phone)·날짜 형식이 다르다.
+  /// 체형 측정일은 POST /users/me/body-scan 로만 바꾸므로 보내지 않는다.
+  Map<String, dynamic> toUpdateJson() => {
+        'username': username,
+        'email': email,
+        'name': name,
+        if (phone != null && phone!.isNotEmpty) 'phoneNumber': phone,
+        if (birthDate != null) 'birthDate': _dateOnly(birthDate!),
+        'gender': gender,
+        'heightCm': heightCm,
+        'weightKg': weightKg,
+        'workoutGoal': workoutGoal,
+        'weeklyFrequency': weeklyFrequency,
+        'notificationEnabled': notificationEnabled,
+        'notificationTime': notificationTime,
+        // 동의 시각을 빼고 보내면 서버가 저장할 때마다 지금 시각으로 바꾸므로 같이 보낸다.
+        // 동의하지 않았으면 시각 없이 보내서 서버가 지우게 한다.
+        if (marketingConsent != null) 'marketingConsent': marketingConsent,
+        if (marketingConsent == true && marketingConsentAt != null)
+          'marketingConsentAt': marketingConsentAt,
+      };
+
+  static String _dateOnly(DateTime d) =>
+      '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
   factory UserModel.fromJson(Map<String, dynamic> json) => UserModel(
         id: json['id'] as String? ?? '',
@@ -133,6 +183,10 @@ class UserModel {
         lastBodyScanDate: json['lastBodyScanDate'] != null
             ? DateTime.tryParse(json['lastBodyScanDate'].toString())
             : null,
+        notificationEnabled: json['notificationEnabled'] as bool?,
+        notificationTime: json['notificationTime'] as String?,
+        marketingConsent: json['marketingConsent'] as bool?,
+        marketingConsentAt: json['marketingConsentAt'] as String?,
         totalWorkouts: (json['totalWorkouts'] as num?)?.toInt() ?? 0,
         streakDays: (json['streakDays'] as num?)?.toInt() ?? 0,
         joinedAt: json['joinedAt'] != null

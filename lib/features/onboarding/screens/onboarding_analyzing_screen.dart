@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
@@ -10,13 +11,18 @@ import '../../../core/constants/route_constants.dart';
 import '../../../core/theme/app_colors.dart';
 import '../services/calibration_upload_service.dart';
 
-/// Upload the native four-view bundle, then poll the server's body fit.
-/// Never substitute a timer or a demo body for a real server acknowledgement
-/// or result: only a `done` job with a real fit counts as analysed.
+/// Shown right after the 4 body-scan photos are captured. Uploads the capture
+/// bundle on its own (no button), plays the analysis progress animation, then
+/// continues to the 3D result screen once both are done.
+///
+/// The ring is still a 40 s animation: no analysis result comes back yet, and
+/// the result screen is a placeholder. A missing upload config or a failed
+/// upload does not block the flow; it is only logged and the photos stay on
+/// the device.
 class OnboardingAnalyzingScreen extends ConsumerStatefulWidget {
   const OnboardingAnalyzingScreen({super.key, this.sessionPath});
 
-  /// Documents/calibration/<sessionId>, produced by CalibrationStore.
+  /// `Documents/calibration/<sessionId>` written by the native calibration session.
   final String? sessionPath;
 
   @override
@@ -25,315 +31,358 @@ class OnboardingAnalyzingScreen extends ConsumerStatefulWidget {
 }
 
 class _OnboardingAnalyzingScreenState
-    extends ConsumerState<OnboardingAnalyzingScreen> {
-  CancelToken? _cancelToken;
-  CalibrationUploadProgress? _progress;
-  CalibrationUploadReceipt? _receipt;
-  String? _error;
-  bool _busy = false;
-  CalibrationJob? _job;
-  String? _jobError;
-  bool _polling = false;
-  static const pollInterval = Duration(seconds: 3);
+    extends ConsumerState<OnboardingAnalyzingScreen>
+    with SingleTickerProviderStateMixin {
+  static const _duration = Duration(seconds: 40);
 
-  static String failureText(String? code) => switch (code) {
-        'person_not_found' => '사진에서 사람을 찾지 못했어요. 전신이 보이게 다시 촬영해 주세요.',
-        'low_keypoint_confidence' => '관절이 잘 보이지 않았어요. 밝은 곳에서 다시 촬영해 주세요.',
-        'fit_diverged' => '체형을 맞추지 못했어요. 자세를 바르게 하고 다시 촬영해 주세요.',
-        'timeout' => '분석 시간이 초과됐어요. 잠시 뒤 다시 촬영해 주세요.',
-        _ => '분석 중 오류가 났어요. 잠시 뒤 다시 시도해 주세요.',
-      };
+  late final AnimationController _controller;
 
-  Timer? _pollTimer;
+  /// Settles (never throws) when the upload has finished, failed or was skipped.
+  late final Future<void> _upload;
+  bool _finished = false;
 
-  /// One status request; schedules the next one until done/failed.
-  Future<void> _poll(String jobId) async {
-    if (_polling) return;
-    setState(() {
-      _polling = true;
-      _jobError = null;
-    });
+  @override
+  void initState() {
+    super.initState();
+    _upload = _startUpload();
+    _controller = AnimationController(vsync: this, duration: _duration)
+      ..addStatusListener((status) {
+        if (status == AnimationStatus.completed) _finishAfterUpload();
+      })
+      ..forward();
+  }
+
+  /// Sends the 4 photos + metadata right away. Keeps running if the user
+  /// leaves the screen, so the bundle still reaches the server.
+  Future<void> _startUpload() async {
+    final path = widget.sessionPath;
+    final service = ref.read(calibrationUploadServiceProvider);
+    final issue = service.config.configurationIssue;
+    if (path == null || path.isEmpty) {
+      debugPrint('[Calibration] 촬영 데이터 없음 → 전송 건너뜀');
+      return;
+    }
+    if (issue != null) {
+      debugPrint('[Calibration] 전송 건너뜀: $issue');
+      return;
+    }
     try {
-      final job = await ref
-          .read(calibrationUploadServiceProvider)
-          .fetchJob(jobId, cancelToken: _cancelToken);
-      if (!mounted) return;
-      setState(() => _job = job);
-      if (!job.finished) {
-        _pollTimer = Timer(pollInterval, () => _poll(jobId));
-      }
+      debugPrint('[Calibration] 사진 4장 자동 전송 시작');
+      final receipt = await service.upload(path, cancelToken: CancelToken());
+      debugPrint('[Calibration] 전송·접수 완료 (접수 번호 ${receipt.jobId})');
     } on CalibrationUploadException catch (error) {
-      if (mounted) setState(() => _jobError = error.message);
+      debugPrint('[Calibration] 전송 실패: ${error.message}');
     } on DioException catch (error) {
-      if (mounted && !CancelToken.isCancel(error)) {
-        setState(() => _jobError = '분석 상태를 확인하지 못했어요.');
-      }
-    } finally {
-      if (mounted) setState(() => _polling = false);
+      debugPrint('[Calibration] 전송 실패: ${error.type.name}');
+    } catch (_) {
+      // Never log transport exceptions: they can contain signed URLs/credentials.
+      debugPrint('[Calibration] 전송 실패');
     }
   }
 
-  Future<void> _upload() async {
-    final path = widget.sessionPath;
-    if (_busy || path == null || path.isEmpty) return;
-    final token = CancelToken();
-    setState(() {
-      _cancelToken = token;
-      _busy = true;
-      _error = null;
-      _progress =
-          const CalibrationUploadProgress(CalibrationUploadStage.validating);
-    });
-    try {
-      final receipt = await ref.read(calibrationUploadServiceProvider).upload(
-        path,
-        cancelToken: token,
-        onProgress: (progress) {
-          if (mounted && !token.isCancelled) {
-            setState(() => _progress = progress);
-          }
-        },
-      );
-      if (mounted) {
-        setState(() => _receipt = receipt);
-        _poll(receipt.jobId);
-      }
-    } on CalibrationUploadException catch (error) {
-      if (mounted) setState(() => _error = error.message);
-    } on DioException catch (error) {
-      if (mounted) {
-        setState(() => _error = CancelToken.isCancel(error)
-            ? '전송을 중단했어요. 사진은 기기에 보관돼 있어요.'
-            : '전송에 실패했어요. 다시 시도해 주세요.');
-      }
-    } catch (_) {
-      // Never display transport exceptions containing signed URLs/credentials.
-      if (mounted) setState(() => _error = '전송에 실패했어요. 사진은 기기에 보관돼 있어요.');
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
+  Future<void> _finishAfterUpload() async {
+    await _upload;
+    _finish();
+  }
+
+  void _finish() {
+    // The capture bundle stays on disk so a failed upload can be sent again later.
+    if (!mounted || _finished) return;
+    _finished = true;
+    context.go(RouteConstants.onboardingResult);
+  }
+
+  // TODO(temp): debug-only skip button — the analysis is still a fake
+  // 40s animation, so this jumps straight to the result screen for testing.
+  void _debugSkip() {
+    _controller.stop();
+    _finish();
   }
 
   @override
   void dispose() {
-    _pollTimer?.cancel();
-    _cancelToken?.cancel();
+    _controller.dispose();
     super.dispose();
-  }
-
-  String get _stageText {
-    if (_receipt != null) return '사진 전송·접수 완료';
-    if (!_busy) return '사진 전송 대기';
-    return switch (_progress?.stage) {
-      CalibrationUploadStage.validating => '촬영 파일 확인 중',
-      CalibrationUploadStage.requesting => '업로드 주소 요청 중',
-      CalibrationUploadStage.uploading => '사진 전송 중',
-      CalibrationUploadStage.confirming => '서버 접수 확인 중',
-      CalibrationUploadStage.accepted => '사진 전송·접수 완료',
-      null => '사진 전송 준비 중',
-    };
   }
 
   @override
   Widget build(BuildContext context) {
-    final issue =
-        ref.watch(calibrationUploadServiceProvider).config.configurationIssue;
-    final hasSession = widget.sessionPath?.isNotEmpty ?? false;
-    final accepted = _receipt != null;
-    final fraction = accepted ? 1.0 : (_progress?.fraction ?? 0.0);
-    final sending = _progress?.stage == CalibrationUploadStage.uploading;
     return Theme(
       data: ThemeData.dark().copyWith(
         textTheme: ThemeData.dark().textTheme.apply(fontFamily: 'Pretendard'),
         scaffoldBackgroundColor: AppColors.black,
       ),
       child: Scaffold(
-        body: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const SizedBox(height: 32),
-                Icon(
-                    accepted
-                        ? Icons.cloud_done_outlined
-                        : Icons.cloud_upload_outlined,
-                    color: AppColors.green,
-                    size: 72),
-                const SizedBox(height: 24),
-                Text(_stageText,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                        fontSize: 24, fontWeight: FontWeight.w900)),
-                const SizedBox(height: 16),
-                Text(
-                  !accepted
-                      ? '정면·양쪽 사선·뒷면 사진 4장과\n키, 관절 좌표, 카메라 정보를 전송해요.'
-                      : _job?.status == 'done'
-                          ? '3D 체형 분석이 끝났어요.'
-                          : _job?.status == 'failed'
-                              ? failureText(_job!.error)
-                              : '사진과 메타데이터가 서버에 접수됐어요.\n3D 체형을 분석하고 있어요.',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(height: 1.5),
-                ),
-                const SizedBox(height: 28),
-                if (_busy || accepted) ...[
-                  LinearProgressIndicator(
-                    value: sending || accepted ? fraction : null,
-                    color: AppColors.green,
-                    backgroundColor: AppColors.grey,
-                  ),
-                  const SizedBox(height: 10),
-                  if (sending)
-                    Text('파일 전송 ${(fraction * 100).floor()}%',
-                        textAlign: TextAlign.center),
-                ],
-                const SizedBox(height: 16),
-                _UploadStep(
-                    label: '자동 촬영 4장·메타데이터',
-                    status: hasSession ? '기기 저장' : '촬영 필요'),
-                _UploadStep(
-                    label: '서버리스 저장소 전송',
-                    status: accepted
-                        ? '접수 완료'
-                        : _busy
-                            ? '진행 중'
-                            : '대기'),
-                _UploadStep(
-                    label: '3D 체형 분석 결과',
-                    status: switch (_job?.status) {
-                      'queued' => '대기 중',
-                      'running' => '분석 중 ${_job!.progressRate}%',
-                      'done' => '완료',
-                      'failed' => '실패',
-                      _ => accepted ? '확인 중' : '대기',
-                    }),
-                if (_job?.result case final result?) ...[
-                  _ResultSummary(result: result),
-                  const SizedBox(height: 12),
-                  FilledButton(
-                    key: const Key('show-calibration-result'),
-                    onPressed: () => context.go(RouteConstants.onboardingResult,
-                        extra: result),
-                    child: const Text('3D 체형 결과 보기'),
-                  ),
-                ],
-                if (_jobError != null) ...[
-                  Text(_jobError!,
-                      key: const Key('job-error'),
-                      style: const TextStyle(color: AppColors.red)),
-                  TextButton(
-                    key: const Key('retry-job-status'),
-                    onPressed:
-                        _polling ? null : () => _poll(_receipt!.jobId),
-                    child: const Text('분석 상태 다시 확인'),
-                  ),
-                ],
-                const SizedBox(height: 16),
-                if (!hasSession) const Text('촬영 데이터가 없어요. 먼저 사진 4장을 촬영해 주세요.'),
-                if (issue != null)
-                  Text(issue, key: const Key('upload-configuration-issue')),
-                if (_error != null)
-                  Text(_error!,
-                      key: const Key('upload-error'),
-                      style: const TextStyle(color: AppColors.red)),
-                if (_receipt != null)
-                  Text('접수 번호: ${_receipt!.jobId}',
-                      key: const Key('upload-receipt')),
-                const SizedBox(height: 20),
-                if (!accepted)
-                  FilledButton(
-                    key: const Key('upload-calibration'),
-                    onPressed:
-                        !_busy && hasSession && issue == null ? _upload : null,
-                    child: Text(_error == null ? '동의하고 사진 4장 전송' : '다시 전송'),
-                  ),
-                if (_busy)
-                  TextButton(
-                      onPressed: () => _cancelToken?.cancel(),
-                      child: const Text('전송 중단')),
-                const SizedBox(height: 12),
-                const Text(
-                  '전송 버튼을 누르면 체형 분석을 위해 촬영 자료를 업로드해요. '
-                  '사진은 재시도를 위해 기기에 유지돼요. '
-                  '서버 보관·삭제 정책과 분석 결과 연결은 서비스 운영 전 확정해야 해요.',
-                  style: TextStyle(
-                      color: Color(0xFF9AA0A6), fontSize: 12, height: 1.5),
-                ),
-                TextButton(
-                  key: const Key('continue-without-analysis'),
-                  onPressed:
-                      _busy ? null : () => context.go(RouteConstants.home),
-                  child: const Text('체형 분석 없이 홈으로 가기'),
-                ),
-                TextButton(
-                  onPressed: _busy
-                      ? null
-                      : () => context.go(RouteConstants.onboardingCapture),
-                  child: const Text('촬영 안내로 돌아가기'),
-                ),
-                if (kDebugMode)
-                  TextButton(
-                    onPressed: _busy
-                        ? null
-                        : () => context.go(RouteConstants.onboardingResult),
-                    child: const Text('데모 결과 보기 (실제 분석 아님)'),
-                  ),
-              ],
+        backgroundColor: AppColors.black,
+        body: Stack(
+          children: [
+            SafeArea(
+              child: AnimatedBuilder(
+                animation: _controller,
+                builder: (context, _) {
+                  final progress = _controller.value;
+                  final percent = (progress * 100).floor().clamp(0, 100);
+                  final keypointsDone = progress >= 0.5;
+                  final modelDone = progress >= 1.0;
+
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Column(
+                      children: [
+                        const Spacer(flex: 2),
+                        SizedBox(
+                          width: 220,
+                          height: 220,
+                          child: CustomPaint(
+                            painter: _ProgressRingPainter(progress: progress),
+                            child: Center(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text.rich(
+                                    TextSpan(
+                                      children: [
+                                        TextSpan(
+                                          text: '$percent',
+                                          style: const TextStyle(
+                                              color: AppColors.white,
+                                              fontSize: 44,
+                                              fontWeight: FontWeight.w900),
+                                        ),
+                                        const TextSpan(
+                                          text: '%',
+                                          style: TextStyle(
+                                              color: AppColors.white,
+                                              fontSize: 22,
+                                              fontWeight: FontWeight.w800),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  const Text('분석 중',
+                                      style: TextStyle(
+                                          color: Color(0xFF9AA0A6),
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w600)),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        const Spacer(flex: 1),
+                        const Text('체형 분석 중이야!\n금방 끝나',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                                color: AppColors.white,
+                                fontSize: 24,
+                                height: 1.25,
+                                fontWeight: FontWeight.w900)),
+                        const SizedBox(height: 22),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 18, vertical: 16),
+                          decoration: BoxDecoration(
+                            color: AppColors.purple,
+                            borderRadius: BorderRadius.circular(22),
+                          ),
+                          child: Row(
+                            children: [
+                              Image.asset(
+                                'assets/images/character/face.png',
+                                width: 44,
+                                height: 48,
+                                fit: BoxFit.contain,
+                                excludeFromSemantics: true,
+                              ),
+                              const SizedBox(width: 12),
+                              const Expanded(
+                                child: Text('40초 정도 걸려.\n조금만 기다려줘!',
+                                    style: TextStyle(
+                                        color: AppColors.black,
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: 14,
+                                        height: 1.35)),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 18),
+                        const _StepRow(
+                          label: '자동 촬영 4장 수집',
+                          state: _StepState.done,
+                        ),
+                        const SizedBox(height: 10),
+                        _StepRow(
+                          label: '관절 키포인트 추출',
+                          state: keypointsDone
+                              ? _StepState.done
+                              : _StepState.active,
+                        ),
+                        const SizedBox(height: 10),
+                        _StepRow(
+                          label: '3D 체형 만들기',
+                          state: modelDone
+                              ? _StepState.done
+                              : keypointsDone
+                                  ? _StepState.active
+                                  : _StepState.waiting,
+                        ),
+                        const Spacer(flex: 1),
+                        const Padding(
+                          padding: EdgeInsets.only(bottom: 12),
+                          child: Text('사진은 분석 끝나면 바로 지울게',
+                              style: TextStyle(
+                                  color: Color(0xFF6B6B6B),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500)),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
             ),
-          ),
+            // TODO(temp): debug-only skip button — remove once the real
+            // analysis pipeline is wired up.
+            if (kDebugMode)
+              Positioned(
+                right: 16,
+                bottom: 100,
+                child: SafeArea(
+                  child: GestureDetector(
+                    onTap: _debugSkip,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.6),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: AppColors.red, width: 1.5),
+                      ),
+                      child: const Text('결과 보기 (테스트용)',
+                          style: TextStyle(
+                              color: AppColors.red,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800)),
+                    ),
+                  ),
+                ),
+              ),
+          ],
         ),
       ),
     );
   }
 }
 
-/// Height and the leg/arm lengths the app's 3D checks use, from the real result.
-class _ResultSummary extends StatelessWidget {
-  const _ResultSummary({required this.result});
-  final Map<String, dynamic> result;
+enum _StepState { done, active, waiting }
+
+class _StepRow extends StatelessWidget {
+  const _StepRow({required this.label, required this.state});
+
+  final String label;
+  final _StepState state;
 
   @override
   Widget build(BuildContext context) {
-    final segments = (result['boneLengthData'] as Map)['segments'];
-    String cm(String a, String b) {
-      final values = [segments?[a], segments?[b]].whereType<num>();
-      return values.isEmpty
-          ? '-'
-          : (values.reduce((x, y) => x + y) / values.length).toStringAsFixed(1);
-    }
+    final isActive = state == _StepState.active;
+    final isDone = state == _StepState.done;
 
-    final comment = result['coachComment'];
-    return Column(
-      key: const Key('calibration-summary'),
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text('키 ${result['userHeightCm']}cm 기준 · 허벅지 '
-            '${cm('right_hip-right_knee', 'left_hip-left_knee')}cm · 정강이 '
-            '${cm('right_knee-right_ankle', 'left_knee-left_ankle')}cm · 위팔 '
-            '${cm('right_shoulder-right_elbow', 'left_shoulder-left_elbow')}cm'),
-        if (comment is String && comment.isNotEmpty) ...[
-          const SizedBox(height: 6),
-          Text(comment, style: const TextStyle(color: AppColors.green)),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: AppColors.grey,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+            color: isActive ? AppColors.green : Colors.transparent, width: 1.5),
+      ),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 22,
+            height: 22,
+            child: isDone
+                ? const DecoratedBox(
+                    decoration: BoxDecoration(
+                        color: AppColors.green, shape: BoxShape.circle),
+                    child: Icon(Icons.check_rounded,
+                        color: AppColors.black, size: 15),
+                  )
+                : isActive
+                    ? const CircularProgressIndicator(
+                        strokeWidth: 2.2,
+                        valueColor: AlwaysStoppedAnimation(AppColors.green),
+                      )
+                    : const DecoratedBox(
+                        decoration: BoxDecoration(
+                            color: Color(0xFF2B2B2B), shape: BoxShape.circle),
+                      ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(label,
+                style: TextStyle(
+                    color: isActive || isDone
+                        ? AppColors.white
+                        : const Color(0xFF6B6B6B),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700)),
+          ),
+          Text(
+            isDone ? '완료' : (isActive ? '진행 중' : '대기 중'),
+            style: TextStyle(
+                color: isDone
+                    ? const Color(0xFF9AA0A6)
+                    : isActive
+                        ? AppColors.green
+                        : const Color(0xFF6B6B6B),
+                fontSize: 12,
+                fontWeight: FontWeight.w700),
+          ),
         ],
-      ],
+      ),
     );
   }
 }
 
-class _UploadStep extends StatelessWidget {
-  const _UploadStep({required this.label, required this.status});
-  final String label;
-  final String status;
+/// Circular progress ring with a dark-to-bright green sweep, matching the
+/// analyzing screen mockup.
+class _ProgressRingPainter extends CustomPainter {
+  _ProgressRingPainter({required this.progress});
+  final double progress;
+
+  static const _strokeWidth = 16.0;
 
   @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 10),
-        child: Row(children: [
-          Expanded(child: Text(label)),
-          Text(status, style: const TextStyle(color: AppColors.green)),
-        ]),
-      );
+  void paint(Canvas canvas, Size size) {
+    final center = size.center(Offset.zero);
+    final radius = (size.shortestSide - _strokeWidth) / 2;
+    final rect = Rect.fromCircle(center: center, radius: radius);
+
+    final track = Paint()
+      ..color = const Color(0xFF262626)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = _strokeWidth;
+    canvas.drawCircle(center, radius, track);
+
+    if (progress <= 0) return;
+
+    final sweep = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = _strokeWidth
+      ..strokeCap = StrokeCap.round
+      ..shader = SweepGradient(
+        colors: const [Color(0xFF4E6B1F), AppColors.green],
+        stops: [0, progress.clamp(0.001, 1.0)],
+        transform: const GradientRotation(-math.pi / 2),
+      ).createShader(rect);
+
+    canvas.drawArc(rect, -math.pi / 2, progress * 2 * math.pi, false, sweep);
+  }
+
+  @override
+  bool shouldRepaint(covariant _ProgressRingPainter oldDelegate) =>
+      oldDelegate.progress != progress;
 }

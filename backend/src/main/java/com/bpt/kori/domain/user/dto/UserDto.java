@@ -72,6 +72,12 @@ public class UserDto {
     @Schema(description = "가입 일시", example = "2026-09-30T16:30:00")
     private final String joinedAt;
 
+    @Schema(description = "마케팅 정보 수신 동의 여부", example = "true")
+    private final Boolean marketingConsent;
+
+    @Schema(description = "마케팅 정보 수신 동의 시각 (ISO-8601)", example = "2026-10-12T14:00:00")
+    private final String marketingConsentAt;
+
     public static UserDto fromEntity(User user) {
         String effectiveName = (user.getName() != null && !user.getName().isBlank())
                 ? user.getName()
@@ -99,6 +105,8 @@ public class UserDto {
                 .totalWorkouts(user.getTotalWorkouts() != null ? user.getTotalWorkouts() : 0)
                 .streakDays(user.getStreakDays() != null ? user.getStreakDays() : 0)
                 .joinedAt(user.getCreatedAt() != null ? user.getCreatedAt().toString() : "")
+                .marketingConsent(user.getMarketingConsent() != null ? user.getMarketingConsent() : false)
+                .marketingConsentAt(user.getMarketingConsentAt() != null ? user.getMarketingConsentAt().toString() : null)
                 .build();
     }
 }

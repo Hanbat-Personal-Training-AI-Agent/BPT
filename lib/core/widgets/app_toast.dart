@@ -63,7 +63,7 @@ class _AppToastState extends State<_AppToast>
     with SingleTickerProviderStateMixin {
   // MainShell 의 캡슐 네비게이션 바 높이/하단 여백과 맞춘 값.
   static const double _navBarHeight = 72;
-  static const double _gapAboveNav = 12;
+  static const double _gapAboveNav = 22;
   // 네비게이션 바와 같은 너비. 좁은 화면에서는 양옆 여백을 남긴다.
   static const double _maxWidth = 360;
   static const double _sideMargin = 16;

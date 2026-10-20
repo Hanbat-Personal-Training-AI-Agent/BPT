@@ -933,3 +933,15 @@
 - **미세조정 XS 재현본(T4, Fit3D 유래·비상업)**: Fit3D 검증 MPJPE 144.7 → 56.3 mm, 무릎 렙극값 17.1 → 4.9°, 무릎 뒤집힘·무효 관절 0. 앱 경로 다른 데이터에서는 무효 관절이 Ex3D 푸시업 15 → 0%지만 MM-Fit 26 → 22%로 일반화는 미확인. pushup_no_lockout 오경보는 12 → 24%로 늘어 임계값은 모델별로 다시 정해야 함. 채택·번들은 하지 않음(사용자 결정, 라이선스).
 - **추천(제안, 승인 필요)**: (1) integration에서 3D 켜기·XS 번들은 iPhone 30 fps 페이스 측정이 예산 안일 때 사용자 결정으로, (2) bad_3d를 프레임 전체가 아니라 지표별로(무릎 깊이 뒤집힘은 무릎·엉덩이 각만 무효) 바꾸기, (3) 3D 판정 임계값은 2D 값을 옮긴 것이므로 3D 정상 렙 분포로 다시 정하기(특히 squat_knee_valgus), (4) 손목 교체는 이득이 확인될 때까지 RTMPose 손목을 쓰는 안을 사용자에게 묻기(사용자 요구는 "손목 교정 단계가 동작해야 함"이라 끄지 않고 게이트로 둠), (5) 렙 카운트에 3D 확인 신호(P2), (6) 중력 축 매핑을 기기에서 확인한 뒤 BPT_3D_GRAVITY 켜기, (7) 사람이 검수한 틀린 자세 영상 확보.
 - **되돌리기**: 브랜치 미병합 — integration 영향 없음. 이 브랜치에서 3D를 끄려면 Xcode scheme `BPT_CAMERA_3D=0`.
+
+## main 병합 — 2026-10-20
+
+### D-M-01 충돌 파일은 main(팀원) 버전을 쓴다 (2026-10-20, 사용자 지시)
+- **사용자 결정**: "팀원 메인쪽이 더 중요함". origin/main(`52c2f61`, #35–#61)을 integration/ai에 병합하고, 충돌 난 Dart 파일 4개는 main 버전을 그대로 쓴다: `native_pose_workout_screen.dart`, `kori_feedback_lines.dart`, `onboarding_analyzing_screen.dart`, `test/onboarding_analyzing_test.dart`.
+- **예외**: `ios/Runner.xcodeproj/project.pbxproj`는 양쪽 등록을 다 남긴다(`WorkoutSessionBridge.swift`와 main의 `KoriSpeaker.swift`). 우리 줄을 빼면 네이티브 빌드가 깨지고, 팀원 동작은 바뀌지 않는다.
+- **결과로 빠진 것**(다시 넣으려면 main 화면 위에 새로 얹는다):
+  - 운동 화면: onFeedback 답(네이티브 WorkoutVoice 대사), startSet/endSet 알림(세트 요약 경고·세트별 녹화·onSetEnd), 음소거 버튼의 네이티브 연결. 음성은 main의 `KoriVoiceService`(ElevenLabs) 하나만 남는다 — E7의 (b) 쪽. WorkoutVoice는 답이 null이라 말하지 않는다.
+  - main 화면의 임시 데모 경고(`_advanceDemoFeedback`, 렙마다 칭찬 ↔ 운동별 대표 경고)는 남는다. 네이티브는 기본으로 setup_full_body·tracking_lost만 보내서 데모가 계속 돈다. 팀원에게는 사용자가 직접 전달하기로 함.
+  - 분석 화면: 작업 상태 polling·진행률·실패 문구·결과 요약. 앱은 업로드만 하고 40초 뒤 결과 화면(자리표시)으로 간다. 서버 분석은 그대로 돈다. `CalibrationUploadService.fetchJob`은 남아 있다.
+  - `ai/lift-app`의 3D 상태 안내(운동 화면 변경)는 main 화면 위에 다시 얹어야 한다.
+- **확인**: `flutter analyze` 문제 없음, `flutter test` 98 통과, `flutter build ios --debug --no-codesign`(아래 병합 커밋 기준).

@@ -38,7 +38,7 @@ class AuthServiceTest {
     private JwtTokenProvider tokenProvider;
 
     @Mock
-    private org.springframework.mail.javamail.JavaMailSender mailSender;
+    private com.bpt.kori.domain.user.service.EmailService emailService;
 
     @InjectMocks
     private AuthService authService;
@@ -151,12 +151,108 @@ class AuthServiceTest {
         var sendRes = authService.requestEmailVerification(req);
         assertThat(sendRes.isSuccess()).isTrue();
 
-        // 없는 코드 검증 시 실패
+        // 1분 이내 재요청 시 RESEND_COOLDOWN_ACTIVE 예외 발생
+        assertThatThrownBy(() -> authService.requestEmailVerification(req))
+                .isInstanceOf(CustomException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.RESEND_COOLDOWN_ACTIVE);
+
+        // 5회 오입력 시 번호 폐기 및 TOO_MANY_VERIFICATION_ATTEMPTS 예외
         com.bpt.kori.domain.auth.dto.EmailVerificationConfirmRequest confirmReq = new com.bpt.kori.domain.auth.dto.EmailVerificationConfirmRequest();
         confirmReq.setEmail("test@bpt.app");
         confirmReq.setCode("000000");
 
-        var confirmRes = authService.confirmEmailVerification(confirmReq);
-        assertThat(confirmRes.isVerified()).isFalse();
+        for (int i = 0; i < 4; i++) {
+            var res = authService.confirmEmailVerification(confirmReq);
+            assertThat(res.isVerified()).isFalse();
+        }
+
+        assertThatThrownBy(() -> authService.confirmEmailVerification(confirmReq))
+                .isInstanceOf(CustomException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.TOO_MANY_VERIFICATION_ATTEMPTS);
+    }
+
+    @Test
+    @DisplayName("리프레시 토큰 갱신 성공")
+    void refresh_token_success() {
+        User user = User.builder()
+                .id(1L)
+                .username("jihoon_kim")
+                .email("jihoon@bpt.app")
+                .build();
+
+        given(tokenProvider.validateToken("valid.refresh.token")).willReturn(true);
+        given(tokenProvider.getUserIdFromToken("valid.refresh.token")).willReturn(1L);
+        given(userRepository.findById(1L)).willReturn(java.util.Optional.of(user));
+        given(tokenProvider.generateAccessToken(1L, "jihoon_kim", "jihoon@bpt.app")).willReturn("new.access.token");
+        given(tokenProvider.generateRefreshToken(1L)).willReturn("new.refresh.token");
+        given(tokenProvider.getAccessTokenExpirationSeconds()).willReturn(3600L);
+
+        com.bpt.kori.domain.auth.dto.RefreshTokenRequest req = new com.bpt.kori.domain.auth.dto.RefreshTokenRequest();
+        req.setRefreshToken("valid.refresh.token");
+
+        TokenResponse response = authService.refresh(req);
+
+        assertThat(response).isNotNull();
+        assertThat(response.getAccessToken()).isEqualTo("new.access.token");
+        assertThat(response.getRefreshToken()).isEqualTo("new.refresh.token");
+    }
+
+    @Test
+    @DisplayName("비밀번호 재설정 인증번호 발송 요청 시 아이디와 이메일 일치하면 성공")
+    void requestEmailVerification_resetPassword_success() {
+        User user = User.builder()
+                .id(1L)
+                .username("jihoon_kim")
+                .email("jihoon@bpt.app")
+                .build();
+
+        given(userRepository.findByUsername("jihoon_kim")).willReturn(java.util.Optional.of(user));
+
+        var req = com.bpt.kori.domain.auth.dto.EmailVerificationRequest.builder()
+                .email("jihoon@bpt.app")
+                .purpose("RESET_PASSWORD")
+                .username("jihoon_kim")
+                .build();
+
+        var res = authService.requestEmailVerification(req);
+        assertThat(res.isSuccess()).isTrue();
+    }
+
+    @Test
+    @DisplayName("비밀번호 재설정 인증번호 발송 요청 시 존재하지 않는 아이디면 USER_NOT_FOUND 예외 발생")
+    void requestEmailVerification_resetPassword_userNotFound() {
+        given(userRepository.findByUsername("unknown_user")).willReturn(java.util.Optional.empty());
+
+        var req = com.bpt.kori.domain.auth.dto.EmailVerificationRequest.builder()
+                .email("jihoon@bpt.app")
+                .purpose("RESET_PASSWORD")
+                .username("unknown_user")
+                .build();
+
+        assertThatThrownBy(() -> authService.requestEmailVerification(req))
+                .isInstanceOf(CustomException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.USER_NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("비밀번호 재설정 인증번호 발송 요청 시 아이디와 이메일 불일치하면 USER_NOT_FOUND 예외 발생")
+    void requestEmailVerification_resetPassword_emailMismatch() {
+        User user = User.builder()
+                .id(1L)
+                .username("jihoon_kim")
+                .email("jihoon@bpt.app")
+                .build();
+
+        given(userRepository.findByUsername("jihoon_kim")).willReturn(java.util.Optional.of(user));
+
+        var req = com.bpt.kori.domain.auth.dto.EmailVerificationRequest.builder()
+                .email("other@bpt.app")
+                .purpose("RESET_PASSWORD")
+                .username("jihoon_kim")
+                .build();
+
+        assertThatThrownBy(() -> authService.requestEmailVerification(req))
+                .isInstanceOf(CustomException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.USER_NOT_FOUND);
     }
 }

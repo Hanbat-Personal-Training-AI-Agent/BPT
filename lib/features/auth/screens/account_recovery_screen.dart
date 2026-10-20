@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/route_constants.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/app_toast.dart';
 import '../providers/account_recovery_provider.dart';
 import '../widgets/auth_dark_form.dart';
 
@@ -19,10 +20,12 @@ class AccountRecoveryScreen extends ConsumerStatefulWidget {
 class _AccountRecoveryScreenState extends ConsumerState<AccountRecoveryScreen> {
   final _email = TextEditingController();
   final _code = TextEditingController();
+  final _username = TextEditingController();
   final _password = TextEditingController();
   final _confirmation = TextEditingController();
   final _emailFocus = FocusNode();
   final _codeFocus = FocusNode();
+  final _usernameFocus = FocusNode();
   final _passwordFocus = FocusNode();
   final _confirmationFocus = FocusNode();
   bool _resetMode = false;
@@ -32,12 +35,19 @@ class _AccountRecoveryScreenState extends ConsumerState<AccountRecoveryScreen> {
 
   @override
   void dispose() {
-    for (final controller in [_email, _code, _password, _confirmation]) {
+    for (final controller in [
+      _email,
+      _code,
+      _username,
+      _password,
+      _confirmation
+    ]) {
       controller.dispose();
     }
     for (final focus in [
       _emailFocus,
       _codeFocus,
+      _usernameFocus,
       _passwordFocus,
       _confirmationFocus
     ]) {
@@ -48,6 +58,10 @@ class _AccountRecoveryScreenState extends ConsumerState<AccountRecoveryScreen> {
 
   void _changeMode(bool reset) {
     FocusScope.of(context).unfocus();
+    if (reset != _resetMode) {
+      ref.read(accountRecoveryProvider.notifier).restartVerification();
+      _code.clear();
+    }
     setState(() {
       _resetMode = reset;
       _passwordError = null;
@@ -64,9 +78,17 @@ class _AccountRecoveryScreenState extends ConsumerState<AccountRecoveryScreen> {
     }
   }
 
-  void _sendCode() {
+  Future<void> _sendCode() async {
+    if (_resetMode && _username.text.trim().isEmpty) {
+      _usernameFocus.requestFocus();
+      showAppToast(context, '아이디를 입력해줘.', type: AppToastType.error);
+      return;
+    }
     final notifier = ref.read(accountRecoveryProvider.notifier);
-    if (notifier.sendCode()) {
+    final sent =
+        await notifier.sendCode(username: _resetMode ? _username.text : null);
+    if (!mounted) return;
+    if (sent) {
       _code.clear();
       // The code field only becomes enabled after this rebuild, so
       // requesting focus must wait for that frame or it's silently dropped.
@@ -78,15 +100,24 @@ class _AccountRecoveryScreenState extends ConsumerState<AccountRecoveryScreen> {
     }
   }
 
-  void _verifyCode() {
-    ref.read(accountRecoveryProvider.notifier).verifyCode(_code.text);
+  Future<void> _verifyCode() async {
+    final notifier = ref.read(accountRecoveryProvider.notifier);
+    await notifier.verifyCode(_code.text);
+    if (!mounted) return;
     if (ref.read(accountRecoveryProvider).verified) {
       FocusScope.of(context).unfocus();
+      if (!_resetMode) await notifier.findUsername();
     }
   }
 
-  void _previewReset() {
-    if (!ref.read(accountRecoveryProvider).verified) return;
+  Future<void> _resetPassword() async {
+    final state = ref.read(accountRecoveryProvider);
+    if (!state.verified || state.resetting) return;
+    if (_username.text.trim().isEmpty) {
+      _usernameFocus.requestFocus();
+      showAppToast(context, '아이디를 입력해줘.', type: AppToastType.error);
+      return;
+    }
     setState(() {
       _passwordError = _password.text.length < 6
           ? '비밀번호를 6자 이상 입력해줘.'
@@ -96,11 +127,19 @@ class _AccountRecoveryScreenState extends ConsumerState<AccountRecoveryScreen> {
     });
     if (_passwordError != null) return;
     FocusScope.of(context).unfocus();
+    final error = await ref
+        .read(accountRecoveryProvider.notifier)
+        .resetPassword(username: _username.text, newPassword: _password.text);
+    if (!mounted) return;
+    if (error != null) {
+      // 아이디·이메일이 같은 계정이 아니면 USER_NOT_FOUND → 토스트로 알린다.
+      showAppToast(context, error, type: AppToastType.error);
+      return;
+    }
     _password.clear();
     _confirmation.clear();
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-      content: Text('미리보기 완료! 실제 비밀번호는 변경되지 않았어.'),
-    ));
+    showAppToast(context, '비밀번호를 바꿨어. 새 비밀번호로 로그인해줘.');
+    _back();
   }
 
   @override
@@ -155,9 +194,29 @@ class _AccountRecoveryScreenState extends ConsumerState<AccountRecoveryScreen> {
           )),
         ]),
         const SizedBox(height: 16),
-        const Text('미리보기 · 실제 이메일은 발송되지 않아. 테스트 코드: 418320',
+        const Text('테스트 서버 · 인증번호는 메일 대신 서버 로그에 찍혀.',
             style: TextStyle(color: Color(0xFF999999), fontSize: 11)),
         const SizedBox(height: 12),
+        // 비밀번호 재설정은 아이디·이메일이 같은 계정인지 먼저 맞춰본 뒤 인증번호를 보낸다.
+        if (_resetMode) ...[
+          const AuthFieldLabel('아이디'),
+          AuthTextField(
+            controller: _username,
+            focus: _usernameFocus,
+            hint: '아이디를 입력해줘',
+            // visiblePassword: iOS에서 영문(ASCII) 키보드로 열린다.
+            keyboard: TextInputType.visiblePassword,
+            formatters: idInputFormatters,
+            onChanged: (_) {
+              ref.read(accountRecoveryProvider.notifier).restartVerification();
+              _code.clear();
+              _password.clear();
+              _confirmation.clear();
+              setState(() => _passwordError = null);
+            },
+          ),
+          const SizedBox(height: 14),
+        ],
         const AuthFieldLabel('이메일'),
         Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Expanded(
@@ -178,9 +237,13 @@ class _AccountRecoveryScreenState extends ConsumerState<AccountRecoveryScreen> {
           )),
           const SizedBox(width: 12),
           AuthStatusButton(
-              label: state.sent ? '전송 완료' : '인증하기',
+              label: state.sent
+                  ? '전송 완료'
+                  : state.sending
+                      ? '보내는 중'
+                      : '인증하기',
               complete: state.sent,
-              onTap: state.sent ? null : _sendCode),
+              onTap: state.sent || state.sending ? null : _sendCode),
         ]),
         const SizedBox(height: 14),
         const AuthFieldLabel('인증 코드'),
@@ -200,9 +263,16 @@ class _AccountRecoveryScreenState extends ConsumerState<AccountRecoveryScreen> {
           )),
           const SizedBox(width: 12),
           AuthStatusButton(
-              label: state.verified ? '인증 완료' : '인증하기',
+              label: state.verified
+                  ? '인증 완료'
+                  : state.verifying
+                      ? '확인 중'
+                      : '인증하기',
               complete: state.verified,
-              onTap: state.sent && !state.verified && _code.text.length == 6
+              onTap: state.sent &&
+                      !state.verified &&
+                      !state.verifying &&
+                      _code.text.length == 6
                   ? _verifyCode
                   : null),
         ]),
@@ -246,12 +316,13 @@ class _AccountRecoveryScreenState extends ConsumerState<AccountRecoveryScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           AuthPillButton(
-            label: _resetMode ? '비밀번호 재설정하기' : '이 아이디로 로그인',
-            onTap: !state.verified
+            label: _resetMode ? '비밀번호 재설정하기' : '로그인하러 가기',
+            onTap: !state.verified || state.resetting
                 ? null
                 : _resetMode
-                    ? _previewReset
-                    : () => _back(email: state.email),
+                    ? _resetPassword
+                    // 찾은 아이디를 로그인 화면 아이디 칸에 채운다.
+                    : () => _back(email: state.username),
             background: AppColors.white,
             foreground: AppColors.black,
             disabledBackground: AppColors.grey,
@@ -301,20 +372,17 @@ class _AccountRecoveryScreenState extends ConsumerState<AccountRecoveryScreen> {
         decoration: BoxDecoration(
             color: AppColors.green, borderRadius: BorderRadius.circular(28)),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Text('찾은 아이디 · 미리보기',
+          const Text('내 아이디',
               style: TextStyle(
                   color: Color(0xFF536E29),
                   fontSize: 13,
                   fontWeight: FontWeight.w700)),
           const SizedBox(height: 8),
-          Text(state.maskedId,
+          Text(state.username ?? (state.finding ? '찾는 중…' : '-'),
               style: const TextStyle(
                   color: AppColors.black,
                   fontSize: 26,
                   fontWeight: FontWeight.w900)),
-          const SizedBox(height: 8),
-          const Text('가입일은 계정 연동 후 표시돼.',
-              style: TextStyle(color: Color(0xFF536E29), fontSize: 12)),
         ]),
       );
 }
