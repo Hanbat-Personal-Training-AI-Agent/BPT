@@ -226,7 +226,9 @@ final class DeadliftEvaluator {
     func evaluate(
         frameIndex: Int,
         coco17: [PoseKeypoint],
-        selected3D: [[Float]]? = nil
+        selected3D: [[Float]]? = nil,
+        pose3D: [SIMD3<Double>]? = nil,
+        pose3DState: Pose3DState? = nil
     ) -> DeadliftFrameResult {
         let measurements = computeMeasurements(
             coco17: coco17,
@@ -240,7 +242,7 @@ final class DeadliftEvaluator {
             measurements: measurements
         )
 
-        formTracker.observe(frameIndex: frameIndex, coco17: coco17, phase: status.rawValue)
+        formTracker.observe(frameIndex: frameIndex, coco17: coco17, pose3D: pose3D, pose3DState: pose3DState, phase: status.rawValue)
         let done = updateRepState(
             frameIndex: frameIndex,
             previousStatus: previousStatus,

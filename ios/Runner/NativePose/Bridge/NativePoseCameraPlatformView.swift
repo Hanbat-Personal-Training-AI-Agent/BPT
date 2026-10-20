@@ -11,7 +11,8 @@ final class NativePoseCameraPlatformView: NSObject, FlutterPlatformView {
         viewId: Int64,
         messenger: FlutterBinaryMessenger,
         exercise: NativePoseExercise?,
-        exerciseId: String?
+        exerciseId: String?,
+        setupOptions: ExerciseSetup.Options? = nil
     ) {
         let workoutChannel = WorkoutChannel(channel: FlutterMethodChannel(
             name: "bpt/native_pose_camera/\(viewId)",
@@ -22,7 +23,7 @@ final class NativePoseCameraPlatformView: NSObject, FlutterPlatformView {
         let rootView: AnyView
         if let exercise {
             // Channel contract: WorkoutSessionBridge.swift (onPoseUpdate, onFeedback, onSetEnd ←→ setVoiceMuted, startSet, endSet).
-            rootView = AnyView(CameraPosePreview(exercise: exercise, bridge: workoutChannel))
+            rootView = AnyView(CameraPosePreview(exercise: exercise, bridge: workoutChannel, setupOptions: setupOptions))
         } else {
             rootView = AnyView(UnsupportedNativePoseExerciseView(exerciseId: exerciseId))
         }

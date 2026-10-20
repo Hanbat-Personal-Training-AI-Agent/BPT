@@ -9,8 +9,9 @@ import simd
 // starts a rep, `recordCurrentFrame` while the rep is open and `finishRep` when it counts the rep.
 // Only frames inside that interval are judged. Metrics come from the camera-near side (higher
 // confidence, with hysteresis), signed (no abs), in 2D, and from MotionAGFormer 3D when the caller
-// has it (H36M17, y down); "3D 불량" frames (knee hinge θ < −limit) get no 3D metrics. Warnings fire
-// from 2D only; 3D is logged.
+// has it (H36M17, y down; `measure3D`: the same quantities as 2D). Frames whose MotionAGFormerLive state is
+// not ok get no 3D metrics. With `form3DRequired` (lift-app, 3D running) the delivered keys come from the 3D
+// judgement and the 2D judgement is kept beside it for comparison; otherwise warnings fire from 2D.
 //
 // Delivery (spec 등급): 우선 = right after the rep, 개선 = only when the same key also fired on the
 // previous rep, 셋업 = first rep only, 참고 = once at set end (`endSet`, scope "set", n = reps in the
@@ -63,6 +64,12 @@ struct FormCommonConfig {
     /// Side-view gate: rolling window (frames, ~5 s) / frames needed before the first decision (nil until then).
     var sideViewWindowFrames = 150
     var sideViewMinFrames = 30
+    /// Posture keys come from the 3D judgement (MotionAGFormerLive running). A rep without enough usable
+    /// 3D frames gets no posture keys (formSource "3d_unavailable") — never the 2D judgement instead.
+    /// false = no 3D pipeline: 2D judgement (old behaviour, tests). lift-app turns it on wherever 3D runs.
+    var form3DRequired = false
+    /// A rep's 3D judgement needs at least this fraction of its frames in state ok. 임시값 — 테스트 영상으로 조정
+    var min3DRepFraction = 0.5
 }
 
 /// Push-up (side view).
@@ -282,6 +289,15 @@ enum FormGeometry {
     // forward = (L hip − R hip) × up.
     static let up3D = SIMD3<Double>(0, -1, 0)
 
+    /// "Up" in the XS output frame (image x right, y down, z away from the camera) from CoreMotion gravity (device
+    /// frame: x right, y up the screen, z out of the screen), phone in portrait. Front camera: the image is mirrored
+    /// (x flips) and "away from the camera" is +z of the device. Upright phone → (0, −1, 0) = `up3D`.
+    /// Hypothesis: XS depth (z) sign follows the camera frame — not verified on a device yet (lift_app.md).
+    static func cameraUp(gravity g: SIMD3<Double>, frontCamera: Bool) -> SIMD3<Double> {
+        let image = SIMD3<Double>(frontCamera ? -g.x : g.x, -g.y, frontCamera ? g.z : -g.z)
+        return simd_length(image) > 1e-6 ? -simd_normalize(image) : up3D
+    }
+
     /// 3D trunk (pelvis → thorax) vs vertical, deg; > 0 forward lean, < 0 backward.
     static func signedTorsoAngle3D(_ j: [SIMD3<Double>], up: SIMD3<Double> = up3D) -> Double? {
         guard j.count == 17 else { return nil }
@@ -295,14 +311,32 @@ enum FormGeometry {
     /// same meaning as `signedLineDeviation2D`.
     static func signedHipDeviation3D(_ j: [SIMD3<Double>], up: SIMD3<Double> = up3D) -> Double? {
         guard j.count == 17 else { return nil }
-        let s = j[8], a = (j[3] + j[6]) * 0.5
-        let d = a - s
+        return signedLineDeviation3D(point: j[0], a: j[8], b: (j[3] + j[6]) * 0.5, up: up)
+    }
+
+    /// `signedLineDeviation2D` in 3D: offset of `point` from the line a–b along "down" made
+    /// perpendicular to the line, over |a − b|; nil when the line is within ~17° of vertical.
+    static func signedLineDeviation3D(point: SIMD3<Double>, a: SIMD3<Double>, b: SIMD3<Double>,
+                                      up: SIMD3<Double> = up3D) -> Double? {
+        let d = b - a
         let length = simd_length(d)
         guard length > 1e-8 else { return nil }
         let dHat = d / length
         let n = -up - dHat * simd_dot(dHat, -up)
         guard simd_length(n) >= 0.3 else { return nil }
-        return simd_dot(j[0] - s, simd_normalize(n)) / length
+        return simd_dot(point - a, simd_normalize(n)) / length
+    }
+
+    /// Interior angle at b (deg), nil if a bone is ~0.
+    static func angle3D(_ a: SIMD3<Double>, _ b: SIMD3<Double>, _ c: SIMD3<Double>) -> Double? {
+        let u = a - b, v = c - b
+        guard simd_length(u) > 1e-8, simd_length(v) > 1e-8 else { return nil }
+        return atan2(simd_length(simd_cross(u, v)), simd_dot(u, v)) * 180 / .pi
+    }
+
+    /// H36M17 joints of one body side (shoulder, elbow, wrist, hip, knee, ankle).
+    static func h36mSide(_ side: FormSide) -> (shoulder: Int, elbow: Int, wrist: Int, hip: Int, knee: Int, ankle: Int) {
+        side == .left ? (11, 12, 13, 4, 5, 6) : (14, 15, 16, 1, 2, 3)
     }
 }
 
@@ -330,10 +364,10 @@ struct FormFrameSample {
     var shoulderRatio: Double?
     var kneeAnkleGapRatio: Double?
     var heelToe: Double?
-    var torso3D: Double?
-    var hipDeviation3D: Double?
     var has3D = false
     var bad3D = false
+    /// MotionAGFormerLive state of this frame (nil = caller gave no 3D pipeline state).
+    var state3D: Pose3DState?
 }
 
 struct FormRepReport {
@@ -346,10 +380,18 @@ struct FormRepReport {
     let metrics3D: [String: Double]
     let frames3D: Int
     let bad3DFrames: Int
-    /// Every key whose condition held, in rule order.
+    /// Every key whose condition held, in rule order, from `formSource` (the keys that are delivered).
     let warnings: [String]
     /// The one key said after this rep (a warning or praise_fixed), if any.
     let spoken: String?
+    /// 2D judgement of the same rep (kept for comparison only when formSource is 3D).
+    var warnings2D: [String] = []
+    /// 3D judgement; nil when the rep had too few usable 3D frames.
+    var warnings3D: [String]?
+    /// "3d", "3d_unavailable" (3D required but missing: no posture keys) or "2d" (no 3D pipeline).
+    var formSource = "2d"
+    /// Rep frames per MotionAGFormerLive state.
+    var states3D: [String: Int] = [:]
 
     var dictionary: [String: Any] {
         [
@@ -363,6 +405,10 @@ struct FormRepReport {
             "frames_3d": frames3D,
             "bad_3d_frames": bad3DFrames,
             "warnings": warnings,
+            "warnings_2d": warnings2D,
+            "warnings_3d": warnings3D.map { $0 as Any } ?? NSNull(),
+            "form_source": formSource,
+            "states_3d": states3D,
             "grades": warnings.map { FormWarningTracker.grade(of: $0).name },
             "spoken": spoken.map { $0 as Any } ?? NSNull(),
         ]
@@ -418,6 +464,8 @@ final class FormWarningTracker {
     var pushUp = PushUpFormConfig()
     var squat = SquatFormConfig()
     var row = BarbellRowFormConfig()
+    /// "Up" for 3D metrics (camera −y by default; FormGeometry.cameraUp(gravity:) when the camera feeds gravity).
+    var up3D = FormGeometry.up3D
     var bench = BenchPressFormConfig()
     var deadlift = DeadliftFormConfig()
 
@@ -439,8 +487,12 @@ final class FormWarningTracker {
     private var facing: Double?
     private var facingCandidateRun = 0
     private var current: FormFrameSample?
+    /// Same quantities measured on the 3D pose of the same frame (nil when it has no usable 3D).
+    private var current3D: FormFrameSample?
     private var repFrames: [FormFrameSample] = []
+    private var repFrames3D: [FormFrameSample] = []
     private var repMetrics: [[String: Double]] = []
+    private var repMetrics3D: [[String: Double]] = []
     private var lastRecordedFrame = Int.min
     private var missingRun = 0
     private var repOpen = false
@@ -468,8 +520,11 @@ final class FormWarningTracker {
         facing = nil
         facingCandidateRun = 0
         current = nil
+        current3D = nil
         repFrames = []
+        repFrames3D = []
         repMetrics = []
+        repMetrics3D = []
         lastRecordedFrame = .min
         missingRun = 0
         repOpen = false
@@ -487,31 +542,92 @@ final class FormWarningTracker {
     }
 
     /// Every frame, once the evaluator's status for it is known. `pose3D`: H36M17 selected3D or nil;
-    /// `feet`: Halpe26 toes/heels or nil.
+    /// `feet`: Halpe26 toes/heels or nil. `pose3DState`: MotionAGFormerLive state of this frame (the 3D
+    /// is measured only in state ok); nil = old callers, then the knee hinge check alone decides bad 3D.
     func observe(frameIndex: Int, coco17: [PoseKeypoint], pose3D: [SIMD3<Double>]? = nil,
-                 feet: FootKeypoints? = nil, phase: String) {
+                 pose3DState: Pose3DState? = nil, feet: FootKeypoints? = nil, phase: String) {
         guard coco17.count == 17 else {
             current = nil
+            current3D = nil
             return
         }
         let side = updateSide(coco17)
         var sample = FormFrameSample(frame: frameIndex, phase: phase, side: side)
         measure2D(coco17, feet: feet, side: side, into: &sample)
+        current3D = nil
+        var state = pose3DState
         if let pose3D, pose3D.count == 17 {
             sample.has3D = true
             sessionFrames3D += 1
-            let hinge = KneeHingeLimit.apply(pose3D, config: .init(enabled: false, limitDegrees: common.hingeLimitDegrees))
-            if hinge.bad3D {
+            if state == nil {
+                let hinge = KneeHingeLimit.apply(pose3D, config: .init(enabled: false, limitDegrees: common.hingeLimitDegrees))
+                state = hinge.bad3D ? .bad3D : .ok
+            }
+            if state == .bad3D {
                 sample.bad3D = true
                 sessionBad3DFrames += 1
-            } else {
-                sample.torso3D = FormGeometry.signedTorsoAngle3D(pose3D)
-                sample.hipDeviation3D = FormGeometry.signedHipDeviation3D(pose3D)
+            } else if state == .ok || state == .partial3D {
+                // partial3D: untrusted joints are NaN; every metric that needs one comes out nil (sanitised below).
+                var s3 = FormFrameSample(frame: frameIndex, phase: phase, side: side)
+                measure3D(pose3D, like: sample, into: &s3)
+                s3.state3D = state
+                current3D = s3
             }
         }
+        sample.state3D = state
         current = sample
         updateTracking(sample)
         if exercise == .pushUp || exercise == .barbellRow { updateSideView(sample) }
+    }
+
+    /// The 2D quantities, measured on the H36M17 3D pose (same names and signs, view-independent
+    /// angles). Camera-view fields (front view, shoulder ratio) stay the 2D ones — they describe the camera.
+    /// "Down" is the camera +y (no gravity yet, D-D-07). Ear/nose quantities have no H36M17 joint: head (10) is used for
+    /// the head-line deviation, shrug and heel quantities stay nil.
+    private func measure3D(_ j: [SIMD3<Double>], like s2: FormFrameSample, into s: inout FormFrameSample) {
+        let k = FormGeometry.h36mSide(s2.side)
+        let up = up3D
+        s.requiredOK = true
+        s.has3D = true
+        s.state3D = .ok
+        s.frontView = s2.frontView
+        s.shoulderRatio = s2.shoulderRatio
+        s.elbow = FormGeometry.angle3D(j[k.shoulder], j[k.elbow], j[k.wrist])
+        s.knee = FormGeometry.angle3D(j[k.hip], j[k.knee], j[k.ankle])
+        s.hipAngle = FormGeometry.angle3D(j[k.shoulder], j[k.hip], j[k.knee])
+        s.torso = FormGeometry.signedTorsoAngle3D(j, up: up)
+        s.hipDeviation = FormGeometry.signedHipDeviation3D(j, up: up)
+        s.headDeviation = FormGeometry.signedLineDeviation3D(point: j[10], a: j[0], b: j[8], up: up)
+        let trunk = j[8] - j[0], torsoLength = simd_length(trunk)
+        if torsoLength > 1e-8 {
+            // XS output is pelvis-relative, so 3D hip height is always 0 (S7 finding): hip / shoulder heights and the
+            // torso length that normalises their speeds come from the 2D sample of the same frame (image y, absolute).
+            s.torsoLength = s2.torsoLength
+            s.hipY = s2.hipY
+            s.shoulderY = s2.shoulderY
+            // Back normal in the trunk's sagittal plane: −(L hip − R hip) × trunk, as the 2D "behind the torso".
+            let chest = simd_cross(j[4] - j[1], trunk)
+            if simd_length(chest) > 1e-8 {
+                s.elbowBehind = simd_dot(j[k.elbow] - j[0], -simd_normalize(chest)) / torsoLength
+            }
+        }
+        let arm = simd_length(j[k.shoulder] - j[k.elbow]) + simd_length(j[k.elbow] - j[k.wrist])
+        let headward = trunk - up * simd_dot(trunk, up)
+        if arm > 1e-8, simd_length(headward) > 1e-8 {
+            // Horizontal, towards the head (2D: image x towards the facing side ≈ the head in a side push-up).
+            s.wristAhead = simd_dot(j[k.wrist] - j[k.shoulder], simd_normalize(headward)) / arm
+        }
+        let lr = j[4] - j[1]
+        if simd_length(lr) > 1e-8 {
+            let u = simd_normalize(lr)
+            let ankleGap = simd_dot(j[6] - j[3], u)
+            if abs(ankleGap) > 1e-6 { s.kneeAnkleGapRatio = simd_dot(j[5] - j[2], u) / ankleGap }
+        }
+        // NaN joints (partial3D) give NaN metrics: drop them, keep the rest.
+        for key in [\FormFrameSample.elbow, \.knee, \.hipAngle, \.torso, \.hipDeviation, \.headDeviation,
+                    \.wristAhead, \.elbowBehind, \.kneeAnkleGapRatio] where s[keyPath: key]?.isFinite == false {
+            s[keyPath: key] = nil
+        }
     }
 
     /// Rolling-median shoulder ratio vs the cutoff, with hysteresis. For the row the first "not
@@ -538,12 +654,14 @@ final class FormWarningTracker {
     func beginRep() {
         repOpen = true
         repFrames = []
+        repFrames3D = []
         recordCurrentFrame()
     }
 
     func recordCurrentFrame() {
         guard let current, repFrames.last?.frame != current.frame else { return }
         repFrames.append(current)
+        if let current3D { repFrames3D.append(current3D) }
         lastRecordedFrame = current.frame
     }
 
@@ -552,12 +670,29 @@ final class FormWarningTracker {
     func finishRep(repIndex: Int) -> FormRepReport {
         recordCurrentFrame()
         repOpen = false
-        let frames = repFrames
+        let frames = repFrames, frames3D = repFrames3D
         repFrames = []
+        repFrames3D = []
         let metrics = metrics2D(frames, isFirstRep: reports.isEmpty)
-        let fired = judge(metrics, history: repMetrics, repIndex: repIndex)
+        let fired2D = judge(metrics, history: repMetrics, repIndex: repIndex)
         repMetrics.append(metrics)
         if repMetrics.count > 100 { repMetrics.removeFirst() }
+        // 3D: the same aggregation and rules on the 3D samples, with its own baseline history.
+        var states: [String: Int] = [:]
+        for f in frames { states[f.state3D?.rawValue ?? "none", default: 0] += 1 }
+        let enough3D = !frames.isEmpty && Double(frames3D.count) >= common.min3DRepFraction * Double(frames.count)
+        var metrics3D: [String: Double] = [:]
+        var fired3D: [String]?
+        if !frames3D.isEmpty {
+            metrics3D = metrics2D(frames3D, isFirstRep: repMetrics3D.isEmpty)
+        }
+        if enough3D {
+            fired3D = judge(metrics3D, history: repMetrics3D, repIndex: repIndex)
+            repMetrics3D.append(metrics3D)
+            if repMetrics3D.count > 100 { repMetrics3D.removeFirst() }
+        }
+        let formSource = !common.form3DRequired ? "2d" : (fired3D == nil ? "3d_unavailable" : "3d")
+        let fired = common.form3DRequired ? (fired3D ?? []) : fired2D
         for key in fired {
             warningRepCounts[key, default: 0] += 1
             setWarningRepCounts[key, default: 0] += 1
@@ -571,11 +706,15 @@ final class FormWarningTracker {
             endFrame: frames.last?.frame ?? -1,
             side: (sides.filter { $0 == .left }.count * 2 >= sides.count ? FormSide.left : .right).rawValue,
             metrics2D: metrics,
-            metrics3D: Self.metrics3D(frames),
+            metrics3D: metrics3D,
             frames3D: frames.filter(\.has3D).count,
             bad3DFrames: frames.filter(\.bad3D).count,
             warnings: fired,
-            spoken: spoken
+            spoken: spoken,
+            warnings2D: fired2D,
+            warnings3D: fired3D,
+            formSource: formSource,
+            states3D: states
         )
         reports.append(report)
         if reports.count > 100 { reports.removeFirst() }
@@ -824,28 +963,13 @@ final class FormWarningTracker {
         return m
     }
 
-    static func metrics3D(_ frames: [FormFrameSample]) -> [String: Double] {
-        var m: [String: Double] = [:]
-        let torso = FormGeometry.unwrapDegrees(frames.compactMap(\.torso3D)), hip = frames.compactMap(\.hipDeviation3D)
-        if !torso.isEmpty {
-            m["torso_min"] = torso.min()
-            m["torso_max"] = torso.max()
-            m["torso_mean"] = FormGeometry.wrapDegrees(torso.reduce(0, +) / Double(torso.count))
-        }
-        if !hip.isEmpty {
-            m["hip_dev_min"] = hip.min()
-            m["hip_dev_max"] = hip.max()
-        }
-        return m
-    }
-
     static func median(_ values: [Double]) -> Double? {
         let v = values.sorted()
         guard !v.isEmpty else { return nil }
         return v.count % 2 == 1 ? v[v.count / 2] : (v[v.count / 2 - 1] + v[v.count / 2]) / 2
     }
 
-    // MARK: Rules (2D only)
+    // MARK: Rules (run on the 2D metrics and, separately, on the same metrics measured in 3D)
 
     /// Keys whose condition holds for this rep, in rule order. `history` = earlier reps' metrics.
     func judge(_ m: [String: Double], history: [[String: Double]], repIndex: Int) -> [String] {
@@ -946,6 +1070,221 @@ final class FormWarningTracker {
             fire("deadlift_lean_back", under("torso_min", -c.leanBackDegrees))
         }
         return (Self.rules[exercise] ?? []).map(\.key).filter(fired.contains)
+    }
+}
+
+// MARK: - Overlay: live posture colour (display only)
+
+/// A body edge the camera overlay draws (COCO17, lower index first). No face, head or neck: head rules are judged and
+/// voiced but have no segment to colour.
+enum OverlaySegment: Hashable {
+    case edge(Int, Int)
+
+    /// Shoulders, arms, trunk sides, hips, legs.
+    static let edges: [OverlaySegment] = [[5, 6], [5, 7], [7, 9], [6, 8], [8, 10], [5, 11], [6, 12], [11, 12],
+                                          [11, 13], [13, 15], [12, 14], [14, 16]].map { OverlaySegment.edge($0[0], $0[1]) }
+}
+
+/// When a rule's per-frame quantity means something. Rep-extremum rules (depth, lockout, peak pull) only near their
+/// phase; elsewhere the rule does not apply.
+enum OverlayPhase {
+    case always, inRep, bottom, top, bottomOrAscending, ascending
+
+    func matches(_ phase: String, repOpen: Bool) -> Bool {
+        switch self {
+        case .always: true
+        case .inRep: repOpen
+        case .bottom: phase == "bottom"
+        case .top: phase == "top"
+        case .bottomOrAscending: phase == "bottom" || phase == "ascending"
+        case .ascending: phase == "ascending"
+        }
+    }
+}
+
+/// A rule's quantity on one frame: not applicable here (view, no baseline yet → plain green), unknown (the joints it
+/// needs are partial / low confidence → dim green), or a value.
+enum OverlayValue {
+    case notApplicable, unknown
+    case value(Double)
+
+    static func measured(_ v: Double?) -> OverlayValue { v.map { $0.isFinite ? .value($0) : .unknown } ?? .unknown }
+
+    var number: Double? {
+        if case let .value(v) = self { return v }
+        return nil
+    }
+}
+
+/// One table for the overlay colour: rule → segments (judged side) → per-frame quantity → normal (severity 0) and the
+/// rule's own threshold (severity 1, read from the tracker config, so a threshold change moves the colour with it).
+/// severity = clamp((value − normal) / (threshold − normal), 0, 1). Display only: judge() does not read this.
+/// `normal` is the ideal value (a straight line, no change, the baseline), except valgus: knees 25% wider than the
+/// ankles (display anchor, 제안값). Not coloured: head rules (no head is drawn), trend rules (depth_fade, lean_drift),
+/// setup rules (hand_position, side view) and rules that are off (heel_rise, shrug).
+struct OverlayRule {
+    let key: String
+    let phase: OverlayPhase
+    let segments: (FormSide) -> [OverlaySegment]
+    let normal: Double
+    let threshold: (FormWarningTracker) -> Double
+    let value: (FormWarningTracker, FormFrameSample) -> OverlayValue
+
+    static func severity(_ value: Double, normal: Double, threshold: Double) -> Double {
+        guard threshold != normal else { return 0 }
+        return min(max((value - normal) / (threshold - normal), 0), 1)
+    }
+
+    private static func side(_ s: FormSide) -> FormGeometry.SideJoints { FormGeometry.joints(s) }
+    private static func trunk(_ s: FormSide) -> [OverlaySegment] { let j = side(s); return [.edge(j.shoulder, j.hip)] }
+    private static func arm(_ s: FormSide) -> [OverlaySegment] {
+        let j = side(s); return [.edge(j.shoulder, j.elbow), .edge(j.elbow, j.wrist)]
+    }
+    private static func thigh(_ s: FormSide) -> [OverlaySegment] { let j = side(s); return [.edge(j.hip, j.knee)] }
+    private static func leg(_ s: FormSide) -> [OverlaySegment] { let j = side(s); return [.edge(j.hip, j.knee), .edge(j.knee, j.ankle)] }
+    /// Squat side-view rules do not apply in a front view (judge()), valgus only there.
+    private static func sideOnly(_ s: FormFrameSample, _ v: () -> OverlayValue) -> OverlayValue { s.frontView == true ? .notApplicable : v() }
+
+    static let table: [FormExercise: [OverlayRule]] = [
+        .pushUp: [
+            OverlayRule(key: "pushup_hip_sag", phase: .always, segments: { trunk($0) + leg($0) }, normal: 0,
+                        threshold: { $0.pushUp.hipSagDeviation }, value: { _, s in .measured(s.hipDeviation) }),
+            OverlayRule(key: "pushup_hip_pike", phase: .always, segments: { trunk($0) + leg($0) }, normal: 0,
+                        threshold: { -$0.pushUp.hipPikeDeviation }, value: { _, s in .measured(s.hipDeviation) }),
+            OverlayRule(key: "pushup_shallow", phase: .bottom, segments: { arm($0) }, normal: 0,
+                        threshold: { $0.pushUp.shallowOverBaselineDegrees },
+                        value: { t, s in t.liveOverBaseline("elbow_min", s.elbow) }),
+            OverlayRule(key: "pushup_no_lockout", phase: .top, segments: { arm($0) }, normal: 0,
+                        threshold: { $0.pushUp.noLockoutBelowSetMaxDegrees },
+                        value: { t, s in t.liveBelowSetMax("elbow_max", \.elbow, s.elbow) }),
+        ],
+        .squat: [
+            OverlayRule(key: "squat_knee_valgus", phase: .bottomOrAscending, segments: { _ in
+                [.edge(11, 13), .edge(13, 15), .edge(12, 14), .edge(14, 16)] }, normal: 1.25,
+                        threshold: { $0.squat.valgusKneeAnkleGapRatio },
+                        value: { _, s in s.frontView == true ? .measured(s.kneeAnkleGapRatio) : .notApplicable }),
+            OverlayRule(key: "squat_shallow", phase: .bottom, segments: { leg($0) }, normal: 0,
+                        threshold: { $0.squat.shallowOverBaselineDegrees },
+                        value: { t, s in sideOnly(s) { t.liveOverBaseline("knee_min", s.knee) } }),
+            OverlayRule(key: "squat_no_lockout", phase: .top, segments: { trunk($0) + leg($0) }, normal: 0,
+                        threshold: { $0.squat.noLockoutBelowSetMaxDegrees },
+                        value: { t, s in sideOnly(s) {
+                            let k = t.liveBelowSetMax("knee_max", \.knee, s.knee), h = t.liveBelowSetMax("hip_angle_max", \.hipAngle, s.hipAngle)
+                            return [k, h].compactMap(\.number).max().map { .value($0) } ?? .unknown
+                        } }),
+            OverlayRule(key: "squat_hips_first", phase: .ascending, segments: { trunk($0) + thigh($0) }, normal: 0,
+                        threshold: { $0.squat.hipsFirstTorsoRiseDegrees },
+                        value: { t, s in sideOnly(s) { t.liveTorsoRiseSinceBottom(s) } }),
+        ],
+        .barbellRow: [
+            OverlayRule(key: "row_torso_swing", phase: .inRep, segments: { trunk($0) }, normal: 0,
+                        threshold: { $0.row.torsoSwingRangeDegrees }, value: { t, s in t.liveTorsoRange(s) }),
+            OverlayRule(key: "row_standing_up", phase: .inRep, segments: { trunk($0) }, normal: 0,
+                        threshold: { $0.row.standingUpDegrees },
+                        value: { t, s in t.liveFromBaseline("torso_mean", s.torso) { b, v in FormGeometry.wrapDegrees(b - v) } }),
+            OverlayRule(key: "row_short_pull", phase: .top, segments: { arm($0) }, normal: 0,
+                        threshold: { $0.row.shortPullBelowBaseline },
+                        value: { t, s in t.liveFromBaseline("elbow_behind_max", s.elbowBehind) { b, v in b - v } }),
+        ],
+    ]
+}
+
+/// The overlay's view of one frame: severities of the segments that have a measured rule, and the segments whose
+/// quantities are unknown (dim green). Every other drawn segment is plain green (no issue / rule not applicable).
+struct OverlayState {
+    var severity: [OverlaySegment: Double] = [:]
+    var uncertain: Set<OverlaySegment> = []
+}
+
+extension FormWarningTracker {
+    /// Live posture state for the frame just observed, from the same source the warnings come from (the 3D sample when
+    /// form3DRequired, else 2D). No usable 3D this frame (warming up, tracking lost, bad 3D) → every segment uncertain.
+    func liveSeverity() -> OverlayState {
+        var out = OverlayState()
+        guard let s = common.form3DRequired ? current3D : current, let side else {
+            out.uncertain = Set(OverlaySegment.edges)
+            return out
+        }
+        // judge()'s side-view gate (row: the session gate once decided; otherwise this frame's view): nothing applies.
+        if exercise == .pushUp || exercise == .barbellRow,
+           !((exercise == .barbellRow ? sideView : nil) ?? (s.frontView != true)) { return out }
+        var unknown: Set<OverlaySegment> = []
+        for rule in OverlayRule.table[exercise] ?? [] where rule.phase.matches(s.phase, repOpen: repOpen) {
+            switch rule.value(self, s) {
+            case .notApplicable: continue
+            case .unknown: unknown.formUnion(rule.segments(side))
+            case let .value(v):
+                let severity = OverlayRule.severity(v, normal: rule.normal, threshold: rule.threshold(self))
+                for seg in rule.segments(side) { out.severity[seg] = max(out.severity[seg] ?? 0, severity) }
+            }
+        }
+        out.uncertain = unknown.subtracting(out.severity.keys)  // a measured rule on the segment wins
+        return out
+    }
+
+    private var liveRepFrames: [FormFrameSample] { common.form3DRequired ? repFrames3D : repFrames }
+    private var liveHistory: [[String: Double]] { common.form3DRequired ? repMetrics3D : repMetrics }
+
+    /// judge()'s baseline: median of the first `baselineRepCount` reps (nil until they exist).
+    fileprivate func liveBaseline(_ name: String) -> Double? {
+        guard liveHistory.count >= common.baselineRepCount else { return nil }
+        return Self.median(liveHistory.prefix(common.baselineRepCount).compactMap { $0[name] })
+    }
+
+    /// f(baseline, live value); no baseline yet → not applicable, no live value → unknown.
+    fileprivate func liveFromBaseline(_ name: String, _ value: Double?, _ f: (Double, Double) -> Double) -> OverlayValue {
+        guard let b = liveBaseline(name) else { return .notApplicable }
+        return .measured(value.map { f(b, $0) })
+    }
+
+    fileprivate func liveOverBaseline(_ name: String, _ value: Double?) -> OverlayValue {
+        liveFromBaseline(name, value) { b, v in v - b }
+    }
+
+    /// belowSetMax: the set's best so far (earlier reps and this rep's frames) minus the live value.
+    fileprivate func liveBelowSetMax(_ name: String, _ key: KeyPath<FormFrameSample, Double?>, _ value: Double?) -> OverlayValue {
+        guard let value else { return .unknown }
+        let best = (liveHistory.compactMap { $0[name] } + liveRepFrames.compactMap { $0[keyPath: key] } + [value]).max() ?? value
+        return .measured(best - value)
+    }
+
+    /// Torso angle max − min within the rep so far, this frame included (row_torso_swing).
+    fileprivate func liveTorsoRange(_ s: FormFrameSample) -> OverlayValue {
+        guard let t = s.torso else { return .unknown }
+        let torso = FormGeometry.unwrapDegrees(liveRepFrames.compactMap(\.torso) + [t])
+        return .measured((torso.max() ?? t) - (torso.min() ?? t))
+    }
+
+    /// Torso rise since the rep's deepest (min knee) frame — squat_hips_first's angle part (its hip-faster-than-shoulder
+    /// part is not shown).
+    fileprivate func liveTorsoRiseSinceBottom(_ s: FormFrameSample) -> OverlayValue {
+        let frames = liveRepFrames.filter { $0.knee != nil }
+        guard let bottom = frames.min(by: { $0.knee! < $1.knee! }), let t0 = bottom.torso else { return .notApplicable }
+        return .measured(s.torso.map { FormGeometry.wrapDegrees($0 - t0) })
+    }
+}
+
+/// Display-only smoothing of the overlay colour: severity (time constant `tau`, ~200 ms) and opacity (1 = measured or
+/// not applicable, `dimOpacity` = uncertain). An uncertain segment snaps to severity 0 (dim green, never red).
+struct OverlaySeverityTrack {
+    var tau = 0.2
+    var dimOpacity = 0.4
+    private var shown: [OverlaySegment: (severity: Double, opacity: Double)] = [:]
+    private var last: Double?
+
+    /// Every drawn segment → (severity, opacity) to draw.
+    mutating func update(_ state: OverlayState, at now: Double) -> [OverlaySegment: (severity: Double, opacity: Double)] {
+        let dt = last.map { min(max(now - $0, 0), 1) } ?? 0
+        last = now
+        let a = 1 - exp(-dt / tau)
+        for seg in OverlaySegment.edges {
+            let uncertain = state.uncertain.contains(seg)
+            let target = (severity: uncertain ? 0 : state.severity[seg] ?? 0, opacity: uncertain ? dimOpacity : 1.0)
+            let old = shown[seg] ?? target
+            shown[seg] = (severity: uncertain ? 0 : old.severity + a * (target.severity - old.severity),
+                          opacity: old.opacity + a * (target.opacity - old.opacity))
+        }
+        return shown
     }
 }
 
