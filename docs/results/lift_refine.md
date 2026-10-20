@@ -41,8 +41,8 @@ MediaPipe 손목 교체 전체의 판정: 2D 손목 오차와 XS 3D 손목 오�
 | 앱(영상 모드)·pose-replay에 목표 넣기 | `VideoCameraOptions.boneTargetsCm`(`BPT_BONE_TARGETS`), pose-replay `--bone-targets`(파일 하나 또는 `{"byClip": …}`) | 캘리브레이션 결과와 같은 JSON(`BoneLengthConstraint.loadTargets`) → `calibrationTargetsCm` | 변수 없음 = 기존(세션 중앙값/사전 비율) |
 | 손 crop 같은 손 중복 제거 | `MotionAGFormerWristSource.sameHand/input(sameHand:)` ↔ `same_hand`·`dedupe_same_hand` | 두 crop의 손 랜드마크 상자 IoU > 0.5면 같은 손 → 두 MediaPipe 손목 모두 안 씀(RTMPose 손목), 그다음 reject_crossed·0.25 게이트 | `BPT_HAND_DEDUPE=0` |
 | 몸 오버레이 손목 | `CameraPosePreview.processFrame` | 오버레이 = XS 입력 2D(받아들인 손목만). 이전엔 crop에서 찾은 손을 거르기 전에 그렸다(`useMediaPipeWristFor2DBodyOverlay`, 삭제) | – |
-| 오버레이 모양 | `Overlays/PoseOverlayRenderer.swift`(옛 HandOverlayRenderer) | 연두(#BFED5F, 앱 AppColors.green) 빛나는 선(넓은 흐린 선 2겹 + 본선 + 밝은 중심선, 둥근 끝), 신뢰도 0.3 미만 관절·연결은 그리지 않음, 얼굴 선 대신 코에 고리 하나, 귀–어깨(목) 선, 손 안 그림(crop 상자도). 표시 전용 One-Euro 평활(`OverlaySmoother`, 판정·XS 입력에 안 들어감) | – |
-| 틀린 자세 원인 붉게 | `FormGeometry.causeEdges` / `overlayEdges`(FormWarnings.swift) | 렙이 판정되면 그 렙의 `warnings`(FormWarningTracker 판정, enabledFeedbackKeys와 무관) → 판정한 쪽의 연결 → 붉은 빛, 0.3초 유지 후 1.3초까지 흐려짐. 예: hip_sag/pike = 어깨–엉덩이–무릎–발목, knee_valgus = 양 다리, torso_swing = 어깨–엉덩이, no_lockout(푸시업) = 어깨–팔꿈치–손목 | – |
+| 오버레이 모양 | `Overlays/PoseOverlayRenderer.swift`(옛 HandOverlayRenderer) | 빛나는 선(넓은 흐린 선 2겹 + 본선 + 밝은 중심선, 둥근 끝), 신뢰도 0.3 미만 관절·연결은 그리지 않음, 손 안 그림(crop 상자도). 머리: 얼굴 선·귀–어깨 선 대신 어깨 중점 → 머리 중심(신뢰 얼굴 점의 축별 중앙값, 2개 미만이면 숨김) 목 하나 + 고리 하나(반지름 max(0.22×어깨폭, 0.18×몸통 길이)). 표시 전용 One-Euro 평활(`OverlaySmoother`) | – |
+| 자세에 따른 연속 색(사용자 2차 요청) | `OverlayRule.table` / `FormWarningTracker.liveSeverity()` / `OverlaySeverityTrack`(FormWarnings.swift) | 연결마다 그 연결로 재는 규칙의 프레임 지표로 severity = clamp((값−정상)/(임계값−정상), 0, 1) → 연두 #9BE15D → 주황 → 빨강 #FF5A4E. 임계값은 트래커 설정에서 그대로 읽음(바꾸지 않음). 렙 극값 규칙(깊이·락아웃·당김)은 해당 단계에서만. 3D가 필요한데 없음(준비 중·추적 끊김·불량)·필요 관절이 partial/저신뢰·단계나 시점이 안 맞음·기준선 전이면 **중립 흰색(초록 아님)**. 200 ms 평활, 0.25 s 유지. 판정·피드백은 그대로 | – |
 | 발 고정 | – | 범위 변경으로 ai/setup-constraint 담당. 이 브랜치에는 코드 없음 | – |
 
 Flutter 3D 상태 안내 배너는 그대로(팀원 화면 안 건드림). 실제 앱에서 캘리브레이션 결과는 지금 가져오지 않는다(D-M-01로 main의 분석 화면을 써서 작업 조회가 없음) → 제품 경로 연결은 막혀 있고, 그 화면은 바꾸지 않았다.
@@ -61,3 +61,17 @@ Flutter 3D 상태 안내 배너는 그대로(팀원 화면 안 건드림). 실�
 
 - 이전 판단 정정: 작업 지시의 “한계가 모캡보다 느슨하다(위팔 0.76, 무릎·엉덩이·척추 하한)”는 ed67a6e 값 이야기이고, lift-app 384e684부터 이미 모캡 p0.1/p99.9(41/22/32/120/172, 사전 비율 0.61/0.55)로 바뀌어 있었다. 남은 구멍은 **무릎이 뒤로 꺾인 출력**이었다(θ < −30°는 무효 표시만, 기하는 그대로).
 - 팔꿈치 과신전은 H36M17에 아래팔 회전 정보가 없어 굽힘 방향을 정할 수 없다 → 내각 하한만. 엉덩이 과신전·벌림은 골반 축으로 잴 수는 있지만 이번에 넣지 않았다(XS 출력에서 얼마나 나오는지 **측정 안 함**).
+
+## 3. 사람별 SMPL 뼈 길이 — 만드는 법과 스케일
+- **제품과 같은 단계**(server/calibration_modal/fitting.py): 사람 상자(키포인트에서, `fitting.person_box`) → SAM 3D Body(사진마다, 카메라 내부값; Fit3D는 왜곡 보정 뒤) → MHR 공식 변환기 `convert_mhr2smpl(single_identity=True)`로 사진 전부에 β 하나 → SMPL 휴식 자세 → `J_regressor_h36m` → `body.bone_lengths_cm`(H36M 16개 + 어깨·엉덩이 폭, cm). 재투영 보정(4단계)은 `refine_beta=False`라 자세만 움직이고 β·길이를 못 바꾸므로 생략.
+- **다른 점**: (1) 사진 = 운동 영상에서 고른 서 있는 프레임(앱 2D: 어깨·엉덩이·무릎·발목 신뢰도 ≥ 0.5, 무릎·엉덩이 ≥ 160°, 몸통 기울기 ≤ 15°, 카메라 2대 이상에서 10프레임 이상) — 제품은 정면·측면·후면 사진 4장. 서 있는 순간이 없는 P3(barbellrow_0001, 숙인 자세로 시작)는 관절이 잘 보이는 아무 자세 프레임(“~any_pose”). (2) **키를 모름** → 5단계(β를 사용자 키로 투영)를 건너뜀(변환기 β 그대로). (3) GPU 대신 CPU(Home 6스레드 / Mac).
+- **스케일 처리**: `BoneLengthConstraint.apply`는 프레임마다 s = median(관측 길이 / 목표 길이)를 제약하는 8개 팔다리 구간(허벅지·정강이·위팔·아래팔 ×2)에서 구해 목표 × s로 맞춘다. 그래서 cm 목표와 XS의 정규화(crop 단위) 출력의 단위 차이, 그리고 모르는 키는 상쇄되고 **비율만** 들어간다. 키 투영이 비율을 얼마나 바꾸는지는 `segments_h160/170/180`로 따로 쟀다(아래 결과).
+- **산출물 위치·형식**(개인 신체 치수라 git·클라우드 밖): Exercise3D P1–P3 = Home `~/bpt-runs/lift-refine/20261020-shapes-ex3d/`(P1만, Home 꺼짐) / Mac scratchpad `refine/shapes_ex3d_mac/`. `targets/<사람>.json` = 캘리브레이션 결과와 같은 모양(`boneLengthData.segments`, `appDefinitionDiffers`), `targets/byclip.json` = `{"byClip": {<시퀀스 접두사>: …}}`(push-up은 P1), `subjects.json` = β·길이·사진·시간. 앱(영상 모드) `BPT_BONE_TARGETS=<Documents 기준 경로>`, pose-replay `--bone-targets byclip.json`.
+- **오라클**: 모캡(Fit3D) 또는 Exercise3D 자체 3D 라벨에서 잰 길이를 목표로 쓴 값은 상한(“oracle”, “pseudo_oracle”)으로만 따로 적는다.
+
+## 4. 기기에서 바뀌는 것 (5b14ee9가 ai/lift-app에 병합되어 기기 확인, 7ce7974 연속 색)
+- 화면: 회색 저신뢰 선·점, 얼굴 선, 손 뼈대·crop 상자가 사라지고, 빛나는 몸 뼈대 + 목 + 머리 고리만 남는다. 각 연결의 색은 그 연결로 재는 규칙의 지표가 임계값에 얼마나 가까운지로 연두→주황→빨강으로 계속 바뀌고, 판정할 근거가 없으면 흰색(중립)이다. **임계값은 검증 전이라 정상 자세에서도 자주 빨개진다**(예: 원래 XS 푸시업 hip_pike는 Fit3D 정상 렙의 80%에서 울림, lift_app.md T3; 기기 확인에서 squat_0001 무릎 모임). 임계값은 바꾸지 않았다(사용자 승인 필요).
+- (처음 버전 5b14ee9의 “렙 끝 붉은 깜빡임”은 사용자 피드백으로 7ce7974에서 연속 색으로 바뀜.)
+- 손목: 두 crop이 같은 손을 잡은 프레임은 XS 입력과 그림 모두 RTMPose 손목을 쓴다. barbellrow_0000_cam2(사용자가 본 장면)는 장치 분석상 590프레임 중 488프레임에서 두 crop이 같은 손이었다(lift-app 기기 에이전트 측정) → 그 프레임들에서 그려진 손목이 다른 손으로 튀지 않는다.
+- 3D: 뒤로 15° 넘게 꺾인 무릎이 출력에서 사라진다(평가기·로그의 3D). θ<−30°는 전처럼 무릎 지표 무효.
+- 뼈 길이 목표: `BPT_BONE_TARGETS`를 줄 때만(영상 모드 시험용). 실제 앱은 캘리브레이션 결과를 아직 받지 않는다(D-M-01, 분석 화면에 작업 조회 없음) → 제품 경로 연결은 막혀 있음.
