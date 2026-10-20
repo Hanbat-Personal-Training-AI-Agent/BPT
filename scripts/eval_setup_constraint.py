@@ -658,6 +658,11 @@ def run_setup_measure(a):
         two = {'feet_width': px(15, 16) / px(11, 12), 'feet_width_shoulder': px(15, 16) / px(5, 6), 'hand_width': px(9, 10) / px(5, 6), 'grip_width': px(9, 10) / px(5, 6)}
         thigh_xs = (np.linalg.norm(raw[:, RHIP] - raw[:, RKNE], axis=-1) + np.linalg.norm(raw[:, LHIP] - raw[:, LKNE], axis=-1)) / 2
         transfer = np.linalg.norm(raw[:, LANK] - raw[:, RANK], axis=-1) / (thigh_xs * hipw_cm / thigh_cm)
+        sam = None  # non-oracle body: lift-refine SAM 3D Body -> SMPL targets (calibration-result shape), when given
+        if a.shapes and os.path.exists(f"{a.shapes}/targets/{d['subj']}.json"):
+            sg = json.load(open(f"{a.shapes}/targets/{d['subj']}.json"))['boneLengthData']['segments']; inputs.append(f"{a.shapes}/targets/{d['subj']}.json")
+            th_s = (sg['right_hip-right_knee'] + sg['left_hip-left_knee']) / 2
+            sam = np.linalg.norm(raw[:, LANK] - raw[:, RANK], axis=-1) / (thigh_xs * sg['hip_width'] / th_s)
         tops = [s_ for s_, _ in d['seg']]
         rec = dict(group=d['group'], exercise=ex, subj=d['subj'], cam=d['cam'], view=float(d['view']), bin=d['bin'], items={})
         for k in srcs['gt']:
@@ -671,6 +676,7 @@ def run_setup_measure(a):
             if k in two: r['2d'] = float(np.nanmedian(two[k][w]))
             if k == 'feet_width':
                 r['transfer'] = float(np.nanmedian(transfer[w]))
+                if sam is not None: r['transfer_sam'] = float(np.nanmedian(sam[w]))
                 gt_cm = float(np.median(np.linalg.norm(G[w, LANK] - G[w, RANK], axis=-1))) * 100
                 r['cm'] = dict(gt=gt_cm, xs=r['xs_raw'] * hipw_cm, transfer=r['transfer'] * hipw_cm)
             if k in ('hand_width', 'grip_width'):
@@ -685,7 +691,7 @@ def run_setup_measure(a):
         if sds: tol[k] = 2 * float(np.median(sds))
     summ = dict(tolerance=tol, groups={})
     md = ['허용폭(조정 피험자, 2 × 셋업 창 안 표준편차 중앙값): ' + ', '.join(f'{k} {v:.3f}' for k, v in tol.items()), '',
-          '| 묶음 | 운동 | 항목 | 시점 | n | 모캡 중앙값 | XS 오차 |중앙값| (p90) | XS+제약 | 2D 오차 | 체형 전이 오차 | 창 안 SD | 렙 꼭대기 오경보(같은 영상) | 다른 카메라 오경보 | cm 오차 XS / 전이 (모캡 cm 중앙값) |',
+          '| 묶음 | 운동 | 항목 | 시점 | n | 모캡 중앙값 | XS 오차 |중앙값| (p90) | XS+제약 | 2D 오차 | 체형 전이 오차 oracle / SAM 3D Body | 창 안 SD | 렙 꼭대기 오경보(같은 영상) | 다른 카메라 오경보 | cm 오차 XS / 전이 (모캡 cm 중앙값) |',
           '|---' * 15 + '|']
     for grp in ('tuning', 'heldout'):
         for ex in EXERCISES:
@@ -697,6 +703,7 @@ def run_setup_measure(a):
                     it = [r['items'][k] for r in rs]
                     e = np.array([abs(i['xs_raw'] - i['gt']) for i in it]); ec = np.array([abs(i['xs_c'] - i['gt']) for i in it])
                     e2 = np.array([abs(i['2d'] - i['gt']) for i in it if '2d' in i]); et = np.array([abs(i['transfer'] - i['gt']) for i in it if 'transfer' in i])
+                    es = np.array([abs(i['transfer_sam'] - i['gt']) for i in it if 'transfer_sam' in i])
                     t_ = tol.get(k, float('nan'))
                     fc = [abs(x - i['xs_raw']) > t_ for i in it for x in i['xs_raw_tops'][1:]]
                     xc = []
@@ -706,7 +713,7 @@ def run_setup_measure(a):
                             xc += [abs(u - v) > t_ for i_, u in enumerate(vals) for v in vals[i_ + 1:]]
                     cm = [i['cm'] for i in it if 'cm' in i]
                     g = dict(n=len(rs), gt_median=float(np.median([i['gt'] for i in it])), xs_abs_err_p50=float(np.median(e)), xs_abs_err_p90=float(np.percentile(e, 90)),
-                             xs_c_abs_err_p50=float(np.median(ec)), err_2d_p50=float(np.median(e2)) if len(e2) else None, transfer_err_p50=float(np.median(et)) if len(et) else None,
+                             xs_c_abs_err_p50=float(np.median(ec)), err_2d_p50=float(np.median(e2)) if len(e2) else None, transfer_err_p50=float(np.median(et)) if len(et) else None, transfer_sam_err_p50=float(np.median(es)) if len(es) else None,
                              sd_p50=float(np.median([i['xs_raw_sd'] for i in it])), false_cue_reptops=float(np.mean(fc)) if fc else None,
                              false_cue_cross_cam=float(np.mean(xc)) if xc else None, depth_p50=float(np.median([i['depth'] for i in it])))
                     if cm:
@@ -715,7 +722,7 @@ def run_setup_measure(a):
                     summ['groups'][f'{grp}/{ex}/{k}/{b}'] = g
                     fmt = lambda v, f_='{:.2f}': '-' if v is None else f_.format(v)
                     md.append(f"| {grp} | {ex} | {k} | {b} | {g['n']} | {g['gt_median']:.2f} | {g['xs_abs_err_p50']:.2f} ({g['xs_abs_err_p90']:.2f}) | {g['xs_c_abs_err_p50']:.2f} | "
-                              f"{fmt(g['err_2d_p50'])} | {fmt(g['transfer_err_p50'])} | {g['sd_p50']:.3f} | {fmt(g['false_cue_reptops'], '{:.0%}')} | {fmt(g['false_cue_cross_cam'], '{:.0%}')} | "
+                              f"{fmt(g['err_2d_p50'])} | {fmt(g['transfer_err_p50'])} / {fmt(g['transfer_sam_err_p50'])} | {g['sd_p50']:.3f} | {fmt(g['false_cue_reptops'], '{:.0%}')} | {fmt(g['false_cue_cross_cam'], '{:.0%}')} | "
                               f"{fmt(g.get('cm_err_xs_p50'), '{:.1f}')} / {fmt(g.get('cm_err_transfer_p50'), '{:.1f}')} ({fmt(g.get('cm_gt_p50'), '{:.0f}')}) |")
     out_j, out_m = Path(a.run_dir) / 'setup_measure.json', Path(a.run_dir) / 'setup_measure.md'
     json.dump(dict(summary=summ, records=recs), open(out_j, 'w')); out_m.write_text('\n'.join(md) + '\n'); print('\n'.join(md[:2]))
@@ -1143,6 +1150,7 @@ def main():
     p = argparse.ArgumentParser()
     p.add_argument('cmd', choices=['gt-relations', 'cache-clean', 'occlude', 'evaluate', 'foot-shift', 'setup-measure', 'signals', 'tune', 'rgb-eval', 'setup-ex3d', 'verdicts', 'xs-relations'])
     p.add_argument('--eval-json'); p.add_argument('--shift-json'); p.add_argument('--group', default='heldout')
+    p.add_argument('--shapes', default=None, help='lift-refine shapes run dir (targets/<subject>.json), non-oracle body for E1')
     p.add_argument('--ex3d', help='dir with gt.json, csv/<seq>/<cam>_<ex>_mcoco17.csv, labels/<seq>/geometry')
     p.add_argument('--dataset', choices=['fit3d', 'ex3d'], default='fit3d'); p.add_argument('--device', choices=['cpu', 'mps'], default='cpu')
     p.add_argument('--ex3d-view', choices=['all', 'side1'], default='all')
