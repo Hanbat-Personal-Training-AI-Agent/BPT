@@ -200,8 +200,9 @@ final class VideoRunLog: @unchecked Sendable {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.dateFormat = "yyyyMMdd_HHmmss"
-        let tag = VideoCameraOptions.environment["BPT_RUN_TAG"].map { "_" + $0 } ?? ""
-        url = directory.appendingPathComponent("run_\(formatter.string(from: Date()))\(tag).jsonl")
+        // BPT_RUN_TAG gives a fixed name (the host pulls exactly that file); otherwise a timestamp.
+        let name = VideoCameraOptions.environment["BPT_RUN_TAG"].map { "run_\($0)" } ?? "run_\(formatter.string(from: Date()))"
+        url = directory.appendingPathComponent("\(name).jsonl")
         do {
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             try Data().write(to: url)
