@@ -291,7 +291,8 @@ def random_cam(rng):
                 height=float(rng.uniform(0.3, 1.6)), dist=float(rng.uniform(2.2, 4.5)), f=float(F * rng.uniform(0.85, 1.25)))
 
 
-def ex3d_seq(ex3d, ex3d_csv, seq, cam):
+def ex3d_seq(ex3d, ex3d_csv, seq, cam, model='mcoco17'):
+    """model = the pose-replay keypoint layout suffix of the CSV (mcoco17, or halpe26: its first 17 joints are COCO17)."""
     gt = json.load(open(f'{ex3d}/gt.json'))[seq]
     L = f'{ex3d}/exercise3d_labels/{seq}'
     z = np.load(f'{L}/geometry/canonical_3d.npz'); names = list(z['joint_names'])
@@ -301,10 +302,10 @@ def ex3d_seq(ex3d, ex3d_csv, seq, cam):
     cg = json.load(open(f'{L}/geometry/metadata.json'))['camera_geometry']
     cg = ast.literal_eval(cg) if isinstance(cg, str) else cg
     E = np.array(cg[cam]['extrinsic_world_to_camera']); Kint = np.array(cg[cam]['intrinsic_working_frame'])
-    stem = f'{ex3d_csv}/{seq}_{cam}_{EX3D_EXNAME[gt["exercise"]]}_mcoco17'
+    stem = f'{ex3d_csv}/{seq}_{cam}_{EX3D_EXNAME[gt["exercise"]]}_{model}'
     csv = stem + '.csv' if os.path.exists(stem + '.csv') else stem + '.csv.gz'
     w, h = json.load(open(stem + '.json'))['image_size']
-    K = read_csv(csv); n = min(len(K), len(J))
+    K = read_csv(csv); n = min(len(K), len(J))  # read_csv keeps the first 17 joints
     x, crops = mag_input(K[:n], w, h)
     Xc = J[:n] @ E[:, :3].T + E[:, 3]
     f = float(Kint[0, 0] + Kint[1, 1]) / 2 * (max(w, h) / 1280.0)  # working frame -> video px
@@ -376,7 +377,7 @@ def build(a):
         for seq in a.ex3d_seqs.split(','):
             assert a.eval_only or seq not in HELD_E3D, f'{seq} is held out (P2/P3): evaluation only'
             for cam in ('cam1', 'cam2', 'cam3'):
-                seqs.append(ex3d_seq(a.ex3d, a.ex3d_csv, seq, cam))
+                seqs.append(ex3d_seq(a.ex3d, a.ex3d_csv, seq, cam, a.e_model))
     save(a.out, seqs, a)
 
 
@@ -414,6 +415,7 @@ def main():
     ap.add_argument('--exercises', default=','.join(APP_EX + ('deadlift',)))
     ap.add_argument('--ex3d-seqs', default=','.join(P1))
     ap.add_argument('--vcams', type=int, default=4); ap.add_argument('--seed', type=int, default=0)
+    ap.add_argument('--e-model', default='mcoco17', help='build --kinds E: CSV layout suffix (mcoco17 | halpe26)')
     ap.add_argument('--pose2d', default=os.path.expanduser('~/bpt-runs/lift-compare/A-pose2d-20261019/pose2d'))
     ap.add_argument('--a-sources', default='coco,halpe', help='build --kinds A: stage-1 keypoint arrays to use')
     ap.add_argument('--pool-subjects', default=','.join(TUNING), help='pool: Fit3D subjects whose real-camera residuals go in')

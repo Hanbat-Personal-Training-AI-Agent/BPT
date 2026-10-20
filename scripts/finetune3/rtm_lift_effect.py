@@ -6,7 +6,9 @@ original or fine-tuned state_dict) runs on the SAME boxes through the same batch
 padding 1.25, pose2d_ft_common.crop_box / predict) -> COCO17 px -> xs_data.real_seq_from (app COCO->H36M mapping +
 person_crop) -> kind-R sequences npz per 2D model for xs_eval.py (mocap target, L=5 row). Fit3D stays on Home.
 
-usage: rtm_lift_effect.py --pose2d DIR --subjects s07,s08,s09,s10,s11 --models base=,ft=CKPT --out-dir DIR
+usage: rtm_lift_effect.py --pose2d DIR --subjects s07,s08,s09,s10,s11 --models tag=VARIANT[:CKPT],... --out-dir DIR
+       (VARIANT = m_coco17 | m_halpe26; Halpe26 feeds XS its COCO-shared joints 0-16; --pose2d may also be a
+        det_boxes_fit3d.py folder: same npz layout with pick / box)
 """
 import argparse, json, os, sys
 from pathlib import Path
@@ -29,8 +31,8 @@ def main():
     p.add_argument('--models', required=True); p.add_argument('--out-dir', required=True)
     a = p.parse_args()
     os.makedirs(a.out_dir, exist_ok=True)
-    models = [(t, ck) for t, ck in (kv.split('=', 1) for kv in a.models.split(','))]
-    nets = {t: load_model('m_coco17', ck or None) for t, ck in models}
+    models = [(t, spec) for t, spec in (kv.split('=', 1) for kv in a.models.split(','))]
+    nets = {t: load_model(spec.partition(':')[0] or 'm_coco17', spec.partition(':')[2] or None) for t, spec in models}
     seqs = {t: [] for t, _ in models}
     for s in a.subjects.split(','):
         for ex in a.exercises.split(','):
