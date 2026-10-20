@@ -59,11 +59,11 @@ def test_real_observed_shift_is_accepted_not_snapped_back():
 
 
 def test_long_occlusion_expires_and_marks_the_joint_invalid():
-    frames = [(pose(), conf()) for _ in range(20)] + [(pose(left_ankle_x=0.6), conf(low=[L_ANKLE])) for _ in range(120)]
+    frames = [(pose(), conf()) for _ in range(20)] + [(pose(left_ankle_x=0.6), conf(low=[L_ANKLE, 13])) for _ in range(120)]
     _, out = run(frames)
     early, late = out[25], out[-1]
     assert L_ANKLE in early[1]["filled"] and L_ANKLE not in late[1]["filled"]
-    assert L_ANKLE in late[1]["invalid"]
+    assert late[1]["invalid"] == [L_ANKLE]  # the hidden wrist is in no squat relation: plain XS, never flagged here
     np.testing.assert_array_equal(late[0], frames[-1][0])  # expired: XS kept, flagged instead of held
 
 

@@ -10,7 +10,11 @@ The setup never says a pose is correct - SMPL beta does not define an optimal st
   2. expresses them relative to the same frame's own hip / shoulder joint width (calibration SMPL widths in cm are
      only shown as a labelled reference, never used to claim a cm measurement);
   3. calls the setup ready when every required item has been measured with usable quality for `stable_frames`
-     frames in a row and moved less than its tolerance over them (stillness, not correctness);
+     frames in a row and the body was still over them (stillness, not correctness): with the frame's 2D at hand the
+     observed 2D left-right midpoints the required items use moved <= tol_2d x the 2D torso, and each item in the image
+     plane in every frame moved less than its tolerance. A width along the camera depth ("depth_estimated", a side
+     view) is XS's depth guess - its frame-to-frame wobble is not the user moving, so only the 2D holds it still.
+     Without 2D (offline callers) every required item is held to its tolerance;
   4. compares with a reference only when the user saved one (personal "내 기준"), tolerance from measured
      repeatability - there is no built-in ideal band.
 Joint widths are between joint centres (H36M hips / shoulders, ankles, wrists): not foot or bar-contact widths.
@@ -26,7 +30,9 @@ L_SHOULDER, L_ELBOW, L_WRIST, R_SHOULDER, R_ELBOW, R_WRIST = 11, 12, 13, 14, 15,
 
 # item -> (H36M joints it needs, required for "ready" in these exercises, tolerance kind)
 ITEMS = {
-    "feet_width": ((R_ANKLE, L_ANKLE, R_HIP, L_HIP), ("squat", "pushup", "barbell_row"), "ratio"),
+    # push-up feet: not required - from the side (the app's push-up view) the far hip / ankle are hidden (device
+    # 2026-10-20 pushup_0003: far hip confidence median 0.40), so requiring them made ready impossible
+    "feet_width": ((R_ANKLE, L_ANKLE, R_HIP, L_HIP), ("squat", "barbell_row"), "ratio"),
     "feet_width_shoulder": ((R_ANKLE, L_ANKLE, R_SHOULDER, L_SHOULDER), (), "ratio"),
     "foot_symmetry": ((R_ANKLE, L_ANKLE, R_HIP, L_HIP), (), "ratio"),
     "foot_stagger": ((R_ANKLE, L_ANKLE, R_HIP, L_HIP, R_KNEE, L_KNEE), (), "ratio"),
@@ -56,9 +62,15 @@ WIDTH_VECTORS = {"feet_width": ((R_ANKLE, L_ANKLE), (R_HIP, L_HIP)), "feet_width
 FOOT_KEYS = {"squat": ("heel_width", "toe_out", "heel_toe"), "barbell_row": ("heel_width", "toe_out", "heel_toe")}
 FOOT_POINTS = ("left_heel", "right_heel", "left_big_toe", "right_big_toe")
 COCO_L_ANKLE, COCO_R_ANKLE, COCO_L_KNEE, COCO_R_KNEE = 15, 16, 13, 14
+# left-right joint pairs (H36M -> COCO17) whose 2D midpoints hold the body still (ExerciseSetup.motion_2d)
+PAIRS_2D = {(R_ANKLE, L_ANKLE): (16, 15), (R_KNEE, L_KNEE): (14, 13), (R_HIP, L_HIP): (12, 11),
+            (R_SHOULDER, L_SHOULDER): (6, 5), (R_ELBOW, L_ELBOW): (8, 7), (R_WRIST, L_WRIST): (10, 9)}
 # 임시값 until E1 (tuning subjects) replaces them: stillness tolerance over the window, by kind.
-DEFAULTS = dict(reliable_conf=0.5, low_conf=0.3, depth_max=0.7, stable_frames=30, tol_ratio=0.10, tol_deg=5.0, tol_items=None)
+DEFAULTS = dict(reliable_conf=0.5, low_conf=0.3, depth_max=0.7, stable_frames=30, tol_ratio=0.10, tol_deg=5.0, tol_items=None,
+                tol_2d=0.10)
 # tol_items {item: tolerance} overrides the per-kind tolerance (E1: 2 x measured repeatability per item).
+# tol_2d: largest 2D joint range over the window / 2D torso (임시값, same 10% as tol_ratio). Exercise3D app-path 2D,
+# 15-frame windows: standing before the first squat p50 0.064, inside the first squat rep p50 0.336.
 
 
 def _n(v):
@@ -148,7 +160,10 @@ class ExerciseSetup:
         self.ready = None  # snapshot {item: median} once ready
 
     def quality(self, P, conf, key):
-        c = min(float(conf[j]) for j in ITEMS[key][0])
+        if key == "torso_incline":  # the trunk line is seen from either side (side view: the far shoulder / hip hidden)
+            c = max(min(float(conf[R_SHOULDER]), float(conf[R_HIP])), min(float(conf[L_SHOULDER]), float(conf[L_HIP])))
+        else:
+            c = min(float(conf[j]) for j in ITEMS[key][0])
         if c < self.p["low_conf"]:
             return "missing"
         if c < self.p["reliable_conf"]:
@@ -160,12 +175,26 @@ class ExerciseSetup:
             return self.p["tol_items"][key]
         return self.p["tol_deg"] if key in ITEMS and ITEMS[key][2] == "deg" else self.p["tol_ratio"]
 
+    def motion_2d(self, required):
+        """Largest 2D range (px, x or y) over the window of the left-right midpoints (ankles, hips, shoulders, wrists..)
+        the required items use, both joints observed in every window frame, / the 2D torso (mid-shoulders to mid-hips,
+        median). Midpoints because in a side view the two hips (ankles) overlap and the 2D model trades them frame to
+        frame (device squat 2026-10-20: one hip spans 0.13 torso while standing). None: nothing observed to judge by."""
+        K = np.stack([e[3] for e in self.window])
+        used = {j for k in required for j in ITEMS[k][0]}
+        mids = [(K[:, a, :2] + K[:, b, :2]) / 2 for (ha, hb), (a, b) in PAIRS_2D.items()
+                if ha in used and hb in used and (K[:, [a, b], 2] >= self.p["reliable_conf"]).all()]
+        torso = float(np.median(np.linalg.norm((K[:, 5, :2] + K[:, 6, :2] - K[:, 11, :2] - K[:, 12, :2]) / 2, axis=-1)))
+        if not mids or torso < 1e-6:
+            return None
+        return max(float(np.ptp(m, axis=0).max()) for m in mids) / torso
+
     def seeds(self, relations):
         """At ready: {name: (median px vector, p90 deviation px)} of AdaptiveRelations-style (name, a, b) over the
         ready window - the stable relation the adaptive constraint starts from (variant F)."""
         out = {}
         for name, a, b in relations:
-            V = np.stack([X[b] - X[a] for _, _, X in self.window])
+            V = np.stack([e[2][b] - e[2][a] for e in self.window])
             ref = np.median(V, 0)
             out[name] = (ref, float(np.percentile(np.linalg.norm(V - ref, axis=-1), 90)))
         return out
@@ -203,15 +232,19 @@ class ExerciseSetup:
         if not all(q[k] in ok for k in required):
             self.window = []  # stillness is counted over frames in a row with every required item observed
         else:
-            self.window.append((values, q, P * unit))
+            self.window.append((values, q, P * unit, None if coco2d is None else np.asarray(coco2d, dtype="float64")))
             if len(self.window) > self.p["stable_frames"]:
                 self.window.pop(0)
         full = len(self.window) == self.p["stable_frames"]
-        moving = full and not all(max(v[k] for v, _, _ in self.window) - min(v[k] for v, _, _ in self.window) <= self.tolerance(k)
-                                  for k in required)
+        two_d = full and all(e[3] is not None for e in self.window)
+        motion = self.motion_2d(required) if two_d else None
+        gate = [k for k in required if not two_d or all(e[1][k] == "good" for e in self.window)]
+        moving = full and ((two_d and (motion is None or motion > self.p["tol_2d"]))
+                           or not all(max(e[0][k] for e in self.window) - min(e[0][k] for e in self.window) <= self.tolerance(k)
+                                      for k in gate))
         if self.ready is None and full and required and not moving:
-            self.ready = {k: float(np.median([v[k] for v, _, _ in self.window if v[k] is not None])) for k in keys
-                          if any(v[k] is not None for v, _, _ in self.window)}
+            self.ready = {k: float(np.median([e[0][k] for e in self.window if e[0][k] is not None])) for k in keys
+                          if any(e[0][k] is not None for e in self.window)}
         items = []
         for k in keys:
             item = dict(key=k, value=values.get(k), quality=q[k], required=k in required,
@@ -224,4 +257,4 @@ class ExerciseSetup:
             items.append(item)
         phase = "ready" if self.ready is not None else ("holding" if self.window else "measuring")
         return dict(phase=phase, progress=min(1.0, len(self.window) / self.p["stable_frames"]), moving=moving, items=items,
-                    foot_source=foot_source)
+                    foot_source=foot_source, motion_2d=None if motion is None else round(motion, 4))

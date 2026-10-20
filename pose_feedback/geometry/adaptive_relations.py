@@ -18,8 +18,8 @@ This is NOT a world-frame contact constraint - XS has no global position, so a s
     (or, with ball_base set, XS pulled back onto a ball around it - only implausible XS guesses move),
     w = (1 - r) * exp(-gap / decay_frames), r = confidence ramp low_conf..reliable_conf, gap = frames since the joint
     was last observed. sigma^2 = spread^2 + growth * gap (x scale) is reported, never hidden.
-  - gap > max_gap_frames: the relation no longer fills that joint (expired); with confidence < low_conf the joint is
-    reported invalid (posture metrics that need it are skipped) instead of being held.
+  - gap > max_gap_frames: the relation no longer fills that joint (expired); with confidence < low_conf that joint (a
+    joint of an established relation) is reported invalid (posture metrics that need it are skipped) instead of held.
   - neither observed: no anchor, XS is kept (invalid as above when the gap is long and the confidence low).
 """
 import math
@@ -157,7 +157,11 @@ class AdaptiveRelations:
             target = sum(e[0] for e in est) / len(est)
             out[j] = w * target + (1.0 - w) * X[j]
             report["filled"][j] = dict(w=w, sigma=min(e[2] for e in est), gap=frame - self.last_seen.get(j, self.first_frame))
-        for j in range(17):
+        # Only joints this constraint could fill (a joint of an established relation) are flagged when the fill expired;
+        # every other joint keeps the plain XS behaviour (device 2026-10-20: flagging all long-low joints marked 61% of
+        # squat frames partial because of the hidden far arm, which no relation touches).
+        held = {j for name, a, b in self.relations if self.state[name]["ref"] is not None for j in (a, b)}
+        for j in sorted(held):
             if not seen[j] and conf[j] < p["low_conf"] and frame - self.last_seen.get(j, self.first_frame) > p["max_gap_frames"] \
                     and j not in report["filled"]:
                 report["invalid"].append(j)

@@ -53,6 +53,7 @@ def adaptive_cases():
             if 75 <= t < 85: P[3] += [0.004 * (t - 75), 0, 0]                # observed gradual shift
             if t >= 85: P[3] += [0.04, 0, 0]
             if 95 <= t < 140: c[3] = 0.05; P[3] += [0.2, 0.1, 0]             # long occlusion -> expiry
+            if 95 <= t < 140: c[16] = 0.05                                   # hidden wrist: flagged only with a hands relation
             frame = t + (3 if t > 120 else 0)                                # a gap in frame indices
             frames.append(dict(pose=P.tolist(), conf=c.tolist(), frame=frame, unit=180.0 + (20.0 if t > 100 else 0.0)))
         frames = _round(frames)  # the Swift test feeds exactly these values

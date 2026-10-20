@@ -20,8 +20,8 @@ import simd
 ///   `ballBase` set, XS pulled back onto a ball around it — only implausible XS guesses move),
 ///   w = (1 − r)·exp(−gap / decayFrames), r = confidence ramp lowConf…reliableConf, gap = frames since it was last
 ///   observed. σ² = spread² + growth·gap (× scale) is reported, never hidden.
-/// - gap > maxGapFrames: no fill for that joint (expired); with confidence < lowConf it is reported invalid (posture
-///   metrics that need it are skipped) instead of being held.
+/// - gap > maxGapFrames: no fill for that joint (expired); with confidence < lowConf that joint (a joint of an
+///   established relation) is reported invalid (posture metrics that need it are skipped) instead of being held.
 /// - neither observed: no anchor, XS is kept (invalid as above when the gap is long and the confidence low).
 struct AdaptiveRelationConstraint {
     /// Python DEFAULTS. Tuned on Fit3D tuning subjects only (prereg §2); 제안값(사용자 미승인).
@@ -211,7 +211,11 @@ struct AdaptiveRelationConstraint {
             out[j] = (w * target + (1 - w) * x[j]) / unit
             report.filled[j] = Report.Fill(w: w, sigma: est.map(\.sigma).min() ?? 0, gap: frame - (lastSeen[j] ?? first))
         }
-        for j in 0..<17 where !seen[j] && confidence[j] < p.lowConf && frame - (lastSeen[j] ?? first) > p.maxGapFrames
+        // Only joints of an established relation (ones this constraint could fill) are flagged when the fill expired;
+        // every other joint keeps the plain XS behaviour (device 2026-10-20: flagging every long-low joint marked 61% of
+        // squat frames partial because of the hidden far arm, which no relation touches).
+        let held = Set(relations.filter { memory[$0.name]?.ref != nil }.flatMap { [$0.a, $0.b] })
+        for j in held.sorted() where !seen[j] && confidence[j] < p.lowConf && frame - (lastSeen[j] ?? first) > p.maxGapFrames
             && report.filled[j] == nil {
             report.invalid.append(j)
         }
