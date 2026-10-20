@@ -74,7 +74,7 @@ struct ExerciseMotionCalibrationProfile {
     let provenance: [String: Any]
 
     enum InvalidProfile: Error {
-        case missingProvenance, unsupportedSource, invalidConfidence, noUsableRatios
+        case missingProvenance, unsupportedSource, invalidConfidence, noUsableRatios, invalidCalibrationResult
     }
 
     static func load(_ data: Data) throws -> Self {
@@ -84,8 +84,8 @@ struct ExerciseMotionCalibrationProfile {
             throw InvalidProfile.missingProvenance
         }
         guard ["rgb_smpl_calibration", "rgb_smpl_crossfit"].contains(source),
-              obj["ground_truth_used"] as? Bool != true,
-              obj["uses_evaluation_sequence"] as? Bool != true else {
+              obj["ground_truth_used"] as? Bool == false,
+              obj["uses_evaluation_sequence"] as? Bool == false else {
             throw InvalidProfile.unsupportedSource
         }
         guard let reliability = obj["calibration_confidence"] as? NSNumber,
@@ -93,7 +93,12 @@ struct ExerciseMotionCalibrationProfile {
               reliability.doubleValue.isFinite, (0...1).contains(reliability.doubleValue) else {
             throw InvalidProfile.invalidConfidence
         }
-        let values = obj["bone_ratios"] as? [String: Any] ?? [:]
+        let values: [String: Any]
+        if let calibration = obj["calibration_result"] as? [String: Any] {
+            values = try ratiosFromAppCalibration(calibration)
+        } else {
+            values = obj["bone_ratios"] as? [String: Any] ?? [:]
+        }
         let edges = Set((1..<17).map { "\(BoneLengthConstraint.parents[$0])-\($0)" })
         var ratios: [String: Double] = [:]
         for (edge, value) in values where edges.contains(edge) {
@@ -103,7 +108,45 @@ struct ExerciseMotionCalibrationProfile {
         }
         guard !ratios.isEmpty else { throw InvalidProfile.noUsableRatios }
         return Self(boneRatios: ratios, confidence: reliability.doubleValue,
-                    provenance: obj.filter { $0.key != "bone_ratios" })
+                    provenance: obj.filter { !["bone_ratios", "calibration_result"].contains($0.key) })
+    }
+
+    /// Reuses the actual server/calibration_modal/worker.py result, with the caller's explicit
+    /// provenance/confidence envelope. Error pixels are not a calibrated reliability score.
+    /// SMPL beta is validated as evidence of a real shape result; no model asset/re-fit is needed.
+    private static func ratiosFromAppCalibration(_ result: [String: Any]) throws -> [String: Double] {
+        guard result["schemaVersion"] as? Int == 1, result["stub"] as? Bool == false,
+              result["bodyModel"] as? String == "smpl_neutral_v1.1.0",
+              let beta = result["smplBeta"] as? [NSNumber], beta.count == 10,
+              beta.allSatisfy({ CFGetTypeID($0) != CFBooleanGetTypeID() && $0.doubleValue.isFinite }),
+              let bone = result["boneLengthData"] as? [String: Any],
+              bone["unit"] as? String == "cm", bone["skeleton"] as? String == "h36m17",
+              bone["pose"] as? String == "rest", let segments = bone["segments"] as? [String: Any] else {
+            throw InvalidProfile.invalidCalibrationResult
+        }
+        let excluded = Set(bone["appDefinitionDiffers"] as? [String] ?? [])
+        var lengths: [String: Double] = [:]
+        for name in BoneLengthConstraint.defaultSegments where !excluded.contains(name) {
+            guard let n = segments[name] as? NSNumber, CFGetTypeID(n) != CFBooleanGetTypeID(),
+                  n.doubleValue.isFinite, n.doubleValue > 0, n.doubleValue < 200 else { continue }
+            lengths[name] = n.doubleValue
+        }
+        // Use the average of complete thigh+shank sides. Left/right names are anatomical,
+        // identical to BoneLengthConstraint.joints and the server H36M order.
+        let legs = ["right", "left"].compactMap { side -> Double? in
+            guard let thigh = lengths["\(side)_hip-\(side)_knee"],
+                  let shank = lengths["\(side)_knee-\(side)_ankle"] else { return nil }
+            return thigh + shank
+        }
+        guard !legs.isEmpty else { throw InvalidProfile.noUsableRatios }
+        let denominator = legs.reduce(0, +) / Double(legs.count)
+        var ratios: [String: Double] = [:]
+        for child in 1..<17 {
+            if let length = lengths[BoneLengthConstraint.segmentNames[child - 1]] {
+                ratios["\(BoneLengthConstraint.parents[child])-\(child)"] = length / denominator
+            }
+        }
+        return ratios
     }
 
     static func fromEnvironment(_ environment: [String: String] = ProcessInfo.processInfo.environment) -> Self? {
@@ -417,6 +460,8 @@ struct ExerciseMotionEstimator {
                 }
             }
         }
+        let trusted = (0..<17).map { reliable[$0] && accepted[$0] }
+        let passthrough = trusted.map { $0 && adaptive }
         var corrected = raw
         var usedPrediction = Array(repeating: false, count: 17)
         var uncertainty = conf.map { (0.015 + 0.10 * (1 - $0)) * s }
@@ -458,6 +503,9 @@ struct ExerciseMotionEstimator {
                     p11[j] = vv
                     usedPrediction[j] = true
                 }
+                // Preserve accepted reliable observations exactly. Covariance/velocity still
+                // update so the next genuinely uncertain observation can use the causal state.
+                if passthrough[j] { p[j] = raw[j] }
                 corrected[j] = p[j]
                 uncertainty[j] = sqrt(max(p00[j], 0))
             } else if variant == .B {
@@ -499,16 +547,16 @@ struct ExerciseMotionEstimator {
         var ratios: [Double] = []
         for (a, b) in Self.edges {
             let d2 = simd_length(Self.xy(screen[a]) - Self.xy(screen[b]))
-            if reliable[a], reliable[b], d2 > 0.02 * leg2D {
+            if trusted[a], trusted[b], d2 > 0.02 * leg2D {
                 ratios.append(simd_length(Self.xy(raw[a]) - Self.xy(raw[b])) / d2)
             }
         }
         let xyScale = ratios.count >= 4 ? Self.median(ratios) : nil
         for j in contacts.keys.sorted() {
-            contacts[j]?.update(Self.xy(screen[j]), reliable: reliable[j] && !rejected[j], now: now,
+            contacts[j]?.update(Self.xy(screen[j]), reliable: trusted[j], now: now,
                                 scale: leg2D, enabled: contactEnabled && supportAvailable)
             if contactEnabled, supportAvailable, !accepted[j], let contact = contacts[j],
-               let anchor = contact.anchor, contact.state == "OCCLUDED", reliable[0],
+               let anchor = contact.anchor, contact.state == "OCCLUDED", trusted[0],
                let xyScale, let lastSeen = contact.lastSeen, now - lastSeen <= 0.35, initialized[j] {
                 let target = (anchor - Self.xy(screen[0])) * xyScale
                 let delta = target - Self.xy(corrected[j])
@@ -527,7 +575,7 @@ struct ExerciseMotionEstimator {
         if kinEnabled {
             for j in Self.distal {
                 let a = Self.parent[j]!
-                guard let ratio = boneProfile["\(a)-\(j)"], !reliable[j], reliable[a],
+                guard let ratio = boneProfile["\(a)-\(j)"], !reliable[j], trusted[a],
                       Self.finite(corrected[a]), Self.finite(corrected[j]) else { continue }
                 let target = ratio * s
                 guard target.isFinite, target > 0 else { continue }
@@ -545,7 +593,7 @@ struct ExerciseMotionEstimator {
         }
 
         if contactEnabled, exercise == "barbell_row", gripConfirmed {
-            if reliable[13], reliable[16] {
+            if trusted[13], trusted[16] {
                 let distance = simd_length(raw[13] - raw[16])
                 gripSeen = now
                 if let gripReference, !(0.8 * gripReference...1.2 * gripReference).contains(distance) {
@@ -558,7 +606,7 @@ struct ExerciseMotionEstimator {
                 }
             } else if let gripReference, let gripSeen, now - gripSeen <= 0.5 {
                 for (j, other) in [(13, 16), (16, 13)] {
-                    if !reliable[j], reliable[other], Self.finite(corrected[j]), Self.finite(corrected[other]) {
+                    if !reliable[j], trusted[other], Self.finite(corrected[j]), Self.finite(corrected[other]) {
                         let vector = corrected[j] - corrected[other], length = simd_length(vector)
                         let desired = Self.clamp(length, 0.8 * gripReference, 1.2 * gripReference)
                         if length > 1e-8 {
@@ -600,6 +648,8 @@ struct ExerciseMotionEstimator {
             usedPrediction: usedPrediction, phase: phase,
             diagnostics: ["scale": s, "fixed_camera": supportAvailable, "contact_corrected": contactUsed,
                           "bone_corrected": kinematicUsed, "rejected_joints": (0..<17).filter { rejected[$0] },
+                          "observation_passthrough": (0..<17).filter { passthrough[$0] },
+                          "observation_policy": "trusted_passthrough_v2",
                           "calibration_used": kinEnabled && !boneProfile.isEmpty,
                           "grip_used": gripReference != nil, "last_reset_reason": resetReason,
                           "variant": variant.rawValue, "timestamp": now])

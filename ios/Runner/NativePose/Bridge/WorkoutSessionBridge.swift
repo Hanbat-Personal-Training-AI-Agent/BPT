@@ -445,6 +445,7 @@ final class WorkoutChannel {
     /// Identity-aware hosts can explicitly break all temporal/contact and personal-profile state.
     /// The camera path itself does not claim to identify a person from skeleton coordinates.
     var onResetMotionTracking: (() -> Void)?
+    var onSetMotionCalibrationProfile: ((ExerciseMotionCalibrationProfile, @escaping (Bool) -> Void) -> Void)?
 
     init(channel: FlutterMethodChannel) {
         self.channel = channel
@@ -461,6 +462,20 @@ final class WorkoutChannel {
                 if let index = (args?["setIndex"] as? NSNumber)?.intValue { self.onEndSet?(index) }
             case "resetMotionTracking":
                 self.onResetMotionTracking?()
+            case "setMotionCalibrationProfile":
+                guard let onApply = self.onSetMotionCalibrationProfile, let args else {
+                    return result(FlutterError(code: "motion_calibration_disabled", message: "Experimental calibration delivery is disabled.", details: nil))
+                }
+                do {
+                    let profile = try ExerciseMotionCalibrationProfile.load(JSONSerialization.data(withJSONObject: args))
+                    onApply(profile) { applied in
+                        result(["applied": applied, "available_bones": applied ? profile.boneRatios.count : 0,
+                                "calibration_confidence": applied ? profile.confidence : 0])
+                    }
+                    return
+                } catch {
+                    return result(FlutterError(code: "invalid_motion_calibration", message: String(describing: error), details: nil))
+                }
             default:
                 return result(FlutterMethodNotImplemented)
             }

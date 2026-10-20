@@ -40,6 +40,7 @@ private enum CameraPreviewOptions {
     static let motionGripConfirmed = ProcessInfo.processInfo.environment["BPT_MOTION_GRIP_CONFIRMED"] == "1"
     static let motionProfile = ExerciseMotionCalibrationProfile.fromEnvironment()
     static let motionOnlineCalibration = ProcessInfo.processInfo.environment["BPT_MOTION_ONLINE_CALIBRATION"] == "1"
+    static let motionCalibrationBridge = ProcessInfo.processInfo.environment["BPT_MOTION_CALIBRATION_BRIDGE"] == "1"
     /// Separate estimator cost from full numerical trace cost in same-build device comparisons.
     /// This changes logging only. Detailed traces remain the default for an enabled experiment.
     static let motionLogDetail = ProcessInfo.processInfo.environment["BPT_MOTION_LOG_DETAIL"] != "0"
@@ -544,14 +545,18 @@ final class CameraPoseViewModel: ObservableObject {
                         lifter?.motionEstimator = ExerciseMotionEstimator(
                             exercise: name, variant: variant, boneProfile: profile?.boneRatios,
                             calibrationConfidence: profile?.confidence ?? 0)
+                        formTracker?.common.requireObservedPraise = true
                         lifter?.motionOnlineCalibration = CameraPreviewOptions.motionOnlineCalibration
                         let config: [String: Any] = [
                             "variant": variant.rawValue, "exercise": name,
+                            "observation_policy": "trusted_passthrough_v2",
+                            "require_observed_praise": true,
                             "fixed_camera_evidence": CameraPreviewOptions.motionFixedCamera,
                             "grip_confirmed": CameraPreviewOptions.motionGripConfirmed,
                             "profile": profile?.provenance as Any? ?? NSNull(),
                             "profile_confidence": profile?.confidence ?? 0,
                             "online_calibration": CameraPreviewOptions.motionOnlineCalibration,
+                            "calibration_bridge": CameraPreviewOptions.motionCalibrationBridge,
                             "motion_log_detail": CameraPreviewOptions.motionLogDetail,
                             "legacy_bone_targets_ignored": VideoCameraOptions.boneTargetsCm != nil,
                             "legacy_bone_projection": !variant.usesSoftBones,
@@ -632,6 +637,25 @@ final class CameraPoseViewModel: ObservableObject {
             self.motionTrace?.write(["type": "reset", "reason": "person_change"])
             VideoRunLog.shared?.write("motion_estimator_reset", ["reason": "person_change"])
             self.liftQueue.async { [weak self] in self?.lifter?.reset(reason: "person_change") }
+        }
+        if CameraPreviewOptions.motionEstimatorVariant != nil, CameraPreviewOptions.motionCalibrationBridge {
+            bridge?.onSetMotionCalibrationProfile = { [weak self] profile, completion in
+                guard let self else { completion(false); return }
+                self.liftQueue.async { [weak self] in
+                    let applied = self?.lifter?.applyMotionCalibration(profile) ?? false
+                    DispatchQueue.main.async { [weak self] in
+                        if applied {
+                            let fields: [String: Any] = [
+                                "profile": profile.provenance, "profile_confidence": profile.confidence,
+                                "available_bones": profile.boneRatios.count, "reason": "calibration_profile",
+                            ]
+                            VideoRunLog.shared?.write("motion_estimator_profile", fields)
+                            self?.motionTrace?.write(fields.merging(["type": "profile"]) { _, new in new })
+                        }
+                        completion(applied)
+                    }
+                }
+            }
         }
         rotationMotion?.start()
         contactMotion?.start()
@@ -824,6 +848,9 @@ final class CameraPoseViewModel: ObservableObject {
             if let estimated = frame3D.motion {
                 line["motion_estimator_ms"] = estimated.diagnostics["elapsed_ms"]
                 line["motion_estimator_variant"] = estimated.diagnostics["variant"]
+                line["motion_online_calibration_applied"] = estimated.diagnostics["online_calibration_applied"]
+                line["motion_online_calibration_frames"] = estimated.diagnostics["online_calibration_frames"]
+                line["motion_available_bones"] = estimated.diagnostics["available_bones"]
                 if CameraPreviewOptions.motionLogDetail {
                     line["motion_estimator"] = estimated.dictionary
                     line["invalid_for_assessment"] = Array(frame3D.invalidForAssessment).sorted()
@@ -890,6 +917,9 @@ final class CameraPoseViewModel: ObservableObject {
             if let estimated = frame3D.motion {
                 line["motion_estimator_ms"] = estimated.diagnostics["elapsed_ms"]
                 line["motion_estimator_variant"] = estimated.diagnostics["variant"]
+                line["motion_online_calibration_applied"] = estimated.diagnostics["online_calibration_applied"]
+                line["motion_online_calibration_frames"] = estimated.diagnostics["online_calibration_frames"]
+                line["motion_available_bones"] = estimated.diagnostics["available_bones"]
                 line["invalid_for_assessment_count"] = frame3D.invalidForAssessment.count
                 if CameraPreviewOptions.motionLogDetail {
                     line["motion_estimator"] = estimated.dictionary

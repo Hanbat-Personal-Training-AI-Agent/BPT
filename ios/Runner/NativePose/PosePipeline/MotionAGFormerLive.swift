@@ -208,6 +208,15 @@ struct MotionAGFormerLive<Payload> {
         ownsOnlineProfile = false
     }
 
+    /// Explicit calibration delivery starts a fresh window so no earlier identity/profile state
+    /// leaks into it. Provenance validation happens before this method is called.
+    mutating func applyMotionCalibration(_ profile: ExerciseMotionCalibrationProfile) -> Bool {
+        guard motionEstimator != nil else { return false }
+        reset(reason: "calibration_profile")
+        motionEstimator?.setBoneProfile(profile.boneRatios, confidence: profile.confidence)
+        return true
+    }
+
     private mutating func emitWithout3D(count: Int) -> [(Payload, Lifted3DFrame)] {
         let start = entries.count - pending
         let emitted = entries[start..<(start + count)].map { e in
@@ -272,14 +281,38 @@ struct MotionAGFormerLive<Payload> {
                 .rescaled(1 / e.modelToImageScale)
             if motion != nil {
                 motion?.raw = raw  // Exact XS Float->Double values, not a round-trip through normalized units.
+                for joint in motion?.diagnostics["observation_passthrough"] as? [Int] ?? [] {
+                    motion?.corrected[joint] = raw[joint]
+                    motion?.correctionMagnitude[joint] = 0
+                }
                 motion?.diagnostics["elapsed_ms"] = (ProcessInfo.processInfo.systemUptime - estimatorStart) * 1000
                 motion?.diagnostics["model_to_image_scale"] = e.modelToImageScale
                 motion?.diagnostics["online_calibration_frames"] = onlineCalibration.samples
                 motion?.diagnostics["online_calibration_applied"] = ownsOnlineProfile
+                motion?.diagnostics["available_bones"] = motionEstimator?.boneProfile.count ?? 0
             }
             let projectBones = !(motionEstimator?.variant.usesSoftBones ?? false)
             motion?.diagnostics["legacy_bone_projection"] = projectBones
-            let (fixed, report) = constraints.apply(motion?.corrected ?? raw, projectBoneLengths: projectBones)
+            let (proposal, report) = constraints.apply(motion?.corrected ?? raw, projectBoneLengths: projectBones)
+            var fixed = proposal
+            if motionEstimator?.variant == .G || motionEstimator?.variant == .H {
+                let trusted = motion?.diagnostics["observation_passthrough"] as? [Int] ?? []
+                var restored: [Int] = []
+                var magnitudes: [String: Any] = [:]
+                for joint in trusted {
+                    if proposal[joint] != raw[joint] {
+                        restored.append(joint)
+                        let magnitude = simd_length(proposal[joint] - raw[joint])
+                        magnitudes[String(joint)] = magnitude.isFinite ? magnitude as Any : NSNull()
+                    }
+                    fixed[joint] = raw[joint]
+                }
+                // Keep every existing quality gate even when the proposed geometry is rejected:
+                // observed bad form must remain visible and cannot become valid by projection.
+                motion?.diagnostics["legacy_constraint_proposals_only_for_trusted"] = true
+                motion?.diagnostics["legacy_constraint_restored_joints"] = restored
+                motion?.diagnostics["legacy_constraint_proposal_magnitude"] = magnitudes
+            }
             let invalid = report.invalidJoints.union(motion?.invalidForAssessment ?? [])
             let state: Pose3DState = invalid.isEmpty ? .ok : invalid.count == 17 ? .bad3D : .partial3D
             emitted.append((e.payload, Lifted3DFrame(frameIndex: e.frameIndex, state: state,

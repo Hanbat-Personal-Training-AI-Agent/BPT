@@ -70,6 +70,81 @@ final class ExerciseMotionLiveTests: XCTestCase {
         XCTAssertEqual(firstNew.motion!.diagnostics["calibration_used"] as? Bool, false)
     }
 
+    func testTrustedObservationsPassThroughExactlyAcrossChangingCrop() throws {
+        for variant in [ExerciseMotionVariant.G, .H] {
+            var pipeline = live(variant)
+            var checked = 0
+            for i in 0..<45 {
+                // Non-binary normalization factors change, exercising both image and XS units.
+                let scale = 1 + Double(i) * 0.0013
+                let moving = person.map { PoseKeypoint(x: $0.x * scale, y: $0.y * scale, confidence: $0.confidence) }
+                let frames = try pipeline.push(frameIndex: i, coco17: moving, imageWidth: 720,
+                                               imageHeight: 1280, payload: i)
+                for (_, frame) in frames {
+                    guard let raw = frame.raw, let result = frame.motion else { continue }
+                    let joints = result.diagnostics["observation_passthrough"] as! [Int]
+                    XCTAssertEqual(joints.count, 17)
+                    for j in joints {
+                        XCTAssertEqual(result.corrected[j], raw[j], "no floating-point roundtrip drift")
+                        XCTAssertEqual(result.correctionMagnitude[j], 0)
+                        XCTAssertEqual(frame.pose3D![j], raw[j])
+                    }
+                    checked += 1
+                }
+            }
+            XCTAssertGreaterThan(checked, 0)
+        }
+    }
+
+    func testDeliveredProfileReplacesOnlineOwnershipAndClearsOnIdentityReset() throws {
+        var pipeline = live(.H)
+        pipeline.motionOnlineCalibration = true
+        for i in 0..<95 {
+            _ = try pipeline.push(frameIndex: i, coco17: person, imageWidth: 720, imageHeight: 1280, payload: i)
+        }
+        let profile = ExerciseMotionCalibrationProfile(boneRatios: ["12-13": 0.3],
+                                                       confidence: 0.6, provenance: ["source_id": "independent"])
+        XCTAssertTrue(pipeline.applyMotionCalibration(profile))
+        pipeline.reset(reason: "set_boundary")
+        XCTAssertEqual(pipeline.motionEstimator?.boneProfile, ["12-13": 0.3])
+        pipeline.reset(reason: "person_change")
+        XCTAssertTrue(pipeline.motionEstimator!.boneProfile.isEmpty)
+    }
+
+    func testTrustedTorsoAndKneeRemainObservedWhileLegacyGatesStayInvalid() throws {
+        var observed = pose
+        observed[3] = [0.09, 0.03, 0.01]  // Deeply flexed observed knee, below the legacy angle limit.
+        observed[8] = [0.05, -0.05, 0]   // Bent observed torso, below the legacy spine limit.
+        let row = observed.flatMap { [Float($0.x), Float($0.y), Float($0.z)] }
+        for variant in [ExerciseMotionVariant.G, .H] {
+            var pipeline = MotionAGFormerLive<Int>(predict: { _ in Array(repeating: row, count: 27).flatMap { $0 } })
+            pipeline.motionEstimator = ExerciseMotionEstimator(exercise: "squat", variant: variant)
+            pipeline.constraints.boneLengths = false
+            pipeline.constraints.kneeClampDegrees = nil
+            pipeline.constraints.angleLimits = Pose3DConstraints.defaultAngleLimits.filter {
+                ["right_knee_flexion", "spine"].contains($0.name)
+            }
+            var checked = 0
+            for i in 0..<35 {
+                for (_, frame) in try pipeline.push(frameIndex: i, coco17: person, imageWidth: 720,
+                                                    imageHeight: 1280, payload: i) {
+                    guard let raw = frame.raw, let result = frame.motion else { continue }
+                    XCTAssertEqual(frame.pose3D!, raw, "legacy proposals must not hide trusted observed posture")
+                    XCTAssertTrue(frame.constraints!.invalidJoints.isSuperset(of: [3, 8]))
+                    XCTAssertTrue(frame.invalidForAssessment.isSuperset(of: [3, 8]))
+                    XCTAssertTrue(frame.masked3D![3].x.isNaN)
+                    XCTAssertTrue(frame.masked3D![8].x.isNaN)
+                    let restored = result.diagnostics["legacy_constraint_restored_joints"] as! [Int]
+                    XCTAssertTrue(restored.contains(3))
+                    XCTAssertTrue(restored.contains(8))
+                    XCTAssertGreaterThan(frame.constraints!.maxAngleCorrection, 20)
+                    checked += 1
+                }
+            }
+            XCTAssertGreaterThan(checked, 0)
+        }
+    }
+
     func testExistingGateAndEstimatorInvalidationAreBothPreserved() {
         var report = Pose3DConstraints.Report()
         report.invalidJoints = [2]
