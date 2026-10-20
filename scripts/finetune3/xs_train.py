@@ -40,7 +40,7 @@ def windows(seqs, strides):
             m = s['fmask'][i:i + WINDOW] if 'fmask' in s else np.ones(WINDOW, bool)
             if s['kind'] == 'E' and m.sum() < WINDOW // 2:
                 continue
-            X.append(s['x'][i:i + WINDOW]); Y.append(s['y'][i:i + WINDOW]); M.append(m); E.append(s['kind'] == 'E')
+            X.append(s['x'][i:i + WINDOW]); Y.append(np.nan_to_num(s['y'][i:i + WINDOW])); M.append(m); E.append(s['kind'] == 'E')
     return (torch.from_numpy(np.stack(X)), torch.from_numpy(np.stack(Y)), torch.from_numpy(np.stack(M)),
             torch.tensor(E))
 
