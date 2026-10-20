@@ -955,7 +955,10 @@ def load_ex3d_seqs(a):
         cg = json.load(open(f'{a.ex3d}/labels/{seq}/geometry/metadata.json'))['camera_geometry']; cg = ast.literal_eval(cg) if isinstance(cg, str) else cg
         up_w = -np.mean([np.array(v['extrinsic_world_to_camera'])[1, :3] for v in cg.values()], axis=0); up_w /= np.linalg.norm(up_w)
         rf = g['rep_frames']; half = int(np.median(np.diff(rf)) / 2) if len(rf) > 1 else 15
-        for cam, v in g['views'].items():
+        views = g['views'].items()
+        if getattr(a, 'ex3d_view', 'all') == 'side1':  # one camera per clip: the most side-on (CPU budget)
+            views = [min(views, key=lambda kv: kv[1]['angle_deg'])]
+        for cam, v in views:
             hits = sorted(Path(f'{a.ex3d}/csv/{seq}').glob(f'{cam}_*_mcoco17.csv'))
             if cam not in cg or not hits: continue
             csv = str(hits[0]); K = read_csv(csv); n = min(len(K), len(Jw)); K = K[:n]; x, crops = mag_input(K)
@@ -1009,6 +1012,7 @@ def main():
     p.add_argument('cmd', choices=['gt-relations', 'cache-clean', 'occlude', 'evaluate', 'foot-shift', 'setup-measure', 'signals', 'tune', 'rgb-eval', 'setup-ex3d'])
     p.add_argument('--ex3d', help='dir with gt.json, csv/<seq>/<cam>_<ex>_mcoco17.csv, labels/<seq>/geometry')
     p.add_argument('--dataset', choices=['fit3d', 'ex3d'], default='fit3d'); p.add_argument('--device', choices=['cpu', 'mps'], default='cpu')
+    p.add_argument('--ex3d-view', choices=['all', 'side1'], default='all')
     p.add_argument('--rgb', help='dir of eval_setup_rgb_occlusion.py outputs'); p.add_argument('--pose2d', help='lift-compare A-pose2d pose2d dir')
     p.add_argument('--jobs', type=int, default=4)
     p.add_argument('--cases', type=lambda s: s.split(','), default=list(SHIFT_CASES))
