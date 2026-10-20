@@ -13,6 +13,7 @@
 4. `rtm26_post.sh` → 사전 등록 선택 → `rtm26_eval.sh`(검증 1회: Fit3D s07–s11 + SMPL-X 발, COCO val, Exercise3D, 실험 A 2D) → Core ML trace(`coreml-h26ft/`).
 5. `det_chain.sh`(2D 끝 대기) → RTMDet-m 미세조정 `det-ft1/` + 조정 평가 `det-tune-eval/` → `det_post.sh` → 선택 → 검증 1회 `det-final-eval/` + 상자(`det-boxes-ft/`: 처음 잡기용 클립, Fit3D s07–s11).
 6. `e2e_chain.sh` → 종단 E2·E3(새 2D·새 det → XS) `e2e-fit3d-heldout/`.
+7. `c3_chain.sh`(D-F3-07 뒤 추가, 사전 등록 §1.3) → 2D 선택 뒤 **`c3-2d-source.txt`**("h26ft" = Halpe26 후보가 2D 규칙 통과, 아니면 "base"; Mac 앱 경로 점검 뒤 손으로 씀, 4시간 없으면 원래 Halpe26) → 그 2D로 Fit3D 다시 뽑기 → Halpe 오프셋·잔차 풀 → Halpe 매핑 R/V/E → C3 학습 `xs-C3/` → 검증 1회 `xs-final-C3/`.
 - 끊긴 실행은 지우지 않고 이름표: `xs-dev-RV-INTERRUPTED-homeoffline-1527`(Home 재부팅), `xs-dev-RV-STOPPED-1730-xs-moved-to-mac`, `xs-C2-STOPPED-for-C1-eval`, `xs-final-t4-heldout-C1-STOPPED-cpu-too-slow`, `xs-dev-eval-base-ABORTED-cpu-contention`.
 - **재개**: 사슬이 멈췄으면 `~/bpt-runs/finetune3/*chain*.log`·`*_post.log`·`xs_c1_gpu.log`로 어디까지 갔는지 보고, 같은 스크립트를 `SHA=<그 스크립트의 코드 스냅숏> setsid nohup ./<script>.sh > <script>.out 2>&1 < /dev/null &`로 다시 띄운다(각 단계는 결과 파일이 있으면 건너뜀). 실행 중인지 볼 때 `pgrep -f`에 스크립트 이름을 쓰지 말 것(자기 명령줄과 겹침 — `ps -eo pid,cmd | grep -E '^ *[0-9]+ /bin/bash ./<name>.sh'`).
 - **Mac에서 남은 일**(Home 결과 뒤): C2·2D 후보 Core ML 변환·패리티(`scratchpad/ft3/xs_coreml.sh`, `coreml_rtm_export.py convert`), 앱 경로 실행(`scripts/finetune3/apppath.py`: 2D 후보 `cur`, det 후보 상자 `det`, 흔들림 `sway_ft3.py`), Exercise3D 종단(새 2D CSV → Home에서 XS).
