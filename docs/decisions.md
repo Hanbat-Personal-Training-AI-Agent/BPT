@@ -945,3 +945,14 @@
   - 분석 화면: 작업 상태 polling·진행률·실패 문구·결과 요약. 앱은 업로드만 하고 40초 뒤 결과 화면(자리표시)으로 간다. 서버 분석은 그대로 돈다. `CalibrationUploadService.fetchJob`은 남아 있다.
   - `ai/lift-app`의 3D 상태 안내(운동 화면 변경)는 main 화면 위에 다시 얹어야 한다.
 - **확인**: `flutter analyze` 문제 없음, `flutter test` 98 통과, `flutter build ios --debug --no-codesign`(아래 병합 커밋 기준).
+
+## 트랙 setup-constraint — 개인화 준비 자세 · 적응형 가림 제약 — 2026-10-20 (ai/setup-constraint)
+
+### D-S-01 비교 규칙 사전등록 (검증 결과를 보기 전, 제안)
+- `docs/results/setup_constraint_prereg.md`: 변형 A/B/B0/C/D/E/F/EC, 가림 10조건(2D 손상), RGB 가림, 반-합성 발 이동 5케이스, 조정 격자(조정 피험자만), 판정 규칙 R1–R6. 변경 기록은 모두 검증 결과를 보기 전에 남겼다.
+- 규칙과 기준값은 **에이전트 제안이며 사용자가 승인하지 않았다**.
+
+### D-S-02 구현은 기본 끔 — 앱 동작 변경 없음 (2026-10-20)
+- 적응형 관계 제약: `BPT_ADAPTIVE_3D=1`일 때만 켜진다. `MotionAGFormerLive`의 제약 직후 한 곳에 연결했고, 끄면 출력이 비트 단위로 같다(기존 테스트 그대로 통과).
+- 준비 자세 패널·체형 결과 저장소: Flutter `--dart-define=BPT_EXERCISE_SETUP=true`일 때만 켜진다. 팀원 화면은 플래그로 감싼 연결만 했다.
+- 기본값 전환, integration 병합, 모델 변경은 하지 않았다. 켤지는 사용자가 결정한다(결과: `docs/results/setup_constraint.md`).
