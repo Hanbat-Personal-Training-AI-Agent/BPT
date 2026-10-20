@@ -356,6 +356,7 @@ final class CameraPoseViewModel: ObservableObject {
     // MARK: Sets (Flutter startSet / endSet)
 
     private func startSet(_ index: Int) {
+        VideoRunLog.shared?.write("start_set", ["set": index])
         betweenSets = false
         guard WorkoutDebugFlags.setRecording, let directory = WorkoutSetRecorder.directory() else { return }
         recording = true
@@ -366,6 +367,7 @@ final class CameraPoseViewModel: ObservableObject {
 
     /// Set-scope feedback (참고 keys, n = reps in the set), then onSetEnd once the file is closed.
     private func endSet(_ index: Int) {
+        VideoRunLog.shared?.write("end_set_received", ["set": index, "between_sets": betweenSets])
         guard !betweenSets else { return }
         betweenSets = true
         recording = false
@@ -375,6 +377,9 @@ final class CameraPoseViewModel: ObservableObject {
         liftQueue.async { [weak self] in
             guard let self else { return }
             let tail = (try? self.lifter?.flush()) ?? []
+            VideoRunLog.shared?.write("end_set_flush", ["set": index, "tail_frames": tail.count,
+                                                        "tail_states": tail.map { $0.1.state.rawValue },
+                                                        "tail_frame_index": tail.map { $0.1.frameIndex }])
             Task { @MainActor in
                 for (result, frame3D) in tail { self.handleLifted(result, frame3D) }
                 self.finishEndSet(index)
@@ -388,7 +393,18 @@ final class CameraPoseViewModel: ObservableObject {
             FeedbackJoint.worst(setCounts: $0.endSet(), enabled: $0.common.enabledFeedbackKeys,
                                 ruleOrder: (FormWarningTracker.rules[$0.exercise] ?? []).map(\.key))
         }
-        for event in tracker?.drainEvents() ?? [] { bridge?.sendFeedback(event) }
+        for event in tracker?.drainEvents() ?? [] {
+            guard let log = VideoRunLog.shared else { bridge?.sendFeedback(event); continue }
+            var line: [String: Any] = ["key": event.key, "scope": event.scope.rawValue, "frame": -1, "set": index]
+            if let n = event.n { line["n"] = n }
+            log.write("feedback_sent", line)
+            bridge?.sendFeedback(event) { reply in
+                var done = line
+                done["reply"] = reply.map { "\($0)" } ?? NSNull()
+                log.write("feedback_reply", done)
+            }
+        }
+        VideoRunLog.shared?.write("set_end_sent", ["set": index, "worst_joint": worstJoint ?? NSNull()])
         captureManager.finishRecording { [weak self] url in
             Task { @MainActor in
                 self?.bridge?.sendSetEnd(setIndex: index, videoLocalPath: url?.path, worstJoint: worstJoint)
@@ -681,6 +697,17 @@ final class CameraPoseViewModel: ObservableObject {
             ]
             if result.sameHandDropped { line["same_hand"] = true }
             if let row = frame3D.row { line["row"] = row }
+            if let src = log.clipFrame(result.frameIndex) { line["src"] = src }
+            // RTMPose keypoints the evaluators used (frame px, 1 decimal) and the raw MediaPipe wrist per crop side, for
+            // the left/right analysis against the Exercise3D labels (scripts/ex3d_lr_swap_device.py).
+            line["kp"] = result.rawCoco17.flatMap { [($0.x * 10).rounded() / 10, ($0.y * 10).rounded() / 10,
+                                                     ($0.confidence * 1000).rounded() / 1000] }
+            var hands: [String: [Double]] = [:]
+            for hand in result.handResults {
+                if let w = hand.wristFramePoint { hands[hand.side.rawValue] = [(w.x * 10).rounded() / 10, (w.y * 10).rounded() / 10] }
+            }
+            if !hands.isEmpty { line["hands"] = hands }
+            line["size"] = [Int(result.imageWidth), Int(result.imageHeight)]
             if frame3D.state == .warmingUp { line["filled"] = frame3D.filled }
             if let c = frame3D.constraints {
                 line["invalid"] = Array(c.invalidJoints).sorted()

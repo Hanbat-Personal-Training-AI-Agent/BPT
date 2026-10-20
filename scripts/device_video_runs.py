@@ -3,12 +3,15 @@
   conda run -n bpt-eval python -I scripts/device_video_runs.py push   <clips_dir> [names...]
   conda run -n bpt-eval python -I scripts/device_video_runs.py run    <clips_dir> <out_dir> [--clips a,b,...] [--env K=V ...]
                                                                      [--tag TAG] [--loops N] [--timeout-pad S]
+                                                                     [--reps-from-gt GT.json]
   conda run -n bpt-eval python -I scripts/device_video_runs.py pull   <out_dir>
 
 push copies clips into the app's Documents/e3d_clips (never into git or the bundle). run launches com.bpt.liftdev once
 per clip with BPT_CAMERA_VIDEO=e3d_clips/<clip>.mp4 + BPT_AUTOSTART_WORKOUT=<exercise> (+ --env extras), waits for the
 run log's video_end (polling the device), pulls Documents/video_runs and workout_form_logs into <out_dir>, and writes
 <out_dir>/manifest.json (clip sha256, env, app binary hashes, commands). Heavy: wrap in lockf -k /tmp/bpt-heavy.lock.
+--reps-from-gt sets BPT_AUTOSTART_REPS to the clip's truth reps (Exercise3D pseudo labels), so Flutter's workout screen
+reaches its rep target and sends endSet (3D tail flush, set-scope keys, onSetEnd) like a real set.
 Exercise3D frames are never opened here; only the app's logs are read.
 """
 import argparse
@@ -111,12 +114,14 @@ def run(a):
         want = a.clips.split(",")
         clips = [c for c in clips if c.stem in want]
     extra = dict(kv.split("=", 1) for kv in a.env)
+    gt = json.load(open(a.reps_from_gt)) if a.reps_from_gt else None
     runs = []
     for c in clips:
         exercise = EXERCISE[c.stem.split("_")[0]]
         tag = f"{a.tag}_{c.stem}"
         env = {"BPT_CAMERA_VIDEO": f"e3d_clips/{c.name}", "BPT_AUTOSTART_WORKOUT": exercise, "BPT_PERF_LOG": "1",
-               "BPT_RUN_TAG": tag, **({"BPT_CAMERA_VIDEO_LOOPS": str(a.loops)} if a.loops > 1 else {}), **extra}
+               "BPT_RUN_TAG": tag, **({"BPT_CAMERA_VIDEO_LOOPS": str(a.loops)} if a.loops > 1 else {}),
+               **({"BPT_AUTOSTART_REPS": str(gt[c.stem.rsplit("_", 1)[0]]["truth_reps"])} if gt else {}), **extra}
         frames = int(sh(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=nb_frames",
                          "-of", "csv=p=0", str(c)]).stdout.strip() or 0)
         expected = frames / 30 * a.loops
@@ -160,6 +165,7 @@ def main():
     r.add_argument("--loops", type=int, default=1)
     r.add_argument("--timeout-pad", type=float, default=90)
     r.add_argument("--app-hashes", default="")
+    r.add_argument("--reps-from-gt", default="")
     q = sub.add_parser("pull")
     q.add_argument("out_dir")
     a = ap.parse_args()

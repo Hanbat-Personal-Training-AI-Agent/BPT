@@ -191,6 +191,7 @@ final class WorkoutVoice: NSObject, AVSpeechSynthesizerDelegate, AVAudioPlayerDe
             for name in workoutVoiceAudioNames(key: line.key, n: line.n) {
                 if let url = audioURL(name), let player = try? AVAudioPlayer(contentsOf: url) {
                     player.delegate = self
+                    player.volume = WorkoutDebugFlags.outputVolume
                     player.play()
                     self.player = player
                     return
@@ -200,6 +201,7 @@ final class WorkoutVoice: NSObject, AVSpeechSynthesizerDelegate, AVAudioPlayerDe
         let utterance = AVSpeechUtterance(string: line.text)
         utterance.voice = AVSpeechSynthesisVoice(language: line.language)
         utterance.rate = AVSpeechUtteranceDefaultSpeechRate * 0.95
+        utterance.volume = WorkoutDebugFlags.outputVolume
         synthesizer.speak(utterance)
     }
 
@@ -243,6 +245,17 @@ enum WorkoutDebugFlags {
     /// Per-set video. OFF until the on-device FPS check (recording ON vs OFF) shows a drop ≤ 10 %
     /// (docs/research/set_recording_perf.md); while off, onSetEnd sends videoLocalPath = null.
     static var setRecording: Bool { flag("BPT_SET_RECORDING", "BPTSetRecording") }
+
+    /// Test-only: every app sound at volume 0 while the speech / audio work still runs (realistic CPU cost).
+    /// BPT_VOICE_MUTE=1, or implied by a video-as-camera launch (BPT_CAMERA_VIDEO) unless BPT_VOICE_MUTE=0.
+    /// Never set in normal launches.
+    static let voiceMuted: Bool = {
+        let env = ProcessInfo.processInfo.environment
+        if env["BPT_VOICE_MUTE"] == "1" { return true }
+        return !(env["BPT_CAMERA_VIDEO"] ?? "").isEmpty && env["BPT_VOICE_MUTE"] != "0"
+    }()
+
+    static var outputVolume: Float { voiceMuted ? 0 : 1 }
 }
 
 // MARK: - Per-set recording

@@ -86,19 +86,16 @@ class _NativePoseWorkoutScreenState
   int _elapsedSeconds = 0;
   bool _isPaused = false;
 
-  // 코리 피드백: 네이티브가 `onFeedback` 으로 보낸 대사 키를 보여준다
-  // (kori_feedback_lines.dart). 키가 한 번도 안 왔으면 rep마다 칭찬과 운동별 대표
-  // 경고를 번갈아 보여주는 임시 동작을 쓴다. 첫 피드백 전에는 운동별 기본 팁을 보여준다.
+  // 코리 피드백: 네이티브 판정이 `onFeedback` 으로 보낸 대사 키만 보여준다
+  // (kori_feedback_lines.dart). 첫 피드백 전에는 운동별 기본 팁을 보여준다.
   String? _feedbackKey;
   // 실시간 3D 상태 (onPoseUpdate.pose3d). null = 3D 경로 없음.
   NativePose3DStatus? _pose3d;
   int? _feedbackCount;
-  bool _nativeFeedbackActive = false;
   int _badCountThisSet = 0;
   final Set<String> _warningKeysThisSet = {};
 
   /// 운동 전체에서 네이티브 판정이 보낸 경고 키별 횟수 (기록의 feedbackCounts).
-  /// 임시 데모 피드백은 실제 판정이 아니라서 여기에 넣지 않는다.
   final Map<String, int> _nativeFeedbackCounts = {};
 
   // 브레이크 타임: 세트 사이 휴식 타이머 + 세트별 기록.
@@ -192,11 +189,15 @@ class _NativePoseWorkoutScreenState
         setState(() => _pose3d = pose3d);
       }
       _onNativeUpdate(rep);
-    } else if (call.method == 'onFeedback') {
-      // { key: 'squat_shallow', n?: 3 } — key는 kori_feedback_lines.dart 목록 기준.
-      final args = (call.arguments as Map).cast<String, dynamic>();
-      final key = args['key'] as String?;
-      if (key != null) _onNativeFeedback(key, (args['n'] as num?)?.toInt());
+    } else if (call.method == NativePoseChannel.onFeedback) {
+      // { key: 'squat_shallow', n?: 3, scope: 'rep'|'set' } — key는 kori_feedback_lines.dart 목록 기준.
+      final feedback = NativeFeedback.parse(call.arguments);
+      if (feedback == null) return null;
+      if (feedback.isSetScope) {
+        _onNativeSetSummary(feedback.key, feedback.n);
+      } else {
+        _onNativeFeedback(feedback.key, feedback.n);
+      }
     }
     return null;
   }
@@ -206,7 +207,6 @@ class _NativePoseWorkoutScreenState
     if (!mounted || _isPaused || line == null) return;
     if (_setComplete || _workoutComplete) return;
     setState(() {
-      _nativeFeedbackActive = true;
       _feedbackKey = key;
       _feedbackCount = count;
       if (line.kind == KoriFeedbackKind.warning) {
@@ -218,6 +218,19 @@ class _NativePoseWorkoutScreenState
       }
     });
     _speakFeedback();
+  }
+
+  /// 세트 끝 요약 경고(scope "set", n = 세트 안 렙 수). 세트 요약 음성과 겹치지 않게
+  /// 말풍선·음성 없이 운동 기록의 경고 횟수에만 더한다.
+  void _onNativeSetSummary(String key, int? count) {
+    if (!mounted || koriFeedbackLines[key]?.kind != KoriFeedbackKind.warning) return;
+    _nativeFeedbackCounts.update(key, (c) => c + (count ?? 1),
+        ifAbsent: () => count ?? 1);
+  }
+
+  /// 세트 경계를 네이티브에 알린다(세트 요약 경고, 세트별 기록, 3D 마지막 프레임 판정).
+  void _notifySet(String method) {
+    _channel?.invokeMethod(method, {'setIndex': _currentSet});
   }
 
   bool get _isKo => ref.read(appStringsProvider).locale == 'ko';
@@ -243,18 +256,6 @@ class _NativePoseWorkoutScreenState
         isKo: isKo);
   }
 
-  /// 네이티브 피드백 연동 전 임시 동작: rep마다 칭찬 ↔ 운동별 대표 경고.
-  void _advanceDemoFeedback() {
-    final warningKey = koriDemoWarningKeyByExercise[widget.exerciseId];
-    final showWarning = warningKey != null && _feedbackKey == 'praise_fixed';
-    _feedbackKey = showWarning ? warningKey : 'praise_fixed';
-    _feedbackCount = null;
-    if (showWarning) {
-      _badCountThisSet += 1;
-      _warningKeysThisSet.add(warningKey);
-    }
-  }
-
   // TODO(temp): 시뮬레이터에서는 카메라가 없어 반복 수가 안 들어오므로,
   // 네이티브 카메라가 보내는 반복 수 이벤트를 대신 흉내 내는 테스트용 동작.
   void _debugAddRep() => _onNativeUpdate(_latestNativeRep + 1);
@@ -263,15 +264,13 @@ class _NativePoseWorkoutScreenState
 
   void _onNativeUpdate(int rep) {
     if (!mounted || _isPaused) return;
-    final keyBefore = _feedbackKey;
     final setCompleteBefore = _setComplete;
+    final setEndedBefore = _setComplete || _workoutComplete;
     setState(() {
-      final repIncreased = rep > _latestNativeRep;
       _latestNativeRep = rep;
       // Don't advance set state while a set-complete / done prompt is showing;
       // reps performed during the rest period are discarded on "next set".
       if (_setComplete || _workoutComplete) return;
-      if (repIncreased && !_nativeFeedbackActive) _advanceDemoFeedback();
       if (rep - _setStartRep >= _targetRepsThisSet) {
         _setResults.add(
           _SetResult(
@@ -289,11 +288,10 @@ class _NativePoseWorkoutScreenState
         }
       }
     });
-    if (_setComplete && !setCompleteBefore) {
-      _speakSetSummary();
-    } else if (_feedbackKey != keyBefore && !_nativeFeedbackActive) {
-      _speakFeedback();
+    if (!setEndedBefore && (_setComplete || _workoutComplete)) {
+      _notifySet(NativePoseChannel.endSet);
     }
+    if (_setComplete && !setCompleteBefore) _speakSetSummary();
   }
 
   void _togglePause() {
@@ -341,6 +339,7 @@ class _NativePoseWorkoutScreenState
       _feedbackKey = null;
       _feedbackCount = null;
     });
+    _notifySet(NativePoseChannel.startSet);
   }
 
   /// "끝내기"를 실수로 눌렀을 수 있으니 한 번 더 확인한다. 모달이 떠 있는 동안은
@@ -368,6 +367,7 @@ class _NativePoseWorkoutScreenState
 
   void _finishWorkout() {
     if (!mounted) return;
+    if (!_setComplete && !_workoutComplete) _notifySet(NativePoseChannel.endSet);
 
     // 실제로 수행한 세트만 모은다. 끝난 세트 + 진행 중이던 세트(1회 이상 했을 때).
     // 쉬는 시간/완료 화면에서는 방금 끝낸 세트가 이미 _setResults 에 들어 있다.
