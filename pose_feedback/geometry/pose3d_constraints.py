@@ -108,8 +108,12 @@ class Pose3DConstraints:
             if length > MIN_BONE_LENGTH:
                 self.history[name].append(length)
 
-    def apply(self, joints_3d):
-        """Return (joints [17,3] float64, report dict)."""
+    def apply(self, joints_3d, *, project_bone_lengths=True):
+        """Return pose and report; optionally report/gate bones without projecting.
+
+        The experimental soft personal constraint calls this with False to avoid
+        a second bone projection. Existing callers retain their prior behavior.
+        """
         j = np.asarray(joints_3d, dtype="float64").copy()
         report = {"bone_max_correction": 0.0, "bone_source": "none", "knee_hyperextended": False,
                   "knee_correction_deg": 0.0, "knee_clamp_deg": 0.0, "knees_reflected": 0, "angle_corrections": {},
@@ -124,7 +128,8 @@ class Pose3DConstraints:
                 targets, report["bone_source"] = (session, "session") if session else (self.prior_lengths, "prior")
             self._record(j)
             out, bones = apply_bone_lengths(j, targets)
-            j = np.asarray(out, dtype="float64").copy()
+            if project_bone_lengths:
+                j = np.asarray(out, dtype="float64").copy()
             corr = [abs(s["output"] - s["observed"]) / max(s["observed"], MIN_BONE_LENGTH)
                     for s in bones["segments"].values() if s["constrained"]]
             report["bone_max_correction"] = max(corr) if corr else 0.0
