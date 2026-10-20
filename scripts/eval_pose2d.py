@@ -35,6 +35,7 @@ SAPIENS_COCO17 = [0, 1, 2, 3, 4, 5, 6, 7, 8, 62, 41, 9, 10, 11, 12, 13, 14]
 SAPIENS_HALPE_FEET = [15, 18, 16, 19, 17, 20]  # l/r big toe, l/r small toe, l/r heel (Halpe 20..25 order)
 GROUPS = {'face': [0, 1, 2, 3, 4], 'shoulder': [5, 6], 'elbow': [7, 8], 'wrist': [9, 10], 'hip': [11, 12],
           'knee': [13, 14], 'ankle': [15, 16], 'body12': list(range(5, 17)), 'limbs8': [7, 8, 9, 10, 13, 14, 15, 16]}
+FIT3D_EXERCISES = ('squat', 'pushup', 'diamond_pushup', 'barbell_row', 'barbell_dead_row')  # the app's exercises + close variants
 FIT3D_COCO = {5: 11, 6: 14, 7: 12, 8: 15, 9: 13, 10: 16, 11: 1, 12: 4, 13: 2, 14: 5, 15: 3, 16: 6}  # coco <- fit3d
 
 
@@ -159,10 +160,14 @@ def fit3d(model, subjects, stride=10):
     for subj in subjects:
         for video in sorted(glob.glob(f'{root}/{subj}/videos/*/*.mp4')):
             cam, ex = video.split('/')[-2], os.path.basename(video)[:-4]
-            jf, cf = f'{root}/{subj}/joints3d_25/{ex}.npy', f'{root}/{subj}/camera_parameters/{cam}/{ex}.json'
-            if not (os.path.exists(jf) and os.path.exists(cf)):
+            if ex not in FIT3D_EXERCISES:
                 continue
-            J, camera = np.load(jf), json.load(open(cf))
+            jf, cf = f'{root}/{subj}/joints3d_25/{ex}', f'{root}/{subj}/camera_parameters/{cam}/{ex}.json'
+            jf = next((f for f in (jf + '.npy', jf + '.json') if os.path.exists(f)), None)  # Mac copy .npy, original .json
+            if not (jf and os.path.exists(cf)):
+                continue
+            J = np.load(jf) if jf.endswith('.npy') else np.array(json.load(open(jf))['joints3d_25'])
+            camera = json.load(open(cf))
             idx = list(range(0, len(J), stride))
             frames = read_frames(video, idx)
             crops, back, gts, boxes = [], [], [], []
