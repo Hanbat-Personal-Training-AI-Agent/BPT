@@ -65,3 +65,24 @@ def test_long_occlusion_expires_and_marks_the_joint_invalid():
     assert L_ANKLE in early[1]["filled"] and L_ANKLE not in late[1]["filled"]
     assert L_ANKLE in late[1]["invalid"]
     np.testing.assert_array_equal(late[0], frames[-1][0])  # expired: XS kept, flagged instead of held
+
+
+def test_real_knee_valgus_is_kept_while_an_ankle_is_occluded():
+    """Spec section 10: a real posture error must not be erased. The knees cave in (observed) while the left ankle is
+    occluded: knees stay exactly as observed and the valgus ratio follows the truth, not the setup stance."""
+    from pose_feedback.body.form_metrics_3d import frame_metrics
+    frames, truths = [], []
+    for t in range(20):
+        frames.append((pose(), conf())); truths.append(pose())
+    for t in range(20):
+        truth = pose()
+        truth[[2, 5], 0] *= 1 - 0.6 * t / 19          # knees move inward: valgus
+        xs = truth.copy(); xs[6] += [0.25, 0, 0.1]      # XS misplaces the occluded left ankle
+        frames.append((xs, conf(low=[L_ANKLE]))); truths.append(truth)
+    _, out = run(frames)
+    for (P, _), (Q, _), G in zip(frames, out, truths):
+        np.testing.assert_array_equal(Q[[2, 5]], P[[2, 5]])  # knees untouched
+    ratio = lambda J: frame_metrics(J, "left")["kneeAnkleGapRatio"]
+    # closer to the truth than XS (fill weight exp(-20/45) = 0.64 by the last frame: decays, never a hard hold)
+    assert abs(ratio(out[-1][0]) - ratio(truths[-1])) < 0.6 * abs(ratio(frames[-1][0]) - ratio(truths[-1]))
+    assert ratio(out[-1][0]) < 0.5 * ratio(out[19][0])  # the cave-in is still there after the fill
