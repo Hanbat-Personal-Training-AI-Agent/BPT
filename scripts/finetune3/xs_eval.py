@@ -36,7 +36,7 @@ def score(s, P):
     side, up = s['side'], np.array(s['up_c'])
     seg = [tuple(x) for x in s['seg']]
     r = dict(name=s['name'], kind=s['kind'], subject=s.get('subject'), exercise=s.get('exercise'), group=s['group'],
-             view=s['view'], bucket=bucket(s['view']), noise=s.get('noise', 'real'), split=s.get('split'))
+             view=s['view'], bucket=bucket(s['view']), noise=s.get('noise', 'real'), split=s.get('split'), src=s.get('src', 'app'))
     if s['kind'] in ('R', 'V'):
         k = s['mm'][:, None, None] / 1000.0
         pm = pose_metrics(P * k, s['y'] * k)
@@ -87,7 +87,12 @@ def main():
     if a.table:
         return table(a.table, a.by.split(','))
     dev = 'cpu' if a.cpu or not torch.cuda.is_available() else 'cuda'
-    seqs = load_seqs(a.data)
+    seqs = []
+    for path in a.data:  # 2D source of E sequences = the CSV layout of the file (E built from Halpe26 CSVs: *_h26.npz)
+        for q in load_seqs([path]):
+            if q['kind'] == 'E' and 'src' not in q:
+                q['src'] = 'app_halpe26' if path.endswith('_h26.npz') else 'app_coco17'
+            seqs.append(q)
     out = {}
     for tag, ck in (kv.split('=', 1) for kv in a.models.split(',')):
         model = load(a.mag_repo, ck, dev)[0].eval()
