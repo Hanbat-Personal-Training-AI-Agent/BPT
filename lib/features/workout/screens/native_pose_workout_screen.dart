@@ -842,8 +842,6 @@ class _LiveHud extends StatelessWidget {
           child: _KoriFeedbackRow(
             isKo: isKo,
             exerciseId: exerciseId,
-            repsDone: reps,
-            repsTarget: targetReps,
             feedbackKey: feedbackKey,
             feedbackCount: feedbackCount,
           ),
@@ -991,7 +989,7 @@ class _SoundToggleButtonState extends State<_SoundToggleButton> {
 
 /// 코리 피드백 말풍선. [feedbackKey] 대사를 보여주고, null이면 운동별 기본 팁.
 class _KoriFeedbackRow extends StatelessWidget {
-  // 피드백 대사가 없을 때 운동별로 보여주는 한 줄 주의사항.
+  // 첫 피드백 대사가 오기 전 기본 상태에서 운동별로 보여주는 한 줄 주의사항.
   static const Map<String, String> _idleTipsKo = {
     'squat': '무릎이 발끝 방향을 향하게 해줘',
     'benchpress': '가슴까지 천천히 바를 내려줘',
@@ -1010,15 +1008,11 @@ class _KoriFeedbackRow extends StatelessWidget {
   const _KoriFeedbackRow({
     required this.isKo,
     required this.exerciseId,
-    required this.repsDone,
-    required this.repsTarget,
     required this.feedbackKey,
     required this.feedbackCount,
   });
   final bool isKo;
   final String exerciseId;
-  final int repsDone;
-  final int repsTarget;
   final String? feedbackKey;
   final int? feedbackCount;
 
@@ -1035,11 +1029,7 @@ class _KoriFeedbackRow extends StatelessWidget {
       characterAsset = 'assets/images/character/considering.png';
       bubbleColor = AppColors.purple;
       textColor = AppColors.black;
-      title = repsDone > 0
-          ? (isKo
-              ? '자세 확인 중 · $repsDone/$repsTarget회'
-              : 'Checking your form · $repsDone/$repsTarget')
-          : (isKo ? '준비되면 시작해보자!' : "Start whenever you're ready!");
+      title = isKo ? '준비되면 시작해보자!' : "Start whenever you're ready!";
       subtitle = isKo
           ? (_idleTipsKo[exerciseId] ?? _idleTipsKo['squat']!)
           : (_idleTipsEn[exerciseId] ?? _idleTipsEn['squat']!);

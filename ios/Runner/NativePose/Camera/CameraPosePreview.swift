@@ -230,6 +230,8 @@ final class CameraPoseViewModel: ObservableObject {
     @Published var currentFrame: CameraFrameData?
     @Published var statusText = "Initializing..."
     @Published var cameraPermissionDenied = false
+    /// Test mode only (video mode, BPT_CAMERA_VIDEO): the last rep's real judgement as a small caption; nil otherwise.
+    @Published var debugCaption: String?
 
     private let exercise: NativePoseExercise
     private let captureManager = CameraCaptureManager()
@@ -367,6 +369,7 @@ final class CameraPoseViewModel: ObservableObject {
     private func reportForm() {
         guard let tracker = formTracker else { return }
         liveSeverity = tracker.liveSeverity()
+        let newReport = tracker.reports.last.flatMap { $0.repIndex > lastLoggedRep ? $0 : nil }
         // Bench press closes a rep's report 0.5 s after the count (lockout window), so log by rep index.
         for report in tracker.reports where report.repIndex > lastLoggedRep {
             formLog?.append(report)
@@ -377,7 +380,11 @@ final class CameraPoseViewModel: ObservableObject {
                 log.write("rep", line)
             }
         }
-        for event in tracker.drainEvents() {
+        let events = tracker.drainEvents()
+        if VideoCameraOptions.isActive, let report = newReport {
+            debugCaption = report.debugCaption(sent: events.map(\.key), enabled: tracker.common.enabledFeedbackKeys)
+        }
+        for event in events {
             guard let log = VideoRunLog.shared else { bridge?.sendFeedback(event); continue }
             let frame = judgingFrame
             var line: [String: Any] = ["key": event.key, "scope": event.scope.rawValue, "frame": frame?.index ?? -1]
@@ -923,7 +930,8 @@ struct CameraPosePreview: View {
                     videoLayer: model.videoDisplayLayer,
                     isMirrored: model.isFrontCamera,
                     frame: model.currentFrame,
-                    statusText: model.statusText
+                    statusText: model.statusText,
+                    debugCaption: model.debugCaption
                 )
             }
         }
@@ -948,6 +956,8 @@ private struct CameraLiveView: View {
     let isMirrored: Bool
     let frame: CameraFrameData?
     let statusText: String
+    /// Test mode only (video mode): the last rep's judgement.
+    let debugCaption: String?
 
     var body: some View {
         GeometryReader { proxy in
@@ -976,8 +986,17 @@ private struct CameraLiveView: View {
                     .frame(width: proxy.size.width, height: proxy.size.height)
                 }
 
-                // HUD (rep/status) is rendered by Flutter at the bottom of the
-                // screen — intentionally no native top-left overlay here.
+                // HUD (rep/status) is rendered by Flutter at the bottom of the screen — no native HUD. Test mode only
+                // (video mode): the last rep's judgement, small, under the status bar.
+                if let debugCaption {
+                    Text(debugCaption)
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundStyle(.white)
+                        .padding(6)
+                        .background(Color.black.opacity(0.6), in: RoundedRectangle(cornerRadius: 6))
+                        .padding(.top, 54)
+                        .padding(.leading, 8)
+                }
             }
             .background(Color.black)
             .clipped()

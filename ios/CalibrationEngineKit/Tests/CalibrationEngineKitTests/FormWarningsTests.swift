@@ -153,7 +153,8 @@ final class FormWarningsTests: XCTestCase {
         XCTAssertEqual(defaultTracker.common.enabledFeedbackKeys, delivered)
         _ = pushUpRep(defaultTracker, hipDrop: 0, frame: 0)
         _ = pushUpRep(defaultTracker, hipDrop: 70, frame: 2)
-        XCTAssertEqual(defaultTracker.drainEvents().map(\.key), ["pushup_hip_sag"], "sent by default")
+        XCTAssertEqual(defaultTracker.drainEvents().map(\.key), ["praise_good", "pushup_hip_sag"],
+                       "sent by default (the clean first rep is praised)")
 
         // A key left out is still judged and logged, just not sent.
         let tracker = FormWarningTracker(exercise: .pushUp)
@@ -365,7 +366,7 @@ final class FormWarningsTests: XCTestCase {
         rep(6, topBend: 30)  // top elbow ≈139° vs set max 180°: no lockout
         rep(8, topBend: 30)
         XCTAssertEqual(tracker.reports.last?.warnings, ["pushup_no_lockout"])
-        XCTAssertEqual(tracker.drainEvents(), [], "참고 is not sent per rep")
+        XCTAssertEqual(tracker.drainEvents().map(\.key), ["praise_good"], "참고 is not sent per rep; the clean first rep is praised")
         let counts = tracker.endSet()
         XCTAssertEqual(counts, ["pushup_no_lockout": 2])
         XCTAssertEqual(tracker.drainEvents(), [FormFeedbackEvent(key: "pushup_no_lockout", n: 2, scope: .set)])
@@ -481,5 +482,70 @@ extension FormWarningsTests {
         let dim = track.update(OverlayState(uncertain: [seg]), at: 0.4)[seg]
         XCTAssertEqual(dim?.severity, 0, "uncertain: green at once, never red")
         XCTAssertEqual(dim?.opacity ?? 0, 1 - (1 - 0.4) * (1 - exp(-1)), accuracy: 1e-9, "dims smoothly towards 0.4")
+    }
+}
+
+/// praise_good: positive feedback from the real judgement — only for reps judged on usable data with nothing fired.
+extension FormWarningsTests {
+    func testPraiseGoodOnACleanJudgedRep() {
+        let tracker = FormWarningTracker(exercise: .pushUp)
+        let report = pushUpRep(tracker, hipDrop: 0, frame: 0)
+        XCTAssertEqual(report.warnings, [])
+        XCTAssertEqual(report.spoken, "praise_good")
+        XCTAssertEqual(tracker.drainEvents(), [FormFeedbackEvent(key: "praise_good", n: nil)])
+        // A rep with a warning says the warning, not praise.
+        _ = pushUpRep(tracker, hipDrop: 70, frame: 2)
+        XCTAssertEqual(tracker.drainEvents().map(\.key), ["pushup_hip_sag"])
+    }
+
+    func testNoPraiseWhenTheRepCouldNotBeJudged() {
+        // 3D required but the rep had no usable 3D (warming up): no posture keys and no praise.
+        let required = FormWarningTracker(exercise: .pushUp)
+        required.common.form3DRequired = true
+        required.observe(frameIndex: 0, coco17: sidePushUp(hipDrop: 0), pose3DState: .warmingUp, phase: "descending")
+        required.beginRep()
+        required.observe(frameIndex: 1, coco17: sidePushUp(hipDrop: 0, elbowBend: 60), pose3DState: .warmingUp, phase: "bottom")
+        required.recordCurrentFrame()
+        let r = required.finishRep(repIndex: 1)
+        XCTAssertEqual(r.formSource, "3d_unavailable")
+        XCTAssertNil(r.spoken)
+        XCTAssertTrue(required.drainEvents().filter { $0.key == "praise_good" }.isEmpty)
+
+        // 2D: the ankles (needed for the hip line) are not visible → the hip rules cannot run → no praise.
+        let hidden = FormWarningTracker(exercise: .pushUp)
+        var k = sidePushUp(hipDrop: 0)
+        k[15].confidence = 0.05; k[16].confidence = 0.05
+        hidden.observe(frameIndex: 0, coco17: k, phase: "descending")
+        hidden.beginRep()
+        hidden.observe(frameIndex: 1, coco17: k, phase: "bottom")
+        hidden.recordCurrentFrame()
+        XCTAssertNil(hidden.finishRep(repIndex: 1).spoken)
+        XCTAssertTrue(hidden.drainEvents().filter { $0.key == "praise_good" }.isEmpty)
+    }
+
+    func testPraiseGoodCooldown() {
+        let tracker = FormWarningTracker(exercise: .pushUp)
+        var praised: [Int] = []
+        for rep in 1...9 {
+            let report = pushUpRep(tracker, hipDrop: 0, frame: (rep - 1) * 2)
+            if report.spoken == "praise_good" { praised.append(rep) }
+        }
+        XCTAssertEqual(praised, [1, 5, 9], "at most once per cooldownReps (3) + 1 reps")
+    }
+}
+
+extension FormWarningsTests {
+    /// Test-mode caption: every fired key (reference / log-only marked), what was sent, validity and a key metric.
+    func testDebugCaptionShowsTheRealJudgement() {
+        let tracker = FormWarningTracker(exercise: .pushUp)
+        tracker.common.enabledFeedbackKeys = ["pushup_hip_sag"]
+        let report = pushUpRep(tracker, hipDrop: 70, frame: 0)
+        let caption = report.debugCaption(sent: tracker.drainEvents().map(\.key), enabled: tracker.common.enabledFeedbackKeys)
+        XCTAssertTrue(caption.hasPrefix("#1 2D"), caption)
+        XCTAssertTrue(caption.contains("울림: pushup_hip_sag"), caption)
+        XCTAssertTrue(caption.contains("보냄: pushup_hip_sag"), caption)
+        XCTAssertTrue(caption.contains("엉덩이 선 최소"), caption)
+        let clean = pushUpRep(tracker, hipDrop: 0, frame: 2)
+        XCTAssertTrue(clean.debugCaption(sent: [], enabled: []).contains("울림: 없음"))
     }
 }
