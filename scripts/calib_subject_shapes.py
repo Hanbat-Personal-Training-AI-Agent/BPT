@@ -139,7 +139,11 @@ def ex3d_photos(a, seqs):
         ex = seq.split('_')[0]
         meta = json.load(open(f'{a.labels}/{seq}/geometry/metadata.json'))
         cg = meta['camera_geometry']; cg = ast.literal_eval(cg) if isinstance(cg, str) else cg
-        Ks = {cam: read_csv(f'{a.csv}/{seq}/{cam}_{EX3D_FILE[ex]}_mcoco17.csv') for cam in ('cam1', 'cam2', 'cam3')}
+        Ks = {}
+        for cam in ('cam1', 'cam2', 'cam3'):
+            K = read_csv(a.csv_pattern.format(csv=a.csv, seq=seq, cam=cam, ex=EX3D_FILE[ex]))
+            K[..., :2] *= a.csv_scale  # keypoints from a smaller copy of the same clip (Mac: the 720x1280 device clips)
+            Ks[cam] = K
         for t, cams, fallback in pick_instants(Ks, fps=30):
             for cam in cams:
                 K = Ks[cam]
@@ -159,20 +163,21 @@ class Calibrator:
     def __init__(self, a):
         os.environ['MOMENTUM_ENABLED'] = '0'  # as fitting.py: TorchScript MHR from the checkpoint
         import torch
+        dev = a.device
         if not torch.cuda.is_available():
-            # ponytail: sam-3d-body's get_ray_condition calls .cuda() unconditionally; CPU-only runs need a no-op.
-            torch.Tensor.cuda = lambda self, *args, **kwargs: self
+            # ponytail: sam-3d-body's get_ray_condition calls .cuda() unconditionally; CPU / MPS runs move to `dev` instead.
+            torch.Tensor.cuda = lambda self, *args, **kwargs: self.to(dev)
         torch.set_num_threads(a.threads)
         sys.path.insert(0, a.sam3db_src)
         from sam_3d_body import SAM3DBodyEstimator, load_sam_3d_body
         if not torch.cuda.is_available():
-            # ponytail: the estimator also moves every batch to "cuda" by name; CPU runs map it to "cpu".
+            # ponytail: the estimator also moves every batch to "cuda" by name; map it to `dev`.
             import sam_3d_body.sam_3d_body_estimator as est
             to = est.recursive_to
-            est.recursive_to = lambda x, target: to(x, 'cpu' if target == 'cuda' else target)
+            est.recursive_to = lambda x, target: to(x, dev if target == 'cuda' else target)
         import smplx
         self.torch, self.a = torch, a
-        model, cfg = load_sam_3d_body(f'{a.weights}/model.ckpt', device='cpu', mhr_path=f'{a.weights}/assets/mhr_model.pt')
+        model, cfg = load_sam_3d_body(f'{a.weights}/model.ckpt', device=dev, mhr_path=f'{a.weights}/assets/mhr_model.pt')
         self.estimator = SAM3DBodyEstimator(sam_3d_body_model=model, model_cfg=cfg, human_detector=None,
                                             human_segmentor=None, fov_estimator=None)
         arrays = dict(np.load(a.smpl))
@@ -223,6 +228,9 @@ def main():
     p.add_argument('--videos'); p.add_argument('--csv'); p.add_argument('--labels')
     p.add_argument('--out', required=True); p.add_argument('--threads', type=int, default=10)
     p.add_argument('--max-photos', type=int, default=12)
+    p.add_argument('--device', default='cpu', help='cpu | mps (SAM 3D Body; the MHR->SMPL fit runs on CPU)')
+    p.add_argument('--csv-pattern', default='{csv}/{seq}/{cam}_{ex}_mcoco17.csv', help='app 2D CSV path (ex3d)')
+    p.add_argument('--csv-scale', type=float, default=1.0, help='keypoint scale CSV -> video (ex3d)')
     p.add_argument('--weights', default=os.path.expanduser('~/models/sam-3d-body-dinov3'))
     p.add_argument('--sam3db-src', default=os.path.expanduser('~/models/src/sam-3d-body'))
     p.add_argument('--conversion', default=os.path.expanduser('~/models/src/MHR/tools/mhr_smpl_conversion'))
