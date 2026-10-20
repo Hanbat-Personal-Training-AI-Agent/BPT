@@ -85,6 +85,23 @@ void main() {
         '카메라 깊이 방향이라 추정치');
   });
 
+  testWidgets('panel: ankle note with COCO17, foot items with Halpe26 feet', (tester) async {
+    await tester.pumpWidget(_panel(NativeSetupStatus.parse(_payload())));
+    expect(find.byKey(const Key('setup_ankle_note')), findsOneWidget, reason: 'no toe/heel points: say the ankles are used');
+    final halpe = _payload(items: [
+      {'key': 'feet_width', 'value': 1.42, 'quality': 'good', 'required': true, 'depth': 0.12},
+      {'key': 'heel_width', 'value': 1.40, 'quality': 'good', 'required': false, 'depth': 0.12},
+      {'key': 'toe_out', 'value': 1.31, 'quality': 'good', 'required': false, 'depth': 0.12},
+    ]);
+    (halpe['setup'] as Map)['footSource'] = 'halpe26';
+    final status = NativeSetupStatus.parse(halpe)!;
+    expect(status.footSource, 'halpe26');
+    await tester.pumpWidget(_panel(status));
+    expect(find.byKey(const Key('setup_ankle_note')), findsNothing);
+    expect(find.textContaining('뒤꿈치 간격: 골반 너비의 1.4배'), findsOneWidget);
+    expect(find.textContaining('뒤꿈치 간격의 1.31배'), findsOneWidget);
+  });
+
   test('calibration result -> body profile (joint-centre cm, L/R averaged) and personal references', () async {
     expect(CalibrationResultStore.bodyProfileFrom(null), isNull);
     expect(CalibrationResultStore.bodyProfileFrom({'boneLengthData': {'segments': {'right_hip-right_knee': 44.0}}}), isNull);

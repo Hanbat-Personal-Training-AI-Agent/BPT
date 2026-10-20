@@ -47,6 +47,15 @@ WIDTH_VECTORS = {"feet_width": ((R_ANKLE, L_ANKLE), (R_HIP, L_HIP)), "feet_width
                  "hand_width": ((R_WRIST, L_WRIST), (R_SHOULDER, L_SHOULDER)), "grip_width": ((R_WRIST, L_WRIST), (R_SHOULDER, L_SHOULDER)),
                  # trunk lean seen head-on lies along the depth: E1b Exercise3D front views 15-34 deg off vs 1-4 deg from the side
                  "torso_incline": ((PELVIS, THORAX),)}
+# Foot items need the Halpe26 foot points (heels, big toes; RTMPose-m Halpe26 is being evaluated, NOT adopted - the app
+# default COCO17 has none, then the feet are only seen through the ankles: foot_source "ankle"). 2D, display only.
+#   heel_width: feet_width x (heel distance / ankle distance in the image) - heel-to-heel stance relative to the hips
+#   toe_out:    big-toe distance / heel distance in the image (1 = parallel feet, > 1 = toes turned out)
+#   heel_toe:   (heel y - big-toe y) / shin in the image, the side with the better foot points (heel lift: squat_heel_rise)
+# widths need the feet line in the image plane (else depth_estimated), heel_toe needs a side-on sagittal plane.
+FOOT_KEYS = {"squat": ("heel_width", "toe_out", "heel_toe"), "barbell_row": ("heel_width", "toe_out", "heel_toe")}
+FOOT_POINTS = ("left_heel", "right_heel", "left_big_toe", "right_big_toe")
+COCO_L_ANKLE, COCO_R_ANKLE, COCO_L_KNEE, COCO_R_KNEE = 15, 16, 13, 14
 # 임시값 until E1 (tuning subjects) replaces them: stillness tolerance over the window, by kind.
 DEFAULTS = dict(reliable_conf=0.5, low_conf=0.3, depth_max=0.7, stable_frames=30, tol_ratio=0.10, tol_deg=5.0, tol_items=None)
 # tol_items {item: tolerance} overrides the per-kind tolerance (E1: 2 x measured repeatability per item).
@@ -104,6 +113,27 @@ def depth_share(P, key):
     return max(shares) if shares else 0.0
 
 
+def measure_feet(feet, coco2d, feet_width):
+    """{item: (value or None, min confidence of the points it uses)} from Halpe26 foot points (px, (x, y, c)) and
+    the COCO17 2D of the same frame; feet_width = the 3D ankle ratio of this frame."""
+    f = {k: np.asarray(feet[k], dtype="float64") for k in FOOT_POINTS}
+    k2 = np.asarray(coco2d, dtype="float64")
+    d2 = lambda a, b: float(np.hypot(*(a[:2] - b[:2])))
+    ank = d2(k2[COCO_L_ANKLE], k2[COCO_R_ANKLE]); heel = d2(f["left_heel"], f["right_heel"]); toe = d2(f["left_big_toe"], f["right_big_toe"])
+    out = {}
+    c = min(f["left_heel"][2], f["right_heel"][2], k2[COCO_L_ANKLE][2], k2[COCO_R_ANKLE][2])
+    out["heel_width"] = (feet_width * heel / ank if feet_width is not None and ank > 1e-6 else None, c)
+    c = min(f["left_heel"][2], f["right_heel"][2], f["left_big_toe"][2], f["right_big_toe"][2])
+    out["toe_out"] = (toe / heel if heel > 1e-6 else None, c)
+    best = None
+    for heel_k, toe_k, knee_j, ank_j in (("left_heel", "left_big_toe", COCO_L_KNEE, COCO_L_ANKLE), ("right_heel", "right_big_toe", COCO_R_KNEE, COCO_R_ANKLE)):
+        shin = d2(k2[knee_j], k2[ank_j]); c = min(f[heel_k][2], f[toe_k][2])
+        if shin > 1e-6 and (best is None or c > best[1]):
+            best = ((f[heel_k][1] - f[toe_k][1]) / shin, c)
+    out["heel_toe"] = best if best is not None else (None, 0.0)
+    return out
+
+
 class ExerciseSetup:
     """Feed frames in time order; `update` returns the setup state of that frame (plain dict, Flutter payload)."""
 
@@ -128,7 +158,7 @@ class ExerciseSetup:
     def tolerance(self, key):
         if self.p["tol_items"] and key in self.p["tol_items"]:
             return self.p["tol_items"][key]
-        return self.p["tol_deg"] if ITEMS[key][2] == "deg" else self.p["tol_ratio"]
+        return self.p["tol_deg"] if key in ITEMS and ITEMS[key][2] == "deg" else self.p["tol_ratio"]
 
     def seeds(self, relations):
         """At ready: {name: (median px vector, p90 deviation px)} of AdaptiveRelations-style (name, a, b) over the
@@ -140,18 +170,35 @@ class ExerciseSetup:
             out[name] = (ref, float(np.percentile(np.linalg.norm(V - ref, axis=-1), 90)))
         return out
 
-    def update(self, P, conf, usable=True, up=UP, unit=1.0):
+    def update(self, P, conf, usable=True, up=UP, unit=1.0, feet=None, coco2d=None):
         """P [17,3] crop units (None when this frame has no usable 3D), conf [17] H36M 2D confidences, unit = px per
-        crop unit. Phases: unavailable (no usable 3D) -> measuring (a required item is not observed well) -> holding
-        (all observed; `moving` when the window is full but an item moved more than its tolerance) -> ready."""
-        keys = BY_EXERCISE.get(self.exercise, ())
-        required = [k for k in keys if self.exercise in ITEMS[k][1]]
+        crop unit; feet = Halpe26 foot points {left_heel, right_heel, left_big_toe, right_big_toe: (x, y, c)} px and
+        coco2d [17,3] px of the same frame, or None (COCO17 model: feet only through the ankles).
+        Phases: unavailable (no usable 3D) -> measuring (a required item is not observed well) -> holding (all
+        observed; `moving` when the window is full but an item moved more than its tolerance) -> ready."""
+        foot_keys = FOOT_KEYS.get(self.exercise, ()) if feet is not None and coco2d is not None else ()
+        keys = BY_EXERCISE.get(self.exercise, ()) + foot_keys
+        required = [k for k in keys if k in ITEMS and self.exercise in ITEMS[k][1]]
+        foot_source = "halpe26" if foot_keys else "ankle"
         if P is None or not usable:
             self.window = []
-            return dict(phase="ready" if self.ready is not None else "unavailable", progress=0.0, moving=False, items=[])
+            return dict(phase="ready" if self.ready is not None else "unavailable", progress=0.0, moving=False, items=[],
+                        foot_source=foot_source)
         P = np.asarray(P, dtype="float64")
         values = measure(P, self.exercise, up)
-        q = {k: self.quality(P, conf, k) if values.get(k) is not None else "missing" for k in keys}
+        q = {k: self.quality(P, conf, k) if values.get(k) is not None else "missing" for k in keys if k in ITEMS}
+        if foot_keys:
+            hips_side_on = abs(float(P[L_HIP][2] - P[R_HIP][2])) / max(_n(P[L_HIP] - P[R_HIP]), 1e-9)  # 1 = side-on
+            for k, (v, c) in measure_feet(feet, coco2d, values.get("feet_width")).items():
+                values[k] = v if v is None or math.isfinite(v) else None
+                if values[k] is None or c < self.p["low_conf"]:
+                    q[k] = "missing"
+                elif c < self.p["reliable_conf"]:
+                    q[k] = "low"
+                elif k == "heel_toe":  # the heel lift is read in the sagittal plane: needs a side-on view
+                    q[k] = "depth_estimated" if hips_side_on < 1 - self.p["depth_max"] else "good"
+                else:  # widths in the image need the feet line in the image plane
+                    q[k] = "depth_estimated" if depth_share(P, "feet_width") > self.p["depth_max"] else "good"
         ok = ("good", "depth_estimated")
         if not all(q[k] in ok for k in required):
             self.window = []  # stillness is counted over frames in a row with every required item observed
@@ -167,7 +214,8 @@ class ExerciseSetup:
                           if any(v[k] is not None for v, _, _ in self.window)}
         items = []
         for k in keys:
-            item = dict(key=k, value=values.get(k), quality=q[k], required=k in required, depth=round(depth_share(P, k), 3))
+            item = dict(key=k, value=values.get(k), quality=q[k], required=k in required,
+                        depth=round(depth_share(P, "feet_width" if k in ("heel_width", "toe_out") else k), 3))
             ref = self.reference.get(k)
             if ref is not None and q[k] == "good" and values.get(k) is not None:
                 d = values[k] - ref
@@ -175,4 +223,5 @@ class ExerciseSetup:
                 item["cue"] = None if abs(d) <= self.tolerance(k) else ("increase" if d < 0 else "decrease")
             items.append(item)
         phase = "ready" if self.ready is not None else ("holding" if self.window else "measuring")
-        return dict(phase=phase, progress=min(1.0, len(self.window) / self.p["stable_frames"]), moving=moving, items=items)
+        return dict(phase=phase, progress=min(1.0, len(self.window) / self.p["stable_frames"]), moving=moving, items=items,
+                    foot_source=foot_source)

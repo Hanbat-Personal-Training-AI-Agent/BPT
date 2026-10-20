@@ -55,6 +55,8 @@ struct ExerciseSetup {
         let progress: Double
         let moving: Bool
         let items: [Item]
+        /// "halpe26" when the active 2D model gave heel / big-toe points (foot items present), "ankle" otherwise.
+        var footSource = "ankle"
     }
 
     /// Flutter creationParams (`exerciseSetup: true`, optional `setupVariant`, `setupReference`, `bodyProfile`).
@@ -99,6 +101,31 @@ struct ExerciseSetup {
         "body_line": ([rShoulder, lShoulder, rHip, lHip, rAnkle, lAnkle], [], false),
         "grip_width": ([rWrist, lWrist, rShoulder, lShoulder], [.barbellRow], false),
     ]
+
+    /// Halpe26-only foot items (Python FOOT_KEYS; RTMPose-m Halpe26 is being evaluated, not adopted): heel_width
+    /// (feet_width × heel / ankle distance in the image), toe_out (big-toe / heel distance in the image), heel_toe
+    /// ((heel y − big-toe y) / shin, the side with the better foot points). 2D, display only, never required.
+    static let footKeys: [FormExercise: [String]] = [.squat: ["heel_width", "toe_out", "heel_toe"],
+                                                    .barbellRow: ["heel_width", "toe_out", "heel_toe"]]
+
+    /// Python `measure_feet`: item → (value, min confidence of the points it uses). `coco17` in the same px frame as `feet`.
+    static func measureFeet(_ feet: FootKeypoints, coco17: [PoseKeypoint], feetWidth: Double?) -> [String: (value: Double?, conf: Double)] {
+        func d2(_ a: PoseKeypoint, _ b: PoseKeypoint) -> Double { hypot(a.x - b.x, a.y - b.y) }
+        let lA = coco17[15], rA = coco17[16], lK = coco17[13], rK = coco17[14]
+        let ank = d2(lA, rA), heel = d2(feet.leftHeel, feet.rightHeel), toe = d2(feet.leftBigToe, feet.rightBigToe)
+        var out: [String: (value: Double?, conf: Double)] = [:]
+        out["heel_width"] = (feetWidth != nil && ank > 1e-6 ? feetWidth! * heel / ank : nil,
+                             min(feet.leftHeel.confidence, feet.rightHeel.confidence, lA.confidence, rA.confidence))
+        out["toe_out"] = (heel > 1e-6 ? toe / heel : nil,
+                          min(feet.leftHeel.confidence, feet.rightHeel.confidence, feet.leftBigToe.confidence, feet.rightBigToe.confidence))
+        var best: (value: Double?, conf: Double)?
+        for (h, t, k, a) in [(feet.leftHeel, feet.leftBigToe, lK, lA), (feet.rightHeel, feet.rightBigToe, rK, rA)] {
+            let shin = d2(k, a), c = min(h.confidence, t.confidence)
+            if shin > 1e-6 && (best == nil || c > best!.conf) { best = ((h.y - t.y) / shin, c) }
+        }
+        out["heel_toe"] = best ?? (nil, 0)
+        return out
+    }
 
     static func keys(_ exercise: FormExercise) -> [String] {
         switch exercise {
@@ -232,17 +259,39 @@ struct ExerciseSetup {
     /// `pose` crop units (nil when this frame has no usable 3D), `confidence` H36M 2D confidences, `unit` px per crop unit.
     /// unavailable (no usable 3D) → measuring (a required item not observed well) → holding (all observed; `moving` when the
     /// window is full but an item moved more than its tolerance) → ready.
+    /// `feet`: Halpe26 heels / toes (nil with the COCO17 model → feet only through the ankles), `coco17` the same frame's
+    /// 2D in the same px frame (both needed for the foot items).
     mutating func update(_ pose: [SIMD3<Double>]?, confidence: [Double], usable: Bool = true,
-                         up: SIMD3<Double> = FormGeometry.up3D, unit: Double = 1) -> State {
-        let keys = Self.keys(exercise)
+                         up: SIMD3<Double> = FormGeometry.up3D, unit: Double = 1,
+                         feet: FootKeypoints? = nil, coco17: [PoseKeypoint]? = nil) -> State {
+        let footKeys = feet != nil && coco17?.count == 17 ? (Self.footKeys[exercise] ?? []) : []
+        let keys = Self.keys(exercise) + footKeys
         let required = keys.filter { Self.items[$0]?.requiredIn.contains(exercise) == true }
+        let footSource = footKeys.isEmpty ? "ankle" : "halpe26"
         guard let P = pose, usable, confidence.count == 17 else {
             window = []
-            return State(phase: ready != nil ? .ready : .unavailable, progress: 0, moving: false, items: [])
+            return State(phase: ready != nil ? .ready : .unavailable, progress: 0, moving: false, items: [], footSource: footSource)
         }
-        let values = Self.measure(P, exercise: exercise, up: up)
+        var values = Self.measure(P, exercise: exercise, up: up)
         var q: [String: Quality] = [:]
-        for k in keys { q[k] = values[k] != nil ? quality(P, confidence, key: k) : .missing }
+        for k in keys where Self.items[k] != nil { q[k] = values[k] != nil ? quality(P, confidence, key: k) : .missing }
+        if let feet, let coco17, !footKeys.isEmpty {
+            let hips = P[Self.lHip] - P[Self.rHip]
+            let hipsSideOn = abs(hips.z) / max(simd_length(hips), 1e-9)  // 1 = side-on
+            for (k, m) in Self.measureFeet(feet, coco17: coco17, feetWidth: values["feet_width"]) {
+                let v = m.value.flatMap { $0.isFinite ? $0 : nil }
+                values[k] = v
+                if v == nil || m.conf < params.lowConf {
+                    q[k] = .missing
+                } else if m.conf < params.reliableConf {
+                    q[k] = .low
+                } else if k == "heel_toe" {  // the heel lift is read in the sagittal plane: needs a side-on view
+                    q[k] = hipsSideOn < 1 - params.depthMax ? .depthEstimated : .good
+                } else {  // widths in the image need the feet line in the image plane
+                    q[k] = Self.depthShare(P, key: "feet_width") > params.depthMax ? .depthEstimated : .good
+                }
+            }
+        }
         if !required.allSatisfy({ q[$0]?.usable == true }) {
             window = []  // stillness is counted over frames in a row with every required item observed
         } else {
@@ -263,8 +312,9 @@ struct ExerciseSetup {
             ready = snapshot
         }
         let items = keys.map { k -> Item in
+            let depthKey = k == "heel_width" || k == "toe_out" ? "feet_width" : k
             var item = Item(key: k, value: values[k], quality: q[k] ?? .missing, required: required.contains(k),
-                            depth: (Self.depthShare(P, key: k) * 1000).rounded(.toNearestOrEven) / 1000)
+                            depth: (Self.depthShare(P, key: depthKey) * 1000).rounded(.toNearestOrEven) / 1000)
             if let ref = reference[k], item.quality == .good, let value = values[k] {
                 item.ref = ref
                 let d = value - ref
@@ -273,7 +323,8 @@ struct ExerciseSetup {
             return item
         }
         let phase: Phase = ready != nil ? .ready : (window.isEmpty ? .measuring : .holding)
-        return State(phase: phase, progress: min(1, Double(window.count) / Double(params.stableFrames)), moving: moving, items: items)
+        return State(phase: phase, progress: min(1, Double(window.count) / Double(params.stableFrames)), moving: moving, items: items,
+                     footSource: footSource)
     }
 }
 
@@ -295,6 +346,7 @@ enum ExerciseSetupBridge {
                 return d
             },
         ]
+        out["footSource"] = state.footSource
         if let variant { out["variant"] = variant }
         if let snapshot { out["snapshot"] = snapshot }
         return out

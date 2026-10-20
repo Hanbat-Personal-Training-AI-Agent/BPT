@@ -59,6 +59,9 @@ class ExerciseSetupPanel extends StatelessWidget {
         'wrist_ahead' => isKo ? '손목 위치(어깨 기준)' : 'Wrists vs shoulders',
         'body_line' => isKo ? '몸통 일직선(엉덩이)' : 'Body line (hips)',
         'grip_width' => isKo ? '손목 간격(그립 근사)' : 'Wrist width (grip approx.)',
+        'heel_width' => isKo ? '뒤꿈치 간격' : 'Heel width',
+        'toe_out' => isKo ? '발끝 벌림' : 'Toe-out',
+        'heel_toe' => isKo ? '뒤꿈치–발끝 높이' : 'Heel vs toe height',
         _ => item.key,
       };
 
@@ -69,7 +72,13 @@ class ExerciseSetupPanel extends StatelessWidget {
     String x(double d) => d.abs().toStringAsFixed(2);
     switch (item.key) {
       case 'feet_width':
+      case 'heel_width':
         return isKo ? '골반 너비의 ${v.toStringAsFixed(1)}배' : '${v.toStringAsFixed(1)}× hip width';
+      case 'toe_out':
+        return isKo ? '발끝 간격 = 뒤꿈치 간격의 ${v.toStringAsFixed(2)}배' : 'toes ${v.toStringAsFixed(2)}× heel width';
+      case 'heel_toe':
+        final dir = v >= 0 ? (isKo ? '뒤꿈치가 아래' : 'heel lower') : (isKo ? '뒤꿈치가 위' : 'heel higher');
+        return isKo ? '정강이의 ${x(v)}배 ($dir)' : '${x(v)}× shin ($dir)';
       case 'feet_width_shoulder':
       case 'hand_width':
       case 'grip_width':
@@ -219,6 +228,14 @@ class ExerciseSetupPanel extends StatelessWidget {
                       TextSpan(text: item.measured ? '  ($q)' : q, style: dim),
                   ]),
                 ),
+              ),
+            // COCO17 (기본 모델)에는 발끝·뒤꿈치가 없어 발은 발목으로만 본다 — 정확한 발 간격·발 방향이 아님을 밝힌다.
+            if (s != null && s.footSource != 'halpe26' && s.items.any((i) => i.key == 'feet_width'))
+              Text(
+                isKo ? '발 간격은 발목 기준이에요(발끝·뒤꿈치 위치와 발 방향은 이 모델로 볼 수 없어요).'
+                    : 'Feet are measured at the ankles (toe/heel position and foot direction are not seen by this model).',
+                key: const Key('setup_ankle_note'),
+                style: dim,
               ),
             for (final cue in cues)
               Padding(

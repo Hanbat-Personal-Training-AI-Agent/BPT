@@ -162,9 +162,14 @@ class NativeSetupStatus {
     this.moving = false,
     this.items = const [],
     this.snapshot,
+    this.footSource = 'ankle',
   });
 
   final String phase;
+
+  /// 'halpe26': 2D 모델이 뒤꿈치·엄지발가락을 주어 발 항목(뒤꿈치 간격·발끝 벌림·뒤꿈치 높이)이 있음.
+  /// 'ankle': COCO17 — 발은 발목으로만 본다(발끝·뒤꿈치 없음).
+  final String footSource;
   final String? exercise;
   final String? variant;
   final double progress;
@@ -187,6 +192,7 @@ class NativeSetupStatus {
       variant: p['variant'] as String?,
       progress: (p['progress'] as num?)?.toDouble() ?? 0,
       moving: p['moving'] == true,
+      footSource: p['footSource'] == 'halpe26' ? 'halpe26' : 'ankle',
       items: [
         for (final raw in (p['items'] as List?) ?? const [])
           if (NativeSetupItem.parse(raw) case final item?) item,

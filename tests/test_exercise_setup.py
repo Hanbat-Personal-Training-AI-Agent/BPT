@@ -58,3 +58,33 @@ def test_torso_lean_seen_head_on_is_only_an_estimate():
     P[8] = [0, -0.1, -0.49]  # trunk pointing at the camera (push-up seen from the front)
     r = ExerciseSetup("squat").update(P, np.full(17, 0.9))
     assert next(i for i in r["items"] if i["key"] == "torso_incline")["quality"] == "depth_estimated"
+
+
+def feet_and_coco(P, toe_out=1.0, heel_lift=0.0, conf=0.9):
+    """Halpe26 foot points + COCO17 2D consistent with `standing()` seen from the front (x right, y down, px = x 200)."""
+    px = lambda v: np.array([v[0] * 200 + 360, v[1] * 200 + 640])
+    coco = np.zeros((17, 3)); coco[:, 2] = conf
+    for c, h in ((15, 6), (16, 3), (13, 5), (14, 2), (11, 4), (12, 1)):
+        coco[c, :2] = px(P[h])
+    feet = {}
+    for side, h in (("left", 6), ("right", 3)):
+        a = px(P[h]); sgn = 1 if side == "left" else -1
+        feet[f"{side}_heel"] = (a[0], a[1] + 10 - heel_lift, conf)
+        feet[f"{side}_big_toe"] = (a[0] + sgn * (toe_out - 1) * 40, a[1] + 12, conf)
+    return feet, coco
+
+
+def test_foot_items_only_with_halpe26_feet_and_ankle_fallback():
+    P = standing()
+    plain = ExerciseSetup("squat").update(P, np.full(17, 0.9))
+    assert plain["foot_source"] == "ankle" and not any(i["key"] in ("heel_width", "toe_out", "heel_toe") for i in plain["items"])
+    feet, coco = feet_and_coco(P, toe_out=1.5)
+    r = ExerciseSetup("squat").update(P, np.full(17, 0.9), feet=feet, coco2d=coco)
+    it = {i["key"]: i for i in r["items"]}
+    assert r["foot_source"] == "halpe26"
+    assert abs(it["heel_width"]["value"] - it["feet_width"]["value"]) < 1e-9  # heels right under the ankles
+    assert it["toe_out"]["value"] > 1.1 and it["toe_out"]["quality"] == "good"
+    assert it["heel_toe"]["quality"] == "depth_estimated"  # a front view cannot read the heel lift
+    low_feet, coco = feet_and_coco(P, conf=0.2)
+    r = ExerciseSetup("squat").update(P, np.full(17, 0.9), feet=low_feet, coco2d=coco)
+    assert {i["key"]: i["quality"] for i in r["items"]}["toe_out"] == "missing"

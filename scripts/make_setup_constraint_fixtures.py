@@ -88,12 +88,24 @@ def setup_cases():
             P = body(0, rng, exercise, noise=0.0005); c = np.full(17, 0.9)
             if t < 20: P[6] += [0.05 * (t % 3), 0, 0]   # fidgeting
             if 30 <= t < 33: c[6] = 0.2                  # feet lost briefly
-            frames.append(dict(pose=P.tolist(), conf=c.tolist(), usable=not (45 <= t < 47), unit=200.0))
+            fr = dict(pose=P.tolist(), conf=c.tolist(), usable=not (45 <= t < 47), unit=200.0)
+            if exercise != "pushup":  # Halpe26 foot points + COCO17 2D (px); push-up = COCO17 model (ankle fallback)
+                px = lambda v: [v[0] * 200 + 360, v[1] * 200 + 640]
+                coco = [[0.0, 0.0, 0.9] for _ in range(17)]
+                for cj, hj in ((15, 6), (16, 3), (13, 5), (14, 2), (11, 4), (12, 1)):
+                    coco[cj] = px(P[hj]) + [0.9]
+                lf, rf = px(P[6]), px(P[3])
+                fr["coco2d"] = coco
+                fr["feet"] = {"left_heel": [lf[0] - 2, lf[1] + 9, 0.8], "right_heel": [rf[0] + 2, rf[1] + 9, 0.8],
+                              "left_big_toe": [lf[0] + 14 + t % 3, lf[1] + 14, 0.25 if 60 <= t < 62 else 0.7],
+                              "right_big_toe": [rf[0] - 14, rf[1] + 14, 0.7]}
+            frames.append(fr)
         frames = _round(frames)
         s = ExerciseSetup(exercise, reference=ref)
         exp = []
         for f in frames:
-            r = s.update(np.array(f["pose"]) if f["usable"] else None, f["conf"], usable=f["usable"], unit=f["unit"])
+            r = s.update(np.array(f["pose"]) if f["usable"] else None, f["conf"], usable=f["usable"], unit=f["unit"],
+                         feet={k: tuple(v) for k, v in f["feet"].items()} if "feet" in f else None, coco2d=f.get("coco2d"))
             exp.append(r)
         seeds = {k: [v[0].tolist(), v[1]] for k, v in s.seeds(RELATIONS[exercise]).items()} if s.window else {}
         cases.append(dict(exercise=exercise, reference=ref, frames=frames, expected=exp, ready=s.ready, seeds=seeds))

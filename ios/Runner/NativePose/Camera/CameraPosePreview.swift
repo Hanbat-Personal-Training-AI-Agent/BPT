@@ -700,7 +700,8 @@ final class CameraPoseViewModel: ObservableObject {
         perfLog?.judged()
         let pose3D = Pose3DBridge.payload(frame3D)
         let pose3DKey = Pose3DBridge.key(frame3D)
-        let setup = rep == 0 ? updateSetup(frame3D, now: now) : nil  // the setup panel lives before the first rep
+        // the setup panel lives before the first rep; foot items only when the active 2D model gives Halpe26 feet
+        let setup = rep == 0 ? updateSetup(frame3D, feet: result.feet, coco17: result.rawCoco17, now: now) : nil
         if rep != lastReportedRep || statusText != lastReportedStatus || done != lastReportedDone || pose3DKey != lastReportedPose3D
             || setup != nil {
             lastReportedRep = rep
@@ -762,11 +763,12 @@ final class CameraPoseViewModel: ObservableObject {
     /// Experimental exercise setup for this judged frame; the payload when it changed meaningfully (≤ 5 Hz), else nil.
     /// On the first ready it seeds the adaptive relations (only when that constraint is on).
     @MainActor
-    private func updateSetup(_ frame3D: Lifted3DFrame, now: CFTimeInterval) -> [String: Any]? {
+    private func updateSetup(_ frame3D: Lifted3DFrame, feet: FootKeypoints?, coco17: [PoseKeypoint], now: CFTimeInterval) -> [String: Any]? {
         guard exerciseSetup != nil else { return nil }
         let up = formTracker?.up3D ?? FormGeometry.up3D
         guard let state = exerciseSetup?.update(frame3D.usable3D, confidence: frame3D.confidence ?? [],
-                                                usable: frame3D.usable3D != nil, up: up, unit: frame3D.unit ?? 1),
+                                                usable: frame3D.usable3D != nil, up: up, unit: frame3D.unit ?? 1,
+                                                feet: feet, coco17: coco17),
               let setup = exerciseSetup else { return nil }
         if state.phase == .ready && !setupSeeded {
             setupSeeded = true

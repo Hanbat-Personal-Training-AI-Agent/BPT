@@ -11,6 +11,9 @@ final class ExerciseSetupTests: XCTestCase {
             let conf: [Double]
             let usable: Bool
             let unit: Double
+            /// Halpe26 foot points {left_heel, right_heel, left_big_toe, right_big_toe: [x, y, c]} + COCO17 2D (px).
+            let feet: [String: [Double]]?
+            let coco2d: [[Double]]?
         }
         struct Item: Decodable {
             let key: String
@@ -26,6 +29,7 @@ final class ExerciseSetupTests: XCTestCase {
             let progress: Double
             let moving: Bool
             let items: [Item]
+            let foot_source: String
         }
         struct Case: Decodable {
             let exercise: String
@@ -54,8 +58,16 @@ final class ExerciseSetupTests: XCTestCase {
             var s = ExerciseSetup(exercise: exercise, reference: c.reference)
             for (i, (frame, want)) in zip(c.frames, c.expected).enumerated() {
                 let pose = frame.pose.map { SIMD3($0[0], $0[1], $0[2]) }
-                let got = s.update(frame.usable ? pose : nil, confidence: frame.conf, usable: frame.usable, unit: frame.unit)
+                let k = { (v: [Double]) in PoseKeypoint(x: v[0], y: v[1], confidence: v[2]) }
+                let feet = frame.feet.map { f in
+                    FootKeypoints(leftBigToe: k(f["left_big_toe"]!), rightBigToe: k(f["right_big_toe"]!),
+                                  leftSmallToe: k([0, 0, 0]), rightSmallToe: k([0, 0, 0]),
+                                  leftHeel: k(f["left_heel"]!), rightHeel: k(f["right_heel"]!))
+                }
+                let got = s.update(frame.usable ? pose : nil, confidence: frame.conf, usable: frame.usable, unit: frame.unit,
+                                   feet: feet, coco17: frame.coco2d?.map(k))
                 let tag = "\(c.exercise) frame \(i)"
+                XCTAssertEqual(got.footSource, want.foot_source, tag)
                 XCTAssertEqual(got.phase.rawValue, want.phase, tag)
                 XCTAssertEqual(got.progress, want.progress, accuracy: 1e-6, tag)
                 XCTAssertEqual(got.moving, want.moving, tag)
