@@ -29,6 +29,7 @@ def main():
     p.add_argument('--fit3d', default=os.path.expanduser('~/datasets/fit3d'))
     p.add_argument('--exercises', default='squat,pushup,barbell_row')
     p.add_argument('--models', required=True); p.add_argument('--out-dir', required=True)
+    p.add_argument('--box-tag', default='rtmdet', help='name of the box source, recorded as src = <box-tag>_<model tag>')
     a = p.parse_args()
     os.makedirs(a.out_dir, exist_ok=True)
     models = [(t, spec) for t, spec in (kv.split('=', 1) for kv in a.models.split(','))]
@@ -62,10 +63,12 @@ def main():
                 for t, _ in models:
                     kp, conf = predict(nets[t], crops)
                     K = np.concatenate([np.array([apply_affine(b, q) for b, q in zip(back, kp[:, :17])]), conf[:, :17, None]], -1)
-                    seqs[t].append(real_seq_from(K, pk, s, ex, c, P, cams, ann))
+                    q = real_seq_from(K, pk, s, ex, c, P, cams, ann)
+                    q['src'] = f'{a.box_tag}_{t}'; q['name'] += f'/{a.box_tag}_{t}'
+                    seqs[t].append(q)
                 print(s, ex, c, n, flush=True)
     for t, _ in models:
-        save(f'{a.out_dir}/R_expA_{t}.npz', seqs[t], a)
+        save(f'{a.out_dir}/R_{a.box_tag}_{t}.npz', seqs[t], a)
 
 
 if __name__ == '__main__':
