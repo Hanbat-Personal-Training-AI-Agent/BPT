@@ -179,7 +179,8 @@ class Calibrator:
         sys.path.insert(0, a.conversion)
         from conversion import Conversion
         from fitting import MhrTopology  # the server's stand-in for mhr.MHR (faces only)
-        self.converter = Conversion(mhr_model=MhrTopology(self.estimator.faces), smpl_model=self.smpl, method='pytorch')
+        with contextlib.chdir(a.conversion):  # as fitting.py: the converter reads ./assets
+            self.converter = Conversion(mhr_model=MhrTopology(self.estimator.faces), smpl_model=self.smpl, method='pytorch')
 
     def __call__(self, photos):
         from fitting import person_box
