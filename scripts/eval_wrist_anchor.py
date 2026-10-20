@@ -142,9 +142,13 @@ def run_validate(a):
             rec[f'held_{w}'] = float(np.mean([rp[w] == 'held' for rp in reps[lo:hi]]))
             rec[f'elbow2d_{w}'] = float(np.mean(np.linalg.norm(K[lo:hi, ELBOW[w], :2] - d['G2'][lo:hi, he], axis=-1)))
         clean = lf.predict_rows(model, dev, d['x'], [5], lf.seq_key(d))[5]
-        xa, _ = mag_input(A)
+        _, crops0 = mag_input(K); xa, crops = mag_input(A)
         changed = np.abs(xa - d['x']).max((1, 2)) > 0
         rows, n_re = E.rows_partial(model, dev, xa.astype(np.float32), changed, clean)
+        # a held wrist (confidence 0.29) can leave the person crop, so the anchored input may have another crop side:
+        # XS output is in crop units, d['mm'] belongs to the original crops - rescale before converting to mm
+        rows = rows * (crops[:, 2] / crops0[:, 2])[:, None, None]
+        rec['crop_changed'] = float((np.abs(crops - crops0).max(1) > 1e-6).mean())
         for tag, P in (('raw', clean), ('anchor', rows)):
             Em = np.linalg.norm(E.to_metres(P, d) - d['G'], axis=-1)[lo:hi] * 1000
             rec[f'err3d_{tag}_wrist'] = float(Em[:, [13, 16]].mean()); rec[f'err3d_{tag}_elbow'] = float(Em[:, [12, 15]].mean())
