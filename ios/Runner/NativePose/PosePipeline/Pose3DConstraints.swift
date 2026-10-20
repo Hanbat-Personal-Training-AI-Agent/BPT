@@ -2,11 +2,14 @@ import Foundation
 import simd
 
 /// Anatomical constraints on the final MotionAGFormer-XS H36M17 output. Mirrors
-/// pose_feedback/geometry/pose3d_constraints.py (tests/fixtures/pose3d_constraints_cases.json pins both).
+/// pose_feedback/geometry/pose3d_constraints.py (tests/fixtures/live3d_parity.json pins both). Every limit below is a copy
+/// of pose_feedback/geometry/anatomical_limits.json, the one config with the evidence per entry (PoseConstraintLimitsTests
+/// fails when they differ).
 ///
 /// Order: XS output → bone lengths (BoneLengthConstraint: calibration cm when present, else the session's
-/// running median lengths, L/R averaged, else population ratios) → knee hyperextension (KneeHingeLimit)
-/// → interior joint-angle limits (knee/elbow flexion, hip, shoulder, spine). No smoothing.
+/// running median lengths, L/R averaged, else population ratios) → knee depth flip (θ < −30°: detected, reflected on
+/// squats) → knee hyperextension clamp (θ ≥ −15°, KneeHingeLimit) → interior joint-angle limits (knee/elbow flexion,
+/// hip, shoulder, spine). No smoothing.
 /// Each step reports how far it moved the pose; `Report.bad` (moved more than `badAngleDegrees` /
 /// `badBoneFraction`) is the "3D 불량" quality signal (MotionAGFormerLive state bad3D).
 /// Stateful only through the session bone-length median (`apply` is mutating).
@@ -26,6 +29,8 @@ struct Pose3DConstraints {
         var boneSource = "none"
         var kneeHyperextended = false
         var kneeCorrectionDegrees = 0.0
+        /// Rotation the hyperextension clamp applied (θ < −kneeClampDegrees → −kneeClampDegrees), largest leg.
+        var kneeClampDegrees = 0.0
         /// Legs whose knee was reflected across the hip–ankle line (depth flip fixed; interior angle and bone lengths kept).
         var kneesReflected = 0
         /// name → degrees moved (only limits that fired).
@@ -35,7 +40,7 @@ struct Pose3DConstraints {
         /// Metrics that need one of them are skipped; the others stay valid (per-metric invalidation).
         var invalidJoints: Set<Int> = []
         var bad = false
-        var maxAngleCorrection: Double { max(kneeCorrectionDegrees, angleCorrections.values.max() ?? 0) }
+        var maxAngleCorrection: Double { max(kneeCorrectionDegrees, kneeClampDegrees, angleCorrections.values.max() ?? 0) }
     }
 
     var enabled = true
@@ -53,9 +58,11 @@ struct Pose3DConstraints {
     /// Session median replaces the prior after this many frames.
     var sessionMinFrames = 30
     var sessionWindowFrames = 300
-    /// Knee θ < −30°: XS put the knee depth on the wrong side (S3: 100% of flagged legs; mocap never below −7°).
-    /// Detection only — correction changed the knee error by 0.2° (S5 e), and the interior angle is usually still right.
+    /// Knee θ < −30°: the XS knee is not trusted (S3/T2) — marked invalid (detection, no correction at this limit).
     var knee = KneeHingeLimit.Config(enabled: false, limitDegrees: 30)
+    /// Hyperextension clamp: θ below −15° is rotated back onto −15° (a knee never bends backwards past it: CDC normal
+    /// extension 1.0–1.6°, Beighton hypermobility > 10°, Fit3D squat/push-up/row never below −10°). nil = off. 제안값.
+    var kneeClampDegrees: Double? = 15
     /// Knee depth flip fix (S3: in 100% of flagged legs the XS knee sits on the wrong side of the hip–ankle line in depth):
     /// reflect the knee across that line, so θ turns positive with the same interior angle and segment lengths. The frame
     /// then stays usable. false = detection only (the flip marks bad3D). Fit3D S6: right on squats (17/17 closer to mocap),
@@ -68,9 +75,9 @@ struct Pose3DConstraints {
     /// push-up frames and do not predict angle error (S5). Set a fraction to gate on them.
     var badBoneFraction: Double?
 
-    /// Interior-angle limits (H36M17) from Fit3D mocap p0.1 / p99.9 over 47 exercises, 8 subjects (lift_app.md S2; partly
-    /// validation subjects, so optimistic). 제안값(사용자 미승인). Knee ≥ 41°, elbow ≥ 22°, hip ≥ 32°, spine ≥ 120°
-    /// (row p0.1 123°), shoulder (trunk-down vs upper arm) ≤ 172°.
+    /// Interior-angle limits (H36M17) = anatomical_limits.json: Fit3D mocap p0.1 / p99.9 over 47 exercises, 8 subjects,
+    /// checked against normal ROM (CDC): knee ≥ 41°, elbow ≥ 22°, hip ≥ 32°, spine ≥ 120° (row p0.1 123°), shoulder
+    /// (trunk-down vs upper arm) ≤ 172°. 제안값(사용자 미승인).
     static let defaultAngleLimits: [AngleLimit] = [
         AngleLimit(name: "right_knee_flexion", refFrom: 2, refTo: 1, joint: 2, child: 3, minDegrees: 41, maxDegrees: 180),
         AngleLimit(name: "left_knee_flexion", refFrom: 5, refTo: 4, joint: 5, child: 6, minDegrees: 41, maxDegrees: 180),
@@ -143,6 +150,11 @@ struct Pose3DConstraints {
         joints = hinge.joints
         report.kneeHyperextended = hinge.bad3D
         report.kneeCorrectionDegrees = max(hinge.right.correctionDegrees, hinge.left.correctionDegrees)
+        if let limit = kneeClampDegrees {
+            let clamp = KneeHingeLimit.apply(joints, config: .init(enabled: true, limitDegrees: limit))
+            joints = clamp.joints
+            report.kneeClampDegrees = max(clamp.right.correctionDegrees, clamp.left.correctionDegrees)
+        }
 
         for limit in angleLimits {
             if let moved = Self.clamp(&joints, limit), moved > 0 {

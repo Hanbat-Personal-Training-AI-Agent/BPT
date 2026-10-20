@@ -88,3 +88,24 @@ def test_flipped_knee_is_reflected_not_discarded():
     assert knee_theta_deg(out, "right") > 30
     for p in (1, 3):
         assert abs(np.linalg.norm(out[2] - out[p]) - np.linalg.norm(j[2] - j[p])) < 1e-9
+
+
+def test_hyperextended_knee_is_clamped_not_left_backwards():
+    """theta = -25 (past the -15 clamp, short of the -30 flip): rotated onto -15, shin length kept, not invalid."""
+    from pose_feedback.geometry.hinge_limit import knee_theta_deg
+    j = np.zeros((17, 3))
+    j[1], j[4] = [-0.1, 0, 0], [0.1, 0, 0]
+    j[8] = [0, -0.5, 0]
+    j[7] = j[8] / 2
+    for hip, knee, ankle in ((1, 2, 3), (4, 5, 6)):
+        j[knee] = j[hip] + [0, 0.45, 0]
+        j[ankle] = j[knee] + [0, 0.4, 0]
+    a = np.radians(25)
+    j[3] = j[2] + 0.4 * np.array([0, np.cos(a), -np.sin(a)])
+    before = knee_theta_deg(j, "right")
+    assert before < -15
+    out, report = Pose3DConstraints(bone_lengths=False).apply(j)
+    assert abs(knee_theta_deg(out, "right") + 15) < 1e-9
+    assert abs(report["knee_clamp_deg"] - (-15 - before)) < 1e-9
+    assert abs(np.linalg.norm(out[3] - out[2]) - 0.4) < 1e-12
+    assert report["invalid_joints"] == [] and not report["knee_hyperextended"]

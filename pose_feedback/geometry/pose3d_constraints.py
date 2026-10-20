@@ -1,45 +1,33 @@
 """Anatomical constraints on the final MotionAGFormer-XS H36M17 output (reference).
 
-ios/Runner/NativePose/PosePipeline/Pose3DConstraints.swift mirrors this; both are pinned by
-tests/fixtures/pose3d_constraints_cases.json.
+ios/Runner/NativePose/PosePipeline/Pose3DConstraints.swift mirrors this; tests/fixtures/live3d_parity.json pins both
+(MotionAGFormerLiveTests) and PoseConstraintLimitsTests checks the Swift defaults against anatomical_limits.json.
 
 Order: XS output -> bone lengths (bone_lengths.apply_bone_lengths: calibration cm when present, else the
-session running median lengths, L/R averaged, else population ratios) -> knee hyperextension
-(hinge_limit) -> interior joint-angle limits (knee/elbow flexion, hip, shoulder, spine). No smoothing.
-report["bad"] (an angle limit moved a joint more than bad_angle_deg, the knee depth flipped (theta < -30, detection
-only), or - when bad_bone_fraction is set - a bone correction above it) is the "3D 불량" quality signal (LiveMotionAGFormer state bad_3d).
+session running median lengths, L/R averaged, else population ratios) -> knee depth flip (theta < -knee_limit_deg:
+detected, reflected on squats) -> knee hyperextension clamp (theta >= -knee_clamp_deg) -> interior joint-angle
+limits (knee/elbow flexion, hip, shoulder, spine). No smoothing. Every limit comes from anatomical_limits.json.
+report["bad"] (an angle limit moved a joint more than bad_angle_deg, the knee depth flipped (theta < -30), or - when
+bad_bone_fraction is set - a bone correction above it) is the "3D 불량" quality signal (LiveMotionAGFormer state bad_3d).
 """
 
+import json
 import math
 from collections import deque
+from pathlib import Path
 
 import numpy as np
 
 from pose_feedback.geometry.bone_lengths import H36M17_PARENTS, MIN_BONE_LENGTH, SEGMENT_NAMES, apply_bone_lengths
 from pose_feedback.geometry.hinge_limit import clamp_knee_hyperextension, is_bad_3d, knee_theta_deg
 
-# Relative segment lengths for the first session_min_frames frames (only ratios matter): Fit3D mocap, 8 subjects,
-# upper arm / thigh 0.60-0.63, forearm / thigh 0.54-0.57, shin / thigh 0.95-1.06 (docs/results/lift_app.md S2).
-PRIOR_LENGTHS = {
-    "right_hip-right_knee": 1.0, "left_hip-left_knee": 1.0,
-    "right_knee-right_ankle": 1.0, "left_knee-left_ankle": 1.0,
-    "left_shoulder-left_elbow": 0.61, "right_shoulder-right_elbow": 0.61,
-    "left_elbow-left_wrist": 0.55, "right_elbow-right_wrist": 0.55,
-}
-
-# (name, ref_from, ref_to, joint, child, min_deg, max_deg): angle between (ref_to - ref_from) and
-# (child - joint). Fit3D mocap p0.1 / p99.9 over 47 exercises (lift_app.md S2; partly validation subjects). 제안값.
-DEFAULT_ANGLE_LIMITS = (
-    ("right_knee_flexion", 2, 1, 2, 3, 41.0, 180.0),
-    ("left_knee_flexion", 5, 4, 5, 6, 41.0, 180.0),
-    ("right_elbow_flexion", 15, 14, 15, 16, 22.0, 180.0),
-    ("left_elbow_flexion", 12, 11, 12, 13, 22.0, 180.0),
-    ("right_hip", 0, 8, 1, 2, 32.0, 180.0),
-    ("left_hip", 0, 8, 4, 5, 32.0, 180.0),
-    ("right_shoulder", 8, 0, 14, 15, 0.0, 172.0),
-    ("left_shoulder", 8, 0, 11, 12, 0.0, 172.0),
-    ("spine", 7, 0, 7, 8, 120.0, 180.0),
-)
+# One config for every limit (evidence per entry, docs/results/lift_refine.md section 2); Pose3DConstraints.swift mirrors it.
+LIMITS = json.loads((Path(__file__).with_name("anatomical_limits.json")).read_text())
+# Relative segment lengths for the first session_min_frames frames (only ratios matter).
+PRIOR_LENGTHS = dict(LIMITS["prior_lengths"])
+# (name, ref_from, ref_to, joint, child, min_deg, max_deg): angle between (ref_to - ref_from) and (child - joint).
+DEFAULT_ANGLE_LIMITS = tuple((l["name"], l["ref_from"], l["ref_to"], l["joint"], l["child"], l["min_deg"], l["max_deg"])
+                             for l in LIMITS["angle_limits"])
 
 CHILDREN = [[c for c in range(17) if H36M17_PARENTS[c] == p] for p in range(17)]
 
@@ -86,7 +74,8 @@ def clamp_angle(j, limit):
 
 class Pose3DConstraints:
     def __init__(self, enabled=True, bone_lengths=True, calibration_targets_cm=None, knee_correction=False,
-                 knee_limit_deg=30.0, angle_limits=DEFAULT_ANGLE_LIMITS, bad_angle_deg=20.0, bad_bone_fraction=None,
+                 knee_limit_deg=LIMITS["knee_flip_deg"], knee_clamp_deg=LIMITS["knee_hyperextension_max_deg"],
+                 angle_limits=DEFAULT_ANGLE_LIMITS, bad_angle_deg=LIMITS["bad_angle_deg"], bad_bone_fraction=None,
                  reflect_flipped_knee=False,
                  session_min_frames=30, session_window_frames=300, prior_lengths=None):
         self.enabled = enabled
@@ -94,6 +83,8 @@ class Pose3DConstraints:
         self.calibration_targets_cm = calibration_targets_cm
         self.knee_correction = knee_correction
         self.knee_limit_deg = knee_limit_deg
+        # Hyperextension clamp: knee theta below -knee_clamp_deg is rotated back onto it (None = off, old behaviour).
+        self.knee_clamp_deg = knee_clamp_deg
         self.reflect_flipped_knee = reflect_flipped_knee
         self.angle_limits = angle_limits
         self.bad_angle_deg = bad_angle_deg
@@ -121,8 +112,8 @@ class Pose3DConstraints:
         """Return (joints [17,3] float64, report dict)."""
         j = np.asarray(joints_3d, dtype="float64").copy()
         report = {"bone_max_correction": 0.0, "bone_source": "none", "knee_hyperextended": False,
-                  "knee_correction_deg": 0.0, "knees_reflected": 0, "angle_corrections": {}, "invalid_joints": [],
-                  "bad": False}
+                  "knee_correction_deg": 0.0, "knee_clamp_deg": 0.0, "knees_reflected": 0, "angle_corrections": {},
+                  "invalid_joints": [], "bad": False}
         if not self.enabled:
             return j, report
         if self.bone_lengths:
@@ -154,6 +145,10 @@ class Pose3DConstraints:
         j = np.asarray(out, dtype="float64").copy()
         report["knee_hyperextended"] = is_bad_3d(hinge)
         report["knee_correction_deg"] = max(hinge[leg]["correction_deg"] for leg in hinge)
+        if self.knee_clamp_deg is not None:
+            out, clamp = clamp_knee_hyperextension(j, limit_deg=self.knee_clamp_deg, enabled=True)
+            j = np.asarray(out, dtype="float64").copy()
+            report["knee_clamp_deg"] = max(clamp[leg]["correction_deg"] for leg in clamp)
         invalid = set()
         for limit in self.angle_limits:
             moved = clamp_angle(j, limit)
