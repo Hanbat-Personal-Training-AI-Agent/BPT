@@ -120,3 +120,26 @@ def test_halpe_mapping_uses_halpe_pelvis_neck_head():
     x_app, _ = xd.mag_in(K[:, :17], 100, 100, 'app')
     x_ref, _ = xd.mag_input(K[:, :17], 100, 100)
     assert np.allclose(x_app, x_ref)  # mapping='app' is exactly the app path
+
+
+def test_torso_diagnostic_samples_exact_app_windows():
+    from scripts.finetune3 import xs_torso_diagnostic as diag
+    from finetune_motionagformer_fit3d import app_predict
+
+    class WindowModel:
+        def __call__(self, x):
+            return x + x.mean(dim=1, keepdim=True)
+
+    x = np.random.default_rng(42).normal(size=(67, 17, 3)).astype(np.float32)
+    idx = np.array([0, 1, 5, 20, 26, 40, 66])
+    assert np.allclose(diag.selected_predict(WindowModel(), x, idx, batch=3),
+                       app_predict(WindowModel(), x, "cpu", batch=5)[idx])
+
+
+def test_torso_direction_diagnostic_is_rotation_and_scale_invariant():
+    from scripts.finetune3 import xs_torso_diagnostic as diag
+    p = np.array([[0., -1., 0.], [1., -1., 1.]])
+    q = np.array([[0.2, -1., 0.3], [0.5, -1., 0.2]])
+    rotation = diag.axis_rotation(0, 10)
+    assert np.allclose(diag.direction_angle(p, q),
+                       diag.direction_angle(2 * p @ rotation.T, 0.5 * q @ rotation.T))
