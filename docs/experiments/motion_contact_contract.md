@@ -54,7 +54,7 @@ Exercises: `"pushup"`, `"squat"`, `"barbell_row"`. Variants as above.
 Update:
 `update(raw, screen2d, timestamp, *, fixed_camera=False, camera_motion=False, person_id=0, phase=None, grip_confirmed=False)`
 
-- raw: H36M 17x3, root-relative XS output converted by `crop.side / (2 * imageHeight)` to image-height units. This invertible boundary conversion prevents changing XS crop scale from becoming apparent motion. It supplies no global root or metric depth. The app separately retains the exact original XS output; corrected values, uncertainty and correction magnitude are converted back at the boundary.
+- raw: H36M 17x3, canonical root-relative `(XS - XS[0]) * crop.side / (2 * imageHeight)` in image-height units. XS can retain a nonzero pelvis residual; explicitly subtract it before temporal processing. This boundary conversion prevents changing XS crop scale or root residual from becoming apparent motion. It supplies no global root or metric depth. The app separately retains the exact original XS output, divides corrected values by the same scale, and adds the current original XS root to restore the output basis. Uncertainty and correction magnitude are translation invariant and use the scale conversion only.
 - screen2d: matching H36M 17x3 (x/imageHeight, y/imageHeight, confidence), original camera frame before XS crop normalization; not pixels or crop coordinates. Relative anatomical labels follow the existing H36M mapping.
 - timestamp: seconds for this emitted pose, monotonically increasing; no wall-clock processing duration.
 - bone_profile: optional dict `"a-b": ratio` where ratios are bone length divided by sum of median thigh + shank lengths from the same calibration estimate. Actual runtime scale is estimated only from observed pose. Include calibration provenance externally; confidence 0 disables the component.
@@ -72,7 +72,7 @@ Swift mirrors these fields with SIMD values. Keep the old constraint report and 
 
 These are engineering starting values, not validated physiological thresholds. Freeze them before the first held-out run. Report failures rather than changing parameters against held-out results.
 
-- Joint body scale: current median of finite thigh+shank lengths (edges 1–2–3, 4–5–6), falling back to last valid scale. All distance limits below are multiples of this model-unit leg length.
+- Joint body scale: median of accepted, reliable, finite thigh+shank lengths (edges 1–2–3, 4–5–6), falling back to the last trusted scale. Innovation testing uses the previous trusted scale before accepted observations update it. Image-space contact scale separately retains trusted 2D leg evidence. All body-distance limits below are multiples of this model-unit leg length. The original v1/v2 behavior is preserved in its source snapshots; this evidence restriction is the v3 correction described below.
 - Reliable confidence threshold .45; missing/low threshold .30.
 - Smoothing tau .08s. CV maximum useful horizon .35s; hard assessment expiry .50s.
 - Kalman: independent xyz constant-velocity filters with shared 2x2 covariance per joint; acceleration std 1.5 leg-length/s²; fixed observation std .03 leg-length (D/E). G/H observation std `(0.015 + 0.10*(1-confidence))*leg-length`.
@@ -152,3 +152,11 @@ three corresponding cases (seven cases × nine variants × ten checkpoints =
 630 comparisons). Regression tests also cover a first frame with no trusted
 observations, including nonfinite raw positions.
 
+## Device availability update
+
+The user instructed that from 2026-10-21 00:00 KST onward, work must proceed
+without the iPhone. Device launches, installations, log retrieval and connection
+retries stop before that boundary. Preserve partial runs and logs already on
+the phone. Continue the Home experiments and laptop tests/builds. Any unfinished
+rotation or estimator-cost measurement must be reported as unmeasured;
+desktop timing cannot substitute for iPhone real-time validation.
