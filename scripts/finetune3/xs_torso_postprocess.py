@@ -17,6 +17,8 @@ def main():
     root = Path(a.run)
     report = json.loads((root / "summary.json").read_text())
     seqs = load_seqs([report["arguments"]["data"]])
+    if report["arguments"].get("names"):
+        seqs = [s for s in seqs if s["name"] in report["arguments"]["names"].split(",")]
     pred = np.load(root / "predictions_HOME_ONLY.npz")
     labels = Path(report["arguments"]["ex3d_labels"])
     groups, world = defaultdict(lambda: defaultdict(list)), {}
@@ -49,6 +51,8 @@ def main():
     for tag in report["rows"]:
         for seq in sorted({s["subject"] for s in seqs}):
             for left, right in (("cam1", "cam2"), ("cam1", "cam3"), ("cam2", "cam3")):
+                if (tag, seq, left) not in world or (tag, seq, right) not in world:
+                    continue
                 ix, x, vx = world[(tag, seq, left)]
                 iy, y, vy = world[(tag, seq, right)]
                 assert np.array_equal(ix, iy), (seq, "camera time grids differ")

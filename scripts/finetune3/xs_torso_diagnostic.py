@@ -112,6 +112,7 @@ def main():
     p = argparse.ArgumentParser()
     p.add_argument("--data", required=True)
     p.add_argument("--models", required=True)
+    p.add_argument("--names", default="", help="Optional comma-separated fixed sequence names for a narrow follow-up")
     p.add_argument("--ex3d-labels", default=str(Path("~/bpt-smpl/ex3d/exercise3d_labels").expanduser()))
     p.add_argument("--mag-repo", default=str(Path("~/models/MotionAGFormer").expanduser()))
     p.add_argument("--stride", type=int, default=5)
@@ -121,6 +122,10 @@ def main():
     assert a.stride > 0
     torch.set_num_threads(a.threads)
     seqs = load_seqs([a.data])
+    if a.names:
+        names = a.names.split(",")
+        seqs = [s for s in seqs if s["name"] in names]
+        assert {s["name"] for s in seqs} == set(names), names
     assert all(s["kind"] == "E" and s["split"] == "heldout" for s in seqs)
     out = Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
