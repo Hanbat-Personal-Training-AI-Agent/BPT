@@ -17,10 +17,10 @@ DISTAL = (2, 3, 5, 6, 12, 13, 15, 16)
 VARIANTS = ("A", "B", "C", "D", "E", "F", "G", "H", "HOLD")
 
 
-def _leg(p):
+def _leg(p, valid=None):
     values = []
     for a, b, c in ((1, 2, 3), (4, 5, 6)):
-        if np.isfinite(p[[a, b, c]]).all():
+        if (valid is None or np.all(valid[[a, b, c]])) and np.isfinite(p[[a, b, c]]).all():
             v = np.linalg.norm(p[a] - p[b]) + np.linalg.norm(p[b] - p[c])
             if v > 1e-6:
                 values.append(v)
@@ -43,6 +43,10 @@ class ContactState:
         if not enabled:
             self.__init__()
             return
+        # Candidate-only states also expire. Seven old samples cannot become
+        # a new contact after a long unobserved interval merely by adding one.
+        if self.last_seen is not None and now - self.last_seen > .5:
+            self.__init__()
         radius, release = .035 * scale, .10 * scale
         if not reliable or not np.isfinite(point).all():
             if self.anchor is not None:
@@ -133,6 +137,7 @@ class ExerciseMotionEstimator:
         self.time = None
         self.person_id = None
         self.scale = .3
+        self.image_scale = .3
         self.contacts = {j: ContactState() for j in
                          ((3, 6, 13, 16) if self.exercise == "pushup" else (3, 6))}
         self.grip_history = deque(maxlen=8)
@@ -201,15 +206,17 @@ class ExerciseMotionEstimator:
             self.reset()
         dt = 1 / 30 if self.time is None else max(1e-4, now - self.time)
         self.time, self.person_id = now, person_id
-        scale = _leg(raw)
-        if scale is not None:
-            # A robust pose scale is a tolerance unit, not a GT metric scale.
-            self.scale = max(scale, 1e-4)
-        s = self.scale
         conf = np.nan_to_num(np.clip(screen[:, 2], 0, 1))
         finite = np.isfinite(raw).all(axis=1) & np.isfinite(screen[:, :2]).all(axis=1)
         measured = finite & (conf >= .3)
         reliable = finite & (conf >= .45)
+        if not self.initialized.any():
+            initial_scale = _leg(raw, reliable)
+            if initial_scale is not None:
+                self.scale = max(initial_scale, 1e-4)
+        # Innovation gates use the previous trusted scale. An unobserved leg
+        # must not widen the gate enough to certify another joint's bad jump.
+        s = self.scale
         variant = self.variant
         adaptive = variant in ("G", "H")
         kalman = variant in ("D", "E", "G", "H")
@@ -257,6 +264,10 @@ class ExerciseMotionEstimator:
                     self.p00[j] = (.03 * s) ** 2
         trusted = reliable & accepted
         passthrough = trusted & adaptive
+        scale = _leg(raw, trusted)
+        if scale is not None:
+            self.scale = max(scale, 1e-4)
+        s = self.scale
         corrected = raw.copy()
         used_prediction = np.zeros(17, dtype=bool)
         uncertainty = (.015 + .10 * (1 - conf)) * s
@@ -330,7 +341,10 @@ class ExerciseMotionEstimator:
                 self.previous_screen[j] = screen[j, :2]
 
         support_available = bool(fixed_camera and not camera_motion)
-        leg2d = _leg(screen[:, :2]) or .3
+        current_image_scale = _leg(screen[:, :2], trusted)
+        if current_image_scale is not None:
+            self.image_scale = max(current_image_scale, 1e-4)
+        leg2d = self.image_scale
         contact_used = []
         # Robust instantaneous weak-perspective scale uses observations only.
         ratios = []
@@ -433,6 +447,8 @@ class ExerciseMotionEstimator:
                                      contact_corrected=contact_used, bone_corrected=kinematic_used,
                                      rejected_joints=np.flatnonzero(rejected).tolist(),
                                      observation_passthrough=np.flatnonzero(passthrough).tolist(),
-                                     observation_policy="trusted_passthrough_v2",
+                                     observation_policy="trusted_passthrough_v3",
+                                     body_scale_updated=scale is not None,
+                                     image_scale=leg2d,
                                      calibration_used=kin_enabled and bool(self.bone_profile),
                                      grip_used=self.grip_reference is not None))

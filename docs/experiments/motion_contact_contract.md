@@ -129,3 +129,26 @@ observations before saying a previously reported problem was fixed. The
 experimental `requireObservedPraise` setting prevents a missing warning due
 to uncertainty from becoming a false improvement claim.
 
+## Independent evidence-validity audit: v3
+
+Before the final device build, independent synthetic probes reproduced two
+logic defects in v2. A low-confidence, grossly wrong ankle inflated the body
+scale and thereby widened the innovation gate enough to accept an unrelated
+wrong wrist. Also, contact candidates without an initialized anchor survived
+a long observation gap and could become CONTACT after only one new sample.
+These are correctness fixes, not changes chosen from held-out accuracy.
+
+V3 initializes scale only from finite, reliable leg chains. Innovation gates
+use the previous trusted body scale. Accepted reliable leg chains may then
+update the body scale; trusted image-space leg chains update a separately
+retained image scale. Missing/untrusted chains retain the prior scale rather
+than contributing huge or invented lengths. No numeric threshold changed.
+All contact history, relocation candidates and established anchors expire
+after the same existing `.5 s` gap, including UNINITIALIZED/REACQUIRE states.
+
+Original v1/v2 sources/results remain distinct. Final A–H comparisons use the
+same v3 scale evidence handling for every arm. The numerical fixture adds
+three corresponding cases (seven cases × nine variants × ten checkpoints =
+630 comparisons). Regression tests also cover a first frame with no trusted
+observations, including nonfinite raw positions.
+

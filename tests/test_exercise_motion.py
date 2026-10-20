@@ -144,6 +144,38 @@ def test_contact_expires_without_observation():
     assert c.state == "UNINITIALIZED" and c.anchor is None
 
 
+def test_low_confidence_leg_cannot_make_a_bad_wrist_jump_trusted():
+    m = ExerciseMotionEstimator("pushup", "G")
+    warm(m)
+    p = pose()
+    s = screen(p)
+    # Camera sees no actual wrist move, but the lifter produces a gross jump.
+    p[13, 0] += 1
+    p[3] = [0, 100, 0]
+    s[3, 2] = 0
+    result = m.update(p, s, 1., fixed_camera=True)
+    assert result["diagnostics"]["scale"] < 1
+    assert 13 in result["diagnostics"]["rejected_joints"]
+    assert 13 not in result["diagnostics"]["observation_passthrough"]
+    assert result["invalid"][13]
+
+
+@pytest.mark.parametrize("state,count", [("UNINITIALIZED", 7), ("REACQUIRE", 4)])
+def test_contact_candidates_expire_even_before_an_anchor_exists(state, count):
+    c = ContactState()
+    c.state = state
+    point = np.array([.2, .4])
+    for i in range(count):
+        c.update(point, True, i / 30, 1., True)
+    assert c.anchor is None
+    for i in range(count, count + 61):
+        c.update(point, False, i / 30, 1., True)
+    c.update(point, True, (count + 61) / 30, 1., True)
+    assert c.state == "UNINITIALIZED"
+    assert c.anchor is None
+    assert len(c.history) == 1
+
+
 def test_no_fixed_camera_no_contact_and_no_unverified_grip():
     m = ExerciseMotionEstimator("barbell_row", "G")
     r = warm(m, fixed=False)

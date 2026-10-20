@@ -36,7 +36,10 @@ cases = []
 for name, exercise in (("row_occlusion_turn", "barbell_row"),
                        ("pushup_relocation", "pushup"),
                        ("squat_root_motion", "squat"),
-                       ("profile_reset", "barbell_row")):
+                       ("profile_reset", "barbell_row"),
+                       ("low_confidence_leg_scale", "pushup"),
+                       ("contact_candidate_expiry", "pushup"),
+                       ("contact_reacquire_expiry", "pushup")):
     frames = []
     for t in range(80):
         p = pose()
@@ -53,7 +56,16 @@ for name, exercise in (("row_occlusion_turn", "barbell_row"),
         if name == "profile_reset":
             p[13, 0] -= .08
             context["person_id"] = 1 if t >= 60 else 0
+        if name == "contact_reacquire_expiry" and t >= 16:
+            p[13, 0] += .15
         uv = p[:, :2] + [.5, .55]
+        if name == "low_confidence_leg_scale" and 10 <= t <= 12:
+            p[3] = [0, 100, 0]
+            confidence[3] = 0.
+            p[13, 0] += 1.
+        if (name == "contact_candidate_expiry" and 7 <= t <= 67
+                or name == "contact_reacquire_expiry" and 23 <= t <= 73):
+            confidence[13] = .1
         if name == "squat_root_motion":
             uv[[3, 6]] = pose()[[3, 6], :2] + [.5, .55]
         if name in ("row_occlusion_turn", "profile_reset") and 25 <= t <= 45:
