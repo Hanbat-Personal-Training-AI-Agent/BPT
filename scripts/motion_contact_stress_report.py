@@ -10,11 +10,13 @@ import numpy as np
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--v1", required=True)
-    parser.add_argument("--v2", required=True)
+    parser.add_argument("--v2", "--candidate", dest="v2", required=True)
+    parser.add_argument("--candidate-label", choices=("v2", "v3"), default="v2")
     parser.add_argument("--out", required=True)
     args = parser.parse_args()
     inputs, summaries, posture = {}, {}, {}
-    for version, folder in (("v1", args.v1), ("v2", args.v2)):
+    candidate = args.candidate_label
+    for version, folder in (("v1", args.v1), (candidate, args.v2)):
         path = Path(folder) / "results.json"
         data = json.loads(path.read_text())
         records = data["records"]
@@ -59,20 +61,20 @@ def main():
     labels = ("Straight, 0.33 s", "Straight, 1.50 s", "Turn, elbow visible", "Turn, arm hidden")
     for k, (variant, color) in enumerate(zip(("C", "D", "G", "H", "HOLD"),
                                             ("#599bd6", "#9297a0", "#159b88", "#d56b49", "#8067a3"))):
-        means = [summaries["v2"][c][variant]["occluded_error_leg_pct"]["mean"] for c in cases]
-        name = {"C": "CV", "D": "Kalman", "G": "G v2", "H": "H v2", "HOLD": "Hold"}[variant]
+        means = [summaries[candidate][c][variant]["occluded_error_leg_pct"]["mean"] for c in cases]
+        name = {"C": "CV", "D": "Kalman", "G": f"G {candidate}", "H": f"H {candidate}", "HOLD": "Hold"}[variant]
         axes[0].bar(np.arange(4) + (k - 2) * .15, means, width=.145, color=color, label=name)
     axes[0].set_xticks(np.arange(4), labels, rotation=15, ha="right")
     axes[0].set_ylabel("Hidden-joint error / reference leg length (%)")
     axes[0].set_ylim(0, 25)
     axes[0].set_title("Phase prediction has different failure cases")
     axes[0].legend(ncol=3, fontsize=8)
-    selections = (("v1", "B"), ("v1", "D"), ("v1", "G"), ("v1", "H"), ("v2", "G"), ("v2", "H"))
+    selections = (("v1", "B"), ("v1", "D"), ("v1", "G"), ("v1", "H"), (candidate, "G"), (candidate, "H"))
     missed = [posture[v][a]["posture_missed_error_frames"] for v, a in selections]
     withheld = [posture[v][a]["posture_abstained_error_frames"] for v, a in selections]
     axes[1].bar(np.arange(6), missed, color="#d56b49", label="Missed, while assessed")
     axes[1].bar(np.arange(6), withheld, bottom=missed, color="#9297a0", label="Withheld")
-    axes[1].set_xticks(np.arange(6), ("EMA", "Kalman", "G v1", "H v1", "G v2", "H v2"))
+    axes[1].set_xticks(np.arange(6), ("EMA", "Kalman", "G v1", "H v1", f"G {candidate}", f"H {candidate}"))
     axes[1].set_ylabel("Frames, out of 534 synthetic error frames")
     axes[1].set_title("Trusted observations preserve visible form changes")
     axes[1].legend(fontsize=8)

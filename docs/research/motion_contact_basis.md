@@ -14,3 +14,23 @@ Single-image body-shape reconstruction remains ambiguous under occlusion, clothi
 - Camera rotation boundaries previously required explicit temporal-state resets. That implementation issue has a separate tested fix; it must not be attributed to the model's intrinsic depth ambiguity.
 
 The new A–H experiments measure error on clean, corrupted and moving intervals separately. Low 2D confidence is an operational proxy, not a ground-truth occlusion annotation. Synthetic RGB masks test a specific controlled perturbation; they are not equivalent to every natural self-occlusion or to general home-camera validation.
+
+## What the existing confidence actually means
+
+The app already retains one RTMPose confidence value per joint. In
+`ios/Runner/NativePose/PosePipeline/SimCCDecoder.swift`, it is the smaller of
+the peak X-bin and peak Y-bin scores. It is not a calibrated probability that
+the joint's 2D position, identity, or inferred 3D depth is correct. H36M torso
+joints also contain synthesized coordinates from the COCO mapping, rather
+than independent directly detected landmarks.
+
+The experimental `.45` reliable threshold and `.30` missing threshold are
+fixed engineering settings. Confidence, current-image motion, temporal
+innovation and adjacent-joint consistency determine whether an observation is
+trusted. G/H then preserve a trusted raw XS observation exactly. A plausible
+wrong observation can still pass those checks; persistent model bias and
+monocular depth ambiguity are not solved by a confidence threshold.
+
+The estimator's covariance likewise describes its chosen temporal model and
+noise assumptions. It is not a calibrated bound on total XS error. Empirical
+coverage against held-out scorer-only 3D references is reported separately.

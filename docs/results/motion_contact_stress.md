@@ -10,6 +10,25 @@ trusted observations pass through exactly, with velocity/covariance retained
 for uncertain intervals. The v1 results remain unchanged. No thresholds were
 selected from these scores. Source v1 is `40e5edc`, source v2 is `b29e7c9`.
 
+## Final v3 regression rerun
+
+The final candidate is v3 (`dd6c703`), which fixes two separately reproduced
+evidence-validity bugs: untrusted legs inflating scale, and stale contact
+candidates surviving long observation gaps. It retains v2's observation
+priority and every numeric threshold. All324 synthetic runs were repeated.
+
+G/H v3 still preserve all534 synthetic visible posture-error frames, with
+zero missed or withheld frames in that test. The squat root-motion/hidden
+ankle case improves from4.10% leg-length error in v2 to1.29% in v3 after
+excluding the untrusted ankle from scale estimation. The straight-motion
+phase failure and hidden support-change failure remain; the fixes do not
+justify general adoption.
+
+[V3 full aggregates and hashes](motion_contact_artifacts/v3/motion_contact_stress_summary.json)
+and [v3 comparison figure](motion_contact_artifacts/v3/motion_contact_stress.png)
+are separate artifacts. The tables and figure below intentionally retain the
+original v1/v2 observation-priority comparison for traceability.
+
 ![Synthetic engineering comparison](motion_contact_artifacts/motion_contact_stress.png)
 
 ## Fixed experiment
