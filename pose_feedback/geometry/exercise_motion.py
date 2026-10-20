@@ -255,6 +255,8 @@ class ExerciseMotionEstimator:
                     pred[j] = raw[j]
                     self.v[j] = 0
                     self.p00[j] = (.03 * s) ** 2
+        trusted = reliable & accepted
+        passthrough = trusted & adaptive
         corrected = raw.copy()
         used_prediction = np.zeros(17, dtype=bool)
         uncertainty = (.015 + .10 * (1 - conf)) * s
@@ -290,6 +292,11 @@ class ExerciseMotionEstimator:
                 else:
                     self.p00[j], self.p01[j], self.p11[j] = pp, pv, vv
                     used_prediction[j] = True
+                # v2: a confirmed current observation is the position authority.
+                # Kalman velocity/covariance remain useful for the next occlusion,
+                # but cannot smooth genuine observed motion or posture errors.
+                if passthrough[j]:
+                    self.p[j] = raw[j]
                 corrected[j] = self.p[j]
                 uncertainty[j] = np.sqrt(max(self.p00[j], 0))
             elif variant == "B":
@@ -329,15 +336,15 @@ class ExerciseMotionEstimator:
         ratios = []
         for a, b in EDGES:
             d2 = np.linalg.norm(screen[a, :2] - screen[b, :2])
-            if reliable[a] and reliable[b] and d2 > .02 * leg2d:
+            if trusted[a] and trusted[b] and d2 > .02 * leg2d:
                 ratios.append(np.linalg.norm(raw[a, :2] - raw[b, :2]) / d2)
         xy_scale = float(np.median(ratios)) if len(ratios) >= 4 else None
         for j, contact in self.contacts.items():
-            contact.update(screen[j, :2], reliable[j] and not rejected[j], now,
+            contact.update(screen[j, :2], trusted[j], now,
                            leg2d, contact_enabled and support_available)
             if (contact_enabled and support_available and not accepted[j]
                     and contact.anchor is not None and contact.state == "OCCLUDED"
-                    and reliable[0] and xy_scale is not None
+                    and trusted[0] and xy_scale is not None
                     and now - contact.last_seen <= .35 and self.initialized[j]):
                 target = (contact.anchor - screen[0, :2]) * xy_scale
                 # Only XY; no invented global root or fixed contact depth.
@@ -353,7 +360,7 @@ class ExerciseMotionEstimator:
             for j in DISTAL:
                 a = PARENT[j]
                 ratio = self.bone_profile.get(f"{a}-{j}")
-                if ratio is None or reliable[j] or not reliable[a] or not np.isfinite(corrected[[a, j]]).all():
+                if ratio is None or reliable[j] or not trusted[a] or not np.isfinite(corrected[[a, j]]).all():
                     continue
                 target = float(ratio) * s
                 if not np.isfinite(target) or target <= 0:
@@ -370,7 +377,7 @@ class ExerciseMotionEstimator:
                     kinematic_used.append(j)
 
         if contact_enabled and self.exercise == "barbell_row" and grip_confirmed:
-            if reliable[13] and reliable[16]:
+            if trusted[13] and trusted[16]:
                 distance = float(np.linalg.norm(raw[13] - raw[16]))
                 self.grip_seen = now
                 if (self.grip_reference is not None
@@ -385,7 +392,7 @@ class ExerciseMotionEstimator:
             elif (self.grip_reference is not None and self.grip_seen is not None
                   and now - self.grip_seen <= .5):
                 for j, other in ((13, 16), (16, 13)):
-                    if not reliable[j] and reliable[other] and np.isfinite(corrected[[j, other]]).all():
+                    if not reliable[j] and trusted[other] and np.isfinite(corrected[[j, other]]).all():
                         vector = corrected[j] - corrected[other]
                         length = np.linalg.norm(vector)
                         desired = np.clip(length, .8 * self.grip_reference, 1.2 * self.grip_reference)
@@ -425,5 +432,7 @@ class ExerciseMotionEstimator:
                     diagnostics=dict(scale=s, fixed_camera=support_available,
                                      contact_corrected=contact_used, bone_corrected=kinematic_used,
                                      rejected_joints=np.flatnonzero(rejected).tolist(),
+                                     observation_passthrough=np.flatnonzero(passthrough).tolist(),
+                                     observation_policy="trusted_passthrough_v2",
                                      calibration_used=kin_enabled and bool(self.bone_profile),
                                      grip_used=self.grip_reference is not None))

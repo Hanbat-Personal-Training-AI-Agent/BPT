@@ -93,3 +93,26 @@ Fit3D stays on Home; use existing conda environments. No image viewing/export/cl
 Separate actual RGB-derived personal calibration estimates from mocap-fitted/GT shape simulations. The latter must not enter estimator input. Calibration frames should be independent of the evaluated sequence; if existing profiles use that sequence, cross-fit/exclude those estimates or mark the separate-calibration assumption explicitly and do not claim strictly causal deployment validation.
 
 Only scoring may read GT, camera depth, labels, exercise phase/rep bounds or validity annotations. Corruption schedules and mask placement use fixed frame counts, observed 2D, and seeded randomness. Keep raw input/cache hashes and per-variant manifests. Synthetic posture perturbations assess behavior preservation; without human error labels they are not clinical false-negative measurements.
+# User clarification: trusted observations pass through (v2)
+
+On 2026-10-20 the user explicitly clarified that genuinely observed joints must
+follow current observations and that prediction/constraints are for uncertain
+observations. The original `40e5edc` algorithm and `83b20fa` evaluation snapshot
+remain the v1 ablation; do not overwrite or relabel those results.
+
+The v2 G/H candidates return the current raw XS position **exactly** whenever
+the joint is finite, confidence is at least `.45`, and the causal consistency
+gate accepts it. Internal velocity and covariance are updated for possible
+subsequent occlusion, but filtered position does not replace a trusted current
+position. Recovery also returns directly to an accepted observation. Rejected
+high-confidence jumps are not trusted merely because of their confidence.
+Rejected adjacent joints cannot provide contact scale/root or bone/relative
+constraint evidence. All numeric thresholds remain fixed.
+
+This concerns the new estimator boundary. XS still estimates 3D from observed
+2D, and the existing downstream quality gates remain separate. Raw XS,
+estimator output, final constrained output and invalid masks are separately
+observable. B and D/E remain smoothing/filter comparison arms. In G/H, visible
+raw jitter can therefore remain; suppressing valid visible movement is not an
+acceptable way to reduce it. Report v1 and v2 as distinct algorithms.
+

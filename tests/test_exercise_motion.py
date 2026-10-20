@@ -36,6 +36,40 @@ def test_a_keeps_exact_raw_without_mutating_input():
     np.testing.assert_array_equal(r["raw"], p)
 
 
+@pytest.mark.parametrize("variant", ["G", "H"])
+def test_confirmed_observed_motion_is_exact_and_never_smoothed(variant):
+    m = ExerciseMotionEstimator("barbell_row", variant)
+    # Ordinary sustained movement, including a direction reversal. It is below
+    # the jump gate and fully observed, so every output must be exactly current.
+    for t in range(100):
+        p = pose()
+        p[[8, 11, 12, 13, 14, 15, 16], 2] += .1 * np.sin(t / 9)
+        p[[2, 5], 0] += .04 * np.sin(t / 8)
+        r = m.update(p, screen(p), t / 30, fixed_camera=True)
+        np.testing.assert_array_equal(r["corrected"], p)
+        np.testing.assert_array_equal(r["correction_magnitude"], np.zeros(17))
+        assert r["diagnostics"]["observation_passthrough"] == list(range(17))
+        assert not r["used_prediction"].any()
+
+
+@pytest.mark.parametrize("variant", ["G", "H"])
+def test_recovered_observation_releases_prediction_without_blending(variant):
+    m = ExerciseMotionEstimator("barbell_row", variant)
+    warm(m)
+    p = pose()
+    s = screen(p)
+    s[13, 2] = .05
+    p[13] += [.3, .2, .1]
+    hidden = m.update(p, s, 1., fixed_camera=True)
+    assert hidden["used_prediction"][13]
+    actual = pose()
+    actual[13, 0] += .02
+    recovered = m.update(actual, screen(actual), 31 / 30, fixed_camera=True)
+    np.testing.assert_array_equal(recovered["corrected"][13], actual[13])
+    assert recovered["correction_magnitude"][13] == 0
+    assert not recovered["used_prediction"][13]
+
+
 def test_cv_continues_motion_and_is_better_than_hold_on_constant_velocity():
     cv = ExerciseMotionEstimator("barbell_row", "C")
     hold = ExerciseMotionEstimator("barbell_row", "HOLD")
