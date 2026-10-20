@@ -400,8 +400,11 @@ def body_dirs(P):
     return horiz(lr.mean(0)), horiz((ant + e1).mean(0))
 
 
+V_MAPPING = None  # build/vgrid --v-mapping: force the H36M mapping of virtual 2D (default: halpe when the offsets have Halpe points)
+
+
 def virtual_seq(P, offs, pool_, rng, group, cam, name, noisy=True, ann=None):
-    mapping = 'halpe' if 'h_hip' in offs else 'app'
+    mapping = V_MAPPING or ('halpe' if 'h_hip' in offs else 'app')
     """cam = dict(side=+-1, az deg from the pure side toward +-front, height m, dist m, f px)."""
     pk = pick30(len(P)); Pk = P[pk]
     right, front = body_dirs(Pk)
@@ -430,7 +433,7 @@ def virtual_seq(P, offs, pool_, rng, group, cam, name, noisy=True, ann=None):
     y, mm = target((J - C) @ Rm.T, crops, cam['f'])
     side = view_and_side(J, None, C, UP)[1]
     sub, ex = name.split('/')[:2]
-    return dict(kind='V', name=name, subject=sub, exercise=ex, group=group, x=x, y=y, mm=mm, view=view, side=side,
+    return dict(kind='V', name=name, subject=sub, exercise=ex, group=group, x=x, y=y, mm=mm, view=view, side=side, src=f'v_{mapping}',
                 inframe=inframe, noise=src, cam=cam, up_c=(Rm @ UP).tolist(), seg=segments(ann, pk))
 
 
@@ -569,12 +572,15 @@ def main():
     ap.add_argument('--mapping', default='app', help='app | halpe: H36M input mapping for Halpe26 2D (C3, plan §1.3)')
     ap.add_argument('--halpe', action='store_true', help='offsets / pool: fit from a Halpe26 model (--pose2d, --ex3d-csv)')
     ap.add_argument('--a-tag', default='A', help='build --kinds A: src prefix')
+    ap.add_argument('--v-mapping', default=None, help='app | halpe: force the mapping of virtual 2D (same 2D, other mapping)')
     ap.add_argument('--pose2d', default=os.path.expanduser('~/bpt-runs/lift-compare/A-pose2d-20261019/pose2d'))
     ap.add_argument('--a-sources', default='coco,halpe', help='build --kinds A: stage-1 keypoint arrays to use')
     ap.add_argument('--pool-subjects', default=','.join(TUNING), help='pool: Fit3D subjects whose real-camera residuals go in')
     ap.add_argument('--eval-only', action='store_true', help='allow Exercise3D held-out (P2/P3) sequences: evaluation sets only')
     ap.add_argument('--out', required=True)
     a = ap.parse_args()
+    global V_MAPPING
+    V_MAPPING = a.v_mapping
     {'offsets': offsets, 'pool': pool, 'build': build, 'vgrid': vgrid}[a.cmd](a)
 
 
