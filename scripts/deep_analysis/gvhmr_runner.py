@@ -92,6 +92,18 @@ def normalize_video(src, dst, max_seconds=None):
     return n, st.width, st.height, fps, deg
 
 
+def phone_f_mm(path):
+    """35 mm-equivalent focal length from iPhone QuickTime metadata, or None (most re-encoded clips drop it)."""
+    import av
+    with av.open(str(path)) as c:
+        for md in [c.metadata] + [s.metadata for s in c.streams]:
+            for k, v in md.items():
+                if 'focal_length.35mm_equivalent' in k:
+                    try: return float(v)
+                    except ValueError: pass
+    return None
+
+
 def track(video, n):
     """Longest YOLOv8x track (as the demo), plus how many other people are tracked for >= 30 % of the video."""
     import torch
@@ -272,12 +284,13 @@ def run(video, out_dir, f_mm=None, half=False, max_seconds=None, keep_video=Fals
 def main():
     p = argparse.ArgumentParser()
     p.add_argument('video'); p.add_argument('out_dir')
-    p.add_argument('--f-mm', type=float, default=None, help='full-frame equivalent focal length (mm)')
+    p.add_argument('--f-mm', default=None, help="full-frame equivalent focal length (mm), or 'auto' = phone metadata")
     p.add_argument('--half', action='store_true', help='fp16-stored ViTPose-H / HMR2 Linear weights (3 GB GPU)')
     p.add_argument('--keep-video', action='store_true')
     a = p.parse_args()
+    f_mm = phone_f_mm(a.video) if a.f_mm == 'auto' else (float(a.f_mm) if a.f_mm else None)
     try:
-        print(json.dumps(run(Path(a.video).resolve(), Path(a.out_dir).resolve(), a.f_mm, a.half,
+        print(json.dumps(run(Path(a.video).resolve(), Path(a.out_dir).resolve(), f_mm, a.half,
                              keep_video=a.keep_video), indent=1))
     except RunError as e:
         print(json.dumps({'error': e.code, 'message': str(e)})); sys.exit(2)
