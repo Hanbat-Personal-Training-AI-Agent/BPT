@@ -14,7 +14,7 @@ import numpy as np
 import torch
 
 HERE = Path(__file__).resolve().parent
-sys.path[:0] = [str(HERE.parent.parent), str(HERE.parent)]
+sys.path[:0] = [str(HERE.parent.parent), str(HERE.parent), str(HERE)]
 from eval_3d_angles import WINDOW  # noqa: E402
 from finetune_motionagformer_fit3d import flip, load  # noqa: E402
 

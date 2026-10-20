@@ -29,7 +29,7 @@ from pathlib import Path
 import numpy as np
 
 HERE = Path(__file__).resolve().parent
-sys.path[:0] = [str(HERE.parent.parent), str(HERE.parent)]
+sys.path[:0] = [str(HERE.parent.parent), str(HERE.parent), str(HERE)]
 from eval_3d_angles import APP_FPS, EX3D_NAMES, FIT3D_TO_H36M, read_csv, view_and_side  # noqa: E402
 from eval_pushup_virtual_side import (CAMS, FIT3D_COCO, PART, SAPIENS_COCO17, SWAP, body_basis, interp_nan,  # noqa: E402
                                       look_at, project_fit3d, unit)

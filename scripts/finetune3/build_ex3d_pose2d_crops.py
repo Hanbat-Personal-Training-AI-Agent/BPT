@@ -14,7 +14,7 @@ import cv2
 import numpy as np
 
 HERE = Path(__file__).resolve().parent
-sys.path[:0] = [str(HERE.parent.parent), str(HERE.parent)]
+sys.path[:0] = [str(HERE.parent.parent), str(HERE.parent), str(HERE)]
 from build_fit3d_pose2d_crops import SIDE  # noqa: E402
 from eval_pushup_virtual_side import SAPIENS_COCO17  # noqa: E402
 from pose_feedback.body.pose2d_data import apply_affine, bbox_from_points, box_to_center_scale  # noqa: E402

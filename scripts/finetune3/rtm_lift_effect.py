@@ -15,7 +15,7 @@ import cv2
 import numpy as np
 
 HERE = Path(__file__).resolve().parent
-sys.path[:0] = [str(HERE.parent.parent), str(HERE.parent)]
+sys.path[:0] = [str(HERE.parent.parent), str(HERE.parent), str(HERE)]
 from pose2d_ft_common import crop_box, load_model, predict  # noqa: E402
 from pose_feedback.body.pose2d_data import apply_affine, box_to_center_scale, invert_affine  # noqa: E402
 from xs_data import fit3d_seq, real_seq_from, save  # noqa: E402

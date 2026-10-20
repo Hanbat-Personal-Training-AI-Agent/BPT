@@ -17,7 +17,7 @@ from pathlib import Path
 import numpy as np
 
 HERE = Path(__file__).resolve().parent
-sys.path[:0] = [str(HERE.parent.parent), str(HERE.parent)]
+sys.path[:0] = [str(HERE.parent.parent), str(HERE.parent), str(HERE)]
 INPUT_NAME, OUTPUT_NAMES, INPUT_SHAPE = 'input_image', ('simcc_x', 'simcc_y'), (1, 3, 256, 192)
 
 

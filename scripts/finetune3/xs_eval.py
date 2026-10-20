@@ -18,7 +18,7 @@ import numpy as np
 import torch
 
 HERE = Path(__file__).resolve().parent
-sys.path[:0] = [str(HERE.parent.parent), str(HERE.parent)]
+sys.path[:0] = [str(HERE.parent.parent), str(HERE.parent), str(HERE)]
 from eval_3d_mediapipe import angle_metrics, angles, pose_metrics, procrustes  # noqa: E402
 from finetune_motionagformer_fit3d import app_predict, load  # noqa: E402
 from xs_train import LIMBS, load_seqs  # noqa: E402
