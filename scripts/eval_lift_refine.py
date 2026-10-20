@@ -457,9 +457,60 @@ def run_ex3d_wrist(a):
     finish(a, 'ex3d_wrist', out, md, [f"{a.labels}/gt.json", a.task])
 
 
+# ---------------------------------------------------------------- pre-registered rules (docs/results/lift_refine.md §0)
+def verdict(constraints_json, wrist_json=None):
+    """R-BONE (calib vs a03) and R-LIMITS (limits vs a03) on Fit3D validation (heldout), R-DEDUPE (mp_dedupe vs mp).
+    Rep-extreme errors are compared on their medians (the lift_app.md convention)."""
+    c = json.load(open(constraints_json)); P, Rr = c['pose'], c['rules']
+    g = lambda v, ex='all': P.get(f'heldout/{ex}/{v}')
+    out = {}
+
+    def common(v, base='a03', mm_all=0.5, mm_ex=2.0):
+        a, b = g(base), g(v); checks = {}
+        checks['mpjpe_all'] = (b['mpjpe']['mean'] - a['mpjpe']['mean'], b['mpjpe']['mean'] - a['mpjpe']['mean'] <= mm_all)
+        worst = max(g(v, ex)['mpjpe']['mean'] - g(base, ex)['mpjpe']['mean'] for ex in EXERCISES)
+        checks['mpjpe_per_ex'] = (worst, worst <= mm_ex)
+        for k in ('knee', 'hip', 'elbow', 'torso_g'):
+            d = b[k]['p50'] - a[k]['p50']; checks[f'rep_{k}'] = (d, d <= 0.5)
+        r = b['accel']['mean'] / a['accel']['mean'] - 1; checks['accel'] = (r, r <= 0.03)
+        worst_rule = max((Rr[f'{ex}/heldout/{v}'][q] - Rr[f'{ex}/heldout/{base}'][q], f'{ex}:{q}')
+                         for ex in EXERCISES for q in RULES_BY_EX[ex])
+        checks['false_alarm'] = (worst_rule, worst_rule[0] <= 0.02)
+        d = b['invalid'] - a['invalid']; checks['invalid'] = (d, d <= 0.005)
+        return checks
+
+    if g('calib'):
+        ch = common('calib')
+        d = g('a03')['pa']['mean'] - g('calib')['pa']['mean']; ch['pa_gain'] = (d, d >= 1.0)
+        out['R-BONE'] = dict(checks=ch, pass_=all(v[1] for v in ch.values()))
+    if g('limits'):
+        ch = common('limits', mm_ex=1.0)
+        d = g('limits')['pa']['mean'] - g('a03')['pa']['mean']; ch['pa_all'] = (d, d <= 0.5)
+        ch['impossible'] = ((g('a03')['impossible'], g('limits')['impossible']), g('limits')['impossible'] == 0 and g('a03')['impossible'] > 0)
+        ch['mocap_moved'] = (g('limits')['mocap_moved'], g('limits')['mocap_moved'] <= 0.005)
+        out['R-LIMITS'] = dict(checks=ch, pass_=all(v[1] for v in ch.values()))
+    if wrist_json:
+        w = json.load(open(wrist_json)); m, dd = w.get('heldout/all/mp'), w.get('heldout/all/mp_dedupe')
+        if m and dd:
+            ch = {'crossed': ((m['crossed_rep'], dd['crossed_rep']),
+                              dd['crossed_rep'] < m['crossed_rep'] and (m['crossed_rep'] <= 0.001 or dd['crossed_rep'] <= 0.5 * m['crossed_rep'])),
+                  'w2d_p50': (dd['w2d']['p50'] - m['w2d']['p50'], dd['w2d']['p50'] - m['w2d']['p50'] <= 0.2),
+                  'w2d_p90': (dd['w2d']['p90'] - m['w2d']['p90'], dd['w2d']['p90'] - m['w2d']['p90'] <= 1.0)}
+            if 'wrist3d' in m and 'wrist3d' in dd:
+                ch['wrist3d'] = (dd['wrist3d']['mean'] - m['wrist3d']['mean'], dd['wrist3d']['mean'] - m['wrist3d']['mean'] <= 1.0)
+                ch['mpjpe'] = (dd['mpjpe']['mean'] - m['mpjpe']['mean'], dd['mpjpe']['mean'] - m['mpjpe']['mean'] <= 0.5)
+            out['R-DEDUPE'] = dict(checks=ch, pass_=all(v[1] for v in ch.values()))
+            r = w.get('heldout/all/rtm')
+            if r: out['MP-wrist-overall'] = dict(w2d_p50_mp_vs_rtm=(dd['w2d']['p50'], r['w2d']['p50']),
+                                                 pass_=dd['w2d']['p50'] < r['w2d']['p50'])  # 3D part: S4 (mp worse)
+    print(json.dumps(out, indent=1, default=str))
+    return out
+
+
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument('cmd', choices=['constraints', 'hands', 'wrist', 'ex3d', 'ex3d-wrist'])
+    p.add_argument('cmd', choices=['constraints', 'hands', 'wrist', 'ex3d', 'ex3d-wrist', 'verdict'])
+    p.add_argument('--constraints-json'); p.add_argument('--wrist-json')
     p.add_argument('--labels', default=os.path.expanduser('~/bpt-smpl/ex3d'), help='Exercise3D labels dir (gt.json, exercise3d_labels/)')
     p.add_argument('--ex3d-csv', default=os.path.expanduser('~/bpt-smpl/ex3dcsv'))
     p.add_argument('--ex3d-videos', default=os.path.expanduser('~/workspace/exercise3d-dataset/BPT/synced_video'))
@@ -477,6 +528,9 @@ def main():
     p.add_argument('--task'); p.add_argument('--hands'); p.add_argument('--jobs', type=int, default=6)
     p.add_argument('--threads', type=int, default=4, help='torch CPU threads (Home is shared: 8 spin-wait under contention)')
     a = p.parse_args()
+    if a.cmd == 'verdict':
+        verdict(a.constraints_json, a.wrist_json)
+        return
     E.CACHE['dir'] = a.cache
     _load = E.load_model
 

@@ -415,6 +415,41 @@ struct FormRepReport {
     }
 }
 
+extension FormRepReport {
+    /// Test-mode (video mode) caption of this rep's real judgement: rep, validity, every fired key (참고 = reference,
+    /// 로그 = not enabled for Flutter), what was sent to Flutter, and 1–2 key metrics of the judged source.
+    func debugCaption(sent: [String], enabled: Set<String>) -> String {
+        let source = formSource == "3d" ? "3D" : formSource == "2d" ? "2D" : "판정 불가(3D 부족)"
+        let states = ["ok", "partial_3d", "bad_3d", "tracking_lost", "warming_up"].compactMap { k in
+            states3D[k].map { "\(k.replacingOccurrences(of: "_3d", with: "")) \($0)" } }.joined(separator: "·")
+        let fired: [String] = warnings.map { key in
+            let reference = FormWarningTracker.grade(of: key) == .reference ? "(참고)" : ""
+            let logOnly = enabled.contains(key) ? "" : "(로그)"
+            return key + reference + logOnly
+        }
+        let m: [String: Double] = formSource == "3d" ? metrics3D : metrics2D
+        func f(_ name: String, _ label: String, _ digits: Int) -> String? {
+            guard let v = m[name] else { return nil }
+            return label + " " + String(format: "%.\(digits)f", v)
+        }
+        var metric: [String?]
+        switch exercise {
+        case .squat: metric = [f("knee_min", "무릎 최소", 0), f("torso_at_bottom", "바닥 몸통", 0)]
+        case .pushUp: metric = [f("hip_dev_min", "엉덩이 선 최소", 2), f("hip_dev_max", "최대", 2)]
+        case .barbellRow:
+            var range: String?
+            if let hi = m["torso_max"], let lo = m["torso_min"] { range = "범위 " + String(format: "%.0f", hi - lo) }
+            metric = [f("torso_mean", "몸통 평균", 0), range]
+        default: metric = [f("elbow_min", "팔꿈치 최소", 0)]
+        }
+        let head: String = "#\(repIndex) " + source + (states.isEmpty ? "" : " (" + states + ")")
+        let firedLine: String = "울림: " + (fired.isEmpty ? "없음" : fired.joined(separator: ", "))
+        let sentLine: String = "보냄: " + (sent.isEmpty ? "없음" : sent.joined(separator: ", "))
+        let metricLine: String = metric.compactMap { $0 }.joined(separator: " · ")
+        return [head, firedLine, sentLine, metricLine].filter { !$0.isEmpty }.joined(separator: "\n")
+    }
+}
+
 // MARK: - Tracker
 
 final class FormWarningTracker {
@@ -445,7 +480,14 @@ final class FormWarningTracker {
     ]
 
     /// Every key the tracker can send: the rules plus praise_fixed, setup_full_body, tracking_lost.
-    static let allKeys = Set(rules.values.flatMap { $0.map(\.key) } + ["praise_fixed", "setup_full_body", "tracking_lost"])
+    static let allKeys = Set(rules.values.flatMap { $0.map(\.key) } + ["praise_fixed", "praise_good", "setup_full_body", "tracking_lost"])
+
+    /// Rep metrics every praise needs: without them "no warning" may only mean "could not measure" (never praise that).
+    static let praiseMetrics: [FormExercise: [String]] = [
+        .pushUp: ["hip_dev_min", "hip_dev_max", "elbow_min", "elbow_max"],
+        .squat: ["knee_min", "knee_max", "hip_angle_max"],
+        .barbellRow: ["torso_min", "torso_max", "elbow_behind_max"],
+    ]
 
     /// Bench press / deadlift keys (track G): their lines are drafted in docs/progress/2026-10-10.md for the
     /// teammate who owns kori_feedback_lines.dart. They stay off until the dart file has them.
@@ -697,7 +739,9 @@ final class FormWarningTracker {
             warningRepCounts[key, default: 0] += 1
             setWarningRepCounts[key, default: 0] += 1
         }
-        let spoken = deliver(fired, repIndex: repIndex)
+        let spoken = deliver(fired, repIndex: repIndex,
+                             judged: judgedForPraise(frames: frames, metrics: common.form3DRequired ? metrics3D : metrics,
+                                                     judged3D: fired3D != nil))
         let sides = frames.map(\.side)
         let report = FormRepReport(
             exercise: exercise,
@@ -735,8 +779,18 @@ final class FormWarningTracker {
         return counts
     }
 
-    /// Picks the one key said after this rep and queues it (scope "rep").
-    private func deliver(_ fired: [String], repIndex: Int) -> String? {
+    /// The rep was judged on usable data, so "nothing fired" means good form, not "unknown": the judgement came from
+    /// the required source (3D when form3DRequired), every frame was fully usable (3D ok — no warming up, tracking lost,
+    /// bad or partial 3D; 2D: required joints visible) and the exercise's key metrics exist.
+    private func judgedForPraise(frames: [FormFrameSample], metrics: [String: Double], judged3D: Bool) -> Bool {
+        guard !frames.isEmpty, let needed = Self.praiseMetrics[exercise], needed.allSatisfy({ metrics[$0] != nil }) else { return false }
+        if common.form3DRequired { return judged3D && frames.allSatisfy { $0.state3D == .ok } }
+        return frames.allSatisfy(\.requiredOK)
+    }
+
+    /// Picks the one key said after this rep and queues it (scope "rep"). A rep judged on usable data with nothing fired
+    /// gets praise_good (not on a rep that said a warning or praise_fixed, at most once per `cooldownReps` + 1 reps).
+    private func deliver(_ fired: [String], repIndex: Int, judged: Bool = false) -> String? {
         let eligible = fired.filter { key in
             let grade = Self.grade(of: key)
             guard grade != .reference, common.enabledFeedbackKeys.contains(key) else { return false }
@@ -751,9 +805,14 @@ final class FormWarningTracker {
         } else if let last = previousSpoken, !fired.contains(last), common.enabledFeedbackKeys.contains("praise_fixed") {
             spoken = "praise_fixed"
             emit(FormFeedbackEvent(key: "praise_fixed", n: nil))
+        } else if judged, fired.isEmpty, common.enabledFeedbackKeys.contains("praise_good"),
+                  lastSpokenRep["praise_good"].map({ repIndex - $0 > common.cooldownReps }) ?? true {
+            spoken = "praise_good"
+            lastSpokenRep["praise_good"] = repIndex
+            emit(FormFeedbackEvent(key: "praise_good", n: nil))
         }
         previousFired = Set(fired)
-        previousSpoken = spoken == "praise_fixed" ? nil : spoken
+        previousSpoken = spoken == "praise_fixed" || spoken == "praise_good" ? nil : spoken
         return spoken
     }
 

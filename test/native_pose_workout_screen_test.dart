@@ -12,7 +12,7 @@ void main() {
     await font.load();
   });
 
-  testWidgets('경고가 없으면 반복 횟수에 따라 말풍선에 자세 확인 상태를 표시한다', (tester) async {
+  testWidgets('첫 피드백 대사가 오기 전에는 렙이 늘어도 원래 대기 문구를 유지한다(n/목표회 없음)', (tester) async {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -36,8 +36,8 @@ void main() {
     await tester.tap(find.text('+1회 (테스트용)'));
     await tester.pump();
 
-    expect(find.text('준비되면 시작해보자!'), findsNothing);
-    expect(find.text('자세 확인 중 · 1/8회'), findsOneWidget);
+    expect(find.text('준비되면 시작해보자!'), findsOneWidget);
+    expect(find.textContaining('자세 확인 중'), findsNothing);
     expect(find.text('무릎이 발끝 방향을 향하게 해줘'), findsOneWidget);
 
     final container = ProviderScope.containerOf(
@@ -47,7 +47,8 @@ void main() {
     await tester.tap(find.text('+1회 (테스트용)'));
     await tester.pump();
 
-    expect(find.text('Checking your form · 2/8'), findsOneWidget);
+    expect(find.text("Start whenever you're ready!"), findsOneWidget);
+    expect(find.textContaining('Checking your form'), findsNothing);
     expect(find.text('Keep your knees pointed toward your toes'), findsOneWidget);
     expect(tester.takeException(), isNull);
 
