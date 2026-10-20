@@ -52,46 +52,63 @@ def setup_ratios(P, ex, up):
     return r
 
 
+def relation_record(subj, ex, P, ann, fps, up):
+    """Stability of each candidate relation over one set: distance from the setup value (1 s before the first rep),
+    within-rep wobble, speed; plus the setup ratios. P world [N,17,3] metres (or mm-equivalent / 1000)."""
+    s0, s1 = int(ann[0]), int(ann[-1])
+    rec = dict(subj=subj, exercise=ex, setup_frames=s0, set_frames=s1 - s0)
+    vecs = {k: P[:, b] - P[:, a_] for k, (a_, b) in RELATIONS.items()}
+    F = torso_frame(P)
+    for side, w in (('l', LWRI), ('r', RWRI)):
+        vecs[f'wrist_torso_{side}'] = np.einsum('nij,nj->ni', F, P[:, w] - P[:, THO])
+    for nm, j in (('ankle_world_l', LANK), ('ankle_world_r', RANK), ('wrist_world_l', LWRI), ('wrist_world_r', RWRI)):
+        vecs[nm] = P[:, j]
+    ref_len = float(np.median(body_dims(P[s0:s1])['hip_width']))
+    for k, v in vecs.items():
+        setup = np.median(v[max(0, s0 - fps):s0], 0) if s0 >= 10 else v[s0]
+        dev = np.linalg.norm(v[s0:s1] - setup, axis=-1) * 1000  # mm from the setup value during the set
+        step = np.linalg.norm(np.diff(v[s0:s1], axis=0), axis=-1) * 1000 * fps  # mm/s
+        reps = [np.linalg.norm(v[x:y] - np.median(v[x:y], 0), axis=-1).max() * 1000 for x, y in zip(ann, ann[1:]) if y > x]
+        rec[k] = dict(dev_p50=float(np.median(dev)), dev_p95=float(np.percentile(dev, 95)), dev_max=float(dev.max()),
+                      speed_p95=float(np.percentile(step, 95)), within_rep_max_p50=float(np.median(reps)),
+                      norm_mm=float(np.median(np.linalg.norm(v[s0:s1], axis=-1)) * 1000), hip_width_mm=ref_len * 1000)
+    rr = setup_ratios(P, ex, up)
+    rec['setup_ratios'] = {k: float(np.median(v[max(0, s0 - fps):s0])) for k, v in rr.items()}
+    rec['set_ratios'] = {k: dict(p5=float(np.percentile(v[s0:s1], 5)), p50=float(np.median(v[s0:s1])), p95=float(np.percentile(v[s0:s1], 95)))
+                         for k, v in rr.items()}
+    return rec
+
+
 def run_gt_relations(a):
-    ann_all, recs, dims, inputs = {}, [], {}, []
-    up = np.array([0., 0., 1.])  # Fit3D world: z up
-    for subj in a.subjects:
-        sd = f'{a.root}/train/{subj}'
-        ann_all = json.load(open(f'{sd}/rep_ann.json')); inputs.append(f'{sd}/rep_ann.json')
-        per = {}
-        for ex in EXERCISES:
-            P = load_joints(sd, ex)
-            if P is None or ex not in ann_all: continue
-            inputs.append(f'{sd}/joints3d_25/{ex}.json')
-            ann = ann_all[ex]; s0, s1 = ann[0], ann[-1]
-            for k, v in body_dims(P).items(): per.setdefault(k, []).append(v)
-            rec = dict(subj=subj, exercise=ex, setup_frames=int(s0), set_frames=int(s1 - s0))
-            vecs = {k: P[:, b] - P[:, a_] for k, (a_, b) in RELATIONS.items()}
-            F = torso_frame(P)
-            for side, w in (('l', LWRI), ('r', RWRI)):
-                vecs[f'wrist_torso_{side}'] = np.einsum('nij,nj->ni', F, P[:, w] - P[:, THO])
-            for nm, j in (('ankle_world_l', LANK), ('ankle_world_r', RANK), ('wrist_world_l', LWRI), ('wrist_world_r', RWRI)):
-                vecs[nm] = P[:, j]
-            ref_len = float(np.median(body_dims(P[s0:s1])['hip_width']))
-            for k, v in vecs.items():
-                setup = np.median(v[max(0, s0 - FPS50):s0], 0) if s0 >= 10 else v[s0]
-                dev = np.linalg.norm(v[s0:s1] - setup, axis=-1) * 1000  # mm from the setup value during the set
-                step = np.linalg.norm(np.diff(v[s0:s1], axis=0), axis=-1) * 1000 * FPS50  # mm/s
-                reps = [np.linalg.norm(v[x:y] - np.median(v[x:y], 0), axis=-1).max() * 1000 for x, y in zip(ann, ann[1:])]
-                rec[k] = dict(dev_p50=float(np.median(dev)), dev_p95=float(np.percentile(dev, 95)), dev_max=float(dev.max()),
-                              speed_p95=float(np.percentile(step, 95)), within_rep_max_p50=float(np.median(reps)),
-                              norm_mm=float(np.median(np.linalg.norm(v[s0:s1], axis=-1)) * 1000), hip_width_mm=ref_len * 1000)
-            rr = setup_ratios(P, ex, up)
-            rec['setup_ratios'] = {k: float(np.median(v[max(0, s0 - FPS50):s0])) for k, v in rr.items()}
-            rec['set_ratios'] = {k: dict(p5=float(np.percentile(v[s0:s1], 5)), p50=float(np.median(v[s0:s1])), p95=float(np.percentile(v[s0:s1], 95)))
-                                 for k, v in rr.items()}
-            recs.append(rec)
-        dims[subj] = {k: round(float(np.median(np.concatenate(v))) * 1000, 1) for k, v in per.items()}
-        print(subj, dims[subj], flush=True)
+    recs, dims, inputs = [], {}, []
+    if getattr(a, 'dataset', 'fit3d') == 'ex3d':
+        seen = set()
+        for d in load_ex3d_seqs(a):
+            if d['subj'] in seen or len(d['seg']) < 2: continue  # world pseudo-GT is the same for every camera of a clip
+            seen.add(d['subj']); ann = [d['seg'][0][0]] + [e for _, e in d['seg']]
+            recs.append(relation_record(d['subj'], d['ex'], d['J'], ann, 30, d['R'].T @ d['up_c']))
+            dims[d['subj']] = {k: round(float(np.median(v)) * 1000, 1) for k, v in body_dims(d['J']).items()}
+            inputs.append(d['csv'])
+        head = '**클립별 체형(Exercise3D 의사 정답, mm 환산 = 다리 850 mm 가정)**'
+    else:
+        up = np.array([0., 0., 1.])  # Fit3D world: z up
+        for subj in a.subjects:
+            sd = f'{a.root}/train/{subj}'
+            ann_all = json.load(open(f'{sd}/rep_ann.json')); inputs.append(f'{sd}/rep_ann.json')
+            per = {}
+            for ex in EXERCISES:
+                P = load_joints(sd, ex)
+                if P is None or ex not in ann_all: continue
+                inputs.append(f'{sd}/joints3d_25/{ex}.json')
+                for k, v in body_dims(P).items(): per.setdefault(k, []).append(v)
+                recs.append(relation_record(subj, ex, P, ann_all[ex], FPS50, up))
+            dims[subj] = {k: round(float(np.median(np.concatenate(v))) * 1000, 1) for k, v in per.items()}
+            print(subj, dims[subj], flush=True)
+        head = '**피험자별 체형(모캡 골격, mm, 관절 중심 기준 = oracle)**'
     names = list(RELATIONS) + ['wrist_torso_l', 'wrist_torso_r', 'ankle_world_l', 'ankle_world_r', 'wrist_world_l', 'wrist_world_r']
     summ = dict(body_dims_mm=dims, groups={})
-    md = ['**피험자별 체형(모캡 골격, mm, 관절 중심 기준 = oracle)**', '', '| 피험자 | ' + ' | '.join(dims[a.subjects[0]]) + ' |',
-          '|---' * (1 + len(dims[a.subjects[0]])) + '|']
+    first = next(iter(dims.values()))
+    md = [head, '', '| 피험자 | ' + ' | '.join(first) + ' |', '|---' * (1 + len(first)) + '|']
     md += [f'| {s} | ' + ' | '.join(f'{v:.0f}' for v in d.values()) + ' |' for s, d in dims.items()]
     md += ['', '**관계별 안정성 (세트 동안 셋업 값에서 벗어난 거리 mm: 중앙값 / p95 / 최대; 렙 안 최대 흔들림 중앙값; 속도 p95 mm/s; 피험자 중앙값)**', '',
            '| 운동 | 관계 | 영상 | 크기 mm | 벗어남 p50 | p95 | 최대 | 렙 안 최대 | 속도 p95 |', '|---' * 9 + '|']
@@ -104,7 +121,7 @@ def run_gt_relations(a):
             summ['groups'][f'{ex}/{k}'] = g
             md.append(f"| {ex} | {k} | {len(rs)} | {g['norm_mm']:.0f} | {g['dev_p50']:.0f} | {g['dev_p95']:.0f} | {g['dev_max']:.0f} (전체 최대 {g['max_over_subjects']:.0f}) | "
                       f"{g['within_rep_max_p50']:.0f} | {g['speed_p95']:.0f} |")
-    md += ['', '**셋업(첫 렙 전 1초) 비율 — 피험자별 (모캡)**', '', '| 운동 | 피험자 | ' + ' | '.join(['ankle/hip', 'ankle/shoulder', 'wrist/shoulder', 'torso°']) + ' |', '|---' * 6 + '|']
+    md += ['', '**셋업(첫 렙 전 1초) 비율**', '', '| 운동 | 피험자 | ' + ' | '.join(['ankle/hip', 'ankle/shoulder', 'wrist/shoulder', 'torso°']) + ' |', '|---' * 6 + '|']
     for r in recs:
         q = r['setup_ratios']
         md.append(f"| {r['exercise']} | {r['subj']} | {q['ankle_over_hip']:.2f} | {q['ankle_over_shoulder']:.2f} | "
@@ -205,7 +222,7 @@ def occl_path(a, d, cond):
 def run_occlude(a):
     """XS on the damaged 2D of every condition (group x duration) -> cache npz (rows, damaged K, unit, episodes)."""
     from finetune_motionagformer_fit3d import mag_input
-    model, dev = load_model(a); seqs = load_seqs(a); t0, total = time.time(), 0
+    model, dev = load_model(a); seqs = load_any(a); t0, total = time.time(), 0
     d0 = seqs[0]; clean0 = predict_rows(model, dev, d0['x'], [5], seq_key(d0))[5]
     chk, _ = rows_partial(model, dev, d0['x'], np.ones(len(d0['x']), bool), clean0 * 0)
     assert np.allclose(chk, clean0, atol=1e-4), 'rows_partial != predict_rows'
@@ -347,6 +364,9 @@ def episode_records(P, E, inv, W, d, eps, group, E_clean, P_clean=None):
                         err_rec=float(ev[e:e + RECOVERY].mean()), err_rec_clean=float(ec[e:e + RECOVERY].mean()),
                         moved=float(np.linalg.norm(Jw[s:e][:, H] - Jw[s][None, H], axis=-1).max() * 1000),
                         angle_err=float(np.nanmean(np.abs(a_p[s:e] - a_g[s:e]))), angle_err_clean=float(np.nanmean(np.abs(a_c[s:e] - a_g[s:e]))),
+                        dev_clean=float(np.linalg.norm(P[s:e][:, H] - P_clean[s:e][:, H], axis=-1).mean() * 1000) if P_clean is not None else float('nan'),
+                        dev_clean_rec=float(np.linalg.norm(P[e:e + RECOVERY][:, H] - P_clean[e:e + RECOVERY][:, H], axis=-1).mean() * 1000) if P_clean is not None else float('nan'),
+                        angle_dev_clean=float(np.nanmean(np.abs(a_p[s:e] - a_c[s:e]))),
                         jump=float(np.max(stepP[lo_j:hi_j] - stepG[lo_j:hi_j])) if hi_j > lo_j else 0.0, recovery_frames=int(rec_k),
                         filled=float((W[s:e][:, H] > 0.5).mean()) if W is not None else 0.0,
                         invalid=float(inv[s:e][:, H].mean()) if inv is not None else 0.0))
@@ -356,7 +376,7 @@ def episode_records(P, E, inv, W, d, eps, group, E_clean, P_clean=None):
 def run_evaluate(a):
     from eval_3d_mediapipe import angle_metrics, angles, pose_metrics
     params = json.loads(a.params) if a.params else {}
-    seqs = load_seqs(a); recs, inputs = [], []
+    seqs = load_any(a); recs, inputs = [], []
     for d in seqs:
         clean = predict_rows(None, None, d['x'], [5], seq_key(d))[5]
         from finetune_motionagformer_fit3d import mag_input
@@ -411,8 +431,8 @@ def summarize_eval(a, recs, inputs, params):
     summ = dict(params=params, ema_alpha=a.ema_alpha, lock_thr=a.lock_thr, groups={}, paired={})
     keyf = lambda r: (r['group'], r['cond'], r['exercise'])
     md = [f"params={json.dumps(params)} ema_alpha={a.ema_alpha} lock_thr={a.lock_thr}", '',
-          '| 묶음 | 조건 | 운동 | 변형 | 영상 | MPJPE(세트) | PA | 가속도 | 무효 관절 | 바뀐 관절 | 가림 관절 오차 (깨끗한 입력 A) | 복구 30f 오차 | 복구 프레임 p50 | 사지 각 오차 (깨끗한 A) | 점프 p95 | 채움 | 가림 중 무효 |',
-          '|---' * 17 + '|']
+          '| 묶음 | 조건 | 운동 | 변형 | 영상 | MPJPE(세트) | PA | 가속도 | 무효 관절 | 바뀐 관절 | 가림 관절 오차 (깨끗한 입력 A) | 복구 30f 오차 | 복구 프레임 p50 | 사지 각 오차 (깨끗한 A) | 점프 p95 | 채움 | 가림 중 무효 | 깨끗한 A와의 거리 가림 / 복구 mm | 사지 각 거리 ° |',
+          '|---' * 19 + '|']
     conds = list(dict.fromkeys(r['cond'] for r in recs)); vs = list(dict.fromkeys(r['var'] for r in recs))
     for grp in dict.fromkeys(r['group'] for r in recs):
         for cond in conds:
@@ -425,7 +445,7 @@ def summarize_eval(a, recs, inputs, params):
                              accel=float(np.mean([r['accel'] for r in rs])), invalid=float(np.mean([r['invalid'] for r in rs])),
                              changed=float(np.mean([r['changed'] for r in rs])), episodes=len(ep))
                     if ep:
-                        g.update({k: float(np.mean([e[k] for e in ep])) for k in ('err', 'err_clean', 'err_rec', 'err_rec_clean', 'angle_err', 'angle_err_clean', 'filled', 'invalid')},
+                        g.update({k: float(np.mean([e[k] for e in ep])) for k in ('err', 'err_clean', 'err_rec', 'err_rec_clean', 'angle_err', 'angle_err_clean', 'filled', 'invalid', 'dev_clean', 'dev_clean_rec', 'angle_dev_clean')},
                                  recovery_p50=float(np.median([e['recovery_frames'] for e in ep])), jump_p95=float(np.percentile([e['jump'] for e in ep], 95)))
                         for m in CORRUPTIONS + ('near', 'far', 'moved', 'static'):
                             sel = [e for e in ep if (e['model'] == m) or (m == 'near' and e['near']) or (m == 'far' and not e['near'])
@@ -436,7 +456,8 @@ def summarize_eval(a, recs, inputs, params):
                     summ['groups'][f'{grp}/{cond}/{ex}/{v}'] = g
                     f = lambda k, fmt='{:.1f}': fmt.format(g[k]) if k in g else '-'
                     md.append(f"| {grp} | {cond} | {ex} | {v} | {g['videos']} | {g['mpjpe']:.1f} | {g['pa']:.1f} | {g['accel']:.2f} | {g['invalid']:.1%} | {g['changed']:.1%} | "
-                              f"{f('err')} ({f('err_clean')}) | {f('err_rec')} | {f('recovery_p50', '{:.0f}')} | {f('angle_err')} ({f('angle_err_clean')}) | {f('jump_p95')} | {f('filled', '{:.0%}')} | {f('invalid', '{:.0%}')} |")
+                              f"{f('err')} ({f('err_clean')}) | {f('err_rec')} | {f('recovery_p50', '{:.0f}')} | {f('angle_err')} ({f('angle_err_clean')}) | {f('jump_p95')} | {f('filled', '{:.0%}')} | {f('invalid', '{:.0%}')} | "
+                              f"{f('dev_clean')} / {f('dev_clean_rec')} | {f('angle_dev_clean')} |")
             # paired per-video differences (bootstrap over videos) of the episode error / clean MPJPE
             for x, y in (('E', 'A'), ('E', 'B'), ('E', 'B0'), ('E', 'D'), ('F', 'E'), ('EC', 'C'), ('B', 'A'), ('C', 'A'), ('D', 'A')):
                 key = lambda r: (r['subj'], r['cam'], r['exercise'])
@@ -444,11 +465,14 @@ def summarize_eval(a, recs, inputs, params):
                 ry = {key(r): r for r in recs if r['group'] == grp and r['cond'] == cond and r['var'] == y}
                 ks = sorted(set(rx) & set(ry))
                 if not ks: continue
-                q = 'episodes' if cond != 'clean' else None
-                if q: dif = [np.mean([e['err'] for e in rx[k_]['episodes']]) - np.mean([e['err'] for e in ry[k_]['episodes']]) for k_ in ks if rx[k_]['episodes']]
-                else: dif = [rx[k_]['mpjpe'] - ry[k_]['mpjpe'] for k_ in ks]
-                summ['paired'][f'{grp}/{cond}/{x}-{y}'] = dict(n=len(dif), mean=float(np.mean(dif)) if dif else None, ci95=boot_ci(dif))
-    md += ['', '**짝지은 차이 (영상 단위 평균, 부트스트랩 95% CI; 가림 조건 = 가림 관절 오차 mm, clean = 세트 MPJPE mm)**', '', '| 키 | n | 평균 | 95% CI |', '|---|---|---|---|']
+                if cond != 'clean':
+                    for m in ('err', 'dev_clean'):
+                        dif = [np.mean([e[m] for e in rx[k_]['episodes']]) - np.mean([e[m] for e in ry[k_]['episodes']]) for k_ in ks if rx[k_]['episodes']]
+                        summ['paired'][f'{grp}/{cond}/{x}-{y}' + ('' if m == 'err' else '/dev')] = dict(n=len(dif), mean=float(np.mean(dif)) if dif else None, ci95=boot_ci(dif))
+                else:
+                    dif = [rx[k_]['mpjpe'] - ry[k_]['mpjpe'] for k_ in ks]
+                    summ['paired'][f'{grp}/{cond}/{x}-{y}'] = dict(n=len(dif), mean=float(np.mean(dif)) if dif else None, ci95=boot_ci(dif))
+    md += ['', '**짝지은 차이 (영상 단위 평균, 부트스트랩 95% CI; 가림 조건 = 가림 관절 오차 mm, /dev = 깨끗한 입력 A와의 거리 mm(정답 없이), clean = 세트 MPJPE mm)**', '', '| 키 | n | 평균 | 95% CI |', '|---|---|---|---|']
     for k_, v in summ['paired'].items():
         md.append(f"| {k_} | {v['n']} | {v['mean']:.2f} | {v['ci95'][0]:.2f} – {v['ci95'][1]:.2f} |" if v['mean'] is not None else f'| {k_} | 0 | - | - |')
     if any('reps' in r for r in recs):
@@ -498,17 +522,23 @@ def shift_plan(d, case):
 def apply_shift(d, plan, a):
     """Moves one ankle (and its knee by half) outward in the world, horizontally; returns damaged K, G and the
     camera-frame shift of the ankle per frame (m)."""
-    from pose_feedback.body.pose2d_data import project_fit3d
-    cam = json.load(open(f"{a.root}/train/{d['subj']}/camera_parameters/{d['cam']}/{d['ex']}.json"))
+    if 'project' in d:
+        proj = d['project']
+    else:
+        from pose_feedback.body.pose2d_data import project_fit3d
+        cam = json.load(open(f"{a.root}/train/{d['subj']}/camera_parameters/{d['cam']}/{d['ex']}.json"))
+        proj = lambda P_: project_fit3d(P_, cam)
     Jp = d['J'][d['pick']]; n = len(Jp); t = np.arange(n)
-    lr = Jp[plan['start'], LHIP] - Jp[plan['start'], RHIP]; lr[2] = 0; lr /= np.linalg.norm(lr)
+    lr = Jp[plan['start'], LHIP] - Jp[plan['start'], RHIP]
+    up = np.array([0., 0., 1.]) if 'project' not in d else d['R'].T @ d['up_c']  # world up (Fit3D z; Ex3D from the cameras)
+    lr = lr - up * float(lr @ up); lr /= np.linalg.norm(lr)
     ank, kne, cank, ckne = (LANK, LKNE, 15, 13) if plan['side'] == 'L' else (RANK, RKNE, 16, 14)
     outward = lr if plan['side'] == 'L' else -lr
     delta = plan['amp'] * np.clip((t - plan['start']) / plan['ramp'], 0, 1)[:, None] * outward[None]  # world m
     K = d['K'].copy(); G = d['G'].copy(); R = d['R']
     for j, cj, f in ((ank, cank, 1.0), (kne, ckne, 0.5)):
         moved = t >= plan['start']
-        K[moved, cj, :2] += project_fit3d(Jp[moved, j] + f * delta[moved], cam) - project_fit3d(Jp[moved, j], cam)
+        K[moved, cj, :2] += proj(Jp[moved, j] + f * delta[moved]) - proj(Jp[moved, j])
         G[:, j] += f * delta @ R.T
     if plan['occl']:
         s0, e0 = plan['start'], min(n, plan['start'] + plan['ramp'] + SHIFT_OCC_EXTRA)
@@ -520,7 +550,7 @@ def run_foot_shift(a):
     """XS on the shifted input of every case (cache), then variants on clean vs shifted input (paired)."""
     from finetune_motionagformer_fit3d import mag_input
     params = json.loads(a.params) if a.params else {}
-    model = dev = None; seqs = load_seqs(a); recs, inputs = [], []
+    model = dev = None; seqs = load_any(a); recs, inputs = [], []
     for d in seqs:
         clean = predict_rows(None, None, d['x'], [5], seq_key(d))[5]
         conf0, unit0 = d['x'][..., 2], mag_input(d['K'])[1][:, 2] / 2
@@ -692,7 +722,7 @@ def auc(score, label):
 
 def run_signals(a):
     from finetune_motionagformer_fit3d import mag_input
-    seqs = load_seqs(a); feats = {k: [] for k in ('conf', 'temporal', 'reproj', 'bone')}; err, jt, cond_of, inputs = [], [], [], []
+    seqs = load_any(a); feats = {k: [] for k in ('conf', 'temporal', 'reproj', 'bone')}; err, jt, cond_of, inputs = [], [], [], []
     J = sorted(LIMB_PARENT)
     for d in seqs:
         clean = predict_rows(None, None, d['x'], [5], seq_key(d))[5]
@@ -754,7 +784,7 @@ def run_tune(a):
     import itertools
     from multiprocessing import Pool
     from finetune_motionagformer_fit3d import mag_input
-    seqs = load_seqs(a); conds = [c for c in a.conditions if c != 'clean']; occl = {}; S = []
+    seqs = load_any(a); conds = [c for c in a.conditions if c != 'clean']; occl = {}; S = []
     for d in seqs:
         assert d['group'] == 'tuning', 'tune runs on tuning subjects only'
         clean = predict_rows(None, None, d['x'], [5], seq_key(d))[5]
@@ -844,16 +874,130 @@ def run_rgb_eval(a):
     summarize_eval(a, recs, inputs, params)
 
 
+# ---------------------------------------------------------------- E1b setup items on Exercise3D side / front views (Mac OK: not Fit3D)
+EX3D_HELDOUT = {'squat_0002', 'barbellrow_0001', 'barbellrow_0003'}  # P2 / P3 (docs/decisions.md person split)
+
+
+def run_setup_ex3d(a):
+    """Setup items from the app 2D (RTMPose-m CSV) -> XS (L=5) vs Exercise3D canonical_3d (Sapiens triangulation =
+    PSEUDO ground truth, not truth), per camera view (side <= 40 deg, diagonal 40-75, front > 75). Also the pseudo-GT
+    foot geometry (heels / big toes): how far the ankle-centre distance is from the heel / toe distances."""
+    from pose_feedback.body.exercise_setup import depth_share
+    from pose_feedback.body.form_metrics_3d import UP
+    model, dev = load_model(a); recs, inputs = [], [f'{a.ex3d}/gt.json']
+    gt = json.load(open(f'{a.ex3d}/gt.json'))
+    for d in load_ex3d_seqs(a):
+        seq, ex = d['subj'], d['ex']; n = len(d['x'])
+        z = np.load(f'{a.ex3d}/labels/{seq}/geometry/canonical_3d.npz'); names = list(z['joint_names']); Pw = z['keypoints_3d'][:n].astype(float)
+        foot = {k: Pw[:, names.index(k)] for k in ('left_heel', 'right_heel', 'left_big_toe', 'right_big_toe')}
+        rf = gt[seq]['rep_frames']; half = int(np.median(np.diff(rf)) / 2) if len(rf) > 1 else 15
+        w1 = rf[0] - half; w0 = max(0, w1 - SETUP_WINDOW)
+        if w1 - w0 < SETUP_WINDOW // 2: continue
+        w = slice(w0, w1)
+        P, _ = rows_partial(model, dev, d['x'], np.ones(n, bool), np.zeros((n, 17, 3)))
+        G = d['G']; xs, gs = item_series(P, ex, UP), item_series(G, ex, d['up_c'])
+        ank = np.linalg.norm(Pw[:, names.index('left_ankle')] - Pw[:, names.index('right_ankle')], axis=-1)
+        heel = np.linalg.norm(foot['left_heel'] - foot['right_heel'], axis=-1); toe = np.linalg.norm(foot['left_big_toe'] - foot['right_big_toe'], axis=-1)
+        rec = dict(seq=seq, exercise=ex, cam=d['cam'], view=d['view'], vbin=d['bin'], group=d['group'], align_px=d['align_px'], items={})
+        for k in gs:
+            rec['items'][k] = dict(gt=float(np.nanmedian(gs[k][w])), xs=float(np.nanmedian(xs[k][w])), xs_sd=float(np.nanstd(xs[k][w])),
+                                   depth=float(np.nanmedian([depth_share(q, k) for q in G[w]])))
+        rec['foot'] = dict(heel_over_ankle=float(np.nanmedian(heel[w] / ank[w])), toe_over_ankle=float(np.nanmedian(toe[w] / ank[w])))
+        recs.append(rec); inputs.append(d['csv']); print(seq, d['cam'], flush=True)
+    md = ['Exercise3D = Sapiens 삼각측량 **의사 정답**(정답 아님). 묶음 = P1(조정) / P2·P3(검증). 셋업 창 = 첫 렙 저점 − 렙 간격/2 앞 1초.', '',
+          '| 묶음 | 운동 | 항목 | 시점 | 영상 | 의사 정답 중앙값 | XS 오차 |중앙값| (최대) | 창 안 SD | 깊이 비율 중앙값 |', '|---' * 9 + '|']
+    summ = {}
+    for grp in ('tuning', 'heldout'):
+        for ex in EXERCISES:
+            for k in sorted({k for r in recs if r['exercise'] == ex for k in r['items']}):
+                for vb in ('side', 'diag', 'front'):
+                    rs = [r for r in recs if r['group'] == grp and r['exercise'] == ex and r['vbin'] == vb and k in r['items']]
+                    if not rs: continue
+                    it = [r['items'][k] for r in rs]; e = [abs(i['xs'] - i['gt']) for i in it if np.isfinite(i['xs']) and np.isfinite(i['gt'])]
+                    if not e: continue
+                    gsum = dict(n=len(rs), gt=float(np.median([i['gt'] for i in it])), err_p50=float(np.median(e)), err_max=float(np.max(e)),
+                                sd=float(np.median([i['xs_sd'] for i in it])), depth=float(np.median([i['depth'] for i in it])))
+                    summ[f'{grp}/{ex}/{k}/{vb}'] = gsum
+                    md.append(f"| {grp} | {ex} | {k} | {vb} | {gsum['n']} | {gsum['gt']:.2f} | {gsum['err_p50']:.2f} ({gsum['err_max']:.2f}) | {gsum['sd']:.3f} | {gsum['depth']:.2f} |")
+    fo = [r['foot'] for r in recs]
+    md += ['', f"의사 정답 발 형상(셋업 창, 클립×카메라 중복 제외 전 {len(fo)}개): 뒤꿈치 간 / 발목 간 중앙값 {np.median([x['heel_over_ankle'] for x in fo]):.2f}, "
+           f"엄지발가락 간 / 발목 간 중앙값 {np.median([x['toe_over_ankle'] for x in fo]):.2f} (범위 {np.min([x['toe_over_ankle'] for x in fo]):.2f}–{np.max([x['toe_over_ankle'] for x in fo]):.2f})"]
+    out_j, out_m = Path(a.run_dir) / 'setup_ex3d.json', Path(a.run_dir) / 'setup_ex3d.md'
+    json.dump(dict(summary=summ, records=recs), open(out_j, 'w')); out_m.write_text('\n'.join(md) + '\n'); print('\n'.join(md))
+    write_manifest(a, inputs + [a.checkpoint], [out_j, out_m], dict(device=dev))
+
+
+# ---------------------------------------------------------------- Exercise3D sequences in the Fit3D record shape (Mac OK)
+EX3D_LEG_MM = 850.0  # Ex3D world units are an arbitrary gauge: lengths are reported as mm-equivalent for a 850 mm leg
+
+
+def load_ex3d_seqs(a):
+    """Exercise3D app CSV (RTMPose-m) + canonical_3d PSEUDO ground truth, per sequence x camera, as the dicts the
+    Fit3D studies use (x, K, G, mm, seg, side, up_c, J, pick, R, group, bin, view, csv, project). Lengths are
+    mm-equivalent (pseudo-GT leg length scaled to EX3D_LEG_MM) - relation-stability / suppression checks only."""
+    import ast
+    from eval_3d_angles import EX3D_NAMES, read_csv
+    from finetune_motionagformer_fit3d import mag_input
+    gt = json.load(open(f'{a.ex3d}/gt.json')); exname = {'squat': 'squat', 'pushup': 'pushup', 'barbellrow': 'barbell_row'}; out = []
+    for seq, g in gt.items():
+        ex = exname.get(g['exercise'])
+        if ex is None or ex not in a.exercises: continue
+        z = np.load(f'{a.ex3d}/labels/{seq}/geometry/canonical_3d.npz'); names = list(z['joint_names']); Pw = z['keypoints_3d'].astype(float)
+        Jw = np.stack([Pw[:, names.index(nm)] if nm else np.full((len(Pw), 3), np.nan) for nm in EX3D_NAMES], 1)
+        Jw[:, 7], Jw[:, 10] = (Jw[:, 0] + Jw[:, 8]) / 2, Jw[:, 9]
+        bad = np.isnan(Jw).any((1, 2))
+        if bad.any():  # barbellrow_0003: 64 label frames NaN -> linear interpolation (recorded in the report)
+            t_ = np.arange(len(Jw))
+            for j in range(17):
+                for c in range(3): Jw[bad, j, c] = np.interp(t_[bad], t_[~bad], Jw[~bad, j, c])
+        leg = np.nanmedian(np.linalg.norm(Jw[:, 1] - Jw[:, 2], axis=-1) + np.linalg.norm(Jw[:, 2] - Jw[:, 3], axis=-1))
+        k_mm = EX3D_LEG_MM / leg  # units -> mm-equivalent
+        cg = json.load(open(f'{a.ex3d}/labels/{seq}/geometry/metadata.json'))['camera_geometry']; cg = ast.literal_eval(cg) if isinstance(cg, str) else cg
+        up_w = -np.mean([np.array(v['extrinsic_world_to_camera'])[1, :3] for v in cg.values()], axis=0); up_w /= np.linalg.norm(up_w)
+        rf = g['rep_frames']; half = int(np.median(np.diff(rf)) / 2) if len(rf) > 1 else 15
+        for cam, v in g['views'].items():
+            hits = sorted(Path(f'{a.ex3d}/csv/{seq}').glob(f'{cam}_*_mcoco17.csv'))
+            if cam not in cg or not hits: continue
+            csv = str(hits[0]); K = read_csv(csv); n = min(len(K), len(Jw)); K = K[:n]; x, crops = mag_input(K)
+            E = np.array(cg[cam]['extrinsic_world_to_camera'], float); R, T = E[:, :3], E[:, 3]; Kin = np.array(cg[cam]['intrinsic_working_frame'], float)
+            # alignment audit: projected pseudo-GT vs the app 2D (ankles, wrists, hips). The CSV pixels are in the source
+            # video resolution, the label intrinsics in the 720 x 1280 working frame -> one scale (spread ratio, median).
+            pg = lambda P_: (lambda c: (c[:, :, :2] / c[:, :, 2:3]) @ Kin[:2, :2].T + Kin[:2, 2])(P_ @ R.T + T)
+            proj2 = pg(Jw[:n][:, [3, 6, 13, 16, 1, 4]]); k2 = K[:, [16, 15, 9, 10, 12, 11], :2]
+            spread = lambda q: np.linalg.norm(q - q.mean(1, keepdims=True), axis=-1).mean(1)
+            px_scale = float(np.median(spread(k2) / spread(proj2)))
+            proj2 = proj2 * px_scale
+            off = {o: float(np.nanmedian(np.linalg.norm(proj2[max(0, o):n + min(0, o)] - k2[max(0, -o):n - max(0, o)], axis=-1))) for o in range(-3, 4)}
+            if min(off, key=off.get) != 0: print('WARN offset', seq, cam, {k_: round(v_, 1) for k_, v_ in off.items()}, flush=True)
+            Xc = Jw[:n] @ R.T + T
+            unit = crops[:, 2] / 2 * Xc[:, 0, 2] / (Kin[0, 0] * px_scale)  # pseudo-GT units per crop unit (weak perspective at the root)
+            d = dict(subj=seq, ex=ex, cam=cam, x=x, K=K, pick=np.arange(n), csv=csv, R=R, J=Jw[:n] * k_mm / 1000,
+                     G=(Xc - Xc[:, :1]) * k_mm / 1000, mm=(unit * k_mm).astype(np.float32), up_c=R @ up_w,
+                     seg=[(max(0, r - half), min(n - 1, r + half)) for r in rf if r + half < n], side='L' if v['near_side'] == 'left' else 'R',
+                     view=float(v['angle_deg']), group='heldout' if seq in EX3D_HELDOUT else 'tuning',
+                     project=lambda P_, R=R, T=T, Kin=Kin, k=k_mm, sc=px_scale: sc * ((lambda c: (c[:, :2] / c[:, 2:3]) @ Kin[:2, :2].T + Kin[:2, 2])((P_ * 1000 / k) @ R.T + T)))
+            d['bin'] = 'side' if d['view'] <= 40 else 'diag' if d['view'] <= 75 else 'front'
+            d['align_px'] = off[0]; d['label_nan_frames'] = int(bad.sum()); d['px_scale'] = px_scale
+            out.append(d)
+    print(len(out), 'Exercise3D sequences (pseudo-GT)', flush=True)
+    return out
+
+
+def load_any(a):
+    return load_ex3d_seqs(a) if getattr(a, 'dataset', 'fit3d') == 'ex3d' else load_seqs(a)
+
+
 def load_model(a):
     import torch
     from finetune_motionagformer_fit3d import load
     torch.set_num_threads(a.threads)  # Home is shared: 4-6 threads beat 8 under load (measured 2026-10-20)
-    return load(a.mag_repo, a.checkpoint, 'cpu')[0].eval(), 'cpu'
+    dev = 'mps' if a.device == 'mps' and torch.backends.mps.is_available() else 'cpu'
+    return load(a.mag_repo, a.checkpoint, dev)[0].eval(), dev
 
 
 def run_cache_clean(a):
     """Raw XS rows (L=5) of the unmodified app input for every sequence -> CACHE (Fit3D-derived: delete after)."""
-    model, dev = load_model(a); seqs = load_seqs(a); t0 = time.time()
+    model, dev = load_model(a); seqs = load_any(a); t0 = time.time()
     for i, d in enumerate(seqs):
         predict_rows(model, dev, d['x'], [5], seq_key(d))
         print(i, seq_key(d), len(d['x']), f'{time.time() - t0:.0f}s', flush=True)
@@ -862,7 +1006,9 @@ def run_cache_clean(a):
 
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument('cmd', choices=['gt-relations', 'cache-clean', 'occlude', 'evaluate', 'foot-shift', 'setup-measure', 'signals', 'tune', 'rgb-eval'])
+    p.add_argument('cmd', choices=['gt-relations', 'cache-clean', 'occlude', 'evaluate', 'foot-shift', 'setup-measure', 'signals', 'tune', 'rgb-eval', 'setup-ex3d'])
+    p.add_argument('--ex3d', help='dir with gt.json, csv/<seq>/<cam>_<ex>_mcoco17.csv, labels/<seq>/geometry')
+    p.add_argument('--dataset', choices=['fit3d', 'ex3d'], default='fit3d'); p.add_argument('--device', choices=['cpu', 'mps'], default='cpu')
     p.add_argument('--rgb', help='dir of eval_setup_rgb_occlusion.py outputs'); p.add_argument('--pose2d', help='lift-compare A-pose2d pose2d dir')
     p.add_argument('--jobs', type=int, default=4)
     p.add_argument('--cases', type=lambda s: s.split(','), default=list(SHIFT_CASES))
@@ -888,7 +1034,7 @@ def main():
     CACHE['dir'] = a.cache
     os.makedirs(a.run_dir, exist_ok=True)
     {'gt-relations': run_gt_relations, 'cache-clean': run_cache_clean, 'occlude': run_occlude, 'evaluate': run_evaluate, 'foot-shift': run_foot_shift, 'setup-measure': run_setup_measure,
-     'signals': run_signals, 'tune': run_tune, 'rgb-eval': run_rgb_eval}[a.cmd](a)
+     'signals': run_signals, 'tune': run_tune, 'rgb-eval': run_rgb_eval, 'setup-ex3d': run_setup_ex3d}[a.cmd](a)
 
 
 if __name__ == '__main__':
