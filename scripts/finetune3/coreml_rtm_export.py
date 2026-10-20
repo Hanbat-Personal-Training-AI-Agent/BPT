@@ -8,8 +8,8 @@ but written outside assets/ (the app bundle is never touched). Two steps because
                               distance (input px, app decode = argmax / 2) median / p99 / max, confidence |diff|.
 Fit3D-derived weights: NON-COMMERCIAL; delete Mac copies of the trace after conversion.
 
-usage: coreml_rtm_export.py trace --ckpt CKPT --out TRACE.pt --parity PARITY.npz [--coco ~/datasets/coco] [--n 200]
-       coreml_rtm_export.py convert --trace TRACE.pt --parity PARITY.npz --out PKG.mlpackage --report JSON
+usage: coreml_rtm_export.py trace --variant m_halpe26 --ckpt CKPT --out TRACE.pt --parity PARITY.npz [--coco ~/datasets/coco] [--n 200]
+       coreml_rtm_export.py convert --variant m_halpe26 --trace TRACE.pt --parity PARITY.npz --out PKG.mlpackage --report JSON
 """
 import argparse, json, os, sys
 from pathlib import Path
@@ -30,11 +30,11 @@ def decode(sx, sy):
 
 def trace(a):
     import cv2, torch
-    os.environ['BPT_RTMPOSE_VARIANT'] = 'm_coco17'
+    os.environ['BPT_RTMPOSE_VARIANT'] = a.variant
     from pose2d_ft_common import MEAN, STD, crop_box, load_model
     from pose_feedback.body.pose2d_data import box_to_center_scale
     from rtmpose_s_coreml_common import RTMPoseForwardOnly
-    model = load_model('m_coco17', a.ckpt or None, device='cpu')
+    model = load_model(a.variant, a.ckpt or None, device='cpu')
     ann = json.load(open(f'{a.coco}/annotations/person_keypoints_val2017.json'))
     imgs = {i['id']: i for i in ann['images']}
     people = [p for p in ann['annotations'] if p['num_keypoints'] >= 8 and not p['iscrowd']]
@@ -68,7 +68,7 @@ def convert(a):
                             inputs=[ct.TensorType(name=INPUT_NAME, shape=INPUT_SHAPE, dtype=np.float32)],
                             outputs=[ct.TensorType(name=n) for n in OUTPUT_NAMES],
                             compute_precision=ct.precision.FLOAT16 if prec == 'fp16' else ct.precision.FLOAT32)
-            ml.user_defined_metadata.update(precision=prec, export_scope='rtmpose_m_forward_only', keypoints='m_coco17',
+            ml.user_defined_metadata.update(precision=prec, export_scope='rtmpose_m_forward_only', keypoints=a.variant,
                                             source='finetune3 RTMPose-m COCO17 fine-tune (NON-COMMERCIAL: Fit3D-derived)')
             ml.save(a.out); break
         except Exception as e:  # noqa: BLE001 — fp32 fallback like export_rtmpose_s_coreml.py
@@ -94,7 +94,7 @@ def main():
     p.add_argument('cmd', choices=['trace', 'convert'])
     p.add_argument('--ckpt', default=''); p.add_argument('--out', required=True); p.add_argument('--parity', required=True)
     p.add_argument('--coco', default=os.path.expanduser('~/datasets/coco')); p.add_argument('--n', type=int, default=200)
-    p.add_argument('--trace'); p.add_argument('--report')
+    p.add_argument('--trace'); p.add_argument('--report'); p.add_argument('--variant', default='m_coco17', help='m_coco17 | m_halpe26')
     a = p.parse_args()
     {'trace': trace, 'convert': convert}[a.cmd](a)
 
