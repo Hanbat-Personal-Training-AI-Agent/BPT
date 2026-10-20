@@ -956,3 +956,19 @@
 - eval-reliability 실험 A, reacquire `det` 설정(D-T3-20), lift-compare 실험 A 모두 `rtmdet_m_8xb32-300e_coco_20220719_112220-229f527c`(mmdet 3.3.0, Apache-2.0, Home `~/models/rtmpose_ft/src/`)의 사람 클래스(점수 ≥ 0.2, 점수×넓이 최대 / IoU 트랙)를 쓴다. 이 트랙의 det 미세조정 대상은 이것.
 - `pose_feedback/body/yolo26_runner.py`(Ultralytics YOLO26, **AGPL-3.0**)는 2D 포즈 비교 스크립트(`compare_yolo26_*`)에만 쓰였고 파이프라인 검출기가 아니다. 다른 세션의 GVHMR 평가도 YOLOv8(AGPL)을 쓰지만 우리 파이프라인과 무관. 트랙 B의 RTMDet-tiny(`outputs/rtmdet_tiny`)는 Fit3D s12 시험만.
 - 앱은 검출기를 돌리지 않는다(D-B-01 crop 추적). 미세조정 검출기를 앱에 넣는 것은 별도 결정(번들·지연).
+
+### D-F3-04 XS 학습 위치: 사용자 "XS는 맥, 나머지는 홈" → 측정 뒤 Home으로 되돌림 (2026-10-20 17:25–17:35)
+- **사용자 결정(17:25)**: XS 미세조정은 Mac GPU(MPS), 2D·det는 Home GPU에서 병렬. 이때 사용자가 승인한 것: Fit3D에서 **파생된 숫자 학습 데이터만**(2D 키포인트 배열·3D 관절 배열) Mac 스크래치패드로 scp, sha256 기록, git·클라우드 금지, 학습 뒤 삭제. 영상·프레임·SMPL 메시는 금지. MPS 학습은 무거운 잠금 밖, nice 10, 스레드 2–4.
+- **측정(데이터 옮기기 전)**: XS 학습 한 스텝(배치 16, D-D-06 레시피, 무작위 텐서, 3–12번째 반복) Mac M4 MPS 5.8 s, CPU 27.6 s vs Home GTX 1060 0.38 s. Mac 부하 평균 106–116, 남은 메모리 ~80 MB(16 GB) — 후보 하나에 ~20 h.
+- **결정(코디네이터 확인 17:35)**: XS는 Home GPU로 되돌림(Mac이 15배 느리고 과부하). **Fit3D 파생 데이터는 Mac으로 옮기지 않았다.** GPU 순서: XS C1·C2 → Halpe26 2D → det, 모두 `flock ~/.bpt-gpu.lock`. XS(배치 16)와 2D 학습은 3 GB에 함께 안 들어가므로 동시에 돌리지 않는다.
+
+### D-F3-05 사용자 결정: 2D는 Halpe26으로 전환 준비 — m Halpe26 미세조정, COCO17은 비교 기준 (2026-10-20 ~17:30)
+- **결정**: 2D 트랙은 RTMPose-m COCO17 대신 **RTMPose-m Halpe26**(26점, halpe-decision D-T3-17/18과 같은 설정·체크포인트 `4d3e73dd`)을 미세조정한다. COCO17은 비교 기준(거의 공짜가 아니면 COCO17은 미세조정하지 않음). 지킴이(Halpe/COCO 검증이 나빠지지 않음)는 유지하고 원래 Halpe26에서 증류.
+- **발 키포인트**(발뒤꿈치·엄지발가락·새끼발가락, 좌우)가 코칭의 주 이유 → Fit3D 정답(joints3d_25 또는 SMPL-X 맞춤)에서 발 위치를 만들 수 있는지 확인하고 투영해 s07–s11에서 점별 오차·PCK 보고, Exercise3D P2·P3는 의사 정답으로. 정의가 맞으면(D-C-09처럼 검증) 학습에 넣는다.
+- **처음 잡기**: D-T3-18의 m Halpe26 실패(MM-Fit w20_s3)는 키포인트 품질이 아니라 처음 사람 잡기(D-T3-20) 때문 → det 평가에서 미세조정 RTMDet-m을 Halpe26 앞에 두고 첫 잠금 프레임·재획득을 앱 crop 추적과 비교.
+- **XS**: COCO17 + Halpe26 공유 17점 혼합 입력으로 학습(어느 2D가 이겨도 XS를 다시 학습하지 않도록), 입력 출처별 정확도를 따로 보고.
+- 앱 기본값 전환·번들은 결과 뒤 사용자 명시 승인이 필요(그대로). Halpe26 최종 채택은 미정.
+
+### D-F3-06 코디네이터 요구: 파이프라인 전체(det → 2D → XS)를 종단으로 보고, MediaPipe 손은 범위 밖 (2026-10-20)
+- 세 모델은 사슬이라 앞 모델이 바뀌면 다음 모델 입력이 바뀐다 → 최종 보고는 검증 데이터(Fit3D s07–s11, Exercise3D P2·P3 의사 정답)에서 종단 비교: 원래 det/2D/XS, 원래 det/2D + 새 XS, 새 2D + 새 XS, 새 det + 새 2D + 새 XS, 그리고 det 대신 앱 crop 추적. 새 2D가 통과하면 XS 입력이 바뀌므로 새 2D 출력으로 XS를 짧게 다시 학습하거나, 옛 2D로 학습한 XS가 버틴다는 것을 수치로 보인다.
+- MediaPipe 손(손목 교체)은 이번 미세조정에 포함되지 않는다.
