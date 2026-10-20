@@ -30,6 +30,7 @@ final class MotionAGFormerLiveTests: XCTestCase {
         struct WristCase: Decodable {
             let raw: [[Double]]
             let mediapipe: [String: [Double]]
+            let same_hand: Bool?
             let input: [[Double]]
         }
         let coreml: Run?
@@ -122,13 +123,22 @@ final class MotionAGFormerLiveTests: XCTestCase {
         for c in try fixture().wrist {
             let raw = c.raw.map { PoseKeypoint(x: $0[0], y: $0[1], confidence: $0[2]) }
             let point = { (side: String) in c.mediapipe[side].map { PosePoint(x: $0[0], y: $0[1]) } }
-            let got = MotionAGFormerWristSource.input(raw: raw, left: point("left"), right: point("right"))
+            let got = MotionAGFormerWristSource.input(raw: raw, left: point("left"), right: point("right"),
+                                                      sameHand: c.same_hand ?? false)
             for (g, w) in zip(got.input, c.input) {
                 XCTAssertEqual(g.x, w[0], accuracy: 1e-3)
                 XCTAssertEqual(g.y, w[1], accuracy: 1e-3)
                 XCTAssertEqual(g.confidence, w[2], accuracy: 1e-6, "RTMPose confidence kept")
             }
         }
+    }
+
+    /// Same-hand test (Python same_hand): overlapping landmark boxes are one hand, side-by-side hands are not.
+    func testSameHandIoU() {
+        let hand = (0..<21).map { PosePoint(x: 100 + Double($0 % 5) * 10, y: 200 + Double($0 / 5) * 10) }
+        XCTAssertTrue(MotionAGFormerWristSource.sameHand(hand, hand.map { PosePoint(x: $0.x + 3, y: $0.y - 2) }))
+        XCTAssertFalse(MotionAGFormerWristSource.sameHand(hand, hand.map { PosePoint(x: $0.x + 30, y: $0.y) }))
+        XCTAssertFalse(MotionAGFormerWristSource.sameHand(hand, []))
     }
 
     /// Flutter gets the state in every case; `usable` only when the evaluators judge with that 3D.

@@ -229,12 +229,13 @@ enum MotionAGFormerCoreML {
 #endif
 
 /// MediaPipe wrists into the MotionAGFormer input only (2D evaluators keep RTMPose). Mirrors
-/// pose_feedback/body/motionagformer_wrist_source.py: `reject_crossed_mediapipe_wrists` (a hand closer to the
-/// other side's RTMPose wrist is dropped) then `build_motionagformer_input_2d(wrist_source="mediapipe")` (x/y
-/// replaced, RTMPose confidence kept). A missing hand keeps the RTMPose wrist. Hands must come from the same
-/// frame (the camera runs them on the same image, synchronously). Sides follow the RTMPose wrist the crop was
-/// built on, so a mirrored front camera stays consistent with the body's labels.
-/// Halpe26: its first 17 joints are COCO17, wrists 9 / 10 as here.
+/// pose_feedback/body/motionagformer_wrist_source.py: `dedupe_same_hand` (both crops returned the same hand: neither
+/// is used), `reject_crossed_mediapipe_wrists` (a hand closer to the other side's RTMPose wrist is dropped), the
+/// forearm gate, then `build_motionagformer_input_2d(wrist_source="mediapipe")` (x/y replaced, RTMPose confidence
+/// kept). A missing hand keeps the RTMPose wrist. Hands must come from the same frame (the camera runs them on the
+/// same image, synchronously). Sides follow the RTMPose wrist the crop was built on, so a mirrored front camera
+/// stays consistent with the body's labels. The camera overlay draws this same input (its wrists never jump to a
+/// hand the XS input refused). Halpe26: its first 17 joints are COCO17, wrists 9 / 10 as here.
 enum MotionAGFormerWristSource {
     static let leftWrist = 9, rightWrist = 10, leftElbow = 7, rightElbow = 8
     /// Keep a MediaPipe wrist only within this × the RTMPose forearm of the RTMPose wrist (Python
@@ -247,10 +248,16 @@ enum MotionAGFormerWristSource {
         var replacedRight = false
     }
 
+    /// Landmark-box IoU above which the two crops' detections count as one hand (both 256 px wrist crops hold both hands
+    /// when the wrists are close, and with the far hand hidden MediaPipe returns the near hand in both). 제안값.
+    static let sameHandIoU = 0.5
+
+    /// `sameHand`: both crops returned the same physical hand (`sameHand(_:_:)` on their landmarks); then neither
+    /// detection is used, the RTMPose wrists stay (which side the hand belongs to is unknown).
     static func input(raw: [PoseKeypoint], left: PosePoint?, right: PosePoint?,
-                      maxShiftForearm: Double? = defaultMaxShiftForearm) -> Result {
+                      maxShiftForearm: Double? = defaultMaxShiftForearm, sameHand: Bool = false) -> Result {
         var result = Result(input: raw)
-        guard raw.count == 17 else { return result }
+        guard raw.count == 17, !(sameHand && left != nil && right != nil) else { return result }
         func distance(_ p: PosePoint, _ k: PoseKeypoint) -> Double { hypot(p.x - k.x, p.y - k.y) }
         for (point, own, other, elbow) in [(left, leftWrist, rightWrist, leftElbow), (right, rightWrist, leftWrist, rightElbow)] {
             guard let point, distance(point, raw[own]) <= distance(point, raw[other]) else { continue }
@@ -262,5 +269,19 @@ enum MotionAGFormerWristSource {
             if own == leftWrist { result.replacedLeft = true } else { result.replacedRight = true }
         }
         return result
+    }
+
+    /// Two hand detections (landmarks in frame pixels) are one hand: IoU of their landmark boxes > `iou`.
+    static func sameHand(_ a: [PosePoint], _ b: [PosePoint], iou: Double = sameHandIoU) -> Bool {
+        guard let ba = box(a), let bb = box(b) else { return false }
+        let w = min(ba.x1, bb.x1) - max(ba.x0, bb.x0), h = min(ba.y1, bb.y1) - max(ba.y0, bb.y0)
+        guard w > 0, h > 0 else { return false }
+        let inter = w * h, union = (ba.x1 - ba.x0) * (ba.y1 - ba.y0) + (bb.x1 - bb.x0) * (bb.y1 - bb.y0) - inter
+        return union > 0 && inter / union > iou
+    }
+
+    private static func box(_ p: [PosePoint]) -> (x0: Double, y0: Double, x1: Double, y1: Double)? {
+        guard let x0 = p.map(\.x).min(), let x1 = p.map(\.x).max(), let y0 = p.map(\.y).min(), let y1 = p.map(\.y).max() else { return nil }
+        return (x0, y0, x1, y1)
     }
 }
