@@ -116,22 +116,11 @@ AI 쪽 작업(캘리브레이션 서버, 2D/3D 포즈, 사람 crop 입력, 자�
 - `xcodebuild` Runner, iOS Simulator Debug, `CODE_SIGNING_ALLOWED=NO`: 성공
 
 ## main과의 차이 (병합 전 확인)
-integration/ai는 main보다 팀원 커밋 11개가 뒤처져 있습니다(2026-10-11 기준): #35 `a03fd9e` 계정 찾기 이메일 인증, #36 `d780665` 계정 찾기 안내, #37 `8017c09` 체형 측정일·세트 기록·피드백 횟수·알림 백엔드 연동, #38 `374ef52` 리포트 자주 나온 실수·코리 잔소리 알림, #39 `becec54` 프로필 저장 수정, #40 `0d00676` 코리 음성 ElevenLabs 실시간 TTS. 이어서 #41 `7c3270e` 체형 촬영 후 전송 대기 페이지 제거·로딩 화면에서 자동 전송, #42 `62abda4` 계정 찾기 인증 대기·비밀번호 재설정, #43 `8848fd7` 토스트 위치, #44 `293468e` 체형 촬영 코리 음성 반복 수정(`CalibrationVoice.swift`), #45 `24bc396` 리포트 분석 탭 위치.
+main(`52c2f61`, #35–#61)은 2026-10-20 integration/ai에 병합됨(`81da234`). D-M-01에 따라 충돌 Dart 4개는 main 버전, `ios/Runner.xcodeproj/project.pbxproj`는 양쪽 등록 유지.
 
-양쪽에서 고친 파일(충돌 가능):
-| 파일 | main | integration/ai | 처리 |
-|---|---|---|---|
-| `lib/features/workout/screens/native_pose_workout_screen.dart` | #37·#38 세트 기록·피드백 횟수, #40 `_speakFeedback`/`_speakSetSummary`(대사 읽기) | 경고 기본 끔·셋업 키, 트랙 E의 onFeedback·음소거·onSetEnd | 줄 단위 충돌 가능성 높음. **음성**: 트랙 E 화면은 onFeedback에 대사를 답하고(WorkoutVoice가 말함) 자체 TTS 호출이 없음, main #40 화면은 `_speakFeedback`으로 직접 말하고 답은 null. 수동 병합 때 둘을 섞으면 이중 재생 → 한쪽 선택(decisions E7, D-H-01) |
-| `lib/features/workout/data/kori_feedback_lines.dart` | #38 `koriMistakeLabels`, `koriMistakeExerciseId`를 파일 끝에 추가 | 바로 앞의 `koriDemoWarningKeyByExercise`(임시 데모 경고) 삭제 | 붙어 있는 부분이라 충돌 가능. 맵 삭제 + main 추가분 유지로 해결하고, main 화면 코드가 삭제된 맵을 아직 쓰는지 확인. 대사 원문은 그대로라 음성 스크립트 영향 없음 |
-| `lib/features/onboarding/screens/onboarding_analyzing_screen.dart`, `test/onboarding_analyzing_test.dart` | #41이 화면을 크게 바꿈(+505줄 변경, 전송 대기 페이지 제거, 로딩 화면에서 자동 전송) | 트랙 F의 작업 상태 polling·진행률·실패 문구·결과 요약 | **충돌 가능성 높음**. #41의 자동 전송 흐름 위에 트랙 F의 polling(`fetchJob`, `progressRate`, 스텁 결과 거부)을 다시 얹고 두 테스트를 다 통과시킬 것 |
-| `ios/Runner.xcodeproj/project.pbxproj` | #40 `KoriSpeaker.swift` 추가 | Halpe26 모델·평가기·트랙 E 파일 추가 | 파일 목록 충돌 가능. 양쪽 항목 다 남기고 xcodebuild로 확인 |
+빠진 기능과 다시 넣는 방법은 `docs/decisions.md` D-M-01, 팀원 요청은 `docs/handoff/teammate_requests.md` 참고.
 
-의미상 겹침(같은 파일은 아님):
-- `ios/Runner/NativePose/Calibration/CalibrationVoice.swift`: main #40이 AVSpeech → KoriSpeaker로 바꿈. integration/ai는 이 파일을 안 고쳐서 충돌은 없지만, 미리 만든 mp3를 쓰려면 KoriSpeaker에 파일 우선 재생을 붙여야 함.
-- `ios/Runner/Info.plist`: main #40이 `ElevenLabsApiKey` 추가 → 빌드된 앱에 키가 평문으로 들어감(`docs/handoff/security_followup.md` 3-1). integration/ai의 ATS 설정(`NSAllowsArbitraryLoads`)과 같은 파일.
-- 백엔드: #37·#38이 세트 기록·피드백 횟수 API를 씀. 트랙 E의 `onSetEnd {videoLocalPath, worstJoint}`가 그 세트 기록에 들어가야 함(서버는 경로만 저장).
-
-- 백엔드(Spring)와: 캘리브레이션 상태 값 대소문자(서버 소문자 vs 엔티티 기본 `COMPLETED`), main 엔티티에 `coachComment` 열 없음, 결과 저장 API 없음 — 제안만(`teammate_calibration.md` 6절), 백엔드 코드는 안 고침.
+- 백엔드(Spring) 제안은 그대로 유효: 캘리브레이션 상태 값 대소문자(서버 소문자 vs 엔티티 기본 `COMPLETED`), 엔티티에 `coachComment` 열 없음, 결과 저장 API 없음, 세트 기록에 `onSetEnd {videoLocalPath, worstJoint}` 연결 — `docs/handoff/teammate_calibration.md` 6절. 백엔드 코드는 안 고침.
 
 ## 알려진 한계
 - **푸시업 측면 컷오프 1.0**은 Exercise3D에서 40°와 48°를 가르지 못함(48°도 측면으로 판정). 정면(70°+)만 확실히 걸러짐.
