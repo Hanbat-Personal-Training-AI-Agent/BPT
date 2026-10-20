@@ -40,7 +40,7 @@ manifest에 “pending sync to Home”).
 발열 영향을 받았을 수 있다.
 
 ## 핵심
-- **3D는 실제 앱 경로에서 매 프레임 돈다**: XS 추론 26.9–29.3회/초(운동 평균), 판정 프레임의 ok 85–98%, 판정 FPS ≈ 30(측면), 도착→판정 p50 188 ms
+- **3D는 실제 앱 경로에서 매 프레임 돈다**: XS 추론 26.9–29.3회/초(운동 평균), 판정 프레임의 ok 82–97%(새 기본값 39클립), 판정 FPS ≈ 30(측면), 도착→판정 p50 188–191 ms
   (lookahead 5프레임 = 167 ms 포함). 정면 푸시업(70–88°)만 무거움(21–28 fps, 드롭 최대 150/551, 발열 serious에서).
 - **자세 경고가 사용자에게 가는가**: 데모 화면(main)에서는 **아니오** — 말한 대사의 95%가 데모(칭찬 ↔ 운동별 대표 경고, 판정 아님)이고 3D 자세 키는 하나도
   안 나갔다. ai/real-feedback 병합 뒤(새 기본값)에는 **예** — 스쿼트 squat_knee_valgus가 말풍선·음성으로 2회 나감. 다만 이 클립은 정상 동작이라 **오경보일
@@ -51,6 +51,9 @@ manifest에 “pending sync to Home”).
   (두 crop이 같은 손, 94%) — 예전 오버레이가 원시 MediaPipe 손목을 그려서 보였다. lift-refine 오버레이(XS 입력 손목을 그림)에서는 0프레임.
 
 ## 1. End-to-End (Runner 카메라 입력 → Flutter 피드백) — FPS·지연
+> 항목 1–4·6의 **기준 값은 아래 “새 기본값 39클립”(nominal 발열, 실제 판정 화면)** 절이다. 이 절과 2–4절의 39클립 표는 그 전에 데모 화면·serious 발열에서 돈 실행이라
+> 비교·참고용으로 남긴다.
+
 측정 끝점: 프레임 도착(클립 PTS 페이스 시계) → (판정) 메인 스레드 평가 끝 → (Flutter) onPoseUpdate·onFeedback의 메서드 채널 **응답 콜백**.
 위젯 그리기(≤ 1 vsync)는 **측정 안 함**. 판정은 3D lookahead 5프레임(167 ms)을 기다린 뒤라 지연의 대부분이 그 기다림이다.
 
@@ -130,6 +133,21 @@ manifest에 “pending sync to Home”).
 - 기기 실측(오버레이 손목 재구성, `overlay_wrist_jumps.py`): 예전 오버레이(1dee827) 그린 손목이 다른 손 위 L 94 / R 344(585 프레임), 0.5 아래팔 넘게 튐
   8 / 30. **lift-refine 오버레이(5b14ee9 이후, XS 입력 손목을 그림)는 0 / 0, 튐 0 / 0** — 손 중복 제거를 꺼도(`BPT_HAND_DEDUPE=0`) 0 / 0. 중복 제거는
   같은 손 프레임 409개에서 MediaPipe 손목을 안 써서 XS 입력 손목 교체를 L 473 → 135, R 132 → 63 프레임으로 줄인다(판정·렙은 같음).
+
+## 5. 탑재된 XS 가중치 (정확한 버전·체크섬)
+| 위치 | 파일 | sha256 |
+|---|---|---|
+| 소스 `ios/Runner/NativePose/Models/motionagformer_xs.mlpackage` (커밋 `192ad47`에서 추가) | Data/com.apple.CoreML/weights/weight.bin | `37a5c83431601e421a4d3d1e6fa6af39951062a08a7372cea172b98110d2f38e` |
+| | Data/com.apple.CoreML/model.mlmodel | `62cfec0dd4ac48fde2cb2c682755b30cdf898c301eb0e5afd5611ce79d376b61` |
+| | Manifest.json | `4f8c28b49a69e017891a3ba238e5be7ac4c5e418ccccb3502badfa0ea09a24e0` |
+| 빌드된 Runner.app(liftdev; 이 문서의 모든 실행 빌드 fddf82d·104ea89·1dee827·5b14ee9·a70ac36·6d856a3·0a4d830에서 파일 5개 모두 같음) `motionagformer_xs.mlmodelc` | weights/weight.bin | `37a5c834…f38e` (소스와 같음) |
+| | model.mil | `768b5f53b06c471b667005b71d0e17d6c2a87cc15f1a975dbd135456ca910c49` |
+| | coremldata.bin / metadata.json | `d97e3221…b7e` / `90a8ffbf…7b48` |
+
+- 출처: 원래 MotionAGFormer-XS **H36M** 가중치 `motionagformer-xs-h36m.pth.tr`(sha256 `7abb32ea…4597`, 업스트림 TaatiTeam, Apache-2.0)를
+  `scripts/export_motionagformer_xs_coreml.py`(coreml_safe)로 변환. 메타데이터: coremltools 9.0, torch 2.12.0, fp16, conversion_date 2026-09-20.
+- **Fit3D 미세조정 모델이 아님(확인됨)**: 미세조정 재현본 trains05의 weight.bin은 `73c009e4…22a5`로 다르고, 패키지 이름도
+  `…_NONCOMMERCIAL`이며 번들에 없다. 앱이 실제로 불러온 컴파일 모델의 해시는 모든 실행 로그의 `start.models`에 기록되어 있고 위와 같다.
 
 ## 6. 실제로 동작하는 기능 vs 로그로만 있는 기능 (기기 실측 기준)
 | 기능 | 병합 전(main 데모 화면) | 병합 뒤(ai/lift-app 현재) | 근거(실측) |
@@ -332,17 +350,69 @@ Home `20261020-device-video-landscape-pushup-de42b9a`.
 
 <!--PENDING-->
 
-## 5. 탑재된 XS 가중치 (정확한 버전·체크섬)
-| 위치 | 파일 | sha256 |
-|---|---|---|
-| 소스 `ios/Runner/NativePose/Models/motionagformer_xs.mlpackage` (커밋 `192ad47`에서 추가) | Data/com.apple.CoreML/weights/weight.bin | `37a5c83431601e421a4d3d1e6fa6af39951062a08a7372cea172b98110d2f38e` |
-| | Data/com.apple.CoreML/model.mlmodel | `62cfec0dd4ac48fde2cb2c682755b30cdf898c301eb0e5afd5611ce79d376b61` |
-| | Manifest.json | `4f8c28b49a69e017891a3ba238e5be7ac4c5e418ccccb3502badfa0ea09a24e0` |
-| 빌드된 Runner.app(liftdev; 이 문서의 모든 실행 빌드 fddf82d·104ea89·1dee827·5b14ee9·a70ac36·6d856a3·0a4d830에서 파일 5개 모두 같음) `motionagformer_xs.mlmodelc` | weights/weight.bin | `37a5c834…f38e` (소스와 같음) |
-| | model.mil | `768b5f53b06c471b667005b71d0e17d6c2a87cc15f1a975dbd135456ca910c49` |
-| | coremldata.bin / metadata.json | `d97e3221…b7e` / `90a8ffbf…7b48` |
+## 최종 보고 (A–G) — 2026-10-20 기준
+### A. 검증된 사실
+1. **XS 3D는 실제 앱 경로에서 매 프레임 돈다**: 추론 26.9–29.3회/초, Neural Engine에서(xctrace, MPS·GPU ML 0). 탑재 가중치는 H36M 원본 XS
+   (weight.bin `37a5c834…f38e`, 모든 실행 빌드에서 같음) — Fit3D 미세조정본 아님.
+2. **E2E**(카메라 입구 → Flutter 메서드 채널 응답): 측면 30 fps, 도착→판정 p50 188–191 ms(그중 167 ms는 3D lookahead 5프레임), Flutter 응답 p95
+   측면 대부분 196–232 ms, 최악 275 ms(로우 한 클립)(nominal). 정면 푸시업만 27.6–29 fps·p95 최악 383 ms. 위젯 그리기는 **측정 안 함**. L=3이면 판정이 정확히 67 ms 빨라진다(FPS·CPU 같음).
+3. **자세 경고 전달**: 병합 전 main 화면에서는 3D 자세 키가 Flutter에 0건, 말한 대사의 95%가 데모(판정 아님). 병합 뒤(현재 main 2b98256과 같은 실제 판정
+   기본값)에는 판정 경고가 말풍선·음성으로 나간다 — 39클립에서 스쿼트 knee_valgus 7회, 푸시업 hand_position 1회, 칭찬(praise_good) 59회, 준비 안내
+   (setup_side_view) 9회. 데모 0.
+4. **endSet**: Flutter가 목표 렙에서 보내고, 네이티브가 3D 꼬리 5프레임을 flush·판정(36/36 세트에서 5/5), 세트 범위 키(no_lockout)를 기록에만 보내고,
+   onSetEnd(worstJoint)를 보낸다. 렙을 못 채운 3클립(로우 뒤쪽 2, 정면 푸시업 1)은 endSet 자체가 없다.
+5. **30분 연속(전원 뺌)**: 배터리 100→80%, 발열 nominal→fair 6.8분→serious 19.4분, FPS·지연·단계 시간 드리프트 없음(측면 스쿼트).
+6. **좌우**: RTMPose 손목 좌우 바뀜은 39클립 모두 0%(Mac 재생·기기 반전 경로 둘 다). 사용자가 본 “왼손→오른손”은 측면 손 crop이 같은 손을 잡는 문제
+   (+ 예전 오버레이가 원시 손목을 그림) — 새 오버레이에서 0프레임. **하체는 실제로 바뀐다**: 낮은 측면 푸시업 무릎 33–76%, 엉덩이 최대 79%.
+7. **운동 화면이 화면 자동 잠금을 끄지 않았다** → 전원 뺀 폰이 운동 중 잠김(실측). 고침은 ai/lift-app·main(D-M-02)에 들어감, 기기에서 전환 4종 확인.
+8. 오버레이 v1→v3 그리기 비용: FPS·지연·CPU 차이가 같은 빌드 실행 간 잡음보다 작다. 판정·렙·보낸 키는 빌드 사이에 렙 단위까지 같다.
+9. setup-constraint (b) 적응형 제약: 제안 규칙 통과(lift3d p95 −0.07~−0.24 ms, 렙 같음). (c) 준비 자세: COCO17에서는 준비됨 0, s Halpe26 데모에서 1.
+10. 뼈 길이 목표(P1·P2): 판정·렙·지연 변화 없음.
+11. **가로 촬영은 지원되지 않는다**: 렙은 15/15 맞지만 3D가 일부 시점에서 무너지고(ok 6–7%), 가로에서만 나오는 경고(hip_pike·hand_position)가 사용자에게 나간다.
 
-- 출처: 원래 MotionAGFormer-XS **H36M** 가중치 `motionagformer-xs-h36m.pth.tr`(sha256 `7abb32ea…4597`, 업스트림 TaatiTeam, Apache-2.0)를
-  `scripts/export_motionagformer_xs_coreml.py`(coreml_safe)로 변환. 메타데이터: coremltools 9.0, torch 2.12.0, fp16, conversion_date 2026-09-20.
-- **Fit3D 미세조정 모델이 아님(확인됨)**: 미세조정 재현본 trains05의 weight.bin은 `73c009e4…22a5`로 다르고, 패키지 이름도
-  `…_NONCOMMERCIAL`이며 번들에 없다. 앱이 실제로 불러온 컴파일 모델의 해시는 모든 실행 로그의 `start.models`에 기록되어 있고 위와 같다.
+### B. 가설(검증 안 됨)
+- 정상 동작 클립에서 나온 knee_valgus·no_lockout 등은 **오경보**다(임계값 미검증, 사람이 확인한 라벨 없음) — 지금 사용자에게 실제로 들린다.
+- 정면 푸시업이 무거운 것은 손 분기(정면에서 두 손이 보여 MediaPipe가 매 프레임 돎)와 지표별 무효화 때문(CPU 78–92%).
+- XS 추론당 ANE 구간 13개 → 일부 연산이 CPU에서 돈다.
+- setup_ready 0(COCO17)은 준비 항목 하나가 끝까지 안정·유효하지 않아서 — 발 점이 있는 Halpe26에서는 준비됨.
+- 18:40 이후 실행의 판정 p50 +2 ms(188 → 190)는 코드가 아니라 기기 상태(배터리 전원) 차이.
+- 로우 뒤쪽 시점(76–80°)의 렙 실패는 2D 상태기계가 그 시점에서 팔 움직임을 못 보는 것.
+- 가로에서 렙만 맞는 것은 렙 상태기계가 관절 각(회전 불변)을 쓰고, 자세 규칙·옆면 판정은 이미지 축(위·아래)을 쓰기 때문.
+
+### C. 고친 이전 판단
+- “startSet/endSet을 Flutter가 안 보낸다”·“자세 키가 기본값에서 안 나간다”(이 문서 첫 판·main 데모 화면 기준) → ai/real-feedback 병합 뒤로는 틀림.
+- “좌우 혼동은 RTMPose 탓”(사용자 추정) → 손목은 RTMPose 0%, 손 crop 분기 탓. 하체(푸시업)는 RTMPose 탓이 맞다.
+- 39클립 E2E(푸시업 드롭 5.7%, p95 378 ms)는 serious 발열에서 잰 값이었다 → nominal에서 1.7%. 발열 상태를 함께 적어야 한다.
+- 문서 초안의 컴파일 XS coremldata/metadata 해시(da6e95a3·2de07361)는 잘못 옮긴 값 → 모든 빌드 d97e3221·90a8ffbf.
+
+### D. 데이터 신뢰도
+- 정답: Exercise3D 렙·2D는 Sapiens 의사 정답, 3D 정답 없음 → 기기에서 3D 정확도·L=3 정확도·뼈 길이 목표 효과는 **평가 불가**(Fit3D 결과는 lift_app.md).
+- 영상-카메라 모드는 카메라 캡처·자동 노출·조명을 재현하지 않는다. 전면 반전은 vImage(카메라에는 없는 1 ms 미만 비용). 가로는 한 방향(90°)만.
+- 판정은 실행마다 조금 다르다(드롭이 판정 프레임을 바꿈: 같은 빌드에서 knee_valgus 3 vs 4렙). 한 번 실행 비교는 이 잡음 안에서만 읽을 것.
+- 발열: 데모 화면 39클립 두 번은 serious에서(충전 중 연속), 새 기본값 39클립은 nominal에서.
+- 배터리는 iOS가 5% 단위로 준다. 30분 실행 로그(67 MB)는 Wi-Fi 복사가 60 MB에서 끊겨 Mac 사본이 잘림 — 결과는 완전한 perf 로그에서 냈다.
+- 세지 않은 실행: 설치 직후 첫 실행(모델 컴파일 ~31초), 자동 잠금된 실행 2개, 사용자가 폰을 만진 실행 1개, 27ddcd6 setup 실행(옛 오버레이) — 모두 폴더에 사유.
+
+### E. 재현 가능한 결과
+- Home `~/bpt-runs/lift-app/20261020-device-*` 36개 폴더 + `20261020-xctrace-coreai-1dee827`(각 `home_manifest.json`: 파일별 sha256·명령·git, Home에서
+  `sha256sum -c` 확인). 실행 manifest(`manifest.json`)에 클립 sha256·환경 변수·앱 바이너리와 컴파일 모델 sha256·launched_at.
+- 스크립트(이 브랜치): `device_video_runs.py`(실행), `analyze_device_video_runs.py`·`device_runs_tables.py`(6항목 표), `compare_device_runs.py`(빌드 전후),
+  `overlay_wrist_jumps.py`, `ex3d_lr_swap.py`·`ex3d_lr_swap_device.py`·`ex3d_hand_assoc.py`(좌우), `device_perf_summary.py`, `setup_check_summary.py`.
+
+### F. 권고
+1. 실제 판정 기본값(main D-M-02)은 임계값 미검증이라 정상 스쿼트에 “무릎이 안으로 모여”가 클립당 0–2회 들린다 → 사람이 라벨한 검증 클립으로 임계값을
+   확인하기 전에는 경고 키를 줄이거나(예: 우선 등급만), 검증 일정을 잡을 것(결정은 사용자).
+2. 낮은 측면 푸시업의 하체 좌우 바뀜(무릎 33–76%)은 Halpe26 전환에서 꼭 다시 볼 것(사용자 결정 D8 진행 중).
+3. 운동 화면 자동 잠금 끔은 이미 main에 들어감(D-M-02) — 유지.
+4. 정면 푸시업은 무겁고 3D가 반쯤 무효 → 측면 안내(setup_side_view)를 유지하고, 정면 시 손 분기를 줄이는 실험을 제안(코드 변경 없음).
+5. 로우 뒤쪽 시점은 렙을 못 센다 → 측면 안내 필요(이미 setup_side_view가 나감).
+6. 장시간: 측면은 30분 문제없음. 무거운 시점의 30분은 아직 측정 안 함.
+7. 가로 촬영: 지원하려면 회전 보정 단계(기기 자세 또는 2D 몸통 방향)가 먼저 필요 — 그 전에는 세로 촬영 안내를 유지(결정은 사용자).
+
+### G. 사용자 승인이 필요한 것
+- `ai/lift-app-m2b98256`(XS 라이브 3D·3D 판정·영상 모드 도구·lift-refine 오버레이 v3·partial_3d 안내 숨김·praise_good 말풍선 사양)을 integration에 병합할지.
+- 실험적 보정 유지 여부: MediaPipe 손목 교체(효과 미확인), 해부학 제약(정확도 이득 없음), 손 crop 중복 제거(lift-refine). 스쿼트 무릎 반사는 효과 검증됨.
+- setup-constraint 적응형 제약·준비 자세 채택 여부(제안 규칙 통과했지만 규칙 자체가 미승인).
+- 실제 판정 경고를 지금 임계값 그대로 사용자에게 계속 들려줄지(F-1).
+- 30분 실행 로그 67 MB와 새 오버레이 xctrace를 위해 폰을 USB로 잠깐 연결하기(Wi-Fi에서는 60 MB 넘는 복사와 xctrace가 안 됨).
+- 가로 촬영 지원(회전 보정) 개발 여부.
