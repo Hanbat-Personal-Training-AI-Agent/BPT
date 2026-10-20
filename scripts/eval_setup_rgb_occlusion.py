@@ -9,7 +9,7 @@ eval_setup_constraint.episodes_for (crc32 of video + group). Fit3D never leaves 
 usage: eval_setup_rgb_occlusion.py --root ~/datasets/fit3d --pose2d A-pose2d-20261019/pose2d --out RUN/rgb \
            --coco-cfg CFG --coco-ckpt CKPT --videos s07_50591643_squat,... [--groups wrist,ankle,knee] [--per-video 2]
 """
-import argparse, json, os, sys, zlib
+import argparse, hashlib, json, os, socket, sys, time, zlib
 import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -74,6 +74,13 @@ def main():
         frames = np.array(sorted(res)); kp = np.stack([res[t] for t in frames]).astype(np.float32) if len(frames) else np.zeros((0, 17, 3), np.float32)
         np.savez(out + '.tmp.npz', frames=frames, coco=kp, episodes=json.dumps(eps)); os.replace(out + '.tmp.npz', out)
         print(key, len(eps), 'episodes', len(frames), 'frames', flush=True)
+    sha = lambda f: hashlib.sha256(open(f, 'rb').read()).hexdigest()
+    outs = sorted(str(q) for q in __import__('pathlib').Path(a.out).glob('*.npz'))
+    json.dump(dict(argv=sys.argv, python=sys.executable, host=socket.gethostname(), finished=time.strftime('%Y-%m-%d %H:%M:%S'),
+                   code={__file__: sha(__file__)}, checkpoint={a.coco_ckpt: sha(a.coco_ckpt)}, config={a.coco_cfg: sha(a.coco_cfg)},
+                   pose2d={f'{a.pose2d}/{k}.npz': sha(f'{a.pose2d}/{k}.npz') for k in a.videos},
+                   outputs={o: sha(o) for o in outs}, note='Fit3D-derived per-frame 2D: delete after the rgb-eval run'),
+              open(os.path.join(os.path.dirname(a.out.rstrip('/')), 'manifest.json'), 'w'), indent=1)
 
 
 if __name__ == '__main__':
