@@ -19,8 +19,8 @@ for job in squat_0000:cam1:squat:squat pushup_0002:cam3:pushup:pushup barbellrow
   L $PR --exercise $prx --keypoints-csv $K --motion3d ios/Runner/NativePose/Models/motionagformer_xs.mlpackage --adaptive on --image-size 1080x1920 --output-dir $RP $RP/${seq}_${cam}.mp4 2>&1 | tail -1
   T=$(ls -t $RP/*${seq}_${cam}*_3d.csv | head -1); $PY $W/scripts/check_adaptive_parity_replay.py --keypoints $K --replay-3d $T --exercise $ex
 done
-echo "== E1b $(date)"; L $E setup-ex3d $COMMON --run-dir $S/runs/20261020-e1b-setup-ex3d 2>&1 | grep -v -i warn | tail -80
-echo "== cache-clean side1 $(date)"; L $E cache-clean $COMMON --ex3d-view side1 --run-dir $S/runs/20261020-ex3d-cache-clean 2>&1 | grep -v -i warn | tail -3
-echo "== occlude side1 $(date)"; L $E occlude $COMMON --ex3d-view side1 --run-dir $S/runs/20261020-ex3d-occlude 2>&1 | grep -v -i warn | tail -12
-echo "== foot-shift side1 $(date)"; L $E foot-shift $COMMON --ex3d-view side1 --run-dir $S/runs/20261020-ex3d-foot-shift --tag default 2>&1 | grep -v -i warn | tail -3
+echo "== E1b $(date)"; L ${=E} setup-ex3d ${=COMMON} --run-dir $S/runs/20261020-e1b-setup-ex3d 2>&1 | grep -v -i warn | tail -80
+echo "== cache-clean side1 $(date)"; L ${=E} cache-clean ${=COMMON} --ex3d-view side1 --run-dir $S/runs/20261020-ex3d-cache-clean 2>&1 | grep -v -i warn | tail -3
+echo "== occlude side1 $(date)"; L ${=E} occlude ${=COMMON} --ex3d-view side1 --run-dir $S/runs/20261020-ex3d-occlude 2>&1 | grep -v -i warn | tail -12
+echo "== foot-shift side1 $(date)"; L ${=E} foot-shift ${=COMMON} --ex3d-view side1 --run-dir $S/runs/20261020-ex3d-foot-shift --tag default 2>&1 | grep -v -i warn | tail -3
 echo "== done $(date)"
