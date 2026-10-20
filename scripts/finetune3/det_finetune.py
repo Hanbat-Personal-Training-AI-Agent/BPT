@@ -12,8 +12,8 @@ Weights trained on Fit3D are non-commercial (Fit3D and SMPL-X licences). Home on
 
 usage (Home, bpt-mmpose, GPU lock):
   det_finetune.py coco-subset --ann instances_train2017.json --n 6000 --out coco_person_train6k.json
-  det_finetune.py train --fit3d-json s03.json,s04.json --fit3d-root DIR --coco-json coco_person_train6k.json
-                  --coco-root ~/datasets/coco/train2017 --work-dir RUN [--epochs 2 --lr 1e-4 --batch 4]
+  det_finetune.py train --sets s03.json=DIR,s04.json=DIR,ex3d_p1.json=DIR2,coco_person_train6k.json=~/datasets/coco/train2017
+                  --work-dir RUN [--epochs 2 --lr 1e-4 --batch 4]   (each set: COCO-format json = image root)
   det_finetune.py eval --ann s05.json --img-root DIR --ckpts tag=CKPT[:CFG],... --out OUT.json
 """
 import argparse, json, os, sys
@@ -41,11 +41,9 @@ def train(a):
     from mmengine.runner import Runner
     cfg = Config.fromfile(CFG)
     pipe = cfg.train_pipeline_stage2
-    sets = [dict(type='CocoDataset', data_root='', ann_file=f, data_prefix=dict(img=a.fit3d_root + '/'),
-                 filter_cfg=dict(filter_empty_gt=True, min_size=32), pipeline=pipe) for f in a.fit3d_json.split(',')]
-    if a.coco_json:
-        sets.append(dict(type='CocoDataset', data_root='', ann_file=a.coco_json, data_prefix=dict(img=a.coco_root + '/'),
-                         filter_cfg=dict(filter_empty_gt=True, min_size=32), pipeline=pipe))
+    sets = [dict(type='CocoDataset', data_root='', ann_file=f, data_prefix=dict(img=os.path.expanduser(r) + '/'),
+                 filter_cfg=dict(filter_empty_gt=True, min_size=32), pipeline=pipe)
+            for f, r in (kv.split('=', 1) for kv in a.sets.split(','))]
     cfg.train_dataloader = dict(batch_size=a.batch, num_workers=a.workers, persistent_workers=True, pin_memory=True,
                                 sampler=dict(type='DefaultSampler', shuffle=True), batch_sampler=None,
                                 dataset=dict(type='ConcatDataset', datasets=sets))
@@ -125,7 +123,7 @@ def main():
     p = argparse.ArgumentParser()
     p.add_argument('cmd', choices=['coco-subset', 'train', 'eval'])
     p.add_argument('--ann'); p.add_argument('--n', type=int, default=0); p.add_argument('--out')
-    p.add_argument('--fit3d-json'); p.add_argument('--fit3d-root'); p.add_argument('--coco-json'); p.add_argument('--coco-root')
+    p.add_argument('--sets')
     p.add_argument('--work-dir'); p.add_argument('--epochs', type=int, default=2); p.add_argument('--lr', type=float, default=1e-4)
     p.add_argument('--batch', type=int, default=4); p.add_argument('--workers', type=int, default=4)
     p.add_argument('--img-root'); p.add_argument('--ckpts'); p.add_argument('--every', type=int, default=1)
