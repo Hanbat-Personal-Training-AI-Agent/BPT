@@ -9,16 +9,29 @@ from eval_lift_app_fit3d import judge_py, RULES_BY_EX
 from .metrics import stats
 
 
-def apply_existing_gates(corrected, invalid, exercise, variant):
+def apply_existing_gates(corrected, invalid, exercise, variant, observation_passthrough=None):
     constraints = Pose3DConstraints(bone_lengths=True, reflect_flipped_knee=exercise == "squat")
     pose, bad = corrected.copy(), invalid.copy()
     times = []
+    proposed = applied = restored = 0
     for t in range(21, len(pose)):
         began = time.perf_counter_ns()
         pose[t], report = constraints.apply(pose[t], project_bone_lengths=variant not in ("E", "G", "H"))
+        changed = np.max(np.abs(pose[t] - corrected[t]), axis=1) > 1e-12
+        proposed += int(changed.sum())
+        if variant in ("G", "H") and observation_passthrough is not None:
+            trusted = observation_passthrough[t]
+            restored += int((changed & trusted).sum())
+            pose[t, trusted] = corrected[t, trusted]
+        applied += int((np.max(np.abs(pose[t] - corrected[t]), axis=1) > 1e-12).sum())
         times.append((time.perf_counter_ns() - began) / 1e6)
         bad[t, report["invalid_joints"]] = True
-    return pose, bad, stats(times)
+    timing = stats(times)
+    timing.update(constraint_proposed_joint_frames=proposed,
+                  restored_trusted_joint_frames=restored,
+                  constraint_applied_joint_frames=applied,
+                  scope="from frame21; gates/invalid retained after trusted restoration")
+    return pose, bad, timing
 
 
 def score_warning_proxies(o, reference, app_pose_crop, invalid, *, start=90):

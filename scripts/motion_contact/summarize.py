@@ -52,10 +52,24 @@ def aggregate(records, run):
             by_rule[name].update(metrics)
     result["legacy_warning_proxies"] = dict(rules, by_rule=dict(by_rule),
                                            human_incorrect_form_labels=False)
+    calibration = [(r["metrics"]["uncertainty_calibration"],
+                    r["metrics"]["uncertainty_calibration"]["radial_error_over_sigma"]["n"])
+                   for r in records]
+    n = sum(count for value, count in calibration if value["coordinate_95pct_coverage"] is not None)
+    result["uncertainty_coordinate_95pct_coverage"] = dict(
+        joint_frames=n, coordinate_count=3 * n,
+        fraction=sum(value["coordinate_95pct_coverage"] * count for value, count in calibration
+                     if value["coordinate_95pct_coverage"] is not None) / n if n else None)
+    result["constraint_diagnostics_from21"] = {
+        key: sum(r["metrics"]["existing_gate_cpu_ms"].get(key, 0) for r in records)
+        for key in ("constraint_proposed_joint_frames", "restored_trusted_joint_frames",
+                    "constraint_applied_joint_frames")}
     diagnostics = Counter()
     contacts = Counter()
     transitions = Counter()
     runtimes = []
+    passthrough_frames = 0
+    passthrough_error = app_passthrough_error = 0.
     for r in records:
         diagnostics.update(r["diagnostics"])
         path = run / "predictions_HOME_ONLY" / (r["name"] + "_" + r["variant"] + ".npz")
@@ -68,12 +82,25 @@ def aggregate(records, run):
                 for old, new in zip(a, b):
                     if old and new and old != new:
                         transitions[old + "->" + new] += 1
+            if "observation_passthrough" in z:
+                trusted = z["observation_passthrough"].copy()
+                trusted[:90] = False
+                passthrough_frames += int(trusted.sum())
+                if trusted.any():
+                    raw = z["raw_model"] - z["raw_model"][:, :1]
+                    passthrough_error = max(passthrough_error, float(
+                        np.max(np.abs(z["corrected"][trusted] - raw[trusted]))))
+                    app_passthrough_error = max(app_passthrough_error, float(
+                        np.max(np.abs(z["app_pose"][trusted] - raw[trusted]))))
     times = np.concatenate(runtimes) if runtimes else np.empty(0)
     result["runtime_ms"] = dict(n=len(times), p50=float(np.median(times)) if len(times) else None,
                                 p95=float(np.percentile(times, 95)) if len(times) else None)
     result["diagnostics_since_frame21"] = dict(diagnostics)
     result["contact_joint_frames_from90"] = dict(contacts)
     result["contact_state_transitions_from90"] = dict(transitions)
+    result["trusted_observation_passthrough_from90"] = dict(
+        joint_frames=passthrough_frames, maximum_absolute_crop_unit_error=passthrough_error,
+        after_existing_gates_maximum_absolute_crop_unit_error=app_passthrough_error)
     result["recovery_censored_events"] = sum(
         r["metrics"].get("recovery_to_original_quality_s", {}).get("censored_after_1s", 0)
         for r in records)

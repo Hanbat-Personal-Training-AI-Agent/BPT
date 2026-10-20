@@ -53,6 +53,7 @@ def run_variant(observations, variant, *, profile_mode="online", rgb_lengths=Non
     uncertainty = np.full((n, 17), np.nan)
     invalid = np.ones((n, 17), bool)
     used_prediction = np.zeros((n, 17), bool)
+    observation_passthrough = np.zeros((n, 17), bool)
     corrections = np.zeros((n, 17))
     contacts = np.full((n, 17), "", dtype="U16")
     roles = np.full((n, 17), "unavailable", dtype="U32")
@@ -79,6 +80,7 @@ def run_variant(observations, variant, *, profile_mode="online", rgb_lengths=Non
         for j, state in out["contacts"].items():
             contacts[t, int(j)] = state
         d = out["diagnostics"]
+        observation_passthrough[t, d.get("observation_passthrough", [])] = True
         counts["contact_corrections"] += len(d["contact_corrected"])
         counts["bone_corrections"] += len(d["bone_corrected"])
         counts["rejected_joint_frames"] += len(d["rejected_joints"])
@@ -86,6 +88,7 @@ def run_variant(observations, variant, *, profile_mode="online", rgb_lengths=Non
         counts["grip_used_frames"] += int(d["grip_used"])
     return dict(corrected=corrected, uncertainty=uncertainty, invalid=invalid,
                 used_prediction=used_prediction, correction_magnitude=corrections,
+                observation_passthrough=observation_passthrough,
                 contacts=contacts, roles=roles, phases=phases, runtime_ms=runtime_ms,
                 diagnostics=counts, profile_metadata=dict(
                     source_type="online_observation_lengths" if profile_mode == "online" else "rgb_smpl_calibration",

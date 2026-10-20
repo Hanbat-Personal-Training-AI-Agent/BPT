@@ -132,3 +132,35 @@ def test_withheld_warning_is_abstention_not_true_negative():
     assert result["assessed_reps"] == 0
     assert all(row["assessed_reps"] == 0 for row in result["by_rule"].values())
     assert not result["human_error_labels"]
+
+
+def test_v2_gate_restoration_preserves_trusted_observation_and_invalid(monkeypatch):
+    import motion_contact.rule_proxies as rules
+
+    class ProposedConstraint:
+        def __init__(self, **kwargs):
+            pass
+
+        def apply(self, pose, **kwargs):
+            return pose + 1, {"invalid_joints": [13]}
+
+    monkeypatch.setattr(rules, "Pose3DConstraints", ProposedConstraint)
+    o = observation(100)
+    trusted = np.zeros((100, 17), bool)
+    trusted[:, 13] = True
+    fixed, invalid, timing = rules.apply_existing_gates(
+        o.raw, np.zeros((100, 17), bool), "barbell_row", "G", trusted)
+    np.testing.assert_array_equal(fixed[21:, 13], o.raw[21:, 13])
+    np.testing.assert_array_equal(fixed[21:, 12], o.raw[21:, 12] + 1)
+    assert invalid[21:, 13].all()
+    assert timing["restored_trusted_joint_frames"] == 79
+    assert timing["constraint_applied_joint_frames"] == 79 * 16
+
+
+def test_v2_passthrough_mask_verifies_actual_runtime_boundary():
+    o = observation()
+    result = run_variant(o, "G")
+    trusted = result["observation_passthrough"]
+    assert trusted[90:].sum() > 0
+    np.testing.assert_allclose(result["corrected"][trusted],
+                               (o.raw - o.raw[:, :1])[trusted], atol=1e-14)
