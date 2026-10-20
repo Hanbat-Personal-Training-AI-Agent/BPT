@@ -344,7 +344,10 @@ Home `20261020-device-video-landscape-pushup-de42b9a`.
   hand_position(10클립, 렙 1씩), 정면의 head_up 4–9렙 — 이 중 hip_pike·hand_position은 실제로 사용자에게 나갔다. ③ 정면에서 setup_side_view(“옆으로 서 주세요”)가
   사라졌다(옆면 판정이 이미지 축 기준).
 - 결론: 가로 촬영은 지금 앱에서 **지원되지 않는다**(렙만 맞음). 고치려면 기기 방향(가속도계)이나 2D 몸통 방향으로 회전 보정하는 단계가 필요하다(제안, 코드
-  변경 없음; 중력 정렬 BPT_3D_GRAVITY는 영상 모드에 기기 자세가 없어 **평가 불가**). 반대 방향(270°)은 **측정 안 함**.
+  변경 없음; 중력 정렬 BPT_3D_GRAVITY는 영상 모드에 기기 자세가 없어 **평가 불가**).
+- **반대 방향 270°**(같은 빌드, Home `20261020-device-video-landscape-pushup270-de42b9a`): 렙 다시 15/15. 3D가 무너지는 시점이 바뀐다 — 90°에서는 사선 cam2
+  (ok 6–7%), 270°에서는 낮은 측면 cam3(pushup_0000·0001·0004_cam3 ok 26–31%, 세로 88–96%). hip_pike가 cam3에서 7–10렙, 정면에서 9렙(0003_cam1), hand_position
+  10클립, no_lockout 정면 9렙 — 방향마다 다른 오경보. 회전 보정 브랜치(ai/orientation-m2b98256) 전후 비교의 “전” 값으로 쓴다.
 
 ## m COCO17 vs m Halpe26(사용자 결정 D8 이후) — ⏳ ai/halpe-default-m2b98256 빌드 병합 뒤 39클립·준비 자세 비교
 
