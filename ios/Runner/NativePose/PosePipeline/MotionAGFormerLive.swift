@@ -79,6 +79,8 @@ struct MotionAGFormerLive<Payload> {
     /// Real frames pushed since the last reset.
     private var realFrames = 0
     private var lostRun = 0
+    /// A changed capture orientation starts a new coordinate system, even when image dimensions stay the same.
+    private var captureRotation: CaptureRotation?
     /// Model runs (cost accounting).
     private(set) var inferences = 0
 
@@ -95,9 +97,15 @@ struct MotionAGFormerLive<Payload> {
     /// Push one frame (COCO17 in frame pixels; Halpe26 callers pass its first 17 joints, which are COCO17
     /// in the same order). Returns the frames that became ready, oldest first.
     mutating func push(frameIndex: Int, coco17: [PoseKeypoint], imageWidth: Int, imageHeight: Int,
-                       payload: Payload) throws -> [(Payload, Lifted3DFrame)] {
+                       captureRotation: CaptureRotation = .up, payload: Payload) throws -> [(Payload, Lifted3DFrame)] {
         let valid = coco17.count == 17 && coco17.filter { $0.confidence >= minConfidence }.count >= minJoints
         var out: [(Payload, Lifted3DFrame)] = []
+        if let previous = self.captureRotation, previous != captureRotation {
+            // Emit old payloads with the old window before normalizing or buffering any new orientation.
+            // flush also resets on prediction failure, so a retry can never combine coordinate systems.
+            out += try flush()
+        }
+        self.captureRotation = captureRotation
         if valid {
             lostRun = 0
         } else {
@@ -130,6 +138,7 @@ struct MotionAGFormerLive<Payload> {
 
     /// Emits every pending frame (window clamped at the newest frame) and resets. Call at set end.
     mutating func flush() throws -> [(Payload, Lifted3DFrame)] {
+        defer { reset() }
         var out: [(Payload, Lifted3DFrame)] = []
         if realFrames < Self.window {
             out = emitWithout3D(count: pending)
@@ -146,7 +155,6 @@ struct MotionAGFormerLive<Payload> {
                 }
             }
         }
-        reset()
         return out
     }
 
@@ -156,6 +164,7 @@ struct MotionAGFormerLive<Payload> {
         pending = 0
         realFrames = 0
         lostRun = 0
+        captureRotation = nil
     }
 
     private mutating func emitWithout3D(count: Int) -> [(Payload, Lifted3DFrame)] {

@@ -48,6 +48,9 @@ private enum CameraPreviewOptions {
 struct CameraFrameData: Identifiable {
     let id: Int
     let frameIndex: Int
+    /// The keypoints, hands and image size here are in the analysis frame; the overlay maps them onto the preview with
+    /// this (`.up` in portrait).
+    let rotation: CaptureRotation
     let imageWidth: Double
     let imageHeight: Double
     /// What the overlay draws: the XS input 2D (accepted wrists only), display-smoothed.
@@ -64,6 +67,8 @@ struct CameraFrameData: Identifiable {
 
 struct CameraProcessingResult {
     let frameIndex: Int
+    /// Quarter turn from the camera buffer to the analysis frame everything below is in (gravity down the image).
+    let rotation: CaptureRotation
     let imageWidth: Double
     let imageHeight: Double
     /// The XS input 2D (RTMPose + accepted MediaPipe wrists): drawn by the overlay, so a drawn wrist never sits on a
@@ -267,6 +272,10 @@ final class CameraPoseViewModel: ObservableObject {
     private var squatEvaluator: SquatEvaluator?
     private var barbellRowEvaluator: BarbellRowEvaluator?
     private var pushUpEvaluator: PushUpEvaluator?
+    /// Phone held in landscape (CaptureRotation): CoreMotion gravity through the hysteresis tracker, which is only
+    /// touched on the capture processing queue. The BPT_FORCE_CAPTURE_ROTATION launch override needs no CoreMotion.
+    nonisolated(unsafe) private var rotationTracker = CaptureRotationTracker(rotation: CaptureRotation.forced ?? .up)
+    nonisolated(unsafe) private let rotationMotion = CaptureRotation.forced == nil ? DeviceMotionMonitor() : nil
 
     /// Only touched on the capture processing queue (one frame at a time), like the workspace.
     nonisolated(unsafe) private var cropTracker = RTMPoseCropTracker()
@@ -327,6 +336,7 @@ final class CameraPoseViewModel: ObservableObject {
         captureManager.perfLog?.close()
         captureManager.perfLog = nil
         bridge?.voice.stop()
+        rotationMotion?.stop()
     }
 
     private func keepScreenAwake(_ on: Bool, reason: String) {
@@ -557,6 +567,7 @@ final class CameraPoseViewModel: ObservableObject {
 
         bridge?.onStartSet = { [weak self] in self?.startSet($0) }
         bridge?.onEndSet = { [weak self] in self?.endSet($0) }
+        rotationMotion?.start()
         startSet(1)
         startPerfLog()
         if let videoSource { videoSource.start() } else { captureManager.start() }
@@ -594,7 +605,9 @@ final class CameraPoseViewModel: ObservableObject {
             do {
                 let arrivedAt = arrival
                 let timestampMs = Self.timestampMs(sampleBuffer, fallback: frameIdx)
-                let cgImage = try Self.cgImageFromSampleBuffer(sampleBuffer, ciContext: ciContext)
+                // From here on everything (crop, RTMPose, hands, evaluators, 3D input) is in the analysis frame.
+                let rotation = updateCaptureRotation()
+                let cgImage = try Self.cgImageFromSampleBuffer(sampleBuffer, ciContext: ciContext, rotation: rotation)
                 guard let estimate = try cropTracker.estimate(cgImage, model: rtmpose, workspace: workspace,
                                                               personCrop: CameraPreviewOptions.personCropInput) else {
                     return
@@ -640,6 +653,7 @@ final class CameraPoseViewModel: ObservableObject {
 
                 var result = CameraProcessingResult(
                     frameIndex: frameIdx,
+                    rotation: rotation,
                     imageWidth: Double(cgImage.width),
                     imageHeight: Double(cgImage.height),
                     visualCoco17: visualCoco17,
@@ -671,7 +685,8 @@ final class CameraPoseViewModel: ObservableObject {
                     do {
                         let before = self.lifter?.inferences ?? 0
                         let ready = try self.lifter?.push(frameIndex: frameIdx, coco17: wrists.input, imageWidth: cgImage.width,
-                                                          imageHeight: cgImage.height, payload: shown) ?? []
+                                                          imageHeight: cgImage.height, captureRotation: shown.rotation,
+                                                          payload: shown) ?? []
                         let liftMs = (CACurrentMediaTime() - t0) * 1000
                         self.perfLog?.sample("lift3d", ms: liftMs)
                         if let log = VideoRunLog.shared {
@@ -697,8 +712,9 @@ final class CameraPoseViewModel: ObservableObject {
     /// Overlay only (3D path): the newest 2D right away, status/rep from the last judged frame.
     @MainActor
     private func showFrame(_ result: CameraProcessingResult) {
+        if currentFrame?.rotation != result.rotation { overlaySmoother = OverlaySmoother() }
         currentFrame = CameraFrameData(
-            id: result.frameIndex, frameIndex: result.frameIndex, imageWidth: result.imageWidth,
+            id: result.frameIndex, frameIndex: result.frameIndex, rotation: result.rotation, imageWidth: result.imageWidth,
             imageHeight: result.imageHeight, coco17: overlaySmoother.smooth(result.visualCoco17, at: CACurrentMediaTime()),
             rawCoco17: result.rawCoco17, handResults: result.handResults, exerciseTitle: exercise.displayName,
             statusText: lastReportedStatus ?? "", rep: lastReportedRep ?? 0, done: lastReportedDone ?? false,
@@ -775,12 +791,14 @@ final class CameraPoseViewModel: ObservableObject {
 
     @MainActor
     private func handleProcessingResult(_ result: CameraProcessingResult) {
+        if currentFrame?.rotation != result.rotation { overlaySmoother = OverlaySmoother() }
         let (statusText, rep, done) = self.runEvaluator(frameIndex: result.frameIndex, rawCoco17: result.rawCoco17,
                                                         feet: result.feet, pose3D: nil, pose3DState: nil)
 
         let frameData = CameraFrameData(
             id: result.frameIndex,
             frameIndex: result.frameIndex,
+            rotation: result.rotation,
             imageWidth: result.imageWidth,
             imageHeight: result.imageHeight,
             coco17: overlaySmoother.smooth(result.visualCoco17, at: CACurrentMediaTime()),
@@ -872,18 +890,33 @@ final class CameraPoseViewModel: ObservableObject {
         return try MLModel(contentsOf: url, configuration: config)
     }
 
+    /// The frame in the analysis frame: the turn rides on the render this needs anyway (no extra pass).
     private nonisolated static func cgImageFromSampleBuffer(
         _ sampleBuffer: CMSampleBuffer,
-        ciContext: CIContext
+        ciContext: CIContext,
+        rotation: CaptureRotation
     ) throws -> CGImage {
         guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else {
             throw NSError(domain: "CameraPosePreview", code: 2, userInfo: [NSLocalizedDescriptionKey: "Missing pixel buffer"])
         }
-        let ciImage = CIImage(cvPixelBuffer: pixelBuffer)
+        let ciImage = rotation.analysisImage(CIImage(cvPixelBuffer: pixelBuffer))
         guard let cgImage = ciContext.createCGImage(ciImage, from: ciImage.extent) else {
             throw NSError(domain: "CameraPosePreview", code: 3, userInfo: [NSLocalizedDescriptionKey: "CGImage creation failed"])
         }
         return cgImage
+    }
+
+    /// Processing queue: this frame's rotation (the launch override, else the latest gravity sample). A new rotation
+    /// drops the person crop, which is in the old frame's pixels; the next frame searches the whole frame again.
+    private nonisolated func updateCaptureRotation() -> CaptureRotation {
+        let before = rotationTracker.rotation
+        guard let state = rotationMotion?.state, state.isAvailable else { return before }
+        let rotation = rotationTracker.update(gravityX: state.gravity[0], gravityY: state.gravity[1])
+        if rotation != before {
+            cropTracker.reset()
+            print("CameraPosePreview capture rotation \(before.rawValue) -> \(rotation.rawValue)")
+        }
+        return rotation
     }
 
     private nonisolated static func timestampMs(_ sampleBuffer: CMSampleBuffer, fallback: Int) -> Int {
@@ -1005,16 +1038,20 @@ private struct CameraLiveView: View {
 
     /// Glowing body skeleton coloured by live posture severity (green default, dim green when uncertain), no head, no hands.
     private func drawSkeleton(frame: CameraFrameData, context: inout GraphicsContext, size: CGSize) {
-        let rect = aspectFillRect(imageWidth: frame.imageWidth, imageHeight: frame.imageHeight, in: size)
+        let buffer = frame.rotation.bufferSize(width: frame.imageWidth, height: frame.imageHeight)
+        let rect = aspectFillRect(imageWidth: buffer.width, imageHeight: buffer.height, in: size)
         PoseOverlayRenderer.draw(frame.coco17, shade: frame.shade, in: &context) {
             viewPoint($0, frame: frame, rect: rect)
         }
     }
 
+    /// Analysis-frame keypoint → view point over the preview (which shows the buffer).
     private func viewPoint(_ keypoint: PoseKeypoint, frame: CameraFrameData, rect: CGRect) -> CGPoint {
-        CGPoint(
-            x: rect.minX + CGFloat(keypoint.x / frame.imageWidth) * rect.width,
-            y: rect.minY + CGFloat(keypoint.y / frame.imageHeight) * rect.height
+        let buffer = frame.rotation.bufferSize(width: frame.imageWidth, height: frame.imageHeight)
+        let p = frame.rotation.bufferPoint(x: keypoint.x, y: keypoint.y, bufferWidth: buffer.width, bufferHeight: buffer.height)
+        return CGPoint(
+            x: rect.minX + CGFloat(p.x / buffer.width) * rect.width,
+            y: rect.minY + CGFloat(p.y / buffer.height) * rect.height
         )
     }
 

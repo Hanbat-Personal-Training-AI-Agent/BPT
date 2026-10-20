@@ -185,4 +185,64 @@ final class MotionAGFormerLiveTests: XCTestCase {
         XCTAssertEqual(rest.map(\.frameIndex), [60])
         XCTAssertEqual(rest.first?.state, .warmingUp)
     }
+
+    func testRotationChangeFlushesOldFramesAndRestartsWarmup() throws {
+        let person = (0..<17).map { PoseKeypoint(x: 300 + Double($0) * 5, y: 200 + Double($0) * 40, confidence: 0.9) }
+        // Unique confidence tags expose any mixed input window, independent of crop normalization.
+        for cadence in [1, 3] {
+            var windows: [Set<Float>] = []
+            var live = MotionAGFormerLive<Int>(lookahead: 5, cadence: cadence, predict: { input in
+                windows.append(Set(stride(from: 2, to: input.count, by: 3).map { input[$0] }))
+                return Self.fakePredict(input)
+            })
+            var emitted: [(Int, Lifted3DFrame)] = []
+            for (segment, rotation) in [CaptureRotation.up, .cw90, .cw270, .cw180].enumerated() {
+                let tagged = person.map {
+                    PoseKeypoint(x: $0.x, y: $0.y, confidence: 0.6 + Double(segment) * 0.1)
+                }
+                for offset in 0..<40 {
+                    let index = segment * 40 + offset
+                    let batch = try live.push(frameIndex: index, coco17: tagged, imageWidth: 720,
+                                              imageHeight: 1280, captureRotation: rotation, payload: index)
+                    if offset == 0 && segment > 0 {
+                        XCTAssertEqual(batch.last?.0, index - 1, "old tail emitted before new rotation")
+                    }
+                    emitted += batch
+                }
+            }
+            emitted += try live.flush()
+            XCTAssertEqual(emitted.map(\.0), Array(0..<160), "every payload emitted once, in order")
+            XCTAssertTrue(windows.allSatisfy { $0.count == 1 }, "XS windows must contain only one orientation")
+            for (payload, frame) in emitted {
+                XCTAssertEqual(payload, frame.frameIndex)
+                if payload % 40 < 21 {
+                    XCTAssertEqual(frame.state, .warmingUp, "every rotation restarts the 27-frame warmup")
+                }
+            }
+        }
+    }
+
+    func testFailedRotationFlushStillClearsTheOldWindow() throws {
+        enum Failure: Error { case prediction }
+        let person = (0..<17).map { PoseKeypoint(x: 300 + Double($0) * 5, y: 200 + Double($0) * 40, confidence: 0.9) }
+        var fail = false
+        var live = MotionAGFormerLive<Int>(predict: { input in
+            if fail { throw Failure.prediction }
+            return Self.fakePredict(input)
+        })
+        for index in 0..<30 {
+            _ = try live.push(frameIndex: index, coco17: person, imageWidth: 720, imageHeight: 1280, payload: index)
+        }
+        fail = true
+        XCTAssertThrowsError(try live.push(frameIndex: 30, coco17: person, imageWidth: 720, imageHeight: 1280,
+                                           captureRotation: .cw90, payload: 30))
+        fail = false
+        let next = try live.push(frameIndex: 31, coco17: person, imageWidth: 720, imageHeight: 1280,
+                                 captureRotation: .cw90, payload: 31)
+        XCTAssertTrue(next.isEmpty)
+        let tail = try live.flush()
+        XCTAssertEqual(tail.map(\.0), [31], "failed old tail cannot leak into the new window")
+        XCTAssertEqual(tail.first?.1.state, .warmingUp)
+        XCTAssertEqual(tail.first?.1.filled, 1)
+    }
 }
