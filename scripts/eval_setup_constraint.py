@@ -199,31 +199,36 @@ def corrupt(K, episodes, rng):
     return K2
 
 
+def _forward(model, dev, xb):
+    """[B,27,17,3] numpy -> [B,27,17,3] numpy. dev None: `model` is a plain numpy function (tests)."""
+    if dev is None:
+        return np.asarray(model(xb))
+    import torch
+    with torch.no_grad():
+        return model(torch.from_numpy(xb).to(dev)).cpu().numpy()
+
+
 def rows_partial(model, dev, x, changed, clean, batch=256):
     """XS rows (L=5) for input x where only frames `changed` differ from the clean input: windows touching a changed
     frame are recomputed, the rest reuse `clean`. Frame t = window [t+L-26, t+L] edge-clamped, row 26-L (the app)."""
-    import torch
     n = len(x); need = np.zeros(n, bool)
     for c in np.flatnonzero(changed):
         need[max(0, c - L5):min(n, c - L5 + WIN)] = True
     t = np.flatnonzero(need); out = clean.copy()
     if len(t):
         idx = np.clip(t[:, None] + L5 - (WIN - 1) + np.arange(WIN)[None], 0, n - 1)
-        with torch.no_grad():
-            for s0 in range(0, len(t), batch):
-                out[t[s0:s0 + batch]] = model(torch.from_numpy(x[idx[s0:s0 + batch]]).to(dev))[:, WIN - 1 - L5].cpu().numpy()
+        for s0 in range(0, len(t), batch):
+            out[t[s0:s0 + batch]] = _forward(model, dev, x[idx[s0:s0 + batch]])[:, WIN - 1 - L5]
     return out, int(len(t))
 
 
 def rows_at(model, dev, x, frames, batch=256):
     """XS rows (L=5, the app's window) for the listed output frames only -> {frame: [17,3]}."""
-    import torch
     n = len(x); t = np.asarray(sorted(frames)); out = {}
     idx = np.clip(t[:, None] + L5 - (WIN - 1) + np.arange(WIN)[None], 0, n - 1)
-    with torch.no_grad():
-        for s0 in range(0, len(t), batch):
-            r = model(torch.from_numpy(x[idx[s0:s0 + batch]]).to(dev))[:, WIN - 1 - L5].cpu().numpy()
-            out.update({int(f): v.astype(float) for f, v in zip(t[s0:s0 + batch], r)})
+    for s0 in range(0, len(t), batch):
+        r = _forward(model, dev, x[idx[s0:s0 + batch]])[:, WIN - 1 - L5]
+        out.update({int(f): v.astype(float) for f, v in zip(t[s0:s0 + batch], r)})
     return out
 
 
