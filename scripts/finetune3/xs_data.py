@@ -549,7 +549,7 @@ def vgrid(a):
                 continue
             for ci, cam in enumerate(cams):
                 cam = dict(cam, height=0.8, dist=3.0, f=F)
-                for noisy in (False, True):
+                for noisy in ((True,) if a.noisy_only else (False, True)):
                     v = virtual_seq(d[0], offs, pool_, rng, GROUP[ex], cam, f'{s}/{ex}/g{ci}', noisy=noisy, ann=d[2])
                     v['grid'] = ci
                     seqs.append(v)
@@ -572,6 +572,7 @@ def main():
     ap.add_argument('--mapping', default='app', help='app | halpe: H36M input mapping for Halpe26 2D (C3, plan §1.3)')
     ap.add_argument('--halpe', action='store_true', help='offsets / pool: fit from a Halpe26 model (--pose2d, --ex3d-csv)')
     ap.add_argument('--a-tag', default='A', help='build --kinds A: src prefix')
+    ap.add_argument('--noisy-only', action='store_true', help='vgrid: only the noisy variant (clean skipped)')
     ap.add_argument('--v-mapping', default=None, help='app | halpe: force the mapping of virtual 2D (same 2D, other mapping)')
     ap.add_argument('--pose2d', default=os.path.expanduser('~/bpt-runs/lift-compare/A-pose2d-20261019/pose2d'))
     ap.add_argument('--a-sources', default='coco,halpe', help='build --kinds A: stage-1 keypoint arrays to use')
