@@ -96,7 +96,7 @@ nice -n 10 /tmp/bpt-motion-verify tests/fixtures/exercise_motion_cases.json
 
 The fixture is loaded relative to the repository by the XCTest parity test, matching the existing package's fixture convention. The production estimator is linked into both SwiftPM targets with symlinks and explicitly listed in the Runner Xcode target. `project.pbxproj` parsing and syntax parsing of the modified live/camera/bridge files passed.
 
-Twenty XCTest cases are prepared in `ExerciseMotionEstimatorTests.swift` and `ExerciseMotionLiveTests.swift`. Eleven core tests passed in the standalone XCTest executable with zero failures, including G/H covariance PSD and bounded stale-velocity/untrusted-raw regressions, Python parity, calibration provenance/adapter, online observation requirements, scale poisoning, contact expiry, and unobserved initialization. Nine live tests cover frame/root alignment, trusted observations, expired raw fallback after legacy constraints, calibration ownership/reset, and invalid gates; these and the full package suite have **not** been executed at this checkpoint. Full SwiftPM and signed iOS builds wait for the existing phone experiment to release the heavy-work lock. Run the entire package suite to include `FormWarningsTests.testMotionExperimentNeverPraisesWithheldPostureAsFixed` as well:
+All twenty XCTest cases in `ExerciseMotionEstimatorTests.swift` and `ExerciseMotionLiveTests.swift` passed. Eleven core tests also passed in the standalone XCTest executable, including G/H covariance PSD and bounded stale-velocity/untrusted-raw regressions, Python parity, calibration provenance/adapter, online observation requirements, scale poisoning, contact expiry, and unobserved initialization. Nine live tests passed for frame/root alignment, trusted observations, expired raw fallback after legacy constraints, calibration ownership/reset, and invalid gates. The device owner ran the complete SwiftPM suite against frozen runtime `deda231`; it finished at 2026-10-21 10:43:11 KST with **154 tests, zero failures**, including `FormWarningsTests.testMotionExperimentNeverPraisesWithheldPostureAsFixed`. The log was independently read and copied to the local v4 artifact directory. Signed iOS compilation was still in progress at this documentation checkpoint.
 
 ```sh
 lockf -k /tmp/bpt-heavy.lock swift test --package-path ios/CalibrationEngineKit
@@ -104,7 +104,7 @@ lockf -k /tmp/bpt-heavy.lock swift test --package-path ios/CalibrationEngineKit
 
 Local reproduction records, source hashes, and the standalone XCTest entry point are preserved under `~/bpt-runs/motion-contact/20261020-swift-core/v4`; the previous `v2` and `v3` directories retain their snapshots and checks. Direct XCTest compilation needs the Xcode Mac platform's `Developer/usr/lib` import/library paths and `Developer/Library/Frameworks` framework path; no model inference or full app build was performed by that harness.
 
-No iPhone overhead, posture-quality improvement, warning accuracy, or adoption conclusion is established by numeric parity. The experimental app has not yet been built or measured on the phone.
+No iPhone overhead, posture-quality improvement, warning accuracy, or adoption conclusion is established by numeric parity or the SwiftPM suite. The v4 experimental app has not yet been installed or measured on the phone at this checkpoint.
 
 ## Standalone Mac v4 cost measurement
 
