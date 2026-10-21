@@ -72,6 +72,20 @@ C3 실제 검증: 같은 362프레임 CSV에서 26점과 17점 모두 2렙, 입�
 
 교환한 crop 시퀀스의 누락은 모두 0이며 전체 프레임 입력 횟수도 원본 시퀀스와 같다(w20_s3 C crop 26/H crop 808, w20_s2 C crop 1/H crop 178). 이 조건에서는 crop 경로를 바꾸면 렙 차이도 크게 바뀌므로 crop이 결과차이에 관여한다는 직접 대조 근거다. 초기 획득 실패의 전체 원인이나 다른 인코딩으로 일반화하지 않는다. 원본 결과 해시: `halpe_default_crop_partial.json`.
 
+### 완료된 Mac Exercise3D / 비운동 회귀 (폰 비교와 별도)
+
+`pose-replay-f715c3b`, 원본 XS, ready-pose OFF의 앱 pose 경로를 두 모델로 실행했다. 기존 각도로 골랐던 측면·사선 Exercise3D 30개와 회귀 13케이스, 모델당 43케이스(총 86개) JSON의 렙·3D 집계가 최종 rows와 같은지 확인했다. 이전 D-B-01 인물 split을 그대로 썼다.
+
+| 부분집합 | 클립/모델 | 정확 렙 C / H | 절대 렙 오차 C / H | bad_3d 프레임 C / H | 3D 프레임/모델 |
+|---|---:|---:|---:|---:|---:|
+| Exercise3D 전체 선택 | 30 | 28 / 29 | 11 / 1 | 1,980 / 3,083 | 24,436 |
+| 기존 held-out | 6 | 4 / 5 | 11 / 1 | 55 / 51 | 4,360 |
+| 기존 tuning | 24 | 24 / 24 | 0 / 0 | 1,925 / 3,032 | 20,076 |
+| 회귀(스쿼트 2렙 포함) | 13 | 13 / 13 | 0 / 0 | 0 / 0 | 4,883 |
+| 회귀 중 비운동 | 12 | 12 / 12 | 0 / 0 | 0 / 0 | 4,406 |
+
+렙 계수는 H에서 나아졌지만 선택된 Exercise3D 전체의 `bad_3d_frames`는 늘었다. 이 Mac session 지표를 폰 라이브 `ok` 상태와 같은 것으로 합치지 않는다. 비운동 12케이스는 두 모델 모두 0렙이며 추가 렙이 없었다. 기존 `match_reps` 시간 대응 기준 누락도 Exercise3D C11/H1, 추가0/0이다. 의사 렙 정답을 수동 검수 자세 정확도로 확대하지 않는다. 원본 출력 JSON 86개·바이너리·runner·GT의 SHA와 원시 집계는 `halpe_default_mac_ex3d.json`에 있다.
+
 ### iPhone 동일 빌드 비교: 10/21 10:40 partial checkpoint (전체 결과 아님)
 
 - Runner SHA256 `674a755e8e3c7eff708b7f6bc92e98a2995abccf2047e60452f4fc78e71e2adb`, 소스 `a8b29f1`. 원본 H36M XS, 강제 캡처 회전 0, gravity OFF. 미세조정 모델이나 이후 motion/contact 실험은 넣지 않았다.
@@ -125,7 +139,7 @@ scratch 기준: `/private/tmp/claude-501/-Users-6-month-github-06-month-hanbat-r
 | 실행 | 파일 | 상태 |
 |---|---|---|
 | MM-Fit 세 인코딩 통제 비교 | `mmfit_run.py`, `runs/mmfit/`, 완료 시 `rows.json` | 완료 캐시를 보존해 재개, 폰 우선 대기; `phone_priority_resume.json`에 정확한 argv |
-| Exercise3D + 비운동 회귀 | `ex3d_run.py`, `runs/ex3d/`, 완료 시 `rows.json` | 완료 캐시 보존, 폰 뒤에서 계속 진행 |
+| Exercise3D + 비운동 회귀 | `ex3d_run.py`, `runs/ex3d/`, 완료 시 `rows.json` | **완료**: 30 Exercise3D + 13 회귀 케이스/모델, 원본 JSON 86개 집계 일치 검증 |
 | 구 바이너리 재현 | `runs/oldbin/` | w20_s3 / w13_s2 두 모델 완료 |
 | CSV 보존 검증 | `verify_c3.py`, `runs/csv_c3/checks.json` | **통과**: 각 362프레임 26/17점 왕복, 두 입력 옵션, heel 지표 민감도 |
 | 회귀 | `swift_final.log` | **105 통과**, 실패 0, 22:43:19 |
