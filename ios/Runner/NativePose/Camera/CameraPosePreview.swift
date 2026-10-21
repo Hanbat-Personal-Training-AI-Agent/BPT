@@ -549,7 +549,7 @@ final class CameraPoseViewModel: ObservableObject {
                         lifter?.motionOnlineCalibration = CameraPreviewOptions.motionOnlineCalibration
                         let config: [String: Any] = [
                             "variant": variant.rawValue, "exercise": name,
-                            "observation_policy": "trusted_passthrough_v3",
+                            "observation_policy": "trusted_passthrough_v4",
                             "require_observed_praise": true,
                             "fixed_camera_evidence": CameraPreviewOptions.motionFixedCamera,
                             "grip_confirmed": CameraPreviewOptions.motionGripConfirmed,
