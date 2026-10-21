@@ -437,7 +437,12 @@ struct ExerciseMotionEstimator {
         }
         if turning { for j in [12, 13, 15, 16] { v[j] *= 0.3 } }
 
-        var pred = (0..<17).map { p[$0] + dt * v[$0] }
+        var pred = (0..<17).map { j -> SIMD3<Double> in
+            // Reuse the CV baseline's useful horizon: an old velocity cannot advance forever.
+            let age = now - lastSeen[j]
+            let step = adaptive ? Self.clamp(0.35 - max(0, age - dt), 0, dt) : dt
+            return p[j] + step * v[j]
+        }
         var accepted = measured
         let innovation = (0..<17).map { simd_length(raw[$0] - pred[$0]) }
         var rejected = Array(repeating: false, count: 17)
@@ -466,6 +471,10 @@ struct ExerciseMotionEstimator {
                     pred[j] = raw[j]
                     v[j] = .zero
                     p00[j] = pow(0.03 * s, 2)
+                    // Position/velocity relocation requires a full covariance reset. Keeping an
+                    // old cross term while shrinking only p00 can make the covariance non-PSD.
+                    p01[j] = 0
+                    p11[j] = pow(0.5 * s, 2)
                 }
             }
         }
@@ -641,6 +650,13 @@ struct ExerciseMotionEstimator {
             gripHistory = []
         }
         let age = lastSeen.map { now - $0 }
+        let expiredPrediction = (0..<17).filter { adaptive && initialized[$0] && !accepted[$0] && age[$0] > 0.5 }
+        for j in expiredPrediction {
+            // Abandon stale correction after all soft constraints. Raw remains untrusted, not
+            // an assertion of a stationary or recovered joint; missing raw remains missing.
+            corrected[j] = raw[j]
+            usedPrediction[j] = true
+        }
         for j in 0..<17 {
             uncertainty[j] = max(uncertainty[j], usedPrediction[j] ? (0.03 + 0.3 * min(age[j], 2)) * s : 0)
         }
@@ -664,7 +680,8 @@ struct ExerciseMotionEstimator {
             diagnostics: ["scale": s, "fixed_camera": supportAvailable, "contact_corrected": contactUsed,
                           "bone_corrected": kinematicUsed, "rejected_joints": (0..<17).filter { rejected[$0] },
                           "observation_passthrough": (0..<17).filter { passthrough[$0] },
-                          "observation_policy": "trusted_passthrough_v3",
+                          "observation_policy": "trusted_passthrough_v4",
+                          "expired_prediction_fallback": expiredPrediction,
                           "body_scale_updated": currentScale != nil, "image_scale": leg2D,
                           "calibration_used": kinEnabled && !boneProfile.isEmpty,
                           "grip_used": gripReference != nil, "last_reset_reason": resetReason,

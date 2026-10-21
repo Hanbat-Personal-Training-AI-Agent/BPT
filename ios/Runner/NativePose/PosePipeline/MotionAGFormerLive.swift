@@ -291,6 +291,10 @@ struct MotionAGFormerLive<Payload> {
                     estimated.corrected[joint] = raw[joint]
                     estimated.correctionMagnitude[joint] = 0
                 }
+                for joint in estimated.diagnostics["expired_prediction_fallback"] as? [Int] ?? [] {
+                    estimated.corrected[joint] = raw[joint]
+                    estimated.correctionMagnitude[joint] = [raw[joint].x, raw[joint].y, raw[joint].z].allSatisfy(\.isFinite) ? 0 : .nan
+                }
                 estimated.diagnostics["original_model_root_offset"] = [originalRoot.x, originalRoot.y, originalRoot.z]
                     .map { $0.isFinite ? $0 as Any : NSNull() }
                 let rootNorm = simd_length(originalRoot)
@@ -323,6 +327,22 @@ struct MotionAGFormerLive<Payload> {
                 motion?.diagnostics["legacy_constraint_proposals_only_for_trusted"] = true
                 motion?.diagnostics["legacy_constraint_restored_joints"] = restored
                 motion?.diagnostics["legacy_constraint_proposal_magnitude"] = magnitudes
+                let expired = motion?.diagnostics["expired_prediction_fallback"] as? [Int] ?? []
+                var restoredExpired: [Int] = []
+                var expiredMagnitudes: [String: Any] = [:]
+                for joint in expired {
+                    if proposal[joint] != raw[joint] {
+                        restoredExpired.append(joint)
+                        let magnitude = simd_length(proposal[joint] - raw[joint])
+                        expiredMagnitudes[String(joint)] = magnitude.isFinite ? magnitude as Any : NSNull()
+                    }
+                    fixed[joint] = raw[joint]
+                }
+                // Expiry abandons correction, not uncertainty. Never normalize an unobserved
+                // fallback into an apparently good posture; keep estimator and legacy gates.
+                motion?.diagnostics["legacy_constraint_proposals_only_for_expired_fallback"] = true
+                motion?.diagnostics["legacy_constraint_restored_expired_joints"] = restoredExpired
+                motion?.diagnostics["legacy_constraint_expired_proposal_magnitude"] = expiredMagnitudes
             }
             let invalid = report.invalidJoints.union(motion?.invalidForAssessment ?? [])
             let state: Pose3DState = invalid.isEmpty ? .ok : invalid.count == 17 ? .bad3D : .partial3D

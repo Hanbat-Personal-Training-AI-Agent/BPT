@@ -9,7 +9,7 @@ final class ExerciseMotionEstimatorTests: XCTestCase {
 
     func testPythonNumericalAndStateParity() throws {
         let result = try ExerciseMotionParity.verify(Self.root.appendingPathComponent("tests/fixtures/exercise_motion_cases.json"))
-        XCTAssertEqual(result.checked, 630)
+        XCTAssertEqual(result.checked, 720)
         XCTAssertTrue(result.errors.isEmpty, result.errors.prefix(10).joined(separator: "\n"))
     }
 
@@ -101,6 +101,79 @@ final class ExerciseMotionEstimatorTests: XCTestCase {
         return ((frame["raw"] as! [[Double]]).map { SIMD3($0) },
                 (frame["screen2d"] as! [[Double]]).map { SIMD3($0[0], $0[1], 0.95) })
     }
+
+    private func state<T>(_ estimator: ExerciseMotionEstimator, _ key: String, as type: T.Type) throws -> T {
+        // Read-only test introspection avoids expanding the production API or frame logs.
+        try XCTUnwrap(Mirror(reflecting: estimator).children.first { $0.label == key }?.value as? T)
+    }
+
+    private func assertRelocationPreservesCovariancePSD(_ variant: ExerciseMotionVariant) throws {
+        let (base, _) = try firstFixturePose()
+        var estimator = ExerciseMotionEstimator(exercise: "barbell_row", variant: variant)
+        var resets: [Int] = []
+        for t in 0..<240 {
+            var raw = base
+            if t >= 180 { raw[13].x += 0.15 + (t >= 183 ? 0.002 * Double(t - 183) : 0) }
+            var screen = raw.map { SIMD3($0.x + 0.5, $0.y + 0.55, 1.0) }
+            if (30..<180).contains(t) || t >= 210 { screen[13].z = 0.05 }
+            let result = estimator.update(raw: raw, screen2D: screen, timestamp: Double(t) / 30)
+            let a = try state(estimator, "p00", as: [Double].self)[13]
+            let b = try state(estimator, "p01", as: [Double].self)[13]
+            let d = try state(estimator, "p11", as: [Double].self)[13]
+            XCTAssertTrue([a, b, d].allSatisfy(\.isFinite))
+            let minimumEigenvalue = (a + d - hypot(a - d, 2 * b)) / 2
+            XCTAssertGreaterThanOrEqual(minimumEigenvalue, -1e-12, "\(variant) frame \(t): \(a), \(b), \(d)")
+            if (result.diagnostics["observation_passthrough"] as! [Int]).contains(13) {
+                XCTAssertEqual(result.corrected[13], raw[13])
+                if try state(estimator, "candidateCount", as: [Int].self)[13] >= 3 { resets.append(t) }
+            }
+        }
+        XCTAssertTrue(resets.contains(182), "the regression must exercise the relocation reset")
+    }
+
+    func testGRelocatedJointPreservesCovariancePSD() throws { try assertRelocationPreservesCovariancePSD(.G) }
+    func testHRelocatedJointPreservesCovariancePSD() throws { try assertRelocationPreservesCovariancePSD(.H) }
+
+    private func assertStaleVelocityExpiresToUntrustedRaw(_ variant: ExerciseMotionVariant) throws {
+        let (base, _) = try firstFixturePose()
+        var estimator = ExerciseMotionEstimator(exercise: "squat", variant: variant)
+        for t in 0..<30 {
+            var raw = base
+            raw[13].x += 0.002 * Double(t)
+            let screen = raw.map { SIMD3($0.x + 0.5, $0.y + 0.55, 1.0) }
+            _ = estimator.update(raw: raw, screen2D: screen, timestamp: Double(t) / 30)
+        }
+        let lastPosition = try state(estimator, "p", as: [SIMD3<Double>].self)[13]
+        let velocity = try state(estimator, "v", as: [SIMD3<Double>].self)[13]
+        XCTAssertGreaterThan(sqrt(velocity.x * velocity.x + velocity.y * velocity.y + velocity.z * velocity.z), 0.01)
+        var raw = base
+        raw[13] += SIMD3(0.6, -0.4, 0.3)
+        var screen = raw.map { SIMD3($0.x + 0.5, $0.y + 0.55, 1.0) }
+        screen[13].z = 0.05
+        for t in 30..<120 {
+            let result = estimator.update(raw: raw, screen2D: screen, timestamp: Double(t) / 30)
+            if t >= 45 {
+                let actual = try state(estimator, "p", as: [SIMD3<Double>].self)[13]
+                let expected = lastPosition + 0.35 * velocity
+                XCTAssertEqual(actual.x, expected.x, accuracy: 1e-12)
+                XCTAssertEqual(actual.y, expected.y, accuracy: 1e-12)
+                XCTAssertEqual(actual.z, expected.z, accuracy: 1e-12)
+                XCTAssertEqual(result.corrected[13], raw[13])
+                XCTAssertTrue(result.invalidForAssessment.contains(13))
+                XCTAssertTrue(result.usedPrediction[13])
+                XCTAssertEqual(result.roles[13], "uncertain_joint")
+                XCTAssertTrue((result.diagnostics["expired_prediction_fallback"] as! [Int]).contains(13))
+                XCTAssertFalse((result.diagnostics["observation_passthrough"] as! [Int]).contains(13))
+            }
+        }
+        raw[13] = SIMD3(repeating: .nan)
+        let missing = estimator.update(raw: raw, screen2D: screen, timestamp: 4)
+        XCTAssertTrue([missing.corrected[13].x, missing.corrected[13].y, missing.corrected[13].z].allSatisfy(\.isNaN))
+        XCTAssertTrue(missing.invalidForAssessment.contains(13))
+    }
+
+    func testGStaleVelocityExpiresToUntrustedRaw() throws { try assertStaleVelocityExpiresToUntrustedRaw(.G) }
+    func testHStaleVelocityExpiresToUntrustedRaw() throws { try assertStaleVelocityExpiresToUntrustedRaw(.H) }
 
     func testUnobservedLegCannotCertifyAnotherJointsOutlier() throws {
         let (pose, screen) = try firstFixturePose()

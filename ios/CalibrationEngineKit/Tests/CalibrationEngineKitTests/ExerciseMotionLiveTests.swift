@@ -197,6 +197,48 @@ final class ExerciseMotionLiveTests: XCTestCase {
         XCTAssertGreaterThan(uncertainChecked, 0, "compare actual low-confidence wrist predictions")
     }
 
+    func testExpiredFallbackRemainsExactRawAndInvalidAfterLegacyConstraints() throws {
+        for variant in [ExerciseMotionVariant.G, .H] {
+            var selected = 21
+            let base = pose
+            var pipeline = MotionAGFormerLive<Int>(predict: { _ in
+                var raw = base
+                if selected >= 40 { raw[3] = [0.09, 0.03, 0.01] }
+                selected += 1
+                let root = SIMD3<Double>(0.17, -0.11, 0.09)
+                let row = raw.flatMap { p in [Float(p.x + root.x), Float(p.y + root.y), Float(p.z + root.z)] }
+                return Array(repeating: row, count: 27).flatMap { $0 }
+            })
+            pipeline.motionEstimator = ExerciseMotionEstimator(exercise: "squat", variant: variant)
+            pipeline.constraints.boneLengths = false
+            pipeline.constraints.kneeClampDegrees = nil
+            pipeline.constraints.angleLimits = Pose3DConstraints.defaultAngleLimits.filter { $0.name == "right_knee_flexion" }
+            var checked = 0
+            for i in 0..<90 {
+                var observed = person
+                if i >= 40 { observed[16] = PoseKeypoint(x: observed[16].x, y: observed[16].y, confidence: 0.05) }
+                let frames = try pipeline.push(frameIndex: i, coco17: observed, imageWidth: 720,
+                    imageHeight: 1280, motionContext: .init(timestamp: Double(i) / 30), payload: i)
+                for (_, frame) in frames {
+                    guard let raw = frame.raw, let result = frame.motion,
+                          (result.diagnostics["expired_prediction_fallback"] as! [Int]).contains(3) else { continue }
+                    XCTAssertEqual(result.corrected[3], raw[3], "fallback must avoid conversion roundoff")
+                    XCTAssertEqual(frame.pose3D![3], raw[3], "legacy correction must not normalize an expired joint")
+                    XCTAssertEqual(result.correctionMagnitude[3], 0)
+                    XCTAssertTrue(result.usedPrediction[3])
+                    XCTAssertEqual(result.roles[3], "uncertain_joint")
+                    XCTAssertFalse((result.diagnostics["observation_passthrough"] as! [Int]).contains(3))
+                    XCTAssertTrue(frame.invalidForAssessment.contains(3))
+                    XCTAssertTrue(frame.constraints!.invalidJoints.contains(3), "keep the legacy proposal gate too")
+                    XCTAssertTrue(frame.masked3D![3].x.isNaN)
+                    XCTAssertTrue((result.diagnostics["legacy_constraint_restored_expired_joints"] as! [Int]).contains(3))
+                    checked += 1
+                }
+            }
+            XCTAssertGreaterThan(checked, 0, "exercise actual expiry and a legacy proposal")
+        }
+    }
+
     func testExistingGateAndEstimatorInvalidationAreBothPreserved() {
         var report = Pose3DConstraints.Report()
         report.invalidJoints = [2]
