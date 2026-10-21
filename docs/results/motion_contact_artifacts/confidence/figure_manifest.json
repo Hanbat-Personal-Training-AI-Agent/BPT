@@ -1,0 +1,8 @@
+{
+  "input_sha256": "2cfce71a3c35b9f0ded427055514fa53199b78563529a5d441ade0990960b47d",
+  "report_source_sha256": "d07dc8c9fe75c7b9657c4d3df16a871a4e9bf4907539d814c5e7f6390c17a090",
+  "outputs": {
+    "motion_contact_confidence.png": "889b47766e8d6b053d53a33457ba4520a37a98279a8696bae477fd492d1a398a",
+    "motion_contact_confidence.svg": "17de3a1e7d71a5fc1465a01f4fdef12ae1c51f7ea87c86c5b1c204b2b47db460"
+  }
+}

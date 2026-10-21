@@ -15,11 +15,11 @@ selected from these scores. Source v1 is `40e5edc`, source v2 is `b29e7c9`.
 The final candidate is v3 (`dd6c703`), which fixes two separately reproduced
 evidence-validity bugs: untrusted legs inflating scale, and stale contact
 candidates surviving long observation gaps. It retains v2's observation
-priority and every numeric threshold. All324 synthetic runs were repeated.
+priority and every numeric threshold. All 324 synthetic runs were repeated.
 
-G/H v3 still preserve all534 synthetic visible posture-error frames, with
+G/H v3 still preserve all 534 synthetic visible posture-error frames, with
 zero missed or withheld frames in that test. The squat root-motion/hidden
-ankle case improves from4.10% leg-length error in v2 to1.29% in v3 after
+ankle case improves from 4.10% leg-length error in v2 to 1.29% in v3 after
 excluding the untrusted ankle from scale estimation. The straight-motion
 phase failure and hidden support-change failure remain; the fixes do not
 justify general adoption.
@@ -38,7 +38,7 @@ variants: 324 runs and 68,040 causal updates per version. No model inference
 occurs in this experiment. The synthetic geometry is used only for scoring;
 the estimator receives noisy positions, image observations/confidence,
 exercise identity and fixed-camera evidence. Bone proportions come from its
-own first 60 selected observations, activated at frame81 with reliability0.4.
+own first 60 selected observations, activated at frame 81 with reliability 0.4.
 There is no SMPL ground-truth profile or ground-truth phase input.
 
 Cases cover constant wrist motion, short/long loss, reversal with a visible or
@@ -107,27 +107,27 @@ natural-event detection rate.
 
 When repositioning occurs entirely behind an occlusion, G/H cannot observe
 the move. The old anchor expires instead of producing a verified MOVING
-event; a new anchor is established about0.30 s after visibility returns.
+event; a new anchor is established about 0.30 s after visibility returns.
 During the hidden movement, 65% of eligible movement windows are suppressed
 by the predicted trajectory. Those predicted joints are withheld from PT
 assessment. **Hidden support changes are not solved.** Reporting only
 post-recovery stability would conceal this failure.
 
 With the root moving while support remains fixed, G v2 hidden-joint error is
-0.73% for the push-up wrist case and4.10% for the squat ankle case. The
+0.73% for the push-up wrist case and 4.10% for the squat ankle case. The
 ankle case is worse than D (2.70%) or hold (1.39%). Contact is not uniformly
 better than a temporal baseline. No root-relative ankle or contact depth is
 fixed.
 
-In the injected single confident jump, the raw wrist error is103.34% of
-leg length, versus0.50% for G v2 and0.49% for H v2. Both reject that frame
+In the injected single confident jump, the raw wrist error is 103.34% of
+leg length, versus 0.50% for G v2 and 0.49% for H v2. Both reject that frame
 for assessment. This is one engineered gross-jump case; smaller plausible
 mistakes and repeated confident mistakes remain important failure cases.
 
 ## Reproduction and artifacts
 
 The full results remain under
-`~/bpt-runs/motion-contact/20261020-synthetic-stress-{v1,v2}`.
+`~/bpt-runs/motion-contact/20261020-synthetic-stress-{v1,v2,v3}`.
 [Aggregate metrics and source/result hashes](motion_contact_artifacts/motion_contact_stress_summary.json)
 include all variants, case means and seed ranges. The
 [SVG figure](motion_contact_artifacts/motion_contact_stress.svg) is exportable.
@@ -137,6 +137,10 @@ python scripts/motion_contact_stress.py --out <new-output-directory>
 python scripts/motion_contact_stress_report.py \
   --v1 <immutable-v1-directory> --v2 <immutable-v2-directory> \
   --out docs/results/motion_contact_artifacts
+# Final candidate comparison; preserve the earlier v1/v2 report.
+python scripts/motion_contact_stress_report.py \
+  --v1 <immutable-v1-directory> --candidate <immutable-v3-directory> \
+  --candidate-label v3 --out docs/results/motion_contact_artifacts/v3
 ```
 
 Use the recorded source revision to reproduce each version. The first command

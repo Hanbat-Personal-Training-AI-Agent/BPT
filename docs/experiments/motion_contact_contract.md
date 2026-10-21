@@ -154,9 +154,10 @@ observations, including nonfinite raw positions.
 
 ## Device availability update
 
-The user instructed that from 2026-10-21 00:00 KST onward, work must proceed
-without the iPhone. Device launches, installations, log retrieval and connection
-retries stop before that boundary. Preserve partial runs and logs already on
-the phone. Continue the Home experiments and laptop tests/builds. Any unfinished
-rotation or estimator-cost measurement must be reported as unmeasured;
-desktop timing cannot substitute for iPhone real-time validation.
+The user initially instructed that from 2026-10-21 00:00 KST onward, work must
+proceed without the iPhone. Device access stopped at 23:58, with partial runs
+and unretrieved logs preserved. After midnight the user explicitly said
+“폰써도돼” and reauthorized phone use. Wi-Fi log retrieval and device experiments
+may resume; preserve the original comparison logs before replacing its build.
+Any unfinished rotation or estimator-cost measurement remains unmeasured until
+it actually completes. Desktop timing cannot substitute for iPhone validation.
