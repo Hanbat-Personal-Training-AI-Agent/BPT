@@ -105,3 +105,29 @@ lockf -k /tmp/bpt-heavy.lock swift test --package-path ios/CalibrationEngineKit
 Local reproduction records, source hashes, and the standalone XCTest entry point are preserved under `~/bpt-runs/motion-contact/20261020-swift-core/v4`; the previous `v2` and `v3` directories retain their snapshots and checks. Direct XCTest compilation needs the Xcode Mac platform's `Developer/usr/lib` import/library paths and `Developer/Library/Frameworks` framework path; no model inference or full app build was performed by that harness.
 
 No iPhone overhead, posture-quality improvement, warning accuracy, or adoption conclusion is established by numeric parity. The experimental app has not yet been built or measured on the phone.
+
+## Standalone Mac v4 cost measurement
+
+On 2026-10-21 at 10:41 KST, the optimized standalone harness compiled and ran successfully on an Apple M4, 16 GiB RAM, 10 CPU cores. Source commit was `5f3b5dc`; runtime files matched `deda231`. The parent/device owners allowed this short independent run before the full SwiftPM/iOS build. It acquired `/tmp/bpt-heavy.lock` after the phone controller naturally released it, then handed the slot to the build owner. No phone interaction occurred in this measurement.
+
+All 720 parity checkpoints passed first. Three warmup passes exercised 21,600 updates; ten measured passes exercised **72,000 updates**, 8,000 for each variant, preserving every frame of all eight fixture sequences (800 frames per variant/pass). Variant order rotated across passes. Estimator update and summary/detail JSON dictionary construction plus encoding were timed separately, with JSON performed after each complete estimator pass. The measured harness loop took 12.748 s.
+
+Every table cell is **p50 / p95 / maximum, in milliseconds**, pooled across 8,000 measurements per variant:
+
+| Variant | Estimator update | Summary JSON | Detail JSON |
+|---|---:|---:|---:|
+| A | 0.003958 / 0.004792 / 0.075167 | 0.005104 / 0.007541 / 0.078750 | 0.097583 / 0.122335 / 3.284042 |
+| B | 0.004084 / 0.004750 / 0.046208 | 0.005000 / 0.008500 / 0.172959 | 0.105020 / 0.139186 / 1.056583 |
+| C | 0.004292 / 0.005208 / 0.117542 | 0.005125 / 0.009250 / 15.629042 | 0.106167 / 0.156271 / 58.698667 |
+| D | 0.004583 / 0.008375 / 20.419542 | 0.004875 / 0.012211 / 2.481792 | 0.099416 / 0.193293 / 11.864750 |
+| E | 0.005041 / 0.007125 / 0.077875 | 0.004917 / 0.008416 / 0.422500 | 0.100000 / 0.148500 / 1.943959 |
+| F | 0.004292 / 0.005708 / 0.528958 | 0.005416 / 0.008084 / 2.937084 | 0.099375 / 0.123044 / 16.070458 |
+| G | 0.005750 / 0.009584 / 15.489500 | 0.005209 / 0.008333 / 0.245542 | 0.108292 / 0.127792 / 4.382208 |
+| H | 0.005792 / 0.007083 / 0.090166 | 0.005041 / 0.007875 / 0.098625 | 0.101916 / 0.123167 / 0.409125 |
+| HOLD | 0.004041 / 0.005208 / 0.054125 | 0.004917 / 0.007584 / 0.302083 | 0.097125 / 0.123333 / 6.220375 |
+
+E/G/H each used the fixture's synthetic profile on 7,800 updates. Each variant included 3,460 updates with at least one low-confidence input joint. G/H each recorded 2,470 expired fallback joint-frames. Profile-active and occluded subgroup statistics, ten individual passes, output byte counts and invalid/prediction counts remain in the JSON artifact. This verifies that the timing denominator includes those paths; it does not validate a real person's calibration.
+
+The one-minute system load was 7.25 before and 8.24 after, with Spotlight and other desktop processes active. The BPT lock prevented competing BPT heavy jobs, not operating-system scheduling. The large observed maxima are retained; their cause is not established and they are not stable algorithm bounds. This measurement excludes camera capture, XS inference, live root/crop conversion, online calibration collection, legacy constraints, disk/logger I/O, UI and device execution. It is neither an iPhone overhead result nor an end-to-end latency estimate.
+
+The complete harness, result, hashes, compiler/machine/load metadata and verification record are in `~/bpt-runs/motion-contact/20261020-swift-core/benchmark/`. Reproduction is `lockf -k /tmp/bpt-heavy.lock /bin/zsh ~/bpt-runs/motion-contact/20261020-swift-core/benchmark/reproduce.sh`. The unexecuted v3 preparation is preserved separately in `prepared-v3/`.
