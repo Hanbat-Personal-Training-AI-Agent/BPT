@@ -10,9 +10,44 @@ trusted observations pass through exactly, with velocity/covariance retained
 for uncertain intervals. The v1 results remain unchanged. No thresholds were
 selected from these scores. Source v1 is `40e5edc`, source v2 is `b29e7c9`.
 
-## Final v3 regression rerun
+## V4 follow-up after the real-data failure
 
-The final candidate is v3 (`dd6c703`), which fixes two separately reproduced
+2026-10-21: source `67b8c96` bounds G/H prediction at the existing `.35 s`
+horizon and abandons correction after `.5 s`, retaining uncertainty and
+invalidation. It also resets the entire covariance on coherent relocation.
+This repair follows inspection of the v3 Fit3D failure; it is not independent
+confirmation. All 324 synthetic runs (68,040 updates) were repeated with the
+same generator and seeds.
+
+G/H still preserve all 534 visible synthetic posture-error frames, with zero
+missed or withheld frames. Short `.33 s` wrist occlusion remains 1.20%/2.99%
+leg-length error for G/H. Long-gap output is deliberately no longer a
+continuous trajectory estimate: returning the corrupted raw sample increases
+the 1.50 s case to **45.54%/46.36%**, versus v3 2.29%/10.49%.
+Visible-elbow reversal becomes 39.86%/40.00%, and hidden-arm reversal
+39.70%/38.94%. These are large errors in invalid outputs, not a tracking
+success. The contrived straight-motion case favors unbounded Kalman
+extrapolation; real-data v3 showed why it cannot safely persist indefinitely.
+
+Visible support relocation still releases after .20 s and reacquires .10 s
+after movement ends, with no measured movement suppression. Fully hidden
+relocation still has no verified release event; its suppression proxy is 50%
+(v3 65%) and reacquisition takes .67 s after movement ends (v3 .30 s).
+The lower suppression number partly reflects returning corrupted raw
+coordinates and **does not establish accurate relocation**. Short hidden
+push-up support and squat root-motion errors remain .73% and 1.29%.
+The single engineered confident jump remains .50%/.49% for G/H versus raw
+103.34%, and is withheld from assessment.
+
+[V4 aggregates and source hashes](motion_contact_artifacts/v4/motion_contact_stress_summary.json)
+and [v4 figure](motion_contact_artifacts/v4/motion_contact_stress.png) preserve
+the complete comparison. The raw run is
+`~/bpt-runs/motion-contact/20261021-synthetic-stress-v4`.
+The earlier v1/v2/v3 artifacts below remain unchanged.
+
+## V3 regression rerun
+
+The v3 candidate (`dd6c703`) fixes two separately reproduced
 evidence-validity bugs: untrusted legs inflating scale, and stale contact
 candidates surviving long observation gaps. It retains v2's observation
 priority and every numeric threshold. All 324 synthetic runs were repeated.

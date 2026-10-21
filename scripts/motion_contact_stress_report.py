@@ -11,7 +11,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--v1", required=True)
     parser.add_argument("--v2", "--candidate", dest="v2", required=True)
-    parser.add_argument("--candidate-label", choices=("v2", "v3"), default="v2")
+    parser.add_argument("--candidate-label", choices=("v2", "v3", "v4"), default="v2")
     parser.add_argument("--out", required=True)
     args = parser.parse_args()
     inputs, summaries, posture = {}, {}, {}
@@ -66,8 +66,8 @@ def main():
         axes[0].bar(np.arange(4) + (k - 2) * .15, means, width=.145, color=color, label=name)
     axes[0].set_xticks(np.arange(4), labels, rotation=15, ha="right")
     axes[0].set_ylabel("Hidden-joint error / reference leg length (%)")
-    axes[0].set_ylim(0, 25)
-    axes[0].set_title("Phase prediction has different failure cases")
+    axes[0].set_ylim(bottom=0)
+    axes[0].set_title("Hidden output error, including uncertain fallback")
     axes[0].legend(ncol=3, fontsize=8)
     selections = (("v1", "B"), ("v1", "D"), ("v1", "G"), ("v1", "H"), (candidate, "G"), (candidate, "H"))
     missed = [posture[v][a]["posture_missed_error_frames"] for v, a in selections]
