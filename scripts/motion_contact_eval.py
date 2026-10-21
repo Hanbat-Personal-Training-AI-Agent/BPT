@@ -83,7 +83,10 @@ def run_spec(a):
                 estimator_inputs="raw XS L5 + original image H36M2D/confidence + observed crop + optional predicted profile",
                 gt_role="score only; not estimator, profile, anchor, phase, or corruption",
                 first_usable_frame=21, calibration_frames=[21, 80], profile_activation=81, score_from=90,
-                no_training=True, gpu_used=False, threads=2)
+                no_training=True, gpu_used=False,
+                threads=int(os.environ.get("OMP_NUM_THREADS", "2")),
+                thread_environment={k: os.environ.get(k) for k in
+                                    ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS")})
 
 
 def guard_run_directory(out, spec):
