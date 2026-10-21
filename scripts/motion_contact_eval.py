@@ -227,7 +227,7 @@ def run_evaluation(a):
                 result = run_variant(o, variant, profile_mode=mode, rgb_lengths=profiles.get(o.subject))
                 app_pose, app_invalid, gate_timing = apply_existing_gates(
                     result["corrected"], result["invalid"], o.exercise, variant,
-                    result["observation_passthrough"])
+                    result["observation_passthrough"], result["expired_prediction_fallback"])
                 result.update(app_pose=app_pose, app_invalid=app_invalid, gate_timing=gate_timing)
                 target = out / "predictions_HOME_ONLY" / (o.name + "_" + label + ".npz")
                 target.parent.mkdir(parents=True, exist_ok=True)

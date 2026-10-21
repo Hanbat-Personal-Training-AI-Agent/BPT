@@ -64,6 +64,7 @@ def aggregate(records, run):
     result["constraint_diagnostics_from21"] = {
         key: sum(r["metrics"]["existing_gate_cpu_ms"].get(key, 0) for r in records)
         for key in ("constraint_proposed_joint_frames", "restored_trusted_joint_frames",
+                    "restored_expired_fallback_joint_frames",
                     "constraint_applied_joint_frames")}
     diagnostics = Counter()
     contacts = Counter()
@@ -71,6 +72,8 @@ def aggregate(records, run):
     runtimes = []
     passthrough_frames = 0
     passthrough_error = app_passthrough_error = 0.
+    expired_frames = expired_invalid_frames = 0
+    expired_error = app_expired_error = 0.
     app_invalid_frames = app_joint_frames = 0
     for r in records:
         diagnostics.update(r["diagnostics"])
@@ -96,10 +99,25 @@ def aggregate(records, run):
                         np.max(np.abs(z["corrected"][trusted] - raw[trusted]))))
                     app_passthrough_error = max(app_passthrough_error, float(
                         np.max(np.abs(z["app_pose"][trusted] - raw[trusted]))))
+            if "expired_prediction_fallback" in z:
+                expired = z["expired_prediction_fallback"].copy()
+                expired[:90] = False
+                expired_frames += int(expired.sum())
+                expired_invalid_frames += int((expired & z["app_invalid"]).sum())
+                if expired.any():
+                    raw = z["raw_model"] - z["raw_model"][:, :1]
+                    expired_error = max(expired_error, float(
+                        np.max(np.abs(z["corrected"][expired] - raw[expired]))))
+                    app_expired_error = max(app_expired_error, float(
+                        np.max(np.abs(z["app_pose"][expired] - raw[expired]))))
     times = np.concatenate(runtimes) if runtimes else np.empty(0)
     result["runtime_ms"] = dict(n=len(times), p50=float(np.median(times)) if len(times) else None,
                                 p95=float(np.percentile(times, 95)) if len(times) else None)
     result["diagnostics_since_frame21"] = dict(diagnostics)
+    result["expired_prediction_fallback_from90"] = dict(
+        joint_frames=expired_frames, invalid_joint_frames=expired_invalid_frames,
+        maximum_raw_difference=expired_error, maximum_app_raw_difference=app_expired_error,
+        interpretation="Untrusted raw fallback, not successful prediction or observation recovery")
     result["contact_joint_frames_from90"] = dict(contacts)
     result["contact_state_transitions_from90"] = dict(transitions)
     result["after_existing_gates_abstention"] = dict(

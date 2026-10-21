@@ -67,3 +67,21 @@ V1 remains the original frozen comparison. V2 full-data evaluation had not start
 The final scorer corrects two independently reproduced accounting bugs. Warning eligibility now uses each rule's required finite metrics with the same 80% coverage threshold, including head joint10 for head rules; unsupported metrics are removed before they can seed a baseline/trend. Baseline rules require supported first-three history, trends supported first/last-three history, and previous-maximum rules supported preceding metrics. Warmup and first-rep-only non-applicability are separate from data abstention. FP/FN denominators are rule-specific.
 
 Recovery follows each disappearance end only until the earliest of one second, the next disappearance, or clip end. Its three confirming frames must stay inside that window. Report recovered, full-one-second unrecovered and limited-follow-up events separately, with actual follow-up durations; a 0.42/0.80-second tail is not called a one-second failure. Preserve original v1 results and correct these two metric families in new scorer-only directories from the exact saved predictions, verifying original source/input/artifact hashes. Final v3 uses this scorer from its first run. Resume guards compare code, arguments and runtime input hashes. The estimator and numerical thresholds are unchanged by these scoring corrections.
+
+## Post-result v4 follow-up
+
+V3 completed all 96 clean and six keypoint/six RGB streams. Its G/H failure
+prompted an engineering repair, so v4 is explicitly a post-result follow-up,
+not independent confirmation. The contract specifies bounded `.35 s`
+extrapolation, `.5 s` untrusted raw fallback with continuing invalidation,
+and full PSD covariance reset at coherent relocation. No threshold search,
+training, new split or label-dependent runtime input is introduced.
+
+Freeze source and this addendum before rerunning G/H with online and RGB-SMPL
+profiles on the identical frozen inputs: four variants × 96 clean streams and
+four variants × six streams per damage condition. A–F/HOLD are unchanged and
+reuse v3 results with explicit provenance; do not present reused arms as newly
+computed. Keep original v3 results untouched. Report fallback counts, exact raw
+equality and continued invalidation separately from trusted passthrough and
+successful recovery. Scores use the same v3 scorers. Run at CPU1/nice19 while
+the previously authorized detector training continues unchanged.

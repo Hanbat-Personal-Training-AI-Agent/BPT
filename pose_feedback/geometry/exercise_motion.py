@@ -229,7 +229,14 @@ class ExerciseMotionEstimator:
         if turning:
             self.v[[12, 13, 15, 16]] *= .3
 
-        pred = self.p + dt * self.v
+        if adaptive:
+            # Use the same finite useful horizon as the CV baseline. A rejected
+            # observation cannot make an old velocity advance the joint forever.
+            age_before_update = now - self.last_seen
+            prediction_step = np.clip(.35 - np.maximum(0., age_before_update - dt), 0., dt)
+            pred = self.p + prediction_step[:, None] * self.v
+        else:
+            pred = self.p + dt * self.v
         accepted = measured.copy()
         innovation = np.linalg.norm(raw - pred, axis=1)
         rejected = np.zeros(17, dtype=bool)
@@ -262,6 +269,11 @@ class ExerciseMotionEstimator:
                     pred[j] = raw[j]
                     self.v[j] = 0
                     self.p00[j] = (.03 * s) ** 2
+                    # Reset the full covariance with the new position/velocity.
+                    # Retaining an old position-velocity cross term while only
+                    # shrinking p00 can make the covariance non-PSD.
+                    self.p01[j] = 0
+                    self.p11[j] = (.5 * s) ** 2
         trusted = reliable & accepted
         passthrough = trusted & adaptive
         scale = _leg(raw, trusted)
@@ -423,6 +435,13 @@ class ExerciseMotionEstimator:
             self.grip_history.clear()
 
         age = now - self.last_seen
+        expired_prediction = adaptive & self.initialized & ~accepted & (age > .5)
+        # Beyond the existing assessment expiry, explicitly abandon correction.
+        # The current raw XS output remains an uncertain fallback, never a new
+        # trusted observation or a claim that an unseen joint stayed in place.
+        # Missing raw values stay missing. Invalidation/age/covariance persist.
+        corrected[expired_prediction] = raw[expired_prediction]
+        used_prediction[expired_prediction] = True
         uncertainty = np.maximum(uncertainty, np.where(used_prediction, (.03 + .3 * np.minimum(age, 2)) * s, 0))
         correction = np.linalg.norm(corrected - raw, axis=1)
         invalid = (~np.isfinite(corrected).all(axis=1) | ~self.initialized
@@ -447,7 +466,8 @@ class ExerciseMotionEstimator:
                                      contact_corrected=contact_used, bone_corrected=kinematic_used,
                                      rejected_joints=np.flatnonzero(rejected).tolist(),
                                      observation_passthrough=np.flatnonzero(passthrough).tolist(),
-                                     observation_policy="trusted_passthrough_v3",
+                                     observation_policy="trusted_passthrough_v4",
+                                     expired_prediction_fallback=np.flatnonzero(expired_prediction).tolist(),
                                      body_scale_updated=scale is not None,
                                      image_scale=leg2d,
                                      calibration_used=kin_enabled and bool(self.bone_profile),

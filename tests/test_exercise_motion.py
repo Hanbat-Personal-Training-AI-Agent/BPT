@@ -70,6 +70,60 @@ def test_recovered_observation_releases_prediction_without_blending(variant):
     assert not recovered["used_prediction"][13]
 
 
+@pytest.mark.parametrize("variant", ["G", "H"])
+def test_relocated_joint_reacquisition_preserves_covariance_psd(variant):
+    """A long loss followed by relocation must leave a valid covariance."""
+    m = ExerciseMotionEstimator("barbell_row", variant)
+    resets = []
+    for t in range(240):
+        p = pose()
+        if t >= 180:
+            p[13, 0] += .15 + (.002 * (t - 183) if t >= 183 else 0)
+        s = screen(p)
+        if 30 <= t < 180 or t >= 210:
+            s[13, 2] = .05
+        result = m.update(p, s, t / 30)
+        covariance = np.array([[m.p00[13], m.p01[13]],
+                               [m.p01[13], m.p11[13]]])
+        assert np.isfinite(covariance).all()
+        assert np.linalg.eigvalsh(covariance).min() >= -1e-12, (t, covariance)
+        if 13 in result["diagnostics"]["observation_passthrough"]:
+            np.testing.assert_array_equal(result["corrected"][13], p[13])
+            if m.candidate_count[13] >= 3:
+                resets.append(t)
+    assert 182 in resets, "The test must exercise the relocation reset"
+
+
+@pytest.mark.parametrize("variant", ["G", "H"])
+def test_stale_velocity_stops_and_expired_output_is_untrusted_raw(variant):
+    m = ExerciseMotionEstimator("squat", variant)
+    for t in range(30):
+        p = pose()
+        p[13, 0] += .002 * t
+        m.update(p, screen(p), t / 30)
+    last_position, velocity = m.p[13].copy(), m.v[13].copy()
+    assert np.linalg.norm(velocity) > .01
+    for t in range(30, 120):
+        raw = pose()
+        raw[13] += [.6, -.4, .3]
+        s = screen(raw)
+        s[13, 2] = .05
+        result = m.update(raw, s, t / 30)
+        if t >= 45:
+            np.testing.assert_allclose(m.p[13], last_position + .35 * velocity,
+                                       atol=1e-12)
+            np.testing.assert_array_equal(result["corrected"][13], raw[13])
+            assert result["invalid"][13] and result["used_prediction"][13]
+            assert result["roles"][13] == "uncertain_joint"
+            assert 13 in result["diagnostics"]["expired_prediction_fallback"]
+            assert 13 not in result["diagnostics"]["observation_passthrough"]
+    missing = raw.copy()
+    missing[13] = np.nan
+    result = m.update(missing, s, 4.)
+    assert np.isnan(result["corrected"][13]).all()
+    assert result["invalid"][13]
+
+
 def test_cv_continues_motion_and_is_better_than_hold_on_constant_velocity():
     cv = ExerciseMotionEstimator("barbell_row", "C")
     hold = ExerciseMotionEstimator("barbell_row", "HOLD")

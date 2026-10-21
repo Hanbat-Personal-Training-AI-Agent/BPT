@@ -9,11 +9,12 @@ from eval_lift_app_fit3d import judge_py, RULES_BY_EX
 from .metrics import stats
 
 
-def apply_existing_gates(corrected, invalid, exercise, variant, observation_passthrough=None):
+def apply_existing_gates(corrected, invalid, exercise, variant, observation_passthrough=None,
+                         expired_prediction_fallback=None):
     constraints = Pose3DConstraints(bone_lengths=True, reflect_flipped_knee=exercise == "squat")
     pose, bad = corrected.copy(), invalid.copy()
     times = []
-    proposed = applied = restored = 0
+    proposed = applied = restored = expired_restored = 0
     for t in range(21, len(pose)):
         began = time.perf_counter_ns()
         pose[t], report = constraints.apply(pose[t], project_bone_lengths=variant not in ("E", "G", "H"))
@@ -23,14 +24,19 @@ def apply_existing_gates(corrected, invalid, exercise, variant, observation_pass
             trusted = observation_passthrough[t]
             restored += int((changed & trusted).sum())
             pose[t, trusted] = corrected[t, trusted]
+        if variant in ("G", "H") and expired_prediction_fallback is not None:
+            expired = expired_prediction_fallback[t]
+            expired_restored += int((changed & expired).sum())
+            pose[t, expired] = corrected[t, expired]
         applied += int((np.max(np.abs(pose[t] - corrected[t]), axis=1) > 1e-12).sum())
         times.append((time.perf_counter_ns() - began) / 1e6)
         bad[t, report["invalid_joints"]] = True
     timing = stats(times)
     timing.update(constraint_proposed_joint_frames=proposed,
                   restored_trusted_joint_frames=restored,
+                  restored_expired_fallback_joint_frames=expired_restored,
                   constraint_applied_joint_frames=applied,
-                  scope="from frame21; gates/invalid retained after trusted restoration")
+                  scope="from frame21; gates/invalid retained after trusted/expired-fallback restoration")
     return pose, bad, timing
 
 

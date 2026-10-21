@@ -39,9 +39,10 @@ for name, exercise in (("row_occlusion_turn", "barbell_row"),
                        ("profile_reset", "barbell_row"),
                        ("low_confidence_leg_scale", "pushup"),
                        ("contact_candidate_expiry", "pushup"),
-                       ("contact_reacquire_expiry", "pushup")):
+                       ("contact_reacquire_expiry", "pushup"),
+                       ("covariance_reacquisition", "barbell_row")):
     frames = []
-    for t in range(80):
+    for t in range(240 if name == "covariance_reacquisition" else 80):
         p = pose()
         confidence = np.ones(17)
         context = dict(fixed_camera=True, camera_motion=False, person_id=0,
@@ -58,6 +59,8 @@ for name, exercise in (("row_occlusion_turn", "barbell_row"),
             context["person_id"] = 1 if t >= 60 else 0
         if name == "contact_reacquire_expiry" and t >= 16:
             p[13, 0] += .15
+        if name == "covariance_reacquisition" and t >= 180:
+            p[13, 0] += .15 + (.002 * (t - 183) if t >= 183 else 0)
         uv = p[:, :2] + [.5, .55]
         if name == "low_confidence_leg_scale" and 10 <= t <= 12:
             p[3] = [0, 100, 0]
@@ -66,6 +69,8 @@ for name, exercise in (("row_occlusion_turn", "barbell_row"),
         if (name == "contact_candidate_expiry" and 7 <= t <= 67
                 or name == "contact_reacquire_expiry" and 23 <= t <= 73):
             confidence[13] = .1
+        if name == "covariance_reacquisition" and (30 <= t < 180 or t >= 210):
+            confidence[13] = .05
         if name == "squat_root_motion":
             uv[[3, 6]] = pose()[[3, 6], :2] + [.5, .55]
         if name in ("row_occlusion_turn", "profile_reset") and 25 <= t <= 45:
@@ -82,9 +87,12 @@ for name, exercise in (("row_occlusion_turn", "barbell_row"),
     for variant in VARIANTS:
         m = ExerciseMotionEstimator(exercise, variant, profile, .7)
         expected = {}
+        checkpoints = ((0, 29, 179, 180, 181, 182, 183, 209, 210, 239)
+                       if name == "covariance_reacquisition"
+                       else (0, 7, 14, 23, 31, 39, 47, 59, 71, 79))
         for i, f in enumerate(frames):
             r = m.update(f["raw"], f["screen2d"], f["timestamp"], **f["context"])
-            if i in (0, 7, 14, 23, 31, 39, 47, 59, 71, 79):
+            if i in checkpoints:
                 expected[str(i)] = plain({k: r[k] for k in
                     ("corrected", "uncertainty", "invalid", "contacts",
                      "correction_magnitude", "used_prediction", "phase", "roles")})

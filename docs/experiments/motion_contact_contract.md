@@ -152,6 +152,38 @@ three corresponding cases (seven cases × nine variants × ten checkpoints =
 630 comparisons). Regression tests also cover a first frame with no trusted
 observations, including nonfinite raw positions.
 
+## Post-result bounded prediction and covariance repair: v4
+
+Completed v3 results exposed unbounded extrapolation during long rejected or
+missing observations. A separate synthetic relocation sequence also reproduced
+a non-positive-semidefinite position/velocity covariance: resetting only
+position variance retained an incompatible cross covariance. Preserve the v3
+failure. V4 is a correctness follow-up after inspecting held-out failures,
+not an untouched confirmatory validation.
+
+For G/H, prediction advances position only over the existing `.35 s` useful
+CV horizon since the last accepted measurement. Covariance still propagates
+for the full elapsed time. At coherent relocation, reset the whole covariance
+to existing initialization values: position variance `(.03 * leg)^2`,
+cross covariance zero and velocity variance `(.5 * leg)^2`.
+
+After the existing `.5 s` assessment expiry, a still-unaccepted joint explicitly
+abandons correction and outputs current raw XS, including nonfinite values.
+It remains invalid, uncertain and marked `used_prediction`; age and covariance
+are not reset. Log `expired_prediction_fallback` separately from trusted exact
+passthrough. This is an untrusted fallback, not inferred physical motion or
+successful recovery. Apply it after all new constraints and restore it after
+legacy constraint proposals, retaining their invalid flags.
+
+Thresholds, trusted exact passthrough, A–F/HOLD, weights and data splits remain
+unchanged. Stale bone evidence can still delay reacquisition; phase inference
+can still consume high-confidence observations that the later innovation gate
+rejects. Neither limitation is resolved by bounded prediction. The shared
+fixture now has eight cases × nine variants × ten checkpoints = 720, including
+the 240-frame covariance relocation sequence. Tests separately verify finite
+prediction horizon, uncertain raw fallback, PSD covariance and preserved
+invalidation at the legacy-gate boundary.
+
 ## Device availability update
 
 The user initially instructed that from 2026-10-21 00:00 KST onward, work must

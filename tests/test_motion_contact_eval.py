@@ -166,6 +166,31 @@ def test_v2_passthrough_mask_verifies_actual_runtime_boundary():
                                (o.raw - o.raw[:, :1])[trusted], atol=1e-14)
 
 
+def test_v4_expired_fallback_survives_legacy_gates_without_becoming_trusted(monkeypatch):
+    import motion_contact.rule_proxies as rules
+
+    class ProposedConstraint:
+        def __init__(self, **kwargs):
+            pass
+
+        def apply(self, pose, **kwargs):
+            return pose + 1, {"invalid_joints": [12]}
+
+    monkeypatch.setattr(rules, "Pose3DConstraints", ProposedConstraint)
+    o = observation(100)
+    expired = np.zeros((100, 17), bool)
+    expired[:, 13] = True
+    fixed, invalid, timing = rules.apply_existing_gates(
+        o.raw, expired.copy(), "barbell_row", "G",
+        np.zeros_like(expired), expired)
+    np.testing.assert_array_equal(fixed[21:, 13], o.raw[21:, 13])
+    np.testing.assert_array_equal(fixed[21:, 12], o.raw[21:, 12] + 1)
+    assert invalid[21:, [12, 13]].all()
+    assert timing["restored_trusted_joint_frames"] == 0
+    assert timing["restored_expired_fallback_joint_frames"] == 79
+    assert timing["constraint_applied_joint_frames"] == 79 * 16
+
+
 def test_invalid_head_withholds_only_head_rules_instead_of_counting_fn():
     from motion_contact.rule_proxies import score_warning_proxies
     o = observation()
