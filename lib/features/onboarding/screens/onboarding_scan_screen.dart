@@ -116,6 +116,29 @@ class _OnboardingScanScreenState extends ConsumerState<OnboardingScanScreen> {
     return null;
   }
 
+  // TODO(temp): 시뮬레이터에는 카메라가 없어서 촬영이 진행되지 않으므로,
+  // 누를 때마다 지금 방향을 찍은 것처럼 정면 → 왼쪽 → 뒷면 → 오른쪽 순서로 넘기는
+  // 테스트용 동작. 4장째에서 분석 화면으로 간다 (촬영 데이터가 없어 업로드는 건너뜀).
+  void _debugCaptureNext() {
+    if (_finished) return;
+    const views = CalibrationScanOverlay.views;
+    final captured = [..._capturedViews, views[_capturedViews.length]];
+    setState(() {
+      _capturedViews = captured;
+      _targetView =
+          captured.length < views.length ? views[captured.length] : null;
+      _flash = true;
+    });
+    Future.delayed(const Duration(milliseconds: 120), () {
+      if (mounted) setState(() => _flash = false);
+    });
+    if (captured.length < views.length) return;
+    _channel?.invokeMethod<void>('cancel');
+    _finished = true;
+    unawaited(ref.read(authNotifierProvider).recordBodyScan());
+    context.go(RouteConstants.onboardingAnalyzing);
+  }
+
   void _cancel() {
     _channel?.invokeMethod<void>('cancel');
     context.pop();
@@ -191,6 +214,7 @@ class _OnboardingScanScreenState extends ConsumerState<OnboardingScanScreen> {
       flash: _flash,
       onClose: _cancel,
       onHelp: _showHelp,
+      onDebugCapture: kDebugMode ? _debugCaptureNext : null,
     );
   }
 
@@ -218,6 +242,7 @@ class CalibrationScanOverlay extends StatelessWidget {
     required this.flash,
     this.onClose,
     this.onHelp,
+    this.onDebugCapture,
   });
 
   /// Capture order the guidance recommends: one continuous turn to the user's left.
@@ -230,12 +255,6 @@ class CalibrationScanOverlay extends StatelessWidget {
     'rightfront': '왼쪽',
     'back': '뒷면',
     'leftfront': '오른쪽',
-  };
-  static const viewHints = {
-    'front': '카메라 보고 팔은 A자로,\n발은 어깨너비로 벌려 줘!',
-    'rightfront': '제자리에서 왼쪽으로 비스듬히 돌아 줘.\n고개도 몸이랑 같은 방향으로!',
-    'back': '이번엔 등을 보여 줘.\n팔은 계속 A자 유지!',
-    'leftfront': '마지막! 오른쪽으로 비스듬히 돌아 줘.\n거의 다 왔어!',
   };
 
   final Widget preview;
@@ -256,6 +275,9 @@ class CalibrationScanOverlay extends StatelessWidget {
   final bool flash;
   final VoidCallback? onClose;
   final VoidCallback? onHelp;
+
+  /// 디버그 빌드에서만 넘긴다: 지금 방향을 찍은 것으로 넘기는 테스트 버튼.
+  final VoidCallback? onDebugCapture;
 
   @override
   Widget build(BuildContext context) {
@@ -351,21 +373,32 @@ class CalibrationScanOverlay extends StatelessWidget {
                       ],
                     ),
                   ),
-                  const Spacer(),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
-                    child: _StatusBubble(
-                      message: guidance,
-                      hint: viewHints[view]!,
-                      holdProgress: holdProgress,
+                  // 몸을 가리지 않게 코리 말풍선은 위, 촬영 상태 버튼은 아래에 둔다.
+                  if (guidance != null)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
+                      child: _StatusBubble(
+                        message: guidance!,
+                        holdProgress: holdProgress,
+                      ),
                     ),
-                  ),
+                  const Spacer(),
+                  if (onDebugCapture != null)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+                      child: Align(
+                        alignment: Alignment.centerRight,
+                        child: _DebugButton(
+                            label: '$label 촬영 완료 (테스트용)',
+                            onTap: onDebugCapture!),
+                      ),
+                    ),
                   Padding(
                     padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
                     child: Row(
                       children: [
                         for (var i = 0; i < views.length; i++) ...[
-                          if (i > 0) const SizedBox(width: 8),
+                          if (i > 0) const SizedBox(width: 6),
                           Expanded(
                             child: _PoseChip(
                               label: viewLabels[views[i]]!,
@@ -390,73 +423,88 @@ class CalibrationScanOverlay extends StatelessWidget {
   }
 }
 
-/// Kori's speech bubble: the live guidance from the judging engine on top, the
-/// per-view instruction underneath (alone until the camera reports in).
+/// 코리 말풍선(알약 모양): 판정 엔진의 지금 안내 한 줄과, 자세를 유지하는 동안 진행 원.
 class _StatusBubble extends StatelessWidget {
-  const _StatusBubble(
-      {required this.message, required this.hint, required this.holdProgress});
+  const _StatusBubble({required this.message, required this.holdProgress});
 
-  final String? message;
-  final String hint;
+  final String message;
   final double holdProgress;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-      decoration: BoxDecoration(
-        color: AppColors.green,
-        borderRadius: BorderRadius.circular(22),
-      ),
-      child: Row(
-        children: [
-          Image.asset(
-            'assets/images/character/face.png',
-            width: 44,
-            height: 48,
-            fit: BoxFit.contain,
-            excludeFromSemantics: true,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (message != null)
-                  Text(
-                    message!,
-                    style: const TextStyle(
-                        color: AppColors.black,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 14,
-                        height: 1.4),
-                  ),
-                Text(
-                  hint,
-                  style: TextStyle(
-                      color: AppColors.black,
-                      fontWeight: message == null ? FontWeight.w800 : FontWeight.w600,
-                      fontSize: message == null ? 13 : 12,
-                      height: 1.4),
-                ),
-              ],
+    return Center(
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(12, 6, 10, 6),
+        decoration: BoxDecoration(
+          color: AppColors.green,
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Image.asset(
+              'assets/images/character/face.png',
+              width: 26,
+              height: 30,
+              fit: BoxFit.contain,
+              excludeFromSemantics: true,
             ),
-          ),
-          if (holdProgress > 0) ...[
-            const SizedBox(width: 10),
-            SizedBox(
-              width: 34,
-              height: 34,
-              child: CircularProgressIndicator(
-                value: holdProgress,
-                strokeWidth: 4,
-                backgroundColor: AppColors.black.withValues(alpha: 0.15),
-                valueColor: const AlwaysStoppedAnimation(AppColors.black),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                message,
+                style: const TextStyle(
+                    color: AppColors.black,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 14,
+                    height: 1.3),
               ),
             ),
+            if (holdProgress > 0) ...[
+              const SizedBox(width: 10),
+              SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(
+                  value: holdProgress,
+                  strokeWidth: 3.5,
+                  backgroundColor: AppColors.black.withValues(alpha: 0.15),
+                  valueColor: const AlwaysStoppedAnimation(AppColors.black),
+                ),
+              ),
+            ] else
+              const SizedBox(width: 4),
           ],
-        ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DebugButton extends StatelessWidget {
+  const _DebugButton({required this.label, required this.onTap});
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.6),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppColors.red, width: 1.5),
+        ),
+        child: Text(
+          label,
+          style: const TextStyle(
+            color: AppColors.red,
+            fontSize: 12,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
       ),
     );
   }
@@ -472,42 +520,25 @@ class _PoseChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final background = state == _ChipState.active
-        ? AppColors.purple
-        : const Color(0xFF1E1E1E);
-
-    if (state == _ChipState.done) {
-      return Container(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        decoration:
-            BoxDecoration(color: background, borderRadius: BorderRadius.circular(14)),
-        child: Text('$label 완료',
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-                color: AppColors.pink, fontSize: 11, fontWeight: FontWeight.w700)),
-      );
-    }
-
-    final statusWord = state == _ChipState.active ? '촬영 중' : '대기 중';
-    final textColor =
-        state == _ChipState.active ? AppColors.black : const Color(0xFF6B6B6B);
-
+    final (text, background, textColor) = switch (state) {
+      _ChipState.done => ('$label 완료', const Color(0xFF1E1E1E), AppColors.pink),
+      _ChipState.active => ('$label 촬영 중', AppColors.purple, AppColors.black),
+      _ChipState.waiting => (label, const Color(0xFF1E1E1E), const Color(0xFF6B6B6B)),
+    };
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 11),
       decoration:
           BoxDecoration(color: background, borderRadius: BorderRadius.circular(14)),
-      child: Column(
-        children: [
-          Text(label,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                  color: textColor, fontSize: 11, fontWeight: FontWeight.w700)),
-          const SizedBox(height: 2),
-          Text(statusWord,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                  color: textColor, fontSize: 11, fontWeight: FontWeight.w700)),
-        ],
+      // 좁은 화면에서도 한 줄을 지키도록 넘치면 글자를 줄인다.
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Text(text,
+            maxLines: 1,
+            style: TextStyle(
+                color: textColor,
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.4)),
       ),
     );
   }
