@@ -1144,17 +1144,29 @@ private struct CameraLiveView: View {
         }
     }
 
+    /// The camera preview follows the interface orientation (CameraPreviewUIView), so in a landscape UI (push-up, #67) it
+    /// shows the scene upright, like the analysis frame. The video-as-camera layer always shows the buffer.
+    private func previewShowsAnalysisFrame(_ size: CGSize) -> Bool {
+        videoLayer == nil && size.width > size.height
+    }
+
     /// Glowing body skeleton coloured by live posture severity (green default, dim green when uncertain), no head, no hands.
     private func drawSkeleton(frame: CameraFrameData, context: inout GraphicsContext, size: CGSize) {
-        let buffer = frame.rotation.bufferSize(width: frame.imageWidth, height: frame.imageHeight)
-        let rect = aspectFillRect(imageWidth: buffer.width, imageHeight: buffer.height, in: size)
+        let upright = previewShowsAnalysisFrame(size)
+        let shown = upright ? (width: frame.imageWidth, height: frame.imageHeight)
+            : frame.rotation.bufferSize(width: frame.imageWidth, height: frame.imageHeight)
+        let rect = aspectFillRect(imageWidth: shown.width, imageHeight: shown.height, in: size)
         PoseOverlayRenderer.draw(frame.coco17, shade: frame.shade, in: &context) {
-            viewPoint($0, frame: frame, rect: rect)
+            viewPoint($0, frame: frame, rect: rect, upright: upright)
         }
     }
 
-    /// Analysis-frame keypoint → view point over the preview (which shows the buffer).
-    private func viewPoint(_ keypoint: PoseKeypoint, frame: CameraFrameData, rect: CGRect) -> CGPoint {
+    /// Analysis-frame keypoint → view point over the preview (the buffer, or the upright scene in a landscape UI).
+    private func viewPoint(_ keypoint: PoseKeypoint, frame: CameraFrameData, rect: CGRect, upright: Bool) -> CGPoint {
+        if upright {
+            return CGPoint(x: rect.minX + CGFloat(keypoint.x / frame.imageWidth) * rect.width,
+                           y: rect.minY + CGFloat(keypoint.y / frame.imageHeight) * rect.height)
+        }
         let buffer = frame.rotation.bufferSize(width: frame.imageWidth, height: frame.imageHeight)
         let p = frame.rotation.bufferPoint(x: keypoint.x, y: keypoint.y, bufferWidth: buffer.width, bufferHeight: buffer.height)
         return CGPoint(
@@ -1203,6 +1215,25 @@ private final class CameraPreviewUIView: UIView {
         layer as! AVCaptureVideoPreviewLayer
     }
 
+    /// The preview follows the interface orientation (push-up runs in a landscape UI, #67); the capture buffer stays
+    /// portrait and the analysis turns it upright from gravity (CaptureRotation).
+    private var previewOrientation: AVCaptureVideoOrientation {
+        switch window?.windowScene?.interfaceOrientation {
+        case .landscapeLeft: .landscapeLeft
+        case .landscapeRight: .landscapeRight
+        case .portraitUpsideDown: .portraitUpsideDown
+        default: .portrait
+        }
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        if let connection = previewLayer.connection, connection.isVideoOrientationSupported,
+           connection.videoOrientation != previewOrientation {
+            connection.videoOrientation = previewOrientation
+        }
+    }
+
     func configure(session: AVCaptureSession, isMirrored: Bool) {
         if previewLayer.session !== session {
             previewLayer.session = session
@@ -1211,7 +1242,7 @@ private final class CameraPreviewUIView: UIView {
 
         guard let connection = previewLayer.connection else { return }
         if connection.isVideoOrientationSupported {
-            connection.videoOrientation = .portrait
+            connection.videoOrientation = previewOrientation
         }
         if connection.isVideoMirroringSupported {
             connection.automaticallyAdjustsVideoMirroring = false
