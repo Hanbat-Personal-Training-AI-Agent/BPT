@@ -255,7 +255,8 @@ enum WorkoutDebugFlags {
     }
 
     /// One JSON line per second (pose FPS, drops, thermal, battery, recording) under workout_form_logs.
-    static var perfLog: Bool { flag("BPT_PERF_LOG", "BPTPerfLog") }
+    /// TRIAL BRANCH ONLY: on by default (BPT_PERF_LOG=0 turns it off) so trial sessions record FPS/latency/thermal/battery.
+    static var perfLog: Bool { ProcessInfo.processInfo.environment["BPT_PERF_LOG"] != "0" }
 
     /// Per-set video. OFF until the on-device FPS check (recording ON vs OFF) shows a drop ≤ 10 %
     /// (docs/research/set_recording_perf.md); while off, onSetEnd sends videoLocalPath = null.

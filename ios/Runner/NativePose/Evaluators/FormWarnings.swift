@@ -1362,13 +1362,9 @@ struct OverlaySeverityTrack {
 /// Debug-build JSONL of per-rep form reports (2D + 3D metrics, warnings, "3D 불량" counts) under
 /// Documents/workout_form_logs/, plus one `session` line on close. Same idea as CalibrationDebugLog.
 final class WorkoutFormLog {
-    static let isEnabled: Bool = {
-        #if DEBUG
-        return true
-        #else
-        return false
-        #endif
-    }()
+    /// TRIAL BRANCH ONLY (ai/trial-*): on in Release too, so the user's own trial sessions can be collected
+    /// (Documents/workout_form_logs). Mainline keeps DEBUG-only.
+    static let isEnabled: Bool = true
 
     private let queue = DispatchQueue(label: "com.bpt.workout.formlog")
     private var handle: FileHandle?  // queue only
