@@ -85,28 +85,26 @@ enum CoreMLMultiArrayIndexing {
     }
 }
 
-/// The RTMPose checkpoints in the bundle. Xcode scheme environment BPT_POSE_MODEL=coco17|halpe26|mcoco17
+/// The RTMPose checkpoints in the bundle. Xcode scheme environment BPT_POSE_MODEL=coco17|halpe26|mhalpe26
 /// overrides both choices below without a code change (pose-replay / calibration-replay: `--model`).
-/// Halpe26 stays opt-in: on the same footage it changed a squat rep count (1 → 2 on squat_03) and a
-/// calibration capture (guided dummy_03 finishes instead of missing leftfront), so it needs a decision.
 enum RTMPoseModel: String, CaseIterable {
     case coco17 = "rtmpose_s_forward"
     case halpe26 = "rtmpose_s_halpe26_forward"
-    /// RTMPose-m COCO17 (same 256×192 input and SimCC outputs as s).
-    case mcoco17 = "rtmpose_m_forward"
-    // RTMPose-m Halpe26 is not bundled (D-T3-18 amendment); experiments load it with pose-replay --model-path.
+    /// RTMPose-m Halpe26 (body7 700e; 26 joints, first 17 = COCO17, plus toes/heels). docs/decisions.md D-T3-17
+    case mhalpe26 = "rtmpose_m_halpe26_forward"
+    // RTMPose-m COCO17 left the bundle (D-M-03). As the comparison baseline pose-replay loads it by path:
+    // --model coco17 --model-path ~/bpt-models/rtmpose_m_forward.mlpackage (outputs are then named _coco17).
 
     private static let override = ProcessInfo.processInfo.environment["BPT_POSE_MODEL"]
         .flatMap { name in allCases.first { "\($0)" == name } }
 
-    /// Calibration capture: s COCO17 (track F tuned its capture checks on it).
+    /// Calibration capture: s COCO17 (track F tuned its capture checks on it; the server body fit reads its keypoints).
     static let active: RTMPoseModel = override ?? .coco17
 
-    /// Workout camera (rep counting, form warnings) uses m COCO17 when true, else s COCO17.
-    /// m: same side-view counts, better on held-out diagonal Fit3D subjects and rear rows, 0 false reps,
-    /// iPhone 17 3.3 ms vs 2.0 ms (D-C-05/06). docs/decisions.md D-T3-05
-    static let workoutUsesMediumModel = true
-    static let workout: RTMPoseModel = override ?? (workoutUsesMediumModel ? .mcoco17 : .coco17)
+    /// Workout camera (rep counting, form warnings, 3D input): RTMPose-m Halpe26 (user decision 2026-10-20,
+    /// docs/decisions.md D-M-03). Its first 17 joints are COCO17, so evaluators, overlay and MotionAGFormer see
+    /// the same 17 joints as before; toes/heels only reach SquatEvaluator (heel_rise_max, squat_heel_rise off).
+    static let workout: RTMPoseModel = override ?? .mhalpe26
 }
 
 /// Halpe26 indices, from MMPose configs/_base_/datasets/halpe26.py. 0–16 are COCO17 in the

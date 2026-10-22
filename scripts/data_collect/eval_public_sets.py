@@ -1,7 +1,7 @@
-"""Score pose-replay outputs (app default: RTMPose-m COCO17, crop, ready-pose off) against merged hand labels.
+"""Score pose-replay outputs (app default: RTMPose-m Halpe26 since D-M-03, crop, ready-pose off) against merged hand labels.
 
 usage: python3 -I eval_public_sets.py <replay_dir[:replay_dir...]> <out.md> <labels.csv>...
-Env POSE_MODEL: which pose-replay --model outputs to score (default mcoco17, the app's workout model).
+Env POSE_MODEL: which pose-replay --model outputs to score (default mhalpe26, the app's workout model; older m COCO17 runs are mcoco17).
 Rep accuracy (project metric, set-level counts): missed = max(0, truth - counted), extra = max(0, counted - truth),
 acc = sum(truth - missed) / sum(truth + extra). Only rows with rep_status ok. Lenient: a count between reps and
 reps + partial (rep already under way at the clip start / cut at the end) counts as exact.
@@ -15,7 +15,7 @@ from collections import defaultdict
 from pathlib import Path
 
 FILE_EX = {"squat": "squat", "pushup": "pushup", "row": "barbell_row"}
-MODEL = os.environ.get("POSE_MODEL", "mcoco17")
+MODEL = os.environ.get("POSE_MODEL", "mhalpe26")
 SETUP = ("setup_full_body", "tracking_lost", "setup_side_view")
 FORM_KEYS = {
     "squat": ["squat_shallow", "squat_hips_first", "squat_lean_drift", "squat_no_lockout", "squat_depth_fade", "squat_knee_valgus", "squat_heel_rise"],

@@ -5,7 +5,7 @@
 // FormWarningTracker — all symlinked from ios/Runner) to tune the form-warning thresholds.
 //
 //   swift run -c release --package-path ios/CalibrationEngineKit pose-replay \
-//       [--exercise squat|pushup|row|bench|deadlift] [--model coco17|halpe26|mcoco17] [--model-path PATH] [--motion3d PATH|none] [--lookahead N] \
+//       [--exercise squat|pushup|row|bench|deadlift] [--model coco17|halpe26|mhalpe26] [--model-path PATH] [--motion3d PATH|none] [--lookahead N] \
 //       [--row-shrug] [--side-cutoff R] [--row-offside off] [--pushup-ankle on|off] [--pushup-wrist-conf C] [--pushup-min-frames N] [--pushup-height on|off] [--squat-hold on|off] [--squat-near-leg on|off] [--squat-rebaseline N] [--squat-height on|off] [--squat-height-range R] [--ready-pose off|preset] [--input crop|full] [--crop-edge on|off] [--keypoints-csv PATH] [--keypoints-dir DIR] [--output-dir PATH] <video.mp4>...
 //
 // --crop-edge off: keep a crop whose border pins confident joints (RTMPoseCropTracker.refitAtCropEdge = false, old).
@@ -20,8 +20,8 @@
 // nearLegFallback / rebaselineStraightLegFrames / heightRepSignal / heightCounter.minRange.
 // --row-offside off: no row reps off the side view (old gate behaviour; BarbellRowEvaluatorConfig.countOffSideView).
 //
-// --keypoints-csv: skip decoding and RTMPose, read the 2D keypoints (j0..j16 x/y/c, extra columns
-// ignored) from a CSV in the format this tool writes; the video path then only names the outputs (no 3D).
+// --keypoints-csv: skip decoding and RTMPose, read the 2D keypoints (j0..j16 x/y/c, plus the nine Halpe26 extras j17..j25
+// (including six toe/heel points) when present) from a CSV in the format this tool writes; the video path then only names the outputs (no 3D).
 // --keypoints-dir: the same, per video from DIR/<video>_<exercise>_<model>.csv (many clips in one run, no model load).
 // bench/deadlift: BenchPressEvaluator / DeadliftEvaluator (2D only; their bench_* / deadlift_* keys are off in the app).
 //
@@ -68,13 +68,13 @@ var personCrop = true
 var cropEdgeRefit = true
 var videos: [URL] = []
 var arguments = CommandLine.arguments.dropFirst().makeIterator()
-let usage = "usage: pose-replay [--exercise squat|pushup|row|bench|deadlift] [--model coco17|halpe26|mcoco17] [--model-path PATH] [--motion3d PATH|none] [--lookahead N] [--row-shrug] [--side-cutoff R] [--row-offside off] [--pushup-ankle on|off] [--pushup-wrist-conf C] [--pushup-min-frames N] [--pushup-height on|off] [--squat-hold on|off] [--squat-near-leg on|off] [--squat-rebaseline N] [--squat-height on|off] [--squat-height-range R] [--ready-pose off|preset] [--input crop|full] [--crop-edge on|off] [--keypoints-csv PATH] [--keypoints-dir DIR] [--output-dir PATH] <video.mp4>..."
+let usage = "usage: pose-replay [--exercise squat|pushup|row|bench|deadlift] [--model coco17|halpe26|mhalpe26] [--model-path PATH] [--motion3d PATH|none] [--lookahead N] [--row-shrug] [--side-cutoff R] [--row-offside off] [--pushup-ankle on|off] [--pushup-wrist-conf C] [--pushup-min-frames N] [--pushup-height on|off] [--squat-hold on|off] [--squat-near-leg on|off] [--squat-rebaseline N] [--squat-height on|off] [--squat-height-range R] [--ready-pose off|preset] [--input crop|full] [--crop-edge on|off] [--keypoints-csv PATH] [--keypoints-dir DIR] [--output-dir PATH] <video.mp4>..."
 while let argument = arguments.next() {
     switch argument {
     case "--model":
         guard let name = arguments.next(),
               let picked = RTMPoseModel.allCases.first(where: { "\($0)" == name }) else {
-            print("--model requires coco17, halpe26 or mcoco17 (other packages: --model-path)")
+            print("--model requires coco17, halpe26 or mhalpe26 (other packages, e.g. m COCO17: --model-path)")
             exit(2)
         }
         poseModel = picked
@@ -222,10 +222,15 @@ for video in videos {
             let cells = line.split(separator: ",", omittingEmptySubsequences: false)
             guard cells.count >= 4 + 17 * 3 else { continue }
             let v = cells.map { Double($0) ?? 0 }
+            let joint = { (j: Int) in PoseKeypoint(x: v[4 + j * 3], y: v[5 + j * 3], confidence: v[6 + j * 3]) }
             times.append(v[1])
-            coco17Frames.append((0..<17).map { PoseKeypoint(x: v[4 + $0 * 3], y: v[5 + $0 * 3], confidence: v[6 + $0 * 3]) })
-            extraFrames.append([])
-            feetFrames.append(nil)
+            coco17Frames.append((0..<17).map(joint))
+            // A Halpe26 CSV (j17..j25) also carries the toes/heels: the keypoint replay sees the feet like the video run.
+            let halpe = cells.count >= 4 + Halpe26.jointCount * 3
+            extraFrames.append(halpe ? (17..<Halpe26.jointCount).map(joint) : [])
+            feetFrames.append(halpe ? FootKeypoints(leftBigToe: joint(Halpe26.leftBigToe), rightBigToe: joint(Halpe26.rightBigToe),
+                                                    leftSmallToe: joint(Halpe26.leftSmallToe), rightSmallToe: joint(Halpe26.rightSmallToe),
+                                                    leftHeel: joint(Halpe26.leftHeel), rightHeel: joint(Halpe26.rightHeel)) : nil)
         }
     }
     let output: AVAssetReaderTrackOutput? = try {
