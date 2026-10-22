@@ -1027,7 +1027,7 @@ class _KoriFeedbackRow extends StatelessWidget {
         case KoriFeedbackKind.warning:
           characterAsset = 'assets/images/character/worrying.png';
           bubbleColor = AppColors.pink;
-          textColor = AppColors.white;
+          textColor = AppColors.black;
         case KoriFeedbackKind.setup:
           characterAsset = 'assets/images/character/considering.png';
           bubbleColor = AppColors.purple;
