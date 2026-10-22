@@ -974,3 +974,9 @@
 - 적응형 관계 제약: `BPT_ADAPTIVE_3D=1`일 때만 켜진다. `MotionAGFormerLive`의 제약 직후 한 곳에 연결했고, 끄면 출력이 비트 단위로 같다(기존 테스트 그대로 통과).
 - 준비 자세 패널·체형 결과 저장소: Flutter `--dart-define=BPT_EXERCISE_SETUP=true`일 때만 켜진다. 팀원 화면은 플래그로 감싼 연결만 했다.
 - 기본값 전환, integration 병합, 모델 변경은 하지 않았다. 켤지는 사용자가 결정한다(결과: `docs/results/setup_constraint.md`).
+### D-M-04 오경보 큰 키 6개를 기본 전달에서 뺀다 (2026-10-22, 사용자 결정)
+- **사용자 결정**: "추천대로 진행" — `docs/results/rules_calib.md` F1(R5) 승인. `FormCommonConfig.enabledFeedbackKeys` 기본값에서 squat_no_lockout, squat_knee_valgus, pushup_no_lockout, pushup_hip_pike, pushup_shallow, pushup_head_up을 뺀다(`FormWarningTracker.quietByDefault`).
+- **근거**: held-out 정상 렙(m Halpe26 입력·원래 XS)에서 현재 기준 오경보 squat_no_lockout 52%, squat_knee_valgus 공개 63%·Fit3D 90%, pushup_no_lockout 23%, pushup_hip_pike·shallow·head_up 10–11%.
+- **그대로 둔 것**: 판정과 로그(`FormRepReport.warnings`, 세션 로그, pose-replay). 기준값은 바꾸지 않음 — R6(rc1 기본 채택)은 **승인되지 않음**.
+- **결과**: `docs/results/quiet_keys.md`. 브랜치 `ai/quiet-keys-m2b98256`, 병합하지 않음.
+
