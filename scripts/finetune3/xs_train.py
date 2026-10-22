@@ -6,7 +6,7 @@ joints after removing their own centroid (no hips / pelvis / shoulders: differen
 frames without valid limb labels masked. Output weights are Fit3D-derived (and Sapiens2-derived with E): non-commercial.
 
 usage (Home, bpt-home, under flock ~/.bpt-gpu.lock):
-  xs_train.py --data train.npz [more.npz] --out xs.pth [--w-e 0.5] [--epochs 10]
+  xs_train.py --data train.npz [more.npz] --out xs.pth [--w-e 0.5] [--epochs 10] [--save-every 5]
 """
 import argparse, json, sys, time
 from pathlib import Path
@@ -71,6 +71,7 @@ def main():
     p.add_argument('--epochs', type=int, default=10); p.add_argument('--lr', type=float, default=1e-4)
     p.add_argument('--batch', type=int, default=16); p.add_argument('--w-e', type=float, default=0.5)
     p.add_argument('--stride', default='R=3,V=3,E=3'); p.add_argument('--seed', type=int, default=0)
+    p.add_argument('--save-every', type=int, default=0, help='also save <out>_ep<N>.pth every N epochs (plan §1.5)')
     a = p.parse_args()
     torch.manual_seed(a.seed); np.random.seed(a.seed)
     dev = 'cuda' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is_available() else 'cpu'
@@ -113,6 +114,10 @@ def main():
             opt.zero_grad(); loss.backward(); opt.step(); sched.step(); tot += loss.item() * len(b)
         r = dict(epoch=ep, loss=tot / len(perm), limb_loss_e=te / max(1, int(E[perm].sum())), sec=round(time.time() - t0))
         log['epochs'].append(r); print(r, flush=True)
+        if a.save_every and (ep + 1) % a.save_every == 0 and ep + 1 < a.epochs:
+            torch.save({'model': model.state_dict(), 'note': f'finetune3 XS checkpoint after epoch {ep + 1} of {a.epochs} (cosine not finished); '
+                        'Fit3D-derived (+Exercise3D/Sapiens2-derived) weights, NON-COMMERCIAL use only', 'args': vars(a)},
+                       a.out.replace('.pth', f'_ep{ep + 1}.pth'))
     torch.save({'model': model.state_dict(), 'note': 'finetune3 XS: Fit3D-derived (+Exercise3D/Sapiens2-derived if E) '
                 'weights, NON-COMMERCIAL use only', 'args': vars(a)}, a.out)
     json.dump(log, open(a.out + '.json', 'w'), indent=1)
