@@ -110,8 +110,13 @@ final class FormWarningsTests: XCTestCase {
 
     func testFeedbackDefaultAndPerKeyFlag() {
         XCTAssertEqual(RTMPoseModel.active, .coco17)
-        // Default: every key with a Flutter line is sent (bench press / deadlift keys wait for theirs).
+        // Default: every key with a Flutter line is sent (bench press / deadlift keys wait for theirs),
+        // except the high-false-alarm keys (D-M-04).
         let delivered = FormWarningTracker.allKeys.subtracting(FormWarningTracker.keysWithoutFlutterLines)
+            .subtracting(FormWarningTracker.quietByDefault)
+        XCTAssertEqual(FormWarningTracker.quietByDefault.subtracting(FormWarningTracker.allKeys), [], "real key names")
+        XCTAssertTrue(delivered.isDisjoint(with: ["squat_no_lockout", "squat_knee_valgus", "pushup_no_lockout",
+                                                  "pushup_hip_pike", "pushup_shallow", "pushup_head_up"]))
         XCTAssertEqual(FormWarningTracker(exercise: .squat).common.enabledFeedbackKeys, delivered)
         XCTAssertEqual(FormWarningTracker(exercise: .barbellRow).common.enabledFeedbackKeys,
                        delivered.union(["setup_side_view"]))
@@ -120,6 +125,10 @@ final class FormWarningsTests: XCTestCase {
         _ = pushUpRep(defaultTracker, hipDrop: 0, frame: 0)
         _ = pushUpRep(defaultTracker, hipDrop: 70, frame: 2)
         XCTAssertEqual(defaultTracker.drainEvents().map(\.key), ["pushup_hip_sag"], "sent by default")
+        // A quiet key (D-M-04) is judged and logged but not sent by default.
+        let pikes = [pushUpRep(defaultTracker, hipDrop: -50, frame: 4), pushUpRep(defaultTracker, hipDrop: -50, frame: 6)]
+        XCTAssertEqual(pikes.map(\.warnings), [["pushup_hip_pike"], ["pushup_hip_pike"]])
+        XCTAssertFalse(defaultTracker.drainEvents().map(\.key).contains("pushup_hip_pike"))
 
         // A key left out is still judged and logged, just not sent.
         let tracker = FormWarningTracker(exercise: .pushUp)

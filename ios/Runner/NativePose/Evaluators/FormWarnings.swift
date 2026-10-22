@@ -56,8 +56,11 @@ struct FormCommonConfig {
     /// onFeedback keys sent to Flutter (scope "rep" or "set"), per key, e.g. ["pushup_hip_sag", "praise_fixed"].
     /// Default: the real judgement reaches the user (2026-10-20, user: "데모 경고 빼고 실제 우리 파이프라인대로
     /// 평가해서 넣어줘") — every key except those still without a Flutter line. Was setup_full_body and
-    /// tracking_lost only (form warnings log only).
-    var enabledFeedbackKeys: Set<String> = FormWarningTracker.allKeys.subtracting(FormWarningTracker.keysWithoutFlutterLines)
+    /// tracking_lost only (form warnings log only). Since 2026-10-22 (D-M-04) the high-false-alarm keys
+    /// (`FormWarningTracker.quietByDefault`) are also left out; they are still judged and logged.
+    var enabledFeedbackKeys: Set<String> = FormWarningTracker.allKeys
+        .subtracting(FormWarningTracker.keysWithoutFlutterLines)
+        .subtracting(FormWarningTracker.quietByDefault)
     /// Side-view gate (row, push-up): once decided, the side flips only past the exercise's cutoff ± this. 임시값 — 테스트 영상으로 조정
     var sideViewHysteresis = 0.03
     /// Side-view gate: rolling window (frames, ~5 s) / frames needed before the first decision (nil until then).
@@ -406,6 +409,13 @@ final class FormWarningTracker {
     static let keysWithoutFlutterLines: Set<String> = [
         "bench_hips_up", "bench_shallow", "bench_no_lockout",
         "deadlift_hips_first", "deadlift_no_lockout", "deadlift_lean_back",
+    ]
+
+    /// Keys with a Flutter line that stay off by default (D-M-04, 2026-10-22, user: "추천대로 진행"): on
+    /// held-out normal reps they false-alarm 10–90 % (docs/results/rules_calib.md). Judged and logged only.
+    static let quietByDefault: Set<String> = [
+        "squat_no_lockout", "squat_knee_valgus",
+        "pushup_no_lockout", "pushup_hip_pike", "pushup_shallow", "pushup_head_up",
     ]
 
     static func grade(of key: String) -> FormGrade {

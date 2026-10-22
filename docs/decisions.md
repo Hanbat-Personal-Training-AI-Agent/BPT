@@ -954,3 +954,10 @@
   - 이 전환은 결과를 본 뒤의 제품 결정이다. D-T3-17 사전 등록 규칙(에이전트 제안, 미승인)을 통과해서 정한 것이 아니고, 그 규칙·기록은 고치지 않는다.
 - **확인**: `docs/results/halpe_default.md` A(테스트·재생)·E(재현 자료).
 - **되돌리기**: 기기 시험만이면 C1 빌드에서 `BPT_POSE_MODEL=mcoco17`. 제품을 되돌리려면 C2를 되돌리고(번들·pbxproj·enum) `RTMPoseModel.workout = .mcoco17`.
+
+### D-M-04 오경보 큰 키 6개를 기본 전달에서 뺀다 (2026-10-22, 사용자 결정)
+- **사용자 결정**: "추천대로 진행" — `docs/results/rules_calib.md` F1(R5) 승인. `FormCommonConfig.enabledFeedbackKeys` 기본값에서 squat_no_lockout, squat_knee_valgus, pushup_no_lockout, pushup_hip_pike, pushup_shallow, pushup_head_up을 뺀다(`FormWarningTracker.quietByDefault`).
+- **근거**: held-out 정상 렙(m Halpe26 입력·원래 XS)에서 현재 기준 오경보 squat_no_lockout 52%, squat_knee_valgus 공개 63%·Fit3D 90%, pushup_no_lockout 23%, pushup_hip_pike·shallow·head_up 10–11%.
+- **그대로 둔 것**: 판정과 로그(`FormRepReport.warnings`, 세션 로그, pose-replay). 기준값은 바꾸지 않음 — R6(rc1 기본 채택)은 **승인되지 않음**.
+- **결과**: `docs/results/quiet_keys.md`. 브랜치 `ai/quiet-keys-m2b98256`, 병합하지 않음.
+
