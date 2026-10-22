@@ -365,6 +365,41 @@ Home `20261020-device-video-landscape-pushup-de42b9a`.
 
 <!--PENDING-->
 
+## 2026-10-22 기기 작업
+- **USB 회수(완료)**: 30분 발열 실행 로그 전체(67.2 MB, session_end, 판정 56,974프레임; Home `20261022-device-thermal30-fulllog-usb`)와 Wi-Fi에서 못 받은
+  A/B 로그 3개(+1, 모두 session_end; Home `20261022-device-halpe-ab-a8b29f1-missing3-usb`).
+- **오버레이 GPU 트레이스**: USB에서 기록은 됐지만(a8b29f1, mcoco17) 기록 구간에 앱 작업(ANE·CPU)이 없었다 — 앱이 영상 모드로 시작하지 않은 것으로 보임.
+  **평가 불가**. 오버레이 비용은 FPS·지연·CPU 비교(차이 없음)로만 판단한다.
+- **회전 수정 빌드(a8b29f1, m Halpe26 기본, 체형 없음)** — `BPT_CAMERA_VIDEO_ROTATE=N`에 `BPT_FORCE_CAPTURE_ROTATION` 없음/있음:
+
+| 클립 | 회전 | 보정 | 렙 | 3D ok | (a) 3D 경고 | (b) 보낸 렙 범위 키 | 세로 기준(Halpe26) |
+|---|---|---|---|---|---|---|---|
+| pushup_0004_cam2 | 90° | 없음 | 10/10 | 95% | **hip_pike 10** | hip_pike 3 | 경고 no_lockout 4, 보냄 praise_good 2 |
+| pushup_0004_cam2 | 90° | 있음 | 10/10 | 94% | no_lockout 9, hand_position 1, head_drop 1 | hand_position 1, praise_fixed 1 | 〃 |
+| pushup_0004_cam3 | 270° | 없음 | 10/10 | 94% | 없음 | praise_good 3 | 경고 없음, praise_good 3 |
+| pushup_0004_cam3 | 270° | 있음 | 10/10 | 92% | 없음 | praise_good 3 | 〃 |
+
+  보정을 켜면 90°에서 가로 전용 오경보(hip_pike 10렙)가 사라진다. 다만 세로와 똑같아지지는 않는다(no_lockout 9 vs 4, hand_position 1). Halpe26에서는 COCO17 때 무너지던
+  3D(0004_cam2 90° ok 6%)가 보정 없이도 95%다. 실행마다 1클립이라 잡음 범위 안의 차이일 수 있다. 이 4런은 체형 없이 돌렸고, 체형을 넣은 재측정은 아래 D5/D6과 합친다.
+  Home `20261022-device-rotation-a8b29f1-{r90off,r90on,r270off,r270on}`.
+- **체형(캘리브레이션 재현) 파일**: `BPT_BONE_TARGETS=targets/P{1,2,3}.json`(앱 Documents 기준). 원본은 Home `~/bpt-runs/lift-refine/20261020-shapes-ex3d-all/targets/`
+  (lift-refine, Exercise3D 사람별 SAM 3D Body → SMPL β → H36M 뼈 길이). 형식: `{"boneLengthData": {"segments": {"pelvis-right_hip": cm, …16개}}, "subject", "source"}`,
+  cm 뼈 길이만 들어 있다(영상·사진·β 없음). 클립 → 사람: squat_0002·barbellrow_0003 = P2, barbellrow_0001 = P3, 나머지 = P1(`byclip.json`).
+  sha256 P1 `81a0a98f…bd1b`, P2 `04a79c94…1be3`, P3 `d34da7b5…0fc`. 폰에만 복사, Mac 사본은 두지 않는다. **10-20 기기 실행은 bone_p1/p2 비교 3런 말고는 모두 체형 없음
+  (`bone_targets: null`)이었다** — 캘리브레이션을 안 한 사용자 상태다.
+- **setup + Halpe26 테스트 빌드(진행 중)**: `ai/setup-constraint-m2b98256` 0c312b9 + `ai/halpe-default-m2b98256` 7db0b33를 임시 워크트리에서 합친 34094a6(푸시 안 함;
+  pbxproj는 XS·m Halpe26 줄을 남기고 halpe가 지운 m COCO17 줄은 뺌, PoseReplay usage는 `|mhalpe26` 추가), `--dart-define=BPT_EXERCISE_SETUP=true`.
+  손목 고정은 같은 빌드에서 켜고 끄려고 dart-define 대신 env `BPT_WRIST_ANCHOR=1`을 쓴다(네이티브 동작은 같다). 4클립 × 고정 켬/끔 × 2회 중 1회째(8런)만 끝났다.
+  폰을 가져가서 2회째·적응형 실행은 중단으로 표시했다(`sh_on2`·`sh_off2`·`sh_adapt`, 세지 않음). 1회째 로그는 폰에 있다.
+- **폰이 돌아오면 실행할 목록**(평가 에이전트 eval_full_prereg 6절과 합쳐 중복 제거):
+  1. a8b29f1 앱 코드(dfe4b6c 빌드, 문서만 다름)를 다시 설치 → D1(mcoco17, BPT_CAMERA_3D=0) / D2(mcoco17) / D3(mhalpe26 + 사람별 체형) / D4(D3 + L=3),
+     barbellrow_0000_cam2·pushup_0003_cam2·squat_0001_cam2·pushup_0004_cam1 × 2회, 클립마다 D1→D4 순서. 체형 있음/없음 비교(D2·D3 대비)도 여기서 겸한다.
+     대표 6개 중 나머지 사선 클립(로우·스쿼트 사선)은 D3 구성과 체형 없는 구성으로 1회씩 추가한다.
+  2. D5 회전 90°(pushup_0001_cam2·0004_cam2, FORCE 0 vs 90) / D6 회전 270°(pushup_0000_cam3·0001_cam3, FORCE 0 vs 270), 각 2회, 체형 P1. 위의 체형 없는 회전 4런을 대신한다.
+  3. setup+Halpe26 테스트 빌드 재설치 → 고정 켬/끔 2회째와 적응형 1런, 체형 P1.
+  4. D7: D3 구성으로 squat_0001_cam2 30분 반복(전원 뺌).
+  5. 중력(BPT_3D_GRAVITY): 영상 모드에서는 폰의 실제 중력이 영상과 무관하므로 **실제 촬영 필요**로 둔다.
+
 ## 최종 보고 (A–G) — 2026-10-20 기준
 ### A. 검증된 사실
 1. **XS 3D는 실제 앱 경로에서 매 프레임 돈다**: 추론 26.9–29.3회/초, Neural Engine에서(xctrace, MPS·GPU ML 0). 탑재 가중치는 H36M 원본 XS
