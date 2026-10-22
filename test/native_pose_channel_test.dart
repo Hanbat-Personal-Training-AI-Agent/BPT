@@ -31,7 +31,7 @@ void main() {
 
   test('voice reply renders the dart line ({n}, locale) and ignores unknown keys', () {
     expect(koriVoiceReply('pushup_no_lockout', 2, isKo: true), {
-      'text': '올라올 때 팔을 다 안 편 렙이 2번 있었어. 위에서 팔꿈치를 끝까지 펴 줘.',
+      'text': '올라올 때 팔 끝까지 펴!',
       'lang': 'ko-KR',
     });
     expect(koriVoiceReply('tracking_lost', null, isKo: false)!['lang'], 'en-US');
