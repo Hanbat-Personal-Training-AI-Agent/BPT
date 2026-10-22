@@ -303,3 +303,13 @@ final class CalibrationFrameGate: @unchecked Sendable {
         busy = false
     }
 }
+
+/// How far the camera buffer still is from level, so the analysed picture always stands upright.
+enum CalibrationRotation {
+    /// Clockwise degrees (0/90/180/270) to turn a buffer the connection rotated by `applied` so it matches
+    /// the horizon-level angle `horizon` (both AVCaptureConnection.videoRotationAngle values).
+    static func residualDegrees(horizon: Double, applied: Double) -> Int {
+        guard horizon.isFinite, applied.isFinite else { return 0 }
+        return (((Int(((horizon - applied) / 90).rounded()) % 4) + 4) % 4) * 90
+    }
+}

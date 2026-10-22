@@ -39,6 +39,11 @@ class _OnboardingScanScreenState extends ConsumerState<OnboardingScanScreen> {
   List<String> _capturedViews = const [];
   CalibrationGuide _guide = const CalibrationGuide();
   CalibrationPerson? _person;
+  DateTime _personSeenAt = DateTime.fromMillisecondsSinceEpoch(0);
+
+  /// A frame without a measurement (phone gate, one lost joint) keeps the last outline this long,
+  /// so the guide does not jump to its empty-frame spot and back.
+  static const _personHold = Duration(milliseconds: 500);
   double _holdProgress = 0;
   bool _isPassing = false;
   String? _error;
@@ -87,7 +92,14 @@ class _OnboardingScanScreenState extends ConsumerState<OnboardingScanScreen> {
           _targetView = args['targetView'] as String?;
           _capturedViews = captured;
           _guide = CalibrationGuide.fromMap((args['guide'] as Map?)?.cast<String, dynamic>());
-          _person = CalibrationPerson.fromMap((args['person'] as Map?)?.cast<String, dynamic>());
+          final person = CalibrationPerson.fromMap((args['person'] as Map?)?.cast<String, dynamic>());
+          final now = DateTime.now();
+          if (person != null) {
+            _person = person;
+            _personSeenAt = now;
+          } else if (now.difference(_personSeenAt) >= _personHold) {
+            _person = null;
+          }
           _holdProgress = (args['holdProgress'] as num?)?.toDouble() ?? 0;
           _isPassing = args['isPassing'] as bool? ?? false;
           if (newCapture) {
