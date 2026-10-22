@@ -157,6 +157,21 @@ final class MotionAGFormerLiveTests: XCTestCase {
         }
     }
 
+    /// With the adaptive constraint on, Flutter also gets the occluded (relation-estimated) joints; off, the payload is unchanged.
+    func testBridgePayloadOccludedOnlyWithAdaptive() {
+        let pose = [SIMD3<Double>](repeating: .zero, count: 17)
+        var frame = Lifted3DFrame(frameIndex: 0, state: .ok, filled: 27, raw: pose, pose3D: pose, constraints: nil, row: 21)
+        XCTAssertNil(Pose3DBridge.payload(frame)["occluded"])
+        XCTAssertEqual(Pose3DBridge.key(frame), "ok/0")
+        var report = AdaptiveRelationConstraint.Report()
+        report.filled[6] = .init(w: 0.9, sigma: 0.1, gap: 3)
+        report.relations["feet"] = .init(state: "established", event: "reanchored", dev: 0.2)
+        frame.adaptive = report
+        XCTAssertEqual(Pose3DBridge.payload(frame)["occluded"] as? [Int], [6])
+        XCTAssertEqual(Pose3DBridge.payload(frame)["reanchored"] as? Bool, true)
+        XCTAssertEqual(Pose3DBridge.key(frame), "ok/0/6")
+    }
+
     func testStatesAndTimeAlignment() throws {
         var live = MotionAGFormerLive<Int>(lookahead: 5, cadence: 1, predict: Self.fakePredict)
         let person = (0..<17).map { PoseKeypoint(x: 300 + Double($0) * 5, y: 200 + Double($0) * 40, confidence: 0.9) }

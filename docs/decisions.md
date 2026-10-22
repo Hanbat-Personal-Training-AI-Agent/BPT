@@ -963,3 +963,14 @@
 - **발 고정**: ai/setup-constraint로 넘김(코드 없음).
 - **검증 상태**: Fit3D 검증(정답)은 Home이 15:27에 꺼져 중단 → 모든 기능 “실험적 보정”으로 표시(규칙 미평가). Exercise3D(의사 정답) 결과만 보조 근거.
 - **되돌리기**: `kneeClampDegrees = nil`, `BPT_HAND_DEDUPE=0`, 오버레이는 커밋 revert.
+
+## 트랙 setup-constraint — 개인화 준비 자세 · 적응형 가림 제약 — 2026-10-20 (ai/setup-constraint)
+
+### D-S-01 비교 규칙 사전등록 (검증 결과를 보기 전, 제안)
+- `docs/results/setup_constraint_prereg.md`: 변형 A/B/B0/C/D/E/F/EC, 가림 10조건(2D 손상), RGB 가림, 반-합성 발 이동 5케이스, 조정 격자(조정 피험자만), 판정 규칙 R1–R6. 변경 기록은 모두 검증 결과를 보기 전에 남겼다.
+- 규칙과 기준값은 **에이전트 제안이며 사용자가 승인하지 않았다**.
+
+### D-S-02 구현은 기본 끔 — 앱 동작 변경 없음 (2026-10-20)
+- 적응형 관계 제약: `BPT_ADAPTIVE_3D=1`일 때만 켜진다. `MotionAGFormerLive`의 제약 직후 한 곳에 연결했고, 끄면 출력이 비트 단위로 같다(기존 테스트 그대로 통과).
+- 준비 자세 패널·체형 결과 저장소: Flutter `--dart-define=BPT_EXERCISE_SETUP=true`일 때만 켜진다. 팀원 화면은 플래그로 감싼 연결만 했다.
+- 기본값 전환, integration 병합, 모델 변경은 하지 않았다. 켤지는 사용자가 결정한다(결과: `docs/results/setup_constraint.md`).

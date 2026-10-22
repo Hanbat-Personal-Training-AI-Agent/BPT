@@ -331,6 +331,8 @@ struct PersonSquareCropTracker {
 struct MotionAGFormerInputNormalizer {
     var normalization: MotionAGFormerNormalization = .default3D
     var tracker = PersonSquareCropTracker()
+    /// Crop of the last `normalize` call: px per normalized (= XS output) unit is `side / 2`.
+    private(set) var lastCrop: SquareCrop?
 
     mutating func normalize(_ h36m17: [PoseKeypoint], imageWidth: Int, imageHeight: Int) -> [[Float]] {
         let crop: SquareCrop
@@ -340,6 +342,7 @@ struct MotionAGFormerInputNormalizer {
         } else {
             crop = SquareCrop.image(width: imageWidth, height: imageHeight, normalization: normalization)
         }
+        lastCrop = crop
         return PoseCoordinateTransforms.squareCropNormalize(h36m17, crop: crop)
     }
 }

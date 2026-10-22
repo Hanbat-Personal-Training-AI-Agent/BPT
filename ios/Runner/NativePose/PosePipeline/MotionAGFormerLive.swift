@@ -21,6 +21,8 @@ import simd
 ///   NaN in `masked3D`, so only the metrics that need them are skipped (per-metric invalidation).
 /// - bad3D: every joint is untrusted (bone gate) — judging skips the frame.
 /// - ok.
+/// Optional `adaptive` (AdaptiveRelationConstraint, experimental, off by default) runs right after `constraints`; its
+/// output is `adapted`, its expired joints join the invalid set.
 enum Pose3DState: String {
     case warmingUp = "warming_up"
     case trackingLost = "tracking_lost"
@@ -41,14 +43,26 @@ struct Lifted3DFrame {
     let constraints: Pose3DConstraints.Report?
     /// Output row of the 27-frame window this frame was read from (26 − effective lookahead).
     let row: Int?
+    /// H36M17 2D confidences of this frame's XS input (nil when the frame never entered the window).
+    var confidence: [Double]? = nil
+    /// px per crop unit (person-crop side / 2) of this frame's input.
+    var unit: Double? = nil
+    /// After AdaptiveRelationConstraint (experimental, nil when `MotionAGFormerLive.adaptive` is off). `raw` and `pose3D`
+    /// stay as they were, so the unconstrained / constrained / adapted 3D can always be compared.
+    var adapted: [SIMD3<Double>]? = nil
+    var adaptive: AdaptiveRelationConstraint.Report? = nil
 
     /// 3D the evaluators may judge with: ok, or partial with the untrusted joints NaN.
     var usable3D: [SIMD3<Double>]? { state == .ok || state == .partial3D ? masked3D : nil }
 
-    /// `pose3D` with `constraints.invalidJoints` set to NaN (what the evaluators get; = pose3D when nothing is invalid).
+    /// Untrusted joints: Pose3DConstraints' plus the adaptive constraint's expired ones.
+    var invalidJoints: Set<Int> { (constraints?.invalidJoints ?? []).union(adaptive?.invalid ?? []) }
+
+    /// `adapted` (when on) else `pose3D`, with `invalidJoints` set to NaN (what the evaluators get; = pose3D when nothing
+    /// is invalid and the adaptive constraint is off).
     var masked3D: [SIMD3<Double>]? {
-        guard var p = pose3D else { return nil }
-        for j in constraints?.invalidJoints ?? [] { p[j] = SIMD3(repeating: .nan) }
+        guard var p = adapted ?? pose3D else { return nil }
+        for j in invalidJoints { p[j] = SIMD3(repeating: .nan) }
         return p
     }
 }
@@ -62,6 +76,8 @@ struct MotionAGFormerLive<Payload> {
     /// 0.5 s at 30 fps.
     var resetAfterLostFrames = 15
     var constraints = Pose3DConstraints()
+    /// Experimental confidence-aware relation constraint after `constraints` (nil = off, the default).
+    var adaptive: AdaptiveRelationConstraint?
     /// [27 × 17 × 3] input (x, y, confidence) → [27 × 17 × 3] output, row-major. Core ML in the app.
     let predict: ([Float]) throws -> [Float]
 
@@ -70,6 +86,8 @@ struct MotionAGFormerLive<Payload> {
         let payload: Payload
         let input: [[Float]]
         let valid: Bool
+        /// px per normalized unit (crop side / 2).
+        let unit: Double
     }
 
     private var normalizer = MotionAGFormerInputNormalizer()
@@ -121,7 +139,8 @@ struct MotionAGFormerLive<Payload> {
         }
         let h36m = try PoseCoordinateTransforms.coco17ToH36M17(coco17)
         let input = normalizer.normalize(h36m, imageWidth: imageWidth, imageHeight: imageHeight)
-        entries.append(Entry(frameIndex: frameIndex, payload: payload, input: input, valid: valid))
+        entries.append(Entry(frameIndex: frameIndex, payload: payload, input: input, valid: valid,
+                             unit: (normalizer.lastCrop?.side ?? 2) / 2))
         pending += 1
         realFrames += 1
         if entries.count > Self.window { entries.removeFirst() }
@@ -165,6 +184,7 @@ struct MotionAGFormerLive<Payload> {
         realFrames = 0
         lostRun = 0
         captureRotation = nil
+        adaptive?.reset()
     }
 
     private mutating func emitWithout3D(count: Int) -> [(Payload, Lifted3DFrame)] {
@@ -197,16 +217,22 @@ struct MotionAGFormerLive<Payload> {
             let raw = (0..<17).map { j in
                 SIMD3<Double>((0..<3).map { Double(output[(row * 17 + j) * 3 + $0]) })
             }
+            let confidence = e.input.map { Double($0[2]) }
             guard e.valid else {
                 emitted.append((e.payload, Lifted3DFrame(frameIndex: e.frameIndex, state: .trackingLost, filled: realFrames,
-                                                         raw: raw, pose3D: nil, constraints: nil, row: row)))
+                                                         raw: raw, pose3D: nil, constraints: nil, row: row,
+                                                         confidence: confidence, unit: e.unit)))
                 continue
             }
             let (fixed, report) = constraints.apply(raw)
-            let state: Pose3DState = report.invalidJoints.isEmpty ? .ok : report.invalidJoints.count == 17 ? .bad3D : .partial3D
+            // The one hook of the experimental adaptive constraint: after the anatomical constraints, same frame order.
+            let adapted = adaptive?.update(fixed, confidence: confidence, frame: e.frameIndex, unit: e.unit)
+            let invalid = report.invalidJoints.union(adapted?.1.invalid ?? [])
+            let state: Pose3DState = invalid.isEmpty ? .ok : invalid.count == 17 ? .bad3D : .partial3D
             emitted.append((e.payload, Lifted3DFrame(frameIndex: e.frameIndex, state: state,
                                                      filled: min(realFrames, w), raw: raw, pose3D: fixed,
-                                                     constraints: report, row: row)))
+                                                     constraints: report, row: row, confidence: confidence, unit: e.unit,
+                                                     adapted: adapted?.0, adaptive: adapted?.1)))
         }
         pending -= count
         return emitted

@@ -63,6 +63,11 @@ var motion3DPath: String? = {
 var lookahead = 5
 var cadence = 1
 var constraintsOn = true
+/// --adaptive on: experimental AdaptiveRelationConstraint after the constraints (as BPT_ADAPTIVE_3D=1 in the camera);
+/// <base>_3d.csv then also has the adapted H36M17 (a*_x…) and the filled joints.
+var adaptiveOn = false
+/// --wrist-anchor on: experimental push-up WristFloorAnchor on the 2D (as BPT_WRIST_ANCHOR=1 in the camera).
+var wristAnchorOn = false
 var formSource3D = true
 var imageSizeOverride: (Int, Int)?
 var rowShrug = false
@@ -120,6 +125,10 @@ while let argument = arguments.next() {
         cadence = value
     case "--constraints":
         constraintsOn = arguments.next() != "off"
+    case "--adaptive":
+        adaptiveOn = arguments.next() == "on"
+    case "--wrist-anchor":
+        wristAnchorOn = arguments.next() == "on"
     case "--form-source":
         formSource3D = arguments.next() != "2d"
     case "--image-size":
@@ -310,6 +319,7 @@ for video in videos {
         var l = MotionAGFormerLive<Int>(lookahead: lookahead, cadence: cadence, predict: p)
         l.constraints.enabled = constraintsOn
         l.constraints.reflectFlippedKnee = exercise == .squat  // as the camera (Fit3D S6: squat only)
+        if adaptiveOn { l.adaptive = AdaptiveRelationConstraint(exercise: exercise) }
         return l
     }
     let targets = try boneTargets(for: name)
@@ -374,7 +384,8 @@ for video in videos {
     tracker.common.form3DRequired = lifter != nil && formSource3D
     var states3D: [String: Int] = [:]
     var csv3D = "frame,state,row,filled,bone_corr,angle_corr," + (0..<17).map { "r\($0)_x,r\($0)_y,r\($0)_z" }.joined(separator: ",")
-        + "," + (0..<17).map { "c\($0)_x,c\($0)_y,c\($0)_z" }.joined(separator: ",") + "\n"
+        + "," + (0..<17).map { "c\($0)_x,c\($0)_y,c\($0)_z" }.joined(separator: ",")
+        + (adaptiveOn ? ",adaptive_filled,adaptive_invalid," + (0..<17).map { "a\($0)_x,a\($0)_y,a\($0)_z" }.joined(separator: ",") : "") + "\n"
     var seconds3D = 0.0
     func evaluateFrame(_ i: Int, _ frame3D: Lifted3DFrame?) {
         if let frame3D {
@@ -382,7 +393,10 @@ for video in videos {
             let xyz = { (p: [SIMD3<Double>]?) in (p ?? Array(repeating: SIMD3<Double>(repeating: .nan), count: 17)).flatMap { [f($0.x), f($0.y), f($0.z)] } }
             csv3D += ([String(i), frame3D.state.rawValue, frame3D.row.map(String.init) ?? "", String(frame3D.filled),
                        f(frame3D.constraints?.boneMaxCorrection), f(frame3D.constraints?.maxAngleCorrection)]
-                      + xyz(frame3D.raw) + xyz(frame3D.pose3D)).joined(separator: ",") + "\n"
+                      + xyz(frame3D.raw) + xyz(frame3D.pose3D)
+                      + (adaptiveOn ? [(frame3D.adaptive?.filled.keys.sorted() ?? []).map(String.init).joined(separator: " "),
+                                       (frame3D.adaptive?.invalid ?? []).map(String.init).joined(separator: " ")] + xyz(frame3D.adapted) : []))
+                .joined(separator: ",") + "\n"
         }
         let result = step(i, coco17Frames[i], frame3D?.masked3D, frame3D?.state, feetFrames[i])
         if result.rep > rep { repEndFrames.append(i) }
@@ -400,7 +414,15 @@ for video in videos {
                 + (coco17Frames[i] + extraFrames[i]).flatMap { [f($0.x), f($0.y), f($0.confidence)] })
             .joined(separator: ",") + "\n"
     }
+    // --wrist-anchor on (push-up, experimental): WristFloorAnchor on the 2D before the 3D and the evaluators, active once
+    // a rep has been counted (the camera: rep >= 1 or setup ready; with no MediaPipe here it anchors the RTMPose 2D).
+    var wristAnchor = wristAnchorOn && exercise == .pushUp ? WristFloorAnchor() : nil
+    var wristAnchorStates: [String: Int] = [:]
     for i in coco17Frames.indices {
+        if wristAnchor != nil, let r = wristAnchor?.update(coco17Frames[i], active: rep >= 1) {
+            coco17Frames[i] = r.keypoints
+            for (_, st) in r.states { wristAnchorStates[st.rawValue, default: 0] += 1 }
+        }
         guard lifter != nil else { evaluateFrame(i, nil); continue }
         let start = Date()
         let ready = try lifter!.push(frameIndex: i, coco17: coco17Frames[i], imageWidth: imageWidth,
@@ -432,6 +454,8 @@ for video in videos {
         "lookahead": lookahead,
         "cadence": cadence,
         "constraints": constraintsOn,
+        "adaptive": adaptiveOn,
+        "wrist_anchor": wristAnchorOn ? wristAnchorStates as Any : NSNull(),
         "bone_targets": targets.map { $0 as Any } ?? NSNull(),
         "form_source": tracker.common.form3DRequired ? "3d" : "2d",
         "delay_frames_3d": lifter.map { $0.delayFrames as Any } ?? NSNull(),

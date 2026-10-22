@@ -40,6 +40,9 @@
 		6A2C1B8D3E4F5A6B7C8D9E01 /* BoneLengthConstraint.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A2C1B8D3E4F5A6B7C8D9E02 /* BoneLengthConstraint.swift */; };
 		7B3D2C9E4F5A6B7C8D9E0F01 /* MotionAGFormerLive.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B3D2C9E4F5A6B7C8D9E0F02 /* MotionAGFormerLive.swift */; };
 		7B3D2C9E4F5A6B7C8D9E0F03 /* Pose3DConstraints.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B3D2C9E4F5A6B7C8D9E0F04 /* Pose3DConstraints.swift */; };
+		5C9A1E3B7D2F4A6C8E0B1D01 /* AdaptiveRelationConstraint.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C9A1E3B7D2F4A6C8E0B1D02 /* AdaptiveRelationConstraint.swift */; };
+		5C9A1E3B7D2F4A6C8E0B1E01 /* WristFloorAnchor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C9A1E3B7D2F4A6C8E0B1E02 /* WristFloorAnchor.swift */; };
+		5C9A1E3B7D2F4A6C8E0B1D03 /* ExerciseSetup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C9A1E3B7D2F4A6C8E0B1D04 /* ExerciseSetup.swift */; };
 		97C146FC1CF9000F007C117D /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FA1CF9000F007C117D /* Main.storyboard */; };
 		97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FD1CF9000F007C117D /* Assets.xcassets */; };
 		97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */; };
@@ -137,6 +140,9 @@
 		6A2C1B8D3E4F5A6B7C8D9E02 /* BoneLengthConstraint.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BoneLengthConstraint.swift; sourceTree = "<group>"; };
 		7B3D2C9E4F5A6B7C8D9E0F02 /* MotionAGFormerLive.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MotionAGFormerLive.swift; sourceTree = "<group>"; };
 		7B3D2C9E4F5A6B7C8D9E0F04 /* Pose3DConstraints.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = Pose3DConstraints.swift; sourceTree = "<group>"; };
+		5C9A1E3B7D2F4A6C8E0B1D02 /* AdaptiveRelationConstraint.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AdaptiveRelationConstraint.swift; sourceTree = "<group>"; };
+		5C9A1E3B7D2F4A6C8E0B1E02 /* WristFloorAnchor.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WristFloorAnchor.swift; sourceTree = "<group>"; };
+		5C9A1E3B7D2F4A6C8E0B1D04 /* ExerciseSetup.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ExerciseSetup.swift; sourceTree = "<group>"; };
 		D0DB04261F1D80726AD0AF58 /* rtmpose_s_forward.mlpackage */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = folder.mlpackage; path = rtmpose_s_forward.mlpackage; sourceTree = "<group>"; };
 		5B2E8D3FAC4E6F7081920314 /* rtmpose_s_halpe26_forward.mlpackage */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = folder.mlpackage; path = rtmpose_s_halpe26_forward.mlpackage; sourceTree = "<group>"; };
 		8D4FAB2E3A5C7D9F1B2C3D4E /* rtmpose_m_forward.mlpackage */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = folder.mlpackage; path = rtmpose_m_forward.mlpackage; sourceTree = "<group>"; };
@@ -280,6 +286,8 @@
 				6A2C1B8D3E4F5A6B7C8D9E02 /* BoneLengthConstraint.swift */,
 				7B3D2C9E4F5A6B7C8D9E0F02 /* MotionAGFormerLive.swift */,
 				7B3D2C9E4F5A6B7C8D9E0F04 /* Pose3DConstraints.swift */,
+				5C9A1E3B7D2F4A6C8E0B1D02 /* AdaptiveRelationConstraint.swift */,
+				5C9A1E3B7D2F4A6C8E0B1E02 /* WristFloorAnchor.swift */,
 			);
 			path = PosePipeline;
 			sourceTree = "<group>";
@@ -364,6 +372,7 @@
 				F6B6AACE97A047453F5ADE62 /* SquatEvaluator.swift */,
 				66A9249975D25A56873258E4 /* SquatTypes.swift */,
 				7A3F0C1E9B2D4E5F6A7B8C02 /* FormWarnings.swift */,
+				5C9A1E3B7D2F4A6C8E0B1D04 /* ExerciseSetup.swift */,
 			);
 			path = Evaluators;
 			sourceTree = "<group>";
@@ -628,6 +637,8 @@
 				6A2C1B8D3E4F5A6B7C8D9E01 /* BoneLengthConstraint.swift in Sources */,
 				7B3D2C9E4F5A6B7C8D9E0F01 /* MotionAGFormerLive.swift in Sources */,
 				7B3D2C9E4F5A6B7C8D9E0F03 /* Pose3DConstraints.swift in Sources */,
+				5C9A1E3B7D2F4A6C8E0B1D01 /* AdaptiveRelationConstraint.swift in Sources */,
+				5C9A1E3B7D2F4A6C8E0B1E01 /* WristFloorAnchor.swift in Sources */,
 				223CDB2759C9124390D74E5F /* BundledVideoHandFrameProcessor.swift in Sources */,
 				08C943D98F2961D3E7FD292C /* HandCropBuilder.swift in Sources */,
 				05A1975E6E323360F6D4A55A /* HandLandmarkTypes.swift in Sources */,
@@ -644,6 +655,7 @@
 				6A92035D6C60A5B2C3F40A9D /* SquatEvaluator.swift in Sources */,
 				511C8B1A5E3231BB606B95BE /* SquatTypes.swift in Sources */,
 				7A3F0C1E9B2D4E5F6A7B8C01 /* FormWarnings.swift in Sources */,
+				5C9A1E3B7D2F4A6C8E0B1D03 /* ExerciseSetup.swift in Sources */,
 				B7BF1D830B9649D4FFEE946D /* NativePoseExercise.swift in Sources */,
 				622CB33062458ACA0B781D8B /* NativePoseCameraPlatformView.swift in Sources */,
 				C4CC1F25A32E8EDA3BF8D0D3 /* NativePoseCameraPlatformViewFactory.swift in Sources */,
