@@ -465,6 +465,23 @@ D1 = mcoco17 + `BPT_CAMERA_3D=0`(2D만), D2 = mcoco17(3D), D3 = mhalpe26 + 체�
 - 남는 차이: 0004_cam2 90° 보정 뒤 no_lockout 9렙(세트 범위, 말하지 않음)·hand_position 1. 세로(Halpe26)에서는 no_lockout 4렙이었다 — 회전 뒤 crop이
   세로와 완전히 같지 않은 것으로 본다(가설).
 
+### setup + Halpe26 테스트 빌드 — 준비 자세·손목 바닥 고정(setup_constraint.md 11절 기기 확인 요청)
+빌드 34094a6(setup 0c312b9 + halpe 7db0b33, 임시 병합·푸시 안 함) + `--dart-define=BPT_EXERCISE_SETUP=true`, 체형 P1. 손목 고정은 같은 빌드에서
+env `BPT_WRIST_ANCHOR=1`로 켬/끔(네이티브 동작은 dart-define과 같다). 4클립 × 켬/끔 × 2회 + 적응형(`BPT_ADAPTIVE_3D=1`, 고정 켬) 스쿼트 1런, 모두 완결.
+Home `20261022-device-setup-halpe-34094a6-*`.
+
+| 클립 | 렙(켬/끔, 2회씩) | setup_ready(렙 1 시작) | 3D 경고(켬=끔) | 보낸 키 | 손목 고정 상태(켬, 프레임) | 화면 손목 튐 |
+|---|---|---|---|---|---|---|
+| squat_0001_cam2 | 10/10/10/10 | **7.0–7.3초**(9.4–9.7초) — 5런 모두 첫 렙 전 | knee_valgus 6 | knee_valgus 2, praise_fixed 1 | 해당 없음(푸시업만) | 0/0 |
+| pushup_0003_cam2 | 10/10/10/10 | 없음 | 없음 | 없음 | observed 886, none 200, held 4 | 0/0 |
+| pushup_0000_cam2 | 10/10/10/10 | 없음 | hand_position 1 | hand_position 1, praise_fixed 1 | observed 1,026–1,028, none 210 | 0/0 |
+| barbellrow_0000_cam2 | 10/10/10/10 | 없음 | 없음 | 없음 | 해당 없음 | 0/0 |
+
+- 기대 결과 대비: 스쿼트에서 첫 렙 전 setup_ready **나옴**(발 관계 씨앗, 스냅숏 foot_stagger·heel_toe·torso_incline), judged `setup` 필드(phase/moving/motion_2d/progress)
+  **기록됨**, 손목 고정 켬/끔 렙 **같음**(경고·보낸 키도 같음), `wrist_anchor` 상태 **기록됨**, 적응형 실행의 스쿼트 adaptive_invalid **0프레임**.
+- 이 클립들에서는 손목 고정을 꺼도 화면 손목 튐이 0이라(오버레이가 이미 XS 입력 손목을 그림) 고정의 눈에 보이는 효과는 **확인 못 함**. 푸시업·로우는
+  준비 자세가 준비됨까지 가지 않았다(이 영상에는 1초 정지 구간이 거의 없다 — setup 문서와 같은 관찰).
+
 ## 최종 보고 (A–G) — 2026-10-20 기준
 ### A. 검증된 사실
 1. **XS 3D는 실제 앱 경로에서 매 프레임 돈다**: 추론 26.9–29.3회/초, Neural Engine에서(xctrace, MPS·GPU ML 0). 탑재 가중치는 H36M 원본 XS
