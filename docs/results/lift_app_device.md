@@ -515,6 +515,25 @@ Home `20261022-device-eval-D7-a8b29f1`.
   perf 로그 `workout_form_logs/perf_<exercise>_<time>.jsonl`은 실행 때 `BPT_PERF_LOG=1`(또는 `-BPTPerfLog YES`)일 때만. 영상 모드 로그(video_runs)는 없음.
   회수: `xcrun devicectl device copy from --domain-type appDataContainer --domain-identifier com.bpt.liftdev --source Documents/workout_form_logs …`.
 
+### 체험용 빌드 갱신 — `ai/trial-mf953336` (main f953336 기준)
+- 4b6f0a5 = integration f953336(팀원 #66·#67) + trial-meb301ad(trial-m2b98256 + 짧은 코리 대사) + cb6dcf1(가로 미리보기) + 체험 전용 로그 켬.
+- **로그 정정**: `WorkoutFormLog`는 원래 DEBUG 빌드에서만 켜져서 Release 체험 빌드는 판정 로그를 남기지 않았다. 체험 브랜치 전용 커밋(4b6f0a5)으로
+  Release에서도 `Documents/workout_form_logs/<exercise>_<time>.jsonl`(렙 보고서·세션 요약)과 `perf_<exercise>_<time>.jsonl`(초 단위 FPS·드롭·지연·발열·배터리,
+  `BPT_PERF_LOG=0`이면 끔)을 남긴다. main·integration에는 넣지 않는다.
+- 회수·요약: `scripts/trial_logs.py pull <dir> [--since YYYYMMDD_HHMMSS]` → `scripts/trial_logs.py summary <dir>`(세션마다 렙·판정 원천·3D 프레임·경고·옆면,
+  같은 시각 perf 로그의 FPS·드롭·입력→판정·lift3d·발열·배터리). 영상·사진은 남기지도 읽지도 않는다.
+- C3 체험 변형(추천 모델, **비상업 테스트 빌드**): 같은 브랜치 + finetune3 c6af754 Halpe 자기 매핑 패치(3-way로 적용, `lifter.push`에 `input2D` + `extra` 둘 다)
+  + 번들 XS를 C3 NONCOMMERCIAL 패키지로 교체 — 모두 커밋하지 않은 로컬 변경(scratchpad `wt_trial_c3`), 앱 `runner-dev/app_trial_c3`(옆에 NONCOMMERCIAL_README).
+
+### #67 가로 화면 수정(cb6dcf1) 폰 확인 목록
+푸시업은 카메라 안내부터 운동 끝까지 가로 UI다. 캡처 버퍼는 세로 그대로, 분석은 중력으로 똑바로 세우고(CaptureRotation), 미리보기는 화면 방향을 따른다.
+1. **왼쪽 가로**(홈 표시줄이 오른쪽): 미리보기 영상이 똑바로(사람이 서 있는 방향 = 화면 위쪽), 해골 선이 몸 위에 겹침, 팔을 굽히면 같은 쪽 선이 움직임.
+2. **오른쪽 가로**(홈 표시줄이 왼쪽): 1과 같은 확인. 어느 한쪽만 해골이 180° 뒤집혀 보이면 반전·회전 순서 문제.
+3. **전면 반전**: 오른손을 들면 화면에서도 거울처럼 같은 쪽(사용자가 보기에 오른쪽) 손이 움직이고, 해골의 그 팔이 같이 움직임.
+4. **세로로 돌아오기**: 결과 화면·다른 운동(스쿼트·로우)은 세로 미리보기·해골 정렬이 전과 같음.
+5. **판정**: 가로 푸시업에서 렙 수가 맞고, 가로에서만 나던 hip_pike 같은 경고가 없음(D5/D6과 같은 결과).
+6. 실패 시 기록: 어느 방향(1/2), 영상이 누웠는지·해골만 어긋났는지, 앞/뒤 카메라. perf·form 로그는 체험 빌드에 남는다.
+
 ## 최종 보고 (A–G) — 2026-10-20 기준
 ### A. 검증된 사실
 1. **XS 3D는 실제 앱 경로에서 매 프레임 돈다**: 추론 26.9–29.3회/초, Neural Engine에서(xctrace, MPS·GPU ML 0). 탑재 가중치는 H36M 원본 XS
