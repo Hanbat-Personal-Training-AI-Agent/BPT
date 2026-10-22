@@ -11,6 +11,8 @@ final class KoriSpeaker: NSObject, AVAudioPlayerDelegate, AVSpeechSynthesizerDel
     private static let voiceId = "ZZ4xhVcc83kZBfNIlIIz"
     private static let modelId = "eleven_flash_v2_5"
     private static let maxCachedLines = 64
+    /// 끼어들지 않는 대사는 앞 대사가 끝나고 이만큼 쉰 뒤에만 말한다.
+    private static let minGap: TimeInterval = 1.0
 
     /// 재생이 끝나면 불린다 (중간에 [stop]으로 끊은 경우는 제외).
     var onFinish: (() -> Void)?
@@ -26,6 +28,8 @@ final class KoriSpeaker: NSObject, AVAudioPlayerDelegate, AVSpeechSynthesizerDel
     private var cache: [String: Data] = [:]
     /// [stop]이나 새 [speak]마다 올라가서, 늦게 도착한 이전 응답을 버리게 한다.
     private var generation = 0
+    /// 마지막 대사가 끝난 시각 (systemUptime).
+    private var lastFinishedAt: TimeInterval = -.infinity
 
     override init() {
         super.init()
@@ -36,8 +40,18 @@ final class KoriSpeaker: NSObject, AVAudioPlayerDelegate, AVSpeechSynthesizerDel
         task != nil || player?.isPlaying == true || fallback.isSpeaking
     }
 
-    /// 지금 말하던 것을 끊고 [text]를 말한다.
-    func speak(_ text: String, language: String = "ko-KR") {
+    /// 말하는 중이거나 앞 대사가 끝난 지 [minGap]이 안 됐는지.
+    private var isBusy: Bool {
+        isSpeaking || ProcessInfo.processInfo.systemUptime - lastFinishedAt < Self.minGap
+    }
+
+    /// [text]를 말한다. [interrupt]면 지금 말하던 것을 끊고 바로 말하고, 아니면
+    /// 말하는 중이거나 대사 사이 쉬는 시간([minGap]) 안일 때 말하지 않고 건너뛴다.
+    func speak(_ text: String, language: String = "ko-KR", interrupt: Bool = true) {
+        if !interrupt && isBusy {
+            print("[TTS] 말하는 중이라 건너뜀: \(text)")
+            return
+        }
         stop()
         let current = generation
 
@@ -116,17 +130,20 @@ final class KoriSpeaker: NSObject, AVAudioPlayerDelegate, AVSpeechSynthesizerDel
     func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
         guard player === self.player else { return }
         self.player = nil
+        lastFinishedAt = ProcessInfo.processInfo.systemUptime
         onFinish?()
     }
 
     func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
+        lastFinishedAt = ProcessInfo.processInfo.systemUptime
         onFinish?()
     }
 }
 
 /// 운동 화면(Flutter)이 코리 피드백 대사를 말하게 하는 채널 `bpt/kori_voice`.
 ///
-/// - `speak` { text, language? }: 지금 말하던 것을 끊고 말한다.
+/// - `speak` { text, language?, interrupt? }: interrupt(기본 true)면 지금 말하던 것을 끊고 말하고,
+///   false면 말하는 중이거나 대사 사이 1초 안일 때 건너뛴다.
 /// - `stop`: 멈추고 오디오를 다른 앱에 돌려준다.
 final class KoriVoiceChannel {
     private let channel: FlutterMethodChannel
@@ -149,7 +166,9 @@ final class KoriVoiceChannel {
                 return
             }
             activateSession()
-            speaker.speak(text, language: args?["language"] as? String ?? "ko-KR")
+            speaker.speak(text,
+                          language: args?["language"] as? String ?? "ko-KR",
+                          interrupt: args?["interrupt"] as? Bool ?? true)
             result(nil)
         case "stop":
             speaker.stop()

@@ -229,13 +229,14 @@ class _NativePoseWorkoutScreenState
 
   bool get _isKo => ref.read(appStringsProvider).locale == 'ko';
 
-  /// 지금 말풍선에 뜬 코리 대사를 코리 목소리로 말한다.
+  /// 지금 말풍선에 뜬 코리 대사를 코리 목소리로 말한다. 자세 경고만 말하던 것을
+  /// 끊고, 칭찬·안내는 말하는 중이면 건너뛴다 (렙이 빨리 이어질 때 끊김 방지).
   void _speakFeedback() {
     final line = koriFeedbackLines[_feedbackKey];
     if (line == null) return;
     final isKo = _isKo;
     KoriVoiceService.speak(line.render(isKo: isKo, n: _feedbackCount),
-        isKo: isKo);
+        isKo: isKo, interrupt: line.kind == KoriFeedbackKind.warning);
   }
 
   /// 방금 끝낸 세트에 대한 코멘트 (_KoriBreakMessage 와 같은 대사)를 말한다.
