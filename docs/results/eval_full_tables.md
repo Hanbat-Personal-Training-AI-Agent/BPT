@@ -209,3 +209,15 @@
 | C3_h26/Ka − C3_h26/Kstar | 60 | -0.20 [-0.45, +0.08] | -0.44 [-0.67, -0.21] | -0.00 [-0.00, +0.00] | -0.00 [-0.00, +0.00] | +0.00 [+0.00, +0.00] |
 | X0_c17/Ka_L3 − X0_c17/Ka | 60 | +0.49 [+0.38, +0.61] | +0.13 [+0.07, +0.20] | -0.01 [-1.67, +0.85] | +0.19 [-0.26, +0.80] | +0.04 [-0.34, +0.29] |
 | X0_Ahalpe/Ka − X0_h26/Ka | 60 | -0.54 [-2.06, +0.65] | -0.21 [-1.22, +0.59] | +0.34 [-1.46, +2.34] | +0.05 [-0.79, +0.71] | +0.12 [-0.53, +0.49] |
+| C4_h26ft/Ka | 60 | 50.3 | 35.4 | 4.30 | 4.1 (11) | 3.5 (9) | 7.1 (18) | 4.3 (8) | 0.00% | 0.000% | 0.00% | 49.1·53.9·49.0 | 308 | 39% / 0% |
+| C4_h26ft/Kstar | 60 | 50.8 | 36.0 | 4.29 | 4.1 (11) | 3.5 (9) | 7.1 (18) | 4.3 (8) | 0.00% | 0.000% | 0.00% | 49.8·54.2·49.1 | 308 | 40% / 0% |
+| C4_h26ft/Ka | squat | 100 | squat_hips_first 0%, squat_shallow 0%, squat_no_lockout 0%, squat_lean_drift 0%, squat_depth_fade 0%, valgus_if_front 100% |
+| C4_h26ft/Ka | pushup | 100 | pushup_hip_sag 0%, pushup_hip_pike 19%, pushup_shallow 2%, pushup_no_lockout 0%, pushup_head_drop 0%, pushup_head_up 0%, pushup_hand_position 0%, pushup_depth_fade 0% |
+| C4_h26ft/Ka | barbell_row | 108 | row_torso_swing 0%, row_standing_up 0%, row_short_pull 0%, row_head_up 0% |
+| C4_h26ft/Kstar | squat | 100 | squat_hips_first 0%, squat_shallow 0%, squat_no_lockout 0%, squat_lean_drift 0%, squat_depth_fade 0%, valgus_if_front 100% |
+| C4_h26ft/Kstar | pushup | 100 | pushup_hip_sag 0%, pushup_hip_pike 20%, pushup_shallow 2%, pushup_no_lockout 0%, pushup_head_drop 0%, pushup_head_up 0%, pushup_hand_position 0%, pushup_depth_fade 0% |
+| C4_h26ft/Kstar | barbell_row | 108 | row_torso_swing 0%, row_standing_up 0%, row_short_pull 0%, row_head_up 0% |
+| C4_h26ft/Ka | knee 0.03% · ankle 0.09% · elbow 0.00% · wrist 0.00% |
+| C4_h26ft/Kstar | knee 0.03% · ankle 0.09% · elbow 0.00% · wrist 0.00% |
+| C4_h26ft/Kstar − C3_h26/Kstar | 60 | -2.64 [-3.84, -1.52] | -1.21 [-1.68, -0.72] | -0.40 [-1.61, +0.69] | +0.43 [-1.28, +1.40] | -0.15 [-1.21, +0.98] |
+| C4_h26ft/Ka − C3_h26/Ka | 60 | -2.91 [-4.10, -1.82] | -1.37 [-1.86, -0.90] | -0.40 [-1.61, +0.69] | +0.43 [-1.28, +1.40] | -0.15 [-1.21, +0.98] |
