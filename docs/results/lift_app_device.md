@@ -446,6 +446,25 @@ D1 = mcoco17 + `BPT_CAMERA_3D=0`(2D만), D2 = mcoco17(3D), D3 = mhalpe26 + 체�
 - C3는 지연·lift3d·3D 상태·렙이 원래 XS와 같고, 스쿼트 knee_valgus(정상 동작이라 오경보로 보는 것) 6 → 0렙. 3D 정확도는 기기에서 **평가 불가**.
   채택·번들은 비상업 라이선스와 사용자 승인 문제라 결정 아님.
 
+### 평가 D5/D6 — 회전 보정(BPT_FORCE_CAPTURE_ROTATION) 전후, D3 구성(mhalpe26 + 체형 P1), 각 2회
+`BPT_CAMERA_VIDEO_ROTATE`로 가로 촬영을 재현하고 보정을 0(끔) 또는 같은 값(켬)으로 준다. 2회 실행 결과가 경고까지 같았다. 사용자가 폰을 만져 앱이 백그라운드로 간
+3런은 `cut_not_counted/`에 두고 다시 돌렸다. Home `20261022-device-eval-D5-a8b29f1`, `…-D6-a8b29f1`.
+
+| clip | 회전 | 보정 | 렙(정답 10) | 3D ok/partial | 도착→판정 p50 | 3D 경고 | 보낸 렙 범위 키 |
+|---|---|---|---|---|---|---|---|
+| pushup_0001_cam2 | 90° | 끔 | 10, 10 | 91/1% | 189.3 | hip_pike 3 | praise_good 3, **hip_pike 1** |
+| | 90° | 켬 | 10, 10 | 92/0% | 189.8 | 없음 | praise_good 3 |
+| pushup_0004_cam2 | 90° | 끔 | 10, 10 | 95/0% | 189.4 | **hip_pike 10** | **hip_pike 3** |
+| | 90° | 켬 | 10, 10 | 94/0% | 189.4 | no_lockout 9, hand_position 1, head_drop 1 | hand_position 1, praise_fixed 1 |
+| pushup_0000_cam3 | 270° | 끔 | 10, 10 | **67/29%** | 189.1 | hand_position 1 | hand_position 1, praise_fixed 1 |
+| | 270° | 켬 | 10, 10 | 96/0% | 190.1 | no_lockout 1 | praise_good 3 |
+| pushup_0001_cam3 | 270° | 끔 | 10, 10 | 87/6% | 189.4 | 없음 | praise_good 2 |
+| | 270° | 켬 | 10, 10 | 89/0% | 189.6 | no_lockout 1 | praise_good 3 |
+
+- 보정을 켜면 가로에서만 나던 hip_pike(사용자에게 1–3회 전달)가 사라지고, 270°에서 무너지던 3D(ok 67%, partial 29%)가 96%로 돌아온다. 지연 비용은 없다.
+- 남는 차이: 0004_cam2 90° 보정 뒤 no_lockout 9렙(세트 범위, 말하지 않음)·hand_position 1. 세로(Halpe26)에서는 no_lockout 4렙이었다 — 회전 뒤 crop이
+  세로와 완전히 같지 않은 것으로 본다(가설).
+
 ## 최종 보고 (A–G) — 2026-10-20 기준
 ### A. 검증된 사실
 1. **XS 3D는 실제 앱 경로에서 매 프레임 돈다**: 추론 26.9–29.3회/초, Neural Engine에서(xctrace, MPS·GPU ML 0). 탑재 가중치는 H36M 원본 XS
