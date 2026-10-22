@@ -16,13 +16,36 @@ private enum CameraPreviewOptions {
         default: return nil
         }
     }()
-    static let enableMotion3DForCamera = false
+    /// MotionAGFormer-XS live 3D (MotionAGFormerLive → Pose3DConstraints → 3D posture judgement).
+    /// ai/lift-app ONLY: true here, with motionagformer_xs.mlpackage bundled. integration/ai keeps false until the user
+    /// approves the flip (docs/results/lift_app.md). BPT_CAMERA_3D=0 in the Xcode scheme turns it off for A/B profiling;
+    /// then the evaluators judge in 2D (form3DRequired off) and the HUD gets no pose3d state.
+    static let enableMotion3DForCamera = ProcessInfo.processInfo.environment["BPT_CAMERA_3D"] != "0"
+    /// Output row 26 − lookahead (5 = 167 ms at 30 fps; see lift_app.md lookahead study).
+    static let motion3DLookahead = Int(ProcessInfo.processInfo.environment["BPT_3D_LOOKAHEAD"] ?? "") ?? 5
+    /// One XS inference per N frames, N rows read from it (every frame still gets its own 3D).
+    static let motion3DCadence = Int(ProcessInfo.processInfo.environment["BPT_3D_CADENCE"] ?? "") ?? 1
+    /// XS on its own serial queue (2D capture queue is free for the next frame); "0" = inline on the capture queue.
+    static let motion3DAsync = ProcessInfo.processInfo.environment["BPT_3D_ASYNC"] != "0"
+    /// MediaPipe wrists into the XS input (MotionAGFormerWristSource); the hand branch then runs for every exercise.
+    static let motion3DWristFromHands = ProcessInfo.processInfo.environment["BPT_3D_HAND_WRISTS"] != "0"
+    /// CoreMotion gravity as "up" for the 3D trunk/hip metrics (D-D-07: oblique trunk needs gravity). Off until the
+    /// XS-frame axis mapping (FormGeometry.cameraUp) is checked on a device; BPT_3D_GRAVITY=1 turns it on.
+    static let motion3DGravity = ProcessInfo.processInfo.environment["BPT_3D_GRAVITY"] == "1"
+    /// EXPERIMENTAL confidence-aware relation constraint after Pose3DConstraints (AdaptiveRelationConstraint, ai/setup-constraint).
+    /// Off unless BPT_ADAPTIVE_3D=1: not validated as a default (docs/results/setup_constraint_prereg.md).
+    static let adaptive3D = ProcessInfo.processInfo.environment["BPT_ADAPTIVE_3D"] == "1"
+    /// EXPERIMENTAL push-up wrist floor anchor on the 2D (WristFloorAnchor, user 2026-10-20): on with BPT_WRIST_ANCHOR=1
+    /// or Flutter creationParams `wristAnchor` (dart-define BPT_WRIST_ANCHOR → WristFloorAnchor.enabledByFlutter).
+    static let wristAnchor = ProcessInfo.processInfo.environment["BPT_WRIST_ANCHOR"] == "1"
     /// RTMPose input: 3:4 person crop from the previous frame's keypoints (RTMPoseCropTracker).
     /// false = old input, whole frame stretched to 192×256 every frame.
     static let personCropInput = true
     static let handCropSize = 256.0
     static let wristConfidenceThreshold = 0.3
-    static let useMediaPipeWristFor2DBodyOverlay = true
+    /// Both wrist crops returned the same hand (landmark-box IoU > 0.5): neither MediaPipe wrist is used
+    /// (MotionAGFormerWristSource.sameHand). ai/lift-refine only; BPT_HAND_DEDUPE=0 = old behaviour.
+    static let handDedupe = ProcessInfo.processInfo.environment["BPT_HAND_DEDUPE"] != "0"
     static let debugLogEveryNFrames = 60
 }
 
@@ -31,8 +54,12 @@ private enum CameraPreviewOptions {
 struct CameraFrameData: Identifiable {
     let id: Int
     let frameIndex: Int
+    /// The keypoints, hands and image size here are in the analysis frame; the overlay maps them onto the preview with
+    /// this (`.up` in portrait).
+    let rotation: CaptureRotation
     let imageWidth: Double
     let imageHeight: Double
+    /// What the overlay draws: the XS input 2D (accepted wrists only), display-smoothed.
     let coco17: [PoseKeypoint]
     let rawCoco17: [PoseKeypoint]
     let handResults: [HandLandmarkResult]
@@ -40,16 +67,30 @@ struct CameraFrameData: Identifiable {
     let statusText: String
     let rep: Int
     let done: Bool
+    /// Overlay colour per body segment: (severity 0 green … 1 red, opacity; dim = uncertain 3D), smoothed for display.
+    var shade: [OverlaySegment: (severity: Double, opacity: Double)] = [:]
 }
 
 struct CameraProcessingResult {
     let frameIndex: Int
+    /// Quarter turn from the camera buffer to the analysis frame everything below is in (gravity down the image).
+    let rotation: CaptureRotation
     let imageWidth: Double
     let imageHeight: Double
+    /// The XS input 2D (RTMPose + accepted MediaPipe wrists): drawn by the overlay, so a drawn wrist never sits on a
+    /// hand the XS input refused.
     let visualCoco17: [PoseKeypoint]
     let rawCoco17: [PoseKeypoint]
     let feet: FootKeypoints?
     let handResults: [HandLandmarkResult]
+    /// CACurrentMediaTime when the frame reached processFrame (input → judgement latency).
+    var arrivedAt: CFTimeInterval = 0
+    /// XS input wrists replaced by MediaPipe (left, right); raw wrists stay in rawCoco17.
+    var wristsReplaced = (left: false, right: false)
+    /// Both wrist crops returned the same hand and neither MediaPipe wrist was used (CameraPreviewOptions.handDedupe).
+    var sameHandDropped = false
+    /// WristFloorAnchor states (left, right) when that experiment is on; then visualCoco17 = rawCoco17 = XS input.
+    var wristAnchor: [String]?
 }
 
 // MARK: - Camera capture manager
@@ -61,7 +102,12 @@ private final class CameraCaptureManager: NSObject, AVCaptureVideoDataOutputSamp
     private let processingQueue = DispatchQueue(label: "com.coremlpose.camera.processing", qos: .userInitiated)
     nonisolated(unsafe) private var isProcessingFrame = false
     nonisolated(unsafe) private var frameIndex = 0
-    nonisolated(unsafe) var onFrame: (@Sendable (CMSampleBuffer, Int) -> Void)?
+    /// (frame, index, arrival time). Arrival = when the frame reached the app (camera: captureOutput entry; video
+    /// mode: its pacing slot), the start of the input → judgement latency.
+    nonisolated(unsafe) var onFrame: (@Sendable (CMSampleBuffer, Int, CFTimeInterval) -> Void)?
+    /// Video-as-camera: the processing queue is busy with a frame (drop rule of alwaysDiscardsLateVideoFrames).
+    private let busyLock = NSLock()
+    nonisolated(unsafe) private var externalBusy = false
     // Per-set recording of the processed frames + perf counters (WorkoutSessionBridge.swift). Processing queue.
     nonisolated(unsafe) private var recorder: WorkoutSetRecorder?
     nonisolated(unsafe) var perfLog: WorkoutPerfLog?
@@ -147,12 +193,41 @@ private final class CameraCaptureManager: NSObject, AVCaptureVideoDataOutputSamp
     ) {
         guard !isProcessingFrame else { perfLog?.frameDropped(); return }
         isProcessingFrame = true
+        handleFrame(sampleBuffer, arrival: CACurrentMediaTime())
+        isProcessingFrame = false
+    }
+
+    /// The per-frame entry both sources share (processing queue).
+    nonisolated private func handleFrame(_ sampleBuffer: CMSampleBuffer, arrival: CFTimeInterval) {
         let idx = frameIndex
         frameIndex += 1
-        onFrame?(sampleBuffer, idx)
+        onFrame?(sampleBuffer, idx, arrival)
         recorder?.append(sampleBuffer)
         perfLog?.frameProcessed()
-        isProcessingFrame = false
+        VideoRunLog.shared?.count("processed")
+    }
+
+    /// Video-as-camera (VideoCameraSource): same queue and entry as captureOutput. A frame that arrives while the
+    /// previous one is still being processed is dropped, as AVCaptureVideoDataOutput does with
+    /// alwaysDiscardsLateVideoFrames. Returns false when dropped.
+    nonisolated func deliverExternal(_ sampleBuffer: CMSampleBuffer, arrival: CFTimeInterval) -> Bool {
+        busyLock.lock()
+        if externalBusy {
+            busyLock.unlock()
+            perfLog?.frameDropped()
+            VideoRunLog.shared?.count("dropped")
+            return false
+        }
+        externalBusy = true
+        busyLock.unlock()
+        VideoRunLog.shared?.count("arrived")
+        processingQueue.async { [self] in
+            handleFrame(sampleBuffer, arrival: arrival)
+            busyLock.lock()
+            externalBusy = false
+            busyLock.unlock()
+        }
+        return true
     }
 
     nonisolated func captureOutput(_ output: AVCaptureOutput, didDrop sampleBuffer: CMSampleBuffer,
@@ -168,6 +243,8 @@ final class CameraPoseViewModel: ObservableObject {
     @Published var currentFrame: CameraFrameData?
     @Published var statusText = "Initializing..."
     @Published var cameraPermissionDenied = false
+    /// Test mode only (video mode, BPT_CAMERA_VIDEO): the last rep's real judgement as a small caption; nil otherwise.
+    @Published var debugCaption: String?
 
     private let exercise: NativePoseExercise
     private let captureManager = CameraCaptureManager()
@@ -203,22 +280,58 @@ final class CameraPoseViewModel: ObservableObject {
     private var squatEvaluator: SquatEvaluator?
     private var barbellRowEvaluator: BarbellRowEvaluator?
     private var pushUpEvaluator: PushUpEvaluator?
+    /// Phone held in landscape (CaptureRotation): CoreMotion gravity through the hysteresis tracker, which is only
+    /// touched on the capture processing queue. The BPT_FORCE_CAPTURE_ROTATION launch override needs no CoreMotion.
+    nonisolated(unsafe) private var rotationTracker = CaptureRotationTracker(rotation: CaptureRotation.forced ?? .up)
+    nonisolated(unsafe) private let rotationMotion = CaptureRotation.forced == nil ? DeviceMotionMonitor() : nil
 
     /// Only touched on the capture processing queue (one frame at a time), like the workspace.
     nonisolated(unsafe) private var cropTracker = RTMPoseCropTracker()
-
+    /// Live 3D. Only touched on `liftQueue` (serial, frame order kept).
+    nonisolated(unsafe) private var lifter: MotionAGFormerLive<CameraProcessingResult>?
+    /// Push-up only, experimental (CameraPreviewOptions.wristAnchor); touched on the capture queue only.
+    nonisolated(unsafe) private var wristAnchor: WristFloorAnchor?
+    nonisolated(unsafe) private var wristAnchorLastFrame = Int.min / 2
+    nonisolated(unsafe) private var wristAnchorResetPending = false
+    /// The push-up set is underway (a rep counted, or the setup became ready): the wrist anchor may take its reference.
+    nonisolated(unsafe) private var wristAnchorActive = false
+    private let liftQueue = DispatchQueue(label: "com.bpt.camera.lift3d", qos: .userInitiated)
+    private var lastReportedPose3D: String?
+    private var motion: DeviceMotionMonitor?
+    nonisolated private var perfLog: WorkoutPerfLog? { captureManager.perfLog }
+    /// Video-as-camera (test-only, BPT_CAMERA_VIDEO); nil with the real camera.
+    private var videoSource: VideoCameraSource?
+    @Published var videoDisplayLayer: AVSampleBufferDisplayLayer?
+    /// Frame being judged (handleLifted), for the run log's Flutter reply latencies.
+    private var judgingFrame: (index: Int, arrival: CFTimeInterval)?
+    /// Personalized exercise setup (experimental): only when Flutter sent `exerciseSetup: true`.
+    private let setupOptions: ExerciseSetup.Options?
+    private var exerciseSetup: ExerciseSetup?
+    private var setupVariant: String?
+    private var setupSeeded = false
+    /// This judged frame's setup state for VideoRunLog (debug only: why "ready" did or did not come).
+    private var setupLog: [String: Any]?
+    private var lastSetupSignature: String?
+    private var lastSetupSent: CFTimeInterval = 0
+    /// Overlay colour: FormWarningTracker.liveSeverity of the last judged frame (display only), and its smoothing.
+    private var liveSeverity = OverlayState()
+    private var severityTrack = OverlaySeverityTrack()
+    private var overlaySmoother = OverlaySmoother()
     /// Screen auto-lock while the workout camera runs (a set has no touches): the value before we disabled it, nil when
     /// we hold nothing. Restored when the camera stops or the app goes to the background, set again on return.
     private var idleTimerBefore: Bool?
     private var cameraRunning = false
     private var lifecycleObservers: [NSObjectProtocol] = []
 
-    init(exercise: NativePoseExercise, bridge: WorkoutChannel? = nil) {
+    init(exercise: NativePoseExercise, bridge: WorkoutChannel? = nil, setupOptions: ExerciseSetup.Options? = nil) {
         self.exercise = exercise
         self.bridge = bridge
+        self.setupOptions = setupOptions
+        self.setupVariant = setupOptions?.variant
     }
 
     func requestCameraAndStart() {
+        if VideoCameraOptions.isActive { return setup() }
         AVCaptureDevice.requestAccess(for: .video) { [weak self] granted in
             Task { @MainActor in
                 guard let self else { return }
@@ -237,7 +350,9 @@ final class CameraPoseViewModel: ObservableObject {
         keepScreenAwake(false, reason: "camera_stop")
         lifecycleObservers.forEach { NotificationCenter.default.removeObserver($0) }
         lifecycleObservers = []
+        videoSource?.stop()
         captureManager.stop()
+        motion?.stop()
         captureManager.finishRecording { _ in }
         if let tracker = formTracker { formLog?.close(tracker) }
         formLog = nil
@@ -246,6 +361,7 @@ final class CameraPoseViewModel: ObservableObject {
         captureManager.perfLog?.close()
         captureManager.perfLog = nil
         bridge?.voice.stop()
+        rotationMotion?.stop()
     }
 
     private func keepScreenAwake(_ on: Bool, reason: String) {
@@ -260,6 +376,7 @@ final class CameraPoseViewModel: ObservableObject {
             return
         }
         print("[Workout] idle timer disabled=\(app.isIdleTimerDisabled) (\(reason))")
+        VideoRunLog.shared?.write("idle_timer", ["disabled": app.isIdleTimerDisabled, "reason": reason])
     }
 
     private func observeAppLifecycle() {
@@ -286,17 +403,41 @@ final class CameraPoseViewModel: ObservableObject {
     /// Every frame: forward the tracker's feedback events and log each newly closed rep report.
     private func reportForm() {
         guard let tracker = formTracker else { return }
+        liveSeverity = tracker.liveSeverity()
+        let newReport = tracker.reports.last.flatMap { $0.repIndex > lastLoggedRep ? $0 : nil }
         // Bench press closes a rep's report 0.5 s after the count (lockout window), so log by rep index.
         for report in tracker.reports where report.repIndex > lastLoggedRep {
             formLog?.append(report)
             lastLoggedRep = report.repIndex
+            if let log = VideoRunLog.shared {
+                var line = report.dictionary
+                line["judged_frame"] = judgingFrame?.index ?? -1
+                log.write("rep", line)
+            }
         }
-        for event in tracker.drainEvents() { bridge?.sendFeedback(event) }
+        let events = tracker.drainEvents()
+        if VideoCameraOptions.isActive, let report = newReport {
+            debugCaption = report.debugCaption(sent: events.map(\.key), enabled: tracker.common.enabledFeedbackKeys)
+        }
+        for event in events {
+            guard let log = VideoRunLog.shared else { bridge?.sendFeedback(event); continue }
+            let frame = judgingFrame
+            var line: [String: Any] = ["key": event.key, "scope": event.scope.rawValue, "frame": frame?.index ?? -1]
+            if let n = event.n { line["n"] = n }
+            log.write("feedback_sent", line)
+            bridge?.sendFeedback(event) { reply in
+                var done = line
+                done["reply"] = reply.map { "\($0)" } ?? NSNull()
+                if let arrival = frame?.arrival { done["e2e_ms"] = (CACurrentMediaTime() - arrival) * 1000 }
+                log.write("feedback_reply", done)
+            }
+        }
     }
 
     // MARK: Sets (Flutter startSet / endSet)
 
     private func startSet(_ index: Int) {
+        VideoRunLog.shared?.write("start_set", ["set": index])
         betweenSets = false
         guard WorkoutDebugFlags.setRecording, let directory = WorkoutSetRecorder.directory() else { return }
         recording = true
@@ -307,15 +448,44 @@ final class CameraPoseViewModel: ObservableObject {
 
     /// Set-scope feedback (참고 keys, n = reps in the set), then onSetEnd once the file is closed.
     private func endSet(_ index: Int) {
+        VideoRunLog.shared?.write("end_set_received", ["set": index, "between_sets": betweenSets])
         guard !betweenSets else { return }
         betweenSets = true
         recording = false
+        // The last `lookahead` frames are still in the 3D window: judge them (window clamped at the newest frame)
+        // before the set summary.
+        guard lifter != nil else { return finishEndSet(index) }
+        liftQueue.async { [weak self] in
+            guard let self else { return }
+            let tail = (try? self.lifter?.flush()) ?? []
+            VideoRunLog.shared?.write("end_set_flush", ["set": index, "tail_frames": tail.count,
+                                                        "tail_states": tail.map { $0.1.state.rawValue },
+                                                        "tail_frame_index": tail.map { $0.1.frameIndex }])
+            Task { @MainActor in
+                for (result, frame3D) in tail { self.handleLifted(result, frame3D) }
+                self.finishEndSet(index)
+            }
+        }
+    }
+
+    private func finishEndSet(_ index: Int) {
         let tracker = formTracker
         let worstJoint = tracker.flatMap {
             FeedbackJoint.worst(setCounts: $0.endSet(), enabled: $0.common.enabledFeedbackKeys,
                                 ruleOrder: (FormWarningTracker.rules[$0.exercise] ?? []).map(\.key))
         }
-        for event in tracker?.drainEvents() ?? [] { bridge?.sendFeedback(event) }
+        for event in tracker?.drainEvents() ?? [] {
+            guard let log = VideoRunLog.shared else { bridge?.sendFeedback(event); continue }
+            var line: [String: Any] = ["key": event.key, "scope": event.scope.rawValue, "frame": -1, "set": index]
+            if let n = event.n { line["n"] = n }
+            log.write("feedback_sent", line)
+            bridge?.sendFeedback(event) { reply in
+                var done = line
+                done["reply"] = reply.map { "\($0)" } ?? NSNull()
+                log.write("feedback_reply", done)
+            }
+        }
+        VideoRunLog.shared?.write("set_end_sent", ["set": index, "worst_joint": worstJoint ?? NSNull()])
         captureManager.finishRecording { [weak self] url in
             Task { @MainActor in
                 self?.bridge?.sendSetEnd(setIndex: index, videoLocalPath: url?.path, worstJoint: worstJoint)
@@ -354,28 +524,69 @@ final class CameraPoseViewModel: ObservableObject {
         }
         if let tracker = formTracker { formLog = WorkoutFormLog(exercise: tracker.exercise) }
 
-        let handEnabled = exercise.handBranchEnabled(override: CameraPreviewOptions.handBranchOverride)
+        if CameraPreviewOptions.enableMotion3DForCamera {
+            // 3D is part of the analysis: no silent 2D-only fallback when the model is missing.
+            do {
+                let xs = try loadModel(named: "motionagformer_xs")
+                lifter = MotionAGFormerLive(lookahead: CameraPreviewOptions.motion3DLookahead,
+                                            cadence: CameraPreviewOptions.motion3DCadence,
+                                            predict: MotionAGFormerCoreML.predictor(xs))
+                lifter?.constraints.reflectFlippedKnee = exercise == .squat  // Fit3D S6: squat only
+                if CameraPreviewOptions.adaptive3D, let formExercise = formTracker?.exercise {
+                    lifter?.adaptive = AdaptiveRelationConstraint(exercise: formExercise)
+                }
+                // Test-only (video mode driver): the clip subject's calibration bone lengths, as a calibration result would give.
+                lifter?.constraints.calibrationTargetsCm = VideoCameraOptions.boneTargetsCm
+                formTracker?.common.form3DRequired = true
+                if VideoCameraOptions.allFeedbackKeys {
+                    // NON-DEFAULT test flag: show what every warning key WOULD send to the user.
+                    formTracker?.common.enabledFeedbackKeys = FormWarningTracker.allKeys
+                }
+                if CameraPreviewOptions.motion3DGravity {
+                    motion = DeviceMotionMonitor()
+                    motion?.start()
+                }
+            } catch {
+                statusText = "Failed to load MotionAGFormer-XS: \(error.localizedDescription)"
+                return
+            }
+        }
+
+        if (CameraPreviewOptions.wristAnchor || WristFloorAnchor.enabledByFlutter) && exercise == .pushUp { wristAnchor = WristFloorAnchor() }
+        let handEnabled = (CameraPreviewOptions.enableMotion3DForCamera && CameraPreviewOptions.motion3DWristFromHands)
+            || exercise.handBranchEnabled(override: CameraPreviewOptions.handBranchOverride)
         if handEnabled {
             handLandmarkers = MediaPipeHandLandmarkerPair()
             print("CameraPosePreview hand landmarkers initialized: \(handLandmarkers?.statusDescription ?? "nil")")
         }
 
-        do {
-            try captureManager.configure()
-        } catch {
-            statusText = "Failed to configure camera: \(error.localizedDescription)"
-            return
+        if VideoCameraOptions.isActive {
+            let manager = captureManager
+            let source = VideoCameraSource(
+                urls: VideoCameraOptions.clips, loops: VideoCameraOptions.loops,
+                deliver: { sampleBuffer, arrival in manager.deliverExternal(sampleBuffer, arrival: arrival) },
+                onFinish: { [weak self] in Task { @MainActor in self?.videoFinished() } })
+            videoSource = source
+            videoDisplayLayer = source.displayLayer
+        } else {
+            do {
+                try captureManager.configure()
+            } catch {
+                statusText = "Failed to configure camera: \(error.localizedDescription)"
+                return
+            }
         }
 
         let rtmposeModel = self.rtmpose
         let handLandmarkRunner = self.handLandmarkers
         let context = self.ciContext
 
-        captureManager.onFrame = { [weak self, context] sampleBuffer, frameIdx in
+        captureManager.onFrame = { [weak self, context] sampleBuffer, frameIdx, arrival in
             guard let self, let rtmposeModel else { return }
             self.processFrame(
                 sampleBuffer,
                 frameIdx: frameIdx,
+                arrival: arrival,
                 rtmpose: rtmposeModel,
                 workspace: workspace,
                 handLandmarkers: handLandmarkRunner,
@@ -385,19 +596,46 @@ final class CameraPoseViewModel: ObservableObject {
 
         bridge?.onStartSet = { [weak self] in self?.startSet($0) }
         bridge?.onEndSet = { [weak self] in self?.endSet($0) }
+        rotationMotion?.start()
+        if let options = setupOptions, lifter != nil, let formExercise = formTracker?.exercise {
+            exerciseSetup = ExerciseSetup(exercise: formExercise, reference: options.reference)
+            bridge?.onResetSetup = { [weak self] in self?.resetSetup() }
+            bridge?.onSetSetupVariant = { [weak self] variant, reference in
+                self?.setupVariant = variant
+                if let reference { self?.exerciseSetup?.reference = reference }
+                self?.lastSetupSignature = nil
+            }
+        }
         startSet(1)
         startPerfLog()
-        captureManager.start()
+        if let videoSource { videoSource.start() } else { captureManager.start() }
         cameraRunning = true
         keepScreenAwake(true, reason: "camera_start")
         observeAppLifecycle()
         statusText = "Running"
-        print("CameraPosePreview started exercise=\(exercise.rawValue) hand=\(handEnabled) 3d=\(CameraPreviewOptions.enableMotion3DForCamera)")
+        VideoRunLog.shared?.write("camera_started", [
+            "exercise": exercise.rawValue, "hands": handEnabled, "xs": lifter != nil,
+            "lookahead": CameraPreviewOptions.motion3DLookahead, "cadence": CameraPreviewOptions.motion3DCadence,
+            "async": CameraPreviewOptions.motion3DAsync, "wrists_from_hands": CameraPreviewOptions.motion3DWristFromHands,
+            "gravity": CameraPreviewOptions.motion3DGravity,
+            "forced_capture_rotation": CaptureRotation.forced.map { $0.rawValue as Any } ?? NSNull(),
+            "enabled_feedback_keys": Array(formTracker?.common.enabledFeedbackKeys ?? []).sorted(),
+            "form3d_required": formTracker?.common.form3DRequired ?? false,
+            "reflect_flipped_knee": lifter?.constraints.reflectFlippedKnee ?? false,
+            "adaptive_3d": CameraPreviewOptions.adaptive3D, "exercise_setup": exerciseSetup != nil, "wrist_anchor": wristAnchor != nil,
+            "bone_targets": VideoCameraOptions.boneTargetsCm.map { ["file": VideoCameraOptions.environment["BPT_BONE_TARGETS"] ?? "",
+                                                                     "segments": $0.count] as Any } ?? NSNull(),
+            "hand_dedupe": CameraPreviewOptions.handDedupe,
+            "idle_timer_disabled": UIApplication.shared.isIdleTimerDisabled,
+            "rtmpose": RTMPoseModel.workout.rawValue,
+        ])
+        print("CameraPosePreview started exercise=\(exercise.rawValue) hand=\(handEnabled) 3d=\(lifter != nil) lookahead=\(CameraPreviewOptions.motion3DLookahead) cadence=\(CameraPreviewOptions.motion3DCadence) async=\(CameraPreviewOptions.motion3DAsync)")
     }
 
     private nonisolated func processFrame(
         _ sampleBuffer: CMSampleBuffer,
         frameIdx: Int,
+        arrival: CFTimeInterval,
         rtmpose: MLModel,
         workspace: RTMPoseInputWorkspace,
         handLandmarkers: MediaPipeHandLandmarkerPair?,
@@ -405,8 +643,11 @@ final class CameraPoseViewModel: ObservableObject {
     ) {
         autoreleasepool {
             do {
+                let arrivedAt = arrival
                 let timestampMs = Self.timestampMs(sampleBuffer, fallback: frameIdx)
-                let cgImage = try Self.cgImageFromSampleBuffer(sampleBuffer, ciContext: ciContext)
+                // From here on everything (crop, RTMPose, hands, evaluators, 3D input) is in the analysis frame.
+                let rotation = updateCaptureRotation()
+                let cgImage = try Self.cgImageFromSampleBuffer(sampleBuffer, ciContext: ciContext, rotation: rotation)
                 guard let estimate = try cropTracker.estimate(cgImage, model: rtmpose, workspace: workspace,
                                                               personCrop: CameraPreviewOptions.personCropInput) else {
                     return
@@ -439,29 +680,84 @@ final class CameraPoseViewModel: ObservableObject {
                     rightHand = nil
                 }
 
-                let visualCoco17 = HandCropBuilder.visualBodyKeypoints(
-                    rawBodyKeypoints: rawCoco17,
-                    leftHand: leftHand,
-                    rightHand: rightHand,
-                    useMediaPipeWrist: CameraPreviewOptions.useMediaPipeWristFor2DBodyOverlay
-                )
+                // XS input wrists: MediaPipe where accepted (same-hand dedupe, reject crossed, forearm gate), else RTMPose.
+                // The overlay draws the same 2D, so its wrist never jumps to the other hand (lift-refine).
+                let point = { (hand: HandLandmarkResult?) in hand?.wristFramePoint.map { PosePoint(x: $0.x, y: $0.y) } }
+                let landmarks = { (hand: HandLandmarkResult?) in hand?.frameLandmarks.map { PosePoint(x: $0.x, y: $0.y) } ?? [] }
+                let sameHand = CameraPreviewOptions.handDedupe
+                    && MotionAGFormerWristSource.sameHand(landmarks(leftHand), landmarks(rightHand))
+                let wrists = (lifter == nil || CameraPreviewOptions.motion3DWristFromHands)
+                    ? MotionAGFormerWristSource.input(raw: rawCoco17, left: point(leftHand), right: point(rightHand), sameHand: sameHand)
+                    : MotionAGFormerWristSource.Result(input: rawCoco17)
+                // Push-up wrist floor anchor (experimental): one wrist value for the overlay, the XS input and the
+                // evaluators; a gap of 0.5 s without a person starts it over (as the 3D window).
+                var anchoredInput = wrists.input
+                var anchorStates: [String]?
+                if wristAnchor != nil {
+                    if wristAnchorResetPending || frameIdx - wristAnchorLastFrame > 15 {
+                        wristAnchor?.reset()
+                        wristAnchorResetPending = false
+                    }
+                    wristAnchorLastFrame = frameIdx
+                    if let anchored = wristAnchor?.update(anchoredInput, active: wristAnchorActive) {
+                        anchoredInput = anchored.keypoints
+                        anchorStates = WristFloorAnchor.wrists.map { anchored.states[$0.0]?.rawValue ?? "none" }
+                    }
+                }
+                let input2D = anchoredInput
+                let visualCoco17 = input2D
 
-                let result = CameraProcessingResult(
+                var result = CameraProcessingResult(
                     frameIndex: frameIdx,
+                    rotation: rotation,
                     imageWidth: Double(cgImage.width),
                     imageHeight: Double(cgImage.height),
                     visualCoco17: visualCoco17,
-                    rawCoco17: rawCoco17,
+                    rawCoco17: anchorStates != nil ? input2D : rawCoco17,
                     feet: PoseCoordinateTransforms.applyInverseAffineToFeet(
                         decoded: decoded,
                         inverseAffine: inverseAffine
                     ),
                     handResults: handResults
                 )
+                result.arrivedAt = arrivedAt
+                result.wristAnchor = anchorStates
 
-                Task { @MainActor [weak self] in
-                    self?.handleProcessingResult(result)
+                guard lifter != nil else {
+                    Task { @MainActor [weak self] in
+                        self?.handleProcessingResult(result)
+                    }
+                    return
                 }
+                // 3D path: the XS input gets the MediaPipe wrists (same frame, computed above); the overlay shows the
+                // 2D at once, the evaluators get frame t with its own 3D `lookahead` frames later.
+                result.wristsReplaced = (wrists.replacedLeft, wrists.replacedRight)
+                result.sameHandDropped = sameHand && leftHand != nil && rightHand != nil
+                perfLog?.sample("pose2d_hands", ms: (CACurrentMediaTime() - arrivedAt) * 1000)
+                let shown = result
+                Task { @MainActor [weak self] in self?.showFrame(shown) }
+                let lift = { [weak self] in
+                    guard let self else { return }
+                    let t0 = CACurrentMediaTime()
+                    do {
+                        let before = self.lifter?.inferences ?? 0
+                        let ready = try self.lifter?.push(frameIndex: frameIdx, coco17: input2D, imageWidth: cgImage.width,
+                                                          imageHeight: cgImage.height, captureRotation: shown.rotation,
+                                                          payload: shown) ?? []
+                        let liftMs = (CACurrentMediaTime() - t0) * 1000
+                        self.perfLog?.sample("lift3d", ms: liftMs)
+                        if let log = VideoRunLog.shared {
+                            log.count("xs_inferences", (self.lifter?.inferences ?? 0) - before)
+                            log.count("lift_us", Int(liftMs * 1000))
+                        }
+                        Task { @MainActor [weak self] in
+                            for (r, frame3D) in ready { self?.handleLifted(r, frame3D) }
+                        }
+                    } catch {
+                        print("CameraPosePreview 3D error frame=\(frameIdx): \(error)")
+                    }
+                }
+                if CameraPreviewOptions.motion3DAsync { liftQueue.async(execute: lift) } else { liftQueue.sync(execute: lift) }
             } catch {
                 if frameIdx % CameraPreviewOptions.debugLogEveryNFrames == 0 {
                     print("CameraPosePreview frame processing error: \(error)")
@@ -470,23 +766,157 @@ final class CameraPoseViewModel: ObservableObject {
         }
     }
 
+    /// Overlay only (3D path): the newest 2D right away, status/rep from the last judged frame.
+    @MainActor
+    private func showFrame(_ result: CameraProcessingResult) {
+        if currentFrame?.rotation != result.rotation { overlaySmoother = OverlaySmoother() }
+        currentFrame = CameraFrameData(
+            id: result.frameIndex, frameIndex: result.frameIndex, rotation: result.rotation, imageWidth: result.imageWidth,
+            imageHeight: result.imageHeight, coco17: overlaySmoother.smooth(result.visualCoco17, at: CACurrentMediaTime()),
+            rawCoco17: result.rawCoco17, handResults: result.handResults, exerciseTitle: exercise.displayName,
+            statusText: lastReportedStatus ?? "", rep: lastReportedRep ?? 0, done: lastReportedDone ?? false,
+            shade: severityTrack.update(liveSeverity, at: CACurrentMediaTime()))
+    }
+
+    /// 3D path: frame t with its own 2D and 3D (state never hidden: it goes to the evaluators and to Flutter).
+    @MainActor
+    private func handleLifted(_ result: CameraProcessingResult, _ frame3D: Lifted3DFrame) {
+        if let state = motion?.state, state.isAvailable, state.gravity.count == 3 {
+            formTracker?.up3D = FormGeometry.cameraUp(gravity: SIMD3(state.gravity[0], state.gravity[1], state.gravity[2]),
+                                                      frontCamera: isFrontCamera)
+        }
+        let t0 = CACurrentMediaTime()
+        judgingFrame = (result.frameIndex, result.arrivedAt)
+        let (statusText, rep, done) = runEvaluator(frameIndex: result.frameIndex, rawCoco17: result.rawCoco17,
+                                                   feet: result.feet, pose3D: frame3D.masked3D, pose3DState: frame3D.state)
+        let now = CACurrentMediaTime()
+        perfLog?.sample("evaluate", ms: (now - t0) * 1000)
+        perfLog?.sample("latency_input_to_judgement", ms: (now - result.arrivedAt) * 1000)
+        perfLog?.judged()
+        let pose3D = Pose3DBridge.payload(frame3D)
+        let pose3DKey = Pose3DBridge.key(frame3D)
+        // the setup panel lives before the first rep; foot items only when the active 2D model gives Halpe26 feet
+        let setup = rep == 0 ? updateSetup(frame3D, feet: result.feet, coco17: result.rawCoco17, now: now) : nil
+        if rep >= 1 || setupSeeded { wristAnchorActive = true }
+        if rep != lastReportedRep || statusText != lastReportedStatus || done != lastReportedDone || pose3DKey != lastReportedPose3D
+            || setup != nil {
+            lastReportedRep = rep
+            lastReportedStatus = statusText
+            lastReportedDone = done
+            lastReportedPose3D = pose3DKey
+            if let log = VideoRunLog.shared {
+                let arrival = result.arrivedAt, frame = result.frameIndex
+                bridge?.sendUpdate(rep: rep, status: statusText, done: done, pose3d: pose3D, setup: setup) { _ in
+                    log.write("update_reply", ["frame": frame, "rep": rep, "status": statusText,
+                                               "state3d": frame3D.state.rawValue,
+                                               "e2e_ms": (CACurrentMediaTime() - arrival) * 1000])
+                }
+            } else {
+                bridge?.sendUpdate(rep: rep, status: statusText, done: done, pose3d: pose3D, setup: setup)
+            }
+        }
+        if let log = VideoRunLog.shared {
+            log.count("judged")
+            var line: [String: Any] = [
+                "frame": result.frameIndex, "arrival": log.rel(result.arrivedAt), "state": frame3D.state.rawValue,
+                "capture_rotation": result.rotation.rawValue,
+                "status": statusText, "rep": rep, "judge_ms": (now - result.arrivedAt) * 1000,
+                "eval_ms": (now - t0) * 1000, "wrists": [result.wristsReplaced.left, result.wristsReplaced.right],
+            ]
+            if result.sameHandDropped { line["same_hand"] = true }
+            if let row = frame3D.row { line["row"] = row }
+            if rep == 0, let s = setupLog { line["setup"] = s }
+            if let a = result.wristAnchor { line["wrist_anchor"] = a }
+            if let src = log.clipFrame(result.frameIndex) { line["src"] = src }
+            // RTMPose keypoints the evaluators used (frame px, 1 decimal) and the raw MediaPipe wrist per crop side, for
+            // the left/right analysis against the Exercise3D labels (scripts/ex3d_lr_swap_device.py).
+            line["kp"] = result.rawCoco17.flatMap { [($0.x * 10).rounded() / 10, ($0.y * 10).rounded() / 10,
+                                                     ($0.confidence * 1000).rounded() / 1000] }
+            var hands: [String: [Double]] = [:]
+            for hand in result.handResults {
+                if let w = hand.wristFramePoint { hands[hand.side.rawValue] = [(w.x * 10).rounded() / 10, (w.y * 10).rounded() / 10] }
+            }
+            if !hands.isEmpty { line["hands"] = hands }
+            line["size"] = [Int(result.imageWidth), Int(result.imageHeight)]
+            if frame3D.state == .warmingUp { line["filled"] = frame3D.filled }
+            if let a = frame3D.adaptive {
+                if !a.filled.isEmpty { line["adaptive_filled"] = a.filled.keys.sorted() }
+                if !a.invalid.isEmpty { line["adaptive_invalid"] = a.invalid }
+                let events = a.relations.compactMapValues(\.event)
+                if !events.isEmpty { line["adaptive_events"] = events }
+            }
+            if let c = frame3D.constraints {
+                line["invalid"] = Array(c.invalidJoints).sorted()
+                if c.kneesReflected > 0 { line["knees_reflected"] = c.kneesReflected }
+                if c.kneeHyperextended { line["knee_flip"] = true }
+                if !c.angleCorrections.isEmpty { line["angle_corr"] = c.angleCorrections }
+                line["bone_corr"] = (c.boneMaxCorrection * 1000).rounded() / 1000
+            }
+            log.write("judged", line)
+        }
+        if result.frameIndex % CameraPreviewOptions.debugLogEveryNFrames == 0 {
+            print("CameraPosePreview frame=\(result.frameIndex) status=\(statusText) rep=\(rep) 3d=\(frame3D.state.rawValue) row=\(frame3D.row.map(String.init) ?? "-") wrists=\(result.wristsReplaced)")
+        }
+    }
+
+    /// Experimental exercise setup for this judged frame; the payload when it changed meaningfully (≤ 5 Hz), else nil.
+    /// On the first ready it seeds the adaptive relations (only when that constraint is on).
+    @MainActor
+    private func updateSetup(_ frame3D: Lifted3DFrame, feet: FootKeypoints?, coco17: [PoseKeypoint], now: CFTimeInterval) -> [String: Any]? {
+        guard exerciseSetup != nil else { return nil }
+        let up = formTracker?.up3D ?? FormGeometry.up3D
+        guard let state = exerciseSetup?.update(frame3D.usable3D, confidence: frame3D.confidence ?? [],
+                                                usable: frame3D.usable3D != nil, up: up, unit: frame3D.unit ?? 1,
+                                                feet: feet, coco17: coco17),
+              let setup = exerciseSetup else { return nil }
+        setupLog = ["phase": state.phase.rawValue, "progress": state.progress, "moving": state.moving,
+                    "motion_2d": state.motion2D.map { ($0 * 1000).rounded() / 1000 } ?? NSNull()]
+        if state.phase == .ready && !setupSeeded {
+            setupSeeded = true
+            let seeds = setup.seeds(AdaptiveRelationConstraint.relations(for: setup.exercise))
+            liftQueue.async { [weak self] in
+                for (name, seed) in seeds { self?.lifter?.adaptive?.seedReference(name: name, refPx: seed.ref, spreadPx: seed.spread) }
+            }
+            VideoRunLog.shared?.write("setup_ready", ["snapshot": setup.ready ?? [:], "seeds": Array(seeds.keys).sorted()])
+        }
+        let signature = ExerciseSetupBridge.signature(state)
+        guard signature != lastSetupSignature, now - lastSetupSent >= 0.2 else { return nil }
+        lastSetupSignature = signature
+        lastSetupSent = now
+        return ExerciseSetupBridge.payload(state, exercise: setup.exercise, variant: setupVariant, snapshot: setup.ready)
+    }
+
+    /// Flutter "다시 설정": measure the setup again and drop the relations it seeded.
+    private func resetSetup() {
+        wristAnchorResetPending = true
+        wristAnchorActive = false
+        exerciseSetup?.reset()
+        setupSeeded = false
+        lastSetupSignature = nil
+        liftQueue.async { [weak self] in self?.lifter?.adaptive?.reset() }
+    }
+
     @MainActor
     private func handleProcessingResult(_ result: CameraProcessingResult) {
+        if currentFrame?.rotation != result.rotation { overlaySmoother = OverlaySmoother() }
         let (statusText, rep, done) = self.runEvaluator(frameIndex: result.frameIndex, rawCoco17: result.rawCoco17,
-                                                        feet: result.feet)
+                                                        feet: result.feet, pose3D: nil, pose3DState: nil)
+        if rep >= 1 { wristAnchorActive = true }
 
         let frameData = CameraFrameData(
             id: result.frameIndex,
             frameIndex: result.frameIndex,
+            rotation: result.rotation,
             imageWidth: result.imageWidth,
             imageHeight: result.imageHeight,
-            coco17: result.visualCoco17,
+            coco17: overlaySmoother.smooth(result.visualCoco17, at: CACurrentMediaTime()),
             rawCoco17: result.rawCoco17,
             handResults: result.handResults,
             exerciseTitle: self.exercise.displayName,
             statusText: statusText,
             rep: rep,
-            done: done
+            done: done,
+            shade: severityTrack.update(liveSeverity, at: CACurrentMediaTime())
         )
 
         self.currentFrame = frameData
@@ -504,41 +934,58 @@ final class CameraPoseViewModel: ObservableObject {
         }
     }
 
-    private func runEvaluator(frameIndex: Int, rawCoco17: [PoseKeypoint],
-                              feet: FootKeypoints?) -> (status: String, rep: Int, done: Bool) {
+    private func runEvaluator(frameIndex: Int, rawCoco17: [PoseKeypoint], feet: FootKeypoints?,
+                              pose3D: [SIMD3<Double>]?, pose3DState: Pose3DState?) -> (status: String, rep: Int, done: Bool) {
         switch exercise {
         case .deadlift:
             if let eval = deadliftEvaluator {
-                let r = eval.evaluate(frameIndex: frameIndex, coco17: rawCoco17)
+                let r = eval.evaluate(frameIndex: frameIndex, coco17: rawCoco17, pose3D: pose3D, pose3DState: pose3DState)
                 reportForm()
                 return (r.status.rawValue, r.rep, r.done)
             }
         case .benchPress:
             if let eval = benchPressEvaluator {
-                let r = eval.evaluate(frameIndex: frameIndex, coco17: rawCoco17)
+                let r = eval.evaluate(frameIndex: frameIndex, coco17: rawCoco17, pose3D: pose3D, pose3DState: pose3DState)
                 reportForm()
                 return (r.status.rawValue, r.rep, r.done)
             }
         case .squat:
             if let eval = squatEvaluator {
-                let r = eval.evaluate(frameIndex: frameIndex, coco17: rawCoco17, feet: feet)
+                let r = eval.evaluate(frameIndex: frameIndex, coco17: rawCoco17, pose3D: pose3D, pose3DState: pose3DState, feet: feet)
                 reportForm()
                 return (r.status.rawValue, r.rep, r.done)
             }
         case .barbellRow:
             if let eval = barbellRowEvaluator {
-                let r = eval.evaluate(frameIndex: frameIndex, coco17: rawCoco17)
+                let r = eval.evaluate(frameIndex: frameIndex, coco17: rawCoco17, pose3D: pose3D, pose3DState: pose3DState)
                 reportForm()
                 return (r.status.rawValue, r.rep, r.done)
             }
         case .pushUp:
             if let eval = pushUpEvaluator {
-                let r = eval.evaluate(frameIndex: frameIndex, coco17: rawCoco17)
+                let r = eval.evaluate(frameIndex: frameIndex, coco17: rawCoco17, pose3D: pose3D, pose3DState: pose3DState)
                 reportForm()
                 return (r.status.rawValue, r.rep, r.done)
             }
         }
         return ("inactive", 0, false)
+    }
+
+    /// Video-as-camera: the clip list ended. Like the real app with main's workout screen, no endSet arrives, so the
+    /// frames still in the 3D window are not flushed and no set-scope keys / onSetEnd are produced.
+    private func videoFinished() {
+        guard let log = VideoRunLog.shared else { return }
+        let tracker = formTracker
+        log.write("session_end", [
+            "reps": tracker?.reports.count ?? 0,
+            "frames_3d": tracker?.sessionFrames3D ?? 0,
+            "bad_3d_frames": tracker?.sessionBad3DFrames ?? 0,
+            "warning_rep_counts": tracker?.warningRepCounts ?? [:],
+            "set_warning_rep_counts": tracker?.setWarningRepCounts ?? [:],
+            "last_rep": lastReportedRep ?? 0,
+            "last_status": lastReportedStatus ?? "",
+            "end_set_received": betweenSets,
+        ])
     }
 
     private func loadModel(named name: String) throws -> MLModel {
@@ -551,18 +998,33 @@ final class CameraPoseViewModel: ObservableObject {
         return try MLModel(contentsOf: url, configuration: config)
     }
 
+    /// The frame in the analysis frame: the turn rides on the render this needs anyway (no extra pass).
     private nonisolated static func cgImageFromSampleBuffer(
         _ sampleBuffer: CMSampleBuffer,
-        ciContext: CIContext
+        ciContext: CIContext,
+        rotation: CaptureRotation
     ) throws -> CGImage {
         guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else {
             throw NSError(domain: "CameraPosePreview", code: 2, userInfo: [NSLocalizedDescriptionKey: "Missing pixel buffer"])
         }
-        let ciImage = CIImage(cvPixelBuffer: pixelBuffer)
+        let ciImage = rotation.analysisImage(CIImage(cvPixelBuffer: pixelBuffer))
         guard let cgImage = ciContext.createCGImage(ciImage, from: ciImage.extent) else {
             throw NSError(domain: "CameraPosePreview", code: 3, userInfo: [NSLocalizedDescriptionKey: "CGImage creation failed"])
         }
         return cgImage
+    }
+
+    /// Processing queue: this frame's rotation (the launch override, else the latest gravity sample). A new rotation
+    /// drops the person crop, which is in the old frame's pixels; the next frame searches the whole frame again.
+    private nonisolated func updateCaptureRotation() -> CaptureRotation {
+        let before = rotationTracker.rotation
+        guard let state = rotationMotion?.state, state.isAvailable else { return before }
+        let rotation = rotationTracker.update(gravityX: state.gravity[0], gravityY: state.gravity[1])
+        if rotation != before {
+            cropTracker.reset()
+            print("CameraPosePreview capture rotation \(before.rawValue) -> \(rotation.rawValue)")
+        }
+        return rotation
     }
 
     private nonisolated static func timestampMs(_ sampleBuffer: CMSampleBuffer, fallback: Int) -> Int {
@@ -581,9 +1043,9 @@ struct CameraPosePreview: View {
     let exercise: NativePoseExercise
     @StateObject private var model: CameraPoseViewModel
 
-    init(exercise: NativePoseExercise, bridge: WorkoutChannel? = nil) {
+    init(exercise: NativePoseExercise, bridge: WorkoutChannel? = nil, setupOptions: ExerciseSetup.Options? = nil) {
         self.exercise = exercise
-        _model = StateObject(wrappedValue: CameraPoseViewModel(exercise: exercise, bridge: bridge))
+        _model = StateObject(wrappedValue: CameraPoseViewModel(exercise: exercise, bridge: bridge, setupOptions: setupOptions))
     }
 
     var body: some View {
@@ -606,9 +1068,11 @@ struct CameraPosePreview: View {
             } else {
                 CameraLiveView(
                     session: model.captureSession,
+                    videoLayer: model.videoDisplayLayer,
                     isMirrored: model.isFrontCamera,
                     frame: model.currentFrame,
-                    statusText: model.statusText
+                    statusText: model.statusText,
+                    debugCaption: model.debugCaption
                 )
             }
         }
@@ -628,20 +1092,29 @@ struct CameraPosePreview: View {
 
 private struct CameraLiveView: View {
     let session: AVCaptureSession
+    /// Video-as-camera preview (test-only); nil = the camera preview.
+    let videoLayer: AVSampleBufferDisplayLayer?
     let isMirrored: Bool
     let frame: CameraFrameData?
     let statusText: String
+    /// Test mode only (video mode): the last rep's judgement.
+    let debugCaption: String?
 
     var body: some View {
         GeometryReader { proxy in
             ZStack(alignment: .topLeading) {
-                CameraPreviewLayerView(session: session, isMirrored: isMirrored)
+                Group {
+                    if let videoLayer {
+                        VideoPreviewLayerView(layer: videoLayer)
+                    } else {
+                        CameraPreviewLayerView(session: session, isMirrored: isMirrored)
+                    }
+                }
                     .frame(width: proxy.size.width, height: proxy.size.height)
 
                 if let frame {
                     Canvas { context, size in
                         drawSkeleton(frame: frame, context: &context, size: size)
-                        drawHands(frame: frame, context: &context, size: size)
                     }
                     .frame(width: proxy.size.width, height: proxy.size.height)
                 } else {
@@ -654,52 +1127,39 @@ private struct CameraLiveView: View {
                     .frame(width: proxy.size.width, height: proxy.size.height)
                 }
 
-                // HUD (rep/status) is rendered by Flutter at the bottom of the
-                // screen — intentionally no native top-left overlay here.
+                // HUD (rep/status) is rendered by Flutter at the bottom of the screen — no native HUD. Test mode only
+                // (video mode): the last rep's judgement, small, under the status bar.
+                if let debugCaption {
+                    Text(debugCaption)
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundStyle(.white)
+                        .padding(6)
+                        .background(Color.black.opacity(0.6), in: RoundedRectangle(cornerRadius: 6))
+                        .padding(.top, 54)
+                        .padding(.leading, 8)
+                }
             }
             .background(Color.black)
             .clipped()
         }
     }
 
+    /// Glowing body skeleton coloured by live posture severity (green default, dim green when uncertain), no head, no hands.
     private func drawSkeleton(frame: CameraFrameData, context: inout GraphicsContext, size: CGSize) {
-        let rect = aspectFillRect(imageWidth: frame.imageWidth, imageHeight: frame.imageHeight, in: size)
-        for edge in coco17Edges {
-            guard edge.0 < frame.coco17.count, edge.1 < frame.coco17.count else { continue }
-            let a = frame.coco17[edge.0]
-            let b = frame.coco17[edge.1]
-            let minConfidence = min(a.confidence, b.confidence)
-            let color = minConfidence >= 0.3 ? Color.green : Color.gray.opacity(0.35)
-            var path = Path()
-            path.move(to: viewPoint(a, frame: frame, rect: rect))
-            path.addLine(to: viewPoint(b, frame: frame, rect: rect))
-            context.stroke(path, with: .color(color), lineWidth: minConfidence >= 0.3 ? 4.0 : 2.0)
-        }
-
-        for keypoint in frame.coco17 {
-            let point = viewPoint(keypoint, frame: frame, rect: rect)
-            let radius = keypoint.confidence >= 0.3 ? 5.0 : 3.0
-            let color = keypoint.confidence >= 0.3 ? Color.yellow : Color.gray.opacity(0.35)
-            let circle = CGRect(x: point.x - radius, y: point.y - radius, width: radius * 2.0, height: radius * 2.0)
-            context.fill(Path(ellipseIn: circle), with: .color(color))
+        let buffer = frame.rotation.bufferSize(width: frame.imageWidth, height: frame.imageHeight)
+        let rect = aspectFillRect(imageWidth: buffer.width, imageHeight: buffer.height, in: size)
+        PoseOverlayRenderer.draw(frame.coco17, shade: frame.shade, in: &context) {
+            viewPoint($0, frame: frame, rect: rect)
         }
     }
 
-    private func drawHands(frame: CameraFrameData, context: inout GraphicsContext, size: CGSize) {
-        let rect = aspectFillRect(imageWidth: frame.imageWidth, imageHeight: frame.imageHeight, in: size)
-        HandOverlayRenderer.drawHands(
-            frame.handResults,
-            context: &context,
-            imageWidth: frame.imageWidth,
-            imageHeight: frame.imageHeight,
-            rect: rect
-        )
-    }
-
+    /// Analysis-frame keypoint → view point over the preview (which shows the buffer).
     private func viewPoint(_ keypoint: PoseKeypoint, frame: CameraFrameData, rect: CGRect) -> CGPoint {
-        CGPoint(
-            x: rect.minX + CGFloat(keypoint.x / frame.imageWidth) * rect.width,
-            y: rect.minY + CGFloat(keypoint.y / frame.imageHeight) * rect.height
+        let buffer = frame.rotation.bufferSize(width: frame.imageWidth, height: frame.imageHeight)
+        let p = frame.rotation.bufferPoint(x: keypoint.x, y: keypoint.y, bufferWidth: buffer.width, bufferHeight: buffer.height)
+        return CGPoint(
+            x: rect.minX + CGFloat(p.x / buffer.width) * rect.width,
+            y: rect.minY + CGFloat(p.y / buffer.height) * rect.height
         )
     }
 
@@ -716,15 +1176,6 @@ private struct CameraLiveView: View {
             width: width,
             height: height
         )
-    }
-
-    private var coco17Edges: [(Int, Int)] {
-        [
-            (0, 1), (0, 2), (1, 3), (2, 4),
-            (5, 6), (5, 7), (7, 9), (6, 8), (8, 10),
-            (5, 11), (6, 12), (11, 12),
-            (11, 13), (13, 15), (12, 14), (14, 16),
-        ]
     }
 }
 

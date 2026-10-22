@@ -9,6 +9,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/route_constants.dart';
 import '../../../core/theme/app_colors.dart';
+import '../services/calibration_result_store.dart';
 import '../services/calibration_upload_service.dart';
 
 /// Shown right after the 4 body-scan photos are captured. Uploads the capture
@@ -70,6 +71,7 @@ class _OnboardingAnalyzingScreenState
       debugPrint('[Calibration] 사진 4장 자동 전송 시작');
       final receipt = await service.upload(path, cancelToken: CancelToken());
       debugPrint('[Calibration] 전송·접수 완료 (접수 번호 ${receipt.jobId})');
+      if (CalibrationResultStore.enabled) unawaited(CalibrationResultStore.instance.track(service, receipt.jobId));
     } on CalibrationUploadException catch (error) {
       debugPrint('[Calibration] 전송 실패: ${error.message}');
     } on DioException catch (error) {

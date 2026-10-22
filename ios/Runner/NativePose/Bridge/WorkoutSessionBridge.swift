@@ -6,16 +6,49 @@ import Flutter
 
 // App bridge for the workout camera (channel `bpt/native_pose_camera/<viewId>`):
 //
-//   native → Flutter  onPoseUpdate {rep, status, done}
+//   native → Flutter  onPoseUpdate {rep, status, done, pose3d?: {state, filled, window, usable}} (Pose3DBridge),
+//                                  setup?: ExerciseSetupBridge payload (experimental, only with exerciseSetup)
 //                     onFeedback  {key, n?, scope: "rep"|"set"}  → Flutter replies {text, lang} (or null);
 //                                                                  the reply is what WorkoutVoice says
 //                     onSetEnd    {setIndex, videoLocalPath?, worstJoint?}
-//   Flutter → native  setVoiceMuted {muted}, startSet {setIndex}, endSet {setIndex}
+//   Flutter → native  setVoiceMuted {muted}, startSet {setIndex}, endSet {setIndex},
+//                     resetSetup, setSetupVariant {variant, reference?} (experimental exercise setup)
 //
 // Line texts live only in lib/features/workout/data/kori_feedback_lines.dart: Flutter renders the
 // line ({n}, locale) when it handles onFeedback and returns it, so there is no native copy.
 // Everything above the `#if canImport(Flutter)` part is Foundation/AVFoundation only and is unit
 // tested through ios/CalibrationEngineKit (symlink).
+
+// MARK: - 3D state (onPoseUpdate `pose3d`)
+
+/// What Flutter gets about the live 3D, per state (sent with onPoseUpdate whenever it changes):
+/// warming_up {filled = real frames so far of 27} → "3D 준비 중"; tracking_lost → "사람이 안 보여요"; bad_3d →
+/// "자세 인식이 불안정해요" (posture keys skip the frame); partial_3d → "일부 관절 3D 불안정" (only the metrics
+/// that need those joints are skipped, usable = true); ok. `usable` = the evaluators judge posture with this
+/// frame's 3D. Never a 2D stand-in: without usable 3D no posture key is sent for the rep (FormWarningTracker).
+enum Pose3DBridge {
+    static func payload(_ frame: Lifted3DFrame) -> [String: Any] {
+        var p: [String: Any] = [
+            "state": frame.state.rawValue,
+            "filled": min(frame.filled, MotionAGFormerLive<Int>.window),
+            "window": MotionAGFormerLive<Int>.window,
+            "usable": frame.usable3D != nil,
+        ]
+        // Experimental adaptive constraint only (BPT_ADAPTIVE_3D=1): joints estimated from a relation because their 2D was
+        // not observed (temporary occlusion), and whether a relation was re-anchored (real motion accepted) this frame.
+        if let a = frame.adaptive {
+            p["occluded"] = a.filled.keys.sorted()
+            p["reanchored"] = a.relations.values.contains { $0.event == "reanchored" }
+        }
+        return p
+    }
+
+    /// Change-detection key for onPoseUpdate (state, warm-up count, and with the adaptive constraint the occluded set).
+    static func key(_ frame: Lifted3DFrame) -> String {
+        "\(frame.state.rawValue)/\(frame.state == .warmingUp ? frame.filled : 0)"
+            + (frame.adaptive.map { "/" + $0.filled.keys.sorted().map(String.init).joined(separator: ",") } ?? "")
+    }
+}
 
 // MARK: - Key → joint (worstJoint)
 
@@ -173,6 +206,7 @@ final class WorkoutVoice: NSObject, AVSpeechSynthesizerDelegate, AVAudioPlayerDe
             for name in workoutVoiceAudioNames(key: line.key, n: line.n) {
                 if let url = audioURL(name), let player = try? AVAudioPlayer(contentsOf: url) {
                     player.delegate = self
+                    player.volume = WorkoutDebugFlags.outputVolume
                     player.play()
                     self.player = player
                     return
@@ -182,6 +216,7 @@ final class WorkoutVoice: NSObject, AVSpeechSynthesizerDelegate, AVAudioPlayerDe
         let utterance = AVSpeechUtterance(string: line.text)
         utterance.voice = AVSpeechSynthesisVoice(language: line.language)
         utterance.rate = AVSpeechUtteranceDefaultSpeechRate * 0.95
+        utterance.volume = WorkoutDebugFlags.outputVolume
         synthesizer.speak(utterance)
     }
 
@@ -225,6 +260,17 @@ enum WorkoutDebugFlags {
     /// Per-set video. OFF until the on-device FPS check (recording ON vs OFF) shows a drop ≤ 10 %
     /// (docs/research/set_recording_perf.md); while off, onSetEnd sends videoLocalPath = null.
     static var setRecording: Bool { flag("BPT_SET_RECORDING", "BPTSetRecording") }
+
+    /// Test-only: every app sound at volume 0 while the speech / audio work still runs (realistic CPU cost).
+    /// BPT_VOICE_MUTE=1, or implied by a video-as-camera launch (BPT_CAMERA_VIDEO) unless BPT_VOICE_MUTE=0.
+    /// Never set in normal launches.
+    static let voiceMuted: Bool = {
+        let env = ProcessInfo.processInfo.environment
+        if env["BPT_VOICE_MUTE"] == "1" { return true }
+        return !(env["BPT_CAMERA_VIDEO"] ?? "").isEmpty && env["BPT_VOICE_MUTE"] != "0"
+    }()
+
+    static var outputVolume: Float { voiceMuted ? 0 : 1 }
 }
 
 // MARK: - Per-set recording
@@ -319,6 +365,10 @@ final class WorkoutPerfLog {
     private let lock = NSLock()
     private var processed = 0
     private var dropped = 0
+    /// Frames that reached the evaluators (3D path: L frames after their capture).
+    private var judgedFrames = 0
+    /// Stage timings (ms) since the last flush, by name (pose2d, hands, lift3d, latency …); p50 / p95 / max per line.
+    private var samples: [String: [Double]] = [:]
     private var lastFlush: TimeInterval
     private let handle: FileHandle
     let url: URL
@@ -344,6 +394,8 @@ final class WorkoutPerfLog {
 
     func frameProcessed() { lock.lock(); processed += 1; lock.unlock() }
     func frameDropped() { lock.lock(); dropped += 1; lock.unlock() }
+    func judged() { lock.lock(); judgedFrames += 1; lock.unlock() }
+    func sample(_ name: String, ms: Double) { lock.lock(); samples[name, default: []].append(ms); lock.unlock() }
 
     static func thermalName(_ state: ProcessInfo.ThermalState) -> String {
         switch state {
@@ -361,20 +413,31 @@ final class WorkoutPerfLog {
                thermal: ProcessInfo.ThermalState = ProcessInfo.processInfo.thermalState,
                battery: Float, recording: Bool) -> [String: Any] {
         lock.lock()
-        let p = processed, d = dropped
+        let p = processed, d = dropped, s = samples, j = judgedFrames
         processed = 0
+        judgedFrames = 0
         dropped = 0
+        samples = [:]
         lock.unlock()
         let span = max(now - lastFlush, 1e-3)
         lastFlush = now
-        let line: [String: Any] = [
+        var line: [String: Any] = [
             "t": Date().timeIntervalSince1970,
             "pose_fps": (Double(p) / span * 10).rounded() / 10,
             "dropped_frames": d,
+            "judged_fps": (Double(j) / span * 10).rounded() / 10,
             "thermal": Self.thermalName(thermal),
             "battery": battery < 0 ? NSNull() as Any : (Double(battery) * 100).rounded() / 100,
             "recording": recording,
         ]
+        for (name, values) in s {
+            let sorted = values.sorted()
+            func q(_ f: Double) -> Double {
+                let v = sorted[min(sorted.count - 1, Int(Double(sorted.count) * f))]
+                return (v * 100).rounded() / 100
+            }
+            line[name] = ["n": sorted.count, "p50": q(0.5), "p95": q(0.95), "max": q(1)] as [String: Any]
+        }
         if let data = try? JSONSerialization.data(withJSONObject: line, options: [.sortedKeys]) {
             try? handle.write(contentsOf: data + Data("\n".utf8))
         }
@@ -394,6 +457,8 @@ final class WorkoutChannel {
     let voice = WorkoutVoice()
     var onStartSet: ((Int) -> Void)?
     var onEndSet: ((Int) -> Void)?
+    var onResetSetup: (() -> Void)?
+    var onSetSetupVariant: ((String?, [String: Double]?) -> Void)?
 
     init(channel: FlutterMethodChannel) {
         self.channel = channel
@@ -408,6 +473,11 @@ final class WorkoutChannel {
                 if let index = (args?["setIndex"] as? NSNumber)?.intValue { self.onStartSet?(index) }
             case "endSet":
                 if let index = (args?["setIndex"] as? NSNumber)?.intValue { self.onEndSet?(index) }
+            case "resetSetup":
+                self.onResetSetup?()
+            case "setSetupVariant":
+                let reference = (args?["reference"] as? [String: Any])?.compactMapValues { ($0 as? NSNumber)?.doubleValue }
+                self.onSetSetupVariant?(args?["variant"] as? String, reference)
             default:
                 return result(FlutterMethodNotImplemented)
             }
@@ -415,15 +485,25 @@ final class WorkoutChannel {
         }
     }
 
-    func sendUpdate(rep: Int, status: String, done: Bool) {
-        channel.invokeMethod("onPoseUpdate", arguments: ["rep": rep, "status": status, "done": done])
+    /// `onReply` (test-only timing): called with Flutter's reply once its handler has completed.
+    func sendUpdate(rep: Int, status: String, done: Bool, pose3d: [String: Any]? = nil, setup: [String: Any]? = nil,
+                    onReply: ((Any?) -> Void)? = nil) {
+        var arguments: [String: Any] = ["rep": rep, "status": status, "done": done]
+        if let pose3d { arguments["pose3d"] = pose3d }
+        if let setup { arguments["setup"] = setup }
+        if let onReply {
+            channel.invokeMethod("onPoseUpdate", arguments: arguments) { onReply($0) }
+        } else {
+            channel.invokeMethod("onPoseUpdate", arguments: arguments)
+        }
     }
 
     /// {key, n?, scope}. Flutter answers {text, lang} for a line it showed / keeps; that is spoken.
-    func sendFeedback(_ event: FormFeedbackEvent) {
+    func sendFeedback(_ event: FormFeedbackEvent, onReply: ((Any?) -> Void)? = nil) {
         var arguments: [String: Any] = ["key": event.key, "scope": event.scope.rawValue]
         if let n = event.n { arguments["n"] = n }
         channel.invokeMethod("onFeedback", arguments: arguments) { [weak self] reply in
+            onReply?(reply)
             guard let reply = reply as? [String: Any], let text = reply["text"] as? String else { return }
             self?.voice.say(key: event.key, n: event.n, text: text, language: reply["lang"] as? String ?? "ko-KR")
         }

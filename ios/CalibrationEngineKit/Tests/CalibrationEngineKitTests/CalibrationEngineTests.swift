@@ -162,7 +162,7 @@ final class CalibrationEngineTests: XCTestCase {
         XCTAssertEqual(outputs.first?.guidance, .holdStill)  // nothing fires before the hold
         // The recommended turn is to the user's left, so the right-front side comes next.
         XCTAssertEqual(engine.targetView, .rightfront)
-        XCTAssertEqual(CalibrationGuidance.captured(.front).message, "정면 찍었어! 이제 왼쪽으로 천천히 돌아 줘")
+        XCTAssertEqual(CalibrationGuidance.captured(.front).message, "정면 찍었어! 왼쪽으로 돌아!")
     }
 
     func testFrontNeedsAFaceLookingAtTheCamera() {
