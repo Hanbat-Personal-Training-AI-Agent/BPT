@@ -122,8 +122,9 @@ class _OnboardingAnalyzingScreenState
                 builder: (context, _) {
                   final progress = _controller.value;
                   final percent = (progress * 100).floor().clamp(0, 100);
-                  final keypointsDone = progress >= 0.5;
-                  final modelDone = progress >= 1.0;
+                  final keypointsDone = progress >= 1 / 3;
+                  final modelDone = progress >= 2 / 3;
+                  final bonesDone = progress >= 1.0;
 
                   return Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -209,11 +210,6 @@ class _OnboardingAnalyzingScreenState
                           ),
                         ),
                         const SizedBox(height: 18),
-                        const _StepRow(
-                          label: '자동 촬영 4장 수집',
-                          state: _StepState.done,
-                        ),
-                        const SizedBox(height: 10),
                         _StepRow(
                           label: '관절 키포인트 추출',
                           state: keypointsDone
@@ -226,6 +222,15 @@ class _OnboardingAnalyzingScreenState
                           state: modelDone
                               ? _StepState.done
                               : keypointsDone
+                                  ? _StepState.active
+                                  : _StepState.waiting,
+                        ),
+                        const SizedBox(height: 10),
+                        _StepRow(
+                          label: '뼈 길이 추출',
+                          state: bonesDone
+                              ? _StepState.done
+                              : modelDone
                                   ? _StepState.active
                                   : _StepState.waiting,
                         ),
