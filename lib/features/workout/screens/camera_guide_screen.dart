@@ -6,10 +6,13 @@ import '../../../core/constants/route_constants.dart';
 import '../../../core/i18n/locale_provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/workout_orientation.dart';
 
 // ── 운동별 카메라 각도 가이드 데이터 ───────────────────────────────────────
 // 모든 운동이 120° 사선 구도를 쓰기 때문에 각도 값은 고정이고, 운동마다
 // 다른 건 캐릭터 그림과 "{운동}는/은" 조사가 붙은 헤드라인 앞부분뿐이다.
+// 푸쉬업은 몸이 옆으로 길어서 폰을 가로로 두고, 이 화면부터 가로로 보여준다
+// ([isLandscapeWorkout]).
 class _CameraGuideInfo {
   const _CameraGuideInfo({
     required this.imagePath,
@@ -54,7 +57,7 @@ const Map<String, _CameraGuideInfo> _kCameraGuides = {
   ),
 };
 
-class CameraGuideScreen extends ConsumerWidget {
+class CameraGuideScreen extends ConsumerStatefulWidget {
   const CameraGuideScreen({
     super.key,
     required this.exerciseId,
@@ -73,24 +76,50 @@ class CameraGuideScreen extends ConsumerWidget {
   final int restSeconds;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<CameraGuideScreen> createState() => _CameraGuideScreenState();
+}
+
+class _CameraGuideScreenState extends ConsumerState<CameraGuideScreen> {
+  _CameraGuideInfo get _guide =>
+      _kCameraGuides[widget.exerciseId] ?? _kCameraGuides['squat']!;
+
+  bool get _landscape => isLandscapeWorkout(widget.exerciseId);
+
+  // 가로 운동은 여기서 가로로 돌리고, 이 화면이 닫힐 때 세로로 되돌린다.
+  // 위에 쌓이는 운동 화면은 가로를 그대로 쓰고, 결과 화면으로 갈 때 세로로 돌린다.
+  @override
+  void initState() {
+    super.initState();
+    if (_landscape) lockLandscape();
+  }
+
+  @override
+  void dispose() {
+    if (_landscape) lockPortrait();
+    super.dispose();
+  }
+
+  void _start() {
+    context.push(
+      RouteConstants.nativePoseWorkout,
+      extra: {
+        'exerciseId': widget.exerciseId,
+        'targetReps': widget.targetReps,
+        'targetSets': widget.targetSets,
+        'setWeightsKg': widget.setWeightsKg,
+        'setReps': widget.setReps,
+        'restSeconds': widget.restSeconds,
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final s = ref.watch(appStringsProvider);
     final isKo = s.locale == 'ko';
-    final guide = _kCameraGuides[exerciseId] ?? _kCameraGuides['squat']!;
-
-    void start() {
-      context.push(
-        RouteConstants.nativePoseWorkout,
-        extra: {
-          'exerciseId': exerciseId,
-          'targetReps': targetReps,
-          'targetSets': targetSets,
-          'setWeightsKg': setWeightsKg,
-          'setReps': setReps,
-          'restSeconds': restSeconds,
-        },
-      );
-    }
+    final guide = _guide;
+    final isLandscape =
+        MediaQuery.orientationOf(context) == Orientation.landscape;
 
     return Theme(
       data: AppTheme.darkTheme,
@@ -101,23 +130,25 @@ class CameraGuideScreen extends ConsumerWidget {
             children: [
               _GuideHeader(isKo: isKo),
               Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _Headline(isKo: isKo, guide: guide),
-                      const SizedBox(height: 16),
-                      _IllustrationCard(imagePath: guide.imagePath),
-                      const SizedBox(height: 16),
-                      _ChecklistCard(isKo: isKo),
-                      const SizedBox(height: 16),
-                      _KoriBanner(isKo: isKo),
-                      const SizedBox(height: 28),
-                      _StartCtaButton(isKo: isKo, onTap: start),
-                    ],
-                  ),
-                ),
+                child: isLandscape
+                    ? _landscapeBody(isKo, guide)
+                    : SingleChildScrollView(
+                        padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _Headline(isKo: isKo, guide: guide),
+                            const SizedBox(height: 16),
+                            _IllustrationCard(imagePath: guide.imagePath),
+                            const SizedBox(height: 16),
+                            _ChecklistCard(isKo: isKo, landscape: _landscape),
+                            const SizedBox(height: 16),
+                            _KoriBanner(isKo: isKo),
+                            const SizedBox(height: 28),
+                            _StartCtaButton(isKo: isKo, onTap: _start),
+                          ],
+                        ),
+                      ),
               ),
             ],
           ),
@@ -125,9 +156,48 @@ class CameraGuideScreen extends ConsumerWidget {
       ),
     );
   }
+
+  /// 가로 화면: 왼쪽에 그림, 오른쪽에 설명과 시작 버튼.
+  Widget _landscapeBody(bool isKo, _CameraGuideInfo guide) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppColors.purple,
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: Image.asset(guide.imagePath, fit: BoxFit.contain),
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _Headline(isKo: isKo, guide: guide),
+                  const SizedBox(height: 12),
+                  _ChecklistCard(isKo: isKo, landscape: _landscape),
+                  const SizedBox(height: 12),
+                  _KoriBanner(isKo: isKo),
+                  const SizedBox(height: 16),
+                  _StartCtaButton(isKo: isKo, onTap: _start),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
-// ── 헤더: 뒤로가기 / 타이틀 / 도움말 ────────────────────────────────────────
+// ── 헤더: 뒤로가기 / 타이틀 ────────────────────────────────────────
 class _GuideHeader extends StatelessWidget {
   const _GuideHeader({required this.isKo});
   final bool isKo;
@@ -135,7 +205,7 @@ class _GuideHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(4, 8, 20, 8),
+      padding: const EdgeInsets.fromLTRB(4, 8, 4, 8),
       child: Row(
         children: [
           IconButton(
@@ -157,156 +227,10 @@ class _GuideHeader extends StatelessWidget {
               ),
             ),
           ),
-          GestureDetector(
-            onTap: () => _showHelpSheet(context, isKo),
-            behavior: HitTestBehavior.opaque,
-            child: Text(
-              isKo ? '도움말' : 'Help',
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.4),
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
+          // 뒤로가기 버튼과 같은 너비로 비워 타이틀을 가운데에 둔다.
+          const SizedBox(width: 48),
         ],
       ),
-    );
-  }
-}
-
-// ── 도움말 바텀시트: 코리가 말투로 알려주는 트러블슈팅 팁 ───────────────────
-Future<void> _showHelpSheet(BuildContext context, bool isKo) {
-  return showModalBottomSheet<void>(
-    context: context,
-    backgroundColor: AppColors.grey,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-    ),
-    builder: (_) => _HelpSheet(isKo: isKo),
-  );
-}
-
-class _HelpSheet extends StatelessWidget {
-  const _HelpSheet({required this.isKo});
-  final bool isKo;
-
-  static const _tipsKo = [
-    '거치대가 없어도 괜찮아! 책이나 의자에 기대서 세워도 충분해',
-    '머리부터 발끝까지 화면에 다 들어와야 내가 자세를 정확히 봐줄 수 있어',
-    '조명이 너무 어두우면 나도 잘 안 보여... 밝은 곳에서 찍어줘!',
-  ];
-  static const _tipsEn = [
-    "No stand? No problem — leaning it on a book or a chair works too",
-    'Fit your whole body in frame, head to toe, so I can check your form',
-    "Too dark and I can't see you well... find some brighter light!",
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    final tips = isKo ? _tipsKo : _tipsEn;
-    return Padding(
-      padding: EdgeInsets.fromLTRB(
-        20,
-        12,
-        20,
-        20 + MediaQuery.of(context).padding.bottom,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Center(
-            child: Container(
-              width: 36,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          ),
-          const SizedBox(height: 20),
-          Row(
-            children: [
-              Image.asset(
-                'assets/images/character/face.png',
-                width: 40,
-                height: 40,
-              ),
-              const SizedBox(width: 10),
-              Text(
-                isKo ? '코리의 도움말' : "Kori's help",
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 17,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 18),
-          for (final tip in tips) ...[
-            _HelpTipRow(text: tip),
-            const SizedBox(height: 12),
-          ],
-          const SizedBox(height: 8),
-          GestureDetector(
-            onTap: () => Navigator.of(context).pop(),
-            child: Container(
-              width: double.infinity,
-              height: 52,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: AppColors.green,
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Text(
-                isKo ? '알겠어!' : 'Got it!',
-                style: const TextStyle(
-                  color: AppColors.black,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _HelpTipRow extends StatelessWidget {
-  const _HelpTipRow({required this.text});
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: 6,
-          height: 6,
-          margin: const EdgeInsets.only(top: 8, right: 10),
-          decoration: const BoxDecoration(
-            color: AppColors.green,
-            shape: BoxShape.circle,
-          ),
-        ),
-        Expanded(
-          child: Text(
-            text,
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.85),
-              fontSize: 14,
-              height: 1.4,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-      ],
     );
   }
 }
@@ -380,8 +304,11 @@ class _IllustrationCard extends StatelessWidget {
 
 // ── 체크리스트 카드 ─────────────────────────────────────────────────────────
 class _ChecklistCard extends StatelessWidget {
-  const _ChecklistCard({required this.isKo});
+  const _ChecklistCard({required this.isKo, required this.landscape});
   final bool isKo;
+
+  /// 폰을 가로로 두는 운동인지.
+  final bool landscape;
 
   @override
   Widget build(BuildContext context) {
@@ -447,9 +374,12 @@ class _ChecklistCard extends StatelessWidget {
           _ChecklistRow(
             warning: true,
             child: Text(
-              isKo
-                  ? '폰은 세로로, 거치대에 고정해줘'
-                  : 'Keep it vertical and mounted on a stand',
+              switch ((isKo, landscape)) {
+                (true, false) => '폰은 세로로, 거치대에 고정해줘',
+                (true, true) => '폰은 가로로, 거치대에 고정해줘',
+                (false, false) => 'Keep it vertical and mounted on a stand',
+                (false, true) => 'Keep it horizontal and mounted on a stand',
+              },
               style: const TextStyle(
                 color: Colors.white,
                 fontSize: 14,
