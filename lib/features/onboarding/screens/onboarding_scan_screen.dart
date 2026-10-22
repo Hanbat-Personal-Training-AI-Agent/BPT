@@ -232,10 +232,10 @@ class CalibrationScanOverlay extends StatelessWidget {
     'leftfront': '오른쪽',
   };
   static const viewHints = {
-    'front': '카메라 보고 팔은 A자로,\n발은 어깨너비로 벌려 줘!',
-    'rightfront': '제자리에서 왼쪽으로 비스듬히 돌아 줘.\n고개도 몸이랑 같은 방향으로!',
-    'back': '이번엔 등을 보여 줘.\n팔은 계속 A자 유지!',
-    'leftfront': '마지막! 오른쪽으로 비스듬히 돌아 줘.\n거의 다 왔어!',
+    'front': '카메라 보고 팔 벌려!',
+    'rightfront': '왼쪽으로 살짝 돌아!',
+    'back': '등 보여 줘! 팔은 그대로',
+    'leftfront': '마지막! 오른쪽으로 살짝 돌아!',
   };
 
   final Widget preview;
