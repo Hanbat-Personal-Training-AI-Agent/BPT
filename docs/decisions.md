@@ -963,3 +963,21 @@
 - **발 고정**: ai/setup-constraint로 넘김(코드 없음).
 - **검증 상태**: Fit3D 검증(정답)은 Home이 15:27에 꺼져 중단 → 모든 기능 “실험적 보정”으로 표시(규칙 미평가). Exercise3D(의사 정답) 결과만 보조 근거.
 - **되돌리기**: `kneeClampDegrees = nil`, `BPT_HAND_DEDUPE=0`, 오버레이는 커밋 revert.
+
+## D-R-01 판정 규칙 기준값을 모델별 정상 렙 분포로 다시 도출 — 후보 설정만, 기본값 그대로 (2026-10-22, ai/rules-calib) — 제안, 결정 아님
+상세는 `docs/results/rules_calib.md`이고, 사전 등록 `rules_calib_prereg.md`(8eb5841)는 결과를 보기 전에 고정했다. 입력 2D는 m Halpe26이다(사용자 결정 2026-10-20 20:50).
+- **만든 것**
+  - 3D 지표와 규칙 14개(기본 꺼짐, Flutter로 전달하지 않음), Halpe26 뒤꿈치의 3D 경로 연결.
+  - `FormRulePreset`(`BPT_RULES` / pose-replay `--rules`), 모델별 후보 `xs_{orig,c1,c2}_rc1`.
+  - Python `form_rules.py`. Swift와 Python의 패리티는 테스트로 고정했다.
+- **결과**
+  - 현재 기준값은 held-out 정상 렙에서 오경보가 크다: squat_no_lockout 52%, squat_knee_valgus 63–90%, pushup_no_lockout 23%, hip_pike·shallow·head_up 10–11%.
+  - 사전 등록 도출(출처별 p99 중 가장 느슨한 값)로 바꾸면 오경보는 대부분 5% 안으로 들어온다. 대신 검출을 보이지 못했다.
+  - "근거 있음"을 받은 규칙은 0개다(원래 XS: 근거 약함 23, 끄기 권장 7).
+  - C1의 몸통 계열 규칙은 미해결로 따로 두었다.
+- **추천(승인 필요)**
+  - 오경보가 큰 6개 키를 기본 전달에서 뺀다.
+  - 새 키는 로그로만 둔다.
+  - R1에는 중력 검증 또는 몸 기준 정의가 필요하다.
+  - 사람이 검수한 틀린 자세 데이터를 모은다.
+- **되돌리기**: 기본 동작 변화가 없어 되돌릴 것이 없다.

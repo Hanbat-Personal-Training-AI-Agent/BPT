@@ -32,7 +32,7 @@ final class FormRulePresetTests: XCTestCase {
     func testEveryPresetEqualsItsFile() throws {
         let files = try Self.rulesFiles().filter { $0.name != "app_default" }
         XCTAssertEqual(Set(files.map(\.name)), Set(FormRulePreset.presets.keys))
-        let known = Set(FormRulePreset.doubles.keys).union(FormRulePreset.optionals.keys)
+        let known = Set(FormRulePreset.doubles.keys).union(FormRulePreset.optionals.keys).union(FormRulePreset.flags.keys)
         let ruleKeys = Set(FormWarningTracker.rules.values.flatMap { $0.map(\.key) })
         for file in files {
             let preset = try XCTUnwrap(FormRulePreset.presets[file.name])

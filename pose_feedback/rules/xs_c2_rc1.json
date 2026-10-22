@@ -1,0 +1,53 @@
+{
+ "name": "xs_c2_rc1",
+ "model": "c2",
+ "pose2d": "halpe",
+ "values": {
+  "pushUp.hipSagDeviation": 0.0914,
+  "pushUp.hipPikeDeviation": 0.2466,
+  "pushUp.shallowOverBaselineDegrees": 20.0445,
+  "pushUp.noLockoutBelowSetMaxDegrees": 26.6713,
+  "pushUp.headDropDeviation": 0.2069,
+  "pushUp.headUpDeviation": 0.1758,
+  "pushUp.depthAbsUpperArmInclineDegrees": -44.6089,
+  "pushUp.lockoutAbsElbowDegrees": 112.6757,
+  "squat.hipsFirstTorsoRiseDegrees": 5.1407,
+  "squat.shallowOverBaselineDegrees": 42.6089,
+  "squat.noLockoutBelowSetMaxDegrees": 68.4091,
+  "squat.valgusKneeAnkleGapRatio": 0.8008,
+  "squat.depthAbsThighInclineDegrees": 58.6783,
+  "squat.torsoLeanOverTibiaDegrees": 35.5143,
+  "squat.heelRiseShinRatio": 0.3169,
+  "squat.heelRiseEnabled": 1.0,
+  "row.torsoSwingRangeDegrees": 20.3462,
+  "row.headUpDeviation": 0.1189,
+  "row.hingeShallowTorsoDegrees": 34.7464,
+  "row.kneesLockedDegrees": 153.8632,
+  "row.kneesBentDegrees": 97.8575,
+  "row.pullHighWristTrunk": 0.5762,
+  "row.pullLowWristTrunk": 0.1886,
+  "row.unevenPullRatio": 0.3305,
+  "row.elbowFlareDegrees": 58.4059,
+  "row.wristLeadDegrees": 38.0727,
+  "row.straightArmElbowDegrees": 99.5269,
+  "row.shortPullAbsBehind": 0.1887
+ },
+ "off": [
+  "pushup_hand_position",
+  "row_elbow_flare",
+  "row_hinge_shallow",
+  "row_pull_high",
+  "row_pull_low",
+  "row_short_pull",
+  "row_short_pull_abs",
+  "row_standing_up",
+  "row_straight_arm",
+  "row_wrist_lead",
+  "squat_heel_rise",
+  "squat_knee_valgus"
+ ],
+ "sources": [
+  "public/tuning"
+ ],
+ "note": "rules-calib candidate (proposal, not adopted): pre-registered derivation, off = verdict '데이터 없음 → 끄기 권장' or unresolved model-metric hold"
+}
