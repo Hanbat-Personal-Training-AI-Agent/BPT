@@ -24,5 +24,5 @@
 
 ## 다른 브랜치로 옮기기 (이 브랜치에서는 손대지 않음)
 두 브랜치 모두 2b98256 위에 있고 기본 집합이 같은 식(`allKeys.subtracting(keysWithoutFlutterLines)`)이다.
-- `ai/halpe-default-m2b98256`(7db0b33): FormWarnings·테스트를 건드리지 않아 `git cherry-pick <이 커밋>`이 충돌 없이 들어간다(merge-tree로 확인).
+- `ai/halpe-default-m2b98256`(7db0b33): FormWarnings·테스트를 건드리지 않아 `git cherry-pick 7d2c0ef`이 충돌 없이 들어간다(merge-tree로 확인).
 - `ai/lift-app-m2b98256`(dfe4b6c): FormWarnings.swift는 자동 병합된다. `FormWarningsTests.swift`의 `testFeedbackDefaultAndPerKeyFlag`에서 충돌이 난다 — 그 브랜치 쪽 테스트를 두고 `delivered`에 `.subtracting(FormWarningTracker.quietByDefault)`와 이 커밋의 assert 3개(키 이름·disjoint·pike 미전달)를 손으로 넣으면 된다.
