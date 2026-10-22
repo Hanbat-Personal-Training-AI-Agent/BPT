@@ -122,4 +122,25 @@ void main() {
     expect(service.calls, 0);
     expect(find.text('result destination'), findsOneWidget);
   });
+
+  testWidgets('three steps go keypoints → 3D body → bone lengths in order',
+      (tester) async {
+    final service = _Uploader();
+    await show(tester, service);
+    final labels = ['관절 키포인트 추출', '3D 체형 만들기', '뼈 길이 추출'];
+    expect(find.text('자동 촬영 4장 수집'), findsNothing);
+    for (var i = 0; i < 2; i++) {
+      expect(tester.getTopLeft(find.text(labels[i])).dy,
+          lessThan(tester.getTopLeft(find.text(labels[i + 1])).dy));
+    }
+    // 처음엔 첫 단계만 진행 중, 나머지는 대기.
+    expect(find.text('진행 중'), findsOneWidget);
+    expect(find.text('대기 중'), findsNWidgets(2));
+    await tester.pump(const Duration(seconds: 30)); // 3/4 지점: 두 단계 완료
+    expect(find.text('완료'), findsNWidgets(2));
+    expect(find.text('진행 중'), findsOneWidget);
+    service.result.complete(const CalibrationUploadReceipt('session', 'job-1'));
+    await tester.pump(const Duration(seconds: 11));
+    await tester.pumpAndSettle();
+  });
 }
