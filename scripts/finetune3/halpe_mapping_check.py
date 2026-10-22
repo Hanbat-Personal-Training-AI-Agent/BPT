@@ -9,6 +9,9 @@ with the projected mocap H36M joint: distance in torso lengths (projected mocap 
 offset along the torso axis, and the spread (median absolute deviation of the residual around its per-video median).
 Pre-registered choice (finetune3_plan.md §1.3): per joint (pelvis, thorax, head) the mapping with the smaller median
 distance wins. Aggregates only.
+Also (plan §1.4, report only) the same statistics per frame view bucket: horizontal angle between the camera->pelvis ray
+and the body left-right line per frame (eval_3d_angles.view_and_side without the median; 0 side, 90 front), side <= 40,
+oblique 40-75, front >= 75, with frame counts.
 
 usage: halpe_mapping_check.py --pose2d DIR --subjects s03,s04,s05 --out OUT.json
 """
@@ -25,6 +28,20 @@ from pose_feedback.body.pose2d_data import project_fit3d  # noqa: E402
 
 JOINTS = {'pelvis': 0, 'thorax': 8, 'head': 10}
 HALPE = {'pelvis': 19, 'thorax': 18, 'head': 17}
+BUCKETS = ('side<=40', 'oblique40-75', 'front>=75')
+
+
+def frame_views(J, R, T):
+    """per-frame view angle (deg) like eval_3d_angles.view_and_side (world up = -R[1], z-up fallback)."""
+    up = -R[1] / np.linalg.norm(R[1]); up = np.array([0, 0, 1.]) if abs(up[2]) > 0.8 else up
+    lr = ((J[:, 14] - J[:, 11]) + (J[:, 1] - J[:, 4])) / 2; lr -= np.outer(lr @ up, up)
+    ray = J[:, 0] - T; ray -= np.outer(ray @ up, up)
+    cos = np.sum(ray * lr, 1) / (np.linalg.norm(ray, axis=1) * np.linalg.norm(lr, axis=1))
+    return np.degrees(np.arccos(np.clip(np.abs(cos), 0, 1)))
+
+
+def bucket_of(v):
+    return np.where(v <= 40, 0, np.where(v < 75, 1, 2))
 
 
 def main():
@@ -34,6 +51,7 @@ def main():
     p.add_argument('--subjects', default='s03,s04,s05'); p.add_argument('--out', required=True)
     a = p.parse_args()
     acc = {m: {j: dict(d=[], along=[], spread=[]) for j in JOINTS} for m in ('app', 'halpe')}
+    bk, exs = [], []
     for s in a.subjects.split(','):
         for f in sorted(glob.glob(f'{a.pose2d}/{s}_*_*.npz')):
             cam, ex = os.path.basename(f)[len(s) + 1:-4].split('_', 1)
@@ -44,6 +62,8 @@ def main():
             G = project_fit3d(J[pk][:, FIT3D_TO_H36M].reshape(-1, 3), camj).reshape(len(pk), 17, 2)
             torso = np.linalg.norm(G[:, 8] - G[:, 0], axis=-1)
             ax = (G[:, 8] - G[:, 0]) / torso[:, None]  # pelvis -> thorax (up the trunk)
+            Rc = np.array(camj['extrinsics']['R']); Tc = np.array(camj['extrinsics']['T']).reshape(3)
+            bk.append(bucket_of(frame_views(J[pk], Rc, Tc))); exs += [ex] * len(pk)
             app, _ = coco17_to_motionagformer_h36m17(H[:, :17])
             for m in ('app', 'halpe'):
                 for name, j in JOINTS.items():
@@ -59,9 +79,19 @@ def main():
             out.setdefault(name, {})[m] = dict(dist_median=float(np.median(d)), dist_p90=float(np.percentile(d, 90)),
                                               along_median=float(np.median(np.concatenate(v['along']))),
                                               spread_median=float(np.median(np.concatenate(v['spread']))))
+    bk = np.concatenate(bk); per_view = {}
+    for b, bname in enumerate(BUCKETS):
+        sel = bk == b
+        per_view[bname] = dict(frames=int(sel.sum()), frames_by_exercise={e: int(np.sum(sel & (np.array(exs) == e))) for e in sorted(set(exs))})
+        if sel.sum() == 0: continue
+        for m, js in acc.items():
+            for name, v in js.items():
+                d, al = np.concatenate(v['d'])[sel], np.concatenate(v['along'])[sel]
+                per_view[bname].setdefault(name, {})[m] = dict(dist_median=float(np.median(d)), dist_p90=float(np.percentile(d, 90)),
+                                                               along_median=float(np.median(al)))
     choice = {name: ('halpe' if r['halpe']['dist_median'] < r['app']['dist_median'] else 'app') for name, r in out.items()}
-    json.dump(dict(subjects=a.subjects, per_joint=out, choice=choice), open(a.out, 'w'), indent=1)
-    print(json.dumps(dict(per_joint=out, choice=choice), indent=1))
+    json.dump(dict(subjects=a.subjects, pose2d=a.pose2d, per_joint=out, choice=choice, per_view=per_view), open(a.out, 'w'), indent=1)
+    print(json.dumps(dict(per_joint=out, choice=choice, per_view=per_view), indent=1))
 
 
 if __name__ == '__main__':

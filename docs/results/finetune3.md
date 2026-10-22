@@ -4,6 +4,95 @@
 
 **이 문서는 실험 결과만 적는다.** 모델 채택, 앱 기본값·번들 변경, 병합은 하지 않았다(사용자 승인 필요).
 
+## 2026-10-22 오후 — 사용자 결정 뒤 추가 측정: C3 완결, Halpe 고유점, 2D 규칙 6, C4 (사전 등록 §1.4)
+
+사용자 결정(10-22):
+1. C3를 앱 후보로 진행한다.
+2. C4(h26ft 출력으로 XS 재학습)를 진행한다.
+3. det 새 레시피는 하지 않는다(원래 모델 유지).
+
+이 절의 측정 규칙은 모두 측정 전에 [finetune3_plan.md §1.4](finetune3_plan.md)에 고정했다(945bf4a). **채택·기본 교체·integration 병합은 하지 않았다.**
+
+### C3 — 남은 규칙 측정, 사전 등록 전체 통과
+- 도구: T4-Halpe(`scripts/finetune3/t4_halpe.py`).
+  - lift-app T4(a03ddd9)의 모캡, 렙 구간, 규칙 판정, 제약(L=5, 스쿼트만 무릎 반사)을 그대로 쓴다.
+  - 바꾼 것은 XS 입력뿐이다. 같은 30 fps 선택 프레임의 실험 A 원래 m Halpe26 2D를 매핑별로 넣었다.
+  - Fit3D s07–s11 60영상이고, 프레임이 맞지 않아 뺀 영상은 0개다.
+- 측정 결과 (C3 vs 같은 입력의 B1, B1은 앱 매핑):
+
+| 규칙 | C3 | B1 | 한계 | 판정 |
+|---|---|---|---|---|
+| A 무릎 뒤집힘 | 0 | 0 | ≤ +0.5%p | ✓ |
+| A 무효 관절 프레임 | 0 | 0 | ≤ +0.5%p | ✓ |
+| C 키별 정상 렙 오경보 최대 증가 | squat_no_lockout 2% → 4% | — | ≤ +5%p | ✓ |
+| C 오경보 합계 | 0.24 | 0.52 | ≤ B1 | ✓ |
+
+- 크게 바뀐 키(C3 / B1): pushup_no_lockout 0 / 14%, pushup_hip_pike 17 / 29%, pushup_hand_position 1 / 7%, pushup_shallow 2 / 0%. 같은 입력의 C1(앱 매핑)은 최대 +3%p, 합계 0.38이다.
+- 같은 실행의 MPJPE는 C3 53.2, B1 56.2 mm다. xs_eval 값(53.7 / 56.8)과 맞는다.
+- **C3 판정: 사전 등록 A·B·C·D 모두 통과.** 이전 "조건부"가 풀렸다. 다만 C3의 A·B·D 결과를 본 뒤의 추가 측정이고, 문턱은 바꾸지 않았다.
+- 몸통 한계(§B)는 그대로다. 같은 입력에서 몸통(중력) 렙 극값은 C3 4.45°, B1 3.70°, C1 4.39°다. 몸통 기반 피드백 보류도 유지한다.
+- Home: `t4h-base_h26-C3/`, `t4h-base_h26-app/`, `c3-t4h-rules-20261022/rules_C3_C.md`.
+
+### Halpe 고유점 시점별 정확도 (보고만 · Fit3D 모캡 · s03–s11 실험 A)
+- 방법:
+  - 투영 모캡 H36M 점과의 거리를 투영 모캡 몸통 길이 단위로 쟀다(중앙값 / p90 / 몸통 축 치우침, + = 위쪽).
+  - 시점은 **프레임마다** 몸 좌우선과 카메라 광선 사이 수평각으로 정했다(eval_3d_angles.view_and_side와 같은 식, 중앙값 대신 프레임별).
+- 수정: 앞서 "Fit3D 실제 카메라에는 측면이 없다"고 한 것은 시퀀스 중앙값 기준이었다. 프레임 단위로는 측면 ≤40° 프레임이 13,211개(스쿼트 5,200 · 푸시업 4,026 · 로우 3,985)라 **측면도 Fit3D 모캡으로 잴 수 있었다.**
+
+| 2D | 시점(프레임) | 골반: 엉덩이 중간 / **19 hip** | 흉곽: 어깨 중간 / **18 neck** | 머리: 눈 중간 / **17 head** |
+|---|---|---|---|---|
+| 원래 m Halpe26 | 측면 ≤40° (13,211) | 0.224·0.462·−0.17 / **0.200**·0.461·−0.14 | 0.129·**0.254**·−0.09 / **0.125**·0.299·+0.05 | 0.224·0.519 / **0.172**·**0.390** |
+| | 사선 (31,924) | 0.242·0.457 / **0.211**·**0.445** | 0.148·**0.260** / **0.098**·0.277 | 0.206·0.466 / **0.147**·**0.331** |
+| | 정면 ≥75° (16,773) | 0.224·0.468 / **0.200**·**0.452** | 0.140·**0.242** / **0.098**·0.275 | 0.211·0.464 / **0.139**·**0.361** |
+| h26ft | 측면 | 0.227·0.492 / **0.205**·**0.476** | 0.126·**0.267** / **0.114**·0.320 | 0.185·0.496 / **0.140**·**0.285** |
+
+(칸 = 거리 중앙값 · p90 · 몸통 축 치우침.)
+
+- 해석:
+  - **측면에서 골반 19가 엉덩이 중점보다 낫다.** 중앙값이 약 11% 작고, 몸통 축 아래 치우침도 작다(−0.17 → −0.14). p90은 같다.
+  - 흉곽 18(목)은 중앙값은 모든 시점에서 낫다. 그러나 **p90은 모든 시점에서 어깨 중점보다 나쁘다**(꼬리가 무거움).
+  - 머리 17은 모든 지표에서 낫다.
+  - C3 매핑(관절마다 중앙값이 작은 쪽, §1.3)의 근거는 측면에서도 유지된다. 단 흉곽은 큰 오차가 드물게 더 나는 쪽이다.
+- Exercise3D(의사 정답)로는 보충하지 않았다.
+  - Sapiens2 라벨의 골반은 양쪽 엉덩이 중점이라 앱 매핑과 정의가 같다(순환 비교).
+  - 머리는 Sapiens 대응점이 없다.
+  - 목은 정의가 H36M 흉곽과 달라 상대 비교의 의미가 작다.
+- Home: `halpe-points-view-20261022/`(base_h26.json, h26ft.json).
+
+### 2D h26ft — 규칙 6(앱 경로 안전, Mac Core ML) 측정: 불통과
+- Core ML 변환: 패리티 키포인트 차이 중앙값 0.5 px, p99 61.5 px(ALL) / 9.0 px(CPU). 원래 m Halpe26 패키지와 비슷하다(p99 74.6 px).
+- 가짜 렙:
+  - 더미·squat_03 13클립에서 0개(13/13 정확), 원래 Halpe26과 같다.
+  - 흔들림 합성 44건에서 **2개**(e3d squat0002 bob 0.10). 원래 Halpe26은 3개(같은 경우), m COCO17은 0개다.
+  - 사전 등록 문구 "가짜 렙 0 유지"를 글자 그대로 읽으면 원래 Halpe26도 못 지킨다.
+- 셋업 알람 합계(full_body + tracking_lost + 로우 side_view): **더미 1 vs 원래 0**(v2_dummy_01 로우 side_view), **Exercise3D 39클립 5 vs 4**(barbellrow_0003_cam3 tracking_lost 1 추가). 한계 "≤ 원래"를 넘는다 → **불통과**.
+- 보고만: Exercise3D 렙 정확도 조정 97.1 → 99.3%, 검증 88.9 → 88.9%. P1은 h26ft 학습 데이터라 독립 평가가 아니다.
+- 따라서 **P5′(h26ft + C4 파이프라인 재판정)의 조건 하나가 이미 실패했다.** C4 결과와 상관없이 h26ft는 불통과로 남는다. C4의 A–D는 기록을 위해 끝까지 잰다(아래).
+- Home: `mac-side/rule6-h26ft-20261022/`, `apppath/app_h26ft/`.
+
+### C3 테스트 빌드용 산출물 (기기 에이전트용, integration·기본값은 안 바꿈)
+- **Core ML 패키지(Mac에만)**: `~/bpt-models/finetune3/motionagformer_xs_finetune3_C3_NONCOMMERCIAL.mlpackage`.
+  - Home `coreml-xs-C3/` 패키지에 creator-defined 메타데이터 `bpt.xs_input_mapping = halpe_own`, `bpt.license`(비상업), `bpt.source`(체크포인트 sha256)를 넣은 것이다. 원본 대비 출력 차이 0.
+  - 패리티(D): ALL 0.25%, CPU 0.82%.
+  - **git·assets/에 넣지 않았다**(Fit3D 유래·비상업).
+- **Swift 패치**: [`scripts/finetune3/liftapp_halpe_own_mapping.patch`](../../scripts/finetune3/liftapp_halpe_own_mapping.patch). origin/ai/lift-app-m2b98256(dfe4b6c) 기준이고, `git apply`가 그대로 된다. 6개 파일, +76/−7줄.
+  - `PoseCoordinateTransforms.halpe26ToH36M17(coco17:extra:)`: 앱 매핑 뒤 골반 ← 19, 흉곽 ← 18, 머리 ← 17, 척추·목 다시 계산. Python `xs_data.to_h36m(mapping='halpe')`와 같은 식이다.
+  - `applyInverseAffineToExtra`, `Halpe26.head/neck/hip`.
+  - `MotionAGFormerLive.inputMapping`(`.app` 기본 / `.halpeOwn`), `push(..., extra:)`. `.halpeOwn`인데 Halpe 추가 점이 없으면(COCO17 2D 모델) 오류를 던진다.
+  - `MotionAGFormerCoreML.inputMapping(model)`: 패키지 메타데이터로 자동 선택한다. 메타데이터가 없는 원래 XS·B1·C1·C2 패키지는 `.app` 그대로라 동작이 바뀌지 않는다.
+  - 연결: 앱 카메라 경로(`CameraPosePreview`)와 pose-replay. pose-replay의 `--keypoints-csv`도 Halpe26 CSV의 17–25번 점을 읽는다.
+  - 단위 테스트 `testHalpeOwnMappingReplacesPelvisThoraxHead`.
+- **확인**:
+  - `swift build -c release --product pose-replay`와 `swift test --filter MotionAGFormerNormalizationTests|MotionAGFormerLiveTests`(13개, 실패 0, 기존 skip 1) 통과.
+  - **Swift–Python 종단 일치**: 패치한 pose-replay에 C3 패키지를 넣었다(`--constraints off`, Exercise3D 원래 Halpe26 CSV 2개, squat_0002_cam1 · barbellrow_0003_cam2, 1,640프레임). PyTorch C3 출력과의 루트 기준 관절 거리는 퍼짐의 **0.21–0.23%**로, Core ML 패리티 수준이다.
+  - 같은 패키지에 앱 매핑을 주면 10.6–12.4%로 벌어진다. 매핑 스위치가 실제로 결과를 바꾸고, 패치는 학습 때와 같은 입력을 만든다는 뜻이다.
+  - Home `swift-parity-C3-20261022/`.
+- **기기 에이전트가 할 일(제안)**:
+  1. lift-app 테스트 빌드에 패치를 적용한다.
+  2. 위 패키지를 번들 이름 `motionagformer_xs`로 넣는다. 테스트 빌드 전용이며 assets/coreml 원본은 그대로 둔다.
+  3. 2D는 원래 `rtmpose_m_halpe26_forward`(workout 기본 mhalpe26)를 쓴다. h26ft는 쓰지 않는다(불통과).
+  4. 비상업 표기를 한다.
+
 ## 2026-10-22 최종 판정 — A–G (Home 사슬 모두 종료, 사전 등록 규칙 그대로 적용)
 
 **한 줄 요약**: 사전 등록을 그대로 통과한 후보는 **C3(Halpe26 전용 XS)** 하나다. C3도 조건부다. 규칙 C(정상 렙 오경보)와 무릎 뒤집힘·무효 관절 검사는 사전 등록상 측정하지 않는 항목이다.
