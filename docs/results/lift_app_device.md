@@ -502,6 +502,19 @@ Home `20261022-device-eval-D7-a8b29f1`.
 ### 중력 보정(BPT_3D_GRAVITY)
 영상-카메라 모드에서는 폰의 실제 중력(가속도계)이 재생 영상과 무관하므로 이 확인은 **실제 촬영 필요**로 둔다(측정 안 함).
 
+### 체험용 빌드(사용자 실제 카메라 사용) — `ai/trial-m2b98256` 9ad7756
+- 구성: ai/lift-app-m2b98256 306bb47(m Halpe26 기본·3D·회전 보정·오버레이 v3·말풍선 사양) + setup-constraint 0c312b9(준비 자세 패널·손목 바닥 고정)
+  + quiet-keys 7d2c0ef(오경보 6키 기본 전달 끔). 충돌 해결: CameraPosePreview는 회전(captureRotation)과 손목 고정 입력(input2D)·setupOptions를 함께 남김,
+  MotionAGFormerLive reset은 회전 상태와 적응형 둘 다 초기화, 화면 문구·위젯 테스트는 lift-app 쪽(말풍선 사양), FormWarningsTests는 칭찬 기대값 + 조용한 키 검사 둘 다.
+  swift 143(2 건너뜀)·flutter 105 통과, analyze 깨끗.
+- 빌드: `--dart-define=BPT_EXERCISE_SETUP=true --dart-define=BPT_WRIST_ANCHOR=true`(준비 자세 패널·손목 고정 켬; 브랜치 코드 기본값은 그대로). 원래 XS
+  (weight.bin `37a5c834…`, C3 아님), 음성 켬(실제 카메라 실행은 음소거 아님). 앱 바이너리 sha256 `5b20607d…8d29`, scratchpad `runner-dev/app_trial`.
+- 시험 모드 판정 자막: **끔**(영상 모드에서만 켜지는 기능 그대로). 실제 카메라에서는 끄인 상태가 사용자에게 깔끔하고, 자막이 “기록만 되는 조용한 키”까지
+  보여 줘 quiet-keys와 어긋난다.
+- 사용 기록 회수 경로(앱 Documents): `workout_form_logs/<exercise>_<yyyyMMdd_HHmmss>.jsonl`(렙마다 판정 보고서·세트 요약, 항상 기록),
+  perf 로그 `workout_form_logs/perf_<exercise>_<time>.jsonl`은 실행 때 `BPT_PERF_LOG=1`(또는 `-BPTPerfLog YES`)일 때만. 영상 모드 로그(video_runs)는 없음.
+  회수: `xcrun devicectl device copy from --domain-type appDataContainer --domain-identifier com.bpt.liftdev --source Documents/workout_form_logs …`.
+
 ## 최종 보고 (A–G) — 2026-10-20 기준
 ### A. 검증된 사실
 1. **XS 3D는 실제 앱 경로에서 매 프레임 돈다**: 추론 26.9–29.3회/초, Neural Engine에서(xctrace, MPS·GPU ML 0). 탑재 가중치는 H36M 원본 XS
