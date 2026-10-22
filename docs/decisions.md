@@ -961,3 +961,14 @@
 - **그대로 둔 것**: 판정과 로그(`FormRepReport.warnings`, 세션 로그, pose-replay). 기준값은 바꾸지 않음 — R6(rc1 기본 채택)은 **승인되지 않음**.
 - **결과**: `docs/results/quiet_keys.md`. 브랜치 `ai/quiet-keys-m2b98256`, 병합하지 않음.
 
+
+### D-M-05 검증·승인된 4건을 integration/ai에 병합 (2026-10-23 04시 무렵, 사용자 위임)
+- **사용자 위임**: 자기 전에 "다 알아서해 앵간한거 다 허가해줌". 이미 검증되고 사용자가 승인한 것만 integration/ai(base main f953336)에 병합했다. main에는 병합·push하지 않음.
+- **병합함**:
+  1. `ai/halpe-default-m2b98256` 7db0b33 — 운동 2D 기본 m Halpe26, m COCO17 번들 제외(D-M-03, 기기 37쌍 A/B 확인). decisions.md 충돌은 D-M-03·D-M-04 둘 다 남김.
+  2. `ai/quiet-keys-m2b98256` 02677c1(7d2c0ef) — 오경보 큰 키 6개 기본 전달 끔(D-M-04).
+  3. `ai/kori-short-mf953336` 195f7a5 — 짧은 코리 대사. 테스트 기대값 갱신 0e01dea·d04e5c8(Swift 테스트만, pubspec.lock 제외)을 함께 가져옴.
+  4. 가로 촬영: `ai/orientation-m2b98256` 8e962e4(분석 회전, CaptureRotation) + `ai/trial-mf953336` cb6dcf1을 integration 오버레이에 맞게 옮김(미리보기가 화면 방향을 따르고, 가로 뷰에서 관절·손을 분석 좌표로 그림; 팀원 #67 푸시업 가로 화면용). 기기 결과: 가로 hip_pike 오경보 0, 270° 3D ok 67→96%(3D는 lift-app 기준).
+- **뺀 것**(3D 전용·integration에 해당 코드 없음): ebcfb38의 3D 창 분리(MotionAGFormerLive), a8b29f1 실행 로그 필드(integration에 실행 로그 없음).
+- **아침 검토로 남김**(병합 안 함): 3D 켜기(`ai/lift-app`), C3·미세조정 모델, calib-fix(사람 기기 시험 대기), setup-constraint·손목 고정, trial 전용 로그 커밋, motion-contact, eval-full·rules-calib 스크립트.
+- **확인**: flutter analyze 문제 없음, flutter test 109 통과, CalibrationEngineKit `swift test` 111 통과, `flutter build ios --debug --no-codesign` 성공. 가로 미리보기·오버레이는 기기에서 좌우 가로 방향 모두 아직 눈으로 확인 필요.
