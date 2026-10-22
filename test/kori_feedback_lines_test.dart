@@ -18,18 +18,14 @@ void main() {
     expect(koriFeedbackLines.keys.toSet(), keys.toSet());
   });
 
-  test('{n} {reps} {k} 를 채운다', () {
-    expect(
-      koriFeedbackLines['squat_no_lockout']!.render(isKo: true, n: 3),
-      '다 안 일어선 렙이 3번 있었어. 위에서 무릎이랑 엉덩이를 끝까지 펴 줘.',
-    );
+  test('{reps} {k} 를 채운다', () {
     expect(
       koriFeedbackLines['praise_clean_set']!.render(isKo: true, reps: 12),
-      '12개 다 좋았어! 수고했어',
+      '12개 다 완벽해!',
     );
     expect(
       koriFeedbackLines['set_summary']!.render(isKo: true, k: 2),
-      '수고했어! 고칠 점 2개 정리해 뒀어',
+      '수고했어! 고칠 거 2개',
     );
   });
 
