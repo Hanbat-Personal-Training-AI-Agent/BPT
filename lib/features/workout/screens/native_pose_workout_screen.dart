@@ -10,6 +10,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/route_constants.dart';
 import '../../../core/i18n/locale_provider.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/workout_orientation.dart';
 import '../../../core/widgets/app_toast.dart';
 import '../../../data/mock_data.dart';
 import '../../home/providers/home_provider.dart';
@@ -416,6 +417,8 @@ class _NativePoseWorkoutScreenState
 
     final totalBad = performedSets.fold<int>(0, (sum, r) => sum + r.badCount);
 
+    // 결과 화면부터는 세로. (가로 운동은 아래에 남는 가이드 화면이 가로로 걸어 둠)
+    if (isLandscapeWorkout(widget.exerciseId)) lockPortrait();
     context.pushReplacement(
       RouteConstants.workoutResult,
       extra: {
@@ -564,7 +567,9 @@ class _NativePoseWorkoutScreenState
         // 연동 검증이 끝나면 제거할 것.
         if (kDebugMode && !_setComplete && !_workoutComplete)
           Positioned(
-            right: 16,
+            // 가로 화면에서는 다이내믹 아일랜드가 옆 가장자리 가운데에 있어서,
+            // 그 위에 놓이면 눌리지 않는다. 안전 영역 안쪽에 둔다.
+            right: 16 + MediaQuery.paddingOf(context).right,
             top: 0,
             bottom: 0,
             child: Center(
@@ -773,8 +778,92 @@ class _LiveHud extends StatelessWidget {
     return '$m:$sec';
   }
 
+  /// 가로 화면 위쪽 박스(운동명·시간, 소리, REPS)가 같이 쓰는 모서리 둥글기.
+  static const double _landscapeRadius = 16;
+
+  Widget _nameTimePill({double radius = 20}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.grey,
+        borderRadius: BorderRadius.circular(radius),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: const BoxDecoration(
+              color: AppColors.red,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            exerciseName,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            _elapsedLabel,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.45),
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _repsCard({bool horizontal = false}) => _StatCard(
+        radius: horizontal ? _landscapeRadius : 18,
+        label: 'REPS',
+        value: '$reps',
+        suffix: isKo ? '/ $targetReps회' : '/ $targetReps',
+        filled: false,
+        horizontal: horizontal,
+      );
+
+  Widget _setCard() => _StatCard(
+        label: 'SET',
+        value: '$currentSet',
+        suffix: isKo ? '/ $totalSets세트' : '/ $totalSets',
+        filled: true,
+      );
+
+  Widget _feedbackRow() => _KoriFeedbackRow(
+        isKo: isKo,
+        exerciseId: exerciseId,
+        feedbackKey: feedbackKey,
+        feedbackCount: feedbackCount,
+      );
+
+  Widget _actionButtons() => Row(
+        children: [
+          Expanded(child: _EndButton(isKo: isKo, onTap: onEnd)),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _PauseButton(
+              isKo: isKo,
+              isPaused: isPaused,
+              onTap: onTogglePause,
+            ),
+          ),
+        ],
+      );
+
   @override
   Widget build(BuildContext context) {
+    if (MediaQuery.orientationOf(context) == Orientation.landscape) {
+      return _buildLandscape();
+    }
     return Column(
       children: [
         Padding(
@@ -782,44 +871,7 @@ class _LiveHud extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                decoration: BoxDecoration(
-                  color: AppColors.grey,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 8,
-                      height: 8,
-                      decoration: const BoxDecoration(
-                        color: AppColors.red,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      exerciseName,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      _elapsedLabel,
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.45),
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              _nameTimePill(),
               _SoundToggleButton(muted: voiceMuted, onTap: onToggleVoice),
             ],
           ),
@@ -830,31 +882,16 @@ class _LiveHud extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _StatCard(
-                label: 'REPS',
-                value: '$reps',
-                suffix: isKo ? '/ $targetReps회' : '/ $targetReps',
-                filled: false,
-              ),
+              _repsCard(),
               const Spacer(),
-              _StatCard(
-                label: 'SET',
-                value: '$currentSet',
-                suffix: isKo ? '/ $totalSets세트' : '/ $totalSets',
-                filled: true,
-              ),
+              _setCard(),
             ],
           ),
         ),
         const Spacer(),
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-          child: _KoriFeedbackRow(
-            isKo: isKo,
-            exerciseId: exerciseId,
-            feedbackKey: feedbackKey,
-            feedbackCount: feedbackCount,
-          ),
+          child: _feedbackRow(),
         ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -863,21 +900,66 @@ class _LiveHud extends StatelessWidget {
         const SizedBox(height: 10),
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-          child: Row(
+          child: _actionButtons(),
+        ),
+      ],
+    );
+  }
+
+  /// 가로 화면: 가운데(몸)는 비우고 네 모서리에 나눠 둔다.
+  /// 왼쪽 위 운동명·시간·소리와 그 아래 가로로 긴 REPS, 오른쪽 위 SET,
+  /// 왼쪽 아래 코리, 오른쪽 아래 진행 바·버튼.
+  Widget _buildLandscape() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+      child: Column(
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(child: _EndButton(isKo: isKo, onTap: onEnd)),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _PauseButton(
-                  isKo: isKo,
-                  isPaused: isPaused,
-                  onTap: onTogglePause,
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      _nameTimePill(radius: _landscapeRadius),
+                      const SizedBox(width: 8),
+                      _SoundToggleButton(
+                          muted: voiceMuted,
+                          onTap: onToggleVoice,
+                          radius: _landscapeRadius),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  _repsCard(horizontal: true),
+                ],
+              ),
+              const Spacer(),
+              _setCard(),
+            ],
+          ),
+          const Spacer(),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(child: _feedbackRow()),
+              const SizedBox(width: 16),
+              SizedBox(
+                width: 280,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _SetProgressBar(
+                        currentSet: currentSet, totalSets: totalSets),
+                    const SizedBox(height: 10),
+                    _actionButtons(),
+                  ],
                 ),
               ),
             ],
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -888,6 +970,8 @@ class _StatCard extends StatelessWidget {
     required this.value,
     required this.suffix,
     required this.filled,
+    this.horizontal = false,
+    this.radius = 18,
   });
 
   final String label;
@@ -895,9 +979,82 @@ class _StatCard extends StatelessWidget {
   final String suffix;
   final bool filled;
 
+  /// 가로로 긴 카드 (가로 화면의 REPS): 라벨 · 숫자 · 목표를 한 줄로.
+  final bool horizontal;
+  final double radius;
+
+  /// 굵은 숫자. w900는 폰트가 지원하는 최대 굵기라, 안쪽을 살짝 두껍게
+  /// 덧그려서(faux bold) 실제로 더 두꺼워 보이게 만든다.
+  Widget _boldValue(Color fg, double fontSize) {
+    return Stack(
+      children: [
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: fontSize,
+            fontWeight: FontWeight.w900,
+            height: 1,
+            foreground: Paint()
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = 1.6
+              ..color = fg,
+          ),
+        ),
+        Text(
+          value,
+          style: TextStyle(
+            color: fg,
+            fontSize: fontSize,
+            fontWeight: FontWeight.w900,
+            height: 1,
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final fg = filled ? AppColors.black : Colors.white;
+    if (horizontal) {
+      return Container(
+        height: 56,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: filled ? AppColors.green : AppColors.grey,
+          borderRadius: BorderRadius.circular(radius),
+        ),
+        // 라벨과 목표는 큰 숫자의 아래쪽 글자선에 맞춘다.
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.baseline,
+          textBaseline: TextBaseline.alphabetic,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                color: fg.withValues(alpha: filled ? 0.6 : 0.5),
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.5,
+              ),
+            ),
+            const SizedBox(width: 12),
+            _boldValue(fg, 32),
+            const SizedBox(width: 8),
+            Text(
+              suffix,
+              style: TextStyle(
+                color: fg.withValues(alpha: filled ? 0.65 : 0.45),
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
     return Container(
       width: 68,
       height: 98,
@@ -921,33 +1078,7 @@ class _StatCard extends StatelessWidget {
           ),
           FittedBox(
             fit: BoxFit.scaleDown,
-            child: Stack(
-              children: [
-                // w900는 폰트가 지원하는 최대 굵기라, 안쪽을 살짝 두껍게
-                // 덧그려서(faux bold) 실제로 더 두꺼워 보이게 만든다.
-                Text(
-                  value,
-                  style: TextStyle(
-                    fontSize: 40,
-                    fontWeight: FontWeight.w900,
-                    height: 1,
-                    foreground: Paint()
-                      ..style = PaintingStyle.stroke
-                      ..strokeWidth = 1.6
-                      ..color = fg,
-                  ),
-                ),
-                Text(
-                  value,
-                  style: TextStyle(
-                    color: fg,
-                    fontSize: 40,
-                    fontWeight: FontWeight.w900,
-                    height: 1,
-                  ),
-                ),
-              ],
-            ),
+            child: _boldValue(fg, 40),
           ),
           Text(
             suffix,
@@ -965,10 +1096,12 @@ class _StatCard extends StatelessWidget {
 
 /// 음소거 토글 버튼: 탭할 때마다 스피커 ↔ 음소거 아이콘으로 바뀐다.
 class _SoundToggleButton extends StatelessWidget {
-  const _SoundToggleButton({required this.muted, required this.onTap});
+  const _SoundToggleButton(
+      {required this.muted, required this.onTap, this.radius = 14});
 
   final bool muted;
   final VoidCallback onTap;
+  final double radius;
 
   @override
   Widget build(BuildContext context) {
@@ -980,7 +1113,7 @@ class _SoundToggleButton extends StatelessWidget {
         alignment: Alignment.center,
         decoration: BoxDecoration(
           color: AppColors.grey,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(radius),
         ),
         child: Icon(
           muted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
@@ -1415,9 +1548,112 @@ class _BreakTimeOverlay extends StatelessWidget {
   final VoidCallback onSkipRest;
   final VoidCallback onNext;
 
+  Widget _header() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          exerciseName,
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.6),
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: AppColors.green,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Text(
+            isKo
+                ? '$completedSet / $totalSets세트 완료'
+                : '$completedSet / $totalSets sets done',
+            style: const TextStyle(
+              color: AppColors.black,
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _title() => Text(
+        isKo ? '숨 좀 돌리자!' : 'Catch your breath!',
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 22,
+          fontWeight: FontWeight.w900,
+        ),
+      );
+
+  Widget _adjustButtons() => Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          _RestAdjustButton(
+            label: isKo ? '-15초' : '-15s',
+            onTap: () => onAdjustRest(-15),
+          ),
+          const SizedBox(width: 10),
+          _RestAdjustButton(
+            label: isKo ? '+15초' : '+15s',
+            onTap: () => onAdjustRest(15),
+          ),
+          const SizedBox(width: 10),
+          _RestAdjustButton(
+            label: isKo ? '바로 할래' : 'Skip',
+            onTap: onSkipRest,
+          ),
+        ],
+      );
+
+  Widget _koriMessage() {
+    final lastResult = setResults.isEmpty ? null : setResults.last;
+    return _KoriBreakMessage(
+      isKo: isKo,
+      reps: lastResult?.reps ?? 0,
+      fixCount: lastResult?.fixCount ?? 0,
+    );
+  }
+
+  Widget _soFarCard() => _SoFarCard(
+        isKo: isKo,
+        results: setResults,
+        completedSet: completedSet,
+        totalSets: totalSets,
+        plannedReps: plannedReps,
+        plannedWeightsKg: plannedWeightsKg,
+      );
+
+  Widget _nextButton() => GestureDetector(
+        onTap: onNext,
+        child: Container(
+          width: double.infinity,
+          height: 56,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: AppColors.green,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Text(
+            isKo ? '${completedSet + 1}세트 시작' : 'Start set ${completedSet + 1}',
+            style: const TextStyle(
+              color: AppColors.black,
+              fontSize: 16,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ),
+      );
+
   @override
   Widget build(BuildContext context) {
-    final lastResult = setResults.isEmpty ? null : setResults.last;
+    if (MediaQuery.orientationOf(context) == Orientation.landscape) {
+      return _buildLandscape();
+    }
     return Container(
       color: AppColors.black,
       child: SafeArea(
@@ -1427,48 +1663,9 @@ class _BreakTimeOverlay extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    exerciseName,
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.6),
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: AppColors.green,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      isKo
-                          ? '$completedSet / $totalSets세트 완료'
-                          : '$completedSet / $totalSets sets done',
-                      style: const TextStyle(
-                        color: AppColors.black,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+              _header(),
               const SizedBox(height: 20),
-              Center(
-                child: Text(
-                  isKo ? '숨 좀 돌리자!' : 'Catch your breath!',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 22,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ),
+              Center(child: _title()),
               const SizedBox(height: 20),
               Center(
                 child: _RestRing(
@@ -1478,61 +1675,74 @@ class _BreakTimeOverlay extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 20),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  _RestAdjustButton(
-                    label: isKo ? '-15초' : '-15s',
-                    onTap: () => onAdjustRest(-15),
-                  ),
-                  const SizedBox(width: 10),
-                  _RestAdjustButton(
-                    label: isKo ? '+15초' : '+15s',
-                    onTap: () => onAdjustRest(15),
-                  ),
-                  const SizedBox(width: 10),
-                  _RestAdjustButton(
-                    label: isKo ? '바로 할래' : 'Skip',
-                    onTap: onSkipRest,
-                  ),
-                ],
-              ),
+              _adjustButtons(),
               const SizedBox(height: 20),
-              _KoriBreakMessage(
-                isKo: isKo,
-                reps: lastResult?.reps ?? 0,
-                fixCount: lastResult?.fixCount ?? 0,
-              ),
+              _koriMessage(),
               const SizedBox(height: 16),
-              _SoFarCard(
-                isKo: isKo,
-                results: setResults,
-                completedSet: completedSet,
-                totalSets: totalSets,
-                plannedReps: plannedReps,
-                plannedWeightsKg: plannedWeightsKg,
-              ),
+              _soFarCard(),
               const SizedBox(height: 20),
-              GestureDetector(
-                onTap: onNext,
-                child: Container(
-                  width: double.infinity,
-                  height: 56,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: AppColors.green,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Text(
-                    isKo
-                        ? '${completedSet + 1}세트 시작'
-                        : 'Start set ${completedSet + 1}',
-                    style: const TextStyle(
-                      color: AppColors.black,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w900,
+              _nextButton(),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 가로 화면: 왼쪽에 휴식 타이머, 오른쪽에 코리 한마디·지금까지 기록·다음 세트 버튼.
+  Widget _buildLandscape() {
+    return Container(
+      color: AppColors.black,
+      child: SafeArea(
+        child: Padding(
+          // 가로 화면은 위쪽 안전 영역이 0이라 위 여백을 따로 넉넉히 둔다.
+          padding: const EdgeInsets.fromLTRB(20, 28, 20, 12),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: Column(
+                  children: [
+                    _header(),
+                    const Spacer(),
+                    _title(),
+                    const SizedBox(height: 12),
+                    // 가로 화면은 높이가 낮아서 타이머를 줄인다.
+                    SizedBox(
+                      width: 170,
+                      height: 170,
+                      child: FittedBox(
+                        child: _RestRing(
+                          isKo: isKo,
+                          remaining: restRemaining,
+                          total: restTotal,
+                        ),
+                      ),
                     ),
-                  ),
+                    const SizedBox(height: 12),
+                    _adjustButtons(),
+                    const Spacer(),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 20),
+              Expanded(
+                child: Column(
+                  children: [
+                    Expanded(
+                      child: SingleChildScrollView(
+                        child: Column(
+                          children: [
+                            _koriMessage(),
+                            const SizedBox(height: 12),
+                            _soFarCard(),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    _nextButton(),
+                  ],
                 ),
               ),
             ],
@@ -2037,6 +2247,79 @@ class _WorkoutCompleteOverlayState extends State<_WorkoutCompleteOverlay>
         ? '${widget.totalSets}세트 전부 해치웠어.\n오늘도 진짜 수고했어!'
         : 'You crushed all ${widget.totalSets} sets.\nAwesome work today!';
     final btnLabel = isKo ? '결과 보러 가기' : 'See my results';
+    final isLandscape =
+        MediaQuery.orientationOf(context) == Orientation.landscape;
+
+    // 코리 (그림 높이 [height], 원래 세로 화면은 270).
+    Widget kori(double height) => ScaleTransition(
+          scale: _koriScale,
+          child: SizedBox(
+            width: height * 26 / 27,
+            height: height + 10,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Image.asset(
+                  'assets/images/character/congrats.png',
+                  height: height,
+                  fit: BoxFit.contain,
+                ),
+              ],
+            ),
+          ),
+        );
+
+    final texts = FadeTransition(
+      opacity: _textFade,
+      child: Column(
+        children: [
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: AppColors.white,
+              fontSize: 28,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            subtitle,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: AppColors.white,
+              fontSize: 17,
+              fontWeight: FontWeight.w700,
+              height: 1.4,
+            ),
+          ),
+        ],
+      ),
+    );
+
+    final button = FadeTransition(
+      opacity: _textFade,
+      child: GestureDetector(
+        onTap: widget.onFinish,
+        child: Container(
+          width: double.infinity,
+          height: 56,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: AppColors.green,
+            borderRadius: BorderRadius.circular(18),
+          ),
+          child: Text(
+            btnLabel,
+            style: const TextStyle(
+              color: AppColors.black,
+              fontSize: 17,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+      ),
+    );
 
     return Container(
       color: AppColors.black,
@@ -2046,81 +2329,34 @@ class _WorkoutCompleteOverlayState extends State<_WorkoutCompleteOverlay>
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
-              child: Column(
-                children: [
-                  const Spacer(),
-                  // 코리
-                  ScaleTransition(
-                    scale: _koriScale,
-                    child: SizedBox(
-                      width: 260,
-                      height: 280,
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          Image.asset(
-                            'assets/images/character/congrats.png',
-                            height: 270,
-                            fit: BoxFit.contain,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  FadeTransition(
-                    opacity: _textFade,
-                    child: Column(
+              child: isLandscape
+                  // 가로 화면: 왼쪽에 코리, 오른쪽에 문구와 버튼.
+                  ? Row(
                       children: [
-                        Text(
-                          title,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            color: AppColors.white,
-                            fontSize: 28,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          subtitle,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            color: AppColors.white,
-                            fontSize: 17,
-                            fontWeight: FontWeight.w700,
-                            height: 1.4,
+                        Expanded(child: Center(child: kori(220))),
+                        const SizedBox(width: 24),
+                        Expanded(
+                          child: Column(
+                            children: [
+                              const Spacer(),
+                              texts,
+                              const Spacer(),
+                              button,
+                            ],
                           ),
                         ),
                       ],
+                    )
+                  : Column(
+                      children: [
+                        const Spacer(),
+                        kori(270),
+                        const SizedBox(height: 24),
+                        texts,
+                        const Spacer(),
+                        button,
+                      ],
                     ),
-                  ),
-                  const Spacer(),
-                  FadeTransition(
-                    opacity: _textFade,
-                    child: GestureDetector(
-                      onTap: widget.onFinish,
-                      child: Container(
-                        width: double.infinity,
-                        height: 56,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: AppColors.green,
-                          borderRadius: BorderRadius.circular(18),
-                        ),
-                        child: Text(
-                          btnLabel,
-                          style: const TextStyle(
-                            color: AppColors.black,
-                            fontSize: 17,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
             ),
           ),
           // 폭죽 (터치는 뒤로 통과)
