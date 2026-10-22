@@ -1,5 +1,17 @@
 # 실제 Runner 앱에서 3D PT 기능 검증 — Exercise3D 클립을 카메라 대신 (ai/lift-app)
 
+> **아침 요약 (2026-10-23 05시 무렵)**
+> - 체험용 빌드 `ai/trial-mf953336` 17762cc(Halpe26·3D·회전 보정·가로 미리보기 수정·준비 자세·손목 고정·오경보 6키 끔·짧은 코리 대사·캘리브레이션 수정·체험 로그 켬)와
+>   C3 변형(비상업)은 빌드 완료: scratchpad `runner-dev/app_trial3`, `app_trial_c3`. 설치는 코디네이터 대기 작업이 한다.
+> - **밤새 폰 실행은 못 했다**: 04:19부터 폰이 계속 unavailable(USB 불가, Wi-Fi로만). 39클립 trial 회귀(체형 P1–P3)·가로 90°/270° 각 5개·C3 39클립은
+>   드라이버만 준비해 두었다 — scratchpad `run_trial39.sh <app_hashes> <tag> <outdir> [env…]`(클립마다 앱을 새로 띄움, 로그가 클립당 1–2 MB라 Wi-Fi 60 MB 한계에
+>   안 걸림), `pull_tag.sh <tag> <outdir>`.
+> - 캘리브레이션 실기(사람 4분): `xcrun devicectl device process launch --device 00008150-0011745A26F8401C --terminate-existing --environment-variables '{"BPT_CALIB_DIAG":"1"}' com.bpt.liftdev`,
+>   회수 `Documents/calibration_diag/<세션ID>/`(camera.json, raw·analysis 사진 — 얼굴이 찍히므로 Mac `~/bpt-data`에만, git·Home 공유 금지). 절차는 `docs/results/calib_fix.md` “기기 실험”.
+> - 체험 세션 로그 회수: `scripts/trial_logs.py pull <dir> --since <시각>` → `summary <dir>`. #67 가로 화면 사람 확인 목록은 아래 “#67 가로 화면 수정 폰 확인 목록”.
+> - 어제까지 결과: 아래 “2026-10-22 기기 작업”(D1–D7·C3·회전·setup) — 요지: Halpe26+체형은 지연·FPS 같고 정면 푸시업 3D·렙이 좋아짐, C3는 지연 같고 스쿼트
+>   오경보 6→0, 회전 보정은 가로 전용 오경보를 없앰, 30분 배터리 −20%p·FPS 유지.
+
 사용자 지시(2026-10-20): 직접 촬영하지 않고 Exercise3D 영상을 실제 앱의 카메라 입력에 넣어, 3D 기반 PT 기능이 실제로 동작하는지 확인.
 “모델 추론이 정상적으로 실행된 것만으로 PT 기능이 완성됐다고 판단하지 마.”
 기기: iPhone 17 (iPhone18,3), 앱 com.bpt.liftdev(무료 팀 개발 빌드, Release). 모든 실행의 manifest(클립·로그·앱 바이너리·모델 sha256, 명령)는
