@@ -692,9 +692,22 @@ private struct CameraLiveView: View {
         }
     }
 
+    /// The camera preview follows the interface orientation (CameraPreviewUIView), so in a landscape UI (push-up, #67) it
+    /// shows the scene upright, like the analysis frame; in a portrait UI it shows the portrait buffer.
+    private func previewShowsAnalysisFrame(_ size: CGSize) -> Bool {
+        size.width > size.height
+    }
+
+    /// Size of what the preview shows: the analysis frame (landscape UI) or the buffer.
+    private func shownSize(_ frame: CameraFrameData, _ size: CGSize) -> (width: Double, height: Double) {
+        previewShowsAnalysisFrame(size) ? (width: frame.imageWidth, height: frame.imageHeight)
+            : frame.rotation.bufferSize(width: frame.imageWidth, height: frame.imageHeight)
+    }
+
     private func drawSkeleton(frame: CameraFrameData, context: inout GraphicsContext, size: CGSize) {
-        let buffer = frame.rotation.bufferSize(width: frame.imageWidth, height: frame.imageHeight)
-        let rect = aspectFillRect(imageWidth: buffer.width, imageHeight: buffer.height, in: size)
+        let shown = shownSize(frame, size)
+        let rect = aspectFillRect(imageWidth: shown.width, imageHeight: shown.height, in: size)
+        let upright = previewShowsAnalysisFrame(size)
         for edge in coco17Edges {
             guard edge.0 < frame.coco17.count, edge.1 < frame.coco17.count else { continue }
             let a = frame.coco17[edge.0]
@@ -702,13 +715,13 @@ private struct CameraLiveView: View {
             let minConfidence = min(a.confidence, b.confidence)
             let color = minConfidence >= 0.3 ? Color.green : Color.gray.opacity(0.35)
             var path = Path()
-            path.move(to: viewPoint(a, frame: frame, rect: rect))
-            path.addLine(to: viewPoint(b, frame: frame, rect: rect))
+            path.move(to: viewPoint(a, frame: frame, rect: rect, upright: upright))
+            path.addLine(to: viewPoint(b, frame: frame, rect: rect, upright: upright))
             context.stroke(path, with: .color(color), lineWidth: minConfidence >= 0.3 ? 4.0 : 2.0)
         }
 
         for keypoint in frame.coco17 {
-            let point = viewPoint(keypoint, frame: frame, rect: rect)
+            let point = viewPoint(keypoint, frame: frame, rect: rect, upright: upright)
             let radius = keypoint.confidence >= 0.3 ? 5.0 : 3.0
             let color = keypoint.confidence >= 0.3 ? Color.yellow : Color.gray.opacity(0.35)
             let circle = CGRect(x: point.x - radius, y: point.y - radius, width: radius * 2.0, height: radius * 2.0)
@@ -717,26 +730,30 @@ private struct CameraLiveView: View {
     }
 
     private func drawHands(frame: CameraFrameData, context: inout GraphicsContext, size: CGSize) {
-        let buffer = frame.rotation.bufferSize(width: frame.imageWidth, height: frame.imageHeight)
-        let rect = aspectFillRect(imageWidth: buffer.width, imageHeight: buffer.height, in: size)
-        // Landmarks to buffer pixels (the crop boxes are not drawn here).
-        let hands = frame.handResults.map { hand in
+        let shown = shownSize(frame, size)
+        let rect = aspectFillRect(imageWidth: shown.width, imageHeight: shown.height, in: size)
+        // Landmarks to buffer pixels unless the preview shows the analysis frame (the crop boxes are not drawn here).
+        let hands = previewShowsAnalysisFrame(size) ? frame.handResults : frame.handResults.map { hand in
             HandLandmarkResult(side: hand.side, cropBox: hand.cropBox, frameLandmarks: hand.frameLandmarks.map {
-                let p = frame.rotation.bufferPoint(x: $0.x, y: $0.y, bufferWidth: buffer.width, bufferHeight: buffer.height)
+                let p = frame.rotation.bufferPoint(x: $0.x, y: $0.y, bufferWidth: shown.width, bufferHeight: shown.height)
                 return HandLandmarkPoint(id: $0.id, x: p.x, y: p.y, z: $0.z)
             }, worldLandmarks: hand.worldLandmarks, handedness: hand.handedness, score: hand.score)
         }
         HandOverlayRenderer.drawHands(
             hands,
             context: &context,
-            imageWidth: buffer.width,
-            imageHeight: buffer.height,
+            imageWidth: shown.width,
+            imageHeight: shown.height,
             rect: rect
         )
     }
 
-    /// Analysis-frame keypoint → view point over the preview (which shows the buffer).
-    private func viewPoint(_ keypoint: PoseKeypoint, frame: CameraFrameData, rect: CGRect) -> CGPoint {
+    /// Analysis-frame keypoint → view point over the preview (the buffer, or the upright scene in a landscape UI).
+    private func viewPoint(_ keypoint: PoseKeypoint, frame: CameraFrameData, rect: CGRect, upright: Bool) -> CGPoint {
+        if upright {
+            return CGPoint(x: rect.minX + CGFloat(keypoint.x / frame.imageWidth) * rect.width,
+                           y: rect.minY + CGFloat(keypoint.y / frame.imageHeight) * rect.height)
+        }
         let buffer = frame.rotation.bufferSize(width: frame.imageWidth, height: frame.imageHeight)
         let p = frame.rotation.bufferPoint(x: keypoint.x, y: keypoint.y, bufferWidth: buffer.width, bufferHeight: buffer.height)
         return CGPoint(
@@ -794,6 +811,25 @@ private final class CameraPreviewUIView: UIView {
         layer as! AVCaptureVideoPreviewLayer
     }
 
+    /// The preview follows the interface orientation (push-up runs in a landscape UI, #67); the capture buffer stays
+    /// portrait and the analysis turns it upright from gravity (CaptureRotation).
+    private var previewOrientation: AVCaptureVideoOrientation {
+        switch window?.windowScene?.interfaceOrientation {
+        case .landscapeLeft: .landscapeLeft
+        case .landscapeRight: .landscapeRight
+        case .portraitUpsideDown: .portraitUpsideDown
+        default: .portrait
+        }
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        if let connection = previewLayer.connection, connection.isVideoOrientationSupported,
+           connection.videoOrientation != previewOrientation {
+            connection.videoOrientation = previewOrientation
+        }
+    }
+
     func configure(session: AVCaptureSession, isMirrored: Bool) {
         if previewLayer.session !== session {
             previewLayer.session = session
@@ -802,7 +838,7 @@ private final class CameraPreviewUIView: UIView {
 
         guard let connection = previewLayer.connection else { return }
         if connection.isVideoOrientationSupported {
-            connection.videoOrientation = .portrait
+            connection.videoOrientation = previewOrientation
         }
         if connection.isVideoMirroringSupported {
             connection.automaticallyAdjustsVideoMirroring = false
