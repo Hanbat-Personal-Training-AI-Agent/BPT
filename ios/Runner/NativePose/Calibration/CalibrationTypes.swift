@@ -44,9 +44,9 @@ enum CalibrationView: String, CaseIterable {
     /// What to say right after this view is captured, to send the user to the next one.
     var nextStepInstruction: String {
         switch self {
-        case .front: return "이제 왼쪽으로 천천히 돌아 줘"
-        case .rightfront: return "계속 돌아서 등을 보여 줘"
-        case .back: return "거의 다 왔어! 계속 천천히 돌아 줘"
+        case .front: return "왼쪽으로 돌아!"
+        case .rightfront: return "계속 돌아서 등 보여 줘!"
+        case .back: return "거의 끝! 계속 돌아!"
         case .leftfront: return ""
         }
     }
@@ -184,32 +184,32 @@ enum CalibrationGuidance: Equatable {
     /// and read out by the TTS, so every line has to work spoken as well as written.
     var message: String {
         switch self {
-        case .holdPhoneUpright: return "폰이 기울었어! 세로로 똑바로 세워 줘"
-        case .holdPhoneStill: return "폰이 흔들려! 꽉 고정해 줘"
-        case .stepIntoFrame: return "어디 있어? 화면 안으로 들어와 줘!"
-        case .showFullBody: return "머리부터 발끝까지 다 보이게 서 줘!"
-        case .stepBack: return "너무 가까워! 뒤로 조금만 가 줘"
-        case .stepForward: return "조금만 앞으로 와 줘!"
-        case .moveLeft: return "왼쪽으로 한 걸음만 가 줘!"
-        case .moveRight: return "오른쪽으로 한 걸음만 가 줘!"
-        case .moveToCentre: return "화면 가운데로 와 줘!"
-        case .returnToStart: return "잠깐! 처음 섰던 자리로 돌아와 줘"
-        case .openArmsWider: return "팔을 몸에서 조금 더 떼서 A자로!"
-        case .lowerArms: return "팔을 조금만 내려 줘!"
-        case .straightenElbows: return "팔꿈치 쭉 펴 줘!"
-        case .widenFeet: return "발은 어깨너비로 벌려 줘!"
-        case .faceCamera: return "먼저 카메라를 정면으로 봐 줘!"
-        case .keepTurning: return "좋아, 천천히 계속 돌아 줘!"
-        case .turnedTooFar: return "앗, 너무 돌았어! 살짝만 돌아와 줘"
-        case .faceForwardWithBody: return "고개는 몸이랑 같은 방향! 눈만 화면 봐 줘"
-        case .holdStill: return "좋아, 그대로 멈춰!"
-        case .trackingUnavailable: return "인식이 잠깐 끊겼어. 그대로 잠시 기다려 줘"
-        case .saveFailed: return "사진 저장에 실패했어. 저장 공간을 확인하고 다시 시도해 줘"
+        case .holdPhoneUpright: return "폰 똑바로 세워 줘!"
+        case .holdPhoneStill: return "폰 흔들려! 고정해 줘"
+        case .stepIntoFrame: return "화면 안으로 들어와!"
+        case .showFullBody: return "몸이 다 보여야 해!"
+        case .stepBack: return "뒤로 한 걸음!"
+        case .stepForward: return "앞으로 한 걸음!"
+        case .moveLeft: return "왼쪽으로 한 걸음!"
+        case .moveRight: return "오른쪽으로 한 걸음!"
+        case .moveToCentre: return "가운데로 와!"
+        case .returnToStart: return "처음 자리로 돌아와!"
+        case .openArmsWider: return "팔 더 벌려!"
+        case .lowerArms: return "팔 조금 내려!"
+        case .straightenElbows: return "팔꿈치 쭉 펴!"
+        case .widenFeet: return "다리 더 벌려!"
+        case .faceCamera: return "카메라 봐 줘!"
+        case .keepTurning: return "좋아, 계속 돌아!"
+        case .turnedTooFar: return "너무 돌았어! 살짝 돌아와"
+        case .faceForwardWithBody: return "고개도 몸이랑 같이 돌려!"
+        case .holdStill: return "좋아, 그대로!"
+        case .trackingUnavailable: return "잠깐 놓쳤어! 그대로 있어"
+        case .saveFailed: return "저장 실패! 공간 확인해 줘"
         case .captured(let view):
             let next = view.nextStepInstruction
             return next.isEmpty ? "\(view.koreanName) 찍었어!" : "\(view.koreanName) 찍었어! \(next)"
-        case .finished: return "다 찍었어! 수고했어"
-        case .timeoutSummary: return "천천히 해도 돼! 팔은 A자, 발은 제자리, 천천히 돌면 돼"
+        case .finished: return "끝! 수고했어"
+        case .timeoutSummary: return "천천히 해도 돼! 팔 벌리고 제자리에서 돌아"
         }
     }
 
