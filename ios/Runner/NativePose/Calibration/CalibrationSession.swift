@@ -46,6 +46,8 @@ final class CalibrationSession: NSObject {
     private var isRunning = false
     private var startRequestID: UUID?
     private var lastBufferAspect = 9.0 / 16.0
+    /// Clockwise turn applied to the last buffer to level it; a change invalidates the crop and the hold.
+    private var lastResidual: Int?
     /// Highest-confidence frame (not a sharpness score), with all of its own metadata.
     private struct SelectedFrame {
         let image: CGImage
@@ -120,7 +122,7 @@ final class CalibrationSession: NSObject {
                                                 minConfidence: config.framing.minKeypointConfidence)
             let store = try CalibrationStore()
             self.store = store
-            debugLog = CalibrationDebugLog(directory: store.directory)
+            debugLog = CalibrationDebugLog.directory(sessionId: store.sessionId).flatMap(CalibrationDebugLog.init)
             try captureManager.configure { [weak self] sampleBuffer in
                 guard let self else { return }
                 // Bind the latest IMU snapshot when the camera frame arrives, before inference.
@@ -178,7 +180,22 @@ final class CalibrationSession: NSObject {
                 reportTrackingInterruption(device: device)
                 return
             }
-            let image = CIImage(cvPixelBuffer: pixelBuffer)
+            let raw = CIImage(cvPixelBuffer: pixelBuffer)
+            // Judge, save and measure intrinsics on the levelled picture: the preview can stand upright
+            // while the data output is still sideways (calib_root_cause.md R1).
+            let residual = captureManager.residualDegrees
+            if let lastResidual, lastResidual != residual {
+                analyzer.reset()  // the crop lives in the old pixel space
+                engine.invalidateFrame()
+            }
+            lastResidual = residual
+            let image = Self.upright(raw, residualDegrees: residual)
+            if let debugLog {
+                debugLog.writeCameraOnce(self.cameraDiagnostics(sampleBuffer, pixelBuffer: pixelBuffer, residual: residual))
+                debugLog.saveImages(raw: raw, analysis: image,
+                                    timestamp: CMSampleBufferGetPresentationTimeStamp(sampleBuffer).seconds,
+                                    context: ciContext)
+            }
             guard let analysis = try? analyzer.analyze(image) else {
                 analyzer.reset()
                 reportTrackingInterruption(device: device)
@@ -207,7 +224,9 @@ final class CalibrationSession: NSObject {
             let r = result.measurement.flatMap { engine.rValue($0) }
             let delta = result.measurement.flatMap { engine.delta($0) }
             debugLog?.append(timestamp: frame.timestamp, output: result, r: r, delta: delta,
-                             device: frame.device, face: frame.face)
+                             device: frame.device, face: frame.face,
+                             bufferWidth: CVPixelBufferGetWidth(pixelBuffer), bufferHeight: CVPixelBufferGetHeight(pixelBuffer),
+                             residualDeg: residual)
 
             let update = makeUpdate(result, r: r, delta: delta, device: frame.device, face: frame.face)
             DispatchQueue.main.async { self.deliver(update) }
@@ -339,6 +358,41 @@ final class CalibrationSession: NSObject {
 
     // MARK: - Helpers
 
+    /// Turns the buffer clockwise by `residualDegrees` and puts its origin back at (0, 0),
+    /// which the analyzer's crop arithmetic assumes.
+    static func upright(_ image: CIImage, residualDegrees: Int) -> CIImage {
+        let orientation: CGImagePropertyOrientation
+        switch residualDegrees {
+        case 90: orientation = .right
+        case 180: orientation = .down
+        case 270: orientation = .left
+        default: return image
+        }
+        let turned = image.oriented(orientation)
+        return turned.transformed(by: CGAffineTransform(translationX: -turned.extent.minX, y: -turned.extent.minY))
+    }
+
+    /// camera.json for BPT_CALIB_DIAG runs.
+    private func cameraDiagnostics(_ sampleBuffer: CMSampleBuffer, pixelBuffer: CVPixelBuffer,
+                                   residual: Int) -> [String: Any] {
+        var info = captureManager.diagnostics()
+        info["model"] = CalibrationStore.deviceModel()
+        info["iosVersion"] = UIDevice.current.systemVersion
+        info["firstBufferWidth"] = CVPixelBufferGetWidth(pixelBuffer)
+        info["firstBufferHeight"] = CVPixelBufferGetHeight(pixelBuffer)
+        info["residualDegrees"] = residual
+        if let attachment = CMGetAttachment(sampleBuffer, key: kCMSampleBufferAttachmentKey_CameraIntrinsicMatrix,
+                                            attachmentModeOut: nil) as? Data,
+           attachment.count >= MemoryLayout<matrix_float3x3>.size {
+            let m: matrix_float3x3 = attachment.withUnsafeBytes { $0.load(as: matrix_float3x3.self) }
+            info["intrinsicsAttachment"] = ["fx": Double(m.columns.0.x), "fy": Double(m.columns.1.y),
+                                            "cx": Double(m.columns.2.x), "cy": Double(m.columns.2.y)]
+        } else {
+            info["intrinsicsAttachment"] = NSNull()
+        }
+        return info
+    }
+
     /// Reads the per-frame intrinsics attachment; falls back to the field of view.
     ///
     /// The attachment may describe the sensor (landscape) frame; on the portrait buffer its
@@ -398,6 +452,36 @@ final class CalibrationCaptureManager: NSObject, AVCaptureVideoDataOutputSampleB
     let session = AVCaptureSession()
     private let queue = DispatchQueue(label: "com.bpt.calibration.camera", qos: .userInitiated)
     private var rotationCoordinator: AnyObject?
+    private var rotationObservation: NSKeyValueObservation?
+    /// Horizon-level capture angle (followed live) and the angle the data connection really has.
+    private let rotationLock = NSLock()
+    private var horizonAngle: Double = 90
+    private var appliedAngle: Double = 90
+    private var requestedAngle: Double?
+    private var supportedAngles: [String: Bool] = [:]
+    private var videoConnection: AVCaptureConnection?
+    private var presetName = ""
+
+    /// Clockwise degrees the next buffer still needs to be level. Any thread.
+    var residualDegrees: Int {
+        rotationLock.lock()
+        defer { rotationLock.unlock() }
+        return CalibrationRotation.residualDegrees(horizon: horizonAngle, applied: appliedAngle)
+    }
+
+    /// Camera and rotation facts for camera.json (BPT_CALIB_DIAG).
+    func diagnostics() -> [String: Any] {
+        rotationLock.lock()
+        defer { rotationLock.unlock() }
+        var info = cameraInfo
+        info["sessionPreset"] = presetName
+        info["horizonCaptureAngle"] = horizonAngle
+        info["requestedAngle"] = requestedAngle ?? NSNull()
+        info["appliedAngle"] = appliedAngle
+        info["rotationSupported"] = supportedAngles
+        info["isVideoMirrored"] = videoConnection?.isVideoMirrored ?? NSNull()
+        return info
+    }
     private(set) var horizontalFieldOfView: Float = 0
     /// Written into the manifest's "camera" object (CalibrationStore.camera).
     private(set) var cameraInfo: [String: Any] = [:]
@@ -445,6 +529,7 @@ final class CalibrationCaptureManager: NSObject, AVCaptureVideoDataOutputSampleB
         // Presets are checked against the attached camera, so pick one after adding it.
         for preset in [AVCaptureSession.Preset.hd4K3840x2160, .hd1920x1080, .high] where session.canSetSessionPreset(preset) {
             session.sessionPreset = preset
+            presetName = preset.rawValue
             break
         }
         horizontalFieldOfView = device.activeFormat.videoFieldOfView
@@ -483,19 +568,41 @@ final class CalibrationCaptureManager: NSObject, AVCaptureVideoDataOutputSampleB
         isConfigured = true
     }
 
-    /// Portrait buffer. The coordinator's angle is used when it reports portrait; if the phone is
-    /// flat or sideways when the camera starts, fall back to plain portrait (90°).
+    /// Asks the connection for the coordinator's horizon-level angle as is, then records what it really
+    /// applied. Whatever is left over (angle unsupported, or the phone turned since) is `residualDegrees`,
+    /// which the session turns in software, so the analysed picture always stands upright.
+    /// (Forcing 90° here left the data output sideways on the iPhone 17 front ultra-wide while the
+    /// preview stood upright — calib_root_cause.md R1.)
     private func applyPortraitRotation(to connection: AVCaptureConnection, device: AVCaptureDevice) {
+        videoConnection = connection
         if #available(iOS 17.0, *) {
             let coordinator = AVCaptureDevice.RotationCoordinator(device: device, previewLayer: nil)
             rotationCoordinator = coordinator
-            let suggested = coordinator.videoRotationAngleForHorizonLevelCapture
-            let angle: CGFloat = suggested == 90 || suggested == 270 ? suggested : 90
-            if connection.isVideoRotationAngleSupported(angle) {
-                connection.videoRotationAngle = angle
+            let horizon = coordinator.videoRotationAngleForHorizonLevelCapture
+            var supported: [String: Bool] = [:]
+            for angle in [0.0, 90.0, 180.0, 270.0] {
+                supported[String(Int(angle))] = connection.isVideoRotationAngleSupported(CGFloat(angle))
+            }
+            if connection.isVideoRotationAngleSupported(horizon) {
+                connection.videoRotationAngle = horizon
+            }
+            rotationLock.lock()
+            horizonAngle = Double(horizon)
+            requestedAngle = Double(horizon)
+            appliedAngle = Double(connection.videoRotationAngle)
+            supportedAngles = supported
+            rotationLock.unlock()
+            // The phone may start flat or sideways and be stood up afterwards.
+            rotationObservation = coordinator.observe(\.videoRotationAngleForHorizonLevelCapture,
+                                                      options: [.new]) { [weak self] coordinator, _ in
+                guard let self else { return }
+                self.rotationLock.lock()
+                self.horizonAngle = Double(coordinator.videoRotationAngleForHorizonLevelCapture)
+                self.rotationLock.unlock()
             }
         } else if connection.isVideoOrientationSupported {
             connection.videoOrientation = .portrait
+            // horizonAngle = appliedAngle = 90: nothing left to turn.
         }
     }
 

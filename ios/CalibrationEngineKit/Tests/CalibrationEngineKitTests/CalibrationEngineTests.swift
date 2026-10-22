@@ -147,7 +147,90 @@ final class CalibrationEngineTests: XCTestCase {
         XCTAssertEqual(guidance(pitch: 20), .holdStill)
         XCTAssertEqual(guidance(pitch: -24), .holdStill)
         XCTAssertEqual(guidance(pitch: 26), .holdPhoneUpright)
-        XCTAssertEqual(guidance(pitch: 0, roll: 4), .holdPhoneUpright)  // roll is unchanged
+        XCTAssertEqual(guidance(pitch: 0, roll: 8), .holdStill)  // roll is levelled out up to 10°
+        XCTAssertEqual(guidance(pitch: 0, roll: -11), .holdPhoneUpright)
+    }
+
+    /// The body as a phone rolled clockwise (user's view) by `deg` sees it: turned clockwise on screen.
+    private func rolledFrame(_ b: Body, deg: Double, rollDeg: Double, at t: TimeInterval = 0) -> CalibrationFrame {
+        var f = frame(b, .frontal, at: t)
+        let th = deg * .pi / 180, c = cos(th), s = sin(th)
+        f.keypoints = f.keypoints.map { kp in
+            let x = (kp.x - 0.5) * aspect, y = kp.y - 0.5
+            return CalibrationKeypoint(x: (c * x - s * y) / aspect + 0.5, y: s * x + c * y + 0.5, score: kp.score)
+        }
+        f.device.rollDeg = rollDeg
+        return f
+    }
+
+    func testRollIsLevelledBeforeMeasuring() throws {
+        var body = Body()
+        body.noseOffset = 0.03
+        let level = try XCTUnwrap(CalibrationEngine().process(frame(body, .frontal, at: 0)).measurement)
+        for deg in [8.0, -8.0] {
+            let m = try XCTUnwrap(CalibrationEngine().process(rolledFrame(body, deg: deg, rollDeg: deg)).measurement)
+            XCTAssertEqual(m.bodyHeight, level.bodyHeight, accuracy: 0.01, "\(deg)°")
+            XCTAssertEqual(m.noseOffset, level.noseOffset, accuracy: 0.01, "\(deg)°")
+            XCTAssertEqual(m.wristReach, level.wristReach, accuracy: 0.01, "\(deg)°")
+            XCTAssertEqual(m.leftWristDrop, level.leftWristDrop, accuracy: 0.01, "\(deg)°")
+            XCTAssertEqual(m.rightWristDrop, level.rightWristDrop, accuracy: 0.01, "\(deg)°")
+        }
+        // Sign pin: correcting the wrong way doubles the tilt instead of removing it.
+        let wrong = try XCTUnwrap(CalibrationEngine().process(rolledFrame(body, deg: 8, rollDeg: -8)).measurement)
+        XCTAssertGreaterThan(abs(wrong.noseOffset - level.noseOffset), 0.05)
+    }
+
+    func testLevellingLeavesTheFrameKeypointsAlone() {
+        let f = rolledFrame(Body(), deg: 8, rollDeg: 8)
+        let engine = CalibrationEngine()
+        XCTAssertNotEqual(engine.levelled(f).keypoints, f.keypoints)
+        _ = engine.process(f)
+        XCTAssertEqual(f.keypoints, rolledFrame(Body(), deg: 8, rollDeg: 8).keypoints)  // value type, caller's copy
+    }
+
+    func testResidualRotation() {
+        XCTAssertEqual(CalibrationRotation.residualDegrees(horizon: 90, applied: 90), 0)
+        XCTAssertEqual(CalibrationRotation.residualDegrees(horizon: 90, applied: 0), 90)
+        XCTAssertEqual(CalibrationRotation.residualDegrees(horizon: 0, applied: 90), 270)
+        XCTAssertEqual(CalibrationRotation.residualDegrees(horizon: 270, applied: 90), 180)
+        XCTAssertEqual(CalibrationRotation.residualDegrees(horizon: -90, applied: 0), 270)
+        XCTAssertEqual(CalibrationRotation.residualDegrees(horizon: .nan, applied: 0), 0)
+    }
+
+    // MARK: - Cut-off body: always "step back", never "come closer"
+
+    func testLegsLostBelowTheFrameAsksToStepBack() {
+        var body = scaled(1.25)
+        body.shoulderY += 0.08
+        body.hipY += 0.08
+        var f = frame(body, .frontal, at: 0)
+        for j in [CocoJoint.leftAnkle, .rightAnkle] { f.keypoints[j.rawValue].score = 0.1 }
+        XCTAssertEqual(CalibrationEngine().process(f).guidance, .stepBack)
+    }
+
+    func testMissingLegsWithHipsHighStillAsksForTheFullBody() {
+        var f = frame(Body(), .frontal, at: 0)  // hips at 0.56 but shoulders lost too
+        f.keypoints[CocoJoint.leftShoulder.rawValue].score = 0.1
+        f.keypoints[CocoJoint.leftAnkle.rawValue].score = 0.1
+        XCTAssertEqual(CalibrationEngine().process(f).guidance, .showFullBody)
+        var high = Body()
+        high.shoulderY = 0.2
+        high.hipY = 0.4  // hips high: legs probably hidden, not cut by the bottom edge
+        var g = frame(high, .frontal, at: 0)
+        g.keypoints[CocoJoint.leftAnkle.rawValue].score = 0.1
+        XCTAssertEqual(CalibrationEngine().process(g).guidance, .showFullBody)
+    }
+
+    func testHeadCutAtTheTopWithFeetLowAsksToStepBack() {
+        var body = Body()
+        // Head top 0.13 - 0.75 × 0.20 = -0.02 (cut), feet 0.81, body 0.83: inside the size band,
+        // so only the cut-head rule can say "step back" (it used to say "show the full body").
+        body.shoulderY = 0.13
+        body.hipY = 0.33
+        body.ankleY = 0.80
+        let out = CalibrationEngine().process(frame(body, .frontal, at: 0))
+        XCTAssertLessThan(out.measurement?.bodyHeight ?? 1, CalibrationConfig.default.framing.maxBodyHeight)
+        XCTAssertEqual(out.guidance, .stepBack)
     }
 
     // MARK: - Front
@@ -276,10 +359,10 @@ final class CalibrationEngineTests: XCTestCase {
         captureFront(engine)
         var moved = turnedAway(r: 1.0, delta: 0)
         // A step towards the camera: same size and centre, so framing still passes, but the
-        // feet sit 0.04 lower than at the front capture (maxFeetDrift 0.03).
-        moved.shoulderY += 0.04
-        moved.hipY += 0.04
-        moved.ankleY += 0.04
+        // feet sit 0.09 lower than at the front capture (maxFeetDrift 0.08).
+        moved.shoulderY += 0.09
+        moved.hipY += 0.09
+        moved.ankleY += 0.09
 
         let outputs = run(engine, body: moved, face: .none, from: 10)
         XCTAssertTrue(outputs.allSatisfy { $0.capture == nil })
