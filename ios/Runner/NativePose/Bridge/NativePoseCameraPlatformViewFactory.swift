@@ -22,7 +22,7 @@ final class NativePoseCameraPlatformViewFactory: NSObject, FlutterPlatformViewFa
         let exerciseId = params?["exerciseId"] as? String
         let exercise = exerciseId.flatMap { NativePoseExercise(flutterId: $0) }
         VideoRunLog.shared?.write("platform_view_created", ["exerciseId": exerciseId ?? "", "supported": exercise != nil])
-        if params?["wristAnchor"] as? Bool == true { CameraPreviewOptions.wristAnchor = true }  // dart-define BPT_WRIST_ANCHOR
+        if params?["wristAnchor"] as? Bool == true { WristFloorAnchor.enabledByFlutter = true }  // dart-define BPT_WRIST_ANCHOR
 
         return NativePoseCameraPlatformView(
             frame: frame,

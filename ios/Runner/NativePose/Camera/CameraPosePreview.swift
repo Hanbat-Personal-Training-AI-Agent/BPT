@@ -36,8 +36,8 @@ private enum CameraPreviewOptions {
     /// Off unless BPT_ADAPTIVE_3D=1: not validated as a default (docs/results/setup_constraint_prereg.md).
     static let adaptive3D = ProcessInfo.processInfo.environment["BPT_ADAPTIVE_3D"] == "1"
     /// EXPERIMENTAL push-up wrist floor anchor on the 2D (WristFloorAnchor, user 2026-10-20): on with BPT_WRIST_ANCHOR=1
-    /// or Flutter creationParams `wristAnchor` (dart-define BPT_WRIST_ANCHOR, set by the platform view factory).
-    nonisolated(unsafe) static var wristAnchor = ProcessInfo.processInfo.environment["BPT_WRIST_ANCHOR"] == "1"
+    /// or Flutter creationParams `wristAnchor` (dart-define BPT_WRIST_ANCHOR → WristFloorAnchor.enabledByFlutter).
+    static let wristAnchor = ProcessInfo.processInfo.environment["BPT_WRIST_ANCHOR"] == "1"
     /// RTMPose input: 3:4 person crop from the previous frame's keypoints (RTMPoseCropTracker).
     /// false = old input, whole frame stretched to 192×256 every frame.
     static let personCropInput = true
@@ -535,7 +535,7 @@ final class CameraPoseViewModel: ObservableObject {
             }
         }
 
-        if CameraPreviewOptions.wristAnchor && exercise == .pushUp { wristAnchor = WristFloorAnchor() }
+        if (CameraPreviewOptions.wristAnchor || WristFloorAnchor.enabledByFlutter) && exercise == .pushUp { wristAnchor = WristFloorAnchor() }
         let handEnabled = (CameraPreviewOptions.enableMotion3DForCamera && CameraPreviewOptions.motion3DWristFromHands)
             || exercise.handBranchEnabled(override: CameraPreviewOptions.handBranchOverride)
         if handEnabled {

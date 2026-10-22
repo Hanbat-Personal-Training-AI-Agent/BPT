@@ -40,6 +40,9 @@ struct WristFloorAnchor {
         var out: [SIMD2<Double>] = []
     }
 
+    /// Set by the platform view factory when Flutter sent `wristAnchor: true` (dart-define BPT_WRIST_ANCHOR).
+    nonisolated(unsafe) static var enabledByFlutter = false
+
     /// COCO17 (wrist, elbow): left, right.
     static let wrists = [(9, 7), (10, 8)]
     var params: Params
