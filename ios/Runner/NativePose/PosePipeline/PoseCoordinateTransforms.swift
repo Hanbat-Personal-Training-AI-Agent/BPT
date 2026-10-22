@@ -1,3 +1,4 @@
+import CoreImage
 import Foundation
 
 struct PosePoint {
@@ -330,6 +331,8 @@ struct PersonSquareCropTracker {
 struct MotionAGFormerInputNormalizer {
     var normalization: MotionAGFormerNormalization = .default3D
     var tracker = PersonSquareCropTracker()
+    /// Crop of the last `normalize` call: px per normalized (= XS output) unit is `side / 2`.
+    private(set) var lastCrop: SquareCrop?
 
     mutating func normalize(_ h36m17: [PoseKeypoint], imageWidth: Int, imageHeight: Int) -> [[Float]] {
         let crop: SquareCrop
@@ -339,6 +342,85 @@ struct MotionAGFormerInputNormalizer {
         } else {
             crop = SquareCrop.image(width: imageWidth, height: imageHeight, normalization: normalization)
         }
+        lastCrop = crop
         return PoseCoordinateTransforms.squareCropNormalize(h36m17, crop: crop)
+    }
+}
+
+// MARK: - Capture rotation (phone held in landscape)
+
+/// How the scene sits in the workout camera buffer, in clockwise degrees. The capture connection stays `.portrait`
+/// (CameraCaptureManager), so a phone held in landscape delivers the scene turned by 90° or 270°. The analysis frame is
+/// the buffer turned back by the same amount, so gravity points down the image there, as the crop tracker, RTMPose,
+/// the rules and MotionAGFormer-XS (trained on upright cameras) all assume. Everything from the frame's CGImage on
+/// works in the analysis frame; only the overlay maps back to the buffer (= the preview). `.up` changes nothing.
+/// docs/results/orientation.md
+enum CaptureRotation: Int {
+    case up = 0
+    case cw90 = 90
+    case cw180 = 180
+    case cw270 = 270
+
+    /// BPT_FORCE_CAPTURE_ROTATION=0|90|180|270 at launch: fixed for the session, no CoreMotion. For video-as-camera runs,
+    /// where the phone's own gravity says nothing about the fed scene: BPT_CAMERA_VIDEO_ROTATE=N is undone by N.
+    static let forced = ProcessInfo.processInfo.environment["BPT_FORCE_CAPTURE_ROTATION"]
+        .flatMap { Int($0) }.flatMap { CaptureRotation(rawValue: $0) }
+
+    /// The quarter turn nearest to `degrees` (any sign).
+    init(nearestTo degrees: Double) {
+        let quarters = Int((degrees / 90).rounded())
+        self = CaptureRotation(rawValue: (quarters % 4 + 4) % 4 * 90)!
+    }
+
+    /// Buffer image → analysis frame (`.left` = a quarter turn counter-clockwise). `.up` returns `image` itself.
+    func analysisImage(_ image: CIImage) -> CIImage {
+        switch self {
+        case .up: image
+        case .cw90: image.oriented(.left)
+        case .cw180: image.oriented(.down)
+        case .cw270: image.oriented(.right)
+        }
+    }
+
+    /// Buffer size whose analysis frame is `width` × `height`.
+    func bufferSize(width: Double, height: Double) -> (width: Double, height: Double) {
+        self == .cw90 || self == .cw270 ? (height, width) : (width, height)
+    }
+
+    /// Analysis-frame point → buffer point, for a buffer of `w` × `h` (pixel edges, as the keypoints).
+    func bufferPoint(x: Double, y: Double, bufferWidth w: Double, bufferHeight h: Double) -> (x: Double, y: Double) {
+        switch self {
+        case .up: (x, y)
+        case .cw90: (w - y, x)
+        case .cw180: (w - x, h - y)
+        case .cw270: (y, h - x)
+        }
+    }
+}
+
+/// CoreMotion gravity → CaptureRotation with hysteresis, updated once per processed frame. Not UIDevice.orientation:
+/// that one stays portrait while the user's rotation lock is on, and the phone is propped up across the room.
+struct CaptureRotationTracker {
+    /// A new quarter is taken only this far past its 45° boundary, so a phone propped near a diagonal does not flicker.
+    var hysteresisDegrees = 20.0
+    /// Gravity within the screen plane below this (1 = phone upright, 0 = lying flat) keeps the rotation: the roll of a
+    /// phone lying flat means nothing.
+    var minScreenGravity = 0.5
+    private(set) var rotation: CaptureRotation
+
+    init(rotation: CaptureRotation = .up) {
+        self.rotation = rotation
+    }
+
+    /// `gx`, `gy`: CMDeviceMotion.gravity x (right) and y (up the screen), in g. Buffer x is device x and buffer y is
+    /// device −y for both cameras (the front camera's buffer is mirrored like its preview), so world-up lies
+    /// atan2(−gx, −gy) clockwise from buffer-up.
+    mutating func update(gravityX gx: Double, gravityY gy: Double) -> CaptureRotation {
+        guard hypot(gx, gy) >= minScreenGravity else { return rotation }
+        let up = atan2(-gx, -gy) * 180 / .pi
+        if abs(remainder(up - Double(rotation.rawValue), 360)) > 45 + hysteresisDegrees {
+            rotation = CaptureRotation(nearestTo: up)
+        }
+        return rotation
     }
 }

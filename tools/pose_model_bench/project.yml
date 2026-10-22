@@ -27,6 +27,10 @@ targets:
       - ../../ios/Runner/NativePose/PosePipeline
       - ../../ios/Runner/NativePose/Evaluators
       - ../../ios/Runner/NativePose/Bridge/WorkoutSessionBridge.swift
+      # lift-app: wrist-crop hands (BENCH_HANDS=1) and the hand model at the bundle root, as in Runner.
+      - ../../ios/Runner/NativePose/Hands
+      - path: ../../ios/Runner/NativePose/Models/hand_landmarker.task
+        buildPhase: resources
     settings:
       GENERATE_INFOPLIST_FILE: YES
       CODE_SIGN_STYLE: Automatic

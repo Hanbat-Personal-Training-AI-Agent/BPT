@@ -136,10 +136,10 @@ final class SquatEvaluator {
         readyPose = ReadyPoseGate(holdFrames: config.readyPoseHoldFrames, tolerance: config.readyPoseTolerance)
     }
 
-    /// `pose3D`: MotionAGFormer H36M17 selected3D when available (form metrics only; nil in the live app).
+    /// `pose3D` / `pose3DState`: MotionAGFormerLive 3D and state of this frame (form judgement; FormWarningTracker).
     /// `feet`: Halpe26 toes/heels (squat_heel_rise only; nil with the COCO17 model).
     func evaluate(frameIndex: Int, coco17: [PoseKeypoint], pose3D: [SIMD3<Double>]? = nil,
-                  feet: FootKeypoints? = nil) -> SquatFrameResult {
+                  pose3DState: Pose3DState? = nil, feet: FootKeypoints? = nil) -> SquatFrameResult {
         let measurements = computeMeasurements(coco17: coco17)
         let rawCandidate = classifyRawStatusCandidate(measurements)
         let previousStatus = stableStatus
@@ -150,7 +150,7 @@ final class SquatEvaluator {
         )
 
         updateTopBaselineIfNeeded(status: status, measurements: measurements)
-        formTracker.observe(frameIndex: frameIndex, coco17: coco17, pose3D: pose3D, feet: feet, phase: status.rawValue)
+        formTracker.observe(frameIndex: frameIndex, coco17: coco17, pose3D: pose3D, pose3DState: pose3DState, feet: feet, phase: status.rawValue)
         readyPose.update(atStartPose: status == .top, value: measurements.squatDepthNorm)
         var done = updateRepState(
             frameIndex: frameIndex,

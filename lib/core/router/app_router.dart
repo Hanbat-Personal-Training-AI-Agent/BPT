@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../features/auth/providers/auth_provider.dart';
 import '../../features/auth/screens/login_screen.dart';
@@ -26,6 +27,7 @@ import '../../features/workout/screens/native_pose_workout_screen.dart';
 import '../../features/workout/screens/workout_result_screen.dart';
 import '../constants/route_constants.dart';
 import '../shell/main_shell.dart';
+import '../../services/local_storage_service.dart';
 
 /// 로그인 상태 + 현재 위치만으로 리다이렉트 대상을 결정하는 순수 함수.
 /// GoRouter/Firebase 없이 단위 테스트할 수 있도록 분리했다.
@@ -50,19 +52,44 @@ String? resolveAuthRedirect(
   return null;
 }
 
+/// ai/lift-app device-test hook (default OFF): when the app is launched with BPT_AUTOSTART_WORKOUT=<exerciseId>
+/// (squat | pushup | barbell-row …), the native side (NativePoseRegistration) hands it over as the shared_preferences
+/// key `bpt_autostart_workout` (reading Platform.environment from Dart did not work in the 2026-10-20 device test) and the
+/// router opens the native workout screen directly, without login, so Exercise3D clips can be fed through the real
+/// camera path (BPT_CAMERA_VIDEO). `bpt_autostart_reps` = target reps (default 999: the set never completes during a
+/// clip). Normal launches remove both keys natively, so this never triggers outside those runs.
+String? _autostartValue(SharedPreferences prefs, String key) {
+  final value = prefs.getString(key);
+  return (value == null || value.isEmpty) ? null : value;
+}
+
 final appRouterProvider = Provider<GoRouter>((ref) {
   // ref.read (not watch) so GoRouter is not recreated on auth change.
   // refreshListenable handles dynamic redirects instead.
   final authNotifier = ref.read(authNotifierProvider);
+  final prefs = ref.read(sharedPreferencesProvider);
+  final autostartWorkout = _autostartValue(prefs, 'bpt_autostart_workout');
 
   return GoRouter(
-    initialLocation: RouteConstants.splash,
+    initialLocation: autostartWorkout != null
+        ? RouteConstants.nativePoseWorkout
+        : RouteConstants.splash,
+    initialExtra: autostartWorkout == null
+        ? null
+        : {
+            'exerciseId': autostartWorkout,
+            'targetReps': int.tryParse(_autostartValue(prefs, 'bpt_autostart_reps') ?? '') ?? 999,
+            'targetSets': 1,
+          },
     refreshListenable: authNotifier,
     redirect: (BuildContext context, GoRouterState state) =>
-        resolveAuthRedirect(
-      loggedIn: authNotifier.isLoggedIn,
-      location: state.matchedLocation,
-    ),
+        autostartWorkout != null &&
+                state.matchedLocation == RouteConstants.nativePoseWorkout
+            ? null
+            : resolveAuthRedirect(
+                loggedIn: authNotifier.isLoggedIn,
+                location: state.matchedLocation,
+              ),
     routes: [
       GoRoute(
         path: RouteConstants.splash,
