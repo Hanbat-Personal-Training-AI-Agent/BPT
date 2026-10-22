@@ -86,6 +86,9 @@ class _NativePoseWorkoutScreenState
   int _elapsedSeconds = 0;
   bool _isPaused = false;
 
+  /// 소리 끄기 버튼. 켜져 있으면 코리 음성을 말하지 않는다.
+  bool _voiceMuted = false;
+
   // 코리 피드백: 네이티브 판정이 `onFeedback` 으로 보낸 대사 키만 보여준다
   // (kori_feedback_lines.dart). 첫 피드백 전에는 운동별 기본 팁을 보여준다.
   String? _feedbackKey;
@@ -176,6 +179,7 @@ class _NativePoseWorkoutScreenState
   void _onPlatformViewCreated(int id) {
     _channel = MethodChannel('${NativePoseWorkoutScreen.viewType}/$id');
     _channel!.setMethodCallHandler(_handleNativeCall);
+    if (_voiceMuted) _notifyVoiceMuted();
   }
 
   Future<dynamic> _handleNativeCall(MethodCall call) async {
@@ -227,11 +231,24 @@ class _NativePoseWorkoutScreenState
     _channel?.invokeMethod(method, {'setIndex': _currentSet});
   }
 
+  void _toggleVoiceMuted() {
+    setState(() => _voiceMuted = !_voiceMuted);
+    if (_voiceMuted) KoriVoiceService.stop();
+    _notifyVoiceMuted();
+  }
+
+  /// 네이티브 운동 음성에도 음소거 상태를 알린다.
+  void _notifyVoiceMuted() {
+    _channel?.invokeMethod(
+        NativePoseChannel.setVoiceMuted, {'muted': _voiceMuted});
+  }
+
   bool get _isKo => ref.read(appStringsProvider).locale == 'ko';
 
   /// 지금 말풍선에 뜬 코리 대사를 코리 목소리로 말한다. 자세 경고만 말하던 것을
   /// 끊고, 칭찬·안내는 말하는 중이면 건너뛴다 (렙이 빨리 이어질 때 끊김 방지).
   void _speakFeedback() {
+    if (_voiceMuted) return;
     final line = koriFeedbackLines[_feedbackKey];
     if (line == null) return;
     final isKo = _isKo;
@@ -241,6 +258,7 @@ class _NativePoseWorkoutScreenState
 
   /// 방금 끝낸 세트에 대한 코멘트 (_KoriBreakMessage 와 같은 대사)를 말한다.
   void _speakSetSummary() {
+    if (_voiceMuted) return;
     final result = _setResults.last;
     final line = result.fixCount == 0
         ? koriFeedbackLines['praise_clean_set']!
@@ -537,6 +555,8 @@ class _NativePoseWorkoutScreenState
                 isPaused: _isPaused,
                 onTogglePause: _togglePause,
                 onEnd: _confirmEnd,
+                voiceMuted: _voiceMuted,
+                onToggleVoice: _toggleVoiceMuted,
               ),
             ),
           ),
@@ -726,6 +746,8 @@ class _LiveHud extends StatelessWidget {
     required this.isPaused,
     required this.onTogglePause,
     required this.onEnd,
+    required this.voiceMuted,
+    required this.onToggleVoice,
   });
 
   final bool isKo;
@@ -742,6 +764,8 @@ class _LiveHud extends StatelessWidget {
   final bool isPaused;
   final VoidCallback onTogglePause;
   final VoidCallback onEnd;
+  final bool voiceMuted;
+  final VoidCallback onToggleVoice;
 
   String get _elapsedLabel {
     final m = (elapsedSeconds ~/ 60).toString().padLeft(2, '0');
@@ -796,7 +820,7 @@ class _LiveHud extends StatelessWidget {
                   ],
                 ),
               ),
-              const _SoundToggleButton(),
+              _SoundToggleButton(muted: voiceMuted, onTap: onToggleVoice),
             ],
           ),
         ),
@@ -940,21 +964,16 @@ class _StatCard extends StatelessWidget {
 }
 
 /// 음소거 토글 버튼: 탭할 때마다 스피커 ↔ 음소거 아이콘으로 바뀐다.
-/// (아직 실제 음성 피드백 재생 로직은 없어서 시각적 토글만 담당)
-class _SoundToggleButton extends StatefulWidget {
-  const _SoundToggleButton();
+class _SoundToggleButton extends StatelessWidget {
+  const _SoundToggleButton({required this.muted, required this.onTap});
 
-  @override
-  State<_SoundToggleButton> createState() => _SoundToggleButtonState();
-}
-
-class _SoundToggleButtonState extends State<_SoundToggleButton> {
-  bool _muted = false;
+  final bool muted;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => setState(() => _muted = !_muted),
+      onTap: onTap,
       child: Container(
         width: 44,
         height: 44,
@@ -964,7 +983,7 @@ class _SoundToggleButtonState extends State<_SoundToggleButton> {
           borderRadius: BorderRadius.circular(14),
         ),
         child: Icon(
-          _muted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
+          muted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
           color: Colors.white,
           size: 18,
         ),
