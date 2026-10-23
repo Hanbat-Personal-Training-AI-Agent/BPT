@@ -119,7 +119,9 @@ class DemoAutopilot {
     await _pause(_startDelay);
 
     // 1. 회원가입
-    await _tapText('회원가입 하기', timeout: const Duration(seconds: 60));
+    final signUpLink = find.textContaining('회원가입 하기', findRichText: true);
+    await _waitFor(signUpLink, 'sign-up link', timeout: const Duration(seconds: 60));
+    await _tap(signUpLink, 'sign-up link');
     await _waitFor(find.byType(TextField), 'sign-up fields');
     _type(0, '데모');
     await _pause(0.5);
@@ -128,7 +130,7 @@ class DemoAutopilot {
     _type(2, _id);
     await _pause(0.5);
     await _tapText('중복확인');
-    await _pause(2);
+    await _waitFor(find.text('확인 완료'), 'id available');
     _type(3, _pw, secret: true);
     await _pause(0.5);
     _type(4, _pw, secret: true);
@@ -136,8 +138,10 @@ class DemoAutopilot {
     _type(5, '01000000000');
     FocusManager.instance.primaryFocus?.unfocus();
     await _pause(1);
+    await _tap(find.byType(TextField).at(6), 'birth date');
+    await _tapText('확인', timeout: const Duration(seconds: 10)); // date picker keeps its initial date (20 years ago)
     await _tapText('이용약관 및 개인정보 처리방침에 동의');
-    await _tap(find.widgetWithText(ElevatedButton, '회원가입'), 'submit');
+    await _tapText('가입하기');
     await _pause(3);
 
     // 2. 온보딩
