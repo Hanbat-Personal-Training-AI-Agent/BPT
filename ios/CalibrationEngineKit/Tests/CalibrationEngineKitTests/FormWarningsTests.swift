@@ -201,12 +201,17 @@ final class FormWarningsTests: XCTestCase {
         rep["knee_min"] = 120
         rep["torso_at_bottom"] = 45
         rep["knee_max"] = 150
-        XCTAssertEqual(squat.judge(rep, history: history, repIndex: 4), ["squat_shallow", "squat_no_lockout"])
+        // no_lockout is judged when the lockout window closes (testLockoutWindow), not from the rep's knee_max.
+        XCTAssertEqual(squat.judge(rep, history: history, repIndex: 4), ["squat_shallow"])
         XCTAssertEqual(squat.judge(rep, history: history + [rep, rep], repIndex: 6),
-                       ["squat_shallow", "squat_no_lockout", "squat_lean_drift", "squat_depth_fade"])
-        // Front view: only valgus (+ heel rise when enabled) run.
-        XCTAssertEqual(squat.judge(["knee_min": 150, "front_view_fraction": 1, "knee_ankle_gap_ratio_min": 0.8],
-                                   history: [], repIndex: 1), ["squat_knee_valgus"])
+                       ["squat_shallow", "squat_lean_drift", "squat_depth_fade"])
+        // Front view: only valgus (+ heel rise when enabled) run, and valgus only with a front / rear standing view.
+        let front: [String: Double] = ["knee_min": 150, "front_view_fraction": 1, "knee_ankle_gap_ratio_min": 0.8]
+        XCTAssertEqual(squat.judge(front.merging(["standing_shoulder_ratio": 0.55]) { $1 }, history: [], repIndex: 1),
+                       ["squat_knee_valgus"])
+        XCTAssertEqual(squat.judge(front.merging(["standing_shoulder_ratio": 0.36]) { $1 }, history: [], repIndex: 1), [],
+                       "34–40° oblique camera (standing ratio 0.36) is not a front view")
+        XCTAssertEqual(squat.judge(front, history: [], repIndex: 1), [], "no standing view estimate yet")
         XCTAssertEqual(squat.judge(["heel_rise_max": 0.1], history: [], repIndex: 1), [], "heel rise off by default")
         squat.squat.heelRiseEnabled = true
         XCTAssertEqual(squat.judge(["heel_rise_max": 0.1], history: [], repIndex: 1), ["squat_heel_rise"])
@@ -285,17 +290,21 @@ final class FormWarningsTests: XCTestCase {
     func testSetEndSummaryScope() {
         let tracker = FormWarningTracker(exercise: .pushUp)
         tracker.common.enabledFeedbackKeys = FormWarningTracker.allKeys
-        func rep(_ frame: Int, topBend: Double) {
-            tracker.observe(frameIndex: frame, coco17: sidePushUp(hipDrop: 0, elbowBend: topBend), phase: "top")
+        // The top after the count (until the next rep starts) is the rep's lockout.
+        func rep(_ i: Int, topBend: Double) {
+            tracker.observe(frameIndex: i * 3, coco17: sidePushUp(hipDrop: 0, elbowBend: topBend), phase: "descending")
             tracker.beginRep()
-            tracker.observe(frameIndex: frame + 1, coco17: sidePushUp(hipDrop: 0, elbowBend: 60), phase: "bottom")
+            tracker.observe(frameIndex: i * 3 + 1, coco17: sidePushUp(hipDrop: 0, elbowBend: 60), phase: "bottom")
             tracker.recordCurrentFrame()
-            tracker.finishRep(repIndex: frame / 2 + 1)
+            tracker.finishRep(repIndex: i + 1)
+            tracker.observe(frameIndex: i * 3 + 2, coco17: sidePushUp(hipDrop: 0, elbowBend: topBend), phase: "top")
         }
-        for i in 0..<3 { rep(i * 2, topBend: 0) }
-        rep(6, topBend: 30)  // top elbow ≈139° vs set max 180°: no lockout
-        rep(8, topBend: 30)
-        XCTAssertEqual(tracker.reports.last?.warnings, ["pushup_no_lockout"])
+        for i in 0..<3 { rep(i, topBend: 0) }
+        rep(3, topBend: 30)  // top elbow ≈139° < 150°: no lockout
+        rep(4, topBend: 30)
+        XCTAssertEqual(tracker.reports[3].warnings, ["pushup_no_lockout"], "closed when rep 5 started")
+        XCTAssertGreaterThan(tracker.reports[2].metrics2D["elbow_lockout_max"] ?? 0, 170)
+        XCTAssertEqual(tracker.reports.last?.warnings, [], "rep 5: window still open")
         XCTAssertEqual(tracker.drainEvents(), [], "참고 is not sent per rep")
         let counts = tracker.endSet()
         XCTAssertEqual(counts, ["pushup_no_lockout": 2])
@@ -307,13 +316,28 @@ final class FormWarningsTests: XCTestCase {
         let quiet = FormWarningTracker(exercise: .pushUp)
         quiet.common.enabledFeedbackKeys = ["setup_full_body", "tracking_lost"]
         for i in 0..<3 { _ = pushUpRep(quiet, hipDrop: 0, frame: i * 2) }
-        quiet.observe(frameIndex: 6, coco17: sidePushUp(hipDrop: 0, elbowBend: 30), phase: "top")
-        quiet.beginRep()
-        quiet.observe(frameIndex: 7, coco17: sidePushUp(hipDrop: 0, elbowBend: 60), phase: "bottom")
-        quiet.recordCurrentFrame()
-        quiet.finishRep(repIndex: 4)
+        _ = pushUpRep(quiet, hipDrop: 0, frame: 6)
+        quiet.observe(frameIndex: 8, coco17: sidePushUp(hipDrop: 0, elbowBend: 30), phase: "top")  // set ends bent
         XCTAssertEqual(quiet.endSet(), ["pushup_no_lockout": 1])
         XCTAssertEqual(quiet.drainEvents(), [])
+    }
+
+    /// Squat lockout: max knee / hip from the bottom on, absolute (165° / 160°), not vs the set max.
+    func testLockoutWindowSquat() {
+        let squat = FormWarningTracker(exercise: .squat)
+        func frames(_ knee: [Double], hip: Double) -> [FormFrameSample] {
+            knee.enumerated().map { i, k in
+                var s = FormFrameSample(frame: i, phase: "top", side: .left)
+                s.knee = k
+                s.hipAngle = hip
+                return s
+            }
+        }
+        XCTAssertFalse(squat.lockoutMetrics(frames([90, 140, 176], hip: 172)).noLockout)
+        XCTAssertTrue(squat.lockoutMetrics(frames([90, 140, 160], hip: 172)).noLockout, "knee 160° < 165°")
+        XCTAssertTrue(squat.lockoutMetrics(frames([90, 140, 176], hip: 150)).noLockout, "hip 150° < 160°")
+        XCTAssertEqual(squat.lockoutMetrics(frames([90, 176], hip: 172)).metrics, ["knee_lockout_max": 176, "hip_lockout_max": 172])
+        XCTAssertFalse(squat.lockoutMetrics([]).noLockout, "nothing measured: no warning")
     }
 
     func testAngleWrap() {

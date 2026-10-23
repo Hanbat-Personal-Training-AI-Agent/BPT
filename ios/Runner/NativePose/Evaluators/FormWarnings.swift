@@ -77,8 +77,10 @@ struct PushUpFormConfig {
     var hipPikeDeviation = 0.08
     /// pushup_shallow (개선): rep min elbow angle larger than the baseline by more than this (deg). 임시값 — 테스트 영상으로 조정
     var shallowOverBaselineDegrees = 15.0
-    /// pushup_no_lockout (참고): rep max elbow angle smaller than the set max by more than this (deg). 임시값 — 테스트 영상으로 조정
-    var noLockoutBelowSetMaxDegrees = 10.0
+    /// pushup_no_lockout (참고): max elbow angle from this rep's bottom until the next rep starts (or the set ends)
+    /// below this (deg). Absolute, not vs the set max: the rep window ends before the top (elbow ≈140° there vs ≈165°
+    /// at the top on Exercise3D), so the rep's own frames never see the lockout (docs/results/rules_fix.md).
+    var lockoutMinElbowDegrees = 150.0
     /// pushup_head_drop (참고): ear moves floor-side of the shoulder–hip line, vs the rep's top, by more than this × torso length.
     /// Exercise3D p99 (E_warning_dist_coco17.md).
     var headDropDeviation = 0.376
@@ -105,14 +107,21 @@ struct SquatFormConfig {
     var hipsFirstTorsoRiseDegrees = 8.0
     /// squat_shallow (개선): rep min knee angle larger than the baseline by more than this (deg). 임시값 — 테스트 영상으로 조정
     var shallowOverBaselineDegrees = 15.0
-    /// squat_no_lockout (참고): rep max knee or hip angle smaller than the set max by more than this (deg). 임시값 — 테스트 영상으로 조정
-    var noLockoutBelowSetMaxDegrees = 10.0
+    /// squat_no_lockout (참고): max knee or hip angle from this rep's bottom until the next rep starts (or the set
+    /// ends) below this (deg). Absolute (see PushUpFormConfig.lockoutMinElbowDegrees; docs/results/rules_fix.md).
+    var lockoutMinKneeDegrees = 165.0
+    var lockoutMinHipDegrees = 160.0
     /// squat_lean_drift (참고): mean bottom torso angle of the last N reps − first N reps above this (deg). 임시값 — 테스트 영상으로 조정
     var leanDriftDegrees = 8.0
     /// squat_depth_fade (참고): mean min knee angle of the last N reps − first N reps above this (deg). 임시값 — 테스트 영상으로 조정
     var depthFadeDegrees = 10.0
     /// squat_knee_valgus (우선, front view): knee gap / ankle gap below this from the bottom through the ascent. 임시값 — 테스트 영상으로 조정
     var valgusKneeAnkleGapRatio = 1.0
+    /// squat_knee_valgus is judged only when the median shoulder width / torso length over the last
+    /// `sideViewWindowFrames` standing (top) frames is at least this. The per-rep `front_view_fraction` (frames ≥ 0.5)
+    /// let 34–40° cameras through: the forward lean shortens the 2D torso, so the ratio grows inside the rep
+    /// (Exercise3D 39.6°: standing 0.36, in the rep 0.49–0.53). Standing: cams ≤ 40° 0.23–0.36, ≥ 63° 0.48–0.55.
+    var valgusMinStandingShoulderRatio = 0.42
     /// squat_heel_rise (개선, Halpe26 only): (heel y − big-toe y) / shin drops by more than this vs the rep start. 임시값 — 테스트 영상으로 조정
     var heelRiseShinRatio = 0.05
     /// squat_heel_rise: off for now (not judged with either model; the metric is still logged).
@@ -345,12 +354,13 @@ struct FormRepReport {
     let startFrame: Int
     let endFrame: Int
     let side: String
-    let metrics2D: [String: Double]
+    /// Lockout keys are added when the lockout window closes (next rep starts or the set ends).
+    var metrics2D: [String: Double]
     let metrics3D: [String: Double]
     let frames3D: Int
     let bad3DFrames: Int
-    /// Every key whose condition held, in rule order.
-    let warnings: [String]
+    /// Every key whose condition held, in rule order (squat / push-up no_lockout: added when the lockout window closes).
+    var warnings: [String]
     /// The one key said after this rep (a warning or praise_fixed), if any.
     let spoken: String?
 
@@ -445,6 +455,11 @@ final class FormWarningTracker {
     private(set) var sideView: Bool?
     private var shoulderRatios: [Double] = []
     private var sideViewGuided = false
+    /// Squat: shoulder width / torso length of the last `sideViewWindowFrames` standing (top) frames (valgus view gate).
+    private var standingShoulderRatios: [Double] = []
+    /// Squat / push-up: the last counted rep's frames from its bottom on, extended every frame until the next rep
+    /// starts or the set ends; then its no_lockout is judged. `judged` = the rep passed the side-view gate.
+    private var lockoutWindow: (repIndex: Int, frames: [FormFrameSample], judged: Bool)?
 
     private var facing: Double?
     private var facingCandidateRun = 0
@@ -475,6 +490,8 @@ final class FormWarningTracker {
         sideView = nil
         shoulderRatios = []
         sideViewGuided = false
+        standingShoulderRatios = []
+        lockoutWindow = nil
         facing = nil
         facingCandidateRun = 0
         current = nil
@@ -520,6 +537,11 @@ final class FormWarningTracker {
             }
         }
         current = sample
+        if exercise == .squat, phase == SquatStatus.top.rawValue, let ratio = sample.shoulderRatio {
+            standingShoulderRatios.append(ratio)
+            if standingShoulderRatios.count > common.sideViewWindowFrames { standingShoulderRatios.removeFirst() }
+        }
+        if !repOpen { lockoutWindow?.frames.append(sample) }
         updateTracking(sample)
         if exercise == .pushUp || exercise == .barbellRow { updateSideView(sample) }
     }
@@ -546,6 +568,7 @@ final class FormWarningTracker {
     }
 
     func beginRep() {
+        closeLockoutWindow()
         repOpen = true
         repFrames = []
         recordCurrentFrame()
@@ -564,7 +587,10 @@ final class FormWarningTracker {
         repOpen = false
         let frames = repFrames
         repFrames = []
-        let metrics = metrics2D(frames, isFirstRep: reports.isEmpty)
+        var metrics = metrics2D(frames, isFirstRep: reports.isEmpty)
+        if exercise == .squat, standingShoulderRatios.count >= common.sideViewMinFrames {
+            metrics["standing_shoulder_ratio"] = Self.median(standingShoulderRatios)
+        }
         let fired = judge(metrics, history: repMetrics, repIndex: repIndex)
         repMetrics.append(metrics)
         if repMetrics.count > 100 { repMetrics.removeFirst() }
@@ -589,7 +615,57 @@ final class FormWarningTracker {
         )
         reports.append(report)
         if reports.count > 100 { reports.removeFirst() }
+        openLockoutWindow(frames, metrics: metrics, repIndex: repIndex)
         return report
+    }
+
+    // MARK: Lockout (squat / push-up no_lockout)
+
+    /// The joint whose largest angle after the bottom is the lockout: squat knee (+ hip), push-up elbow.
+    private func openLockoutWindow(_ frames: [FormFrameSample], metrics: [String: Double], repIndex: Int) {
+        let bottomKey: KeyPath<FormFrameSample, Double?>
+        switch exercise {
+        case .squat: bottomKey = \.knee
+        case .pushUp: bottomKey = \.elbow
+        default: return
+        }
+        let low = frames.compactMap { $0[keyPath: bottomKey] }.min()
+        let b = frames.firstIndex { $0[keyPath: bottomKey] != nil && $0[keyPath: bottomKey] == low } ?? 0
+        let side = (metrics["front_view_fraction"] ?? 0) < common.frontViewRepFraction
+        lockoutWindow = (repIndex, Array(frames[b...]), side)
+    }
+
+    /// Lockout metrics of a window (bottom → next rep start / set end) and whether no_lockout holds.
+    func lockoutMetrics(_ frames: [FormFrameSample]) -> (metrics: [String: Double], noLockout: Bool) {
+        var m: [String: Double] = [:]
+        switch exercise {
+        case .squat:
+            m["knee_lockout_max"] = frames.compactMap(\.knee).max()
+            m["hip_lockout_max"] = frames.compactMap(\.hipAngle).max()
+            let knee = m["knee_lockout_max"].map { $0 < squat.lockoutMinKneeDegrees } ?? false
+            let hip = m["hip_lockout_max"].map { $0 < squat.lockoutMinHipDegrees } ?? false
+            return (m, knee || hip)
+        case .pushUp:
+            m["elbow_lockout_max"] = frames.compactMap(\.elbow).max()
+            return (m, m["elbow_lockout_max"].map { $0 < pushUp.lockoutMinElbowDegrees } ?? false)
+        default:
+            return (m, false)
+        }
+    }
+
+    /// Judges the open lockout window into its rep's report and the session / set counts (참고 = said at set end).
+    private func closeLockoutWindow() {
+        guard let window = lockoutWindow else { return }
+        lockoutWindow = nil
+        guard let i = reports.lastIndex(where: { $0.repIndex == window.repIndex }) else { return }
+        let (m, noLockout) = lockoutMetrics(window.frames)
+        reports[i].metrics2D.merge(m) { _, new in new }
+        let key = exercise == .squat ? "squat_no_lockout" : "pushup_no_lockout"
+        guard window.judged, noLockout else { return }
+        let fired = Set(reports[i].warnings + [key])
+        reports[i].warnings = (Self.rules[exercise] ?? []).map(\.key).filter(fired.contains)
+        warningRepCounts[key, default: 0] += 1
+        setWarningRepCounts[key, default: 0] += 1
     }
 
     // MARK: Delivery
@@ -598,6 +674,7 @@ final class FormWarningTracker {
     /// (n = its reps in the set, rule order) and returns the set's per-key rep counts, then clears them.
     @discardableResult
     func endSet() -> [String: Int] {
+        closeLockoutWindow()
         let counts = setWarningRepCounts
         setWarningRepCounts = [:]
         for (key, grade) in Self.rules[exercise] ?? [] where grade == .reference {
@@ -896,7 +973,6 @@ final class FormWarningTracker {
             fire("pushup_hip_sag", over("hip_dev_max", c.hipSagDeviation))
             fire("pushup_hip_pike", under("hip_dev_min", -c.hipPikeDeviation))
             fire("pushup_shallow", overBaseline("elbow_min", c.shallowOverBaselineDegrees))
-            fire("pushup_no_lockout", belowSetMax("elbow_max", c.noLockoutBelowSetMaxDegrees))
             fire("pushup_head_drop", over("head_dev_change_max", c.headDropDeviation))
             fire("pushup_head_up", under("head_dev_change_min", -c.headUpDeviation))
             if let ahead = m["first_rep_top_wrist_ahead"] {
@@ -911,12 +987,13 @@ final class FormWarningTracker {
                     fire("squat_hips_first", rise > c.hipsFirstTorsoRiseDegrees && hip > shoulder)
                 }
                 fire("squat_shallow", overBaseline("knee_min", c.shallowOverBaselineDegrees))
-                fire("squat_no_lockout", belowSetMax("knee_max", c.noLockoutBelowSetMaxDegrees) == true
-                     || belowSetMax("hip_angle_max", c.noLockoutBelowSetMaxDegrees) == true)
                 fire("squat_lean_drift", trend("torso_at_bottom", c.leanDriftDegrees))
                 fire("squat_depth_fade", trend("knee_min", c.depthFadeDegrees))
             } else {
-                fire("squat_knee_valgus", under("knee_ankle_gap_ratio_min", c.valgusKneeAnkleGapRatio))
+                // Only a reliable front / rear view (standing shoulder ratio), never a ≤ 45° oblique camera.
+                if let ratio = m["standing_shoulder_ratio"], ratio >= c.valgusMinStandingShoulderRatio {
+                    fire("squat_knee_valgus", under("knee_ankle_gap_ratio_min", c.valgusKneeAnkleGapRatio))
+                }
             }
             if c.heelRiseEnabled { fire("squat_heel_rise", over("heel_rise_max", c.heelRiseShinRatio)) }
         case .barbellRow:
