@@ -53,7 +53,7 @@ The recording (it shows the user's face) and the logs stay in Mac `~/bpt-data/de
   real turn; the app guides front → 왼쪽 → 뒷면 → 오른쪽. The engine captures views in any order, so all 4 are taken,
   but at a capture the on-screen caption can name a different turn from the one shown.
 - Workout: Exercise3D P2 (the user) `barbellrow_0003_cam2` (20°; on the device it counted 11 reps, matching the
-  11 in the ground truth). It plays 3 times, once per set. The target is set to the clip: the autopilot taps reps −1
+  11 in the ground truth). The clip plays continuously across the sets (it does not restart per set), 4 times in all. The target is set to the clip: the autopilot taps reps −1
   (12 → 11), so the run is 3 sets × 11.
 - Bone lengths: `targets/P2.json` (lift-refine `20261020-shapes-ex3d-all`, sha256 `04a79c94…`). It is on the phone
   only (Fit3D-derived rule: no Mac copy, no git). The lengths from the demo's own body-scan result were not used
@@ -89,3 +89,6 @@ front (x-y), side (z-y) and top (x-z) views of `pose3d`, centred on the pelvis. 
 | bptdemo_20261023_1054 | autopilot; stopped on the login screen (sign-up link finder); never signed up. The ID also has an underscore, which the form does not allow |
 | bptdemo10231115 | signed up and onboarded; the body scan stayed on front for 6 min (original IMG_9900, clip not flipped) |
 | bptdemo10231149 | slowdiag clip, not flipped; the user saw 왼쪽 captured on a right turn, so left/right was swapped |
+| bptdemo10231313 | full flow with the real server: upload, analysis and mesh screen reached in about 65 s from capture start. Set 3 stopped at 9/11 because the clip plays continuously across sets and 3 plays were used up, so it now plays 4 times (`BPT_CAMERA_VIDEO_LOOPS=4`) |
+| bptdemo10231320 | passed to the result screen (3 × 11 = 33 reps, "허리 1회"); the calendar tab is not on the result screen, so the autopilot now taps '기록 보기'. The user reports the 3D body was not visible on the mesh screen (diagnosis pending, build f22ddbe writes `Documents/demo/mesh_diag.json`) |
+| bptdemo10231331 | not used (phone locked, CoreDeviceError 4016) |
