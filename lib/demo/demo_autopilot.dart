@@ -172,23 +172,23 @@ class DemoAutopilot {
     await _tapText('카메라 켜기');
     _log('calibration started');
 
-    // 3. 체형 촬영(영상 입력) → 업로드·분석 → 3D 몸 공개(있으면) → 결과
-    final reveal = find.text('짜잔! 이게 너의 3D 몸이야');
+    // 3. 체형 촬영(영상 입력) → 업로드·분석(메시 준비 포함) → '신체분석 완료!'(메시 카드) 또는 기존 결과 화면
+    final done = find.text('신체분석 완료!');
     final home = find.text('홈으로 가기');
     final end = DateTime.now().add(const Duration(minutes: 7));
-    while (DateTime.now().isBefore(end) && reveal.evaluate().isEmpty && home.evaluate().isEmpty) {
+    while (DateTime.now().isBefore(end) && done.evaluate().isEmpty && home.evaluate().isEmpty) {
       await _pause(0.5);
     }
-    if (reveal.evaluate().isNotEmpty) {
-      _log('mesh reveal shown');
+    if (done.evaluate().isNotEmpty) {
+      _log('body analysis done screen');
       await _pause(1.5);
-      await BodyMeshReveal.demoSpin(turns: 1, seconds: 7);
+      await BodyMeshReveal.demoSpin(turns: 1, seconds: 7); // returns at once; the turn runs natively for 7 s
       await _pause(8.5);
-      await _tapText('다음');
+      await _tapText('넘어가기');
     } else {
-      _log('no mesh reveal');
+      _log('old result screen');
+      await _tapText('홈으로 가기', timeout: const Duration(seconds: 30));
     }
-    await _tapText('홈으로 가기', timeout: const Duration(seconds: 30));
     await _pause(2);
 
     // 4. 바벨로우 3세트
