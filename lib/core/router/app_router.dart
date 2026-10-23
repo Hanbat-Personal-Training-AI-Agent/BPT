@@ -83,7 +83,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         : {
             'exerciseId': autostartWorkout,
             'targetReps': int.tryParse(_autostartValue(prefs, 'bpt_autostart_reps') ?? '') ?? 999,
-            'targetSets': 1,
+            // TRIAL BRANCH ONLY: BPT_AUTOSTART_SETS (demo: 3 sets, 10 s rest); default 1 set as before.
+            'targetSets': int.tryParse(_autostartValue(prefs, 'bpt_autostart_sets') ?? '') ?? 1,
+            'restSeconds': 10,
           },
     refreshListenable: authNotifier,
     redirect: (BuildContext context, GoRouterState state) =>

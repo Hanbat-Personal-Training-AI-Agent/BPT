@@ -15,9 +15,11 @@ enum NativePoseRegistration {
         if let workout = env["BPT_AUTOSTART_WORKOUT"], !workout.isEmpty {
             defaults.set(workout, forKey: "flutter.bpt_autostart_workout")
             defaults.set(env["BPT_AUTOSTART_REPS"] ?? "", forKey: "flutter.bpt_autostart_reps")
+            defaults.set(env["BPT_AUTOSTART_SETS"] ?? "", forKey: "flutter.bpt_autostart_sets")
         } else {
             defaults.removeObject(forKey: "flutter.bpt_autostart_workout")
             defaults.removeObject(forKey: "flutter.bpt_autostart_reps")
+            defaults.removeObject(forKey: "flutter.bpt_autostart_sets")
         }
     }
 
