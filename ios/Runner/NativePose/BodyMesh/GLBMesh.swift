@@ -67,6 +67,7 @@ struct GLBMesh {
             let layout = try layout(index, vector: true)
             return try (0..<layout.count).map { element in
                 let at = layout.start + element * layout.stride
+                // glTF stores X, Y, Z in that order; axis correction happens after parsing.
                 let v = SIMD3<Float>(Float(bitPattern: try u32(at)), Float(bitPattern: try u32(at + 4)),
                                      Float(bitPattern: try u32(at + 8)))
                 guard v.x.isFinite, v.y.isFinite, v.z.isFinite else { throw Failure.format("nonfinite vector") }
@@ -113,6 +114,8 @@ struct GLBMesh {
 
     /// Centre all three axes, rotate the tallest axis up and use a unit-height display mesh.
     /// A right-handed rotation preserves triangle winding and rotates normals identically.
+    /// Bounds cannot identify the front: preserve the server's Y-up, +Z-front convention
+    /// without an extra yaw/flip. Equal extents prefer Y-up.
     func centeredYUp() throws -> GLBMesh {
         let box = bounds
         let extent = box.max - box.min
@@ -130,10 +133,11 @@ struct GLBMesh {
         return mesh
     }
 
+    /// An unrotated SceneKit camera looks along -Z: place it at +Z, level with the centre.
     /// A bounding sphere fits through every allowed rotation, even in narrow cards.
-    static func cameraDistance(radius: Float, aspect: Float, fieldOfView: Float = 35) -> Float {
+    static func cameraPosition(radius: Float, aspect: Float, fieldOfView: Float = 35) -> SIMD3<Float> {
         let vertical = fieldOfView * .pi / 360
         let horizontal = atan(tan(vertical) * max(aspect, 0.01))
-        return radius * 1.12 / sin(min(vertical, horizontal))
+        return SIMD3(0, 0, radius * 1.12 / sin(min(vertical, horizontal)))
     }
 }
