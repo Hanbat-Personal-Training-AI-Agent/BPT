@@ -16,8 +16,9 @@
 
 - 제목: **신체분석 완료!**
 - 카드 높이: 화면의 37%. 몸 색 `#AC88F6`, 가장자리 빛 `#BFED5F`.
+- 기본 자세: 경계 상자의 가장 긴 축을 화면 위쪽(+Y)으로 정렬하고 yaw·pitch·roll은 0으로 시작한다. 경계 상자만으로 앞뒤를 판별할 수 없으므로 서버의 Y-up·+Z 정면 규약을 유지한다. 카메라는 높이 0의 +Z 위치에서 정면을 바라본다.
 - 등장: 0.6초 동안 투명도와 크기 0.96 → 1.0만 변화.
-- 회전: 24초에 한 바퀴 자동 회전, 첫 터치부터 정지. 드래그로 yaw 무제한, pitch ±15°. 확대·이동 없음.
+- 회전: 등장 완료 후 Y축으로만 24초에 한 바퀴 자동 회전, 첫 터치부터 정지. 드래그로 yaw 무제한, pitch ±15°. 손을 떼면 그 자세를 유지하고 더블탭하면 정면 직립으로 초기화한다. 초기화 후 자동 회전은 재개하지 않는다. 확대·이동 없음.
 - 아래 정보는 스크롤 가능하며 하단 **넘어가기**는 항상 노출한다.
 - `docs/handoff/teammate_calibration.md` §5의 `userHeightCm`, `boneLengthData.unit == cm`의 `segments`만 사용한다. 몸무게는 결과에 유효한 `weightKg`가 있을 때만 표시한다. 현재 서버 계약에는 몸무게가 없어 보통 생략된다. 온보딩 기본값으로 채우지 않는다.
 - 어깨 너비: `shoulder_width`. 팔: 각 측의 어깨–팔꿈치 + 팔꿈치–손목. 다리: 각 측의 엉덩이–무릎 + 무릎–발목. 몸통: `pelvis-spine` + `spine-thorax`. 합산에 필요한 구간이 모두 있을 때만 표시하고 좌우를 구분한다. 누락·0 이하·비유한 값은 생략한다.
@@ -28,7 +29,7 @@
 
 | 가능성 | 보강 |
 | --- | --- |
-| Y축·키만 가정한 카메라와 Y축만의 중심 이동으로 다른 축/원점의 모델이 화면 밖에 있을 수 있음 | 전체 경계 상자의 가장 긴 축을 위로 회전, XYZ 중심을 원점으로 이동, 높이를 1로 정규화. 미터·센티미터 및 Y/Z-up 대응 |
+| Y축·키만 가정한 카메라와 Y축만의 중심 이동으로 다른 축/원점의 모델이 화면 밖에 있을 수 있음 | 전체 경계 상자의 가장 긴 축을 위로 회전, XYZ 중심을 원점으로 이동, 높이를 1로 정규화. 미터·센티미터 및 X/Y/Z-up 대응 |
 | 작은 카드나 가로세로 비율 변화에서 몸이 잘리거나 near/far 범위를 벗어날 수 있음 | 실제 SceneKit node bounding box로 회전 전체를 감싸는 구를 구하고, 수직 FOV 35°와 카드 비율 중 좁은 방향을 기준으로 카메라 거리 계산. 여백 12%, near/far 명시 |
 | 생성 시 platform view frame이 0이어서 카메라 설정/등장이 레이아웃보다 먼저 실행될 수 있음 | `layoutSubviews`의 너비·높이가 모두 양수일 때 카메라 설정과 최초 등장, 이후 크기 변경에도 재계산. Flutter 측 카드 너비·높이 명시 |
 | 면 방향·누락된 법선·조명 때문에 검게 보이거나 면이 사라질 수 있음 | 양면 재질, 누락 법선의 면적 가중 계산, 제공된 법선 정규화, ambient + directional 조명. 긴 뒤집기/빛 띠 제거 |
@@ -51,9 +52,9 @@
 
 ## 데모
 
-결과 화면에서 `await BodyMeshReveal.demoSpin(turns: 1, seconds: 7)`로 한 번 천천히 돌린 뒤 **넘어가기**를 누른다. 작은 뷰에서도 기존 `bpt/body_mesh` 채널의 `spin`을 유지한다.
+결과 화면에서 `await BodyMeshReveal.demoSpin(turns: 1, seconds: 7)`로 한 번 천천히 돌린 뒤 **넘어가기**를 누른다. 데모도 yaw만 회전하며 pitch를 기울이지 않는다. 작은 뷰에서도 기존 `bpt/body_mesh` 채널의 `spin`을 유지한다.
 
-## 검증 (이번 변경)
+## 검증 (기존 메시 표시 보강)
 
 - Swift `GLBMeshTests` **6개 통과**. 테스트 안에서 상자 GLB를 절차적으로 생성한다. 실제 사용자 메시/외부 바이너리 fixture를 사용하지 않는다. 16/32비트 인덱스, 별도 buffer view, interleaved stride/offset, 제공/누락 법선, Y/Z-up, m/cm, 좁은 카드, 잘못된 범위/잘린 데이터 확인.
 - 네이티브 platform view Swift 구문 검사 통과. iOS 타입 검사·실기기 렌더 검증은 완료하지 못했다.
@@ -63,6 +64,14 @@
 - Dart 테스트 추가: 측정값 누락·불완전 구간·잘못된 단위, 작은 화면의 실루엣/홈 이동, 네이티브 실패·시간 제한·늦은 결과 해제, 플래그 off의 조회 없음, on의 준비 완료 대기/다운로드 실패/작업 시간 제한.
 
 권한이 허용된 개발 환경에서 위 Flutter 명령과 전체 Swift 테스트를 다시 실행해야 한다. 플래그 on 분기 테스트는 `flutter test --dart-define=BPT_MESH_REVEAL=true test/onboarding_analyzing_test.dart test/onboarding_mesh_test.dart`로 추가 실행한다. 기기에서는 작은 카드 안의 전신 표시, 첫 터치 정지, 회전 범위, 한 번의 bbox 로그, 실패 시 정보와 버튼 유지, 플래그 off의 이전 화면을 확인한다.
+
+## 검증 (직립 기본 자세 보강, 2026-10-23)
+
+- `flutter analyze --no-pub` 통과: **No issues found**.
+- Swift `GLBMeshTests` **8개 통과**. 절차적으로 생성한 X/Y/Z-up 상자로 로딩 후 +Y 직립, +Z 정면, pitch 0, 정면 법선·삼각형 방향, 카메라의 +Z·높이 0을 확인한다. 원본 XYZ 읽기 순서와 대칭 경계 상자에서 서버 규약을 유지하는 회귀 검사도 포함한다.
+- `swift test --package-path ios/CalibrationEngineKit --filter GLBMeshTests`에 워크트리 내부 빌드·캐시 경로를 지정했지만 `sandbox-exec: sandbox_apply: Operation not permitted`로 manifest 실행이 차단됐다. 대신 같은 소스와 XCTest 파일을 `swiftc`로 직접 컴파일하고 테스트 스위트를 실행했다. 임시 파일·모듈 캐시·실행 파일은 워크트리의 `.build/` 안에만 생성했다.
+- 네이티브 Swift 구문 검사와 `git diff --check` 통과. iOS 앱 빌드·실기기 렌더/제스처 검증은 미실시.
+- 기기 확인: 첫 등장 정면 직립, 자동·데모 회전 중 기울임 없음, 드래그 pitch ±15° 및 손을 뗀 자세 유지, 더블탭 정면 직립 복귀와 자동 회전 미재개.
 
 ## 서버·라이선스
 

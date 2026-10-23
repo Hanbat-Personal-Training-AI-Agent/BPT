@@ -13,7 +13,7 @@ private final class BodyMeshSceneView: SCNView {
     }
 }
 
-/// Small, prepared body preview. Drag: yaw free, pitch ±15°. No zoom or pan.
+/// Small, prepared body preview. Drag: yaw free, pitch ±15°. Double-tap: upright front.
 final class BodyMeshPlatformView: NSObject, FlutterPlatformView, UIGestureRecognizerDelegate {
     static weak var current: BodyMeshPlatformView?
     static var channel: FlutterMethodChannel?
@@ -110,11 +110,13 @@ final class BodyMeshPlatformView: NSObject, FlutterPlatformView, UIGestureRecogn
         stage.addChildNode(pitchNode)
         pitchNode.addChildNode(yawNode)
         yawNode.addChildNode(body)
+        resetOrientation()
 
         let camera = SCNCamera()
         camera.fieldOfView = 35
         camera.projectionDirection = .vertical
         cameraNode.camera = camera
+        cameraNode.eulerAngles = SCNVector3Zero
         scene.rootNode.addChildNode(cameraNode)
         scnView.pointOfView = cameraNode
 
@@ -134,10 +136,15 @@ final class BodyMeshPlatformView: NSObject, FlutterPlatformView, UIGestureRecogn
         pan.maximumNumberOfTouches = 1
         pan.delegate = self
         scnView.addGestureRecognizer(pan)
+        let doubleTap = UITapGestureRecognizer(target: self, action: #selector(onDoubleTap(_:)))
+        doubleTap.numberOfTapsRequired = 2
+        doubleTap.delegate = self
+        scnView.addGestureRecognizer(doubleTap)
         scnView.onLayout = { [weak self] size in
             guard let self else { return }
-            let distance = GLBMesh.cameraDistance(radius: radius, aspect: Float(size.width / size.height))
-            self.cameraNode.position = SCNVector3(0, 0, distance)
+            let position = GLBMesh.cameraPosition(radius: radius, aspect: Float(size.width / size.height))
+            self.cameraNode.simdPosition = position
+            let distance = position.z
             camera.zNear = Double(max(0.001, distance - radius * 1.5))
             camera.zFar = Double(distance + radius * 2)
             if !self.revealed {
@@ -197,18 +204,30 @@ final class BodyMeshPlatformView: NSObject, FlutterPlatformView, UIGestureRecogn
         entrance.timingMode = .easeOut
         stage.runAction(entrance)
         if !touched {
-            yawNode.runAction(.repeatForever(.rotateBy(x: 0, y: 2 * .pi, z: 0, duration: 24)))
+            yawNode.runAction(.sequence([
+                .wait(duration: 0.6),
+                .repeatForever(.rotateBy(x: 0, y: 2 * .pi, z: 0, duration: 24)),
+            ]))
         }
+    }
+
+    private func resetOrientation() {
+        yawNode.removeAllActions()
+        pitchNode.removeAllActions()
+        yawNode.eulerAngles = SCNVector3Zero
+        pitchNode.eulerAngles = SCNVector3Zero
     }
 
     private func stopRotation() {
         touched = true
-        let yaw = yawNode.presentation.eulerAngles.y
+        // Euler Y alone cannot represent a full turn; recover yaw from the displayed front.
+        let front = yawNode.presentation.simdOrientation.act(SIMD3<Float>(0, 0, 1))
+        let yaw = atan2(front.x, front.z)
         let pitch = pitchNode.presentation.eulerAngles.x
         yawNode.removeAllActions()
         pitchNode.removeAllActions()
-        yawNode.eulerAngles.y = yaw
-        pitchNode.eulerAngles.x = pitch
+        yawNode.eulerAngles = SCNVector3(0, yaw, 0)
+        pitchNode.eulerAngles = SCNVector3(min(max(pitch, -Self.maxPitch), Self.maxPitch), 0, 0)
     }
 
     func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
@@ -223,18 +242,19 @@ final class BodyMeshPlatformView: NSObject, FlutterPlatformView, UIGestureRecogn
         pitchNode.eulerAngles.x = min(max(pitchNode.eulerAngles.x + Float(d.y) * 0.004, -Self.maxPitch), Self.maxPitch)
     }
 
-    /// Slow scripted turn, eased like a hand drag, with a small tilt and back.
+    @objc private func onDoubleTap(_ tap: UITapGestureRecognizer) {
+        guard tap.state == .ended else { return }
+        touched = true
+        resetOrientation()
+    }
+
+    /// Slow scripted yaw only; pitch stays where the user left it.
     func spin(turns: Double, seconds: Double) {
         guard turns.isFinite, seconds.isFinite, seconds > 0 else { return }
         stopRotation()
         let turn = SCNAction.rotateBy(x: 0, y: CGFloat(2 * .pi * turns), z: 0, duration: seconds)
         turn.timingMode = .easeInEaseOut
         yawNode.runAction(turn)
-        let tilt = CGFloat(Self.maxPitch * 0.6)
-        pitchNode.runAction(.sequence([
-            .rotateTo(x: tilt, y: 0, z: 0, duration: seconds * 0.4),
-            .rotateTo(x: 0, y: 0, z: 0, duration: seconds * 0.4),
-        ]))
     }
 }
 
