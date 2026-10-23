@@ -7,13 +7,20 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:bpt/features/onboarding/services/calibration_upload_service.dart';
 import 'package:bpt/features/onboarding/widgets/body_mesh_reveal.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class DemoAutopilot {
-  DemoAutopilot._(this._id, this._pw, this._startDelay);
+  DemoAutopilot._(this._id, this._pw, this._startDelay, {this.queryJob});
+
+  final String? queryJob;
+
+  /// True while an autopilot run is going (the analysis screen then waits longer for the fit job).
+  static bool active = false;
 
   final String _id;
   final String _pw;
@@ -38,6 +45,13 @@ class DemoAutopilot {
     } catch (_) {
       return null;
     }
+    final queryJob = '${config['DEMO_QUERY_JOB'] ?? ''}';
+    if (queryJob.isNotEmpty) {
+      // One lookup of an earlier job with the account still signed in on the phone (no sign-up, no reset).
+      config.remove('DEMO_QUERY_JOB');
+      file.writeAsStringSync(jsonEncode(config));
+      return DemoAutopilot._('', '', 4, queryJob: queryJob);
+    }
     if ('${config['BPT_DEMO_AUTOPILOT']}' != '1') return null;
     final id = '${config['DEMO_ID'] ?? ''}', pw = '${config['DEMO_PW'] ?? ''}';
     config.remove('DEMO_PW');
@@ -52,11 +66,38 @@ class DemoAutopilot {
   }
 
   Future<void> run() async {
+    if (queryJob != null) return _queryJob(queryJob!);
+    active = true;
     try {
       await _run();
       _log('done');
     } catch (e) {
       _log('FAILED: $e');
+    }
+  }
+
+  /// One fit-job poll answer into flow_steps.log: status, progress, error, seconds since polling began.
+  /// Never the token, the result body or any (signed) URL.
+  static void logJob(String jobId, DateTime started, {CalibrationJob? job, String? error}) {
+    if (!active && _docs.isEmpty) return;
+    final seconds = DateTime.now().difference(started).inMilliseconds / 1000;
+    final detail = job == null
+        ? error ?? ''
+        : 'status=${job.status} progress=${job.progressRate} error=${job.error ?? '-'}';
+    _log('job $jobId +${seconds.toStringAsFixed(1)}s $detail');
+  }
+
+  Future<void> _queryJob(String jobId) async {
+    await _pause(4);
+    try {
+      final element = find.byType(MaterialApp).evaluate().first;
+      final service = ProviderScope.containerOf(element).read(calibrationUploadServiceProvider);
+      final job = await service.fetchJob(jobId);
+      logJob(jobId, DateTime.now(), job: job);
+    } on CalibrationUploadException catch (e) {
+      _log('job $jobId query failed: ${e.message}');
+    } catch (e) {
+      _log('job $jobId query failed: ${e.runtimeType}');
     }
   }
 

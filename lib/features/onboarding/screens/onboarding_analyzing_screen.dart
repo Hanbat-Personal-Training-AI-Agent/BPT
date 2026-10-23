@@ -9,6 +9,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/route_constants.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../demo/demo_autopilot.dart';
 import '../services/calibration_result_store.dart';
 import '../models/body_analysis_result.dart';
 import '../services/calibration_upload_service.dart';
@@ -98,16 +99,21 @@ class _OnboardingAnalyzingScreenState
     final jobId = _jobId;
     if (!mounted || _finished || jobId == null) return;
     final service = ref.read(calibrationUploadServiceProvider);
-    final timeout = Timer(const Duration(minutes: 3), () => _cancel.cancel());
+    // TRIAL BRANCH ONLY: the demo autopilot waits up to 7 min (a cold GPU start took longer than 3).
+    final started = DateTime.now();
+    final limit = DemoAutopilot.active ? const Duration(minutes: 7) : const Duration(minutes: 3);
+    final timeout = Timer(limit, () => _cancel.cancel());
     try {
       while (mounted && !_finished && !_cancel.isCancelled) {
         CalibrationJob job;
         try {
           job = await service.fetchJob(jobId, cancelToken: _cancel);
-        } on CalibrationUploadException {
+        } on CalibrationUploadException catch (error) {
+          DemoAutopilot.logJob(jobId, started, error: 'poll: ${error.message}');
           await Future<void>.delayed(const Duration(seconds: 3));
           continue;
         }
+        DemoAutopilot.logJob(jobId, started, job: job);
         if (job.status == 'failed') return;
         if (job.status == 'done') {
           final values = job.result ?? const <String, dynamic>{};
@@ -115,7 +121,9 @@ class _OnboardingAnalyzingScreenState
           final url = values['modelGlbUrl'];
           if (url is! String || url.isEmpty) return;
           final glb = await service.fetchModel(url, cancelToken: _cancel);
+          DemoAutopilot.logJob(jobId, started, error: 'glb ${glb.length} bytes');
           final meshId = await BodyMeshReveal.prepare(glb);
+          DemoAutopilot.logJob(jobId, started, error: 'mesh prepared ${meshId != null}');
           if (!mounted || _finished || _cancel.isCancelled) {
             await BodyMeshReveal.release(meshId);
             return;
@@ -125,7 +133,8 @@ class _OnboardingAnalyzingScreenState
         }
         await Future<void>.delayed(const Duration(seconds: 3));
       }
-    } catch (_) {
+    } catch (error) {
+      DemoAutopilot.logJob(jobId, started, error: 'stopped: ${error.runtimeType}');
       // Preserve the summary on download/parse failure; never log signed URLs.
       debugPrint('[BodyMesh] 미리보기 없이 분석 결과 표시');
     } finally {
