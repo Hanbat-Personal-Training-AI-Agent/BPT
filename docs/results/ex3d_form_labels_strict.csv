@@ -1,0 +1,1065 @@
+set,person,split,phys_rep,anchor_frame,t_start_s,t_end_s,criterion,label,confidence,cams_used,notes
+barbellrow_0000,P1,tuning,1,61,0.3,2.8,row2_back_round,tip,med,"cam2,cam1",upper back rounds and shoulders roll forward at peak; lumbar looks neutral
+barbellrow_0000,P1,tuning,1,61,0.3,2.8,row2_torso_hold,good,med,cam2,torso ~40deg T0 -> ~37deg T1 (~3-5deg)
+barbellrow_0000,P1,tuning,1,61,0.3,2.8,row2_torso_angle,tip,low,cam2,torso ~40-43deg above horizontal at T0/T1 (borderline 40)
+barbellrow_0000,P1,tuning,1,61,0.3,2.8,row2_retraction,tip,low,"cam3,cam2","elbows only to torso line, upper back rounded; scapulae not visibly squeezed at peak (shirt)"
+barbellrow_0000,P1,tuning,1,61,0.3,2.8,row2_pull_height,tip,med,"cam2,cam1","bar reaches lower belly/belt line just below navel, close to body"
+barbellrow_0000,P1,tuning,1,61,0.3,2.8,row2_shrug,tip,low,"cam3,cam2",shoulders ride up toward head at peak (neck shortens); head drop confounds
+barbellrow_0000,P1,tuning,1,61,0.3,2.8,row2_head,tip,med,cam2,neck flexes and head hangs below back line at T1 (looks at feet)
+barbellrow_0000,P1,tuning,2,110,2.8,4.5,row2_back_round,tip,med,"cam2,cam1",upper back rounds and shoulders roll forward at peak; lumbar looks neutral
+barbellrow_0000,P1,tuning,2,110,2.8,4.5,row2_torso_hold,good,med,cam2,torso ~41deg at T0 -> ~37deg at T1 (~4-6deg); head drop exaggerates
+barbellrow_0000,P1,tuning,2,110,2.8,4.5,row2_torso_angle,tip,low,cam2,torso ~40-43deg above horizontal at T0/T1 (borderline 40)
+barbellrow_0000,P1,tuning,2,110,2.8,4.5,row2_retraction,tip,low,"cam3,cam2","elbows only to torso line, upper back rounded; scapulae not visibly squeezed at peak (shirt)"
+barbellrow_0000,P1,tuning,2,110,2.8,4.5,row2_pull_height,tip,med,"cam2,cam1","bar reaches lower belly/belt line just below navel, close to body"
+barbellrow_0000,P1,tuning,2,110,2.8,4.5,row2_shrug,tip,low,"cam3,cam2",shoulders ride up toward head at peak (neck shortens); head drop confounds
+barbellrow_0000,P1,tuning,2,110,2.8,4.5,row2_head,tip,med,cam2,neck flexes and head hangs below back line at T1 (looks at feet)
+barbellrow_0000,P1,tuning,3,159,4.5,6.23,row2_back_round,tip,med,"cam2,cam1",upper back rounds and shoulders roll forward at peak; lumbar looks neutral
+barbellrow_0000,P1,tuning,3,159,4.5,6.23,row2_torso_hold,good,med,cam2,torso ~41deg at T0 -> ~37deg at T1 (~4-6deg); head drop exaggerates
+barbellrow_0000,P1,tuning,3,159,4.5,6.23,row2_torso_angle,tip,low,cam2,torso ~40-43deg above horizontal at T0/T1 (borderline 40)
+barbellrow_0000,P1,tuning,3,159,4.5,6.23,row2_retraction,tip,low,"cam3,cam2","elbows only to torso line, upper back rounded; scapulae not visibly squeezed at peak (shirt)"
+barbellrow_0000,P1,tuning,3,159,4.5,6.23,row2_pull_height,tip,med,"cam2,cam1","bar reaches lower belly/belt line just below navel, close to body"
+barbellrow_0000,P1,tuning,3,159,4.5,6.23,row2_shrug,tip,low,"cam3,cam2",shoulders ride up toward head at peak (neck shortens); head drop confounds
+barbellrow_0000,P1,tuning,3,159,4.5,6.23,row2_head,tip,med,cam2,neck flexes and head hangs below back line at T1 (looks at feet)
+barbellrow_0000,P1,tuning,4,211,6.23,7.93,row2_back_round,tip,med,"cam2,cam1",upper back rounds and shoulders roll forward at peak; lumbar looks neutral
+barbellrow_0000,P1,tuning,4,211,6.23,7.93,row2_torso_hold,good,med,cam2,torso ~41deg at T0 -> ~37deg at T1 (~4-6deg); head drop exaggerates
+barbellrow_0000,P1,tuning,4,211,6.23,7.93,row2_torso_angle,tip,low,cam2,torso ~40-43deg above horizontal at T0/T1 (borderline 40)
+barbellrow_0000,P1,tuning,4,211,6.23,7.93,row2_retraction,tip,low,"cam3,cam2","elbows only to torso line, upper back rounded; scapulae not visibly squeezed at peak (shirt)"
+barbellrow_0000,P1,tuning,4,211,6.23,7.93,row2_pull_height,tip,med,"cam2,cam1","bar reaches lower belly/belt line just below navel, close to body"
+barbellrow_0000,P1,tuning,4,211,6.23,7.93,row2_shrug,tip,low,"cam3,cam2",shoulders ride up toward head at peak (neck shortens); head drop confounds
+barbellrow_0000,P1,tuning,4,211,6.23,7.93,row2_head,tip,med,cam2,neck flexes and head hangs below back line at T1 (looks at feet)
+barbellrow_0000,P1,tuning,5,262,7.93,9.7,row2_back_round,tip,med,"cam2,cam1",upper back rounds and shoulders roll forward at peak; lumbar looks neutral
+barbellrow_0000,P1,tuning,5,262,7.93,9.7,row2_torso_hold,good,med,cam2,torso ~41deg at T0 -> ~37deg at T1 (~4-6deg); head drop exaggerates
+barbellrow_0000,P1,tuning,5,262,7.93,9.7,row2_torso_angle,tip,low,cam2,torso ~40-43deg above horizontal at T0/T1 (borderline 40)
+barbellrow_0000,P1,tuning,5,262,7.93,9.7,row2_retraction,tip,low,"cam3,cam2","elbows only to torso line, upper back rounded; scapulae not visibly squeezed at peak (shirt)"
+barbellrow_0000,P1,tuning,5,262,7.93,9.7,row2_pull_height,tip,med,"cam2,cam1","bar reaches lower belly/belt line just below navel, close to body"
+barbellrow_0000,P1,tuning,5,262,7.93,9.7,row2_shrug,tip,low,"cam3,cam2",shoulders ride up toward head at peak (neck shortens); head drop confounds
+barbellrow_0000,P1,tuning,5,262,7.93,9.7,row2_head,tip,med,cam2,neck flexes and head hangs below back line at T1 (looks at feet)
+barbellrow_0000,P1,tuning,6,317,9.7,11.53,row2_back_round,tip,med,"cam2,cam1",upper back rounds and shoulders roll forward at peak; lumbar looks neutral
+barbellrow_0000,P1,tuning,6,317,9.7,11.53,row2_torso_hold,good,med,cam2,torso ~41deg at T0 -> ~37deg at T1 (~4-6deg); head drop exaggerates
+barbellrow_0000,P1,tuning,6,317,9.7,11.53,row2_torso_angle,tip,low,cam2,torso ~40-43deg above horizontal at T0/T1 (borderline 40)
+barbellrow_0000,P1,tuning,6,317,9.7,11.53,row2_retraction,tip,low,"cam3,cam2","elbows only to torso line, upper back rounded; scapulae not visibly squeezed at peak (shirt)"
+barbellrow_0000,P1,tuning,6,317,9.7,11.53,row2_pull_height,tip,med,"cam2,cam1","bar reaches lower belly/belt line just below navel, close to body"
+barbellrow_0000,P1,tuning,6,317,9.7,11.53,row2_shrug,tip,low,"cam3,cam2",shoulders ride up toward head at peak (neck shortens); head drop confounds
+barbellrow_0000,P1,tuning,6,317,9.7,11.53,row2_head,tip,med,cam2,neck flexes and head hangs below back line at T1 (looks at feet)
+barbellrow_0000,P1,tuning,7,371,11.53,13.37,row2_back_round,tip,med,"cam2,cam1",upper back rounds and shoulders roll forward at peak; lumbar looks neutral
+barbellrow_0000,P1,tuning,7,371,11.53,13.37,row2_torso_hold,good,med,cam2,torso ~41deg at T0 -> ~37deg at T1 (~4-6deg); head drop exaggerates
+barbellrow_0000,P1,tuning,7,371,11.53,13.37,row2_torso_angle,tip,low,cam2,torso ~40-43deg above horizontal at T0/T1 (borderline 40)
+barbellrow_0000,P1,tuning,7,371,11.53,13.37,row2_retraction,tip,low,"cam3,cam2","elbows only to torso line, upper back rounded; scapulae not visibly squeezed at peak (shirt)"
+barbellrow_0000,P1,tuning,7,371,11.53,13.37,row2_pull_height,tip,med,"cam2,cam1","bar reaches lower belly/belt line just below navel, close to body"
+barbellrow_0000,P1,tuning,7,371,11.53,13.37,row2_shrug,tip,low,"cam3,cam2",shoulders ride up toward head at peak (neck shortens); head drop confounds
+barbellrow_0000,P1,tuning,7,371,11.53,13.37,row2_head,tip,med,cam2,neck flexes and head hangs below back line at T1 (looks at feet)
+barbellrow_0000,P1,tuning,8,425,13.37,15.1,row2_back_round,tip,med,"cam2,cam1",upper back rounds and shoulders roll forward at peak; lumbar looks neutral
+barbellrow_0000,P1,tuning,8,425,13.37,15.1,row2_torso_hold,good,med,cam2,torso ~41deg at T0 -> ~37deg at T1 (~4-6deg); head drop exaggerates
+barbellrow_0000,P1,tuning,8,425,13.37,15.1,row2_torso_angle,tip,low,cam2,torso ~40-43deg above horizontal at T0/T1 (borderline 40)
+barbellrow_0000,P1,tuning,8,425,13.37,15.1,row2_retraction,tip,low,"cam3,cam2","elbows only to torso line, upper back rounded; scapulae not visibly squeezed at peak (shirt)"
+barbellrow_0000,P1,tuning,8,425,13.37,15.1,row2_pull_height,tip,med,"cam2,cam1","bar reaches lower belly/belt line just below navel, close to body"
+barbellrow_0000,P1,tuning,8,425,13.37,15.1,row2_shrug,tip,low,"cam3,cam2",shoulders ride up toward head at peak (neck shortens); head drop confounds
+barbellrow_0000,P1,tuning,8,425,13.37,15.1,row2_head,tip,med,cam2,neck flexes and head hangs below back line at T1 (looks at feet)
+barbellrow_0000,P1,tuning,9,478,15.1,16.77,row2_back_round,tip,med,"cam2,cam1",upper back rounds and shoulders roll forward at peak; lumbar looks neutral
+barbellrow_0000,P1,tuning,9,478,15.1,16.77,row2_torso_hold,good,low,cam2,torso ~45deg T0 -> ~38deg T1 (~7-9deg)
+barbellrow_0000,P1,tuning,9,478,15.1,16.77,row2_torso_angle,tip,med,cam2,"torso ~45deg at T0, ~38deg at T1"
+barbellrow_0000,P1,tuning,9,478,15.1,16.77,row2_retraction,tip,low,"cam3,cam2","elbows only to torso line, upper back rounded; scapulae not visibly squeezed at peak (shirt)"
+barbellrow_0000,P1,tuning,9,478,15.1,16.77,row2_pull_height,tip,med,"cam2,cam1","bar reaches lower belly/belt line just below navel, close to body"
+barbellrow_0000,P1,tuning,9,478,15.1,16.77,row2_shrug,tip,low,"cam3,cam2",shoulders ride up toward head at peak (neck shortens); head drop confounds
+barbellrow_0000,P1,tuning,9,478,15.1,16.77,row2_head,tip,med,"cam2,cam1","head lifted, looking forward (neck slightly extended) T0-T1"
+barbellrow_0000,P1,tuning,10,529,16.77,19.3,row2_back_round,tip,med,"cam2,cam1",upper back rounds and shoulders roll forward at peak; lumbar looks neutral
+barbellrow_0000,P1,tuning,10,529,16.77,19.3,row2_torso_hold,good,med,cam2,"torso ~42 -> ~37deg (~5deg); T3 is bar set-down, ignored"
+barbellrow_0000,P1,tuning,10,529,16.77,19.3,row2_torso_angle,tip,low,cam2,torso ~40-43deg above horizontal at T0/T1 (borderline 40)
+barbellrow_0000,P1,tuning,10,529,16.77,19.3,row2_retraction,tip,low,"cam3,cam2","elbows only to torso line, upper back rounded; scapulae not visibly squeezed at peak (shirt)"
+barbellrow_0000,P1,tuning,10,529,16.77,19.3,row2_pull_height,tip,med,"cam2,cam1","bar reaches lower belly/belt line just below navel, close to body"
+barbellrow_0000,P1,tuning,10,529,16.77,19.3,row2_shrug,tip,low,"cam3,cam2",shoulders ride up toward head at peak (neck shortens); head drop confounds
+barbellrow_0000,P1,tuning,10,529,16.77,19.3,row2_head,tip,med,cam2,neck flexes and head hangs below back line at T1 (looks at feet)
+barbellrow_0001,P3,heldout,1,54,1.1,2.53,row2_back_round,tip,med,"cam2,cam1",back flat-ish at T0; upper back hunches/shoulders roll forward at peak; lumbar not rounded
+barbellrow_0001,P3,heldout,1,54,1.1,2.53,row2_torso_hold,tip,med,cam2,torso ~33deg T0 -> ~50deg T1 (~17deg)
+barbellrow_0001,P3,heldout,1,54,1.1,2.53,row2_torso_angle,tip,med,cam2,"~33deg T0, ~50deg T1"
+barbellrow_0001,P3,heldout,1,54,1.1,2.53,row2_retraction,tip,med,"cam3,cam2","elbows only to torso sides, shoulders stay forward; no scapular squeeze visible"
+barbellrow_0001,P3,heldout,1,54,1.1,2.53,row2_pull_height,tip,med,"cam2,cam1","bar to hip crease/belt line, below navel"
+barbellrow_0001,P3,heldout,1,54,1.1,2.53,row2_shrug,tip,low,"cam2,cam3",shoulders hunch up toward head at peak (side view); neck hidden by hair in cam3
+barbellrow_0001,P3,heldout,1,54,1.1,2.53,row2_head,tip,low,"cam2,cam1","head drops, cap brim down, looking at floor at T1"
+barbellrow_0001,P3,heldout,2,95,2.53,3.9,row2_back_round,tip,med,"cam2,cam1",back flat-ish at T0; upper back hunches/shoulders roll forward at peak; lumbar not rounded
+barbellrow_0001,P3,heldout,2,95,2.53,3.9,row2_torso_hold,tip,med,cam2,torso ~34deg T0 -> ~47deg T1 (~13deg)
+barbellrow_0001,P3,heldout,2,95,2.53,3.9,row2_torso_angle,tip,med,cam2,~34deg at T0 but ~48deg at T1
+barbellrow_0001,P3,heldout,2,95,2.53,3.9,row2_retraction,tip,med,"cam3,cam2","elbows only to torso sides, shoulders stay forward; no scapular squeeze visible"
+barbellrow_0001,P3,heldout,2,95,2.53,3.9,row2_pull_height,tip,med,"cam2,cam1","bar to hip crease/belt line, below navel"
+barbellrow_0001,P3,heldout,2,95,2.53,3.9,row2_shrug,tip,low,"cam2,cam3",shoulders hunch up toward head at peak (side view); neck hidden by hair in cam3
+barbellrow_0001,P3,heldout,2,95,2.53,3.9,row2_head,tip,low,"cam2,cam1","head drops, cap brim down, looking at floor at T1"
+barbellrow_0001,P3,heldout,3,137,3.9,5.27,row2_back_round,tip,med,"cam2,cam1",back flat-ish at T0; upper back hunches/shoulders roll forward at peak; lumbar not rounded
+barbellrow_0001,P3,heldout,3,137,3.9,5.27,row2_torso_hold,tip,med,cam2,"torso ~34deg at T0 -> ~48deg at T1 (~14deg), chest rises to meet bar"
+barbellrow_0001,P3,heldout,3,137,3.9,5.27,row2_torso_angle,tip,med,cam2,~34deg at T0 but ~48deg at T1
+barbellrow_0001,P3,heldout,3,137,3.9,5.27,row2_retraction,tip,med,"cam3,cam2","elbows only to torso sides, shoulders stay forward; no scapular squeeze visible"
+barbellrow_0001,P3,heldout,3,137,3.9,5.27,row2_pull_height,tip,med,"cam2,cam1","bar to hip crease/belt line, below navel"
+barbellrow_0001,P3,heldout,3,137,3.9,5.27,row2_shrug,tip,low,"cam2,cam3",shoulders hunch up toward head at peak (side view); neck hidden by hair in cam3
+barbellrow_0001,P3,heldout,3,137,3.9,5.27,row2_head,tip,low,"cam2,cam1","head drops, cap brim down, looking at floor at T1"
+barbellrow_0001,P3,heldout,4,179,5.27,6.73,row2_back_round,tip,med,"cam2,cam1",back flat-ish at T0; upper back hunches/shoulders roll forward at peak; lumbar not rounded
+barbellrow_0001,P3,heldout,4,179,5.27,6.73,row2_torso_hold,tip,med,cam2,"torso ~34deg at T0 -> ~48deg at T1 (~14deg), chest rises to meet bar"
+barbellrow_0001,P3,heldout,4,179,5.27,6.73,row2_torso_angle,tip,med,cam2,~34deg at T0 but ~48deg at T1
+barbellrow_0001,P3,heldout,4,179,5.27,6.73,row2_retraction,tip,med,"cam3,cam2","elbows only to torso sides, shoulders stay forward; no scapular squeeze visible"
+barbellrow_0001,P3,heldout,4,179,5.27,6.73,row2_pull_height,tip,med,"cam2,cam1","bar to hip crease/belt line, below navel"
+barbellrow_0001,P3,heldout,4,179,5.27,6.73,row2_shrug,tip,low,"cam2,cam3",shoulders hunch up toward head at peak (side view); neck hidden by hair in cam3
+barbellrow_0001,P3,heldout,4,179,5.27,6.73,row2_head,tip,low,"cam2,cam1","head drops, cap brim down, looking at floor at T1"
+barbellrow_0001,P3,heldout,5,222,6.73,8.17,row2_back_round,tip,med,"cam2,cam1",back flat-ish at T0; upper back hunches/shoulders roll forward at peak; lumbar not rounded
+barbellrow_0001,P3,heldout,5,222,6.73,8.17,row2_torso_hold,tip,med,cam2,"torso ~34deg at T0 -> ~48deg at T1 (~14deg), chest rises to meet bar"
+barbellrow_0001,P3,heldout,5,222,6.73,8.17,row2_torso_angle,tip,med,cam2,~34deg at T0 but ~48deg at T1
+barbellrow_0001,P3,heldout,5,222,6.73,8.17,row2_retraction,tip,med,"cam3,cam2","elbows only to torso sides, shoulders stay forward; no scapular squeeze visible"
+barbellrow_0001,P3,heldout,5,222,6.73,8.17,row2_pull_height,tip,med,"cam2,cam1","bar to hip crease/belt line, below navel"
+barbellrow_0001,P3,heldout,5,222,6.73,8.17,row2_shrug,tip,low,"cam2,cam3",shoulders hunch up toward head at peak (side view); neck hidden by hair in cam3
+barbellrow_0001,P3,heldout,5,222,6.73,8.17,row2_head,tip,low,"cam2,cam1","head drops, cap brim down, looking at floor at T1"
+barbellrow_0001,P3,heldout,6,265,8.17,9.67,row2_back_round,tip,med,"cam2,cam1",back flat-ish at T0; upper back hunches/shoulders roll forward at peak; lumbar not rounded
+barbellrow_0001,P3,heldout,6,265,8.17,9.67,row2_torso_hold,tip,med,cam2,"torso ~34deg at T0 -> ~48deg at T1 (~14deg), chest rises to meet bar"
+barbellrow_0001,P3,heldout,6,265,8.17,9.67,row2_torso_angle,tip,med,cam2,~34deg at T0 but ~48deg at T1
+barbellrow_0001,P3,heldout,6,265,8.17,9.67,row2_retraction,tip,med,"cam3,cam2","elbows only to torso sides, shoulders stay forward; no scapular squeeze visible"
+barbellrow_0001,P3,heldout,6,265,8.17,9.67,row2_pull_height,tip,med,"cam2,cam1","bar to hip crease/belt line, below navel"
+barbellrow_0001,P3,heldout,6,265,8.17,9.67,row2_shrug,tip,low,"cam2,cam3",shoulders hunch up toward head at peak (side view); neck hidden by hair in cam3
+barbellrow_0001,P3,heldout,6,265,8.17,9.67,row2_head,tip,low,"cam2,cam1","head drops, cap brim down, looking at floor at T1"
+barbellrow_0001,P3,heldout,7,313,9.67,11.27,row2_back_round,tip,med,"cam2,cam1",back flat-ish at T0; upper back hunches/shoulders roll forward at peak; lumbar not rounded
+barbellrow_0001,P3,heldout,7,313,9.67,11.27,row2_torso_hold,tip,med,cam2,"torso ~34deg at T0 -> ~48deg at T1 (~14deg), chest rises to meet bar"
+barbellrow_0001,P3,heldout,7,313,9.67,11.27,row2_torso_angle,tip,med,cam2,~34deg at T0 but ~48deg at T1
+barbellrow_0001,P3,heldout,7,313,9.67,11.27,row2_retraction,tip,med,"cam3,cam2","elbows only to torso sides, shoulders stay forward; no scapular squeeze visible"
+barbellrow_0001,P3,heldout,7,313,9.67,11.27,row2_pull_height,tip,med,"cam2,cam1","bar to hip crease/belt line, below navel"
+barbellrow_0001,P3,heldout,7,313,9.67,11.27,row2_shrug,tip,low,"cam2,cam3",shoulders hunch up toward head at peak (side view); neck hidden by hair in cam3
+barbellrow_0001,P3,heldout,7,313,9.67,11.27,row2_head,tip,low,"cam2,cam1","head drops, cap brim down, looking at floor at T1"
+barbellrow_0001,P3,heldout,8,358,11.27,12.77,row2_back_round,tip,med,"cam2,cam1",back flat-ish at T0; upper back hunches/shoulders roll forward at peak; lumbar not rounded
+barbellrow_0001,P3,heldout,8,358,11.27,12.77,row2_torso_hold,tip,med,cam2,"torso ~34deg at T0 -> ~48deg at T1 (~14deg), chest rises to meet bar"
+barbellrow_0001,P3,heldout,8,358,11.27,12.77,row2_torso_angle,tip,med,cam2,~34deg at T0 but ~48deg at T1
+barbellrow_0001,P3,heldout,8,358,11.27,12.77,row2_retraction,tip,med,"cam3,cam2","elbows only to torso sides, shoulders stay forward; no scapular squeeze visible"
+barbellrow_0001,P3,heldout,8,358,11.27,12.77,row2_pull_height,tip,med,"cam2,cam1","bar to hip crease/belt line, below navel"
+barbellrow_0001,P3,heldout,8,358,11.27,12.77,row2_shrug,tip,low,"cam2,cam3",shoulders hunch up toward head at peak (side view); neck hidden by hair in cam3
+barbellrow_0001,P3,heldout,8,358,11.27,12.77,row2_head,tip,low,"cam2,cam1","head drops, cap brim down, looking at floor at T1"
+barbellrow_0001,P3,heldout,9,405,12.77,14.37,row2_back_round,tip,med,"cam2,cam1",back flat-ish at T0; upper back hunches/shoulders roll forward at peak; lumbar not rounded
+barbellrow_0001,P3,heldout,9,405,12.77,14.37,row2_torso_hold,tip,med,cam2,"torso ~34deg at T0 -> ~48deg at T1 (~14deg), chest rises to meet bar"
+barbellrow_0001,P3,heldout,9,405,12.77,14.37,row2_torso_angle,tip,med,cam2,~34deg at T0 but ~48deg at T1
+barbellrow_0001,P3,heldout,9,405,12.77,14.37,row2_retraction,tip,med,"cam3,cam2","elbows only to torso sides, shoulders stay forward; no scapular squeeze visible"
+barbellrow_0001,P3,heldout,9,405,12.77,14.37,row2_pull_height,tip,med,"cam2,cam1","bar to hip crease/belt line, below navel"
+barbellrow_0001,P3,heldout,9,405,12.77,14.37,row2_shrug,tip,low,"cam2,cam3",shoulders hunch up toward head at peak (side view); neck hidden by hair in cam3
+barbellrow_0001,P3,heldout,9,405,12.77,14.37,row2_head,tip,low,"cam2,cam1","head drops, cap brim down, looking at floor at T1"
+barbellrow_0001,P3,heldout,10,454,14.37,16.0,row2_back_round,tip,med,"cam2,cam1",back flat-ish at T0; upper back hunches/shoulders roll forward at peak; lumbar not rounded
+barbellrow_0001,P3,heldout,10,454,14.37,16.0,row2_torso_hold,tip,med,cam2,"torso ~34deg at T0 -> ~48deg at T1 (~14deg), chest rises to meet bar"
+barbellrow_0001,P3,heldout,10,454,14.37,16.0,row2_torso_angle,tip,med,cam2,~34deg at T0 but ~48deg at T1
+barbellrow_0001,P3,heldout,10,454,14.37,16.0,row2_retraction,tip,med,"cam3,cam2","elbows only to torso sides, shoulders stay forward; no scapular squeeze visible"
+barbellrow_0001,P3,heldout,10,454,14.37,16.0,row2_pull_height,tip,med,"cam2,cam1","bar to hip crease/belt line, below navel"
+barbellrow_0001,P3,heldout,10,454,14.37,16.0,row2_shrug,tip,low,"cam2,cam3",shoulders hunch up toward head at peak (side view); neck hidden by hair in cam3
+barbellrow_0001,P3,heldout,10,454,14.37,16.0,row2_head,tip,low,"cam2,cam1","head drops, cap brim down, looking at floor at T1"
+barbellrow_0002,P1,tuning,1,104,1.03,4.77,row2_back_round,tip,med,"cam2,cam1",upper back hunches and shoulders roll forward at peak; lumbar not visibly rounded
+barbellrow_0002,P1,tuning,1,104,1.03,4.77,row2_torso_hold,tip,med,cam2,bar lifted off rack at T0 (~35deg); judged Tm ~60deg -> T1 ~48deg (~12deg)
+barbellrow_0002,P1,tuning,1,104,1.03,4.77,row2_torso_angle,tip,med,cam2,"~60deg at Tm (after unrack), ~48deg at T1"
+barbellrow_0002,P1,tuning,1,104,1.03,4.77,row2_retraction,tip,med,"cam3,cam2","elbows only to torso sides, shoulders stay forward/rounded; no scapular squeeze visible"
+barbellrow_0002,P1,tuning,1,104,1.03,4.77,row2_pull_height,tip,med,"cam2,cam1","bar to lower belly/belt line, below navel"
+barbellrow_0002,P1,tuning,1,104,1.03,4.77,row2_shrug,tip,low,"cam3,cam2",shoulders ride up around dropped head at peak; head drop confounds
+barbellrow_0002,P1,tuning,1,104,1.03,4.77,row2_head,tip,med,cam2,"head drops/neck flexes at T1, looking at floor"
+barbellrow_0002,P1,tuning,2,177,4.77,7.2,row2_back_round,tip,med,"cam2,cam1",upper back hunches and shoulders roll forward at peak; lumbar not visibly rounded
+barbellrow_0002,P1,tuning,2,177,4.77,7.2,row2_torso_hold,tip,low,cam2,"torso ~53deg at T0 -> ~43deg at T1 (~10deg), dips to meet bar"
+barbellrow_0002,P1,tuning,2,177,4.77,7.2,row2_torso_angle,tip,med,cam2,"torso ~50-55deg at T0, ~43-48deg at T1 (upright row)"
+barbellrow_0002,P1,tuning,2,177,4.77,7.2,row2_retraction,tip,med,"cam3,cam2","elbows only to torso sides, shoulders stay forward/rounded; no scapular squeeze visible"
+barbellrow_0002,P1,tuning,2,177,4.77,7.2,row2_pull_height,tip,med,"cam2,cam1","bar to lower belly/belt line, below navel"
+barbellrow_0002,P1,tuning,2,177,4.77,7.2,row2_shrug,tip,low,"cam3,cam2",shoulders ride up around dropped head at peak; head drop confounds
+barbellrow_0002,P1,tuning,2,177,4.77,7.2,row2_head,tip,med,cam2,"head drops/neck flexes at T1, looking at floor"
+barbellrow_0002,P1,tuning,3,253,7.2,9.87,row2_back_round,tip,med,"cam2,cam1",upper back hunches and shoulders roll forward at peak; lumbar not visibly rounded
+barbellrow_0002,P1,tuning,3,253,7.2,9.87,row2_torso_hold,tip,low,cam2,"torso ~53deg at T0 -> ~43deg at T1 (~10deg), dips to meet bar"
+barbellrow_0002,P1,tuning,3,253,7.2,9.87,row2_torso_angle,tip,med,cam2,"torso ~50-55deg at T0, ~43-48deg at T1 (upright row)"
+barbellrow_0002,P1,tuning,3,253,7.2,9.87,row2_retraction,tip,med,"cam3,cam2","elbows only to torso sides, shoulders stay forward/rounded; no scapular squeeze visible"
+barbellrow_0002,P1,tuning,3,253,7.2,9.87,row2_pull_height,tip,med,"cam2,cam1","bar to lower belly/belt line, below navel"
+barbellrow_0002,P1,tuning,3,253,7.2,9.87,row2_shrug,tip,low,"cam3,cam2",shoulders ride up around dropped head at peak; head drop confounds
+barbellrow_0002,P1,tuning,3,253,7.2,9.87,row2_head,tip,med,cam2,"head drops/neck flexes at T1, looking at floor"
+barbellrow_0002,P1,tuning,4,331,9.87,12.5,row2_back_round,tip,med,"cam2,cam1",upper back hunches and shoulders roll forward at peak; lumbar not visibly rounded
+barbellrow_0002,P1,tuning,4,331,9.87,12.5,row2_torso_hold,tip,low,cam2,"torso ~53deg at T0 -> ~43deg at T1 (~10deg), dips to meet bar"
+barbellrow_0002,P1,tuning,4,331,9.87,12.5,row2_torso_angle,tip,med,cam2,"torso ~50-55deg at T0, ~43-48deg at T1 (upright row)"
+barbellrow_0002,P1,tuning,4,331,9.87,12.5,row2_retraction,tip,med,"cam3,cam2","elbows only to torso sides, shoulders stay forward/rounded; no scapular squeeze visible"
+barbellrow_0002,P1,tuning,4,331,9.87,12.5,row2_pull_height,tip,med,"cam2,cam1","bar to lower belly/belt line, below navel"
+barbellrow_0002,P1,tuning,4,331,9.87,12.5,row2_shrug,tip,low,"cam3,cam2",shoulders ride up around dropped head at peak; head drop confounds
+barbellrow_0002,P1,tuning,4,331,9.87,12.5,row2_head,tip,med,cam2,"head drops/neck flexes at T1, looking at floor"
+barbellrow_0002,P1,tuning,5,413,12.5,15.27,row2_back_round,tip,med,"cam2,cam1",upper back hunches and shoulders roll forward at peak; lumbar not visibly rounded
+barbellrow_0002,P1,tuning,5,413,12.5,15.27,row2_torso_hold,tip,med,cam2,torso ~55deg T0 -> ~42deg T1 (~13deg)
+barbellrow_0002,P1,tuning,5,413,12.5,15.27,row2_torso_angle,tip,med,cam2,"torso ~50-55deg at T0, ~43-48deg at T1 (upright row)"
+barbellrow_0002,P1,tuning,5,413,12.5,15.27,row2_retraction,tip,med,"cam3,cam2","elbows only to torso sides, shoulders stay forward/rounded; no scapular squeeze visible"
+barbellrow_0002,P1,tuning,5,413,12.5,15.27,row2_pull_height,tip,med,"cam2,cam1","bar to lower belly/belt line, below navel"
+barbellrow_0002,P1,tuning,5,413,12.5,15.27,row2_shrug,tip,low,"cam3,cam2",shoulders ride up around dropped head at peak; head drop confounds
+barbellrow_0002,P1,tuning,5,413,12.5,15.27,row2_head,tip,med,cam2,"head drops/neck flexes at T1, looking at floor"
+barbellrow_0002,P1,tuning,6,495,15.27,17.73,row2_back_round,tip,med,"cam2,cam1",upper back hunches and shoulders roll forward at peak; lumbar not visibly rounded
+barbellrow_0002,P1,tuning,6,495,15.27,17.73,row2_torso_hold,tip,low,cam2,"torso ~53deg at T0 -> ~43deg at T1 (~10deg), dips to meet bar"
+barbellrow_0002,P1,tuning,6,495,15.27,17.73,row2_torso_angle,tip,med,cam2,"torso ~50-55deg at T0, ~43-48deg at T1 (upright row)"
+barbellrow_0002,P1,tuning,6,495,15.27,17.73,row2_retraction,tip,med,"cam3,cam2","elbows only to torso sides, shoulders stay forward/rounded; no scapular squeeze visible"
+barbellrow_0002,P1,tuning,6,495,15.27,17.73,row2_pull_height,tip,med,"cam2,cam1","bar to lower belly/belt line, below navel"
+barbellrow_0002,P1,tuning,6,495,15.27,17.73,row2_shrug,tip,low,"cam3,cam2",shoulders ride up around dropped head at peak; head drop confounds
+barbellrow_0002,P1,tuning,6,495,15.27,17.73,row2_head,tip,med,cam2,"head drops/neck flexes at T1, looking at floor"
+barbellrow_0002,P1,tuning,7,568,17.73,20.13,row2_back_round,tip,med,"cam2,cam1",upper back hunches and shoulders roll forward at peak; lumbar not visibly rounded
+barbellrow_0002,P1,tuning,7,568,17.73,20.13,row2_torso_hold,tip,low,cam2,"torso ~53deg at T0 -> ~43deg at T1 (~10deg), dips to meet bar"
+barbellrow_0002,P1,tuning,7,568,17.73,20.13,row2_torso_angle,tip,med,cam2,"torso ~50-55deg at T0, ~43-48deg at T1 (upright row)"
+barbellrow_0002,P1,tuning,7,568,17.73,20.13,row2_retraction,tip,med,"cam3,cam2","elbows only to torso sides, shoulders stay forward/rounded; no scapular squeeze visible"
+barbellrow_0002,P1,tuning,7,568,17.73,20.13,row2_pull_height,tip,med,"cam2,cam1","bar to lower belly/belt line, below navel"
+barbellrow_0002,P1,tuning,7,568,17.73,20.13,row2_shrug,tip,low,"cam3,cam2",shoulders ride up around dropped head at peak; head drop confounds
+barbellrow_0002,P1,tuning,7,568,17.73,20.13,row2_head,tip,med,cam2,"head drops/neck flexes at T1, looking at floor"
+barbellrow_0002,P1,tuning,8,639,20.13,22.5,row2_back_round,tip,med,"cam2,cam1",upper back hunches and shoulders roll forward at peak; lumbar not visibly rounded
+barbellrow_0002,P1,tuning,8,639,20.13,22.5,row2_torso_hold,tip,low,cam2,"torso ~53deg at T0 -> ~43deg at T1 (~10deg), dips to meet bar"
+barbellrow_0002,P1,tuning,8,639,20.13,22.5,row2_torso_angle,tip,med,cam2,"~55deg at T0, ~45deg at T1 (borderline 55)"
+barbellrow_0002,P1,tuning,8,639,20.13,22.5,row2_retraction,tip,med,"cam3,cam2","elbows only to torso sides, shoulders stay forward/rounded; no scapular squeeze visible"
+barbellrow_0002,P1,tuning,8,639,20.13,22.5,row2_pull_height,tip,med,"cam2,cam1","bar to lower belly/belt line, below navel"
+barbellrow_0002,P1,tuning,8,639,20.13,22.5,row2_shrug,tip,low,"cam3,cam2",shoulders ride up around dropped head at peak; head drop confounds
+barbellrow_0002,P1,tuning,8,639,20.13,22.5,row2_head,tip,med,cam2,"head drops/neck flexes at T1, looking at floor"
+barbellrow_0002,P1,tuning,9,708,22.5,24.93,row2_back_round,tip,med,"cam2,cam1",upper back hunches and shoulders roll forward at peak; lumbar not visibly rounded
+barbellrow_0002,P1,tuning,9,708,22.5,24.93,row2_torso_hold,good,low,cam2,torso ~58deg T0 -> ~50deg T1 (~8deg)
+barbellrow_0002,P1,tuning,9,708,22.5,24.93,row2_torso_angle,error,med,cam2,"~58-60deg at T0, ~50deg at T1"
+barbellrow_0002,P1,tuning,9,708,22.5,24.93,row2_retraction,tip,med,"cam3,cam2","elbows only to torso sides, shoulders stay forward/rounded; no scapular squeeze visible"
+barbellrow_0002,P1,tuning,9,708,22.5,24.93,row2_pull_height,tip,med,"cam2,cam1","bar to lower belly/belt line, below navel"
+barbellrow_0002,P1,tuning,9,708,22.5,24.93,row2_shrug,tip,low,"cam3,cam2",shoulders ride up around dropped head at peak; head drop confounds
+barbellrow_0002,P1,tuning,9,708,22.5,24.93,row2_head,tip,med,"cam2,cam1",head raised looking forward at T0-T1 (neck slightly extended)
+barbellrow_0002,P1,tuning,10,780,24.93,27.43,row2_back_round,tip,med,"cam2,cam1",upper back hunches and shoulders roll forward at peak; lumbar not visibly rounded
+barbellrow_0002,P1,tuning,10,780,24.93,27.43,row2_torso_hold,tip,low,cam2,"torso ~53deg at T0 -> ~43deg at T1 (~10deg), dips to meet bar"
+barbellrow_0002,P1,tuning,10,780,24.93,27.43,row2_torso_angle,error,low,cam2,"~57deg at T0, ~48deg at T1"
+barbellrow_0002,P1,tuning,10,780,24.93,27.43,row2_retraction,tip,med,"cam3,cam2","elbows only to torso sides, shoulders stay forward/rounded; no scapular squeeze visible"
+barbellrow_0002,P1,tuning,10,780,24.93,27.43,row2_pull_height,tip,med,"cam2,cam1","bar to lower belly/belt line, below navel"
+barbellrow_0002,P1,tuning,10,780,24.93,27.43,row2_shrug,tip,low,"cam3,cam2",shoulders ride up around dropped head at peak; head drop confounds
+barbellrow_0002,P1,tuning,10,780,24.93,27.43,row2_head,tip,med,"cam2,cam1","head raised looking forward at T0, drops at T1"
+barbellrow_0002,P1,tuning,11,854,27.43,29.97,row2_back_round,tip,med,"cam2,cam1",upper back hunches and shoulders roll forward at peak; lumbar not visibly rounded
+barbellrow_0002,P1,tuning,11,854,27.43,29.97,row2_torso_hold,tip,low,cam2,"torso ~53deg at T0 -> ~43deg at T1 (~10deg), dips to meet bar"
+barbellrow_0002,P1,tuning,11,854,27.43,29.97,row2_torso_angle,tip,med,cam2,"torso ~50-55deg at T0, ~43-48deg at T1 (upright row)"
+barbellrow_0002,P1,tuning,11,854,27.43,29.97,row2_retraction,tip,med,"cam3,cam2","elbows only to torso sides, shoulders stay forward/rounded; no scapular squeeze visible"
+barbellrow_0002,P1,tuning,11,854,27.43,29.97,row2_pull_height,tip,med,"cam2,cam1","bar to lower belly/belt line, below navel"
+barbellrow_0002,P1,tuning,11,854,27.43,29.97,row2_shrug,tip,low,"cam3,cam2",shoulders ride up around dropped head at peak; head drop confounds
+barbellrow_0002,P1,tuning,11,854,27.43,29.97,row2_head,tip,med,cam2,"head drops/neck flexes at T1, looking at floor"
+barbellrow_0002,P1,tuning,12,931,29.97,32.4,row2_back_round,tip,med,"cam2,cam1",upper back hunches and shoulders roll forward at peak; lumbar not visibly rounded
+barbellrow_0002,P1,tuning,12,931,29.97,32.4,row2_torso_hold,tip,low,cam2,"torso ~55deg T0 -> ~44deg T1 (~11deg); T3 is bar set-down, ignored"
+barbellrow_0002,P1,tuning,12,931,29.97,32.4,row2_torso_angle,tip,med,cam2,"torso ~50-55deg at T0, ~43-48deg at T1 (upright row)"
+barbellrow_0002,P1,tuning,12,931,29.97,32.4,row2_retraction,tip,med,"cam3,cam2","elbows only to torso sides, shoulders stay forward/rounded; no scapular squeeze visible"
+barbellrow_0002,P1,tuning,12,931,29.97,32.4,row2_pull_height,tip,med,"cam2,cam1","bar to lower belly/belt line, below navel"
+barbellrow_0002,P1,tuning,12,931,29.97,32.4,row2_shrug,tip,low,"cam3,cam2",shoulders ride up around dropped head at peak; head drop confounds
+barbellrow_0002,P1,tuning,12,931,29.97,32.4,row2_head,tip,med,cam2,"head drops/neck flexes at T1, looking at floor"
+barbellrow_0003,P2,heldout,1,137,3.67,5.63,row2_back_round,tip,low,"cam2,cam3","marked upper-back rounding, shoulders rolled forward esp. at T1; loose shirt hides lumbar"
+barbellrow_0003,P2,heldout,1,137,3.67,5.63,row2_torso_hold,good,low,cam2,torso ~50deg at T0 -> ~47deg at T1 (~3-6deg); back rounds rather than torso moving
+barbellrow_0003,P2,heldout,1,137,3.67,5.63,row2_torso_angle,tip,med,cam2,torso ~50deg above horizontal T0/T1 (upright row)
+barbellrow_0003,P2,heldout,1,137,3.67,5.63,row2_retraction,tip,med,"cam3,cam2","elbows only to torso sides, upper back stays wide/rounded; no scapular squeeze at peak"
+barbellrow_0003,P2,heldout,1,137,3.67,5.63,row2_pull_height,tip,med,"cam2,cam1","bar to belt/hip crease, below navel"
+barbellrow_0003,P2,heldout,1,137,3.67,5.63,row2_shrug,tip,low,"cam3,cam2",shoulders round up around dropped head at peak; head drop confounds
+barbellrow_0003,P2,heldout,1,137,3.67,5.63,row2_head,tip,med,"cam2,cam1","head hangs, chin toward chest through the rep (more at T1)"
+barbellrow_0003,P2,heldout,2,192,5.63,7.33,row2_back_round,tip,low,"cam2,cam3","marked upper-back rounding, shoulders rolled forward esp. at T1; loose shirt hides lumbar"
+barbellrow_0003,P2,heldout,2,192,5.63,7.33,row2_torso_hold,good,low,cam2,torso ~50deg at T0 -> ~47deg at T1 (~3-6deg); back rounds rather than torso moving
+barbellrow_0003,P2,heldout,2,192,5.63,7.33,row2_torso_angle,tip,med,cam2,torso ~50deg above horizontal T0/T1 (upright row)
+barbellrow_0003,P2,heldout,2,192,5.63,7.33,row2_retraction,tip,med,"cam3,cam2","elbows only to torso sides, upper back stays wide/rounded; no scapular squeeze at peak"
+barbellrow_0003,P2,heldout,2,192,5.63,7.33,row2_pull_height,tip,med,"cam2,cam1","bar to belt/hip crease, below navel"
+barbellrow_0003,P2,heldout,2,192,5.63,7.33,row2_shrug,tip,low,"cam3,cam2",shoulders round up around dropped head at peak; head drop confounds
+barbellrow_0003,P2,heldout,2,192,5.63,7.33,row2_head,tip,med,"cam2,cam1","head hangs, chin toward chest through the rep (more at T1)"
+barbellrow_0003,P2,heldout,3,241,7.33,8.93,row2_back_round,tip,low,"cam2,cam3","marked upper-back rounding, shoulders rolled forward esp. at T1; loose shirt hides lumbar"
+barbellrow_0003,P2,heldout,3,241,7.33,8.93,row2_torso_hold,good,low,cam2,torso ~50deg at T0 -> ~47deg at T1 (~3-6deg); back rounds rather than torso moving
+barbellrow_0003,P2,heldout,3,241,7.33,8.93,row2_torso_angle,tip,med,cam2,torso ~50deg above horizontal T0/T1 (upright row)
+barbellrow_0003,P2,heldout,3,241,7.33,8.93,row2_retraction,tip,med,"cam3,cam2","elbows only to torso sides, upper back stays wide/rounded; no scapular squeeze at peak"
+barbellrow_0003,P2,heldout,3,241,7.33,8.93,row2_pull_height,tip,med,"cam2,cam1","bar to belt/hip crease, below navel"
+barbellrow_0003,P2,heldout,3,241,7.33,8.93,row2_shrug,tip,low,"cam3,cam2",shoulders round up around dropped head at peak; head drop confounds
+barbellrow_0003,P2,heldout,3,241,7.33,8.93,row2_head,tip,med,"cam2,cam1","head hangs, chin toward chest through the rep (more at T1)"
+barbellrow_0003,P2,heldout,4,290,8.93,10.57,row2_back_round,tip,low,"cam2,cam3","marked upper-back rounding, shoulders rolled forward esp. at T1; loose shirt hides lumbar"
+barbellrow_0003,P2,heldout,4,290,8.93,10.57,row2_torso_hold,good,low,cam2,torso ~50deg at T0 -> ~47deg at T1 (~3-6deg); back rounds rather than torso moving
+barbellrow_0003,P2,heldout,4,290,8.93,10.57,row2_torso_angle,tip,med,cam2,torso ~50deg above horizontal T0/T1 (upright row)
+barbellrow_0003,P2,heldout,4,290,8.93,10.57,row2_retraction,tip,med,"cam3,cam2","elbows only to torso sides, upper back stays wide/rounded; no scapular squeeze at peak"
+barbellrow_0003,P2,heldout,4,290,8.93,10.57,row2_pull_height,tip,med,"cam2,cam1","bar to belt/hip crease, below navel"
+barbellrow_0003,P2,heldout,4,290,8.93,10.57,row2_shrug,tip,low,"cam3,cam2",shoulders round up around dropped head at peak; head drop confounds
+barbellrow_0003,P2,heldout,4,290,8.93,10.57,row2_head,tip,med,"cam2,cam1","head hangs, chin toward chest through the rep (more at T1)"
+barbellrow_0003,P2,heldout,5,341,10.57,12.2,row2_back_round,tip,low,"cam2,cam3","marked upper-back rounding, shoulders rolled forward esp. at T1; loose shirt hides lumbar"
+barbellrow_0003,P2,heldout,5,341,10.57,12.2,row2_torso_hold,good,low,cam2,torso ~50deg at T0 -> ~47deg at T1 (~3-6deg); back rounds rather than torso moving
+barbellrow_0003,P2,heldout,5,341,10.57,12.2,row2_torso_angle,tip,med,cam2,torso ~50deg above horizontal T0/T1 (upright row)
+barbellrow_0003,P2,heldout,5,341,10.57,12.2,row2_retraction,tip,med,"cam3,cam2","elbows only to torso sides, upper back stays wide/rounded; no scapular squeeze at peak"
+barbellrow_0003,P2,heldout,5,341,10.57,12.2,row2_pull_height,tip,med,"cam2,cam1","bar to belt/hip crease, below navel"
+barbellrow_0003,P2,heldout,5,341,10.57,12.2,row2_shrug,tip,low,"cam3,cam2",shoulders round up around dropped head at peak; head drop confounds
+barbellrow_0003,P2,heldout,5,341,10.57,12.2,row2_head,tip,med,"cam2,cam1","head hangs, chin toward chest through the rep (more at T1)"
+barbellrow_0003,P2,heldout,6,390,12.2,13.8,row2_back_round,tip,low,"cam2,cam3","marked upper-back rounding, shoulders rolled forward esp. at T1; loose shirt hides lumbar"
+barbellrow_0003,P2,heldout,6,390,12.2,13.8,row2_torso_hold,good,low,cam2,torso ~50deg at T0 -> ~47deg at T1 (~3-6deg); back rounds rather than torso moving
+barbellrow_0003,P2,heldout,6,390,12.2,13.8,row2_torso_angle,tip,med,cam2,torso ~50deg above horizontal T0/T1 (upright row)
+barbellrow_0003,P2,heldout,6,390,12.2,13.8,row2_retraction,tip,med,"cam3,cam2","elbows only to torso sides, upper back stays wide/rounded; no scapular squeeze at peak"
+barbellrow_0003,P2,heldout,6,390,12.2,13.8,row2_pull_height,tip,med,"cam2,cam1","bar to belt/hip crease, below navel"
+barbellrow_0003,P2,heldout,6,390,12.2,13.8,row2_shrug,tip,low,"cam3,cam2",shoulders round up around dropped head at peak; head drop confounds
+barbellrow_0003,P2,heldout,6,390,12.2,13.8,row2_head,tip,med,"cam2,cam1","head hangs, chin toward chest through the rep (more at T1)"
+barbellrow_0003,P2,heldout,7,437,13.8,15.47,row2_back_round,tip,low,"cam2,cam3","marked upper-back rounding, shoulders rolled forward esp. at T1; loose shirt hides lumbar"
+barbellrow_0003,P2,heldout,7,437,13.8,15.47,row2_torso_hold,good,low,cam2,torso ~50deg at T0 -> ~47deg at T1 (~3-6deg); back rounds rather than torso moving
+barbellrow_0003,P2,heldout,7,437,13.8,15.47,row2_torso_angle,tip,med,cam2,torso ~50deg above horizontal T0/T1 (upright row)
+barbellrow_0003,P2,heldout,7,437,13.8,15.47,row2_retraction,tip,med,"cam3,cam2","elbows only to torso sides, upper back stays wide/rounded; no scapular squeeze at peak"
+barbellrow_0003,P2,heldout,7,437,13.8,15.47,row2_pull_height,tip,med,"cam2,cam1","bar to belt/hip crease, below navel"
+barbellrow_0003,P2,heldout,7,437,13.8,15.47,row2_shrug,tip,low,"cam3,cam2",shoulders round up around dropped head at peak; head drop confounds
+barbellrow_0003,P2,heldout,7,437,13.8,15.47,row2_head,tip,med,"cam2,cam1","head hangs, chin toward chest through the rep (more at T1)"
+barbellrow_0003,P2,heldout,8,486,15.47,17.07,row2_back_round,tip,low,"cam2,cam3","marked upper-back rounding, shoulders rolled forward esp. at T1; loose shirt hides lumbar"
+barbellrow_0003,P2,heldout,8,486,15.47,17.07,row2_torso_hold,good,low,cam2,torso ~50deg at T0 -> ~47deg at T1 (~3-6deg); back rounds rather than torso moving
+barbellrow_0003,P2,heldout,8,486,15.47,17.07,row2_torso_angle,tip,med,cam2,torso ~50deg above horizontal T0/T1 (upright row)
+barbellrow_0003,P2,heldout,8,486,15.47,17.07,row2_retraction,tip,med,"cam3,cam2","elbows only to torso sides, upper back stays wide/rounded; no scapular squeeze at peak"
+barbellrow_0003,P2,heldout,8,486,15.47,17.07,row2_pull_height,tip,med,"cam2,cam1","bar to belt/hip crease, below navel"
+barbellrow_0003,P2,heldout,8,486,15.47,17.07,row2_shrug,tip,low,"cam3,cam2",shoulders round up around dropped head at peak; head drop confounds
+barbellrow_0003,P2,heldout,8,486,15.47,17.07,row2_head,tip,med,"cam2,cam1","head hangs, chin toward chest through the rep (more at T1)"
+barbellrow_0003,P2,heldout,9,534,17.07,18.63,row2_back_round,tip,low,"cam2,cam3","marked upper-back rounding, shoulders rolled forward esp. at T1; loose shirt hides lumbar"
+barbellrow_0003,P2,heldout,9,534,17.07,18.63,row2_torso_hold,good,low,cam2,torso ~50deg at T0 -> ~47deg at T1 (~3-6deg); back rounds rather than torso moving
+barbellrow_0003,P2,heldout,9,534,17.07,18.63,row2_torso_angle,tip,med,cam2,torso ~50deg above horizontal T0/T1 (upright row)
+barbellrow_0003,P2,heldout,9,534,17.07,18.63,row2_retraction,tip,med,"cam3,cam2","elbows only to torso sides, upper back stays wide/rounded; no scapular squeeze at peak"
+barbellrow_0003,P2,heldout,9,534,17.07,18.63,row2_pull_height,tip,med,"cam2,cam1","bar to belt/hip crease, below navel"
+barbellrow_0003,P2,heldout,9,534,17.07,18.63,row2_shrug,tip,low,"cam3,cam2",shoulders round up around dropped head at peak; head drop confounds
+barbellrow_0003,P2,heldout,9,534,17.07,18.63,row2_head,tip,med,"cam2,cam1","head hangs, chin toward chest through the rep (more at T1)"
+barbellrow_0003,P2,heldout,10,581,18.63,20.67,row2_back_round,tip,low,"cam2,cam3","marked upper-back rounding, shoulders rolled forward esp. at T1; loose shirt hides lumbar"
+barbellrow_0003,P2,heldout,10,581,18.63,20.67,row2_torso_hold,good,low,cam2,"torso ~50 -> ~47deg (~3-6deg); T3 is bar set-down, ignored"
+barbellrow_0003,P2,heldout,10,581,18.63,20.67,row2_torso_angle,tip,med,cam2,torso ~50deg above horizontal T0/T1 (upright row)
+barbellrow_0003,P2,heldout,10,581,18.63,20.67,row2_retraction,tip,med,"cam3,cam2","elbows only to torso sides, upper back stays wide/rounded; no scapular squeeze at peak"
+barbellrow_0003,P2,heldout,10,581,18.63,20.67,row2_pull_height,tip,med,"cam2,cam1","bar to belt/hip crease, below navel"
+barbellrow_0003,P2,heldout,10,581,18.63,20.67,row2_shrug,tip,low,"cam3,cam2",shoulders round up around dropped head at peak; head drop confounds
+barbellrow_0003,P2,heldout,10,581,18.63,20.67,row2_head,tip,med,"cam2,cam1","head hangs, chin toward chest through the rep (more at T1)"
+pushup_0000,P1,tuning,1,67,1.07,3.03,pu2_elbow_flare,tip,med,"cam1,cam3",elbows point out to sides at T1; upper arm ~60-65deg from torso
+pushup_0000,P1,tuning,1,67,1.07,3.03,pu2_scapula,unsure,,"cam1,cam3",scapulae hidden under loose T-shirt; no visible winging or shrug
+pushup_0000,P1,tuning,1,67,1.07,3.03,pu2_hip_sag,good,med,cam3,hip ~1-2% below shoulder-ankle line at T1/T2
+pushup_0000,P1,tuning,1,67,1.07,3.03,pu2_hip_pike,good,med,cam3,hip on line at T0/T3 (~0-2%)
+pushup_0000,P1,tuning,1,67,1.07,3.03,pu2_depth,good,med,"cam3,cam1",elbow ~85deg at T1; chest ~5-8 cm off floor (about one fist)
+pushup_0000,P1,tuning,1,67,1.07,3.03,pu2_lockout,good,high,cam3,elbow ~175deg at T0/T3
+pushup_0000,P1,tuning,1,67,1.07,3.03,pu2_head_up,good,high,"cam3,cam2",gaze down at floor; no neck extension
+pushup_0000,P1,tuning,1,67,1.07,3.03,pu2_head_drop,tip,med,cam3,"head hangs below torso line at T1; neck flexed ~25-30deg, chin toward chest; face stays above chest level"
+pushup_0000,P1,tuning,1,67,1.07,3.03,pu2_hand,good,med,"cam1,cam3",wrists under shoulders (~0-10% ahead); width ~1.15x shoulder
+pushup_0000,P1,tuning,2,120,3.03,4.83,pu2_elbow_flare,tip,med,"cam1,cam3",elbows point out to sides at T1; upper arm ~60-65deg from torso
+pushup_0000,P1,tuning,2,120,3.03,4.83,pu2_scapula,unsure,,"cam1,cam3",scapulae hidden under loose T-shirt; no visible winging or shrug
+pushup_0000,P1,tuning,2,120,3.03,4.83,pu2_hip_sag,good,med,cam3,hip ~1-2% below shoulder-ankle line at T1/T2
+pushup_0000,P1,tuning,2,120,3.03,4.83,pu2_hip_pike,good,med,cam3,hip on line at T0/T3 (~0-2%)
+pushup_0000,P1,tuning,2,120,3.03,4.83,pu2_depth,good,med,"cam3,cam1",elbow ~85deg at T1; chest ~5-8 cm off floor (about one fist)
+pushup_0000,P1,tuning,2,120,3.03,4.83,pu2_lockout,good,high,cam3,elbow ~175deg at T0/T3
+pushup_0000,P1,tuning,2,120,3.03,4.83,pu2_head_up,good,high,"cam3,cam2",gaze down at floor; no neck extension
+pushup_0000,P1,tuning,2,120,3.03,4.83,pu2_head_drop,tip,med,cam3,"head hangs below torso line at T1; neck flexed ~25-30deg, chin toward chest; face stays above chest level"
+pushup_0000,P1,tuning,2,120,3.03,4.83,pu2_hand,good,med,"cam1,cam3",wrists under shoulders (~0-10% ahead); width ~1.15x shoulder
+pushup_0000,P1,tuning,3,174,4.83,6.67,pu2_elbow_flare,tip,med,"cam1,cam3",elbows point out to sides at T1; upper arm ~60-65deg from torso
+pushup_0000,P1,tuning,3,174,4.83,6.67,pu2_scapula,unsure,,"cam1,cam3",scapulae hidden under loose T-shirt; no visible winging or shrug
+pushup_0000,P1,tuning,3,174,4.83,6.67,pu2_hip_sag,good,med,cam3,hip ~1-2% below shoulder-ankle line at T1/T2
+pushup_0000,P1,tuning,3,174,4.83,6.67,pu2_hip_pike,good,med,cam3,hip on line at T0/T3 (~0-2%)
+pushup_0000,P1,tuning,3,174,4.83,6.67,pu2_depth,good,med,"cam3,cam1",elbow ~85deg at T1; chest ~5-8 cm off floor (about one fist)
+pushup_0000,P1,tuning,3,174,4.83,6.67,pu2_lockout,good,high,cam3,elbow ~175deg at T0/T3
+pushup_0000,P1,tuning,3,174,4.83,6.67,pu2_head_up,good,high,"cam3,cam2",gaze down at floor; no neck extension
+pushup_0000,P1,tuning,3,174,4.83,6.67,pu2_head_drop,tip,med,cam3,"head hangs below torso line at T1; neck flexed ~25-30deg, chin toward chest; face stays above chest level"
+pushup_0000,P1,tuning,3,174,4.83,6.67,pu2_hand,good,med,"cam1,cam3",wrists under shoulders (~0-10% ahead); width ~1.15x shoulder
+pushup_0000,P1,tuning,4,227,6.67,8.5,pu2_elbow_flare,tip,med,"cam1,cam3",elbows point out to sides at T1; upper arm ~60-65deg from torso
+pushup_0000,P1,tuning,4,227,6.67,8.5,pu2_scapula,unsure,,"cam1,cam3",scapulae hidden under loose T-shirt; no visible winging or shrug
+pushup_0000,P1,tuning,4,227,6.67,8.5,pu2_hip_sag,good,med,cam3,hip ~1-2% below shoulder-ankle line at T1/T2
+pushup_0000,P1,tuning,4,227,6.67,8.5,pu2_hip_pike,good,med,cam3,hip on line at T0/T3 (~0-2%)
+pushup_0000,P1,tuning,4,227,6.67,8.5,pu2_depth,good,med,"cam3,cam1",elbow ~85deg at T1; chest ~5-8 cm off floor (about one fist)
+pushup_0000,P1,tuning,4,227,6.67,8.5,pu2_lockout,good,high,cam3,elbow ~175deg at T0/T3
+pushup_0000,P1,tuning,4,227,6.67,8.5,pu2_head_up,good,high,"cam3,cam2",gaze down at floor; no neck extension
+pushup_0000,P1,tuning,4,227,6.67,8.5,pu2_head_drop,tip,med,cam3,"head hangs below torso line at T1; neck flexed ~25-30deg, chin toward chest; face stays above chest level"
+pushup_0000,P1,tuning,4,227,6.67,8.5,pu2_hand,good,med,"cam1,cam3",wrists under shoulders (~0-10% ahead); width ~1.15x shoulder
+pushup_0000,P1,tuning,5,285,8.5,10.5,pu2_elbow_flare,tip,med,"cam1,cam3",elbows point out to sides at T1; upper arm ~60-65deg from torso
+pushup_0000,P1,tuning,5,285,8.5,10.5,pu2_scapula,unsure,,"cam1,cam3",scapulae hidden under loose T-shirt; no visible winging or shrug
+pushup_0000,P1,tuning,5,285,8.5,10.5,pu2_hip_sag,good,med,cam3,hip ~1-2% below shoulder-ankle line at T1/T2
+pushup_0000,P1,tuning,5,285,8.5,10.5,pu2_hip_pike,good,med,cam3,hip on line at T0/T3 (~0-2%)
+pushup_0000,P1,tuning,5,285,8.5,10.5,pu2_depth,good,med,"cam3,cam1",elbow ~85deg at T1; chest ~5-8 cm off floor (about one fist)
+pushup_0000,P1,tuning,5,285,8.5,10.5,pu2_lockout,good,high,cam3,elbow ~175deg at T0/T3
+pushup_0000,P1,tuning,5,285,8.5,10.5,pu2_head_up,good,high,"cam3,cam2",gaze down at floor; no neck extension
+pushup_0000,P1,tuning,5,285,8.5,10.5,pu2_head_drop,tip,med,cam3,"head hangs below torso line at T1; neck flexed ~25-30deg, chin toward chest; face stays above chest level"
+pushup_0000,P1,tuning,5,285,8.5,10.5,pu2_hand,good,med,"cam1,cam3",wrists under shoulders (~0-10% ahead); width ~1.15x shoulder
+pushup_0000,P1,tuning,6,345,10.5,12.47,pu2_elbow_flare,tip,med,"cam1,cam3",elbows point out to sides at T1; upper arm ~60-65deg from torso
+pushup_0000,P1,tuning,6,345,10.5,12.47,pu2_scapula,unsure,,"cam1,cam3",scapulae hidden under loose T-shirt; no visible winging or shrug
+pushup_0000,P1,tuning,6,345,10.5,12.47,pu2_hip_sag,good,med,cam3,hip ~1-2% below shoulder-ankle line at T1/T2
+pushup_0000,P1,tuning,6,345,10.5,12.47,pu2_hip_pike,good,med,cam3,hip on line at T0/T3 (~0-2%)
+pushup_0000,P1,tuning,6,345,10.5,12.47,pu2_depth,good,med,"cam3,cam1",elbow ~85deg at T1; chest ~5-8 cm off floor (about one fist)
+pushup_0000,P1,tuning,6,345,10.5,12.47,pu2_lockout,good,high,cam3,elbow ~175deg at T0/T3
+pushup_0000,P1,tuning,6,345,10.5,12.47,pu2_head_up,good,high,"cam3,cam2",gaze down at floor; no neck extension
+pushup_0000,P1,tuning,6,345,10.5,12.47,pu2_head_drop,tip,med,cam3,"head hangs below torso line at T1; neck flexed ~25-30deg, chin toward chest; face stays above chest level"
+pushup_0000,P1,tuning,6,345,10.5,12.47,pu2_hand,good,med,"cam1,cam3",wrists under shoulders (~0-10% ahead); width ~1.15x shoulder
+pushup_0000,P1,tuning,7,404,12.47,14.37,pu2_elbow_flare,tip,med,"cam1,cam3",elbows point out to sides at T1; upper arm ~60-65deg from torso
+pushup_0000,P1,tuning,7,404,12.47,14.37,pu2_scapula,unsure,,"cam1,cam3",scapulae hidden under loose T-shirt; no visible winging or shrug
+pushup_0000,P1,tuning,7,404,12.47,14.37,pu2_hip_sag,good,med,cam3,hip ~1-2% below shoulder-ankle line at T1/T2
+pushup_0000,P1,tuning,7,404,12.47,14.37,pu2_hip_pike,good,med,cam3,hip on line at T0/T3 (~0-2%)
+pushup_0000,P1,tuning,7,404,12.47,14.37,pu2_depth,good,med,"cam3,cam1",elbow ~85deg at T1; chest ~5-8 cm off floor (about one fist)
+pushup_0000,P1,tuning,7,404,12.47,14.37,pu2_lockout,good,high,cam3,elbow ~175deg at T0/T3
+pushup_0000,P1,tuning,7,404,12.47,14.37,pu2_head_up,good,high,"cam3,cam2",gaze down at floor; no neck extension
+pushup_0000,P1,tuning,7,404,12.47,14.37,pu2_head_drop,tip,med,cam3,"head hangs below torso line at T1; neck flexed ~25-30deg, chin toward chest; face stays above chest level"
+pushup_0000,P1,tuning,7,404,12.47,14.37,pu2_hand,good,med,"cam1,cam3",wrists under shoulders (~0-10% ahead); width ~1.15x shoulder
+pushup_0000,P1,tuning,8,459,14.37,16.37,pu2_elbow_flare,tip,med,"cam1,cam3",elbows point out to sides at T1; upper arm ~60-65deg from torso
+pushup_0000,P1,tuning,8,459,14.37,16.37,pu2_scapula,unsure,,"cam1,cam3",scapulae hidden under loose T-shirt; no visible winging or shrug
+pushup_0000,P1,tuning,8,459,14.37,16.37,pu2_hip_sag,good,med,cam3,hip ~1-2% below shoulder-ankle line at T1/T2
+pushup_0000,P1,tuning,8,459,14.37,16.37,pu2_hip_pike,good,med,cam3,hip on line at T0/T3 (~0-2%)
+pushup_0000,P1,tuning,8,459,14.37,16.37,pu2_depth,good,med,"cam3,cam1",elbow ~85deg at T1; chest ~5-8 cm off floor (about one fist)
+pushup_0000,P1,tuning,8,459,14.37,16.37,pu2_lockout,good,high,cam3,elbow ~175deg at T0/T3
+pushup_0000,P1,tuning,8,459,14.37,16.37,pu2_head_up,good,high,"cam3,cam2",gaze down at floor; no neck extension
+pushup_0000,P1,tuning,8,459,14.37,16.37,pu2_head_drop,tip,med,cam3,"head hangs below torso line at T1; neck flexed ~25-30deg, chin toward chest; face stays above chest level"
+pushup_0000,P1,tuning,8,459,14.37,16.37,pu2_hand,good,med,"cam1,cam3",wrists under shoulders (~0-10% ahead); width ~1.15x shoulder
+pushup_0000,P1,tuning,9,520,16.37,18.4,pu2_elbow_flare,tip,med,"cam1,cam3",elbows point out to sides at T1; upper arm ~60-65deg from torso
+pushup_0000,P1,tuning,9,520,16.37,18.4,pu2_scapula,unsure,,"cam1,cam3",scapulae hidden under loose T-shirt; no visible winging or shrug
+pushup_0000,P1,tuning,9,520,16.37,18.4,pu2_hip_sag,good,med,cam3,hip ~1-2% below shoulder-ankle line at T1/T2
+pushup_0000,P1,tuning,9,520,16.37,18.4,pu2_hip_pike,good,med,cam3,hip on line at T0/T3 (~0-2%)
+pushup_0000,P1,tuning,9,520,16.37,18.4,pu2_depth,good,med,"cam3,cam1",elbow ~85deg at T1; chest ~5-8 cm off floor (about one fist)
+pushup_0000,P1,tuning,9,520,16.37,18.4,pu2_lockout,good,high,cam3,elbow ~175deg at T0/T3
+pushup_0000,P1,tuning,9,520,16.37,18.4,pu2_head_up,good,high,"cam3,cam2",gaze down at floor; no neck extension
+pushup_0000,P1,tuning,9,520,16.37,18.4,pu2_head_drop,tip,med,cam3,"head hangs below torso line at T1; neck flexed ~25-30deg, chin toward chest; face stays above chest level"
+pushup_0000,P1,tuning,9,520,16.37,18.4,pu2_hand,good,med,"cam1,cam3",wrists under shoulders (~0-10% ahead); width ~1.15x shoulder
+pushup_0000,P1,tuning,10,584,18.4,20.77,pu2_elbow_flare,tip,med,"cam1,cam3",elbows point out to sides at T1; upper arm ~60-65deg from torso
+pushup_0000,P1,tuning,10,584,18.4,20.77,pu2_scapula,unsure,,"cam1,cam3",scapulae hidden under loose T-shirt; no visible winging or shrug
+pushup_0000,P1,tuning,10,584,18.4,20.77,pu2_hip_sag,good,med,cam3,hip ~1-2% below shoulder-ankle line at T1/T2
+pushup_0000,P1,tuning,10,584,18.4,20.77,pu2_hip_pike,good,med,cam3,hip on line at T0/T3 (~0-2%)
+pushup_0000,P1,tuning,10,584,18.4,20.77,pu2_depth,good,med,"cam3,cam1",elbow ~85deg at T1; chest ~5-8 cm off floor (about one fist)
+pushup_0000,P1,tuning,10,584,18.4,20.77,pu2_lockout,good,high,cam3,elbow ~175deg at T0/T3
+pushup_0000,P1,tuning,10,584,18.4,20.77,pu2_head_up,good,high,"cam3,cam2",gaze down at floor; no neck extension
+pushup_0000,P1,tuning,10,584,18.4,20.77,pu2_head_drop,tip,med,cam3,"head hangs below torso line at T1; neck flexed ~25-30deg, chin toward chest; face stays above chest level"
+pushup_0000,P1,tuning,10,584,18.4,20.77,pu2_hand,good,med,"cam1,cam3",wrists under shoulders (~0-10% ahead); width ~1.15x shoulder
+pushup_0001,P1,tuning,1,68,1.2,2.93,pu2_elbow_flare,tip,med,"cam1,cam2",elbows out to sides at T1; upper arm ~60deg from torso
+pushup_0001,P1,tuning,1,68,1.2,2.93,pu2_scapula,unsure,,"cam1,cam3",scapulae hidden under loose T-shirt; no visible winging or shrug
+pushup_0001,P1,tuning,1,68,1.2,2.93,pu2_hip_sag,good,med,cam3,hip ~1-2% below shoulder-ankle line at T1/T2
+pushup_0001,P1,tuning,1,68,1.2,2.93,pu2_hip_pike,good,med,cam3,hip on line at T0/T3 (~0-2%)
+pushup_0001,P1,tuning,1,68,1.2,2.93,pu2_depth,good,med,"cam3,cam2",elbow ~85-90deg at T1; chest ~5-8 cm off floor
+pushup_0001,P1,tuning,1,68,1.2,2.93,pu2_lockout,good,high,cam3,elbow ~175deg at T0/T3
+pushup_0001,P1,tuning,1,68,1.2,2.93,pu2_head_up,good,high,"cam3,cam2",gaze down; no neck extension
+pushup_0001,P1,tuning,1,68,1.2,2.93,pu2_head_drop,tip,med,"cam3,cam2","head hangs below torso line at T1; neck flexed ~25deg, chin toward chest; face above chest level"
+pushup_0001,P1,tuning,1,68,1.2,2.93,pu2_hand,good,med,"cam1,cam3",wrists under shoulders (~0-10% ahead); width ~1.2x shoulder
+pushup_0001,P1,tuning,2,112,2.93,4.53,pu2_elbow_flare,tip,med,"cam1,cam2",elbows out to sides at T1; upper arm ~60deg from torso
+pushup_0001,P1,tuning,2,112,2.93,4.53,pu2_scapula,unsure,,"cam1,cam3",scapulae hidden under loose T-shirt; no visible winging or shrug
+pushup_0001,P1,tuning,2,112,2.93,4.53,pu2_hip_sag,good,med,cam3,hip ~1-2% below shoulder-ankle line at T1/T2
+pushup_0001,P1,tuning,2,112,2.93,4.53,pu2_hip_pike,good,med,cam3,hip on line at T0/T3 (~0-2%)
+pushup_0001,P1,tuning,2,112,2.93,4.53,pu2_depth,good,med,"cam3,cam2",elbow ~85-90deg at T1; chest ~5-8 cm off floor
+pushup_0001,P1,tuning,2,112,2.93,4.53,pu2_lockout,good,high,cam3,elbow ~175deg at T0/T3
+pushup_0001,P1,tuning,2,112,2.93,4.53,pu2_head_up,good,high,"cam3,cam2",gaze down; no neck extension
+pushup_0001,P1,tuning,2,112,2.93,4.53,pu2_head_drop,tip,med,"cam3,cam2","head hangs below torso line at T1; neck flexed ~25deg, chin toward chest; face above chest level"
+pushup_0001,P1,tuning,2,112,2.93,4.53,pu2_hand,good,med,"cam1,cam3",wrists under shoulders (~0-10% ahead); width ~1.2x shoulder
+pushup_0001,P1,tuning,3,158,4.53,6.1,pu2_elbow_flare,tip,med,"cam1,cam2",elbows out to sides at T1; upper arm ~60deg from torso
+pushup_0001,P1,tuning,3,158,4.53,6.1,pu2_scapula,unsure,,"cam1,cam3",scapulae hidden under loose T-shirt; no visible winging or shrug
+pushup_0001,P1,tuning,3,158,4.53,6.1,pu2_hip_sag,good,med,cam3,hip ~1-2% below shoulder-ankle line at T1/T2
+pushup_0001,P1,tuning,3,158,4.53,6.1,pu2_hip_pike,good,med,cam3,hip on line at T0/T3 (~0-2%)
+pushup_0001,P1,tuning,3,158,4.53,6.1,pu2_depth,good,med,"cam3,cam2",elbow ~85-90deg at T1; chest ~5-8 cm off floor
+pushup_0001,P1,tuning,3,158,4.53,6.1,pu2_lockout,good,high,cam3,elbow ~175deg at T0/T3
+pushup_0001,P1,tuning,3,158,4.53,6.1,pu2_head_up,good,high,"cam3,cam2",gaze down; no neck extension
+pushup_0001,P1,tuning,3,158,4.53,6.1,pu2_head_drop,tip,med,"cam3,cam2","head hangs below torso line at T1; neck flexed ~25deg, chin toward chest; face above chest level"
+pushup_0001,P1,tuning,3,158,4.53,6.1,pu2_hand,good,med,"cam1,cam3",wrists under shoulders (~0-10% ahead); width ~1.2x shoulder
+pushup_0001,P1,tuning,4,204,6.1,7.57,pu2_elbow_flare,tip,med,"cam1,cam2",elbows out to sides at T1; upper arm ~60deg from torso
+pushup_0001,P1,tuning,4,204,6.1,7.57,pu2_scapula,unsure,,"cam1,cam3",scapulae hidden under loose T-shirt; no visible winging or shrug
+pushup_0001,P1,tuning,4,204,6.1,7.57,pu2_hip_sag,good,med,cam3,hip ~1-2% below shoulder-ankle line at T1/T2
+pushup_0001,P1,tuning,4,204,6.1,7.57,pu2_hip_pike,good,med,cam3,hip on line at T0/T3 (~0-2%)
+pushup_0001,P1,tuning,4,204,6.1,7.57,pu2_depth,good,med,"cam3,cam2",elbow ~85-90deg at T1; chest ~5-8 cm off floor
+pushup_0001,P1,tuning,4,204,6.1,7.57,pu2_lockout,good,high,cam3,elbow ~175deg at T0/T3
+pushup_0001,P1,tuning,4,204,6.1,7.57,pu2_head_up,good,high,"cam3,cam2",gaze down; no neck extension
+pushup_0001,P1,tuning,4,204,6.1,7.57,pu2_head_drop,tip,med,"cam3,cam2","head hangs below torso line at T1; neck flexed ~25deg, chin toward chest; face above chest level"
+pushup_0001,P1,tuning,4,204,6.1,7.57,pu2_hand,good,med,"cam1,cam3",wrists under shoulders (~0-10% ahead); width ~1.2x shoulder
+pushup_0001,P1,tuning,5,251,7.57,9.17,pu2_elbow_flare,tip,med,"cam1,cam2",elbows out to sides at T1; upper arm ~60deg from torso
+pushup_0001,P1,tuning,5,251,7.57,9.17,pu2_scapula,unsure,,"cam1,cam3",scapulae hidden under loose T-shirt; no visible winging or shrug
+pushup_0001,P1,tuning,5,251,7.57,9.17,pu2_hip_sag,good,med,cam3,hip ~1-2% below shoulder-ankle line at T1/T2
+pushup_0001,P1,tuning,5,251,7.57,9.17,pu2_hip_pike,good,med,cam3,hip on line at T0/T3 (~0-2%)
+pushup_0001,P1,tuning,5,251,7.57,9.17,pu2_depth,good,med,"cam3,cam2",elbow ~85-90deg at T1; chest ~5-8 cm off floor
+pushup_0001,P1,tuning,5,251,7.57,9.17,pu2_lockout,good,high,cam3,elbow ~175deg at T0/T3
+pushup_0001,P1,tuning,5,251,7.57,9.17,pu2_head_up,good,high,"cam3,cam2",gaze down; no neck extension
+pushup_0001,P1,tuning,5,251,7.57,9.17,pu2_head_drop,tip,med,"cam3,cam2","head hangs below torso line at T1; neck flexed ~25deg, chin toward chest; face above chest level"
+pushup_0001,P1,tuning,5,251,7.57,9.17,pu2_hand,good,med,"cam1,cam3",wrists under shoulders (~0-10% ahead); width ~1.2x shoulder
+pushup_0001,P1,tuning,6,297,9.17,10.8,pu2_elbow_flare,tip,med,"cam1,cam2",elbows out to sides at T1; upper arm ~60deg from torso
+pushup_0001,P1,tuning,6,297,9.17,10.8,pu2_scapula,unsure,,"cam1,cam3",scapulae hidden under loose T-shirt; no visible winging or shrug
+pushup_0001,P1,tuning,6,297,9.17,10.8,pu2_hip_sag,good,med,cam3,hip ~1-2% below shoulder-ankle line at T1/T2
+pushup_0001,P1,tuning,6,297,9.17,10.8,pu2_hip_pike,good,med,cam3,hip on line at T0/T3 (~0-2%)
+pushup_0001,P1,tuning,6,297,9.17,10.8,pu2_depth,good,med,"cam3,cam2",elbow ~85-90deg at T1; chest ~5-8 cm off floor
+pushup_0001,P1,tuning,6,297,9.17,10.8,pu2_lockout,good,high,cam3,elbow ~175deg at T0/T3
+pushup_0001,P1,tuning,6,297,9.17,10.8,pu2_head_up,good,high,"cam3,cam2",gaze down; no neck extension
+pushup_0001,P1,tuning,6,297,9.17,10.8,pu2_head_drop,tip,med,"cam3,cam2","head hangs below torso line at T1; neck flexed ~25deg, chin toward chest; face above chest level"
+pushup_0001,P1,tuning,6,297,9.17,10.8,pu2_hand,good,med,"cam1,cam3",wrists under shoulders (~0-10% ahead); width ~1.2x shoulder
+pushup_0001,P1,tuning,7,348,10.8,12.43,pu2_elbow_flare,tip,med,"cam1,cam2",elbows out to sides at T1; upper arm ~60deg from torso
+pushup_0001,P1,tuning,7,348,10.8,12.43,pu2_scapula,unsure,,"cam1,cam3",scapulae hidden under loose T-shirt; no visible winging or shrug
+pushup_0001,P1,tuning,7,348,10.8,12.43,pu2_hip_sag,good,med,cam3,hip ~1-2% below shoulder-ankle line at T1/T2
+pushup_0001,P1,tuning,7,348,10.8,12.43,pu2_hip_pike,good,med,cam3,hip on line at T0/T3 (~0-2%)
+pushup_0001,P1,tuning,7,348,10.8,12.43,pu2_depth,good,med,"cam3,cam2",elbow ~85-90deg at T1; chest ~5-8 cm off floor
+pushup_0001,P1,tuning,7,348,10.8,12.43,pu2_lockout,good,high,cam3,elbow ~175deg at T0/T3
+pushup_0001,P1,tuning,7,348,10.8,12.43,pu2_head_up,good,high,"cam3,cam2",gaze down; no neck extension
+pushup_0001,P1,tuning,7,348,10.8,12.43,pu2_head_drop,tip,med,"cam3,cam2","head hangs below torso line at T1; neck flexed ~25deg, chin toward chest; face above chest level"
+pushup_0001,P1,tuning,7,348,10.8,12.43,pu2_hand,good,med,"cam1,cam3",wrists under shoulders (~0-10% ahead); width ~1.2x shoulder
+pushup_0001,P1,tuning,8,397,12.43,14.1,pu2_elbow_flare,tip,med,"cam1,cam2",elbows out to sides at T1; upper arm ~60deg from torso
+pushup_0001,P1,tuning,8,397,12.43,14.1,pu2_scapula,unsure,,"cam1,cam3",scapulae hidden under loose T-shirt; no visible winging or shrug
+pushup_0001,P1,tuning,8,397,12.43,14.1,pu2_hip_sag,good,med,cam3,hip ~1-2% below shoulder-ankle line at T1/T2
+pushup_0001,P1,tuning,8,397,12.43,14.1,pu2_hip_pike,good,med,cam3,hip on line at T0/T3 (~0-2%)
+pushup_0001,P1,tuning,8,397,12.43,14.1,pu2_depth,good,med,"cam3,cam2",elbow ~85-90deg at T1; chest ~5-8 cm off floor
+pushup_0001,P1,tuning,8,397,12.43,14.1,pu2_lockout,good,high,cam3,elbow ~175deg at T0/T3
+pushup_0001,P1,tuning,8,397,12.43,14.1,pu2_head_up,good,high,"cam3,cam2",gaze down; no neck extension
+pushup_0001,P1,tuning,8,397,12.43,14.1,pu2_head_drop,tip,med,"cam3,cam2","head hangs below torso line at T1; neck flexed ~25deg, chin toward chest; face above chest level"
+pushup_0001,P1,tuning,8,397,12.43,14.1,pu2_hand,good,med,"cam1,cam3",wrists under shoulders (~0-10% ahead); width ~1.2x shoulder
+pushup_0001,P1,tuning,9,445,14.1,15.67,pu2_elbow_flare,tip,med,"cam1,cam2",elbows out to sides at T1; upper arm ~60deg from torso
+pushup_0001,P1,tuning,9,445,14.1,15.67,pu2_scapula,unsure,,"cam1,cam3",scapulae hidden under loose T-shirt; no visible winging or shrug
+pushup_0001,P1,tuning,9,445,14.1,15.67,pu2_hip_sag,good,med,cam3,hip ~1-2% below shoulder-ankle line at T1/T2
+pushup_0001,P1,tuning,9,445,14.1,15.67,pu2_hip_pike,good,med,cam3,hip on line at T0/T3 (~0-2%)
+pushup_0001,P1,tuning,9,445,14.1,15.67,pu2_depth,good,med,"cam3,cam2",elbow ~85-90deg at T1; chest ~5-8 cm off floor
+pushup_0001,P1,tuning,9,445,14.1,15.67,pu2_lockout,good,high,cam3,elbow ~175deg at T0/T3
+pushup_0001,P1,tuning,9,445,14.1,15.67,pu2_head_up,good,high,"cam3,cam2",gaze down; no neck extension
+pushup_0001,P1,tuning,9,445,14.1,15.67,pu2_head_drop,tip,med,"cam3,cam2","head hangs below torso line at T1; neck flexed ~25deg, chin toward chest; face above chest level"
+pushup_0001,P1,tuning,9,445,14.1,15.67,pu2_hand,good,med,"cam1,cam3",wrists under shoulders (~0-10% ahead); width ~1.2x shoulder
+pushup_0001,P1,tuning,10,494,15.67,17.73,pu2_elbow_flare,tip,med,"cam1,cam2",elbows out to sides at T1; upper arm ~60deg from torso
+pushup_0001,P1,tuning,10,494,15.67,17.73,pu2_scapula,unsure,,"cam1,cam3",scapulae hidden under loose T-shirt; no visible winging or shrug
+pushup_0001,P1,tuning,10,494,15.67,17.73,pu2_hip_sag,good,med,cam3,hip ~1-2% below shoulder-ankle line at T1/T2
+pushup_0001,P1,tuning,10,494,15.67,17.73,pu2_hip_pike,good,med,cam3,T3 f532 is get-up (hips rise); last real top f520-525 hip on line
+pushup_0001,P1,tuning,10,494,15.67,17.73,pu2_depth,good,med,"cam3,cam2",elbow ~85-90deg at T1; chest ~5-8 cm off floor
+pushup_0001,P1,tuning,10,494,15.67,17.73,pu2_lockout,good,high,cam3,T3 f532 is get-up; real lockout f520-525 elbow ~175deg
+pushup_0001,P1,tuning,10,494,15.67,17.73,pu2_head_up,good,high,"cam3,cam2",gaze down; no neck extension
+pushup_0001,P1,tuning,10,494,15.67,17.73,pu2_head_drop,tip,med,"cam3,cam2","head hangs below torso line at T1; neck flexed ~25deg, chin toward chest; face above chest level"
+pushup_0001,P1,tuning,10,494,15.67,17.73,pu2_hand,good,med,"cam1,cam3",wrists under shoulders (~0-10% ahead); width ~1.2x shoulder
+pushup_0002,P1,tuning,1,42,0.0,2.07,pu2_elbow_flare,tip,med,"cam1,cam2",elbows out to sides at T1; upper arm ~60deg from torso
+pushup_0002,P1,tuning,1,42,0.0,2.07,pu2_scapula,unsure,,"cam1,cam3",scapulae hidden under loose T-shirt; no visible winging or shrug
+pushup_0002,P1,tuning,1,42,0.0,2.07,pu2_hip_sag,good,med,cam3,hip ~0-2% below shoulder-ankle line at T1/T2 (dorsal contour straight)
+pushup_0002,P1,tuning,1,42,0.0,2.07,pu2_hip_pike,good,med,cam3,hip on line at T0/T3 (~0-2%)
+pushup_0002,P1,tuning,1,42,0.0,2.07,pu2_depth,good,med,"cam3,cam2",elbow ~80-85deg at T1; chest ~5 cm off floor
+pushup_0002,P1,tuning,1,42,0.0,2.07,pu2_lockout,good,high,cam3,elbow ~175deg at T0/T3
+pushup_0002,P1,tuning,1,42,0.0,2.07,pu2_head_up,good,high,"cam3,cam2",gaze down; no neck extension
+pushup_0002,P1,tuning,1,42,0.0,2.07,pu2_head_drop,tip,med,"cam3,cam2","head hangs below torso line at T1; neck flexed ~25-30deg, chin toward chest; face above chest level"
+pushup_0002,P1,tuning,1,42,0.0,2.07,pu2_hand,good,med,"cam1,cam3",wrists under shoulders (~0-10% ahead); width ~1.2x shoulder
+pushup_0002,P1,tuning,2,87,2.07,3.57,pu2_elbow_flare,tip,med,"cam1,cam2",elbows out to sides at T1; upper arm ~60deg from torso
+pushup_0002,P1,tuning,2,87,2.07,3.57,pu2_scapula,unsure,,"cam1,cam3",scapulae hidden under loose T-shirt; no visible winging or shrug
+pushup_0002,P1,tuning,2,87,2.07,3.57,pu2_hip_sag,good,med,cam3,hip ~0-2% below shoulder-ankle line at T1/T2 (dorsal contour straight)
+pushup_0002,P1,tuning,2,87,2.07,3.57,pu2_hip_pike,good,med,cam3,hip on line at T0/T3 (~0-2%)
+pushup_0002,P1,tuning,2,87,2.07,3.57,pu2_depth,good,med,"cam3,cam2",elbow ~80-85deg at T1; chest ~5 cm off floor
+pushup_0002,P1,tuning,2,87,2.07,3.57,pu2_lockout,good,high,cam3,elbow ~175deg at T0/T3
+pushup_0002,P1,tuning,2,87,2.07,3.57,pu2_head_up,good,high,"cam3,cam2",gaze down; no neck extension
+pushup_0002,P1,tuning,2,87,2.07,3.57,pu2_head_drop,tip,med,"cam3,cam2","head hangs below torso line at T1; neck flexed ~25-30deg, chin toward chest; face above chest level"
+pushup_0002,P1,tuning,2,87,2.07,3.57,pu2_hand,good,med,"cam1,cam3",wrists under shoulders (~0-10% ahead); width ~1.2x shoulder
+pushup_0002,P1,tuning,3,130,3.57,5.1,pu2_elbow_flare,tip,med,"cam1,cam2",elbows out to sides at T1; upper arm ~60deg from torso
+pushup_0002,P1,tuning,3,130,3.57,5.1,pu2_scapula,unsure,,"cam1,cam3",scapulae hidden under loose T-shirt; no visible winging or shrug
+pushup_0002,P1,tuning,3,130,3.57,5.1,pu2_hip_sag,good,med,cam3,hip ~0-2% below shoulder-ankle line at T1/T2 (dorsal contour straight)
+pushup_0002,P1,tuning,3,130,3.57,5.1,pu2_hip_pike,good,med,cam3,hip on line at T0/T3 (~0-2%)
+pushup_0002,P1,tuning,3,130,3.57,5.1,pu2_depth,good,med,"cam3,cam2",elbow ~80-85deg at T1; chest ~5 cm off floor
+pushup_0002,P1,tuning,3,130,3.57,5.1,pu2_lockout,good,high,cam3,elbow ~175deg at T0/T3
+pushup_0002,P1,tuning,3,130,3.57,5.1,pu2_head_up,good,high,"cam3,cam2",gaze down; no neck extension
+pushup_0002,P1,tuning,3,130,3.57,5.1,pu2_head_drop,tip,med,"cam3,cam2","head hangs below torso line at T1; neck flexed ~25-30deg, chin toward chest; face above chest level"
+pushup_0002,P1,tuning,3,130,3.57,5.1,pu2_hand,good,med,"cam1,cam3",wrists under shoulders (~0-10% ahead); width ~1.2x shoulder
+pushup_0002,P1,tuning,4,176,5.1,6.6,pu2_elbow_flare,tip,med,"cam1,cam2",elbows out to sides at T1; upper arm ~60deg from torso
+pushup_0002,P1,tuning,4,176,5.1,6.6,pu2_scapula,unsure,,"cam1,cam3",scapulae hidden under loose T-shirt; no visible winging or shrug
+pushup_0002,P1,tuning,4,176,5.1,6.6,pu2_hip_sag,good,med,cam3,hip ~0-2% below shoulder-ankle line at T1/T2 (dorsal contour straight)
+pushup_0002,P1,tuning,4,176,5.1,6.6,pu2_hip_pike,good,med,cam3,hip on line at T0/T3 (~0-2%)
+pushup_0002,P1,tuning,4,176,5.1,6.6,pu2_depth,good,med,"cam3,cam2",elbow ~80-85deg at T1; chest ~5 cm off floor
+pushup_0002,P1,tuning,4,176,5.1,6.6,pu2_lockout,good,high,cam3,elbow ~175deg at T0/T3
+pushup_0002,P1,tuning,4,176,5.1,6.6,pu2_head_up,good,high,"cam3,cam2",gaze down; no neck extension
+pushup_0002,P1,tuning,4,176,5.1,6.6,pu2_head_drop,tip,med,"cam3,cam2","head hangs below torso line at T1; neck flexed ~25-30deg, chin toward chest; face above chest level"
+pushup_0002,P1,tuning,4,176,5.1,6.6,pu2_hand,good,med,"cam1,cam3",wrists under shoulders (~0-10% ahead); width ~1.2x shoulder
+pushup_0002,P1,tuning,5,221,6.6,8.07,pu2_elbow_flare,tip,med,"cam1,cam2",elbows out to sides at T1; upper arm ~60deg from torso
+pushup_0002,P1,tuning,5,221,6.6,8.07,pu2_scapula,unsure,,"cam1,cam3",scapulae hidden under loose T-shirt; no visible winging or shrug
+pushup_0002,P1,tuning,5,221,6.6,8.07,pu2_hip_sag,good,med,cam3,hip ~0-2% below shoulder-ankle line at T1/T2 (dorsal contour straight)
+pushup_0002,P1,tuning,5,221,6.6,8.07,pu2_hip_pike,good,med,cam3,hip on line at T0/T3 (~0-2%)
+pushup_0002,P1,tuning,5,221,6.6,8.07,pu2_depth,good,med,"cam3,cam2",elbow ~80-85deg at T1; chest ~5 cm off floor
+pushup_0002,P1,tuning,5,221,6.6,8.07,pu2_lockout,good,high,cam3,elbow ~175deg at T0/T3
+pushup_0002,P1,tuning,5,221,6.6,8.07,pu2_head_up,good,high,"cam3,cam2",gaze down; no neck extension
+pushup_0002,P1,tuning,5,221,6.6,8.07,pu2_head_drop,tip,med,"cam3,cam2","head hangs below torso line at T1; neck flexed ~25-30deg, chin toward chest; face above chest level"
+pushup_0002,P1,tuning,5,221,6.6,8.07,pu2_hand,good,med,"cam1,cam3",wrists under shoulders (~0-10% ahead); width ~1.2x shoulder
+pushup_0002,P1,tuning,6,266,8.07,9.67,pu2_elbow_flare,tip,med,"cam1,cam2",elbows out to sides at T1; upper arm ~60deg from torso
+pushup_0002,P1,tuning,6,266,8.07,9.67,pu2_scapula,unsure,,"cam1,cam3",scapulae hidden under loose T-shirt; no visible winging or shrug
+pushup_0002,P1,tuning,6,266,8.07,9.67,pu2_hip_sag,good,med,cam3,hip ~0-2% below shoulder-ankle line at T1/T2 (dorsal contour straight)
+pushup_0002,P1,tuning,6,266,8.07,9.67,pu2_hip_pike,good,med,cam3,hip on line at T0/T3 (~0-2%)
+pushup_0002,P1,tuning,6,266,8.07,9.67,pu2_depth,good,med,"cam3,cam2",elbow ~80-85deg at T1; chest ~5 cm off floor
+pushup_0002,P1,tuning,6,266,8.07,9.67,pu2_lockout,good,high,cam3,elbow ~175deg at T0/T3
+pushup_0002,P1,tuning,6,266,8.07,9.67,pu2_head_up,good,high,"cam3,cam2",gaze down; no neck extension
+pushup_0002,P1,tuning,6,266,8.07,9.67,pu2_head_drop,tip,med,"cam3,cam2","head hangs below torso line at T1; neck flexed ~25-30deg, chin toward chest; face above chest level"
+pushup_0002,P1,tuning,6,266,8.07,9.67,pu2_hand,good,med,"cam1,cam3",wrists under shoulders (~0-10% ahead); width ~1.2x shoulder
+pushup_0002,P1,tuning,7,313,9.67,11.2,pu2_elbow_flare,tip,med,"cam1,cam2",elbows out to sides at T1; upper arm ~60deg from torso
+pushup_0002,P1,tuning,7,313,9.67,11.2,pu2_scapula,unsure,,"cam1,cam3",scapulae hidden under loose T-shirt; no visible winging or shrug
+pushup_0002,P1,tuning,7,313,9.67,11.2,pu2_hip_sag,good,med,cam3,hip ~0-2% below shoulder-ankle line at T1/T2 (dorsal contour straight)
+pushup_0002,P1,tuning,7,313,9.67,11.2,pu2_hip_pike,good,med,cam3,hip on line at T0/T3 (~0-2%)
+pushup_0002,P1,tuning,7,313,9.67,11.2,pu2_depth,good,med,"cam3,cam2",elbow ~80-85deg at T1; chest ~5 cm off floor
+pushup_0002,P1,tuning,7,313,9.67,11.2,pu2_lockout,good,high,cam3,elbow ~175deg at T0/T3
+pushup_0002,P1,tuning,7,313,9.67,11.2,pu2_head_up,good,high,"cam3,cam2",gaze down; no neck extension
+pushup_0002,P1,tuning,7,313,9.67,11.2,pu2_head_drop,tip,med,"cam3,cam2","head hangs below torso line at T1; neck flexed ~25-30deg, chin toward chest; face above chest level"
+pushup_0002,P1,tuning,7,313,9.67,11.2,pu2_hand,good,med,"cam1,cam3",wrists under shoulders (~0-10% ahead); width ~1.2x shoulder
+pushup_0002,P1,tuning,8,361,11.2,12.87,pu2_elbow_flare,tip,med,"cam1,cam2",elbows out to sides at T1; upper arm ~60deg from torso
+pushup_0002,P1,tuning,8,361,11.2,12.87,pu2_scapula,unsure,,"cam1,cam3",scapulae hidden under loose T-shirt; no visible winging or shrug
+pushup_0002,P1,tuning,8,361,11.2,12.87,pu2_hip_sag,good,med,cam3,hip ~0-2% below shoulder-ankle line at T1/T2 (dorsal contour straight)
+pushup_0002,P1,tuning,8,361,11.2,12.87,pu2_hip_pike,good,med,cam3,hip on line at T0/T3 (~0-2%)
+pushup_0002,P1,tuning,8,361,11.2,12.87,pu2_depth,good,med,"cam3,cam2",elbow ~80-85deg at T1; chest ~5 cm off floor
+pushup_0002,P1,tuning,8,361,11.2,12.87,pu2_lockout,good,high,cam3,elbow ~175deg at T0/T3
+pushup_0002,P1,tuning,8,361,11.2,12.87,pu2_head_up,good,high,"cam3,cam2",gaze down; no neck extension
+pushup_0002,P1,tuning,8,361,11.2,12.87,pu2_head_drop,tip,med,"cam3,cam2","head hangs below torso line at T1; neck flexed ~25-30deg, chin toward chest; face above chest level"
+pushup_0002,P1,tuning,8,361,11.2,12.87,pu2_hand,good,med,"cam1,cam3",wrists under shoulders (~0-10% ahead); width ~1.2x shoulder
+pushup_0002,P1,tuning,9,410,12.87,14.6,pu2_elbow_flare,tip,med,"cam1,cam2",elbows out to sides at T1; upper arm ~60deg from torso
+pushup_0002,P1,tuning,9,410,12.87,14.6,pu2_scapula,unsure,,"cam1,cam3",scapulae hidden under loose T-shirt; no visible winging or shrug
+pushup_0002,P1,tuning,9,410,12.87,14.6,pu2_hip_sag,good,med,cam3,hip ~0-2% below shoulder-ankle line at T1/T2 (dorsal contour straight)
+pushup_0002,P1,tuning,9,410,12.87,14.6,pu2_hip_pike,good,med,cam3,hip on line at T0/T3 (~0-2%)
+pushup_0002,P1,tuning,9,410,12.87,14.6,pu2_depth,good,med,"cam3,cam2",elbow ~80-85deg at T1; chest ~5 cm off floor
+pushup_0002,P1,tuning,9,410,12.87,14.6,pu2_lockout,good,high,cam3,elbow ~175deg at T0/T3
+pushup_0002,P1,tuning,9,410,12.87,14.6,pu2_head_up,good,high,"cam3,cam2",gaze down; no neck extension
+pushup_0002,P1,tuning,9,410,12.87,14.6,pu2_head_drop,tip,med,"cam3,cam2","head hangs below torso line at T1; neck flexed ~25-30deg, chin toward chest; face above chest level"
+pushup_0002,P1,tuning,9,410,12.87,14.6,pu2_hand,good,med,"cam1,cam3",wrists under shoulders (~0-10% ahead); width ~1.2x shoulder
+pushup_0002,P1,tuning,10,465,14.6,16.8,pu2_elbow_flare,tip,med,"cam1,cam2",elbows out to sides at T1; upper arm ~60deg from torso
+pushup_0002,P1,tuning,10,465,14.6,16.8,pu2_scapula,unsure,,"cam1,cam3",scapulae hidden under loose T-shirt; no visible winging or shrug
+pushup_0002,P1,tuning,10,465,14.6,16.8,pu2_hip_sag,good,med,cam3,hip ~0-2% below shoulder-ankle line at T1/T2 (dorsal contour straight)
+pushup_0002,P1,tuning,10,465,14.6,16.8,pu2_hip_pike,good,med,cam3,hip on line at T0/T3 (~0-2%)
+pushup_0002,P1,tuning,10,465,14.6,16.8,pu2_depth,good,med,"cam3,cam2",elbow ~80-85deg at T1; chest ~5 cm off floor
+pushup_0002,P1,tuning,10,465,14.6,16.8,pu2_lockout,good,high,cam3,elbow ~175deg at T0/T3
+pushup_0002,P1,tuning,10,465,14.6,16.8,pu2_head_up,good,high,"cam3,cam2",gaze down; no neck extension
+pushup_0002,P1,tuning,10,465,14.6,16.8,pu2_head_drop,tip,med,"cam3,cam2","head hangs below torso line at T1; neck flexed ~25-30deg, chin toward chest; face above chest level"
+pushup_0002,P1,tuning,10,465,14.6,16.8,pu2_hand,good,med,"cam1,cam3",wrists under shoulders (~0-10% ahead); width ~1.2x shoulder
+pushup_0003,P1,tuning,1,52,0.4,2.3,pu2_elbow_flare,tip,med,"cam1,cam2",elbows out to sides at T1; upper arm ~60deg from torso
+pushup_0003,P1,tuning,1,52,0.4,2.3,pu2_scapula,unsure,,"cam1,cam3",scapulae hidden under loose T-shirt; no visible winging or shrug
+pushup_0003,P1,tuning,1,52,0.4,2.3,pu2_hip_sag,good,med,cam3,hip ~1-3% below shoulder-ankle line at T1/T2; dorsal contour straight
+pushup_0003,P1,tuning,1,52,0.4,2.3,pu2_hip_pike,good,med,cam3,hip on line at T0/T3 (~0-2%)
+pushup_0003,P1,tuning,1,52,0.4,2.3,pu2_depth,good,med,"cam3,cam2",elbow ~85deg at T1; chest ~5-8 cm off floor
+pushup_0003,P1,tuning,1,52,0.4,2.3,pu2_lockout,good,high,cam3,elbow ~175deg at T0/T3
+pushup_0003,P1,tuning,1,52,0.4,2.3,pu2_head_up,good,high,"cam3,cam2",gaze down; no neck extension
+pushup_0003,P1,tuning,1,52,0.4,2.3,pu2_head_drop,tip,med,"cam3,cam2","head hangs below torso line at T1; neck flexed ~25deg, chin toward chest; face above chest level"
+pushup_0003,P1,tuning,1,52,0.4,2.3,pu2_hand,good,med,"cam1,cam3",wrists under shoulders (~0-10% ahead); width ~1.2x shoulder
+pushup_0003,P1,tuning,2,91,2.3,3.7,pu2_elbow_flare,tip,med,"cam1,cam2",elbows out to sides at T1; upper arm ~60deg from torso
+pushup_0003,P1,tuning,2,91,2.3,3.7,pu2_scapula,unsure,,"cam1,cam3",scapulae hidden under loose T-shirt; no visible winging or shrug
+pushup_0003,P1,tuning,2,91,2.3,3.7,pu2_hip_sag,good,med,cam3,hip ~1-3% below shoulder-ankle line at T1/T2; dorsal contour straight
+pushup_0003,P1,tuning,2,91,2.3,3.7,pu2_hip_pike,good,med,cam3,hip on line at T0/T3 (~0-2%)
+pushup_0003,P1,tuning,2,91,2.3,3.7,pu2_depth,good,med,"cam3,cam2",elbow ~85deg at T1; chest ~5-8 cm off floor
+pushup_0003,P1,tuning,2,91,2.3,3.7,pu2_lockout,good,high,cam3,elbow ~175deg at T0/T3
+pushup_0003,P1,tuning,2,91,2.3,3.7,pu2_head_up,good,high,"cam3,cam2",gaze down; no neck extension
+pushup_0003,P1,tuning,2,91,2.3,3.7,pu2_head_drop,tip,med,"cam3,cam2","head hangs below torso line at T1; neck flexed ~25deg, chin toward chest; face above chest level"
+pushup_0003,P1,tuning,2,91,2.3,3.7,pu2_hand,good,med,"cam1,cam3",wrists under shoulders (~0-10% ahead); width ~1.2x shoulder
+pushup_0003,P1,tuning,3,135,3.7,5.2,pu2_elbow_flare,tip,med,"cam1,cam2",elbows out to sides at T1; upper arm ~60deg from torso
+pushup_0003,P1,tuning,3,135,3.7,5.2,pu2_scapula,unsure,,"cam1,cam3",scapulae hidden under loose T-shirt; no visible winging or shrug
+pushup_0003,P1,tuning,3,135,3.7,5.2,pu2_hip_sag,good,med,cam3,hip ~1-3% below shoulder-ankle line at T1/T2; dorsal contour straight
+pushup_0003,P1,tuning,3,135,3.7,5.2,pu2_hip_pike,good,med,cam3,hip on line at T0/T3 (~0-2%)
+pushup_0003,P1,tuning,3,135,3.7,5.2,pu2_depth,good,med,"cam3,cam2",elbow ~85deg at T1; chest ~5-8 cm off floor
+pushup_0003,P1,tuning,3,135,3.7,5.2,pu2_lockout,good,high,cam3,elbow ~175deg at T0/T3
+pushup_0003,P1,tuning,3,135,3.7,5.2,pu2_head_up,good,high,"cam3,cam2",gaze down; no neck extension
+pushup_0003,P1,tuning,3,135,3.7,5.2,pu2_head_drop,tip,med,"cam3,cam2","head hangs below torso line at T1; neck flexed ~25deg, chin toward chest; face above chest level"
+pushup_0003,P1,tuning,3,135,3.7,5.2,pu2_hand,good,med,"cam1,cam3",wrists under shoulders (~0-10% ahead); width ~1.2x shoulder
+pushup_0003,P1,tuning,4,182,5.2,6.83,pu2_elbow_flare,tip,med,"cam1,cam2",elbows out to sides at T1; upper arm ~60deg from torso
+pushup_0003,P1,tuning,4,182,5.2,6.83,pu2_scapula,unsure,,"cam1,cam3",scapulae hidden under loose T-shirt; no visible winging or shrug
+pushup_0003,P1,tuning,4,182,5.2,6.83,pu2_hip_sag,good,med,cam3,hip ~1-3% below shoulder-ankle line at T1/T2; dorsal contour straight
+pushup_0003,P1,tuning,4,182,5.2,6.83,pu2_hip_pike,good,med,cam3,hip on line at T0/T3 (~0-2%)
+pushup_0003,P1,tuning,4,182,5.2,6.83,pu2_depth,good,med,"cam3,cam2",elbow ~85deg at T1; chest ~5-8 cm off floor
+pushup_0003,P1,tuning,4,182,5.2,6.83,pu2_lockout,good,high,cam3,elbow ~175deg at T0/T3
+pushup_0003,P1,tuning,4,182,5.2,6.83,pu2_head_up,good,high,"cam3,cam2",gaze down; no neck extension
+pushup_0003,P1,tuning,4,182,5.2,6.83,pu2_head_drop,tip,med,"cam3,cam2","head hangs below torso line at T1; neck flexed ~25deg, chin toward chest; face above chest level"
+pushup_0003,P1,tuning,4,182,5.2,6.83,pu2_hand,good,med,"cam1,cam3",wrists under shoulders (~0-10% ahead); width ~1.2x shoulder
+pushup_0003,P1,tuning,5,232,6.83,8.57,pu2_elbow_flare,tip,med,"cam1,cam2",elbows out to sides at T1; upper arm ~60deg from torso
+pushup_0003,P1,tuning,5,232,6.83,8.57,pu2_scapula,unsure,,"cam1,cam3",scapulae hidden under loose T-shirt; no visible winging or shrug
+pushup_0003,P1,tuning,5,232,6.83,8.57,pu2_hip_sag,good,med,cam3,hip ~1-3% below shoulder-ankle line at T1/T2; dorsal contour straight
+pushup_0003,P1,tuning,5,232,6.83,8.57,pu2_hip_pike,good,med,cam3,hip on line at T0/T3 (~0-2%)
+pushup_0003,P1,tuning,5,232,6.83,8.57,pu2_depth,good,med,"cam3,cam2",elbow ~85deg at T1; chest ~5-8 cm off floor
+pushup_0003,P1,tuning,5,232,6.83,8.57,pu2_lockout,good,high,cam3,elbow ~175deg at T0/T3
+pushup_0003,P1,tuning,5,232,6.83,8.57,pu2_head_up,good,high,"cam3,cam2",gaze down; no neck extension
+pushup_0003,P1,tuning,5,232,6.83,8.57,pu2_head_drop,tip,med,"cam3,cam2","head hangs below torso line at T1; neck flexed ~25deg, chin toward chest; face above chest level"
+pushup_0003,P1,tuning,5,232,6.83,8.57,pu2_hand,good,med,"cam1,cam3",wrists under shoulders (~0-10% ahead); width ~1.2x shoulder
+pushup_0003,P1,tuning,6,284,8.57,10.23,pu2_elbow_flare,tip,med,"cam1,cam2",elbows out to sides at T1; upper arm ~60deg from torso
+pushup_0003,P1,tuning,6,284,8.57,10.23,pu2_scapula,unsure,,"cam1,cam3",scapulae hidden under loose T-shirt; no visible winging or shrug
+pushup_0003,P1,tuning,6,284,8.57,10.23,pu2_hip_sag,good,med,cam3,hip ~1-3% below shoulder-ankle line at T1/T2; dorsal contour straight
+pushup_0003,P1,tuning,6,284,8.57,10.23,pu2_hip_pike,good,med,cam3,hip on line at T0/T3 (~0-2%)
+pushup_0003,P1,tuning,6,284,8.57,10.23,pu2_depth,good,med,"cam3,cam2",elbow ~85deg at T1; chest ~5-8 cm off floor
+pushup_0003,P1,tuning,6,284,8.57,10.23,pu2_lockout,good,high,cam3,elbow ~175deg at T0/T3
+pushup_0003,P1,tuning,6,284,8.57,10.23,pu2_head_up,good,high,"cam3,cam2",gaze down; no neck extension
+pushup_0003,P1,tuning,6,284,8.57,10.23,pu2_head_drop,tip,med,"cam3,cam2","head hangs below torso line at T1; neck flexed ~25deg, chin toward chest; face above chest level"
+pushup_0003,P1,tuning,6,284,8.57,10.23,pu2_hand,good,med,"cam1,cam3",wrists under shoulders (~0-10% ahead); width ~1.2x shoulder
+pushup_0003,P1,tuning,7,336,10.23,11.97,pu2_elbow_flare,tip,med,"cam1,cam2",elbows out to sides at T1; upper arm ~60deg from torso
+pushup_0003,P1,tuning,7,336,10.23,11.97,pu2_scapula,unsure,,"cam1,cam3",scapulae hidden under loose T-shirt; no visible winging or shrug
+pushup_0003,P1,tuning,7,336,10.23,11.97,pu2_hip_sag,good,med,cam3,hip ~1-3% below shoulder-ankle line at T1/T2; dorsal contour straight
+pushup_0003,P1,tuning,7,336,10.23,11.97,pu2_hip_pike,good,med,cam3,hip on line at T0/T3 (~0-2%)
+pushup_0003,P1,tuning,7,336,10.23,11.97,pu2_depth,good,med,"cam3,cam2",elbow ~85deg at T1; chest ~5-8 cm off floor
+pushup_0003,P1,tuning,7,336,10.23,11.97,pu2_lockout,good,high,cam3,elbow ~175deg at T0/T3
+pushup_0003,P1,tuning,7,336,10.23,11.97,pu2_head_up,good,high,"cam3,cam2",gaze down; no neck extension
+pushup_0003,P1,tuning,7,336,10.23,11.97,pu2_head_drop,tip,med,"cam3,cam2","head hangs below torso line at T1; neck flexed ~25deg, chin toward chest; face above chest level"
+pushup_0003,P1,tuning,7,336,10.23,11.97,pu2_hand,good,med,"cam1,cam3",wrists under shoulders (~0-10% ahead); width ~1.2x shoulder
+pushup_0003,P1,tuning,8,388,11.97,13.67,pu2_elbow_flare,tip,med,"cam1,cam2",elbows out to sides at T1; upper arm ~60deg from torso
+pushup_0003,P1,tuning,8,388,11.97,13.67,pu2_scapula,unsure,,"cam1,cam3",scapulae hidden under loose T-shirt; no visible winging or shrug
+pushup_0003,P1,tuning,8,388,11.97,13.67,pu2_hip_sag,good,med,cam3,hip ~1-3% below shoulder-ankle line at T1/T2; dorsal contour straight
+pushup_0003,P1,tuning,8,388,11.97,13.67,pu2_hip_pike,good,med,cam3,hip on line at T0/T3 (~0-2%)
+pushup_0003,P1,tuning,8,388,11.97,13.67,pu2_depth,good,med,"cam3,cam2",elbow ~85deg at T1; chest ~5-8 cm off floor
+pushup_0003,P1,tuning,8,388,11.97,13.67,pu2_lockout,good,high,cam3,elbow ~175deg at T0/T3
+pushup_0003,P1,tuning,8,388,11.97,13.67,pu2_head_up,good,high,"cam3,cam2",gaze down; no neck extension
+pushup_0003,P1,tuning,8,388,11.97,13.67,pu2_head_drop,tip,med,"cam3,cam2","head hangs below torso line at T1; neck flexed ~25deg, chin toward chest; face above chest level"
+pushup_0003,P1,tuning,8,388,11.97,13.67,pu2_hand,good,med,"cam1,cam3",wrists under shoulders (~0-10% ahead); width ~1.2x shoulder
+pushup_0003,P1,tuning,9,441,13.67,15.5,pu2_elbow_flare,tip,med,"cam1,cam2",elbows out to sides at T1; upper arm ~60deg from torso
+pushup_0003,P1,tuning,9,441,13.67,15.5,pu2_scapula,unsure,,"cam1,cam3",scapulae hidden under loose T-shirt; no visible winging or shrug
+pushup_0003,P1,tuning,9,441,13.67,15.5,pu2_hip_sag,good,med,cam3,hip ~1-3% below shoulder-ankle line at T1/T2; dorsal contour straight
+pushup_0003,P1,tuning,9,441,13.67,15.5,pu2_hip_pike,good,med,cam3,hip on line at T0/T3 (~0-2%)
+pushup_0003,P1,tuning,9,441,13.67,15.5,pu2_depth,good,med,"cam3,cam2",elbow ~85deg at T1; chest ~5-8 cm off floor
+pushup_0003,P1,tuning,9,441,13.67,15.5,pu2_lockout,good,high,cam3,elbow ~175deg at T0/T3
+pushup_0003,P1,tuning,9,441,13.67,15.5,pu2_head_up,good,high,"cam3,cam2",gaze down; no neck extension
+pushup_0003,P1,tuning,9,441,13.67,15.5,pu2_head_drop,tip,med,"cam3,cam2","head hangs below torso line at T1; neck flexed ~25deg, chin toward chest; face above chest level"
+pushup_0003,P1,tuning,9,441,13.67,15.5,pu2_hand,good,med,"cam1,cam3",wrists under shoulders (~0-10% ahead); width ~1.2x shoulder
+pushup_0003,P1,tuning,10,504,15.5,18.1,pu2_elbow_flare,tip,med,"cam1,cam2",elbows out to sides at T1; upper arm ~60deg from torso
+pushup_0003,P1,tuning,10,504,15.5,18.1,pu2_scapula,unsure,,"cam1,cam3",scapulae hidden under loose T-shirt; no visible winging or shrug
+pushup_0003,P1,tuning,10,504,15.5,18.1,pu2_hip_sag,good,med,cam3,hip ~1-3% below shoulder-ankle line at T1/T2; dorsal contour straight
+pushup_0003,P1,tuning,10,504,15.5,18.1,pu2_hip_pike,good,med,cam3,hip on line at T0/T3 (~0-2%)
+pushup_0003,P1,tuning,10,504,15.5,18.1,pu2_depth,good,med,"cam3,cam2",elbow ~85deg at T1; chest ~5-8 cm off floor
+pushup_0003,P1,tuning,10,504,15.5,18.1,pu2_lockout,good,high,cam3,elbow ~175deg at T0/T3
+pushup_0003,P1,tuning,10,504,15.5,18.1,pu2_head_up,good,high,"cam3,cam2",gaze down; no neck extension
+pushup_0003,P1,tuning,10,504,15.5,18.1,pu2_head_drop,tip,med,"cam3,cam2","head hangs below torso line at T1; neck flexed ~25deg, chin toward chest; face above chest level"
+pushup_0003,P1,tuning,10,504,15.5,18.1,pu2_hand,good,med,"cam1,cam3",wrists under shoulders (~0-10% ahead); width ~1.2x shoulder
+pushup_0004,P1,tuning,1,62,1.07,2.63,pu2_elbow_flare,tip,med,"cam1,cam2",elbows out to sides at T1; upper arm ~60deg from torso
+pushup_0004,P1,tuning,1,62,1.07,2.63,pu2_scapula,unsure,,"cam1,cam3",scapulae hidden under loose T-shirt; no visible winging or shrug
+pushup_0004,P1,tuning,1,62,1.07,2.63,pu2_hip_sag,good,med,cam3,hip ~1-2% below shoulder-ankle line at T1/T2; dorsal contour straight
+pushup_0004,P1,tuning,1,62,1.07,2.63,pu2_hip_pike,good,med,cam3,hip on line at T0/T3 (~0-2%)
+pushup_0004,P1,tuning,1,62,1.07,2.63,pu2_depth,good,med,"cam3,cam2",elbow ~85deg at T1; chest ~5-8 cm off floor
+pushup_0004,P1,tuning,1,62,1.07,2.63,pu2_lockout,good,high,cam3,elbow ~175deg at T0/T3
+pushup_0004,P1,tuning,1,62,1.07,2.63,pu2_head_up,good,high,"cam3,cam2",gaze down; no neck extension
+pushup_0004,P1,tuning,1,62,1.07,2.63,pu2_head_drop,tip,med,"cam3,cam2","head hangs below torso line at T1; neck flexed ~25deg, chin toward chest; face above chest level"
+pushup_0004,P1,tuning,1,62,1.07,2.63,pu2_hand,good,med,"cam1,cam3",wrists under shoulders (~0-10% ahead); width ~1.2x shoulder
+pushup_0004,P1,tuning,2,98,2.63,3.87,pu2_elbow_flare,tip,med,"cam1,cam2",elbows out to sides at T1; upper arm ~60deg from torso
+pushup_0004,P1,tuning,2,98,2.63,3.87,pu2_scapula,unsure,,"cam1,cam3",scapulae hidden under loose T-shirt; no visible winging or shrug
+pushup_0004,P1,tuning,2,98,2.63,3.87,pu2_hip_sag,good,med,cam3,hip ~1-2% below shoulder-ankle line at T1/T2; dorsal contour straight
+pushup_0004,P1,tuning,2,98,2.63,3.87,pu2_hip_pike,good,med,cam3,hip on line at T0/T3 (~0-2%)
+pushup_0004,P1,tuning,2,98,2.63,3.87,pu2_depth,good,med,"cam3,cam2",elbow ~85deg at T1; chest ~5-8 cm off floor
+pushup_0004,P1,tuning,2,98,2.63,3.87,pu2_lockout,good,high,cam3,elbow ~175deg at T0/T3
+pushup_0004,P1,tuning,2,98,2.63,3.87,pu2_head_up,good,high,"cam3,cam2",gaze down; no neck extension
+pushup_0004,P1,tuning,2,98,2.63,3.87,pu2_head_drop,tip,med,"cam3,cam2","head hangs below torso line at T1; neck flexed ~25deg, chin toward chest; face above chest level"
+pushup_0004,P1,tuning,2,98,2.63,3.87,pu2_hand,good,med,"cam1,cam3",wrists under shoulders (~0-10% ahead); width ~1.2x shoulder
+pushup_0004,P1,tuning,3,137,3.87,5.17,pu2_elbow_flare,tip,med,"cam1,cam2",elbows out to sides at T1; upper arm ~60deg from torso
+pushup_0004,P1,tuning,3,137,3.87,5.17,pu2_scapula,unsure,,"cam1,cam3",scapulae hidden under loose T-shirt; no visible winging or shrug
+pushup_0004,P1,tuning,3,137,3.87,5.17,pu2_hip_sag,good,med,cam3,hip ~1-2% below shoulder-ankle line at T1/T2; dorsal contour straight
+pushup_0004,P1,tuning,3,137,3.87,5.17,pu2_hip_pike,good,med,cam3,hip on line at T0/T3 (~0-2%)
+pushup_0004,P1,tuning,3,137,3.87,5.17,pu2_depth,good,med,"cam3,cam2",elbow ~85deg at T1; chest ~5-8 cm off floor
+pushup_0004,P1,tuning,3,137,3.87,5.17,pu2_lockout,good,high,cam3,elbow ~175deg at T0/T3
+pushup_0004,P1,tuning,3,137,3.87,5.17,pu2_head_up,good,high,"cam3,cam2",gaze down; no neck extension
+pushup_0004,P1,tuning,3,137,3.87,5.17,pu2_head_drop,tip,med,"cam3,cam2","head hangs below torso line at T1; neck flexed ~25deg, chin toward chest; face above chest level"
+pushup_0004,P1,tuning,3,137,3.87,5.17,pu2_hand,good,med,"cam1,cam3",wrists under shoulders (~0-10% ahead); width ~1.2x shoulder
+pushup_0004,P1,tuning,4,179,5.17,6.7,pu2_elbow_flare,tip,med,"cam1,cam2",elbows out to sides at T1; upper arm ~60deg from torso
+pushup_0004,P1,tuning,4,179,5.17,6.7,pu2_scapula,unsure,,"cam1,cam3",scapulae hidden under loose T-shirt; no visible winging or shrug
+pushup_0004,P1,tuning,4,179,5.17,6.7,pu2_hip_sag,good,med,cam3,hip ~1-2% below shoulder-ankle line at T1/T2; dorsal contour straight
+pushup_0004,P1,tuning,4,179,5.17,6.7,pu2_hip_pike,good,med,cam3,hip on line at T0/T3 (~0-2%)
+pushup_0004,P1,tuning,4,179,5.17,6.7,pu2_depth,good,med,"cam3,cam2",elbow ~85deg at T1; chest ~5-8 cm off floor
+pushup_0004,P1,tuning,4,179,5.17,6.7,pu2_lockout,good,high,cam3,elbow ~175deg at T0/T3
+pushup_0004,P1,tuning,4,179,5.17,6.7,pu2_head_up,good,high,"cam3,cam2",gaze down; no neck extension
+pushup_0004,P1,tuning,4,179,5.17,6.7,pu2_head_drop,tip,med,"cam3,cam2","head hangs below torso line at T1; neck flexed ~25deg, chin toward chest; face above chest level"
+pushup_0004,P1,tuning,4,179,5.17,6.7,pu2_hand,good,med,"cam1,cam3",wrists under shoulders (~0-10% ahead); width ~1.2x shoulder
+pushup_0004,P1,tuning,5,224,6.7,8.23,pu2_elbow_flare,tip,med,"cam1,cam2",elbows out to sides at T1; upper arm ~60deg from torso
+pushup_0004,P1,tuning,5,224,6.7,8.23,pu2_scapula,unsure,,"cam1,cam3",scapulae hidden under loose T-shirt; no visible winging or shrug
+pushup_0004,P1,tuning,5,224,6.7,8.23,pu2_hip_sag,good,med,cam3,hip ~1-2% below shoulder-ankle line at T1/T2; dorsal contour straight
+pushup_0004,P1,tuning,5,224,6.7,8.23,pu2_hip_pike,good,med,cam3,hip on line at T0/T3 (~0-2%)
+pushup_0004,P1,tuning,5,224,6.7,8.23,pu2_depth,good,med,"cam3,cam2",elbow ~85deg at T1; chest ~5-8 cm off floor
+pushup_0004,P1,tuning,5,224,6.7,8.23,pu2_lockout,good,high,cam3,elbow ~175deg at T0/T3
+pushup_0004,P1,tuning,5,224,6.7,8.23,pu2_head_up,good,high,"cam3,cam2",gaze down; no neck extension
+pushup_0004,P1,tuning,5,224,6.7,8.23,pu2_head_drop,tip,med,"cam3,cam2","head hangs below torso line at T1; neck flexed ~25deg, chin toward chest; face above chest level"
+pushup_0004,P1,tuning,5,224,6.7,8.23,pu2_hand,good,med,"cam1,cam3",wrists under shoulders (~0-10% ahead); width ~1.2x shoulder
+pushup_0004,P1,tuning,6,268,8.23,9.73,pu2_elbow_flare,tip,med,"cam1,cam2",elbows out to sides at T1; upper arm ~60deg from torso
+pushup_0004,P1,tuning,6,268,8.23,9.73,pu2_scapula,unsure,,"cam1,cam3",scapulae hidden under loose T-shirt; no visible winging or shrug
+pushup_0004,P1,tuning,6,268,8.23,9.73,pu2_hip_sag,good,med,cam3,hip ~1-2% below shoulder-ankle line at T1/T2; dorsal contour straight
+pushup_0004,P1,tuning,6,268,8.23,9.73,pu2_hip_pike,good,med,cam3,hip on line at T0/T3 (~0-2%)
+pushup_0004,P1,tuning,6,268,8.23,9.73,pu2_depth,good,med,"cam3,cam2",elbow ~85deg at T1; chest ~5-8 cm off floor
+pushup_0004,P1,tuning,6,268,8.23,9.73,pu2_lockout,good,high,cam3,elbow ~175deg at T0/T3
+pushup_0004,P1,tuning,6,268,8.23,9.73,pu2_head_up,good,high,"cam3,cam2",gaze down; no neck extension
+pushup_0004,P1,tuning,6,268,8.23,9.73,pu2_head_drop,tip,med,"cam3,cam2","head hangs below torso line at T1; neck flexed ~25deg, chin toward chest; face above chest level"
+pushup_0004,P1,tuning,6,268,8.23,9.73,pu2_hand,good,med,"cam1,cam3",wrists under shoulders (~0-10% ahead); width ~1.2x shoulder
+pushup_0004,P1,tuning,7,316,9.73,11.2,pu2_elbow_flare,tip,med,"cam1,cam2",elbows out to sides at T1; upper arm ~60deg from torso
+pushup_0004,P1,tuning,7,316,9.73,11.2,pu2_scapula,unsure,,"cam1,cam3",scapulae hidden under loose T-shirt; no visible winging or shrug
+pushup_0004,P1,tuning,7,316,9.73,11.2,pu2_hip_sag,good,med,cam3,hip ~1-2% below shoulder-ankle line at T1/T2; dorsal contour straight
+pushup_0004,P1,tuning,7,316,9.73,11.2,pu2_hip_pike,good,med,cam3,hip on line at T0/T3 (~0-2%)
+pushup_0004,P1,tuning,7,316,9.73,11.2,pu2_depth,good,med,"cam3,cam2",elbow ~85deg at T1; chest ~5-8 cm off floor
+pushup_0004,P1,tuning,7,316,9.73,11.2,pu2_lockout,good,high,cam3,elbow ~175deg at T0/T3
+pushup_0004,P1,tuning,7,316,9.73,11.2,pu2_head_up,good,high,"cam3,cam2",gaze down; no neck extension
+pushup_0004,P1,tuning,7,316,9.73,11.2,pu2_head_drop,tip,med,"cam3,cam2","head hangs below torso line at T1; neck flexed ~25deg, chin toward chest; face above chest level"
+pushup_0004,P1,tuning,7,316,9.73,11.2,pu2_hand,good,med,"cam1,cam3",wrists under shoulders (~0-10% ahead); width ~1.2x shoulder
+pushup_0004,P1,tuning,8,368,11.2,12.97,pu2_elbow_flare,tip,med,"cam1,cam2",elbows out to sides at T1; upper arm ~60deg from torso
+pushup_0004,P1,tuning,8,368,11.2,12.97,pu2_scapula,unsure,,"cam1,cam3",scapulae hidden under loose T-shirt; no visible winging or shrug
+pushup_0004,P1,tuning,8,368,11.2,12.97,pu2_hip_sag,good,med,cam3,hip ~1-2% below shoulder-ankle line at T1/T2; dorsal contour straight
+pushup_0004,P1,tuning,8,368,11.2,12.97,pu2_hip_pike,good,med,cam3,hip on line at T0/T3 (~0-2%)
+pushup_0004,P1,tuning,8,368,11.2,12.97,pu2_depth,good,med,"cam3,cam2",elbow ~85deg at T1; chest ~5-8 cm off floor
+pushup_0004,P1,tuning,8,368,11.2,12.97,pu2_lockout,good,high,cam3,elbow ~175deg at T0/T3
+pushup_0004,P1,tuning,8,368,11.2,12.97,pu2_head_up,good,high,"cam3,cam2",gaze down; no neck extension
+pushup_0004,P1,tuning,8,368,11.2,12.97,pu2_head_drop,tip,med,"cam3,cam2","head hangs below torso line at T1; neck flexed ~25deg, chin toward chest; face above chest level"
+pushup_0004,P1,tuning,8,368,11.2,12.97,pu2_hand,good,med,"cam1,cam3",wrists under shoulders (~0-10% ahead); width ~1.2x shoulder
+pushup_0004,P1,tuning,9,421,12.97,14.77,pu2_elbow_flare,tip,med,"cam1,cam2",elbows out to sides at T1; upper arm ~60deg from torso
+pushup_0004,P1,tuning,9,421,12.97,14.77,pu2_scapula,unsure,,"cam1,cam3",scapulae hidden under loose T-shirt; no visible winging or shrug
+pushup_0004,P1,tuning,9,421,12.97,14.77,pu2_hip_sag,good,med,cam3,hip ~1-2% below shoulder-ankle line at T1/T2; dorsal contour straight
+pushup_0004,P1,tuning,9,421,12.97,14.77,pu2_hip_pike,good,med,cam3,hip on line at T0/T3 (~0-2%)
+pushup_0004,P1,tuning,9,421,12.97,14.77,pu2_depth,good,med,"cam3,cam2",elbow ~85deg at T1; chest ~5-8 cm off floor
+pushup_0004,P1,tuning,9,421,12.97,14.77,pu2_lockout,good,high,cam3,elbow ~175deg at T0/T3
+pushup_0004,P1,tuning,9,421,12.97,14.77,pu2_head_up,good,high,"cam3,cam2",gaze down; no neck extension
+pushup_0004,P1,tuning,9,421,12.97,14.77,pu2_head_drop,tip,med,"cam3,cam2","head hangs below torso line at T1; neck flexed ~25deg, chin toward chest; face above chest level"
+pushup_0004,P1,tuning,9,421,12.97,14.77,pu2_hand,good,med,"cam1,cam3",wrists under shoulders (~0-10% ahead); width ~1.2x shoulder
+pushup_0004,P1,tuning,10,476,14.77,16.93,pu2_elbow_flare,tip,med,"cam1,cam2",elbows out to sides at T1; upper arm ~60deg from torso
+pushup_0004,P1,tuning,10,476,14.77,16.93,pu2_scapula,unsure,,"cam1,cam3",scapulae hidden under loose T-shirt; no visible winging or shrug
+pushup_0004,P1,tuning,10,476,14.77,16.93,pu2_hip_sag,good,med,cam3,hip ~1-2% below shoulder-ankle line at T1/T2; dorsal contour straight
+pushup_0004,P1,tuning,10,476,14.77,16.93,pu2_hip_pike,good,med,cam3,hip on line at T0/T3 (~0-2%)
+pushup_0004,P1,tuning,10,476,14.77,16.93,pu2_depth,good,med,"cam3,cam2",elbow ~85deg at T1; chest ~5-8 cm off floor
+pushup_0004,P1,tuning,10,476,14.77,16.93,pu2_lockout,good,high,cam3,elbow ~175deg at T0/T3
+pushup_0004,P1,tuning,10,476,14.77,16.93,pu2_head_up,good,high,"cam3,cam2",gaze down; no neck extension
+pushup_0004,P1,tuning,10,476,14.77,16.93,pu2_head_drop,tip,med,"cam3,cam2","head hangs below torso line at T1; neck flexed ~25deg, chin toward chest; face above chest level"
+pushup_0004,P1,tuning,10,476,14.77,16.93,pu2_hand,good,med,"cam1,cam3",wrists under shoulders (~0-10% ahead); width ~1.2x shoulder
+squat_0000,P1,tuning,1,75,0.1,4.23,sq2_depth,good,low,"cam2,cam1,cam3","buttock/hip crease ~at knee-top level, thigh ~parallel (0-3deg); oblique view so borderline"
+squat_0000,P1,tuning,1,75,0.1,4.23,sq2_butt_wink,unsure,,"cam2,cam3",baggy shirt hides lumbar; no side-on cam (32deg oblique)
+squat_0000,P1,tuning,1,75,0.1,4.23,sq2_valgus,good,high,"cam1,cam3",knees track over/outside toes at T1-T2 in front and rear views
+squat_0000,P1,tuning,1,75,0.1,4.23,sq2_weight_forward,good,med,"cam2,cam1","heels flat, bar roughly over midfoot"
+squat_0000,P1,tuning,1,75,0.1,4.23,sq2_bottom_tempo,good,med,cam2,"controlled descent, ~0.3-0.4 s near-still at bottom, smooth turnaround"
+squat_0000,P1,tuning,1,75,0.1,4.23,sq2_torso_lean,tip,med,cam2,"torso ~45deg from vertical vs shin ~35deg, ~10deg more inclined"
+squat_0000,P1,tuning,1,75,0.1,4.23,sq2_hips_first,good,med,cam2,torso rises with hips T1->T2 (~5-10deg more upright)
+squat_0000,P1,tuning,1,75,0.1,4.23,sq2_lockout,good,med,"cam1,cam2","stands fully upright, knees/hips extended at T3"
+squat_0000,P1,tuning,2,180,4.23,7.4,sq2_depth,good,low,"cam2,cam1,cam3","buttock/hip crease ~at knee-top level, thigh ~parallel (0-3deg); oblique view so borderline"
+squat_0000,P1,tuning,2,180,4.23,7.4,sq2_butt_wink,unsure,,"cam2,cam3",baggy shirt hides lumbar; no side-on cam (32deg oblique)
+squat_0000,P1,tuning,2,180,4.23,7.4,sq2_valgus,good,high,"cam1,cam3",knees track over/outside toes at T1-T2 in front and rear views
+squat_0000,P1,tuning,2,180,4.23,7.4,sq2_weight_forward,good,med,"cam2,cam1","heels flat, bar roughly over midfoot"
+squat_0000,P1,tuning,2,180,4.23,7.4,sq2_bottom_tempo,good,med,cam2,"controlled descent, ~0.3-0.4 s near-still at bottom, smooth turnaround"
+squat_0000,P1,tuning,2,180,4.23,7.4,sq2_torso_lean,tip,med,cam2,"torso ~45deg from vertical vs shin ~35deg, ~10deg more inclined"
+squat_0000,P1,tuning,2,180,4.23,7.4,sq2_hips_first,good,med,cam2,torso rises with hips T1->T2 (~5-10deg more upright)
+squat_0000,P1,tuning,2,180,4.23,7.4,sq2_lockout,good,med,"cam1,cam2","stands fully upright, knees/hips extended at T3"
+squat_0000,P1,tuning,3,281,7.4,11.07,sq2_depth,good,low,"cam2,cam1,cam3","buttock/hip crease ~at knee-top level, thigh ~parallel (0-3deg); oblique view so borderline"
+squat_0000,P1,tuning,3,281,7.4,11.07,sq2_butt_wink,unsure,,"cam2,cam3",baggy shirt hides lumbar; no side-on cam (32deg oblique)
+squat_0000,P1,tuning,3,281,7.4,11.07,sq2_valgus,good,high,"cam1,cam3",knees track over/outside toes at T1-T2 in front and rear views
+squat_0000,P1,tuning,3,281,7.4,11.07,sq2_weight_forward,good,med,"cam2,cam1","heels flat, bar roughly over midfoot"
+squat_0000,P1,tuning,3,281,7.4,11.07,sq2_bottom_tempo,good,med,cam2,"controlled descent, ~0.3-0.4 s near-still at bottom, smooth turnaround"
+squat_0000,P1,tuning,3,281,7.4,11.07,sq2_torso_lean,tip,med,cam2,"torso ~45deg from vertical vs shin ~35deg, ~10deg more inclined"
+squat_0000,P1,tuning,3,281,7.4,11.07,sq2_hips_first,good,med,cam2,torso rises with hips T1->T2 (~5-10deg more upright)
+squat_0000,P1,tuning,3,281,7.4,11.07,sq2_lockout,good,med,"cam1,cam2","stands fully upright, knees/hips extended at T3"
+squat_0000,P1,tuning,4,387,11.07,14.57,sq2_depth,good,low,"cam2,cam1,cam3","buttock/hip crease ~at knee-top level, thigh ~parallel (0-3deg); oblique view so borderline"
+squat_0000,P1,tuning,4,387,11.07,14.57,sq2_butt_wink,unsure,,"cam2,cam3",baggy shirt hides lumbar; no side-on cam (32deg oblique)
+squat_0000,P1,tuning,4,387,11.07,14.57,sq2_valgus,good,high,"cam1,cam3",knees track over/outside toes at T1-T2 in front and rear views
+squat_0000,P1,tuning,4,387,11.07,14.57,sq2_weight_forward,good,med,"cam2,cam1","heels flat, bar roughly over midfoot"
+squat_0000,P1,tuning,4,387,11.07,14.57,sq2_bottom_tempo,good,med,cam2,"controlled descent, ~0.3-0.4 s near-still at bottom, smooth turnaround"
+squat_0000,P1,tuning,4,387,11.07,14.57,sq2_torso_lean,tip,med,cam2,"torso ~45deg from vertical vs shin ~35deg, ~10deg more inclined"
+squat_0000,P1,tuning,4,387,11.07,14.57,sq2_hips_first,good,med,cam2,torso rises with hips T1->T2 (~5-10deg more upright)
+squat_0000,P1,tuning,4,387,11.07,14.57,sq2_lockout,good,med,"cam1,cam2","stands fully upright, knees/hips extended at T3"
+squat_0000,P1,tuning,5,500,14.57,18.1,sq2_depth,good,low,"cam2,cam1,cam3","buttock/hip crease ~at knee-top level, thigh ~parallel (0-3deg); oblique view so borderline"
+squat_0000,P1,tuning,5,500,14.57,18.1,sq2_butt_wink,unsure,,"cam2,cam3",baggy shirt hides lumbar; no side-on cam (32deg oblique)
+squat_0000,P1,tuning,5,500,14.57,18.1,sq2_valgus,good,high,"cam1,cam3",knees track over/outside toes at T1-T2 in front and rear views
+squat_0000,P1,tuning,5,500,14.57,18.1,sq2_weight_forward,good,med,"cam2,cam1","heels flat, bar roughly over midfoot"
+squat_0000,P1,tuning,5,500,14.57,18.1,sq2_bottom_tempo,good,med,cam2,"controlled descent, ~0.3-0.4 s near-still at bottom, smooth turnaround"
+squat_0000,P1,tuning,5,500,14.57,18.1,sq2_torso_lean,tip,med,cam2,"torso ~45deg from vertical vs shin ~35deg, ~10deg more inclined"
+squat_0000,P1,tuning,5,500,14.57,18.1,sq2_hips_first,good,med,cam2,torso rises with hips T1->T2 (~5-10deg more upright)
+squat_0000,P1,tuning,5,500,14.57,18.1,sq2_lockout,good,med,"cam1,cam2","stands fully upright, knees/hips extended at T3"
+squat_0000,P1,tuning,6,605,18.1,21.63,sq2_depth,good,low,"cam2,cam1,cam3","buttock/hip crease ~at knee-top level, thigh ~parallel (0-3deg); oblique view so borderline"
+squat_0000,P1,tuning,6,605,18.1,21.63,sq2_butt_wink,unsure,,"cam2,cam3",baggy shirt hides lumbar; no side-on cam (32deg oblique)
+squat_0000,P1,tuning,6,605,18.1,21.63,sq2_valgus,good,high,"cam1,cam3",knees track over/outside toes at T1-T2 in front and rear views
+squat_0000,P1,tuning,6,605,18.1,21.63,sq2_weight_forward,good,med,"cam2,cam1","heels flat, bar roughly over midfoot"
+squat_0000,P1,tuning,6,605,18.1,21.63,sq2_bottom_tempo,good,med,cam2,"controlled descent, ~0.3-0.4 s near-still at bottom, smooth turnaround"
+squat_0000,P1,tuning,6,605,18.1,21.63,sq2_torso_lean,tip,med,cam2,"torso ~45deg from vertical vs shin ~35deg, ~10deg more inclined"
+squat_0000,P1,tuning,6,605,18.1,21.63,sq2_hips_first,good,med,cam2,torso rises with hips T1->T2 (~5-10deg more upright)
+squat_0000,P1,tuning,6,605,18.1,21.63,sq2_lockout,good,med,"cam1,cam2","stands fully upright, knees/hips extended at T3"
+squat_0000,P1,tuning,7,709,21.63,25.07,sq2_depth,good,low,"cam2,cam1,cam3","buttock/hip crease ~at knee-top level, thigh ~parallel (0-3deg); oblique view so borderline"
+squat_0000,P1,tuning,7,709,21.63,25.07,sq2_butt_wink,unsure,,"cam2,cam3",baggy shirt hides lumbar; no side-on cam (32deg oblique)
+squat_0000,P1,tuning,7,709,21.63,25.07,sq2_valgus,good,high,"cam1,cam3",knees track over/outside toes at T1-T2 in front and rear views
+squat_0000,P1,tuning,7,709,21.63,25.07,sq2_weight_forward,good,med,"cam2,cam1","heels flat, bar roughly over midfoot"
+squat_0000,P1,tuning,7,709,21.63,25.07,sq2_bottom_tempo,good,med,cam2,"controlled descent, ~0.3-0.4 s near-still at bottom, smooth turnaround"
+squat_0000,P1,tuning,7,709,21.63,25.07,sq2_torso_lean,tip,med,cam2,"torso ~45deg from vertical vs shin ~35deg, ~10deg more inclined"
+squat_0000,P1,tuning,7,709,21.63,25.07,sq2_hips_first,good,med,cam2,torso rises with hips T1->T2 (~5-10deg more upright)
+squat_0000,P1,tuning,7,709,21.63,25.07,sq2_lockout,good,med,"cam1,cam2","stands fully upright, knees/hips extended at T3"
+squat_0000,P1,tuning,8,818,25.07,28.77,sq2_depth,good,low,"cam2,cam1,cam3","buttock/hip crease ~at knee-top level, thigh ~parallel (0-3deg); oblique view so borderline"
+squat_0000,P1,tuning,8,818,25.07,28.77,sq2_butt_wink,unsure,,"cam2,cam3",baggy shirt hides lumbar; no side-on cam (32deg oblique)
+squat_0000,P1,tuning,8,818,25.07,28.77,sq2_valgus,good,high,"cam1,cam3",knees track over/outside toes at T1-T2 in front and rear views
+squat_0000,P1,tuning,8,818,25.07,28.77,sq2_weight_forward,good,med,"cam2,cam1","heels flat, bar roughly over midfoot"
+squat_0000,P1,tuning,8,818,25.07,28.77,sq2_bottom_tempo,good,med,cam2,"controlled descent, ~0.3-0.4 s near-still at bottom, smooth turnaround"
+squat_0000,P1,tuning,8,818,25.07,28.77,sq2_torso_lean,tip,med,cam2,"torso ~45deg from vertical vs shin ~35deg, ~10deg more inclined"
+squat_0000,P1,tuning,8,818,25.07,28.77,sq2_hips_first,good,med,cam2,torso rises with hips T1->T2 (~5-10deg more upright)
+squat_0000,P1,tuning,8,818,25.07,28.77,sq2_lockout,good,med,"cam1,cam2","stands fully upright, knees/hips extended at T3"
+squat_0000,P1,tuning,9,929,28.77,32.63,sq2_depth,good,low,"cam2,cam1,cam3","buttock/hip crease ~at knee-top level, thigh ~parallel (0-3deg); oblique view so borderline"
+squat_0000,P1,tuning,9,929,28.77,32.63,sq2_butt_wink,unsure,,"cam2,cam3",baggy shirt hides lumbar; no side-on cam (32deg oblique)
+squat_0000,P1,tuning,9,929,28.77,32.63,sq2_valgus,good,high,"cam1,cam3",knees track over/outside toes at T1-T2 in front and rear views
+squat_0000,P1,tuning,9,929,28.77,32.63,sq2_weight_forward,good,med,"cam2,cam1","heels flat, bar roughly over midfoot"
+squat_0000,P1,tuning,9,929,28.77,32.63,sq2_bottom_tempo,good,med,cam2,"controlled descent, ~0.3-0.4 s near-still at bottom, smooth turnaround"
+squat_0000,P1,tuning,9,929,28.77,32.63,sq2_torso_lean,tip,med,cam2,"torso ~45deg from vertical vs shin ~35deg, ~10deg more inclined"
+squat_0000,P1,tuning,9,929,28.77,32.63,sq2_hips_first,good,med,cam2,torso rises with hips T1->T2 (~5-10deg more upright)
+squat_0000,P1,tuning,9,929,28.77,32.63,sq2_lockout,good,med,"cam1,cam2","stands fully upright, knees/hips extended at T3"
+squat_0000,P1,tuning,10,1040,32.63,36.27,sq2_depth,good,low,"cam2,cam1,cam3","buttock/hip crease ~at knee-top level, thigh ~parallel (0-3deg); oblique view so borderline"
+squat_0000,P1,tuning,10,1040,32.63,36.27,sq2_butt_wink,unsure,,"cam2,cam3",baggy shirt hides lumbar; no side-on cam (32deg oblique)
+squat_0000,P1,tuning,10,1040,32.63,36.27,sq2_valgus,good,high,"cam1,cam3",knees track over/outside toes at T1-T2 in front and rear views
+squat_0000,P1,tuning,10,1040,32.63,36.27,sq2_weight_forward,good,med,"cam2,cam1","heels flat, bar roughly over midfoot"
+squat_0000,P1,tuning,10,1040,32.63,36.27,sq2_bottom_tempo,good,med,cam2,"controlled descent, ~0.3-0.4 s near-still at bottom, smooth turnaround"
+squat_0000,P1,tuning,10,1040,32.63,36.27,sq2_torso_lean,tip,med,cam2,"torso ~45deg from vertical vs shin ~35deg, ~10deg more inclined"
+squat_0000,P1,tuning,10,1040,32.63,36.27,sq2_hips_first,good,med,cam2,torso rises with hips T1->T2 (~5-10deg more upright)
+squat_0000,P1,tuning,10,1040,32.63,36.27,sq2_lockout,good,med,"cam1,cam2","stands fully upright, knees/hips extended at T3"
+squat_0001,P1,tuning,1,98,0.1,4.37,sq2_depth,good,low,"cam1,cam2,cam3","hip crease ~at knee top, thigh ~parallel; shallower than later reps"
+squat_0001,P1,tuning,1,98,0.1,4.37,sq2_butt_wink,unsure,,"cam1,cam2,cam3",lumbar hidden by shirt; no side-on cam (27/34deg oblique)
+squat_0001,P1,tuning,1,98,0.1,4.37,sq2_valgus,good,med,"cam1,cam3",knees over feet at T1-T2; no visible inward drift
+squat_0001,P1,tuning,1,98,0.1,4.37,sq2_weight_forward,good,med,"cam1,cam2","heels flat, hips go back, bar ~over midfoot"
+squat_0001,P1,tuning,1,98,0.1,4.37,sq2_bottom_tempo,good,med,cam1,"steady descent ~0.4 s for last third, ~0.3 s still at bottom, smooth reversal"
+squat_0001,P1,tuning,1,98,0.1,4.37,sq2_torso_lean,tip,med,"cam1,cam2","torso ~50deg vs shin ~35deg from vertical in cam1, ~12-15deg more inclined"
+squat_0001,P1,tuning,1,98,0.1,4.37,sq2_hips_first,good,med,"cam1,cam2",torso angle held/rises T1->T2
+squat_0001,P1,tuning,1,98,0.1,4.37,sq2_lockout,good,med,"cam1,cam2",stands fully upright at T3
+squat_0001,P1,tuning,2,200,4.37,8.4,sq2_depth,good,high,"cam1,cam2,cam3","hip crease below knee top, thigh ~10deg below horizontal"
+squat_0001,P1,tuning,2,200,4.37,8.4,sq2_butt_wink,unsure,,"cam1,cam2,cam3",lumbar hidden by shirt; no side-on cam (27/34deg oblique)
+squat_0001,P1,tuning,2,200,4.37,8.4,sq2_valgus,good,med,"cam1,cam3",knees over feet at T1-T2; no visible inward drift
+squat_0001,P1,tuning,2,200,4.37,8.4,sq2_weight_forward,good,med,"cam1,cam2","heels flat, hips go back, bar ~over midfoot"
+squat_0001,P1,tuning,2,200,4.37,8.4,sq2_bottom_tempo,good,med,cam1,"steady descent ~0.4 s for last third, ~0.3 s still at bottom, smooth reversal"
+squat_0001,P1,tuning,2,200,4.37,8.4,sq2_torso_lean,tip,low,"cam1,cam2","torso ~5-10deg more inclined than shin (cams disagree: cam1 more, cam2 ~parallel)"
+squat_0001,P1,tuning,2,200,4.37,8.4,sq2_hips_first,good,med,"cam1,cam2",torso angle held/rises T1->T2
+squat_0001,P1,tuning,2,200,4.37,8.4,sq2_lockout,good,med,"cam1,cam2",stands fully upright at T3
+squat_0001,P1,tuning,3,313,8.4,12.73,sq2_depth,good,high,"cam1,cam2,cam3","hip crease below knee top, thigh ~10deg below horizontal"
+squat_0001,P1,tuning,3,313,8.4,12.73,sq2_butt_wink,unsure,,"cam1,cam2,cam3",lumbar hidden by shirt; no side-on cam (27/34deg oblique)
+squat_0001,P1,tuning,3,313,8.4,12.73,sq2_valgus,good,med,"cam1,cam3",knees over feet at T1-T2; no visible inward drift
+squat_0001,P1,tuning,3,313,8.4,12.73,sq2_weight_forward,good,med,"cam1,cam2","heels flat, hips go back, bar ~over midfoot"
+squat_0001,P1,tuning,3,313,8.4,12.73,sq2_bottom_tempo,good,med,cam1,"steady descent ~0.4 s for last third, ~0.3 s still at bottom, smooth reversal"
+squat_0001,P1,tuning,3,313,8.4,12.73,sq2_torso_lean,tip,low,"cam1,cam2","torso ~5-10deg more inclined than shin (cams disagree: cam1 more, cam2 ~parallel)"
+squat_0001,P1,tuning,3,313,8.4,12.73,sq2_hips_first,good,med,"cam1,cam2",torso angle held/rises T1->T2
+squat_0001,P1,tuning,3,313,8.4,12.73,sq2_lockout,good,med,"cam1,cam2",stands fully upright at T3
+squat_0001,P1,tuning,4,430,12.73,16.33,sq2_depth,good,high,"cam1,cam2,cam3","hip crease below knee top, thigh ~10deg below horizontal"
+squat_0001,P1,tuning,4,430,12.73,16.33,sq2_butt_wink,unsure,,"cam1,cam2,cam3",lumbar hidden by shirt; no side-on cam (27/34deg oblique)
+squat_0001,P1,tuning,4,430,12.73,16.33,sq2_valgus,good,med,"cam1,cam3",knees over feet at T1-T2; no visible inward drift
+squat_0001,P1,tuning,4,430,12.73,16.33,sq2_weight_forward,good,med,"cam1,cam2","heels flat, hips go back, bar ~over midfoot"
+squat_0001,P1,tuning,4,430,12.73,16.33,sq2_bottom_tempo,good,med,cam1,"steady descent ~0.4 s for last third, ~0.3 s still at bottom, smooth reversal"
+squat_0001,P1,tuning,4,430,12.73,16.33,sq2_torso_lean,tip,low,"cam1,cam2","torso ~5-10deg more inclined than shin (cams disagree: cam1 more, cam2 ~parallel)"
+squat_0001,P1,tuning,4,430,12.73,16.33,sq2_hips_first,good,med,"cam1,cam2",torso angle held/rises T1->T2
+squat_0001,P1,tuning,4,430,12.73,16.33,sq2_lockout,good,med,"cam1,cam2",stands fully upright at T3
+squat_0001,P1,tuning,5,555,16.33,20.57,sq2_depth,good,high,"cam1,cam2,cam3","hip crease below knee top, thigh ~10deg below horizontal"
+squat_0001,P1,tuning,5,555,16.33,20.57,sq2_butt_wink,unsure,,"cam1,cam2,cam3",lumbar hidden by shirt; no side-on cam (27/34deg oblique)
+squat_0001,P1,tuning,5,555,16.33,20.57,sq2_valgus,good,med,"cam1,cam3",knees over feet at T1-T2; no visible inward drift
+squat_0001,P1,tuning,5,555,16.33,20.57,sq2_weight_forward,good,med,"cam1,cam2","heels flat, hips go back, bar ~over midfoot"
+squat_0001,P1,tuning,5,555,16.33,20.57,sq2_bottom_tempo,good,med,cam1,"steady descent ~0.4 s for last third, ~0.3 s still at bottom, smooth reversal"
+squat_0001,P1,tuning,5,555,16.33,20.57,sq2_torso_lean,tip,low,"cam1,cam2","torso ~5-10deg more inclined than shin (cams disagree: cam1 more, cam2 ~parallel)"
+squat_0001,P1,tuning,5,555,16.33,20.57,sq2_hips_first,good,med,"cam1,cam2",torso angle held/rises T1->T2
+squat_0001,P1,tuning,5,555,16.33,20.57,sq2_lockout,good,med,"cam1,cam2",stands fully upright at T3
+squat_0001,P1,tuning,6,682,20.57,24.87,sq2_depth,good,high,"cam1,cam2,cam3","hip crease below knee top, thigh ~10deg below horizontal"
+squat_0001,P1,tuning,6,682,20.57,24.87,sq2_butt_wink,unsure,,"cam1,cam2,cam3",lumbar hidden by shirt; no side-on cam (27/34deg oblique)
+squat_0001,P1,tuning,6,682,20.57,24.87,sq2_valgus,good,med,"cam1,cam3",knees over feet at T1-T2; no visible inward drift
+squat_0001,P1,tuning,6,682,20.57,24.87,sq2_weight_forward,good,med,"cam1,cam2","heels flat, hips go back, bar ~over midfoot"
+squat_0001,P1,tuning,6,682,20.57,24.87,sq2_bottom_tempo,good,med,cam1,"steady descent ~0.4 s for last third, ~0.3 s still at bottom, smooth reversal"
+squat_0001,P1,tuning,6,682,20.57,24.87,sq2_torso_lean,tip,low,"cam1,cam2","torso ~5-10deg more inclined than shin (cams disagree: cam1 more, cam2 ~parallel)"
+squat_0001,P1,tuning,6,682,20.57,24.87,sq2_hips_first,good,med,"cam1,cam2",torso angle held/rises T1->T2
+squat_0001,P1,tuning,6,682,20.57,24.87,sq2_lockout,good,med,"cam1,cam2",stands fully upright at T3
+squat_0001,P1,tuning,7,807,24.87,29.43,sq2_depth,good,high,"cam1,cam2,cam3","hip crease below knee top, thigh ~10deg below horizontal"
+squat_0001,P1,tuning,7,807,24.87,29.43,sq2_butt_wink,unsure,,"cam1,cam2,cam3",lumbar hidden by shirt; no side-on cam (27/34deg oblique)
+squat_0001,P1,tuning,7,807,24.87,29.43,sq2_valgus,good,med,"cam1,cam3",knees over feet at T1-T2; no visible inward drift
+squat_0001,P1,tuning,7,807,24.87,29.43,sq2_weight_forward,good,med,"cam1,cam2","heels flat, hips go back, bar ~over midfoot"
+squat_0001,P1,tuning,7,807,24.87,29.43,sq2_bottom_tempo,good,med,cam1,"steady descent ~0.4 s for last third, ~0.3 s still at bottom, smooth reversal"
+squat_0001,P1,tuning,7,807,24.87,29.43,sq2_torso_lean,tip,low,"cam1,cam2","torso ~5-10deg more inclined than shin (cams disagree: cam1 more, cam2 ~parallel)"
+squat_0001,P1,tuning,7,807,24.87,29.43,sq2_hips_first,good,med,"cam1,cam2",torso angle held/rises T1->T2
+squat_0001,P1,tuning,7,807,24.87,29.43,sq2_lockout,good,med,"cam1,cam2",stands fully upright at T3
+squat_0001,P1,tuning,8,937,29.43,33.33,sq2_depth,good,high,"cam1,cam2,cam3","hip crease below knee top, thigh ~10deg below horizontal"
+squat_0001,P1,tuning,8,937,29.43,33.33,sq2_butt_wink,unsure,,"cam1,cam2,cam3",lumbar hidden by shirt; no side-on cam (27/34deg oblique)
+squat_0001,P1,tuning,8,937,29.43,33.33,sq2_valgus,good,med,"cam1,cam3",knees over feet at T1-T2; no visible inward drift
+squat_0001,P1,tuning,8,937,29.43,33.33,sq2_weight_forward,good,med,"cam1,cam2","heels flat, hips go back, bar ~over midfoot"
+squat_0001,P1,tuning,8,937,29.43,33.33,sq2_bottom_tempo,good,med,cam1,"steady descent ~0.4 s for last third, ~0.3 s still at bottom, smooth reversal"
+squat_0001,P1,tuning,8,937,29.43,33.33,sq2_torso_lean,tip,low,"cam1,cam2","torso ~5-10deg more inclined than shin (cams disagree: cam1 more, cam2 ~parallel)"
+squat_0001,P1,tuning,8,937,29.43,33.33,sq2_hips_first,good,med,"cam1,cam2",torso angle held/rises T1->T2
+squat_0001,P1,tuning,8,937,29.43,33.33,sq2_lockout,good,med,"cam1,cam2",stands fully upright at T3
+squat_0001,P1,tuning,9,1075,33.33,37.57,sq2_depth,good,high,"cam1,cam2,cam3","hip crease below knee top, thigh ~10deg below horizontal"
+squat_0001,P1,tuning,9,1075,33.33,37.57,sq2_butt_wink,unsure,,"cam1,cam2,cam3",lumbar hidden by shirt; no side-on cam (27/34deg oblique)
+squat_0001,P1,tuning,9,1075,33.33,37.57,sq2_valgus,good,med,"cam1,cam3",knees over feet at T1-T2; no visible inward drift
+squat_0001,P1,tuning,9,1075,33.33,37.57,sq2_weight_forward,good,med,"cam1,cam2","heels flat, hips go back, bar ~over midfoot"
+squat_0001,P1,tuning,9,1075,33.33,37.57,sq2_bottom_tempo,good,med,cam1,"steady descent ~0.4 s for last third, ~0.3 s still at bottom, smooth reversal"
+squat_0001,P1,tuning,9,1075,33.33,37.57,sq2_torso_lean,tip,low,"cam1,cam2","torso ~5-10deg more inclined than shin (cams disagree: cam1 more, cam2 ~parallel)"
+squat_0001,P1,tuning,9,1075,33.33,37.57,sq2_hips_first,good,med,"cam1,cam2",torso angle held/rises T1->T2
+squat_0001,P1,tuning,9,1075,33.33,37.57,sq2_lockout,good,med,"cam1,cam2",stands fully upright at T3
+squat_0001,P1,tuning,10,1203,37.57,41.73,sq2_depth,good,high,"cam1,cam2,cam3","hip crease below knee top, thigh ~10deg below horizontal"
+squat_0001,P1,tuning,10,1203,37.57,41.73,sq2_butt_wink,unsure,,"cam1,cam2,cam3",lumbar hidden by shirt; no side-on cam (27/34deg oblique)
+squat_0001,P1,tuning,10,1203,37.57,41.73,sq2_valgus,good,med,"cam1,cam3",knees over feet at T1-T2; no visible inward drift
+squat_0001,P1,tuning,10,1203,37.57,41.73,sq2_weight_forward,good,med,"cam1,cam2","heels flat, hips go back, bar ~over midfoot"
+squat_0001,P1,tuning,10,1203,37.57,41.73,sq2_bottom_tempo,good,med,cam1,"steady descent ~0.4 s for last third, ~0.3 s still at bottom, smooth reversal"
+squat_0001,P1,tuning,10,1203,37.57,41.73,sq2_torso_lean,tip,low,"cam1,cam2","torso ~5-10deg more inclined than shin (cams disagree: cam1 more, cam2 ~parallel)"
+squat_0001,P1,tuning,10,1203,37.57,41.73,sq2_hips_first,good,med,"cam1,cam2",torso angle held/rises T1->T2
+squat_0001,P1,tuning,10,1203,37.57,41.73,sq2_lockout,good,med,"cam1,cam2",stands fully upright at T3
+squat_0002,P2,heldout,1,58,0.1,3.0,sq2_depth,good,high,"cam2,cam1,cam3","deep, hip crease well below knee top, thigh ~15-20deg below horizontal"
+squat_0002,P2,heldout,1,58,0.1,3.0,sq2_butt_wink,unsure,,"cam2,cam3",lumbar hidden by loose shirt/arm; no side-on cam (31deg oblique)
+squat_0002,P2,heldout,1,58,0.1,3.0,sq2_valgus,good,low,"cam3,cam1",knees roughly over feet at T1-T2 (true rear + front-oblique); baggy jeans blur knee position
+squat_0002,P2,heldout,1,58,0.1,3.0,sq2_weight_forward,good,med,"cam2,cam1","heels flat, bar ~over midfoot"
+squat_0002,P2,heldout,1,58,0.1,3.0,sq2_bottom_tempo,good,med,cam2,"steady descent, ~0.3 s near-still at bottom, smooth reversal, no bounce"
+squat_0002,P2,heldout,1,58,0.1,3.0,sq2_torso_lean,good,med,cam2,"torso ~35-40deg from vertical, ~parallel to shin (within 5deg)"
+squat_0002,P2,heldout,1,58,0.1,3.0,sq2_hips_first,good,med,cam2,torso angle held or rises T1->T2
+squat_0002,P2,heldout,1,58,0.1,3.0,sq2_lockout,good,med,"cam1,cam2",stands fully upright at T3
+squat_0002,P2,heldout,2,153,3.0,6.2,sq2_depth,good,high,"cam2,cam1,cam3","deep, hip crease well below knee top, thigh ~15-20deg below horizontal"
+squat_0002,P2,heldout,2,153,3.0,6.2,sq2_butt_wink,unsure,,"cam2,cam3",lumbar hidden by loose shirt/arm; no side-on cam (31deg oblique)
+squat_0002,P2,heldout,2,153,3.0,6.2,sq2_valgus,good,low,"cam3,cam1",knees roughly over feet at T1-T2 (true rear + front-oblique); baggy jeans blur knee position
+squat_0002,P2,heldout,2,153,3.0,6.2,sq2_weight_forward,good,med,"cam2,cam1","heels flat, bar ~over midfoot"
+squat_0002,P2,heldout,2,153,3.0,6.2,sq2_bottom_tempo,good,med,cam2,"steady descent, ~0.3 s near-still at bottom, smooth reversal, no bounce"
+squat_0002,P2,heldout,2,153,3.0,6.2,sq2_torso_lean,good,med,cam2,"torso ~35-40deg from vertical, ~parallel to shin (within 5deg)"
+squat_0002,P2,heldout,2,153,3.0,6.2,sq2_hips_first,good,med,cam2,torso angle held or rises T1->T2
+squat_0002,P2,heldout,2,153,3.0,6.2,sq2_lockout,good,med,"cam1,cam2",stands fully upright at T3
+squat_0002,P2,heldout,3,245,6.2,9.33,sq2_depth,good,high,"cam2,cam1,cam3","deep, hip crease well below knee top, thigh ~15-20deg below horizontal"
+squat_0002,P2,heldout,3,245,6.2,9.33,sq2_butt_wink,unsure,,"cam2,cam3",lumbar hidden by loose shirt/arm; no side-on cam (31deg oblique)
+squat_0002,P2,heldout,3,245,6.2,9.33,sq2_valgus,good,low,"cam3,cam1",knees roughly over feet at T1-T2 (true rear + front-oblique); baggy jeans blur knee position
+squat_0002,P2,heldout,3,245,6.2,9.33,sq2_weight_forward,good,med,"cam2,cam1","heels flat, bar ~over midfoot"
+squat_0002,P2,heldout,3,245,6.2,9.33,sq2_bottom_tempo,good,med,cam2,"steady descent, ~0.3 s near-still at bottom, smooth reversal, no bounce"
+squat_0002,P2,heldout,3,245,6.2,9.33,sq2_torso_lean,good,med,cam2,"torso ~35-40deg from vertical, ~parallel to shin (within 5deg)"
+squat_0002,P2,heldout,3,245,6.2,9.33,sq2_hips_first,good,med,cam2,torso angle held or rises T1->T2
+squat_0002,P2,heldout,3,245,6.2,9.33,sq2_lockout,good,med,"cam1,cam2",stands fully upright at T3
+squat_0002,P2,heldout,4,338,9.33,12.47,sq2_depth,good,high,"cam2,cam1,cam3","deep, hip crease well below knee top, thigh ~15-20deg below horizontal"
+squat_0002,P2,heldout,4,338,9.33,12.47,sq2_butt_wink,unsure,,"cam2,cam3",lumbar hidden by loose shirt/arm; no side-on cam (31deg oblique)
+squat_0002,P2,heldout,4,338,9.33,12.47,sq2_valgus,good,low,"cam3,cam1",knees roughly over feet at T1-T2 (true rear + front-oblique); baggy jeans blur knee position
+squat_0002,P2,heldout,4,338,9.33,12.47,sq2_weight_forward,good,med,"cam2,cam1","heels flat, bar ~over midfoot"
+squat_0002,P2,heldout,4,338,9.33,12.47,sq2_bottom_tempo,good,med,cam2,"steady descent, ~0.3 s near-still at bottom, smooth reversal, no bounce"
+squat_0002,P2,heldout,4,338,9.33,12.47,sq2_torso_lean,good,med,cam2,"torso ~35-40deg from vertical, ~parallel to shin (within 5deg)"
+squat_0002,P2,heldout,4,338,9.33,12.47,sq2_hips_first,good,med,cam2,torso angle held or rises T1->T2
+squat_0002,P2,heldout,4,338,9.33,12.47,sq2_lockout,good,med,"cam1,cam2",stands fully upright at T3
+squat_0002,P2,heldout,5,427,12.47,15.83,sq2_depth,good,high,"cam2,cam1,cam3","deep, hip crease well below knee top, thigh ~15-20deg below horizontal"
+squat_0002,P2,heldout,5,427,12.47,15.83,sq2_butt_wink,unsure,,"cam2,cam3",lumbar hidden by loose shirt/arm; no side-on cam (31deg oblique)
+squat_0002,P2,heldout,5,427,12.47,15.83,sq2_valgus,good,low,"cam3,cam1",knees roughly over feet at T1-T2 (true rear + front-oblique); baggy jeans blur knee position
+squat_0002,P2,heldout,5,427,12.47,15.83,sq2_weight_forward,good,med,"cam2,cam1","heels flat, bar ~over midfoot"
+squat_0002,P2,heldout,5,427,12.47,15.83,sq2_bottom_tempo,good,med,cam2,"steady descent, ~0.3 s near-still at bottom, smooth reversal, no bounce"
+squat_0002,P2,heldout,5,427,12.47,15.83,sq2_torso_lean,good,med,cam2,"torso ~35-40deg from vertical, ~parallel to shin (within 5deg)"
+squat_0002,P2,heldout,5,427,12.47,15.83,sq2_hips_first,good,med,cam2,torso angle held or rises T1->T2
+squat_0002,P2,heldout,5,427,12.47,15.83,sq2_lockout,good,med,"cam1,cam2",stands fully upright at T3
+squat_0002,P2,heldout,6,516,15.83,18.33,sq2_depth,good,high,"cam2,cam1,cam3","deep, hip crease well below knee top, thigh ~15-20deg below horizontal"
+squat_0002,P2,heldout,6,516,15.83,18.33,sq2_butt_wink,unsure,,"cam2,cam3",lumbar hidden by loose shirt/arm; no side-on cam (31deg oblique)
+squat_0002,P2,heldout,6,516,15.83,18.33,sq2_valgus,good,low,"cam3,cam1",knees roughly over feet at T1-T2 (true rear + front-oblique); baggy jeans blur knee position
+squat_0002,P2,heldout,6,516,15.83,18.33,sq2_weight_forward,good,med,"cam2,cam1","heels flat, bar ~over midfoot"
+squat_0002,P2,heldout,6,516,15.83,18.33,sq2_bottom_tempo,good,med,cam2,"steady descent, ~0.3 s near-still at bottom, smooth reversal, no bounce"
+squat_0002,P2,heldout,6,516,15.83,18.33,sq2_torso_lean,good,med,cam2,"torso ~35-40deg from vertical, ~parallel to shin (within 5deg)"
+squat_0002,P2,heldout,6,516,15.83,18.33,sq2_hips_first,good,med,cam2,torso angle held or rises T1->T2
+squat_0002,P2,heldout,6,516,15.83,18.33,sq2_lockout,good,med,"cam1,cam2",stands fully upright at T3
+squat_0002,P2,heldout,7,613,18.33,21.43,sq2_depth,good,high,"cam2,cam1,cam3","deep, hip crease well below knee top, thigh ~15-20deg below horizontal"
+squat_0002,P2,heldout,7,613,18.33,21.43,sq2_butt_wink,unsure,,"cam2,cam3",lumbar hidden by loose shirt/arm; no side-on cam (31deg oblique)
+squat_0002,P2,heldout,7,613,18.33,21.43,sq2_valgus,good,low,"cam3,cam1",knees roughly over feet at T1-T2 (true rear + front-oblique); baggy jeans blur knee position
+squat_0002,P2,heldout,7,613,18.33,21.43,sq2_weight_forward,good,med,"cam2,cam1","heels flat, bar ~over midfoot"
+squat_0002,P2,heldout,7,613,18.33,21.43,sq2_bottom_tempo,good,med,cam2,"steady descent, ~0.3 s near-still at bottom, smooth reversal, no bounce"
+squat_0002,P2,heldout,7,613,18.33,21.43,sq2_torso_lean,good,med,cam2,"torso ~35-40deg from vertical, ~parallel to shin (within 5deg)"
+squat_0002,P2,heldout,7,613,18.33,21.43,sq2_hips_first,good,med,cam2,torso angle held or rises T1->T2
+squat_0002,P2,heldout,7,613,18.33,21.43,sq2_lockout,good,med,"cam1,cam2",stands fully upright at T3
+squat_0002,P2,heldout,8,701,21.43,24.4,sq2_depth,good,high,"cam2,cam1,cam3","deep, hip crease well below knee top, thigh ~15-20deg below horizontal"
+squat_0002,P2,heldout,8,701,21.43,24.4,sq2_butt_wink,unsure,,"cam2,cam3",lumbar hidden by loose shirt/arm; no side-on cam (31deg oblique)
+squat_0002,P2,heldout,8,701,21.43,24.4,sq2_valgus,good,low,"cam3,cam1",knees roughly over feet at T1-T2 (true rear + front-oblique); baggy jeans blur knee position
+squat_0002,P2,heldout,8,701,21.43,24.4,sq2_weight_forward,good,med,"cam2,cam1","heels flat, bar ~over midfoot"
+squat_0002,P2,heldout,8,701,21.43,24.4,sq2_bottom_tempo,good,med,cam2,"steady descent, ~0.3 s near-still at bottom, smooth reversal, no bounce"
+squat_0002,P2,heldout,8,701,21.43,24.4,sq2_torso_lean,good,med,cam2,"torso ~35-40deg from vertical, ~parallel to shin (within 5deg)"
+squat_0002,P2,heldout,8,701,21.43,24.4,sq2_hips_first,good,med,cam2,torso angle held or rises T1->T2
+squat_0002,P2,heldout,8,701,21.43,24.4,sq2_lockout,good,med,"cam1,cam2",stands fully upright at T3
+squat_0002,P2,heldout,9,791,24.4,27.53,sq2_depth,good,high,"cam2,cam1,cam3","deep, hip crease well below knee top, thigh ~15-20deg below horizontal"
+squat_0002,P2,heldout,9,791,24.4,27.53,sq2_butt_wink,unsure,,"cam2,cam3",lumbar hidden by loose shirt/arm; no side-on cam (31deg oblique)
+squat_0002,P2,heldout,9,791,24.4,27.53,sq2_valgus,good,low,"cam3,cam1",knees roughly over feet at T1-T2 (true rear + front-oblique); baggy jeans blur knee position
+squat_0002,P2,heldout,9,791,24.4,27.53,sq2_weight_forward,good,med,"cam2,cam1","heels flat, bar ~over midfoot"
+squat_0002,P2,heldout,9,791,24.4,27.53,sq2_bottom_tempo,good,med,cam2,"steady descent, ~0.3 s near-still at bottom, smooth reversal, no bounce"
+squat_0002,P2,heldout,9,791,24.4,27.53,sq2_torso_lean,good,med,cam2,"torso ~35-40deg from vertical, ~parallel to shin (within 5deg)"
+squat_0002,P2,heldout,9,791,24.4,27.53,sq2_hips_first,good,med,cam2,torso angle held or rises T1->T2
+squat_0002,P2,heldout,9,791,24.4,27.53,sq2_lockout,good,med,"cam1,cam2",stands fully upright at T3
+squat_0002,P2,heldout,10,883,27.53,30.4,sq2_depth,good,high,"cam2,cam1,cam3","deep, hip crease well below knee top, thigh ~15-20deg below horizontal"
+squat_0002,P2,heldout,10,883,27.53,30.4,sq2_butt_wink,unsure,,"cam2,cam3",lumbar hidden by loose shirt/arm; no side-on cam (31deg oblique)
+squat_0002,P2,heldout,10,883,27.53,30.4,sq2_valgus,good,low,"cam3,cam1",knees roughly over feet at T1-T2 (true rear + front-oblique); baggy jeans blur knee position
+squat_0002,P2,heldout,10,883,27.53,30.4,sq2_weight_forward,good,med,"cam2,cam1","heels flat, bar ~over midfoot"
+squat_0002,P2,heldout,10,883,27.53,30.4,sq2_bottom_tempo,good,med,cam2,"steady descent, ~0.3 s near-still at bottom, smooth reversal, no bounce"
+squat_0002,P2,heldout,10,883,27.53,30.4,sq2_torso_lean,good,med,cam2,"torso ~35-40deg from vertical, ~parallel to shin (within 5deg)"
+squat_0002,P2,heldout,10,883,27.53,30.4,sq2_hips_first,good,med,cam2,torso angle held or rises T1->T2
+squat_0002,P2,heldout,10,883,27.53,30.4,sq2_lockout,good,med,"cam1,cam2",stands fully upright at T3
+squat_0003,P1,tuning,1,70,0.1,3.93,sq2_depth,tip,low,"cam1,cam3","near-side cam1: buttock ~at knee-top level, thigh ~0-5deg above horizontal; just short of clearly below parallel"
+squat_0003,P1,tuning,1,70,0.1,3.93,sq2_butt_wink,tip,low,cam1,cam1 18deg: back silhouette goes from straight to a convex arc into the waist at the bottom (slight lumbar flattening); loose shirt limits certainty
+squat_0003,P1,tuning,1,70,0.1,3.93,sq2_valgus,good,med,"cam3,cam1","knees over feet at T1-T2, no inward drift"
+squat_0003,P1,tuning,1,70,0.1,3.93,sq2_weight_forward,good,med,cam1,"heels flat, bar ~over midfoot despite forward torso"
+squat_0003,P1,tuning,1,70,0.1,3.93,sq2_bottom_tempo,good,med,cam1,"steady descent, ~0.3-0.4 s near-still at bottom, smooth reversal"
+squat_0003,P1,tuning,1,70,0.1,3.93,sq2_torso_lean,tip,med,cam1,"torso ~40deg vs shin ~27deg from vertical, ~10-15deg more inclined (head/neck flexed down)"
+squat_0003,P1,tuning,1,70,0.1,3.93,sq2_hips_first,good,low,cam1,"first ~0.2 s of ascent torso angle roughly held (<5deg), T2 more upright"
+squat_0003,P1,tuning,1,70,0.1,3.93,sq2_lockout,good,med,"cam1,cam2",stands fully upright at T3
+squat_0003,P1,tuning,2,186,3.93,8.07,sq2_depth,tip,low,"cam1,cam3","near-side cam1: buttock ~at knee-top level, thigh ~0-5deg above horizontal; just short of clearly below parallel"
+squat_0003,P1,tuning,2,186,3.93,8.07,sq2_butt_wink,tip,low,cam1,cam1 18deg: back silhouette goes from straight to a convex arc into the waist at the bottom (slight lumbar flattening); loose shirt limits certainty
+squat_0003,P1,tuning,2,186,3.93,8.07,sq2_valgus,good,med,"cam3,cam1","knees over feet at T1-T2, no inward drift"
+squat_0003,P1,tuning,2,186,3.93,8.07,sq2_weight_forward,good,med,cam1,"heels flat, bar ~over midfoot despite forward torso"
+squat_0003,P1,tuning,2,186,3.93,8.07,sq2_bottom_tempo,good,med,cam1,"steady descent, ~0.3-0.4 s near-still at bottom, smooth reversal"
+squat_0003,P1,tuning,2,186,3.93,8.07,sq2_torso_lean,tip,med,cam1,"torso ~40deg vs shin ~27deg from vertical, ~10-15deg more inclined (head/neck flexed down)"
+squat_0003,P1,tuning,2,186,3.93,8.07,sq2_hips_first,good,low,cam1,"first ~0.2 s of ascent torso angle roughly held (<5deg), T2 more upright"
+squat_0003,P1,tuning,2,186,3.93,8.07,sq2_lockout,good,med,"cam1,cam2",stands fully upright at T3
+squat_0003,P1,tuning,3,313,8.07,12.27,sq2_depth,tip,low,"cam1,cam3","near-side cam1: buttock ~at knee-top level, thigh ~0-5deg above horizontal; just short of clearly below parallel"
+squat_0003,P1,tuning,3,313,8.07,12.27,sq2_butt_wink,tip,low,cam1,cam1 18deg: back silhouette goes from straight to a convex arc into the waist at the bottom (slight lumbar flattening); loose shirt limits certainty
+squat_0003,P1,tuning,3,313,8.07,12.27,sq2_valgus,good,med,"cam3,cam1","knees over feet at T1-T2, no inward drift"
+squat_0003,P1,tuning,3,313,8.07,12.27,sq2_weight_forward,good,med,cam1,"heels flat, bar ~over midfoot despite forward torso"
+squat_0003,P1,tuning,3,313,8.07,12.27,sq2_bottom_tempo,good,med,cam1,"steady descent, ~0.3-0.4 s near-still at bottom, smooth reversal"
+squat_0003,P1,tuning,3,313,8.07,12.27,sq2_torso_lean,tip,med,cam1,"torso ~40deg vs shin ~27deg from vertical, ~10-15deg more inclined (head/neck flexed down)"
+squat_0003,P1,tuning,3,313,8.07,12.27,sq2_hips_first,good,low,cam1,"first ~0.2 s of ascent torso angle roughly held (<5deg), T2 more upright"
+squat_0003,P1,tuning,3,313,8.07,12.27,sq2_lockout,good,med,"cam1,cam2",stands fully upright at T3
+squat_0003,P1,tuning,4,446,12.27,16.47,sq2_depth,tip,low,"cam1,cam3","near-side cam1: buttock ~at knee-top level, thigh ~0-5deg above horizontal; just short of clearly below parallel"
+squat_0003,P1,tuning,4,446,12.27,16.47,sq2_butt_wink,tip,low,cam1,cam1 18deg: back silhouette goes from straight to a convex arc into the waist at the bottom (slight lumbar flattening); loose shirt limits certainty
+squat_0003,P1,tuning,4,446,12.27,16.47,sq2_valgus,good,med,"cam3,cam1","knees over feet at T1-T2, no inward drift"
+squat_0003,P1,tuning,4,446,12.27,16.47,sq2_weight_forward,good,med,cam1,"heels flat, bar ~over midfoot despite forward torso"
+squat_0003,P1,tuning,4,446,12.27,16.47,sq2_bottom_tempo,good,med,cam1,"steady descent, ~0.3-0.4 s near-still at bottom, smooth reversal"
+squat_0003,P1,tuning,4,446,12.27,16.47,sq2_torso_lean,tip,med,cam1,"torso ~40deg vs shin ~27deg from vertical, ~10-15deg more inclined (head/neck flexed down)"
+squat_0003,P1,tuning,4,446,12.27,16.47,sq2_hips_first,good,low,cam1,"first ~0.2 s of ascent torso angle roughly held (<5deg), T2 more upright"
+squat_0003,P1,tuning,4,446,12.27,16.47,sq2_lockout,good,med,"cam1,cam2",stands fully upright at T3
+squat_0003,P1,tuning,5,575,16.47,21.63,sq2_depth,tip,low,"cam1,cam3","near-side cam1: buttock ~at knee-top level, thigh ~0-5deg above horizontal; just short of clearly below parallel"
+squat_0003,P1,tuning,5,575,16.47,21.63,sq2_butt_wink,tip,low,cam1,cam1 18deg: back silhouette goes from straight to a convex arc into the waist at the bottom (slight lumbar flattening); loose shirt limits certainty
+squat_0003,P1,tuning,5,575,16.47,21.63,sq2_valgus,good,med,"cam3,cam1","knees over feet at T1-T2, no inward drift"
+squat_0003,P1,tuning,5,575,16.47,21.63,sq2_weight_forward,good,med,cam1,"heels flat, bar ~over midfoot despite forward torso"
+squat_0003,P1,tuning,5,575,16.47,21.63,sq2_bottom_tempo,good,med,cam1,"steady descent, ~0.3-0.4 s near-still at bottom, smooth reversal"
+squat_0003,P1,tuning,5,575,16.47,21.63,sq2_torso_lean,tip,med,cam1,"torso ~40deg vs shin ~27deg from vertical, ~10-15deg more inclined (head/neck flexed down)"
+squat_0003,P1,tuning,5,575,16.47,21.63,sq2_hips_first,good,low,cam1,"first ~0.2 s of ascent torso angle roughly held (<5deg), T2 more upright"
+squat_0003,P1,tuning,5,575,16.47,21.63,sq2_lockout,good,med,"cam1,cam2",stands fully upright at T3
+squat_0003,P1,tuning,6,709,21.63,25.1,sq2_depth,tip,low,"cam1,cam3","near-side cam1: buttock ~at knee-top level, thigh ~0-5deg above horizontal; just short of clearly below parallel"
+squat_0003,P1,tuning,6,709,21.63,25.1,sq2_butt_wink,tip,low,cam1,cam1 18deg: back silhouette goes from straight to a convex arc into the waist at the bottom (slight lumbar flattening); loose shirt limits certainty
+squat_0003,P1,tuning,6,709,21.63,25.1,sq2_valgus,good,med,"cam3,cam1","knees over feet at T1-T2, no inward drift"
+squat_0003,P1,tuning,6,709,21.63,25.1,sq2_weight_forward,good,med,cam1,"heels flat, bar ~over midfoot despite forward torso"
+squat_0003,P1,tuning,6,709,21.63,25.1,sq2_bottom_tempo,good,med,cam1,"steady descent, ~0.3-0.4 s near-still at bottom, smooth reversal"
+squat_0003,P1,tuning,6,709,21.63,25.1,sq2_torso_lean,tip,med,cam1,"torso ~40deg vs shin ~27deg from vertical, ~10-15deg more inclined (head/neck flexed down)"
+squat_0003,P1,tuning,6,709,21.63,25.1,sq2_hips_first,good,low,cam1,"first ~0.2 s of ascent torso angle roughly held (<5deg), T2 more upright"
+squat_0003,P1,tuning,6,709,21.63,25.1,sq2_lockout,good,med,"cam1,cam2",stands fully upright at T3
+squat_0003,P1,tuning,7,838,25.1,29.73,sq2_depth,tip,low,"cam1,cam3","near-side cam1: buttock ~at knee-top level, thigh ~0-5deg above horizontal; just short of clearly below parallel"
+squat_0003,P1,tuning,7,838,25.1,29.73,sq2_butt_wink,tip,low,cam1,cam1 18deg: back silhouette goes from straight to a convex arc into the waist at the bottom (slight lumbar flattening); loose shirt limits certainty
+squat_0003,P1,tuning,7,838,25.1,29.73,sq2_valgus,good,med,"cam3,cam1","knees over feet at T1-T2, no inward drift"
+squat_0003,P1,tuning,7,838,25.1,29.73,sq2_weight_forward,good,med,cam1,"heels flat, bar ~over midfoot despite forward torso"
+squat_0003,P1,tuning,7,838,25.1,29.73,sq2_bottom_tempo,good,med,cam1,"steady descent, ~0.3-0.4 s near-still at bottom, smooth reversal"
+squat_0003,P1,tuning,7,838,25.1,29.73,sq2_torso_lean,tip,med,cam1,"torso ~40deg vs shin ~27deg from vertical, ~10-15deg more inclined (head/neck flexed down)"
+squat_0003,P1,tuning,7,838,25.1,29.73,sq2_hips_first,good,low,cam1,"first ~0.2 s of ascent torso angle roughly held (<5deg), T2 more upright"
+squat_0003,P1,tuning,7,838,25.1,29.73,sq2_lockout,good,med,"cam1,cam2",stands fully upright at T3
+squat_0003,P1,tuning,8,965,29.73,33.93,sq2_depth,tip,low,"cam1,cam3","near-side cam1: buttock ~at knee-top level, thigh ~0-5deg above horizontal; just short of clearly below parallel"
+squat_0003,P1,tuning,8,965,29.73,33.93,sq2_butt_wink,tip,low,cam1,cam1 18deg: back silhouette goes from straight to a convex arc into the waist at the bottom (slight lumbar flattening); loose shirt limits certainty
+squat_0003,P1,tuning,8,965,29.73,33.93,sq2_valgus,good,med,"cam3,cam1","knees over feet at T1-T2, no inward drift"
+squat_0003,P1,tuning,8,965,29.73,33.93,sq2_weight_forward,good,med,cam1,"heels flat, bar ~over midfoot despite forward torso"
+squat_0003,P1,tuning,8,965,29.73,33.93,sq2_bottom_tempo,good,med,cam1,"steady descent, ~0.3-0.4 s near-still at bottom, smooth reversal"
+squat_0003,P1,tuning,8,965,29.73,33.93,sq2_torso_lean,tip,med,cam1,"torso ~40deg vs shin ~27deg from vertical, ~10-15deg more inclined (head/neck flexed down)"
+squat_0003,P1,tuning,8,965,29.73,33.93,sq2_hips_first,good,low,cam1,"first ~0.2 s of ascent torso angle roughly held (<5deg), T2 more upright"
+squat_0003,P1,tuning,8,965,29.73,33.93,sq2_lockout,good,med,"cam1,cam2",stands fully upright at T3
+squat_0003,P1,tuning,9,1090,33.93,37.67,sq2_depth,tip,low,"cam1,cam3","near-side cam1: buttock ~at knee-top level, thigh ~0-5deg above horizontal; just short of clearly below parallel"
+squat_0003,P1,tuning,9,1090,33.93,37.67,sq2_butt_wink,tip,low,cam1,cam1 18deg: back silhouette goes from straight to a convex arc into the waist at the bottom (slight lumbar flattening); loose shirt limits certainty
+squat_0003,P1,tuning,9,1090,33.93,37.67,sq2_valgus,good,med,"cam3,cam1","knees over feet at T1-T2, no inward drift"
+squat_0003,P1,tuning,9,1090,33.93,37.67,sq2_weight_forward,good,med,cam1,"heels flat, bar ~over midfoot despite forward torso"
+squat_0003,P1,tuning,9,1090,33.93,37.67,sq2_bottom_tempo,good,med,cam1,"steady descent, ~0.3-0.4 s near-still at bottom, smooth reversal"
+squat_0003,P1,tuning,9,1090,33.93,37.67,sq2_torso_lean,tip,med,cam1,"torso ~40deg vs shin ~27deg from vertical, ~10-15deg more inclined (head/neck flexed down)"
+squat_0003,P1,tuning,9,1090,33.93,37.67,sq2_hips_first,good,low,cam1,"first ~0.2 s of ascent torso angle roughly held (<5deg), T2 more upright"
+squat_0003,P1,tuning,9,1090,33.93,37.67,sq2_lockout,good,med,"cam1,cam2",stands fully upright at T3
+squat_0003,P1,tuning,10,1221,37.67,42.03,sq2_depth,tip,low,"cam1,cam3","near-side cam1: buttock ~at knee-top level, thigh ~0-5deg above horizontal; just short of clearly below parallel"
+squat_0003,P1,tuning,10,1221,37.67,42.03,sq2_butt_wink,tip,low,cam1,cam1 18deg: back silhouette goes from straight to a convex arc into the waist at the bottom (slight lumbar flattening); loose shirt limits certainty
+squat_0003,P1,tuning,10,1221,37.67,42.03,sq2_valgus,good,med,"cam3,cam1","knees over feet at T1-T2, no inward drift"
+squat_0003,P1,tuning,10,1221,37.67,42.03,sq2_weight_forward,good,med,cam1,"heels flat, bar ~over midfoot despite forward torso"
+squat_0003,P1,tuning,10,1221,37.67,42.03,sq2_bottom_tempo,good,med,cam1,"steady descent, ~0.3-0.4 s near-still at bottom, smooth reversal"
+squat_0003,P1,tuning,10,1221,37.67,42.03,sq2_torso_lean,tip,med,cam1,"torso ~40deg vs shin ~27deg from vertical, ~10-15deg more inclined (head/neck flexed down)"
+squat_0003,P1,tuning,10,1221,37.67,42.03,sq2_hips_first,good,low,cam1,"first ~0.2 s of ascent torso angle roughly held (<5deg), T2 more upright"
+squat_0003,P1,tuning,10,1221,37.67,42.03,sq2_lockout,good,med,"cam1,cam2",stands fully upright at T3
