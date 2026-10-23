@@ -52,12 +52,12 @@ final class CalibrationVoice: NSObject {
         guard now - lastBeepAt >= interval else { return }
         lastBeepAt = now
         tick?.currentTime = 0
-        tick?.play()
+        if !WorkoutDebugFlags.voiceMuted { tick?.play() }
     }
 
     func playCaptureChime() {
         chime?.currentTime = 0
-        chime?.play()
+        if !WorkoutDebugFlags.voiceMuted { chime?.play() }
     }
 
     /// Stops at once (the user backed out).

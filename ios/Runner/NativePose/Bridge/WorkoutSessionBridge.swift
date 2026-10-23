@@ -202,6 +202,8 @@ final class WorkoutVoice: NSObject, AVSpeechSynthesizerDelegate, AVAudioPlayerDe
 
     private func play(_ line: WorkoutVoiceLine) {
         lastStarted = line
+        // Muted launch: nothing is played at all (not only volume 0).
+        if WorkoutDebugFlags.voiceMuted { DispatchQueue.main.async { [weak self] in self?.playNext() }; return }
         if line.language.hasPrefix("ko") {
             for name in workoutVoiceAudioNames(key: line.key, n: line.n) {
                 if let url = audioURL(name), let player = try? AVAudioPlayer(contentsOf: url) {
@@ -266,7 +268,7 @@ enum WorkoutDebugFlags {
     /// BPT_VOICE_MUTE=1, or implied by a video-as-camera launch (BPT_CAMERA_VIDEO) unless BPT_VOICE_MUTE=0.
     /// Never set in normal launches.
     static let voiceMuted: Bool = {
-        let env = ProcessInfo.processInfo.environment
+        let env = DemoConfig.environment  // launch env + Documents/bpt_demo.json (trial branch)
         if env["BPT_VOICE_MUTE"] == "1" { return true }
         return !(env["BPT_CAMERA_VIDEO"] ?? "").isEmpty && env["BPT_VOICE_MUTE"] != "0"
     }()
