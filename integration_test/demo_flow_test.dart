@@ -6,6 +6,8 @@
 //     --dart-define=DEMO_ID=<id> --dart-define-from-file=<private file with {"DEMO_PW": "…"}>
 //
 // The password never goes into git, docs or logs: it only lives in that private file on the Mac.
+import 'dart:io';
+
 import 'package:bpt/main.dart' as app;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -15,6 +17,17 @@ import 'package:shared_preferences/shared_preferences.dart';
 const demoId = String.fromEnvironment('DEMO_ID');
 const demoPw = String.fromEnvironment('DEMO_PW');
 
+/// Progress for headless runs (release build with this test as the entrypoint): Documents/demo/flow_steps.log.
+void step(String name) {
+  final line = '${DateTime.now().toIso8601String()} $name';
+  // ignore: avoid_print
+  print('[DemoFlow] $line');
+  try {
+    final dir = Directory('${Platform.environment['HOME']}/Documents/demo')..createSync(recursive: true);
+    File('${dir.path}/flow_steps.log').writeAsStringSync('$line\n', mode: FileMode.append);
+  } catch (_) {}
+}
+
 Future<void> waitFor(WidgetTester tester, Finder finder,
     {Duration timeout = const Duration(seconds: 30), String? label}) async {
   final end = DateTime.now().add(timeout);
@@ -22,12 +35,15 @@ Future<void> waitFor(WidgetTester tester, Finder finder,
     await tester.pump(const Duration(milliseconds: 250));
     if (finder.evaluate().isNotEmpty) return;
   }
+  final shown = find.byType(Text).evaluate().take(40).map((e) => (e.widget as Text).data ?? '').where((t) => t.isNotEmpty).join(' | ');
+  step('TIMEOUT waiting for ${label ?? finder}; on screen: $shown');
   throw TestFailure('timed out waiting for ${label ?? finder}');
 }
 
 Future<void> tapText(WidgetTester tester, String text, {Duration timeout = const Duration(seconds: 30)}) async {
   final f = find.text(text);
   await waitFor(tester, f, timeout: timeout, label: text);
+  step('tap $text');
   await tester.ensureVisible(f.first);
   await tester.tap(f.first);
   await tester.pump(const Duration(milliseconds: 600));
@@ -47,6 +63,7 @@ void main() {
     expect(demoId.isNotEmpty && demoPw.isNotEmpty, isTrue, reason: 'pass DEMO_ID and DEMO_PW');
     // Fresh user: forget any saved login/onboarding state (app data lives in shared_preferences).
     (await SharedPreferences.getInstance()).clear();
+    step('start');
     app.main();
     await pause(tester, 4);
 
@@ -82,6 +99,7 @@ void main() {
     await tapText(tester, '카메라 켜기');
 
     // 3. 체형 촬영(캘리브레이션, 영상 입력) → 업로드·분석 → 결과
+    step('calibration started');
     await tapText(tester, '홈으로 가기', timeout: const Duration(minutes: 6));
     await pause(tester, 2);
 
@@ -110,5 +128,6 @@ void main() {
       await tester.tap(nav.at(1));
       await pause(tester, 5);
     }
+    step('done');
   }, timeout: const Timeout(Duration(minutes: 20)));
 }
