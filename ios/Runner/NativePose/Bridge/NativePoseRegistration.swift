@@ -24,6 +24,7 @@ enum NativePoseRegistration {
     static func register(with registry: FlutterPluginRegistry) {
         VideoRunLog.shared?.write("app_registered", [:])  // test-only breadcrumb (video-as-camera launches)
         handOverAutostart()
+        DemoScreenRecorder.install()  // trial branch only; no-op without BPT_SCREEN_RECORD
         if let registrar = registry.registrar(forPlugin: "KoriVoiceChannel") {
             koriVoice = KoriVoiceChannel(messenger: registrar.messenger())
         }

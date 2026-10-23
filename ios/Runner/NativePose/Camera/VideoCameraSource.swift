@@ -2,6 +2,7 @@ import Accelerate
 import AVFoundation
 import CryptoKit
 import QuartzCore
+import ReplayKit
 import SwiftUI
 import UIKit
 
@@ -22,8 +23,26 @@ import UIKit
 /// drop rule as AVCaptureVideoDataOutput.alwaysDiscardsLateVideoFrames (a frame that arrives while the processing
 /// queue is still busy with the previous one is discarded). Everything after that entry is the unmodified app path.
 /// Not emulated: camera capture itself, the front camera's mirroring (clips are fed as recorded), auto exposure.
+/// TRIAL BRANCH ONLY (demo recording): `Documents/bpt_demo.json` = {"BPT_…": "value", …} merged over the launch
+/// environment, so a Flutter integration_test run (no launch env) can turn on the video sources, pose log and screen
+/// recording. Absent file = nothing changes.
+enum DemoConfig {
+    static let values: [String: String] = {
+        guard let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first,
+              let data = try? Data(contentsOf: documents.appendingPathComponent("bpt_demo.json")),
+              let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return [:] }
+        return object.mapValues { "\($0)" }
+    }()
+    static let environment = ProcessInfo.processInfo.environment.merging(values) { _, file in file }
+    static func url(_ key: String) -> URL? {
+        guard let path = environment[key], !path.isEmpty else { return nil }
+        let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        return path.hasPrefix("/") ? URL(fileURLWithPath: path) : documents.appendingPathComponent(path)
+    }
+}
+
 enum VideoCameraOptions {
-    static let environment = ProcessInfo.processInfo.environment
+    static let environment = DemoConfig.environment
 
     static let clips: [URL] = {
         guard let list = environment["BPT_CAMERA_VIDEO"], !list.isEmpty else { return [] }
@@ -65,18 +84,22 @@ final class VideoCameraSource: @unchecked Sendable {
     private let loops: Int
     /// Returns false when the frame was dropped (processing queue busy).
     private let deliver: (CMSampleBuffer, CFTimeInterval) -> Bool
+    /// Set before `start()` when the consumer is made after the source (calibration demo); wins over `deliver`.
+    var deliverOverride: ((CMSampleBuffer, CFTimeInterval) -> Bool)?
     private let onFinish: () -> Void
     private let lock = NSLock()
     private var cancelled = false
-    private let mirror = VideoCameraOptions.mirror
-    private let rotate = VideoCameraOptions.rotate
+    private let mirror: Bool
+    private let rotate: Int
     private var pool: CVPixelBufferPool?
     private var poolSize = (0, 0)
     private var rotatePool: CVPixelBufferPool?
     private var rotatePoolSize = (0, 0)
 
-    init(urls: [URL], loops: Int, deliver: @escaping (CMSampleBuffer, CFTimeInterval) -> Bool,
-         onFinish: @escaping () -> Void) {
+    init(urls: [URL], loops: Int, mirror: Bool = VideoCameraOptions.mirror, rotate: Int = VideoCameraOptions.rotate,
+         deliver: @escaping (CMSampleBuffer, CFTimeInterval) -> Bool, onFinish: @escaping () -> Void) {
+        self.mirror = mirror
+        self.rotate = rotate
         self.urls = urls
         self.loops = loops
         self.deliver = deliver
@@ -145,7 +168,7 @@ final class VideoCameraSource: @unchecked Sendable {
             if rotate != 0 { frame = rotated(frame, degrees: rotate) ?? frame }
             show(frame)
             frames += 1
-            if deliver(frame, arrival) {
+            if (deliverOverride ?? deliver)(frame, arrival) {
                 accepted += 1
                 VideoRunLog.shared?.noteDelivered(clipFrame: frames - 1)
             }
@@ -425,5 +448,83 @@ final class VideoRunLog: @unchecked Sendable {
             out["\(name).mlmodelc"] = hashes
         }
         return out
+    }
+}
+
+// MARK: - Demo recording (TRIAL BRANCH ONLY)
+
+/// BPT_POSE3D_LOG=1 (env or bpt_demo.json): one JSON line per judged frame in `Documents/demo/pose_<yyyyMMdd_HHmmss>.jsonl`.
+/// Clock: every line has `t_host` = CACurrentMediaTime() seconds (mach host time, same clock as the screen recording's
+/// `screen_record_start` line) and `t_unix`. Lines: `calib` (2D only), `frame` (2D + 3D + state), `rep` (judged keys).
+final class DemoPoseLog: @unchecked Sendable {
+    static let shared: DemoPoseLog? = DemoConfig.environment["BPT_POSE3D_LOG"] == "1" ? DemoPoseLog() : nil
+    let url: URL
+    private let queue = DispatchQueue(label: "bpt.demo-pose-log", qos: .utility)
+    private var handle: FileHandle?
+
+    private init?() {
+        guard let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else { return nil }
+        let dir = documents.appendingPathComponent("demo", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyyMMdd_HHmmss"
+        url = dir.appendingPathComponent("pose_\(formatter.string(from: Date())).jsonl")
+        FileManager.default.createFile(atPath: url.path, contents: nil)
+        handle = try? FileHandle(forWritingTo: url)
+        write("start", ["clock": "t_host = CACurrentMediaTime() s (mach host time)",
+                        "units_3d": "H36M17 MotionAGFormer-XS output after Pose3DConstraints, normalized crop units (1 = half the person-crop side); unit_px = px per crop unit",
+                        "units_2d": "image px of the analysis frame (calib: normalized 0-1)"])
+    }
+
+    func write(_ type: String, _ fields: [String: Any]) {
+        var line = fields
+        line["type"] = type
+        line["t_host"] = CACurrentMediaTime()
+        line["t_unix"] = Date().timeIntervalSince1970
+        queue.async { [self] in
+            guard let data = try? JSONSerialization.data(withJSONObject: line, options: [.sortedKeys]) else { return }
+            try? handle?.write(contentsOf: data + Data("\n".utf8))
+        }
+    }
+}
+
+/// BPT_SCREEN_RECORD=1: ReplayKit records the app's screen from the first time the app becomes active until it resigns
+/// active (or BPT_SCREEN_RECORD_SECONDS pass), into `Documents/demo/screen_<yyyyMMdd_HHmmss>.mp4`. iOS asks the user once.
+enum DemoScreenRecorder {
+    private static var started = false
+    private static var observers: [NSObjectProtocol] = []
+
+    static func install() {
+        guard DemoConfig.environment["BPT_SCREEN_RECORD"] == "1", observers.isEmpty else { return }
+        let center = NotificationCenter.default
+        observers.append(center.addObserver(forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main) { _ in start() })
+        observers.append(center.addObserver(forName: UIApplication.willResignActiveNotification, object: nil, queue: .main) { _ in stop("resign_active") })
+    }
+
+    private static func start() {
+        guard !started else { return }
+        started = true
+        RPScreenRecorder.shared().isMicrophoneEnabled = false
+        RPScreenRecorder.shared().startRecording { error in
+            DemoPoseLog.shared?.write("screen_record_start", ["error": error.map { "\($0)" } ?? NSNull()])
+            print("[Demo] screen recording started error=\(String(describing: error))")
+            if error == nil, let seconds = Double(DemoConfig.environment["BPT_SCREEN_RECORD_SECONDS"] ?? "") {
+                DispatchQueue.main.asyncAfter(deadline: .now() + seconds) { stop("timer") }
+            }
+        }
+    }
+
+    static func stop(_ reason: String) {
+        guard started, RPScreenRecorder.shared().isRecording,
+              let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else { return }
+        let dir = documents.appendingPathComponent("demo", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyyMMdd_HHmmss"
+        let url = dir.appendingPathComponent("screen_\(formatter.string(from: Date())).mp4")
+        DemoPoseLog.shared?.write("screen_record_stop", ["reason": reason, "file": url.lastPathComponent])
+        RPScreenRecorder.shared().stopRecording(withOutput: url) { error in
+            print("[Demo] screen recording saved \(url.lastPathComponent) error=\(String(describing: error))")
+        }
     }
 }

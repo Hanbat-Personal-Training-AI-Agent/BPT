@@ -35,6 +35,13 @@ final class CalibrationSession: NSObject {
     private let motion = DeviceMotionMonitor()
     private let voice: CalibrationVoice
     private let captureManager = CalibrationCaptureManager()
+    /// TRIAL BRANCH ONLY (demo): BPT_CALIB_VIDEO=<Documents path> (env or bpt_demo.json) replaces the camera with that
+    /// clip, as recorded (no mirror), paced at its own timestamps; the phone's own tilt says nothing about the clip, so
+    /// frames get an upright device state. Nil = the camera, unchanged.
+    let videoSource: VideoCameraSource? = DemoConfig.url("BPT_CALIB_VIDEO").map { url in
+        VideoCameraSource(urls: [url], loops: 1, mirror: false, rotate: 0, deliver: { _, _ in false }, onFinish: {})
+    }
+    private var videoFrame: ((CMSampleBuffer) -> Bool)?
     private let ciContext = CIContext(options: [.cacheIntermediates: false])
     private let processingQueue = DispatchQueue(label: "com.bpt.calibration.processing", qos: .userInitiated)
 
@@ -123,13 +130,30 @@ final class CalibrationSession: NSObject {
             let store = try CalibrationStore()
             self.store = store
             debugLog = CalibrationDebugLog.directory(sessionId: store.sessionId).flatMap(CalibrationDebugLog.init)
-            try captureManager.configure { [weak self] sampleBuffer in
-                guard let self else { return }
-                // Bind the latest IMU snapshot when the camera frame arrives, before inference.
-                let device = self.motion.state
-                self.processingQueue.async {
-                    defer { self.captureManager.markIdle() }
-                    self.handle(sampleBuffer, device: device)
+            if videoSource != nil {
+                let gate = NSLock()
+                var busy = false
+                videoFrame = { [weak self] sampleBuffer in
+                    guard let self else { return false }
+                    gate.lock()
+                    if busy { gate.unlock(); return false }
+                    busy = true
+                    gate.unlock()
+                    self.processingQueue.async {
+                        defer { gate.lock(); busy = false; gate.unlock() }
+                        self.handle(sampleBuffer, device: .still)
+                    }
+                    return true
+                }
+            } else {
+                try captureManager.configure { [weak self] sampleBuffer in
+                    guard let self else { return }
+                    // Bind the latest IMU snapshot when the camera frame arrives, before inference.
+                    let device = self.motion.state
+                    self.processingQueue.async {
+                        defer { self.captureManager.markIdle() }
+                        self.handle(sampleBuffer, device: device)
+                    }
                 }
             }
             store.camera = captureManager.cameraInfo
@@ -142,7 +166,12 @@ final class CalibrationSession: NSObject {
         self.userHeightCm = userHeightCm
         isRunning = true
         motion.start()
-        captureManager.start()
+        if let videoSource, let videoFrame {
+            videoSource.deliverOverride = { sampleBuffer, _ in videoFrame(sampleBuffer) }
+            videoSource.start()
+        } else {
+            captureManager.start()
+        }
         DispatchQueue.main.async {
             UIApplication.shared.isIdleTimerDisabled = true
             self.voice.activate()
@@ -152,6 +181,7 @@ final class CalibrationSession: NSObject {
     /// processingQueue only.
     private func teardown(discardUnfinished: Bool) {
         isRunning = false
+        videoSource?.stop()
         captureManager.stop()
         motion.stop()
         debugLog?.close()
@@ -205,6 +235,8 @@ final class CalibrationSession: NSObject {
             lastBufferAspect = width / height
 
             let pts = CMSampleBufferGetPresentationTimeStamp(sampleBuffer).seconds
+            DemoPoseLog.shared?.write("calib", ["pts": CMSampleBufferGetPresentationTimeStamp(sampleBuffer).seconds,
+                                               "kp2d": analysis.keypoints.flatMap { [$0.x / width, $0.y / height, $0.confidence] }])
             let frame = CalibrationFrame(
                 keypoints: analysis.keypoints.map {
                     CalibrationKeypoint(x: $0.x / width, y: $0.y / height, score: $0.confidence)

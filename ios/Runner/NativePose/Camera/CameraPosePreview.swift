@@ -409,6 +409,8 @@ final class CameraPoseViewModel: ObservableObject {
         for report in tracker.reports where report.repIndex > lastLoggedRep {
             formLog?.append(report)
             lastLoggedRep = report.repIndex
+            DemoPoseLog.shared?.write("rep", ["rep": report.repIndex, "warnings": report.warnings,
+                                              "warnings_3d": report.warnings3D ?? [], "form_source": report.formSource])
             if let log = VideoRunLog.shared {
                 var line = report.dictionary
                 line["judged_frame"] = judgingFrame?.index ?? -1
@@ -790,6 +792,23 @@ final class CameraPoseViewModel: ObservableObject {
         let (statusText, rep, done) = runEvaluator(frameIndex: result.frameIndex, rawCoco17: result.rawCoco17,
                                                    feet: result.feet, pose3D: frame3D.masked3D, pose3DState: frame3D.state)
         let now = CACurrentMediaTime()
+        if let demo = DemoPoseLog.shared {
+            let round = { (v: Double, k: Double) -> Double in (v * k).rounded() / k }
+            var kp2d: [Double] = []
+            for p in result.rawCoco17 { kp2d += [round(p.x, 10), round(p.y, 10), round(p.confidence, 1000)] }
+            var line: [String: Any] = ["frame": result.frameIndex, "arrival_host": result.arrivedAt,
+                                       "state": frame3D.state.rawValue, "rep": rep, "exercise": exercise.rawValue]
+            line["size"] = [result.imageWidth, result.imageHeight]
+            line["rotation"] = result.rotation.rawValue
+            line["kp2d"] = kp2d
+            if let joints = frame3D.pose3D {
+                var flat: [Double] = []
+                for j in joints { flat += [round(j.x, 1e4), round(j.y, 1e4), round(j.z, 1e4)] }
+                line["pose3d"] = flat
+            }
+            if let unit = frame3D.unit { line["unit_px"] = unit }
+            demo.write("frame", line)
+        }
         perfLog?.sample("evaluate", ms: (now - t0) * 1000)
         perfLog?.sample("latency_input_to_judgement", ms: (now - result.arrivedAt) * 1000)
         perfLog?.judged()
