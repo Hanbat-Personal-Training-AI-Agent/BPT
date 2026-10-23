@@ -7,6 +7,7 @@ import com.bpt.kori.domain.user.repository.UserRepository;
 import com.bpt.kori.domain.workout.dto.MonthlyCalendarResponseDto;
 import com.bpt.kori.domain.workout.dto.WorkoutMetadataRequestDto;
 import com.bpt.kori.domain.workout.dto.WorkoutMetadataResponseDto;
+import com.bpt.kori.domain.workout.dto.WorkoutRecordResponseDto;
 import com.bpt.kori.domain.workout.entity.WorkoutRecord;
 import com.bpt.kori.domain.workout.repository.WorkoutRecordRepository;
 import com.bpt.kori.domain.workout.service.WorkoutService;
@@ -180,6 +181,68 @@ class WorkoutServiceTest {
         assertThat(result.getDailySummaries()).hasSize(1);
         assertThat(result.getDailySummaries().get(0).getDate()).isEqualTo("2026-09-10");
         assertThat(result.getDailySummaries().get(0).getRecords().get(0).getWeightKg()).isEqualByComparingTo("60.0");
+    }
+
+    @Test
+    @DisplayName("캘린더 운동일과 일별 기록에서 반복 없는 기록 제외")
+    void getMonthlyCalendar_excludesRecordsWithoutReps() {
+        List<WorkoutRecord> records = List.of(
+                calendarRecord(1L, "squat", 9, 0),
+                calendarRecord(2L, "squat", 9, null),
+                calendarRecord(3L, "squat", 10, 12),
+                calendarRecord(4L, "barbell-row", 10, 0),
+                calendarRecord(5L, "barbell-row", 10, 8),
+                calendarRecord(6L, "squat", 11, 1));
+        given(workoutRecordRepository.findAllByUserIdAndDateBetweenOrderByDateAsc(eq(1L), any(), any()))
+                .willReturn(records);
+
+        MonthlyCalendarResponseDto result = workoutService.getMonthlyCalendar(1L, 2026, 9);
+
+        assertThat(result.getMonthlyWorkoutCount()).isEqualTo(2);
+        assertThat(result.getWorkoutDates()).containsExactly("2026-09-10", "2026-09-11");
+        assertThat(result.getDailySummaries()).extracting("date")
+                .containsExactly("2026-09-10", "2026-09-11");
+        assertThat(result.getDailySummaries().get(0).getRecords()).extracting("reps")
+                .containsExactly(12, 8);
+        assertThat(result.getDailySummaries().get(1).getRecords()).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("미완료 기록만 있는 달은 캘린더 운동일과 일별 목록이 비어 있음")
+    void getMonthlyCalendar_onlyZeroReps_returnsEmptyCalendar() {
+        given(workoutRecordRepository.findAllByUserIdAndDateBetweenOrderByDateAsc(eq(1L), any(), any()))
+                .willReturn(List.of(calendarRecord(1L, "squat", 10, 0)));
+
+        MonthlyCalendarResponseDto result = workoutService.getMonthlyCalendar(1L, 2026, 9);
+
+        assertThat(result.getMonthlyWorkoutCount()).isZero();
+        assertThat(result.getWorkoutDates()).isEmpty();
+        assertThat(result.getDailySummaries()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("캘린더 JSON에 기록 조회 API와 동일한 문자열 id와 exerciseId 제공")
+    void getMonthlyCalendar_includesRecordAndExerciseIds() {
+        WorkoutRecord record = calendarRecord(501L, "barbell-row", 10, 8);
+        given(workoutRecordRepository.findAllByUserIdAndDateBetweenOrderByDateAsc(eq(1L), any(), any()))
+                .willReturn(List.of(record));
+        given(workoutRecordRepository.findAllByUserIdOrderByDateDesc(1L)).willReturn(List.of(record));
+
+        MonthlyCalendarResponseDto calendar = workoutService.getMonthlyCalendar(1L, 2026, 9);
+        WorkoutRecordResponseDto detail = workoutService.getWorkoutRecords(1L).get(0);
+        com.fasterxml.jackson.databind.JsonNode json = new ObjectMapper()
+                .valueToTree(calendar.getDailySummaries().get(0).getRecords().get(0));
+
+        assertThat(json.path("id").isTextual()).isTrue();
+        assertThat(json.path("id").asText()).isEqualTo("501").isEqualTo(detail.getId());
+        assertThat(json.path("exerciseId").asText()).isEqualTo("barbell-row").isEqualTo(detail.getExerciseId());
+        assertThat(json.path("reps").asInt()).isEqualTo(8);
+    }
+
+    private WorkoutRecord calendarRecord(Long id, String exerciseId, int day, Integer reps) {
+        return WorkoutRecord.builder().id(id).clientRecordId("rec_" + id)
+                .exerciseId(exerciseId).exerciseName(exerciseId)
+                .date(LocalDateTime.of(2026, 9, day, 12, 0)).totalReps(reps).build();
     }
 
     @Test

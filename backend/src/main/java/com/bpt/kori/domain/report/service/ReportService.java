@@ -43,7 +43,9 @@ public class ReportService {
         }
 
         List<WorkoutRecord> records = workoutRecordRepository.findRecordsByUserIdAndDateRange(
-                userId, startDateTime, endDateTime);
+                userId, startDateTime, endDateTime).stream()
+                .filter(r -> r.getTotalReps() != null && r.getTotalReps() > 0)
+                .collect(Collectors.toList());
 
         int totalSessions = records.size();
 

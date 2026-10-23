@@ -22,6 +22,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -98,6 +99,79 @@ class UserServiceTest {
         assertThat(dashboard.getRecentWorkouts()).hasSize(1);
         assertThat(dashboard.getRecentWorkouts().get(0).getExerciseName()).isEqualTo("스쿼트");
         assertThat(dashboard.getRecentWorkouts().get(0).getWeightKg()).isEqualByComparingTo("60.0");
+    }
+
+    @Test
+    @DisplayName("대시보드 전체 집계와 최근 운동에서 반복 없는 기록 제외")
+    void getDashboardSummary_excludesRecordsWithoutReps() {
+        given(userRepository.findById(1L)).willReturn(Optional.of(
+                User.builder().id(1L).username("tester").weeklyFrequency(4).build()));
+        LocalDate today = LocalDate.now();
+        WorkoutRecord zero = dashboardRecord("미완료", today, 0, 6000, 99);
+        WorkoutRecord missing = dashboardRecord("횟수 없음", today, null, 6000, 99);
+        WorkoutRecord squat = dashboardRecord("스쿼트", today, 12, 120, 2);
+        WorkoutRecord row = dashboardRecord("바벨로우", today, 8, 60, 1);
+        // A different day containing only a zero-rep record must not count as active.
+        LocalDate otherDay = today.plusDays(today.getDayOfWeek().getValue() == 7 ? -1 : 1);
+        WorkoutRecord zeroOnlyDay = dashboardRecord("미완료", otherDay, 0, 6000, 99);
+        given(workoutRecordRepository.findAllByUserIdAndDateBetweenOrderByDateAsc(eq(1L), any(), any()))
+                .willReturn(List.of(zero, missing, squat, row))
+                .willReturn(List.of(zeroOnlyDay, squat, row));
+        given(workoutRecordRepository.findAllByUserIdOrderByDateDesc(1L))
+                .willReturn(List.of(zero, missing, squat, row));
+
+        DashboardSummaryResponseDto result = userService.getDashboardSummary(1L);
+
+        assertThat(result.getTodayWorkoutMinutes()).isEqualTo(3);
+        assertThat(result.getTodayCompletedSets()).isEqualTo(3);
+        assertThat(result.getTodayTotalReps()).isEqualTo(20);
+        assertThat(result.getWeeklyCompletedCount()).isEqualTo(1);
+        assertThat(result.getWeeklyActiveDays()).containsExactly(today.getDayOfWeek().name().substring(0, 3));
+        assertThat(result.getAchievementRate()).isEqualTo(25.0);
+        assertThat(result.getRecentWorkouts()).extracting("exerciseName")
+                .containsExactly("스쿼트", "바벨로우");
+    }
+
+    @Test
+    @DisplayName("주간 목표 누락 시 프로필과 대시보드 모두 3회 기준 달성률 반환")
+    void getDashboardSummary_missingWeeklyGoal_defaultsToThree() {
+        given(userRepository.findById(1L)).willReturn(Optional.of(
+                User.builder().id(1L).username("tester").weeklyFrequency(null).build()));
+        WorkoutRecord record = dashboardRecord("스쿼트", LocalDate.now(), 1, 60, 1);
+        given(workoutRecordRepository.findAllByUserIdAndDateBetweenOrderByDateAsc(eq(1L), any(), any()))
+                .willReturn(List.of(record));
+
+        DashboardSummaryResponseDto result = userService.getDashboardSummary(1L);
+
+        assertThat(userService.getProfile(1L).getWeeklyFrequency()).isEqualTo(3);
+        assertThat(result.getWeeklyGoalCount()).isEqualTo(3);
+        assertThat(result.getAchievementRate()).isEqualTo(33.3);
+    }
+
+    @Test
+    @DisplayName("미완료 기록만 있으면 대시보드 집계와 최근 운동은 비어 있음")
+    void getDashboardSummary_onlyZeroReps_returnsEmptySummary() {
+        given(userRepository.findById(1L)).willReturn(Optional.of(
+                User.builder().id(1L).username("tester").build()));
+        WorkoutRecord record = dashboardRecord("미완료", LocalDate.now(), 0, 300, 5);
+        given(workoutRecordRepository.findAllByUserIdAndDateBetweenOrderByDateAsc(eq(1L), any(), any()))
+                .willReturn(List.of(record));
+        given(workoutRecordRepository.findAllByUserIdOrderByDateDesc(1L)).willReturn(List.of(record));
+
+        DashboardSummaryResponseDto result = userService.getDashboardSummary(1L);
+
+        assertThat(result.getTodayWorkoutMinutes()).isZero();
+        assertThat(result.getTodayCompletedSets()).isZero();
+        assertThat(result.getTodayTotalReps()).isZero();
+        assertThat(result.getWeeklyCompletedCount()).isZero();
+        assertThat(result.getWeeklyActiveDays()).isEmpty();
+        assertThat(result.getAchievementRate()).isZero();
+        assertThat(result.getRecentWorkouts()).isEmpty();
+    }
+
+    private WorkoutRecord dashboardRecord(String name, LocalDate day, Integer reps, int seconds, int sets) {
+        return WorkoutRecord.builder().exerciseName(name).date(day.atTime(12, 0))
+                .totalReps(reps).durationSeconds(seconds).targetSets(sets).build();
     }
 
     @Test
