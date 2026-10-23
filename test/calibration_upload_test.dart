@@ -390,6 +390,35 @@ void main() {
     });
   });
 
+  group('fetchModel', () {
+    Dio model(List<int> bytes) => Dio()
+      ..httpClientAdapter = _Adapter((options, _) async {
+        storageCalls.add(options);
+        return ResponseBody.fromBytes(bytes, 200);
+      });
+    final glb = [...'glTF'.codeUnits, 2, 0, 0, 0, 12, 0, 0, 0];
+
+    test('downloads the GLB from storage without the app token', () async {
+      storage = model(glb);
+      final bytes = await service()
+          .fetchModel('https://photos.example.test/models/job-1.glb?sig=x');
+      expect(bytes, glb);
+      expect(storageCalls.single.headers.containsKey('Authorization'), isFalse);
+    });
+
+    test('rejects other hosts and non-GLB bodies', () async {
+      storage = model(glb);
+      await expectLater(
+          service().fetchModel('https://evil.example.test/models/job-1.glb'),
+          throwsA(isA<CalibrationUploadException>()));
+      expect(storageCalls, isEmpty);
+      storage = model(utf8.encode('<html>expired</html>'));
+      await expectLater(
+          service().fetchModel('https://photos.example.test/models/job-1.glb'),
+          throwsA(isA<CalibrationUploadException>()));
+    });
+  });
+
   group('warmUp', () {
     test('posts once with only the bearer token', () async {
       await service().warmUp();

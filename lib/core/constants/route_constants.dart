@@ -10,6 +10,7 @@ class RouteConstants {
   static const String onboardingScan = '/onboarding/capture/scan';
   static const String onboardingAnalyzing = '/onboarding/analyzing';
   static const String onboardingResult = '/onboarding/result';
+  static const String onboardingMesh = '/onboarding/mesh';
   static const String home = '/home';
   static const String calendar = '/calendar';
   static const String report = '/report';

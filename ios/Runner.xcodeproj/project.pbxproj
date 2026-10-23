@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		B0D1E5A0C0FFEE0000000004 /* GLBMesh.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0D1E5A0C0FFEE0000000002 /* GLBMesh.swift */; };
+		B0D1E5A0C0FFEE0000000005 /* BodyMeshPlatformView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0D1E5A0C0FFEE0000000003 /* BodyMeshPlatformView.swift */; };
 		05A1975E6E323360F6D4A55A /* HandLandmarkTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = B403B85320DD7A4B0C166027 /* HandLandmarkTypes.swift */; };
 		08C943D98F2961D3E7FD292C /* HandCropBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = AFF3D92E23C51588F9B817C7 /* HandCropBuilder.swift */; };
 		0D35ADD79DA1B8B274B350A7 /* BenchPressTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF445DF3E9EBB7E4F712C747 /* BenchPressTypes.swift */; };
@@ -86,6 +88,8 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		B0D1E5A0C0FFEE0000000002 /* GLBMesh.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = GLBMesh.swift; sourceTree = "<group>"; };
+		B0D1E5A0C0FFEE0000000003 /* BodyMeshPlatformView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BodyMeshPlatformView.swift; sourceTree = "<group>"; };
 		1498D2321E8E86230040F4C2 /* GeneratedPluginRegistrant.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = GeneratedPluginRegistrant.h; sourceTree = "<group>"; };
 		1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GeneratedPluginRegistrant.m; sourceTree = "<group>"; };
 		1CCE7980CB9E4B502305AFFA /* MediaPipeHandLandmarkerRunner.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MediaPipeHandLandmarkerRunner.swift; sourceTree = "<group>"; };
@@ -176,6 +180,15 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		B0D1E5A0C0FFEE0000000001 /* BodyMesh */ = {
+			isa = PBXGroup;
+			children = (
+				B0D1E5A0C0FFEE0000000002 /* GLBMesh.swift */,
+				B0D1E5A0C0FFEE0000000003 /* BodyMeshPlatformView.swift */,
+			);
+			path = BodyMesh;
+			sourceTree = "<group>";
+		};
 		06626BF18714E63F473E7EC3 /* NativePose */ = {
 			isa = PBXGroup;
 			children = (
@@ -188,6 +201,7 @@
 				17B7ED684A41F740B3C81AAF /* Bridge */,
 				6D0801A39A80D1F1709F7C11 /* Models */,
 				135F99FB5EA7C2E853792ACE /* Calibration */,
+				B0D1E5A0C0FFEE0000000001 /* BodyMesh */,
 			);
 			path = NativePose;
 			sourceTree = "<group>";
@@ -628,6 +642,8 @@
 				622CB33062458ACA0B781D8B /* NativePoseCameraPlatformView.swift in Sources */,
 				C4CC1F25A32E8EDA3BF8D0D3 /* NativePoseCameraPlatformViewFactory.swift in Sources */,
 				3EAE5785BD00E55356394216 /* NativePoseRegistration.swift in Sources */,
+				B0D1E5A0C0FFEE0000000004 /* GLBMesh.swift in Sources */,
+				B0D1E5A0C0FFEE0000000005 /* BodyMeshPlatformView.swift in Sources */,
 				E5B71D2A4C9F3E8B6D1A0C01 /* WorkoutSessionBridge.swift in Sources */,
 				4B0A1C2D3E4F5A6B7C8D9E02 /* KoriSpeaker.swift in Sources */,
 				86AB2F1D28559673AEFB3414 /* CalibrationConfig.swift in Sources */,
