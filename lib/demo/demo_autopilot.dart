@@ -8,6 +8,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class DemoAutopilot {
@@ -18,11 +19,16 @@ class DemoAutopilot {
   final double _startDelay; // DEMO_START_DELAY s: time to accept the screen-recording prompt before the first tap
   final _c = LiveWidgetController(WidgetsBinding.instance);
 
-  static String get _docs => '${Platform.environment['HOME']}/Documents';
+  static String _docs = ''; // app Documents (HOME is not in the Dart environment on iOS)
 
   /// Reads the demo config before runApp. When it asks for the autopilot, clears saved login / onboarding state
   /// (fresh sign-up) and returns the pilot; otherwise returns null and changes nothing.
   static Future<DemoAutopilot?> prepare(SharedPreferences prefs) async {
+    try {
+      _docs = (await getApplicationDocumentsDirectory()).path;
+    } catch (_) {
+      return null;
+    }
     final file = File('$_docs/bpt_demo.json');
     if (!file.existsSync()) return null;
     final Map<String, dynamic> config;
