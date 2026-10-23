@@ -30,6 +30,7 @@ class NativePoseWorkoutScreen extends ConsumerStatefulWidget {
     this.setWeightsKg = const [],
     this.setReps = const [],
     this.restSeconds = _defaultRestSeconds,
+    this.formStrictness = 'standard',
   });
 
   static const int _defaultRestSeconds = 60;
@@ -55,6 +56,10 @@ class NativePoseWorkoutScreen extends ConsumerStatefulWidget {
 
   /// 세트 사이 쉬는 시간(초).
   final int restSeconds;
+
+  /// 자세 판정 엄격도: 'strict'(PT 엄격) · 'standard'(표준, 기본) · 'relaxed'(여유).
+  /// 네이티브 FormStrictness로 그대로 넘긴다. 모르는 값은 표준으로 처리된다.
+  final String formStrictness;
 
   @override
   ConsumerState<NativePoseWorkoutScreen> createState() =>
@@ -535,7 +540,10 @@ class _NativePoseWorkoutScreenState
         if (_isSupportedExercise && _isIOS)
           UiKitView(
             viewType: NativePoseWorkoutScreen.viewType,
-            creationParams: {'exerciseId': widget.exerciseId},
+            creationParams: {
+              'exerciseId': widget.exerciseId,
+              'formStrictness': widget.formStrictness,
+            },
             creationParamsCodec: const StandardMessageCodec(),
             onPlatformViewCreated: _onPlatformViewCreated,
           )

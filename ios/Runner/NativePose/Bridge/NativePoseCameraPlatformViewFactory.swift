@@ -21,13 +21,16 @@ final class NativePoseCameraPlatformViewFactory: NSObject, FlutterPlatformViewFa
         let params = args as? [String: Any]
         let exerciseId = params?["exerciseId"] as? String
         let exercise = exerciseId.flatMap { NativePoseExercise(flutterId: $0) }
+        // "strict" | "standard" | "relaxed"; missing or unknown = standard (FormStrictness).
+        let strictness = FormStrictness(flutterValue: params?["formStrictness"] as? String)
 
         return NativePoseCameraPlatformView(
             frame: frame,
             viewId: viewId,
             messenger: messenger,
             exercise: exercise,
-            exerciseId: exerciseId
+            exerciseId: exerciseId,
+            strictness: strictness
         )
     }
 }

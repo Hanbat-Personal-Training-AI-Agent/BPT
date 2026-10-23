@@ -222,9 +222,13 @@ final class CameraPoseViewModel: ObservableObject {
     private var cameraRunning = false
     private var lifecycleObservers: [NSObjectProtocol] = []
 
-    init(exercise: NativePoseExercise, bridge: WorkoutChannel? = nil) {
+    /// Form judgement mode from Flutter (`formStrictness` creation param; default standard = app values).
+    private let strictness: FormStrictness
+
+    init(exercise: NativePoseExercise, bridge: WorkoutChannel? = nil, strictness: FormStrictness = .standard) {
         self.exercise = exercise
         self.bridge = bridge
+        self.strictness = strictness
     }
 
     func requestCameraAndStart() {
@@ -362,7 +366,10 @@ final class CameraPoseViewModel: ObservableObject {
         case .barbellRow: barbellRowEvaluator = BarbellRowEvaluator()
         case .pushUp: pushUpEvaluator = PushUpEvaluator()
         }
-        if let tracker = formTracker { formLog = WorkoutFormLog(exercise: tracker.exercise) }
+        if let tracker = formTracker {
+            strictness.apply(to: tracker)
+            formLog = WorkoutFormLog(exercise: tracker.exercise)
+        }
 
         let handEnabled = exercise.handBranchEnabled(override: CameraPreviewOptions.handBranchOverride)
         if handEnabled {
@@ -611,9 +618,9 @@ struct CameraPosePreview: View {
     let exercise: NativePoseExercise
     @StateObject private var model: CameraPoseViewModel
 
-    init(exercise: NativePoseExercise, bridge: WorkoutChannel? = nil) {
+    init(exercise: NativePoseExercise, bridge: WorkoutChannel? = nil, strictness: FormStrictness = .standard) {
         self.exercise = exercise
-        _model = StateObject(wrappedValue: CameraPoseViewModel(exercise: exercise, bridge: bridge))
+        _model = StateObject(wrappedValue: CameraPoseViewModel(exercise: exercise, bridge: bridge, strictness: strictness))
     }
 
     var body: some View {

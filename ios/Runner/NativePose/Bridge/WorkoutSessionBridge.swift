@@ -49,6 +49,9 @@ enum FeedbackJoint {
         "deadlift_hips_first": "hip",
         "deadlift_no_lockout": "hip",
         "deadlift_lean_back": "back",
+        "pushup_elbow_flare": "elbow",
+        "pushup_head_hang": "head",
+        "squat_torso_lean": "back",
     ]
 
     /// Joint of the set's most frequent warning key (reps it fired in), counting only keys that are

@@ -95,6 +95,12 @@ struct PushUpFormConfig {
     /// views (Exercise3D medians: 10–35° 0.06–0.53, 40° 0.50–0.75, 48° 0.44–0.48, 70–88° 1.8–2.8 —
     /// the torso foreshortens towards a front camera). 1.0 = every cam ≤ 48° side, every cam ≥ 70° not.
     var sideViewMaxShoulderRatio = 1.0
+    /// pushup_elbow_flare (참고, FormStrictness.strict only; nil = off): 3D angle between the upper arm and the trunk
+    /// (thorax → pelvis) at the rep's bottom above this (deg). PT ≈ 45°. Needs 3D (pose3D); 2D-only runs never fire.
+    var elbowFlareDegrees: Double?
+    /// pushup_head_hang (참고, strict only; nil = off): 2D angle of the shoulder → ear line below the hip → shoulder
+    /// line at the rep's bottom (deg, > 0 = head towards the floor). Absolute, not the in-rep change of pushup_head_drop.
+    var headHangDegrees: Double?
     /// pushup_depth_fade (참고): mean min elbow angle of the last N reps − first N reps above this (deg). 임시값 — 테스트 영상으로 조정
     var depthFadeDegrees = 15.0
 }
@@ -122,6 +128,9 @@ struct SquatFormConfig {
     /// let 34–40° cameras through: the forward lean shortens the 2D torso, so the ratio grows inside the rep
     /// (Exercise3D 39.6°: standing 0.36, in the rep 0.49–0.53). Standing: cams ≤ 40° 0.23–0.36, ≥ 63° 0.48–0.55.
     var valgusMinStandingShoulderRatio = 0.42
+    /// squat_torso_lean (참고, strict / relaxed only; nil = off): 2D torso angle minus shin angle (both vs vertical,
+    /// towards the facing side) at the deepest frame above this (deg). FMS: torso no more forward than the shin (0°).
+    var torsoLeanOverTibiaDegrees: Double?
     /// squat_heel_rise (개선, Halpe26 only): (heel y − big-toe y) / shin drops by more than this vs the rep start. 임시값 — 테스트 영상으로 조정
     var heelRiseShinRatio = 0.05
     /// squat_heel_rise: off for now (not judged with either model; the metric is still logged).
@@ -243,6 +252,12 @@ enum FormGeometry {
         return acos(min(max((ux * vx + uy * vy) / (nu * nv), -1), 1)) * 180 / .pi
     }
 
+    /// Angle between two 3D vectors (deg), nil if one is ~0.
+    static func angle3D(_ u: SIMD3<Double>, _ v: SIMD3<Double>) -> Double? {
+        guard simd_length(u) > 1e-8, simd_length(v) > 1e-8 else { return nil }
+        return atan2(simd_length(simd_cross(u, v)), simd_dot(u, v)) * 180 / .pi
+    }
+
     /// Angle difference wrapped to (-180, 180].
     static func wrapDegrees(_ d: Double) -> Double {
         let r = remainder(d, 360)
@@ -342,6 +357,9 @@ struct FormFrameSample {
     var shoulderRatio: Double?
     var kneeAnkleGapRatio: Double?
     var heelToe: Double?
+    var tibia: Double?
+    var headTrunk: Double?
+    var elbowFlare3D: Double?
     var torso3D: Double?
     var hipDeviation3D: Double?
     var has3D = false
@@ -391,11 +409,12 @@ final class FormWarningTracker {
             ("setup_side_view", .setup), ("pushup_hip_sag", .priority), ("pushup_hip_pike", .improve),
             ("pushup_shallow", .improve), ("pushup_no_lockout", .reference), ("pushup_head_drop", .reference),
             ("pushup_head_up", .reference), ("pushup_hand_position", .setup), ("pushup_depth_fade", .reference),
+            ("pushup_elbow_flare", .reference), ("pushup_head_hang", .reference),
         ],
         .squat: [
             ("squat_hips_first", .priority), ("squat_knee_valgus", .priority), ("squat_shallow", .improve),
             ("squat_heel_rise", .improve), ("squat_no_lockout", .reference), ("squat_lean_drift", .reference),
-            ("squat_depth_fade", .reference),
+            ("squat_depth_fade", .reference), ("squat_torso_lean", .reference),
         ],
         .barbellRow: [
             ("setup_side_view", .setup), ("row_torso_swing", .priority), ("row_standing_up", .improve),
@@ -419,6 +438,8 @@ final class FormWarningTracker {
     static let keysWithoutFlutterLines: Set<String> = [
         "bench_hips_up", "bench_shallow", "bench_no_lockout",
         "deadlift_hips_first", "deadlift_no_lockout", "deadlift_lean_back",
+        // PT-strict metrics (2026-10-23, docs/results/rules_fix.md): logged only until they have lines.
+        "pushup_elbow_flare", "pushup_head_hang", "squat_torso_lean",
     ]
 
     /// Keys with a Flutter line that stay off by default (D-M-04, 2026-10-22, user: "추천대로 진행"): on
@@ -533,6 +554,9 @@ final class FormWarningTracker {
                 sessionBad3DFrames += 1
             } else {
                 sample.torso3D = FormGeometry.signedTorsoAngle3D(pose3D)
+                // Upper arm (shoulder → elbow) vs trunk (thorax → pelvis), camera-near side (H36M17).
+                let (sh, el) = side == .left ? (11, 12) : (14, 15)
+                sample.elbowFlare3D = FormGeometry.angle3D(pose3D[el] - pose3D[sh], pose3D[0] - pose3D[8])
                 sample.hipDeviation3D = FormGeometry.signedHipDeviation3D(pose3D)
             }
         }
@@ -792,11 +816,18 @@ final class FormWarningTracker {
             if torso > 1e-8 { s.torsoLength = torso }
             if let facing {
                 s.torso = FormGeometry.signedTorsoAngle2D(shoulder: shoulder, hip: hip, facing: facing)
+                // Shin (ankle → knee) vs vertical with the torso's sign: torso − tibia > 0 = trunk more forward.
+                if let knee, let ankle { s.tibia = FormGeometry.signedTorsoAngle2D(shoulder: knee, hip: ankle, facing: facing) }
                 if let elbow { s.elbowBehind = FormGeometry.distanceBehindTorso2D(point: elbow, shoulder: shoulder, hip: hip, facing: facing) }
             }
             if let ankle { s.hipDeviation = FormGeometry.signedLineDeviation2D(point: hip, a: shoulder, b: ankle) }
             if let ear {
                 s.headDeviation = FormGeometry.signedLineDeviation2D(point: ear, a: hip, b: shoulder)
+                // Head-trunk angle: shoulder → ear vs the hip → shoulder line, + = floor side (same sign as headDeviation).
+                let along = (ear.x - shoulder.x) * (shoulder.x - hip.x) + (ear.y - shoulder.y) * (shoulder.y - hip.y)
+                if torso > 1e-8, let dev = s.headDeviation {
+                    s.headTrunk = atan2(dev * torso * torso, along) * 180 / .pi
+                }
                 if torso > 1e-8 { s.earShoulder = hypot(ear.x - shoulder.x, ear.y - shoulder.y) / torso }
             }
         }
@@ -873,10 +904,16 @@ final class FormWarningTracker {
             if isFirstRep, let top = frames.filter({ $0.elbow != nil }).max(by: { $0.elbow! < $1.elbow! }) {
                 put("first_rep_top_wrist_ahead", top.wristAhead)
             }
+            // Bottom = smallest elbow angle: head-trunk angle (2D) and elbow flare (3D) there.
+            if let bottom = frames.filter({ $0.elbow != nil }).min(by: { $0.elbow! < $1.elbow! }) {
+                put("head_trunk_at_bottom", bottom.headTrunk)
+                put("elbow_flare_at_bottom", bottom.elbowFlare3D)
+            }
         case .squat:
             let kneeMin = vals(\.knee).min()
             if let b = frames.firstIndex(where: { $0.knee != nil && $0.knee == kneeMin }) {
                 put("torso_at_bottom", frames[b].torso)
+                if let t = frames[b].torso, let shin = frames[b].tibia { put("torso_minus_tibia_at_bottom", FormGeometry.wrapDegrees(t - shin)) }
                 putHipsFirst(from: b, windowFrames: squat.hipsFirstWindowFrames)
             }
             // Front view: bottom = lowest hip, then through the ascent.
@@ -979,6 +1016,8 @@ final class FormWarningTracker {
                 fire("pushup_hand_position", ahead > c.handForwardRatio || ahead < -c.handBackwardRatio)
             }
             fire("pushup_depth_fade", trend("elbow_min", c.depthFadeDegrees))
+            if let t = c.elbowFlareDegrees { fire("pushup_elbow_flare", over("elbow_flare_at_bottom", t)) }
+            if let t = c.headHangDegrees { fire("pushup_head_hang", over("head_trunk_at_bottom", t)) }
         case .squat:
             let c = squat
             if sideView {
@@ -989,6 +1028,7 @@ final class FormWarningTracker {
                 fire("squat_shallow", overBaseline("knee_min", c.shallowOverBaselineDegrees))
                 fire("squat_lean_drift", trend("torso_at_bottom", c.leanDriftDegrees))
                 fire("squat_depth_fade", trend("knee_min", c.depthFadeDegrees))
+                if let t = c.torsoLeanOverTibiaDegrees { fire("squat_torso_lean", over("torso_minus_tibia_at_bottom", t)) }
             } else {
                 // Only a reliable front / rear view (standing shoulder ratio), never a ≤ 45° oblique camera.
                 if let ratio = m["standing_shoulder_ratio"], ratio >= c.valgusMinStandingShoulderRatio {
@@ -1033,6 +1073,95 @@ final class FormWarningTracker {
             fire("deadlift_lean_back", under("torso_min", -c.leanBackDegrees))
         }
         return (Self.rules[exercise] ?? []).map(\.key).filter(fired.contains)
+    }
+}
+
+// MARK: - Strictness modes
+
+/// Judgement strictness (user, 2026-10-23: not lenient, aim for proper form; three modes PT 엄격 / 표준 / 여유).
+/// Flutter passes it as the platform view's `formStrictness` ("strict" | "standard" | "relaxed", default standard; UI is the
+/// teammate's). standard = the app's own values, unchanged. Overrides use the rules-calib FormRulePreset names
+/// ("<config>.<field>"), so ai/rules-calib presets map onto the same table. docs/results/rules_fix.md.
+///
+/// CAUTION: the strict / relaxed numbers come from the 3D Python app path (original XS, m Halpe26 input;
+/// ex3d_form_labels_strict.md 3절, rules-calib xs_orig_rc1). The tracker here judges 2D, so the same names measure a 2D
+/// quantity; the 2D effect is in rules_fix.md. 잠정 = 근거 부족 (one-sided Ex3D distribution, detection unknown).
+enum FormStrictness: String, CaseIterable {
+    case strict, standard, relaxed
+
+    static let doubles: [String: ReferenceWritableKeyPath<FormWarningTracker, Double>] = [
+        "pushUp.hipSagDeviation": \.pushUp.hipSagDeviation, "pushUp.hipPikeDeviation": \.pushUp.hipPikeDeviation,
+        "pushUp.shallowOverBaselineDegrees": \.pushUp.shallowOverBaselineDegrees,
+        "pushUp.headDropDeviation": \.pushUp.headDropDeviation, "pushUp.headUpDeviation": \.pushUp.headUpDeviation,
+        "squat.hipsFirstTorsoRiseDegrees": \.squat.hipsFirstTorsoRiseDegrees,
+        "squat.shallowOverBaselineDegrees": \.squat.shallowOverBaselineDegrees,
+        "squat.valgusKneeAnkleGapRatio": \.squat.valgusKneeAnkleGapRatio, "squat.heelRiseShinRatio": \.squat.heelRiseShinRatio,
+        "row.torsoSwingRangeDegrees": \.row.torsoSwingRangeDegrees, "row.standingUpDegrees": \.row.standingUpDegrees,
+        "row.shortPullBelowBaseline": \.row.shortPullBelowBaseline, "row.headUpDeviation": \.row.headUpDeviation,
+    ]
+    /// Rules that are off (nil) unless a mode sets them.
+    static let optionals: [String: ReferenceWritableKeyPath<FormWarningTracker, Double?>] = [
+        "squat.torsoLeanOverTibiaDegrees": \.squat.torsoLeanOverTibiaDegrees,
+        "pushUp.elbowFlareDegrees": \.pushUp.elbowFlareDegrees, "pushUp.headHangDegrees": \.pushUp.headHangDegrees,
+    ]
+
+    /// Threshold overrides per mode. Empty = standard.
+    var values: [String: Double] {
+        switch self {
+        case .standard: return [:]
+        case .strict: return [
+            // 근거 있음 (Ex3D good vs tip, AI label): row swing good p90–p95 5.8–7.9°; squat lean ≈ FMS (0°).
+            "row.torsoSwingRangeDegrees": 7.0,
+            "squat.torsoLeanOverTibiaDegrees": 0.0,
+            // 잠정 (근거 부족): one-sided Ex3D good p90, no wrong-form examples.
+            "squat.hipsFirstTorsoRiseDegrees": 4.4,
+            "squat.valgusKneeAnkleGapRatio": 0.47,
+            "squat.heelRiseShinRatio": 0.10,
+            "pushUp.hipSagDeviation": 0.054,
+            "pushUp.hipPikeDeviation": -0.002,
+            "pushUp.headUpDeviation": 0.058,
+            // 잠정 (근거 부족): new metrics, Exercise3D distribution (rules_fix.md).
+            "pushUp.elbowFlareDegrees": 45.0,  // tip p10 21.3° < PT 45° → 45° (3D, cam-dependent: 20–26° vs 40–51°)
+            "pushUp.headHangDegrees": -5.4,  // tip p10; 2D, cam-dependent (−8–11° vs 2–24°), fires ~90% by construction
+        ]
+        case .relaxed: return [
+            // rules-calib rc1 (xs_orig_rc1, 4deb16c). no_lockout rc1 is not used: its definition changed here.
+            "pushUp.hipSagDeviation": 0.1786, "pushUp.hipPikeDeviation": 0.2346,
+            "pushUp.shallowOverBaselineDegrees": 43.8707, "pushUp.headDropDeviation": 0.1514,
+            "pushUp.headUpDeviation": 0.2571,
+            "squat.hipsFirstTorsoRiseDegrees": 8.3071, "squat.shallowOverBaselineDegrees": 30.8123,
+            "squat.valgusKneeAnkleGapRatio": 0.2235, "squat.torsoLeanOverTibiaDegrees": 37.8529,
+            "squat.heelRiseShinRatio": 0.4091,
+            "row.torsoSwingRangeDegrees": 34.153, "row.standingUpDegrees": 2.587,
+            "row.shortPullBelowBaseline": 0.0429, "row.headUpDeviation": 0.1688,
+        ]
+        }
+    }
+
+    /// Quiet keys (D-M-04) this mode also sends: strict sends the two no_lockout keys the rules fix made correct on
+    /// Exercise3D (0 false alarms on locked-out reps). squat_knee_valgus stays quiet (its threshold is not fixed).
+    var extraDeliveredKeys: Set<String> {
+        self == .strict ? ["squat_no_lockout", "pushup_no_lockout"] : []
+    }
+
+    /// Keys this mode does not send (still judged and logged): relaxed = rc1 "off".
+    var withheldKeys: Set<String> {
+        self == .relaxed ? ["pushup_hand_position", "row_short_pull", "row_standing_up"] : []
+    }
+
+    /// Flutter / env value → mode; nil or unknown = standard.
+    init(flutterValue: String?) {
+        self = flutterValue.flatMap(FormStrictness.init(rawValue:)) ?? .standard
+    }
+
+    func apply(to tracker: FormWarningTracker) {
+        for (name, value) in values {
+            if let path = Self.doubles[name] { tracker[keyPath: path] = value }
+            else if let path = Self.optionals[name] { tracker[keyPath: path] = value }
+            else { assertionFailure("unknown strictness field \(name)") }
+        }
+        tracker.common.enabledFeedbackKeys.formUnion(extraDeliveredKeys)
+        tracker.common.enabledFeedbackKeys.subtract(withheldKeys)
     }
 }
 
