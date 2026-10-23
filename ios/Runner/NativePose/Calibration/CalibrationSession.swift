@@ -235,8 +235,6 @@ final class CalibrationSession: NSObject {
             lastBufferAspect = width / height
 
             let pts = CMSampleBufferGetPresentationTimeStamp(sampleBuffer).seconds
-            DemoPoseLog.shared?.write("calib", ["pts": CMSampleBufferGetPresentationTimeStamp(sampleBuffer).seconds,
-                                               "kp2d": analysis.keypoints.flatMap { [$0.x / width, $0.y / height, $0.confidence] }])
             let frame = CalibrationFrame(
                 keypoints: analysis.keypoints.map {
                     CalibrationKeypoint(x: $0.x / width, y: $0.y / height, score: $0.confidence)
@@ -252,6 +250,15 @@ final class CalibrationSession: NSObject {
             if let request = result.capture {
                 let saved = writeCapture(request)
                 if let resolved = engine.resolveCapture(id: request.id, saved: saved) { result = resolved }
+            }
+            if let demo = DemoPoseLog.shared {
+                var line: [String: Any] = ["pts": pts, "guidance": "\(result.guidance)"]
+                line["kp2d"] = analysis.keypoints.flatMap { [$0.x / width, $0.y / height, $0.confidence] }
+                line["classified"] = result.classifiedView?.rawValue ?? ""
+                line["target"] = result.targetView?.rawValue ?? ""
+                line["hold"] = result.holdProgress
+                line["captured"] = result.capturedViews.map(\.rawValue)
+                demo.write("calib", line)
             }
             let r = result.measurement.flatMap { engine.rValue($0) }
             let delta = result.measurement.flatMap { engine.delta($0) }
