@@ -418,7 +418,8 @@ final class CameraPoseViewModel: ObservableObject {
             }
         }
         let events = tracker.drainEvents()
-        if VideoCameraOptions.isActive, let report = newReport {
+        // TRIAL BRANCH ONLY: BPT_DEBUG_CAPTION=0 (bpt_demo.json) hides the test-mode caption for demo recordings.
+        if VideoCameraOptions.isActive, DemoConfig.environment["BPT_DEBUG_CAPTION"] != "0", let report = newReport {
             debugCaption = report.debugCaption(sent: events.map(\.key), enabled: tracker.common.enabledFeedbackKeys)
         }
         for event in events {
