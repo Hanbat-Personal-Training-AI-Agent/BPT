@@ -11,10 +11,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class DemoAutopilot {
-  DemoAutopilot._(this._id, this._pw);
+  DemoAutopilot._(this._id, this._pw, this._startDelay);
 
   final String _id;
   final String _pw;
+  final double _startDelay; // DEMO_START_DELAY s: time to accept the screen-recording prompt before the first tap
   final _c = LiveWidgetController(WidgetsBinding.instance);
 
   static String get _docs => '${Platform.environment['HOME']}/Documents';
@@ -40,7 +41,7 @@ class DemoAutopilot {
       return null;
     }
     await prefs.clear();
-    return DemoAutopilot._(id, pw);
+    return DemoAutopilot._(id, pw, double.tryParse('${config['DEMO_START_DELAY'] ?? ''}') ?? 4);
   }
 
   Future<void> run() async {
@@ -109,7 +110,7 @@ class DemoAutopilot {
 
   Future<void> _run() async {
     _log('start (id $_id)');
-    await _pause(4);
+    await _pause(_startDelay);
 
     // 1. 회원가입
     await _tapText('회원가입 하기', timeout: const Duration(seconds: 60));
