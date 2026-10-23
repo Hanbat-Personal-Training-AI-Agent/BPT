@@ -11,6 +11,7 @@ import '../../../core/constants/route_constants.dart';
 import '../../../core/theme/app_colors.dart';
 import '../services/calibration_result_store.dart';
 import '../services/calibration_upload_service.dart';
+import '../widgets/body_mesh_reveal.dart';
 
 /// Shown right after the 4 body-scan photos are captured. Uploads the capture
 /// bundle on its own (no button), plays the analysis progress animation, then
@@ -42,6 +43,9 @@ class _OnboardingAnalyzingScreenState
   late final Future<void> _upload;
   bool _finished = false;
 
+  /// Accepted fit job, for the 3D body reveal ([kBodyMeshReveal]).
+  String? _jobId;
+
   @override
   void initState() {
     super.initState();
@@ -70,6 +74,7 @@ class _OnboardingAnalyzingScreenState
     try {
       debugPrint('[Calibration] 사진 4장 자동 전송 시작');
       final receipt = await service.upload(path, cancelToken: CancelToken());
+      _jobId = receipt.jobId;
       debugPrint('[Calibration] 전송·접수 완료 (접수 번호 ${receipt.jobId})');
       if (CalibrationResultStore.enabled) unawaited(CalibrationResultStore.instance.track(service, receipt.jobId));
     } on CalibrationUploadException catch (error) {
@@ -91,7 +96,12 @@ class _OnboardingAnalyzingScreenState
     // The capture bundle stays on disk so a failed upload can be sent again later.
     if (!mounted || _finished) return;
     _finished = true;
-    context.go(RouteConstants.onboardingResult);
+    final jobId = _jobId;
+    if (kBodyMeshReveal && jobId != null) {
+      context.go(RouteConstants.onboardingMesh, extra: jobId);
+    } else {
+      context.go(RouteConstants.onboardingResult);
+    }
   }
 
   // TODO(temp): debug-only skip button — the analysis is still a fake

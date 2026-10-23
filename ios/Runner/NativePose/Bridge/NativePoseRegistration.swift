@@ -42,5 +42,9 @@ enum NativePoseRegistration {
                 withId: bodyScanViewType
             )
         }
+
+        if let registrar = registry.registrar(forPlugin: "BodyMeshPlatformView") {
+            registrar.register(BodyMeshPlatformViewFactory(messenger: registrar.messenger()), withId: "bpt/body_mesh")
+        }
     }
 }

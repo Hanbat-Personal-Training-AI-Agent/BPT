@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -449,6 +450,41 @@ class CalibrationUploadService {
     } on FormatException {
       throw const CalibrationUploadException(
           '분석 서버 응답 형식이 올바르지 않아요. API 명세를 확인해 주세요.');
+    }
+  }
+
+  /// Downloads the user's body mesh (`result.modelGlbUrl`, a presigned GET valid for 1 h).
+  /// Only from an allowed storage host, without the app's Authorization header, and only
+  /// a binary glTF (`glTF` magic) of at most 4 MB (the server's is about 250 KB).
+  Future<Uint8List> fetchModel(String url, {CancelToken? cancelToken}) async {
+    final uri = Uri.tryParse(url);
+    if (uri == null || !config.allowsStorage(uri)) {
+      throw const CalibrationUploadException('허용되지 않은 모델 저장소예요.');
+    }
+    try {
+      _storage.options.connectTimeout = const Duration(seconds: 10);
+      final response = await _storage.getUri<List<int>>(
+        uri,
+        options: Options(
+          responseType: ResponseType.bytes,
+          followRedirects: false,
+          receiveTimeout: const Duration(seconds: 30),
+          validateStatus: (status) =>
+              status != null && status >= 200 && status < 300,
+        ),
+        cancelToken: cancelToken,
+      );
+      final bytes = Uint8List.fromList(response.data ?? const []);
+      if (bytes.length < 12 ||
+          bytes.length > 4 << 20 ||
+          String.fromCharCodes(bytes.sublist(0, 4)) != 'glTF') {
+        throw const CalibrationUploadException('3D 몸 모델 형식이 올바르지 않아요.');
+      }
+      return bytes;
+    } on DioException catch (error) {
+      if (CancelToken.isCancel(error)) rethrow;
+      // Never surface the signed URL.
+      throw const CalibrationUploadException('3D 몸 모델을 받지 못했어요.');
     }
   }
 
