@@ -30,7 +30,12 @@ final class CalibrationCameraPlatformView: NSObject, FlutterPlatformView {
         // Front camera previews mirror by default (automaticallyAdjustsVideoMirroring), which is what
         // the user expects; the data output that is judged and saved is set to unmirrored.
         if let video = session.videoSource {
-            container.videoLayer = video.displayLayer  // demo: the clip instead of the camera preview
+            // demo: the clip instead of the camera preview. The clip is fed flipped (= the real unmirrored data
+            // buffer), so the layer flips it back to look like the real mirrored front-camera preview.
+            if DemoConfig.environment["BPT_CALIB_VIDEO_MIRROR"] != "0" {
+                video.displayLayer.setAffineTransform(CGAffineTransform(scaleX: -1, y: 1))
+            }
+            container.videoLayer = video.displayLayer
         } else {
             container.previewLayer.session = session.captureSession
         }
@@ -117,7 +122,8 @@ private final class PreviewContainerView: UIView {
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         previewLayer.frame = bounds
-        videoLayer?.frame = bounds
+        videoLayer?.bounds = bounds  // bounds + position: the demo layer carries a flip transform
+        videoLayer?.position = CGPoint(x: bounds.midX, y: bounds.midY)
         CATransaction.commit()
     }
 }

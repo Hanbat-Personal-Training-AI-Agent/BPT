@@ -36,10 +36,11 @@ final class CalibrationSession: NSObject {
     private let voice: CalibrationVoice
     private let captureManager = CalibrationCaptureManager()
     /// TRIAL BRANCH ONLY (demo): BPT_CALIB_VIDEO=<Documents path> (env or bpt_demo.json) replaces the camera with that
-    /// clip, as recorded (no mirror), paced at its own timestamps; the phone's own tilt says nothing about the clip, so
-    /// frames get an upright device state. Nil = the camera, unchanged.
+    /// clip, paced at its own timestamps; the phone's own tilt says nothing about the clip, so frames get an upright
+    /// device state. A selfie clip is saved mirrored while the real calibration data buffer is unmirrored, so the clip
+    /// is flipped (BPT_CALIB_VIDEO_MIRROR=0 feeds it as recorded). Nil = the camera, unchanged.
     let videoSource: VideoCameraSource? = DemoConfig.url("BPT_CALIB_VIDEO").map { url in
-        VideoCameraSource(urls: [url], loops: 1, mirror: false, rotate: 0, deliver: { _, _ in false }, onFinish: {})
+        VideoCameraSource(urls: [url], loops: 1, mirror: DemoConfig.environment["BPT_CALIB_VIDEO_MIRROR"] != "0", rotate: 0, deliver: { _, _ in false }, onFinish: {})
     }
     private var videoFrame: ((CMSampleBuffer) -> Bool)?
     private let ciContext = CIContext(options: [.cacheIntermediates: false])

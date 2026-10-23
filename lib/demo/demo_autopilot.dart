@@ -9,6 +9,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:bpt/features/onboarding/widgets/body_mesh_reveal.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class DemoAutopilot {
@@ -107,6 +108,18 @@ class DemoAutopilot {
     await _pause(0.8);
   }
 
+  /// Body card values: tap the shown number, put the new one in the inline field, unfocus (commits it).
+  Future<void> _editValue(String shown, String value) async {
+    await _tapText(shown);
+    await _waitFor(find.byType(TextField), 'edit $shown');
+    final field = find.byType(TextField).evaluate().first.widget as TextField;
+    field.controller?.text = value;
+    await _pause(0.6);
+    FocusManager.instance.primaryFocus?.unfocus();
+    _log('set $shown -> $value');
+    await _pause(0.8);
+  }
+
   void _type(int index, String value, {bool secret = false}) {
     final field = find.byType(TextField).evaluate().elementAt(index).widget as TextField;
     field.controller?.text = value;
@@ -148,6 +161,9 @@ class DemoAutopilot {
     await _tapText('남자', timeout: const Duration(seconds: 60));
     await _tapText('다음');
     await _pause(1.5);
+    await _editValue('176', '177'); // 키 (default 176)
+    await _editValue('71.5', '95'); // 몸무게 (default 71.5)
+    await _pause(1);
     await _tapText('다음');
     await _pause(1.5);
     await _tapText('체형 교정');
@@ -156,14 +172,32 @@ class DemoAutopilot {
     await _tapText('카메라 켜기');
     _log('calibration started');
 
-    // 3. 체형 촬영(영상 입력) → 업로드·분석 → 결과
-    await _tapText('홈으로 가기', timeout: const Duration(minutes: 6));
+    // 3. 체형 촬영(영상 입력) → 업로드·분석 → 3D 몸 공개(있으면) → 결과
+    final reveal = find.text('짜잔! 이게 너의 3D 몸이야');
+    final home = find.text('홈으로 가기');
+    final end = DateTime.now().add(const Duration(minutes: 7));
+    while (DateTime.now().isBefore(end) && reveal.evaluate().isEmpty && home.evaluate().isEmpty) {
+      await _pause(0.5);
+    }
+    if (reveal.evaluate().isNotEmpty) {
+      _log('mesh reveal shown');
+      await _pause(1.5);
+      await BodyMeshReveal.demoSpin(turns: 1, seconds: 7);
+      await _pause(8.5);
+      await _tapText('다음');
+    } else {
+      _log('no mesh reveal');
+    }
+    await _tapText('홈으로 가기', timeout: const Duration(seconds: 30));
     await _pause(2);
 
     // 4. 바벨로우 3세트
     await _tapText('오늘은 무슨 운동을 할래?', timeout: const Duration(seconds: 60));
     await _tapText('바벨로우');
     await _pause(1.5);
+    // target reps = the clip's 11 reps (default 12): the uniform reps stepper is the second '−' (after set count)
+    await _tap(find.byIcon(Icons.remove).at(1), 'reps -1');
+    await _pause(1);
     await _tapText('시작해볼까?');
     await _tapText('끝! 시작할게');
     for (var set = 1; set <= 2; set++) {
