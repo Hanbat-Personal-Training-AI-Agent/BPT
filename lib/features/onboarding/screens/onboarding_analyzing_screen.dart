@@ -10,17 +10,14 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/route_constants.dart';
 import '../../../core/theme/app_colors.dart';
 import '../services/calibration_result_store.dart';
+import '../models/body_analysis_result.dart';
 import '../services/calibration_upload_service.dart';
 import '../widgets/body_mesh_reveal.dart';
 
 /// Shown right after the 4 body-scan photos are captured. Uploads the capture
 /// bundle on its own (no button), plays the analysis progress animation, then
-/// continues to the 3D result screen once both are done.
-///
-/// The ring is still a 40 s animation: no analysis result comes back yet, and
-/// the result screen is a placeholder. A missing upload config or a failed
-/// upload does not block the flow; it is only logged and the photos stay on
-/// the device.
+/// prepares the result during the existing wait when the mesh flag is enabled.
+/// Missing or failed analysis never blocks continuing to the result.
 class OnboardingAnalyzingScreen extends ConsumerStatefulWidget {
   const OnboardingAnalyzingScreen({super.key, this.sessionPath});
 
@@ -41,6 +38,9 @@ class _OnboardingAnalyzingScreenState
 
   /// Settles (never throws) when the upload has finished, failed or was skipped.
   late final Future<void> _upload;
+  late final Future<void> _analysis;
+  final _cancel = CancelToken();
+  BodyAnalysisResult _result = const BodyAnalysisResult();
   bool _finished = false;
 
   /// Accepted fit job, for the 3D body reveal ([kBodyMeshReveal]).
@@ -50,6 +50,7 @@ class _OnboardingAnalyzingScreenState
   void initState() {
     super.initState();
     _upload = _startUpload();
+    _analysis = kBodyMeshReveal ? _prepareResult() : _upload;
     _controller = AnimationController(vsync: this, duration: _duration)
       ..addStatusListener((status) {
         if (status == AnimationStatus.completed) _finishAfterUpload();
@@ -88,20 +89,56 @@ class _OnboardingAnalyzingScreenState
   }
 
   Future<void> _finishAfterUpload() async {
-    await _upload;
+    await _analysis;
     _finish();
+  }
+
+  Future<void> _prepareResult() async {
+    await _upload;
+    final jobId = _jobId;
+    if (!mounted || _finished || jobId == null) return;
+    final service = ref.read(calibrationUploadServiceProvider);
+    final timeout = Timer(const Duration(minutes: 3), () => _cancel.cancel());
+    try {
+      while (mounted && !_finished && !_cancel.isCancelled) {
+        CalibrationJob job;
+        try {
+          job = await service.fetchJob(jobId, cancelToken: _cancel);
+        } on CalibrationUploadException {
+          await Future<void>.delayed(const Duration(seconds: 3));
+          continue;
+        }
+        if (job.status == 'failed') return;
+        if (job.status == 'done') {
+          final values = job.result ?? const <String, dynamic>{};
+          _result = BodyAnalysisResult(values: values);
+          final url = values['modelGlbUrl'];
+          if (url is! String || url.isEmpty) return;
+          final glb = await service.fetchModel(url, cancelToken: _cancel);
+          final meshId = await BodyMeshReveal.prepare(glb);
+          if (!mounted || _finished || _cancel.isCancelled) {
+            await BodyMeshReveal.release(meshId);
+            return;
+          }
+          _result = BodyAnalysisResult(values: values, meshId: meshId);
+          return;
+        }
+        await Future<void>.delayed(const Duration(seconds: 3));
+      }
+    } catch (_) {
+      // Preserve the summary on download/parse failure; never log signed URLs.
+      debugPrint('[BodyMesh] 미리보기 없이 분석 결과 표시');
+    } finally {
+      timeout.cancel();
+    }
   }
 
   void _finish() {
     // The capture bundle stays on disk so a failed upload can be sent again later.
     if (!mounted || _finished) return;
     _finished = true;
-    final jobId = _jobId;
-    if (kBodyMeshReveal && jobId != null) {
-      context.go(RouteConstants.onboardingMesh, extra: jobId);
-    } else {
-      context.go(RouteConstants.onboardingResult);
-    }
+    context.go(RouteConstants.onboardingResult,
+        extra: kBodyMeshReveal ? _result : null);
   }
 
   // TODO(temp): debug-only skip button — the analysis is still a fake
@@ -113,6 +150,8 @@ class _OnboardingAnalyzingScreenState
 
   @override
   void dispose() {
+    _cancel.cancel();
+    if (!_finished) BodyMeshReveal.release(_result.meshId);
     _controller.dispose();
     super.dispose();
   }

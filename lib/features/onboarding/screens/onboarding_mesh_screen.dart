@@ -3,105 +3,108 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/route_constants.dart';
 import '../../../core/theme/app_colors.dart';
+import '../models/body_analysis_result.dart';
 import '../widgets/body_mesh_reveal.dart';
 
-/// "짜잔" screen between the analysis and the result: the user's own 3D body, revealed like a
-/// new card, to look at and turn by hand. Without a mesh it goes straight on to the unchanged
-/// result screen. Only reached when [kBodyMeshReveal] is on.
-class OnboardingMeshScreen extends StatefulWidget {
-  const OnboardingMeshScreen({super.key, required this.jobId});
+/// The complete analysis result, including a small, already prepared mesh.
+class OnboardingMeshScreen extends StatelessWidget {
+  const OnboardingMeshScreen(
+      {super.key, this.analysis = const BodyAnalysisResult()});
 
-  final String jobId;
-
-  @override
-  State<OnboardingMeshScreen> createState() => _OnboardingMeshScreenState();
-}
-
-class _OnboardingMeshScreenState extends State<OnboardingMeshScreen> {
-  bool _revealed = false;
-
-  void _next() => context.go(RouteConstants.onboardingResult);
+  final BodyAnalysisResult analysis;
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.black,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Column(
-            children: [
-              const SizedBox(height: 12),
-              AnimatedOpacity(
-                opacity: _revealed ? 1 : 0,
-                duration: const Duration(milliseconds: 600),
-                child: const Text('짜잔! 이게 너의 3D 몸이야',
+    final rows = analysis.summary.entries.toList();
+    return Theme(
+      data: ThemeData.dark().copyWith(
+        textTheme: ThemeData.dark().textTheme.apply(fontFamily: 'Pretendard'),
+      ),
+      child: Scaffold(
+        backgroundColor: AppColors.black,
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Column(
+              children: [
+                const SizedBox(height: 16),
+                const Text('신체분석 완료!',
                     style: TextStyle(
                         color: AppColors.white,
-                        fontFamily: 'Pretendard',
-                        fontSize: 22,
+                        fontSize: 24,
                         fontWeight: FontWeight.w900)),
-              ),
-              const SizedBox(height: 12),
-              Expanded(
-                child: DecoratedBox(
-                  // The card the mesh is presented on; the SceneKit view is transparent.
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(28),
-                    border: Border.all(
-                        color: AppColors.green.withValues(alpha: 0.5),
-                        width: 1.5),
-                    gradient: const LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [Color(0xFF2A2140), AppColors.grey],
+                const SizedBox(height: 16),
+                SizedBox(
+                  height: MediaQuery.sizeOf(context).height * 0.37,
+                  width: double.infinity,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(
+                          color: AppColors.green.withValues(alpha: 0.5)),
+                      gradient: const LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [Color(0xFF2A2140), AppColors.grey],
+                      ),
                     ),
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(28),
-                    child: BodyMeshReveal(
-                      jobId: widget.jobId,
-                      onUnavailable: _next,
-                      onRevealed: () => Future.delayed(
-                          const Duration(milliseconds: 1600), () {
-                        if (mounted) setState(() => _revealed = true);
-                      }),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(24),
+                      child: BodyMeshReveal(meshId: analysis.meshId),
                     ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 12),
-              AnimatedOpacity(
-                opacity: _revealed ? 1 : 0,
-                duration: const Duration(milliseconds: 600),
-                child: const Text('드래그해서 돌려봐',
-                    style: TextStyle(
-                        color: Color(0xFF9AA0A6),
-                        fontFamily: 'Pretendard',
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600)),
-              ),
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _next,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.green,
-                    foregroundColor: AppColors.black,
-                    padding: const EdgeInsets.symmetric(vertical: 18),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16)),
-                  ),
-                  child: const Text('다음',
-                      style: TextStyle(
-                          fontFamily: 'Pretendard',
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800)),
+                const SizedBox(height: 16),
+                Expanded(
+                  child: rows.isEmpty
+                      ? const Center(
+                          child: Text('표시할 신체 정보가 없어요.',
+                              style: TextStyle(color: Color(0xFF9AA0A6))))
+                      : ListView.separated(
+                          itemCount: rows.length,
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(height: 8),
+                          itemBuilder: (context, index) => Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 12),
+                            decoration: BoxDecoration(
+                                color: AppColors.grey,
+                                borderRadius: BorderRadius.circular(14)),
+                            child: Row(children: [
+                              Expanded(
+                                  child: Text(rows[index].key,
+                                      style: const TextStyle(
+                                          color: Color(0xFF9AA0A6),
+                                          fontSize: 14))),
+                              Text(rows[index].value,
+                                  style: const TextStyle(
+                                      color: AppColors.white,
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w700)),
+                            ]),
+                          ),
+                        ),
                 ),
-              ),
-              const SizedBox(height: 16),
-            ],
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () => context.go(RouteConstants.home),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.green,
+                      foregroundColor: AppColors.black,
+                      padding: const EdgeInsets.symmetric(vertical: 18),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16)),
+                    ),
+                    child: const Text('넘어가기',
+                        style: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.w800)),
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
+            ),
           ),
         ),
       ),
