@@ -215,8 +215,12 @@ class DemoAutopilot {
       await _c.drag(scroll.first, const Offset(0, 400));
       await _pause(1);
     }
+    final history = find.text('기록 보기');
     final nav = find.byWidgetPredicate((w) => w.runtimeType.toString() == '_NavIcon');
-    if (nav.evaluate().length > 1) {
+    if (history.evaluate().isNotEmpty) {
+      await _tap(history, '기록 보기');
+      await _pause(6);
+    } else if (nav.evaluate().length > 1) {
       await _c.tap(nav.at(1));
       _log('tap calendar');
       await _pause(6);

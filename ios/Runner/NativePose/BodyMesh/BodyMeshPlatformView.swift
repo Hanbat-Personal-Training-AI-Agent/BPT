@@ -34,7 +34,13 @@ final class BodyMeshPlatformView: NSObject, FlutterPlatformView {
         scnView.scene = scene
 
         let bytes = ((arguments as? [String: Any])?["glb"] as? FlutterStandardTypedData)?.data
-        guard let bytes, let mesh = try? GLBMesh(data: bytes) else {
+        var parsed: GLBMesh?
+        var parseError = ""
+        if let bytes {
+            do { parsed = try GLBMesh(data: bytes) } catch { parseError = "\(error)" }
+        }
+        Self.writeDiag(bytes: bytes, mesh: parsed, error: parseError, frame: frame)
+        guard let mesh = parsed else {
             DispatchQueue.main.async { Self.channel?.invokeMethod("onMeshError", arguments: nil) }
             return
         }
@@ -81,6 +87,31 @@ final class BodyMeshPlatformView: NSObject, FlutterPlatformView {
     }
 
     func view() -> UIView { scnView }
+
+    /// TRIAL BRANCH ONLY (demo diagnosis, BPT_POSE3D_LOG=1): what arrived and where it sits. Writes
+    /// Documents/demo/mesh_diag.json and keeps the GLB as Documents/demo/body_mesh.glb (the user's body: phone only).
+    private static func writeDiag(bytes: Data?, mesh: GLBMesh?, error: String, frame: CGRect) {
+        guard DemoConfig.environment["BPT_POSE3D_LOG"] == "1",
+              let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else { return }
+        let dir = documents.appendingPathComponent("demo", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        var info: [String: Any] = ["bytes": bytes?.count ?? -1, "error": error,
+                                   "frame": [frame.origin.x, frame.origin.y, frame.width, frame.height]]
+        if let bytes { try? bytes.write(to: dir.appendingPathComponent("body_mesh.glb")) }
+        if let mesh {
+            let xs = mesh.positions.map(\.x), ys = mesh.positions.map(\.y), zs = mesh.positions.map(\.z)
+            info["vertices"] = mesh.positions.count
+            info["triangles"] = mesh.indices.count / 3
+            info["min"] = [xs.min() ?? 0, ys.min() ?? 0, zs.min() ?? 0]
+            info["max"] = [xs.max() ?? 0, ys.max() ?? 0, zs.max() ?? 0]
+            let height = mesh.yRange.upperBound - mesh.yRange.lowerBound
+            info["height"] = height
+            info["camera_z"] = 0.62 * height / tan(Float.pi / 12)
+        }
+        if let data = try? JSONSerialization.data(withJSONObject: info, options: [.sortedKeys]) {
+            try? data.write(to: dir.appendingPathComponent("mesh_diag.json"))
+        }
+    }
 
     private static func geometry(_ mesh: GLBMesh) -> SCNGeometry {
         let vertices = SCNGeometrySource(vertices: mesh.positions.map { SCNVector3($0.x, $0.y, $0.z) })
