@@ -1,63 +1,116 @@
 import Flutter
 import SceneKit
 import UIKit
+import os.log
 
-/// Flutter platform view `bpt/body_mesh`: the user's SMPL body (GLB bytes in the creation
-/// params, `glb`) in BPT colours. Card-style entrance (rises and flips in, scale overshoot)
-/// with a light sweep, then a slow auto-turn until the first touch. Drag: yaw free,
-/// pitch ±15°. No zoom, no pan. Dart: lib/features/onboarding/widgets/body_mesh_reveal.dart.
-final class BodyMeshPlatformView: NSObject, FlutterPlatformView {
-    /// The visible view, for the channel's `spin` (demo recording).
+/// SceneKit waits for Flutter's first non-zero layout before fitting the camera or fading in.
+private final class BodyMeshSceneView: SCNView {
+    var onLayout: ((CGSize) -> Void)?
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        if bounds.width > 0 && bounds.height > 0 { onLayout?(bounds.size) }
+    }
+}
+
+/// Small, prepared body preview. Drag: yaw free, pitch ±15°. No zoom or pan.
+final class BodyMeshPlatformView: NSObject, FlutterPlatformView, UIGestureRecognizerDelegate {
     static weak var current: BodyMeshPlatformView?
     static var channel: FlutterMethodChannel?
+    private static let worker = DispatchQueue(label: "bpt.body-mesh.prepare", qos: .userInitiated)
+    // Accessed only on the main thread; one pending result, consumed by the next view.
+    private static var prepared: (id: String, mesh: PreparedMesh)?
+    private static let log = OSLog(subsystem: "bpt.body_mesh", category: "render")
+    private static let maxPitch = Float.pi / 12
 
-    private static let maxPitch = Float.pi / 12  // 15°
-    private static let revealSeconds = 1.3
+    private struct PreparedMesh {
+        let geometry: SCNGeometry
+        let vertexCount: Int
+        let sourceBounds: String
+    }
 
-    private let scnView = SCNView()
-    private let stage = SCNNode()  // entrance: position, scale, opacity
-    private let pitchNode = SCNNode()  // tilt toward the camera (outer)
-    private let yawNode = SCNNode()  // turn about the body's vertical axis
-    private let material = SCNMaterial()
-    private var interactive = false
+    private let scnView = BodyMeshSceneView()
+    private let stage = SCNNode()
+    private let pitchNode = SCNNode()
+    private let yawNode = SCNNode()
+    private let cameraNode = SCNNode()
+    private var revealed = false
+    private var touched = false
+
+    /// Parse, generate normals and create geometry before leaving the analysis screen.
+    static func prepare(_ data: Data, result: @escaping FlutterResult) {
+        worker.async {
+            do {
+                let source = try GLBMesh(data: data)
+                let mesh = try source.centeredYUp()
+                let vertices = SCNGeometrySource(vertices: mesh.positions.map { SCNVector3($0.x, $0.y, $0.z) })
+                let normals = SCNGeometrySource(normals: mesh.normals.map { SCNVector3($0.x, $0.y, $0.z) })
+                let element = SCNGeometryElement(indices: mesh.indices, primitiveType: .triangles)
+                let geometry = SCNGeometry(sources: [vertices, normals], elements: [element])
+                let ready = PreparedMesh(geometry: geometry, vertexCount: mesh.positions.count,
+                                         sourceBounds: "\(source.bounds.min)...\(source.bounds.max)")
+                DispatchQueue.main.async {
+                    let id = UUID().uuidString
+                    prepared = (id, ready)
+                    result(id)
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    os_log("메시 준비 실패", log: log, type: .error)
+                    result(FlutterError(code: "mesh_format", message: "3D 모형을 준비하지 못했어요.", details: nil))
+                }
+            }
+        }
+    }
+
+    static func release(_ id: String?) {
+        if prepared?.id == id { prepared = nil }
+    }
 
     init(frame: CGRect, arguments: Any?) {
         super.init()
+        // Flutter creates UIKit platform views on the platform (main) thread.
+        dispatchPrecondition(condition: .onQueue(.main))
         scnView.frame = frame
         scnView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         scnView.backgroundColor = .clear
         scnView.isOpaque = false
         scnView.antialiasingMode = .multisampling4X
         scnView.allowsCameraControl = false
-        scnView.rendersContinuously = true  // the shader's sweep value is not a scene change
+        scnView.rendersContinuously = true
+        scnView.isPlaying = true
         let scene = SCNScene()
         scnView.scene = scene
 
-        let bytes = ((arguments as? [String: Any])?["glb"] as? FlutterStandardTypedData)?.data
-        guard let bytes, let mesh = try? GLBMesh(data: bytes) else {
-            DispatchQueue.main.async { Self.channel?.invokeMethod("onMeshError", arguments: nil) }
+        let id = (arguments as? [String: Any])?["meshId"] as? String
+        guard let ready = Self.prepared, ready.id == id else {
+            DispatchQueue.main.async { Self.channel?.invokeMethod("onMeshError", arguments: id) }
             return
         }
+        Self.prepared = nil
         Self.current = self
-
-        let height = mesh.yRange.upperBound - mesh.yRange.lowerBound
-        let body = SCNNode(geometry: Self.geometry(mesh))
-        body.position = SCNVector3(0, -(mesh.yRange.lowerBound + height / 2), 0)  // turn about the body centre
-        body.geometry?.firstMaterial = material
-        configureMaterial()
-
+        let body = SCNNode(geometry: ready.mesh.geometry)
+        body.geometry?.firstMaterial = Self.material()
+        // Geometry is already Y-up and unit height; verify the actual SceneKit node bounds.
+        let box = body.boundingBox
+        let centre = SIMD3<Float>((box.min.x + box.max.x) / 2, (box.min.y + box.max.y) / 2,
+                                  (box.min.z + box.max.z) / 2)
+        body.simdPosition = -centre
+        let halfSize = SIMD3<Float>(box.max.x - box.min.x, box.max.y - box.min.y, box.max.z - box.min.z) / 2
+        let radius = simd_length(halfSize)
+        guard radius.isFinite, radius > 0 else {
+            DispatchQueue.main.async { Self.channel?.invokeMethod("onMeshError", arguments: id) }
+            return
+        }
         scene.rootNode.addChildNode(stage)
         stage.addChildNode(pitchNode)
         pitchNode.addChildNode(yawNode)
         yawNode.addChildNode(body)
 
         let camera = SCNCamera()
-        camera.fieldOfView = 30
-        camera.automaticallyAdjustsZRange = true
-        let cameraNode = SCNNode()
+        camera.fieldOfView = 35
+        camera.projectionDirection = .vertical
         cameraNode.camera = camera
-        // Whole body plus a margin, at a 30° vertical field of view.
-        cameraNode.position = SCNVector3(0, 0, 0.62 * height / tan(Float.pi / 12))
         scene.rootNode.addChildNode(cameraNode)
         scnView.pointOfView = cameraNode
 
@@ -75,76 +128,70 @@ final class BodyMeshPlatformView: NSObject, FlutterPlatformView {
 
         let pan = UIPanGestureRecognizer(target: self, action: #selector(onPan(_:)))
         pan.maximumNumberOfTouches = 1
+        pan.delegate = self
         scnView.addGestureRecognizer(pan)
-
-        reveal()
+        scnView.onLayout = { [weak self] size in
+            guard let self else { return }
+            let distance = GLBMesh.cameraDistance(radius: radius, aspect: Float(size.width / size.height))
+            self.cameraNode.position = SCNVector3(0, 0, distance)
+            camera.zNear = Double(max(0.001, distance - radius * 1.5))
+            camera.zFar = Double(distance + radius * 2)
+            if !self.revealed {
+                self.revealed = true
+                os_log("메시 정점=%d bbox=%{public}@ camera=%.3f frame=%.0fx%.0f", log: Self.log, type: .info,
+                       ready.mesh.vertexCount, ready.mesh.sourceBounds, distance, size.width, size.height)
+                self.reveal()
+            }
+        }
+        scnView.setNeedsLayout()
     }
 
     func view() -> UIView { scnView }
 
-    private static func geometry(_ mesh: GLBMesh) -> SCNGeometry {
-        let vertices = SCNGeometrySource(vertices: mesh.positions.map { SCNVector3($0.x, $0.y, $0.z) })
-        let normals = SCNGeometrySource(normals: mesh.normals.map { SCNVector3($0.x, $0.y, $0.z) })
-        let element = SCNGeometryElement(indices: mesh.indices, primitiveType: .triangles)
-        return SCNGeometry(sources: [vertices, normals], elements: [element])
-    }
-
-    /// BPT purple body, green rim light, and a white diagonal band (`sweep`, view-space metres)
-    /// that crosses the body once, like light over a new card.
-    private func configureMaterial() {
+    private static func material() -> SCNMaterial {
+        let material = SCNMaterial()
+        material.isDoubleSided = true
         material.lightingModel = .blinn
-        material.diffuse.contents = UIColor(red: 0.675, green: 0.533, blue: 0.965, alpha: 1)  // AppColors.purple
+        material.diffuse.contents = UIColor(red: 172 / 255.0, green: 136 / 255.0, blue: 246 / 255.0, alpha: 1)
         material.specular.contents = UIColor(white: 0.35, alpha: 1)
         material.shininess = 0.25
         material.shaderModifiers = [.fragment: """
-        #pragma arguments
-        float sweep;
         #pragma body
         float3 n = normalize(_surface.normal);
         float3 v = normalize(-_surface.position);
-        float rim = pow(1.0 - saturate(dot(n, v)), 2.5);
-        _output.color.rgb += float3(0.749, 0.929, 0.373) * rim * 1.2;
-        float d = _surface.position.y * 0.8 + _surface.position.x * 0.6;
-        float band = exp(-pow((d - sweep) * 8.0, 2.0));
-        _output.color.rgb += float3(1.0, 1.0, 0.92) * band * 0.85;
+        float rim = pow(1.0 - saturate(abs(dot(n, v))), 2.5);
+        _output.color.rgb += float3(0.749, 0.929, 0.373) * rim * 0.8;
         """]
-        material.setValue(NSNumber(value: -9.0), forKey: "sweep")
+        return material
     }
 
     private func reveal() {
-        stage.position = SCNVector3(0, -1.2, 0)
-        stage.scale = SCNVector3(0.6, 0.6, 0.6)
+        stage.scale = SCNVector3(0.96, 0.96, 0.96)
         stage.opacity = 0
-        yawNode.eulerAngles.y = -.pi
-
-        let rise = SCNAction.move(to: SCNVector3(0, 0, 0), duration: Self.revealSeconds)
-        rise.timingMode = .easeOut
-        let grow = SCNAction.sequence([
-            .scale(to: 1.06, duration: Self.revealSeconds * 0.8),
-            .scale(to: 1.0, duration: Self.revealSeconds * 0.3),
-        ])
-        grow.timingMode = .easeOut
-        stage.runAction(.group([rise, grow, .fadeIn(duration: 0.4)]))
-
-        let flip = SCNAction.rotateTo(x: 0, y: 0, z: 0, duration: Self.revealSeconds, usesShortestUnitArc: false)
-        flip.timingMode = .easeOut
-        let shineSeconds = 0.8
-        let shine = SCNAction.customAction(duration: shineSeconds) { [weak self] _, elapsed in
-            let t = Double(elapsed) / shineSeconds
-            self?.material.setValue(NSNumber(value: -1.6 + 3.2 * t), forKey: "sweep")
+        let entrance = SCNAction.group([.scale(to: 1, duration: 0.6), .fadeIn(duration: 0.6)])
+        entrance.timingMode = .easeOut
+        stage.runAction(entrance)
+        if !touched {
+            yawNode.runAction(.repeatForever(.rotateBy(x: 0, y: 2 * .pi, z: 0, duration: 24)))
         }
-        let idle = SCNAction.repeatForever(.rotateBy(x: 0, y: 2 * .pi, z: 0, duration: 24))
-        yawNode.runAction(.sequence([
-            flip,
-            .run { [weak self] _ in DispatchQueue.main.async { self?.interactive = true } },
-            .group([shine, idle]),
-        ]), forKey: "reveal")
+    }
+
+    private func stopRotation() {
+        touched = true
+        let yaw = yawNode.presentation.eulerAngles.y
+        let pitch = pitchNode.presentation.eulerAngles.x
+        yawNode.removeAllActions()
+        pitchNode.removeAllActions()
+        yawNode.eulerAngles.y = yaw
+        pitchNode.eulerAngles.x = pitch
+    }
+
+    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
+        stopRotation()  // Stops even on a tap, before the pan recognizer crosses its threshold.
+        return true
     }
 
     @objc private func onPan(_ pan: UIPanGestureRecognizer) {
-        guard interactive else { return }
-        yawNode.removeAllActions()  // the auto-turn stops at the first touch
-        material.setValue(NSNumber(value: -9.0), forKey: "sweep")
         let d = pan.translation(in: scnView)
         pan.setTranslation(.zero, in: scnView)
         yawNode.eulerAngles.y += Float(d.x) * 0.012
@@ -153,8 +200,8 @@ final class BodyMeshPlatformView: NSObject, FlutterPlatformView {
 
     /// Slow scripted turn, eased like a hand drag, with a small tilt and back.
     func spin(turns: Double, seconds: Double) {
-        interactive = true
-        yawNode.removeAllActions()
+        guard turns.isFinite, seconds.isFinite, seconds > 0 else { return }
+        stopRotation()
         let turn = SCNAction.rotateBy(x: 0, y: CGFloat(2 * .pi * turns), z: 0, duration: seconds)
         turn.timingMode = .easeInEaseOut
         yawNode.runAction(turn)
@@ -170,11 +217,22 @@ final class BodyMeshPlatformViewFactory: NSObject, FlutterPlatformViewFactory {
     init(messenger: FlutterBinaryMessenger) {
         let channel = FlutterMethodChannel(name: "bpt/body_mesh", binaryMessenger: messenger)
         channel.setMethodCallHandler { call, result in
-            guard call.method == "spin" else { return result(FlutterMethodNotImplemented) }
             let args = call.arguments as? [String: Any]
-            BodyMeshPlatformView.current?.spin(turns: (args?["turns"] as? NSNumber)?.doubleValue ?? 1,
-                                               seconds: (args?["seconds"] as? NSNumber)?.doubleValue ?? 7)
-            result(nil)
+            switch call.method {
+            case "prepare":
+                guard let bytes = (args?["glb"] as? FlutterStandardTypedData)?.data else {
+                    return result(FlutterError(code: "mesh_format", message: "3D 모형 데이터가 없어요.", details: nil))
+                }
+                BodyMeshPlatformView.prepare(bytes, result: result)
+            case "release":
+                BodyMeshPlatformView.release(args?["meshId"] as? String)
+                result(nil)
+            case "spin":
+                BodyMeshPlatformView.current?.spin(turns: (args?["turns"] as? NSNumber)?.doubleValue ?? 1,
+                                                   seconds: (args?["seconds"] as? NSNumber)?.doubleValue ?? 7)
+                result(nil)
+            default: result(FlutterMethodNotImplemented)
+            }
         }
         BodyMeshPlatformView.channel = channel
         super.init()

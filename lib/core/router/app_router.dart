@@ -14,6 +14,8 @@ import '../../features/onboarding/screens/onboarding_scan_screen.dart';
 import '../../features/onboarding/screens/onboarding_analyzing_screen.dart';
 import '../../features/onboarding/screens/onboarding_result_screen.dart';
 import '../../features/onboarding/screens/onboarding_mesh_screen.dart';
+import '../../features/onboarding/models/body_analysis_result.dart';
+import '../../features/onboarding/widgets/body_mesh_reveal.dart';
 import '../../features/calendar/screens/calendar_screen.dart';
 import '../../features/home/screens/home_screen.dart';
 import '../../features/profile/screens/account_info_screen.dart';
@@ -115,19 +117,27 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: RouteConstants.onboardingAnalyzing,
         pageBuilder: (context, state) {
-          return _slidePage(
-              state, OnboardingAnalyzingScreen(sessionPath: state.extra as String?));
+          return _slidePage(state,
+              OnboardingAnalyzingScreen(sessionPath: state.extra as String?));
         },
       ),
       GoRoute(
         path: RouteConstants.onboardingResult,
-        pageBuilder: (context, state) =>
-            _slidePage(state, const OnboardingResultScreen()),
+        pageBuilder: (context, state) => _slidePage(
+            state,
+            kBodyMeshReveal
+                ? OnboardingMeshScreen(
+                    analysis: state.extra as BodyAnalysisResult? ??
+                        const BodyAnalysisResult())
+                : const OnboardingResultScreen()),
       ),
       GoRoute(
         path: RouteConstants.onboardingMesh,
         pageBuilder: (context, state) => _slidePage(
-            state, OnboardingMeshScreen(jobId: state.extra as String? ?? '')),
+            state,
+            kBodyMeshReveal
+                ? const OnboardingMeshScreen()
+                : const OnboardingResultScreen()),
       ),
       ShellRoute(
         builder: (context, state, child) => MainShell(child: child),
