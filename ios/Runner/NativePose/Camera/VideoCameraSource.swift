@@ -492,6 +492,8 @@ final class DemoPoseLog: @unchecked Sendable {
 /// active (or BPT_SCREEN_RECORD_SECONDS pass), into `Documents/demo/screen_<yyyyMMdd_HHmmss>.mp4`. iOS asks the user once.
 enum DemoScreenRecorder {
     private static var started = false
+    /// Resign-active right after the start is the launch transition (another app leaving the front), not the end of the demo.
+    private static var startedAt = Date.distantFuture
     private static var observers: [NSObjectProtocol] = []
 
     static func install() {
@@ -506,6 +508,7 @@ enum DemoScreenRecorder {
         started = true
         RPScreenRecorder.shared().isMicrophoneEnabled = false
         RPScreenRecorder.shared().startRecording { error in
+            startedAt = Date()
             DemoPoseLog.shared?.write("screen_record_start", ["error": error.map { "\($0)" } ?? NSNull()])
             print("[Demo] screen recording started error=\(String(describing: error))")
             if error == nil, let seconds = Double(DemoConfig.environment["BPT_SCREEN_RECORD_SECONDS"] ?? "") {
@@ -515,6 +518,10 @@ enum DemoScreenRecorder {
     }
 
     static func stop(_ reason: String) {
+        if reason == "resign_active", Date().timeIntervalSince(startedAt) < 20 {
+            DemoPoseLog.shared?.write("screen_record_resign_ignored", [:])
+            return
+        }
         guard started, RPScreenRecorder.shared().isRecording,
               let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else { return }
         let dir = documents.appendingPathComponent("demo", isDirectory: true)
