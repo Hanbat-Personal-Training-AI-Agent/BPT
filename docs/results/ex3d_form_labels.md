@@ -6,6 +6,7 @@
 > - 같은 모델의 다른 인스턴스가 13렙을 다시 라벨해 보니 97% 일치했다(A8). 이것도 사람 일치도는 아니다.
 > - 모든 결론에 "AI 시각 라벨 기준"이라는 단서가 붙는다.
 
+- 2차(PT 엄격) 라벨과 엄격도 모드 기준값 후보: [ex3d_form_labels_strict.md](ex3d_form_labels_strict.md).
 - 루브릭: [ex3d_form_labels_rubric.md](ex3d_form_labels_rubric.md). 커밋 fbc7ac3, 경고를 보기 전.
 - 라벨 CSV: [ex3d_form_labels.csv](ex3d_form_labels.csv). 커밋 69407eb, 경고를 보기 전. 2,940행 = 39클립 × 물리적 렙 × 기준.
 - 실행 기록: Home `~/bpt-runs/ex3d-form-labels/20261023-blind-reps/`와 `20261023-compare/`(각 manifest.json).
