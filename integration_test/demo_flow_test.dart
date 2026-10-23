@@ -10,6 +10,7 @@ import 'package:bpt/main.dart' as app;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 const demoId = String.fromEnvironment('DEMO_ID');
 const demoPw = String.fromEnvironment('DEMO_PW');
@@ -44,6 +45,8 @@ void main() {
 
   testWidgets('demo flow', (tester) async {
     expect(demoId.isNotEmpty && demoPw.isNotEmpty, isTrue, reason: 'pass DEMO_ID and DEMO_PW');
+    // Fresh user: forget any saved login/onboarding state (app data lives in shared_preferences).
+    (await SharedPreferences.getInstance()).clear();
     app.main();
     await pause(tester, 4);
 
