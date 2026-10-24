@@ -75,7 +75,7 @@ deep_image = (
     .run_commands(
         "git clone https://github.com/zju3dv/GVHMR /opt/GVHMR && git -C /opt/GVHMR checkout ee960bb6e2ea2d381aa97f08e9b71ef320b624b1",
         "pip install -e /opt/GVHMR --no-deps",
-        "rm -rf /opt/GVHMR/inputs/checkpoints && ln -s /vol /opt/GVHMR/inputs/checkpoints",
+        "rm -rf /opt/GVHMR/inputs/checkpoints && mkdir -p /opt/GVHMR/inputs && ln -s /vol /opt/GVHMR/inputs/checkpoints",
     )
     .env({"BPT_GVHMR_ROOT": "/opt/GVHMR", "BPT_SMPL_H36M_NPZ": "/vol/smpl_neutral_h36m.npz"})
     .add_local_file(Path(__file__).resolve().parents[2] / "scripts/deep_analysis/gvhmr_runner.py",
