@@ -644,7 +644,7 @@ final class BenchPressEvaluator {
     }
 
     /// Judges the counted rep (its frames + the lockout window) and stores the warnings in its summary.
-    private func finishPendingFormRep() {
+    func finishPendingFormRep() {
         guard let pending = pendingFormRep else { return }
         pendingFormRep = nil
         let warnings = formTracker.finishRep(repIndex: pending.index).warnings

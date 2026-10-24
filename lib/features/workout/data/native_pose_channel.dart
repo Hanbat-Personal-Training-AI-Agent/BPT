@@ -5,7 +5,9 @@
 /// - `onPoseUpdate` {rep, status, done}
 /// - `onFeedback` {key, n?, scope: "rep"|"set"} → 답으로 {text, lang} 을 돌려주면 네이티브가 그 대사를
 ///   말한다 (대사 원문은 kori_feedback_lines.dart 에만 둔다). null 이면 말하지 않는다.
-/// - `onSetEnd` {setIndex, videoLocalPath?, worstJoint?}
+/// - `onSetEnd` {setIndex, videoLocalPath?, worstJoint?, deepAnalysis?}
+///   deepAnalysis: {schemaVersion: 1, sessionId, timebase: "video_ms", reps: []}.
+///   reps: {repIndex, startMs, endMs, side, onDeviceWarnings} (영상 기준, 끝 시각 제외).
 ///
 /// Flutter → 네이티브
 /// - `setVoiceMuted` {muted}, `startSet` {setIndex}, `endSet` {setIndex}

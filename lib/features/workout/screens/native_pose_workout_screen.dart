@@ -13,10 +13,13 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/workout_orientation.dart';
 import '../../../core/widgets/app_toast.dart';
 import '../../../data/mock_data.dart';
+import '../../../data/dto/workout_metadata_dto.dart';
 import '../../home/providers/home_provider.dart';
 import '../../../services/kori_voice_service.dart';
 import '../data/kori_feedback_lines.dart';
 import '../data/native_pose_channel.dart';
+import '../data/deep_analysis_queue.dart';
+import 'deep_analysis_report_screen.dart';
 
 /// Preparation phases shown before the native camera PlatformView appears.
 enum _PrepPhase { alignHint, countdown, live }
@@ -104,6 +107,10 @@ class _NativePoseWorkoutScreenState
   late int _restTotal = widget.restSeconds;
   late int _restRemaining = widget.restSeconds;
   final List<_SetResult> _setResults = [];
+  final Map<int, Map<String, dynamic>> _setMedia = {};
+  final String _recordId = newClientRecordId();
+  final Map<int, Completer<void>> _setClosures = {};
+  bool _finishing = false;
 
   /// [setNumber] 번째 세트(1부터)에 들 무게.
   int _weightForSetNumber(int setNumber) {
@@ -188,6 +195,14 @@ class _NativePoseWorkoutScreenState
       final args = (call.arguments as Map).cast<String, dynamic>();
       final rep = (args['rep'] as num?)?.toInt() ?? _latestNativeRep;
       _onNativeUpdate(rep);
+    } else if (call.method == NativePoseChannel.onSetEnd) {
+      final args = (call.arguments as Map).cast<String, dynamic>();
+      final index = (args['setIndex'] as num).toInt();
+      if (mounted) setState(() => _setMedia[index] = args);
+      unawaited(ref.read(deepAnalysisQueueProvider.notifier)
+          .enqueueSet(args, widget.exerciseId, recordId: _recordId));
+      final pending = _setClosures[index];
+      if (pending != null && !pending.isCompleted) pending.complete();
     } else if (call.method == NativePoseChannel.onFeedback) {
       // { key: 'squat_shallow', n?: 3, scope: 'rep'|'set' } — key는 kori_feedback_lines.dart 목록 기준.
       final feedback = NativeFeedback.parse(call.arguments);
@@ -229,6 +244,9 @@ class _NativePoseWorkoutScreenState
 
   /// 세트 경계를 네이티브에 알린다(세트 요약 경고, 세트별 기록, 3D 마지막 프레임 판정).
   void _notifySet(String method) {
+    if (method == NativePoseChannel.endSet && _channel != null) {
+      _setClosures.putIfAbsent(_currentSet, Completer<void>.new);
+    }
     _channel?.invokeMethod(method, {'setIndex': _currentSet});
   }
 
@@ -379,9 +397,18 @@ class _NativePoseWorkoutScreenState
     }
   }
 
-  void _finishWorkout() {
-    if (!mounted) return;
+  Future<void> _finishWorkout() async {
+    if (!mounted || _finishing) return;
+    _finishing = true;
     if (!_setComplete && !_workoutComplete) _notifySet(NativePoseChannel.endSet);
+    // AVAssetWriter가 파일을 닫은 뒤 결과 화면으로 이동한다.
+    try {
+      await Future.wait(_setClosures.values.map((c) => c.future))
+          .timeout(const Duration(seconds: 8));
+    } on TimeoutException {
+      // 원래 운동 기록은 영상 저장 실패와 무관하게 남긴다.
+    }
+    if (!mounted) return;
 
     // 실제로 수행한 세트만 모은다. 끝난 세트 + 진행 중이던 세트(1회 이상 했을 때).
     // 쉬는 시간/완료 화면에서는 방금 끝낸 세트가 이미 _setResults 에 들어 있다.
@@ -435,11 +462,13 @@ class _NativePoseWorkoutScreenState
         'targetReps': _totalPlannedReps,
         // 계획한 세트 수가 아니라 실제로 수행한 세트 수를 기록한다.
         'targetSets': performedSets.length,
+        'clientRecordId': _recordId,
         'setResults': performedSets
-            .map((r) => {
-                  'reps': r.reps,
-                  'weightKg': r.weightKg,
-                  'badCount': r.badCount,
+            .indexed.map((entry) => {
+                  ...?_setMedia[entry.$1 + 1],
+                  'reps': entry.$2.reps,
+                  'weightKg': entry.$2.weightKg,
+                  'badCount': entry.$2.badCount,
                 })
             .toList(),
       },
@@ -606,6 +635,11 @@ class _NativePoseWorkoutScreenState
             totalSets: widget.targetSets,
             isKo: isKo,
             onFinish: _finishWorkout,
+          ),
+        if ((_setComplete || _workoutComplete) && _setMedia[_currentSet] != null)
+          Positioned(top: MediaQuery.paddingOf(context).top + 8, right: 20,
+            child: DeepAnalysisStatus(sessionId:
+                (_setMedia[_currentSet]!['deepAnalysis'] as Map?)?['sessionId'] as String?),
           ),
       ],
     );

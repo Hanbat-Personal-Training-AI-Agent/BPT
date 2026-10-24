@@ -11,6 +11,7 @@ import '../../../data/mock_data.dart';
 import '../../../models/workout_record_model.dart';
 import '../../../services/calendar_service.dart';
 import '../../home/providers/home_provider.dart';
+import '../../workout/screens/deep_analysis_report_screen.dart';
 
 const _weekdayHeaderKo = ['일', '월', '화', '수', '목', '금', '토'];
 const _weekdayHeaderEn = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
@@ -530,6 +531,7 @@ class _CalendarRecordTile extends StatelessWidget {
           'targetSets': record.targetSets,
           'weightKg': record.weightKg,
           'isHistory': true,
+          'clientRecordId': record.id,
           'date': record.date,
         },
       ),
@@ -596,6 +598,7 @@ class _CalendarRecordTile extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 10),
+            DeepAnalysisStatus(recordId: record.id),
             Divider(color: Colors.white.withValues(alpha: 0.08), height: 1),
             const SizedBox(height: 10),
             Text(

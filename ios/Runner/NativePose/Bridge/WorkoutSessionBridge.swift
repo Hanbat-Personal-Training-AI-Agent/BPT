@@ -222,8 +222,9 @@ enum WorkoutDebugFlags {
     /// One JSON line per second (pose FPS, drops, thermal, battery, recording) under workout_form_logs.
     static var perfLog: Bool { flag("BPT_PERF_LOG", "BPTPerfLog") }
 
-    /// Per-set video. OFF until the on-device FPS check (recording ON vs OFF) shows a drop ≤ 10 %
-    /// (docs/research/set_recording_perf.md); while off, onSetEnd sends videoLocalPath = null.
+    /// Per-set 720p video for the server deep analysis (the set-end upload needs it). OFF until the on-device
+    /// FPS check (recording ON vs OFF) shows a drop ≤ 10 % (docs/research/set_recording_perf.md); while off,
+    /// onSetEnd sends videoLocalPath = null and deepAnalysis = null, so nothing is uploaded.
     static var setRecording: Bool { flag("BPT_SET_RECORDING", "BPTSetRecording") }
 }
 
@@ -241,6 +242,9 @@ final class WorkoutSetRecorder {
     private var writer: AVAssetWriter?
     private var input: AVAssetWriterInput?
     private var failed = false
+    private var firstTime: CMTime?
+    private(set) var frameTimesMs: [Int: Double] = [:]
+    private(set) var durationMs = 0.0
 
     init(url: URL) {
         self.url = url
@@ -269,8 +273,10 @@ final class WorkoutSetRecorder {
         }
     }
 
-    func append(_ sampleBuffer: CMSampleBuffer) {
+    func append(_ sampleBuffer: CMSampleBuffer, frameIndex: Int = -1, rotationDegrees: Int = 0) {
         guard !failed else { return }
+        let time = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
+        if let firstTime, CMTimeGetSeconds(time - firstTime) >= 60 { return }
         if writer == nil {
             guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
             do {
@@ -283,10 +289,12 @@ final class WorkoutSetRecorder {
                     AVVideoCompressionPropertiesKey: [AVVideoAverageBitRateKey: Self.bitRate],
                 ])
                 input.expectsMediaDataInRealTime = true
+                input.transform = CGAffineTransform(rotationAngle: CGFloat(rotationDegrees) * .pi / 180)
                 guard writer.canAdd(input) else { throw CocoaError(.featureUnsupported) }
                 writer.add(input)
                 guard writer.startWriting() else { throw writer.error ?? CocoaError(.fileWriteUnknown) }
                 writer.startSession(atSourceTime: CMSampleBufferGetPresentationTimeStamp(sampleBuffer))
+                firstTime = time
                 self.writer = writer
                 self.input = input
             } catch {
@@ -294,17 +302,30 @@ final class WorkoutSetRecorder {
                 return
             }
         }
-        if let input, input.isReadyForMoreMediaData { input.append(sampleBuffer) }
+        // 인코더가 프레임을 건너뛰어도 반복 경계의 PTS는 남긴다.
+        if let firstTime, frameIndex >= 0 {
+            frameTimesMs[frameIndex] = CMTimeGetSeconds(time - firstTime) * 1000
+        }
+        if let input, input.isReadyForMoreMediaData {
+            if !input.append(sampleBuffer) { failed = true; return }
+            if let firstTime {
+                let ms = CMTimeGetSeconds(time - firstTime) * 1000
+                durationMs = min(60_000, ms + 1000 / 30)
+            }
+        }
     }
 
     /// Closes the file; completion gets its URL, or nil when nothing was written or writing failed.
     func finish(_ completion: @escaping (URL?) -> Void) {
-        guard let writer, let input, writer.status == .writing else {
+        guard !failed, let writer, let input, writer.status == .writing else {
             writer?.cancelWriting()
             completion(nil)
             return
         }
         input.markAsFinished()
+        if let firstTime {
+            writer.endSession(atSourceTime: firstTime + CMTime(seconds: durationMs / 1000, preferredTimescale: 60000))
+        }
         let url = url
         writer.finishWriting { completion(writer.status == .completed ? url : nil) }
     }
@@ -429,11 +450,12 @@ final class WorkoutChannel {
         }
     }
 
-    func sendSetEnd(setIndex: Int, videoLocalPath: String?, worstJoint: String?) {
+    func sendSetEnd(setIndex: Int, videoLocalPath: String?, worstJoint: String?, deepAnalysis: [String: Any]? = nil) {
         channel.invokeMethod("onSetEnd", arguments: [
             "setIndex": setIndex,
             "videoLocalPath": videoLocalPath.map { $0 as Any } ?? NSNull(),
             "worstJoint": worstJoint.map { $0 as Any } ?? NSNull(),
+            "deepAnalysis": deepAnalysis.map { $0 as Any } ?? NSNull(),
         ])
     }
 

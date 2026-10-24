@@ -12,6 +12,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/floating_decoration.dart';
 import '../../../data/mock_data.dart';
 import '../../../models/workout_record_model.dart';
+import '../../workout/screens/deep_analysis_report_screen.dart';
 import '../providers/home_provider.dart';
 
 const _weekdayLabelsKo = ['월', '화', '수', '목', '금', '토', '일'];
@@ -700,6 +701,7 @@ class _RecentRecordTile extends StatelessWidget {
           'targetSets': record.targetSets,
           'weightKg': record.weightKg,
           'isHistory': true,
+          'clientRecordId': record.id,
           'date': record.date,
         },
       ),
@@ -761,13 +763,19 @@ class _RecentRecordTile extends StatelessWidget {
                 ],
               ),
             ),
-            Text(
-              _timeAgo(record.date, s),
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.4),
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-              ),
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                DeepAnalysisStatus(recordId: record.id),
+                Text(
+                  _timeAgo(record.date, s),
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.4),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
             ),
           ],
         ),

@@ -69,6 +69,7 @@ private final class CameraCaptureManager: NSObject, AVCaptureVideoDataOutputSamp
     nonisolated(unsafe) var onFrame: (@Sendable (CMSampleBuffer, Int) -> Void)?
     // Per-set recording of the processed frames + perf counters (WorkoutSessionBridge.swift). Processing queue.
     nonisolated(unsafe) private var recorder: WorkoutSetRecorder?
+    nonisolated(unsafe) var recordingRotation = 0
     nonisolated(unsafe) var perfLog: WorkoutPerfLog?
 
     func startRecording(to url: URL) {
@@ -76,11 +77,12 @@ private final class CameraCaptureManager: NSObject, AVCaptureVideoDataOutputSamp
     }
 
     /// Closes the current set file; completion (any thread) gets its URL or nil.
-    func finishRecording(_ completion: @escaping @Sendable (URL?) -> Void) {
+    func finishRecording(_ completion: @escaping @Sendable (URL?, [Int: Double], Double) -> Void) {
         processingQueue.async { [weak self] in
-            guard let recorder = self?.recorder else { return completion(nil) }
+            guard let recorder = self?.recorder else { return completion(nil, [:], 0) }
             self?.recorder = nil
-            recorder.finish(completion)
+            let times = recorder.frameTimesMs, duration = recorder.durationMs
+            recorder.finish { completion($0, times, duration) }
         }
     }
 
@@ -155,7 +157,7 @@ private final class CameraCaptureManager: NSObject, AVCaptureVideoDataOutputSamp
         let idx = frameIndex
         frameIndex += 1
         onFrame?(sampleBuffer, idx)
-        recorder?.append(sampleBuffer)
+        recorder?.append(sampleBuffer, frameIndex: idx, rotationDegrees: recordingRotation)
         perfLog?.frameProcessed()
         isProcessingFrame = false
     }
@@ -247,7 +249,7 @@ final class CameraPoseViewModel: ObservableObject {
         lifecycleObservers.forEach { NotificationCenter.default.removeObserver($0) }
         lifecycleObservers = []
         captureManager.stop()
-        captureManager.finishRecording { _ in }
+        captureManager.finishRecording { _, _, _ in }
         if let tracker = formTracker { formLog?.close(tracker) }
         formLog = nil
         perfTimer?.invalidate()
@@ -320,15 +322,39 @@ final class CameraPoseViewModel: ObservableObject {
         guard !betweenSets else { return }
         betweenSets = true
         recording = false
+        // 심층분석용 반복 목록에 마지막 벤치 반복까지 넣는다. 녹화가 꺼진 기본 동작은 그대로 둔다.
+        if WorkoutDebugFlags.setRecording {
+            benchPressEvaluator?.finishPendingFormRep()
+            reportForm()
+        }
         let tracker = formTracker
         let worstJoint = tracker.flatMap {
             FeedbackJoint.worst(setCounts: $0.endSet(), enabled: $0.common.enabledFeedbackKeys,
                                 ruleOrder: (FormWarningTracker.rules[$0.exercise] ?? []).map(\.key))
         }
         for event in tracker?.drainEvents() ?? [] { bridge?.sendFeedback(event) }
-        captureManager.finishRecording { [weak self] url in
+        let reports = tracker?.reports ?? []
+        captureManager.finishRecording { [weak self] url, times, duration in
             Task { @MainActor in
-                self?.bridge?.sendSetEnd(setIndex: index, videoLocalPath: url?.path, worstJoint: worstJoint)
+                var reps: [[String: Any]] = []
+                var previousEnd = 0.0
+                for report in reports {
+                    guard let first = times[report.startFrame], let last = times[report.endFrame] else { continue }
+                    // 앞 반복의 마지막 관측 프레임을 공유해도 다음 반복을 통째로 버리지 않는다.
+                    let start = max(first, previousEnd)
+                    let end = min(duration, last + 1000 / 30)
+                    guard end - start >= 100 else { continue }
+                    reps.append(["repIndex": reps.count + 1, "startMs": start, "endMs": end,
+                                 "side": report.side, "onDeviceWarnings": report.warnings,
+                                 "onDeviceRepIndex": report.repIndex,
+                                 "onDeviceMetrics2D": report.metrics2D.filter { $0.value.isFinite },
+                                 "onDeviceMetrics3D": report.metrics3D.filter { $0.value.isFinite }])
+                    previousEnd = end
+                }
+                let metadata: [String: Any] = ["schemaVersion": 1, "sessionId": UUID().uuidString,
+                                               "timebase": "video_ms", "reps": reps]
+                self?.bridge?.sendSetEnd(setIndex: index, videoLocalPath: url?.path, worstJoint: worstJoint,
+                                         deepAnalysis: url == nil || reps.isEmpty ? nil : metadata)
             }
         }
     }
@@ -419,6 +445,7 @@ final class CameraPoseViewModel: ObservableObject {
                 let timestampMs = Self.timestampMs(sampleBuffer, fallback: frameIdx)
                 // From here on everything (crop, RTMPose, hands, evaluators, 3D input) is in the analysis frame.
                 let rotation = updateCaptureRotation()
+                captureManager.recordingRotation = -rotation.rawValue
                 let cgImage = try Self.cgImageFromSampleBuffer(sampleBuffer, ciContext: ciContext, rotation: rotation)
                 guard let estimate = try cropTracker.estimate(cgImage, model: rtmpose, workspace: workspace,
                                                               personCrop: CameraPreviewOptions.personCropInput) else {
