@@ -1,0 +1,8 @@
+fault_id,exercise_id,metric,threshold,severity,title_ko,body_ko,device_key
+squat_depth_drift,squat,depthDriftDeg,15,warning,깊이가 조금 달라졌어,처음 3회보다 덜 내려갔어. 편한 범위에서 깊이를 맞춰 보자.,squat_shallow
+pushup_depth_drift,pushup,depthDriftDeg,15,warning,깊이를 확인해 봐,처음 3회보다 팔꿈치를 덜 굽혔어. 같은 깊이로 천천히 가 보자.,pushup_shallow
+bench_depth_drift,benchpress,depthDriftDeg,15,warning,내려가는 범위를 확인해 봐,처음 3회보다 팔꿈치를 덜 굽혔어. 편한 범위에서 리듬을 맞춰 보자.,bench_shallow
+rom_drop,*,romDropDeg,15,warning,가동 범위가 줄었어,처음 3회보다 움직임이 작아졌어. 잠깐 쉬어도 괜찮아.,
+symmetry,*,symmetryMaxDeg,15,warning,양쪽 움직임을 맞춰 봐,좌우 관절 각도가 달랐어. 이 구간을 천천히 확인해 보자.,
+trunk_sway,*,trunkStdDeg,8,warning,몸통 움직임을 확인해 봐,반복 중 몸통 기울기가 많이 바뀌었어. 중심을 편하게 잡아 보자.,
+tempo_drift,*,tempoDriftRatio,0.3,info,리듬이 느려졌어,처음 3회보다 시간이 길어졌어. 호흡을 고르고 이어 가자.,

@@ -24,6 +24,7 @@ import numpy as np
 
 GVHMR_ROOT = Path(os.environ.get('BPT_GVHMR_ROOT', Path.home() / 'gvhmr/GVHMR'))
 H36M_NPZ = Path(os.environ.get('BPT_SMPL_H36M_NPZ', Path.home() / 'bpt-smpl/smpl/smpl_neutral_h36m.npz'))
+SMPL_PKL = Path(os.environ.get('BPT_SMPL_PKL', GVHMR_ROOT / 'inputs/checkpoints/body_models/smpl/SMPL_NEUTRAL.pkl'))
 FPS = 30
 # GVHMR static_conf_logits order (gvhmr_pipeline.py): L ankle, L foot, R ankle, R foot, L wrist, R wrist
 CONTACT_NAMES = ['left_ankle', 'left_foot', 'right_ankle', 'right_foot', 'left_wrist', 'right_wrist']
@@ -206,17 +207,30 @@ def network(n, w, h, bbx_xys, kp2d, feats, f_mm):
 
 
 class H36M:
-    """SMPL-X params -> SMPL vertices (GVHMR smplx2smpl_sparse, a fixed vertex map) -> J_regressor_h36m (17)."""
-    def __init__(self, device='cuda'):
+    """SMPL-X params -> SMPL vertices (GVHMR smplx2smpl_sparse, a fixed vertex map) -> J_regressor_h36m (17).
+
+    beta (10, the calibration server's SMPL β from the body scan) = pose only: GVHMR's global_orient and
+    body_pose drive SMPL with that fixed shape and GVHMR's per-frame betas are dropped. The pelvis stays where
+    GVHMR put it, scaled by user height / GVHMR body height about the camera (world) origin, so the bigger or
+    smaller body still projects onto the same image (monocular depth scales with body size)."""
+    def __init__(self, device='cuda', beta=None):
         import torch
         from hmr4d.utils.smplx_utils import make_smplx
         self.t = torch; self.dev = device
         self.smplx = make_smplx('supermotion').to(device)
         self.x2s = torch.load(GVHMR_ROOT / 'hmr4d/utils/body_model/smplx2smpl_sparse.pt').to(device)
         self.reg = torch.from_numpy(np.load(H36M_NPZ)['J_regressor_h36m']).float().to(device)
+        self.beta = None
+        if beta is not None:
+            import smplx
+            self.smpl = smplx.SMPL(model_path=str(SMPL_PKL), num_betas=10).to(device)
+            self.beta = torch.tensor(beta, dtype=torch.float32, device=device)[None]
 
-    def __call__(self, params, batch=512):
-        out = []
+    def _height(self, v):
+        return float(v[0, :, 1].max() - v[0, :, 1].min())
+
+    def __call__(self, params, batch=512, fixed=True):
+        out, fix = [], []
         with self.t.no_grad():
             n = len(params['body_pose'])
             for s in range(0, n, batch):
@@ -224,18 +238,32 @@ class H36M:
                 v = self.smplx(**p).vertices                                   # (B, 10475, 3)
                 v = self.t.stack([self.x2s @ x for x in v])                    # (B, 6890, 3) SMPL topology
                 out.append(self.t.einsum('jv,bvc->bjc', self.reg, v).cpu())    # (B, 17, 3)
-        return self.t.cat(out).numpy().astype(np.float32)
+                if fixed and self.beta is not None:
+                    b = len(v); hands = self.t.zeros(b, 6, device=self.dev)    # SMPL 22-23 = hands, rest pose
+                    v = self.smpl(betas=self.beta.expand(b, -1), global_orient=p['global_orient'],
+                                  body_pose=self.t.cat([p['body_pose'], hands], 1)).vertices
+                    fix.append(self.t.einsum('jv,bvc->bjc', self.reg, v).cpu())
+            own = self.t.cat(out).numpy().astype(np.float32)
+            if not fix: return own
+            rest = {k: self.t.zeros_like(v[:1]).to(self.dev) for k, v in params.items()}
+            rest['betas'] = params['betas'].mean(0, keepdim=True).to(self.dev)
+            h_own = self._height(self.t.stack([self.x2s @ x for x in self.smplx(**rest).vertices]))
+            h_user = self._height(self.smpl(betas=self.beta).vertices)
+        j = self.t.cat(fix).numpy().astype(np.float32)
+        return j - j[:, :1] + own[:, :1] * (h_user / h_own)
 
 
-def save(path, pred, K, xyxy, kp2d, j_cam, j_world, meta):
+def save(path, pred, K, xyxy, kp2d, j_cam, j_world, meta, j_world_own=None):
     """result.npz: h36m17_cam (N,17,3) metres, OpenCV camera (x right, y down, z forward), order = BPT H36M-17
     (0 pelvis, 1-3 right leg, 4-6 left leg, 7 spine, 8 thorax, 9 neck/nose, 10 head, 11-13 left arm,
     14-16 right arm); h36m17_world (N,17,3) metres, GVHMR gravity-aligned world (y up, starts facing +z);
     smplx_{incam,global}_{global_orient,body_pose,betas,transl} axis-angle (GVHMR SMPL-X, 10 betas — NOT the
-    calibration server's SMPL beta); contact_prob (N,6) sigmoid(static_conf_logits), order CONTACT_NAMES;
+    calibration server's SMPL beta); with a calibrated beta, h36m17_* come from SMPL with that beta (meta
+    body_shape='calibration') and h36m17_world_gvhmr_beta keeps GVHMR's own-shape joints; contact_prob (N,6) sigmoid(static_conf_logits), order CONTACT_NAMES;
     vitpose_coco17 (N,17,3) px + conf; bbx_xyxy (N,4); K (3,3) the intrinsics GVHMR used."""
     import torch
     z = dict(h36m17_cam=j_cam, h36m17_world=j_world, K=K, bbx_xyxy=xyxy.numpy(), vitpose_coco17=kp2d.numpy())
+    if j_world_own is not None: z['h36m17_world_gvhmr_beta'] = j_world_own
     for frame in ('incam', 'global'):
         for k, v in pred[f'smpl_params_{frame}'].items(): z[f'smplx_{frame}_{k}'] = v.numpy()
     logits = pred['net_outputs'].get('static_conf_logits')
@@ -243,7 +271,8 @@ def save(path, pred, K, xyxy, kp2d, j_cam, j_world, meta):
     np.savez_compressed(path, **z, meta=json.dumps(meta))
 
 
-def run(video, out_dir, f_mm=None, half=False, max_seconds=None, keep_video=False):
+def run(video, out_dir, f_mm=None, half=False, max_seconds=None, keep_video=False, beta=None):
+    """beta: the user's calibrated SMPL β (10) -> h36m17_* use it (pose-only GVHMR); None -> GVHMR's own β."""
     _imports()
     import torch
     out_dir = Path(out_dir); out_dir.mkdir(parents=True, exist_ok=True)
@@ -268,13 +297,14 @@ def run(video, out_dir, f_mm=None, half=False, max_seconds=None, keep_video=Fals
     pred, K = stage('network', network, n, w, h, bbx_xys, kp2d, feats, f_mm)
 
     def post():
-        j = H36M(); jc = j(pred['smpl_params_incam']); jw = j(pred['smpl_params_global']); del j
-        torch.cuda.empty_cache(); return jc, jw
-    j_cam, j_world = stage('postprocess', post)
+        j = H36M(beta=beta); jc = j(pred['smpl_params_incam']); jw = j(pred['smpl_params_global'])
+        own = j(pred['smpl_params_global'], fixed=False) if beta is not None else None
+        del j; torch.cuda.empty_cache(); return jc, jw, own
+    j_cam, j_world, j_world_own = stage('postprocess', post)
     meta = dict(frames=n, width=w, height=h, src_fps=src_fps, rotation_deg=deg, fps=FPS, f_mm=f_mm, half=half, other_people=others,
                 person_frames=seen, gpu=torch.cuda.get_device_name(), timing_s=T, vram_peak_mib=V,
-                gvhmr_commit='ee960bb', regressor='smplx2smpl_sparse + J_regressor_h36m (BPT L/R-fixed)')
-    save(out_dir / 'result.npz', pred, K, xyxy, kp2d, j_cam, j_world, meta)
+                body_shape='calibration' if beta is not None else 'gvhmr', gvhmr_commit='ee960bb', regressor='smplx2smpl_sparse + J_regressor_h36m (BPT L/R-fixed)')
+    save(out_dir / 'result.npz', pred, K, xyxy, kp2d, j_cam, j_world, meta, j_world_own)
     json.dump(meta, open(out_dir / 'timing.json', 'w'), indent=1)
     if not keep_video:
         vid.unlink(missing_ok=True); cache.unlink()
@@ -287,11 +317,12 @@ def main():
     p.add_argument('--f-mm', default=None, help="full-frame equivalent focal length (mm), or 'auto' = phone metadata")
     p.add_argument('--half', action='store_true', help='fp16-stored ViTPose-H / HMR2 Linear weights (3 GB GPU)')
     p.add_argument('--keep-video', action='store_true')
+    p.add_argument('--beta', help='JSON list of 10 calibrated SMPL betas (pose-only GVHMR)')
     a = p.parse_args()
     f_mm = phone_f_mm(a.video) if a.f_mm == 'auto' else (float(a.f_mm) if a.f_mm else None)
     try:
         print(json.dumps(run(Path(a.video).resolve(), Path(a.out_dir).resolve(), f_mm, a.half,
-                             keep_video=a.keep_video), indent=1))
+                             keep_video=a.keep_video, beta=json.loads(a.beta) if a.beta else None), indent=1))
     except RunError as e:
         print(json.dumps({'error': e.code, 'message': str(e)})); sys.exit(2)
 

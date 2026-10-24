@@ -8,13 +8,14 @@ Secrets (never in code): `bpt-r2` (R2_ENDPOINT_URL, R2_BUCKET, R2_ACCESS_KEY_ID,
 Volume `bpt-weights`: /smpl/smpl_neutral_h36m.npz (prepare_weights.py) and /sam-3d-body-dinov3/.
 """
 import os
+from pathlib import Path
 
 import modal
 
 app = modal.App("bpt-calibration")
 secrets = [modal.Secret.from_name("bpt-r2"), modal.Secret.from_name("bpt-jwt")]
 weights = modal.Volume.from_name("bpt-weights", create_if_missing=True)
-SOURCES = ("body", "checks", "service", "storage", "worker")
+SOURCES = ("body", "checks", "service", "storage", "worker", "deep_analysis", "deep_metrics", "deep_worker")
 
 image = (
     modal.Image.debian_slim(python_version="3.12")
@@ -56,6 +57,54 @@ fit_image = (
 # Idle seconds a fitting container stays up (Modal's default is 60). Long enough that a container
 # warmed when the capture screen opens (~65 s cold start) is still there when the upload lands.
 SCALEDOWN_SECONDS = 180
+
+# scripts/deep_analysis/modal_bench.py와 같은 고정 버전. 빌드/배포 시에만 설치한다.
+deep_weights = modal.Volume.from_name("bpt-gvhmr", create_if_missing=True)
+deep_image = (
+    modal.Image.debian_slim(python_version="3.10")
+    .apt_install("git", "ffmpeg", "libgl1", "libglib2.0-0", "build-essential", "fonts-noto-cjk")
+    .pip_install("torch==2.3.0", "torchvision==0.18.0", index_url="https://download.pytorch.org/whl/cu121")
+    .pip_install(
+        "timm==0.9.12", "lightning==2.3.0", "hydra-core==1.3", "hydra-zen", "hydra_colorlog", "rich",
+        "numpy==1.23.5", "matplotlib", "setuptools>=68.0", "tensorboardX", "opencv-python-headless==4.11.0.86",
+        "ffmpeg-python", "scikit-image", "termcolor", "einops", "imageio==2.34.1", "av==13.0.0", "joblib",
+        "trimesh", "smplx", "wis3d", "pycolmap", "ultralytics==8.2.42", "cython", "lapx", "boto3", "pyjwt", "pillow", "fastapi",
+        "https://dl.fbaipublicfiles.com/pytorch3d/packaging/wheels/py310_cu121_pyt230/pytorch3d-0.7.6-cp310-cp310-linux_x86_64.whl",
+    )
+    .pip_install("cython_bbox")
+    .run_commands(
+        "git clone https://github.com/zju3dv/GVHMR /opt/GVHMR && git -C /opt/GVHMR checkout ee960bb6e2ea2d381aa97f08e9b71ef320b624b1",
+        "pip install -e /opt/GVHMR --no-deps",
+        "rm -rf /opt/GVHMR/inputs/checkpoints && ln -s /vol /opt/GVHMR/inputs/checkpoints",
+    )
+    .env({"BPT_GVHMR_ROOT": "/opt/GVHMR", "BPT_SMPL_H36M_NPZ": "/vol/smpl_neutral_h36m.npz"})
+    .add_local_file(Path(__file__).resolve().parents[2] / "scripts/deep_analysis/gvhmr_runner.py",
+                    "/root/gvhmr_runner.py", copy=True)
+    .add_local_file(Path(__file__).with_name("deep_rules.csv"), "/root/deep_rules.csv", copy=True)
+    .add_local_python_source("checks", "storage", "deep_analysis", "deep_metrics", "deep_worker")
+)
+
+# 팀 코칭 카탈로그가 들어오면 이미지에 같은 계약으로 포함한다.
+catalog = Path(__file__).resolve().parents[2] / "docs/coaching/fault_catalog.csv"
+if catalog.is_file():
+    deep_image = deep_image.add_local_file(catalog, "/docs/coaching/fault_catalog.csv", copy=True)
+
+
+@app.function(image=deep_image, gpu="L4", volumes={"/vol": deep_weights}, secrets=secrets[:1],
+              timeout=15 * 60, min_containers=0, scaledown_window=60, retries=0)
+def deep_analysis_job(job):
+    import deep_worker
+    import storage
+
+    bucket = storage.Bucket.from_env()
+    state = storage.BucketState(bucket)
+    required = ["gvhmr/gvhmr_siga24_release.ckpt", "hmr2/epoch=10-step=25000.ckpt",
+                "vitpose/vitpose-h-multi-coco.pth", "yolo/yolov8x.pt", "smpl_neutral_h36m.npz",
+                "body_models/smplx/SMPLX_NEUTRAL.npz", "body_models/smpl/SMPL_NEUTRAL.pkl"]
+    if any(not (Path("/vol") / name).is_file() for name in required):
+        state.put(f"deep-job:{job['jobId']}", job | {"status": "failed", "error": "weights_missing"})
+        return
+    return deep_worker.run(job, bucket, state)
 
 
 @app.function(image=fit_image, gpu="L4", volumes={"/weights": weights}, secrets=secrets[:1],
@@ -102,6 +151,7 @@ def api():
         jwt_secret=os.environ["JWT_SECRET"],
         call_failure=call_failure,
         warm=lambda: fit_body.spawn({"warmup": True}),
+        deep_spawn=deep_analysis_job.spawn,
     )
 
 
