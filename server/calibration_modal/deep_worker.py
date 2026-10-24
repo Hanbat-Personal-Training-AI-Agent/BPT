@@ -3,6 +3,7 @@ import json
 import os
 import subprocess
 import tempfile
+import traceback
 from pathlib import Path
 
 import numpy as np
@@ -148,6 +149,7 @@ def run(job, bucket, state, analyze_video=analyze):
     except Exception as error:
         code = getattr(error, "code", "internal_error")
         state.put(key, job | {"status": "failed", "error": code})
-        # 에러 원문에는 사용자 경로나 저장소 응답이 포함될 수 있으므로 노출하지 않는다.
+        # 에러 원문에는 사용자 경로나 저장소 응답이 포함될 수 있으므로 앱에는 코드만, 원문은 서버 로그에만 남긴다.
+        traceback.print_exc()
         return {"error": code}
     return {"status": "done"}

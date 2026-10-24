@@ -64,7 +64,8 @@ REPO = Path(__file__).resolve().parent.parent.parent
 deep_weights = modal.Volume.from_name("bpt-gvhmr", create_if_missing=True)
 deep_image = (
     modal.Image.debian_slim(python_version="3.10")
-    .apt_install("git", "ffmpeg", "libgl1", "libglib2.0-0", "build-essential", "fonts-noto-cjk")
+    .apt_install("git", "ffmpeg", "libgl1", "libglib2.0-0", "build-essential", "fonts-noto-cjk",
+                 "libtk8.6")  # GVHMR body_model.py imports turtle (tkinter) at import time
     .pip_install("torch==2.3.0", "torchvision==0.18.0", index_url="https://download.pytorch.org/whl/cu121")
     .pip_install(
         "timm==0.9.12", "lightning==2.3.0", "hydra-core==1.3", "hydra-zen", "hydra_colorlog", "rich",
