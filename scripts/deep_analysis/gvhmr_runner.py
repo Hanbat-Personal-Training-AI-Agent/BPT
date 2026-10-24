@@ -209,10 +209,13 @@ def network(n, w, h, bbx_xys, kp2d, feats, f_mm):
 class H36M:
     """SMPL-X params -> SMPL vertices (GVHMR smplx2smpl_sparse, a fixed vertex map) -> J_regressor_h36m (17).
 
-    beta (10, the calibration server's SMPL β from the body scan) = pose only: GVHMR's global_orient and
-    body_pose drive SMPL with that fixed shape and GVHMR's per-frame betas are dropped. The pelvis stays where
-    GVHMR put it, scaled by user height / GVHMR body height about the camera (world) origin, so the bigger or
-    smaller body still projects onto the same image (monocular depth scales with body size)."""
+    beta (10, the calibration server's SMPL β from the body scan) = pose only: GVHMR's per-frame betas are
+    dropped and its global_orient / body_pose drive GVHMR's own SMPL-X with the SMPL-X β whose rest mesh (mapped to
+    SMPL topology) best matches the user's SMPL rest mesh (linear least squares, translation free). Staying in
+    SMPL-X keeps the skeleton GVHMR's rotations were predicted for; driving SMPL with them instead moved the
+    elbow angle by ~4° on Exercise3D P2 (docs/results/deep_analysis_app.md). The pelvis stays where GVHMR put it,
+    scaled by user height / GVHMR body height about the camera (world) origin, so the bigger or smaller body still
+    projects onto the same image (monocular depth scales with body size)."""
     def __init__(self, device='cuda', beta=None):
         import torch
         from hmr4d.utils.smplx_utils import make_smplx
@@ -220,37 +223,44 @@ class H36M:
         self.smplx = make_smplx('supermotion').to(device)
         self.x2s = torch.load(GVHMR_ROOT / 'hmr4d/utils/body_model/smplx2smpl_sparse.pt').to(device)
         self.reg = torch.from_numpy(np.load(H36M_NPZ)['J_regressor_h36m']).float().to(device)
-        self.beta = None
-        if beta is not None:
-            import smplx
-            self.smpl = smplx.SMPL(model_path=str(SMPL_PKL), num_betas=10).to(device)
-            self.beta = torch.tensor(beta, dtype=torch.float32, device=device)[None]
+        self.beta = None if beta is None else self.smplx_beta(beta)
 
-    def _height(self, v):
-        return float(v[0, :, 1].max() - v[0, :, 1].min())
+    def smplx_beta(self, beta):
+        import smplx
+        t = self.t
+        with t.no_grad():
+            target = smplx.SMPL(model_path=str(SMPL_PKL), num_betas=10)(
+                betas=t.tensor([beta], dtype=t.float32)).vertices[0].to(self.dev)        # (6890, 3) rest pose
+            bm = self.smplx.bm; n = bm.shapedirs.shape[-1]
+            vt = self.x2s @ bm.v_template
+            dirs = t.stack([self.x2s @ bm.shapedirs[:, :, i] for i in range(n)], -1)    # (6890, 3, n)
+            dirs = dirs - dirs.mean(0); rhs = (target - target.mean(0)) - (vt - vt.mean(0))
+            sol = t.linalg.lstsq(dirs.reshape(-1, n).cpu(), rhs.reshape(-1, 1).cpu()).solution
+        return sol.T.to(self.dev)                                                        # (1, n)
+
+    def _height(self, betas):
+        rest = {'betas': betas, 'global_orient': self.t.zeros(1, 3, device=self.dev),
+                'body_pose': self.t.zeros(1, 63, device=self.dev), 'transl': self.t.zeros(1, 3, device=self.dev)}
+        v = self.x2s @ self.smplx(**rest).vertices[0]
+        return float(v[:, 1].max() - v[:, 1].min())
+
+    def _joints(self, params, batch):
+        out = []
+        n = len(params['body_pose'])
+        for s in range(0, n, batch):
+            p = {k: v[s:s + batch].to(self.dev) for k, v in params.items()}
+            v = self.smplx(**p).vertices                                   # (B, 10475, 3)
+            v = self.t.stack([self.x2s @ x for x in v])                    # (B, 6890, 3) SMPL topology
+            out.append(self.t.einsum('jv,bvc->bjc', self.reg, v).cpu())    # (B, 17, 3)
+        return self.t.cat(out).numpy().astype(np.float32)
 
     def __call__(self, params, batch=512, fixed=True):
-        out, fix = [], []
         with self.t.no_grad():
-            n = len(params['body_pose'])
-            for s in range(0, n, batch):
-                p = {k: v[s:s + batch].to(self.dev) for k, v in params.items()}
-                v = self.smplx(**p).vertices                                   # (B, 10475, 3)
-                v = self.t.stack([self.x2s @ x for x in v])                    # (B, 6890, 3) SMPL topology
-                out.append(self.t.einsum('jv,bvc->bjc', self.reg, v).cpu())    # (B, 17, 3)
-                if fixed and self.beta is not None:
-                    b = len(v); hands = self.t.zeros(b, 6, device=self.dev)    # SMPL 22-23 = hands, rest pose
-                    v = self.smpl(betas=self.beta.expand(b, -1), global_orient=p['global_orient'],
-                                  body_pose=self.t.cat([p['body_pose'], hands], 1)).vertices
-                    fix.append(self.t.einsum('jv,bvc->bjc', self.reg, v).cpu())
-            own = self.t.cat(out).numpy().astype(np.float32)
-            if not fix: return own
-            rest = {k: self.t.zeros_like(v[:1]).to(self.dev) for k, v in params.items()}
-            rest['betas'] = params['betas'].mean(0, keepdim=True).to(self.dev)
-            h_own = self._height(self.t.stack([self.x2s @ x for x in self.smplx(**rest).vertices]))
-            h_user = self._height(self.smpl(betas=self.beta).vertices)
-        j = self.t.cat(fix).numpy().astype(np.float32)
-        return j - j[:, :1] + own[:, :1] * (h_user / h_own)
+            own = self._joints(params, batch)
+            if not fixed or self.beta is None: return own
+            j = self._joints(params | {'betas': self.beta.cpu().expand(len(own), -1)}, batch)
+            ratio = self._height(self.beta) / self._height(params['betas'].mean(0, keepdim=True).to(self.dev))
+        return j - j[:, :1] + own[:, :1] * ratio
 
 
 def save(path, pred, K, xyxy, kp2d, j_cam, j_world, meta, j_world_own=None):
@@ -258,7 +268,7 @@ def save(path, pred, K, xyxy, kp2d, j_cam, j_world, meta, j_world_own=None):
     (0 pelvis, 1-3 right leg, 4-6 left leg, 7 spine, 8 thorax, 9 neck/nose, 10 head, 11-13 left arm,
     14-16 right arm); h36m17_world (N,17,3) metres, GVHMR gravity-aligned world (y up, starts facing +z);
     smplx_{incam,global}_{global_orient,body_pose,betas,transl} axis-angle (GVHMR SMPL-X, 10 betas — NOT the
-    calibration server's SMPL beta); with a calibrated beta, h36m17_* come from SMPL with that beta (meta
+    calibration server's SMPL beta); with a calibrated beta, h36m17_* use that body shape (H36M class, meta
     body_shape='calibration') and h36m17_world_gvhmr_beta keeps GVHMR's own-shape joints; contact_prob (N,6) sigmoid(static_conf_logits), order CONTACT_NAMES;
     vitpose_coco17 (N,17,3) px + conf; bbx_xyxy (N,4); K (3,3) the intrinsics GVHMR used."""
     import torch

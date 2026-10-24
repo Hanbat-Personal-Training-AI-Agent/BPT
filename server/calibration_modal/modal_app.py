@@ -58,6 +58,8 @@ fit_image = (
 # warmed when the capture screen opens (~65 s cold start) is still there when the upload lands.
 SCALEDOWN_SECONDS = 180
 
+# Inside the container this file is /root/modal_app.py: .parent never fails where parents[2] raises.
+REPO = Path(__file__).resolve().parent.parent.parent
 # scripts/deep_analysis/modal_bench.py와 같은 고정 버전. 빌드/배포 시에만 설치한다.
 deep_weights = modal.Volume.from_name("bpt-gvhmr", create_if_missing=True)
 deep_image = (
@@ -78,14 +80,14 @@ deep_image = (
         "rm -rf /opt/GVHMR/inputs/checkpoints && mkdir -p /opt/GVHMR/inputs && ln -s /vol /opt/GVHMR/inputs/checkpoints",
     )
     .env({"BPT_GVHMR_ROOT": "/opt/GVHMR", "BPT_SMPL_H36M_NPZ": "/vol/smpl_neutral_h36m.npz"})
-    .add_local_file(Path(__file__).resolve().parents[2] / "scripts/deep_analysis/gvhmr_runner.py",
+    .add_local_file(REPO / "scripts/deep_analysis/gvhmr_runner.py",
                     "/root/gvhmr_runner.py", copy=True)
     .add_local_file(Path(__file__).with_name("deep_rules.csv"), "/root/deep_rules.csv", copy=True)
     .add_local_python_source("checks", "storage", "deep_analysis", "deep_metrics", "deep_worker")
 )
 
 # 팀 코칭 카탈로그가 들어오면 이미지에 같은 계약으로 포함한다.
-catalog = Path(__file__).resolve().parents[2] / "docs/coaching/fault_catalog.csv"
+catalog = REPO / "docs/coaching/fault_catalog.csv"
 if catalog.is_file():
     deep_image = deep_image.add_local_file(catalog, "/docs/coaching/fault_catalog.csv", copy=True)
 
