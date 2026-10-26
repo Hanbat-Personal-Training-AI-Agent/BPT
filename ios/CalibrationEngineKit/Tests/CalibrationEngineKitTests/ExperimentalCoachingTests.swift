@@ -1,3 +1,4 @@
+import Foundation
 import simd
 import XCTest
 @testable import CalibrationEngineKit
@@ -85,4 +86,109 @@ final class ExperimentalCoachingTests: XCTestCase {
             XCTAssertEqual(armOnly.update(frame(t,pose(knee:140,elbow:140),exercise:"barbell_row",phase:"pulling"),profile:profile).candidates.first?.assessment,"not_triggered")
         }
     }
+    private let rowProfile = ExperimentalCoaching.Profile(exercise: "barbell_row", variant: "strict_row", approved: true,
+        upperArmRange: nil, legExtensionDegrees: 15, elbowFlexionDegrees: 15, sustainSeconds: 0.2)
+    private let deadProfile = ExperimentalCoaching.Profile(exercise: "deadlift", variant: "double_overhand_deadlift", approved: true,
+        upperArmRange: nil, legExtensionDegrees: 15, elbowFlexionDegrees: 15, sustainSeconds: 0.2)
+
+    func testProfileEqualityRevisionAndApprovalResetPersistence() {
+        var e = ExperimentalCoaching(); let p = pose()
+        _ = e.update(frame(0,p),profile:pushProfile)
+        _ = e.update(frame(0.1,p),profile:pushProfile)
+        XCTAssertEqual(e.update(frame(0.21,p),profile:pushProfile).candidates.first?.assessment,"candidate", "equal profile preserves a valid interval")
+        var revised = pushProfile; revised.revision = "approval-2"
+        XCTAssertEqual(e.update(frame(0.3,p),profile:revised).candidates.first?.assessment,"not_triggered")
+        _ = e.update(frame(0.4,p),profile:revised)
+        XCTAssertEqual(e.update(frame(0.51,p),profile:revised).candidates.first?.assessment,"candidate")
+        let revoked = ExperimentalCoaching.Profile(exercise:"pushup",variant:"approved_pushup",approved:false,
+            upperArmRange:20...45,legExtensionDegrees:15,elbowFlexionDegrees:15,sustainSeconds:0.2)
+        XCTAssertEqual(e.update(frame(0.6,p),profile:revoked).candidates.first?.assessment,"withheld")
+        XCTAssertEqual(e.update(frame(0.7,p),profile:revised).candidates.first?.assessment,"not_triggered")
+        let changed = ExperimentalCoaching.Profile(exercise:"pushup",variant:"approved_pushup",approved:true,
+            upperArmRange:20...50,legExtensionDegrees:20,elbowFlexionDegrees:20,sustainSeconds:0.1)
+        XCTAssertEqual(e.update(frame(0.81,p),profile:changed).candidates.first?.assessment,"not_triggered", "changed threshold/duration cannot inherit previous time")
+    }
+
+    func testProfileChangeDiscardsMovementBaseline() {
+        var e = ExperimentalCoaching()
+        _ = e.update(frame(0,pose(knee:140,elbow:170),exercise:"barbell_row",phase:"pulling"),profile:rowProfile)
+        var revised = rowProfile; revised.revision = "new"
+        let moved = pose(knee:170,elbow:140)
+        XCTAssertEqual(e.update(frame(0.1,moved,exercise:"barbell_row",phase:"pulling"),profile:revised).candidates.first?.assessment,"withheld")
+        for t in [0.2,0.3,0.4] {
+            XCTAssertEqual(e.update(frame(t,moved,exercise:"barbell_row",phase:"pulling"),profile:revised).candidates.first?.assessment,"not_triggered", "movement before revised approval is not evidence")
+        }
+    }
+
+    func testRowLocalOcclusionDiscardsBaselineAndRecovers() {
+        var e = ExperimentalCoaching()
+        _ = e.update(frame(0,pose(knee:110,elbow:170),exercise:"barbell_row",phase:"pulling"),profile:rowProfile)
+        _ = e.update(frame(0.1,pose(knee:140,elbow:140),exercise:"barbell_row",phase:"pulling"),profile:rowProfile)
+        let obscured = e.update(frame(0.2,pose(knee:145,elbow:140),exercise:"barbell_row",phase:"pulling",invalid:[2]),profile:rowProfile)
+        XCTAssertTrue(obscured.metrics["leftElbowDeg"]!.available, "unrelated support does not preserve the baseline")
+        XCTAssertEqual(obscured.candidates.first?.assessment,"withheld")
+        let restored = pose(knee:145,elbow:140)
+        XCTAssertEqual(e.update(frame(0.3,restored,exercise:"barbell_row",phase:"pulling"),profile:rowProfile).candidates.first?.assessment,"withheld")
+        XCTAssertEqual(e.update(frame(0.4,restored,exercise:"barbell_row",phase:"pulling"),profile:rowProfile).candidates.first?.assessment,"not_triggered")
+        let further = pose(knee:175,elbow:110)
+        _ = e.update(frame(0.5,further,exercise:"barbell_row",phase:"pulling"),profile:rowProfile)
+        _ = e.update(frame(0.6,further,exercise:"barbell_row",phase:"pulling"),profile:rowProfile)
+        XCTAssertEqual(e.update(frame(0.71,further,exercise:"barbell_row",phase:"pulling"),profile:rowProfile).candidates.first?.assessment,"candidate", "new fully observed movement can be judged after recovery")
+    }
+
+    func testBadFirstPhaseFrameDoesNotPoisonRecovery() {
+        var e = ExperimentalCoaching()
+        _ = e.update(frame(0,pose(knee:110,elbow:170),exercise:"barbell_row",phase:"pulling",invalid:[2]),profile:rowProfile)
+        XCTAssertEqual(e.update(frame(0.1,pose(knee:140,elbow:150),exercise:"barbell_row",phase:"pulling"),profile:rowProfile).candidates.first?.assessment,"withheld")
+        let moved = pose(knee:175,elbow:110)
+        _ = e.update(frame(0.2,moved,exercise:"barbell_row",phase:"pulling"),profile:rowProfile)
+        _ = e.update(frame(0.3,moved,exercise:"barbell_row",phase:"pulling"),profile:rowProfile)
+        XCTAssertEqual(e.update(frame(0.41,moved,exercise:"barbell_row",phase:"pulling"),profile:rowProfile).candidates.first?.assessment,"candidate")
+    }
+
+    func testNonFiniteTimeWithholdsAndFiniteRecoveryRestarts() throws {
+        for time in [Double.nan, Double.infinity, -Double.infinity] {
+            var e = ExperimentalCoaching(); let p = pose()
+            _ = e.update(frame(0,p),profile:pushProfile)
+            _ = e.update(frame(0.1,p),profile:pushProfile)
+            let invalid = e.update(frame(time,p),profile:pushProfile)
+            XCTAssertNil(invalid.time)
+            XCTAssertEqual(invalid.candidates.first?.assessment,"withheld")
+            XCTAssertTrue(invalid.candidates.first!.reasons.contains("invalid_timestamp"))
+            XCTAssertNoThrow(try JSONEncoder().encode(invalid))
+            XCTAssertEqual(e.update(frame(0.21,p),profile:pushProfile).candidates.first?.assessment,"not_triggered")
+            _ = e.update(frame(0.31,p),profile:pushProfile)
+            XCTAssertEqual(e.update(frame(0.42,p),profile:pushProfile).candidates.first?.assessment,"candidate")
+            var row = ExperimentalCoaching()
+            _ = row.update(frame(0,pose(knee:140,elbow:170),exercise:"barbell_row",phase:"pulling"),profile:rowProfile)
+            _ = row.update(frame(time,pose(knee:175,elbow:110),exercise:"barbell_row",phase:"pulling"),profile:rowProfile)
+            XCTAssertEqual(row.update(frame(0.1,pose(knee:175,elbow:110),exercise:"barbell_row",phase:"pulling"),profile:rowProfile).candidates.first?.assessment,"withheld", "invalid time removes the movement baseline too")
+        }
+    }
+
+    func testNarrowUpperArmIsNeverExcessiveFlare() {
+        var e = ExperimentalCoaching()
+        for t in [0.0,0.1,0.2,0.3,0.4] {
+            XCTAssertEqual(e.update(frame(t,pose(flare:10)),profile:pushProfile).candidates.first?.assessment,"not_triggered")
+        }
+    }
+
+    func testDeadliftNormalFlexionPhaseAndOcclusion() {
+        var e = ExperimentalCoaching()
+        _ = e.update(frame(0,pose(elbow:170),exercise:"deadlift",phase:"rising"),profile:deadProfile)
+        XCTAssertEqual(e.update(frame(0.1,pose(elbow:170),exercise:"deadlift",phase:"rising"),profile:deadProfile).candidates.first?.assessment,"not_triggered")
+        _ = e.update(frame(0.2,pose(elbow:140),exercise:"deadlift",phase:"rising"),profile:deadProfile)
+        XCTAssertEqual(e.update(frame(0.41,pose(elbow:140),exercise:"deadlift",phase:"rising"),profile:deadProfile).candidates.first?.assessment,"candidate")
+        XCTAssertEqual(e.update(frame(0.5,pose(elbow:120),exercise:"deadlift",phase:"lowering"),profile:deadProfile).candidates.first?.assessment,"withheld")
+        XCTAssertEqual(e.update(frame(0.6,pose(elbow:140),exercise:"deadlift",phase:"rising"),profile:deadProfile).candidates.first?.assessment,"withheld")
+        XCTAssertEqual(e.update(frame(0.7,pose(elbow:140),exercise:"deadlift",phase:"rising"),profile:deadProfile).candidates.first?.assessment,"not_triggered")
+        let hidden = e.update(frame(0.8,pose(elbow:100),exercise:"deadlift",phase:"rising",invalid:[13]),profile:deadProfile)
+        XCTAssertTrue(hidden.metrics["rightElbowDeg"]!.available)
+        XCTAssertEqual(hidden.candidates.first?.assessment,"withheld")
+        XCTAssertEqual(e.update(frame(0.9,pose(elbow:100),exercise:"deadlift",phase:"rising"),profile:deadProfile).candidates.first?.assessment,"withheld")
+        XCTAssertEqual(e.update(frame(1.0,pose(elbow:100),exercise:"deadlift",phase:"rising"),profile:deadProfile).candidates.first?.assessment,"not_triggered")
+        _ = e.update(frame(1.1,pose(elbow:70),exercise:"deadlift",phase:"rising"),profile:deadProfile)
+        XCTAssertEqual(e.update(frame(1.31,pose(elbow:70),exercise:"deadlift",phase:"rising"),profile:deadProfile).candidates.first?.assessment,"candidate")
+    }
+
 }

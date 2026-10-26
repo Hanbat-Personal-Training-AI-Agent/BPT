@@ -5,6 +5,7 @@ import simd
 /// The app enables logging explicitly with BPT_EXPERIMENTAL_COACHING=1; the default path never calls this.
 struct ExperimentalCoaching {
     struct Frame {
+        /// Capture/video sample PTS in seconds; no inference-arrival or rendering clock fallback.
         let time: Double
         let exercise: String
         let phase: String?
@@ -17,7 +18,7 @@ struct ExperimentalCoaching {
     }
     /// Supplied explicitly by a caller after approval; never learned from initial repetitions.
     /// Thresholds are experimental candidate settings, not a validated catalogue or medical norms.
-    struct Profile {
+    struct Profile: Equatable {
         let exercise: String
         let variant: String
         let approved: Bool
@@ -25,6 +26,8 @@ struct ExperimentalCoaching {
         let legExtensionDegrees: Double
         let elbowFlexionDegrees: Double
         let sustainSeconds: Double
+        /// Caller approval revision; changing only this also starts a new observation interval.
+        var revision: String = ""
     }
     struct Metric: Codable {
         let value: Double?
@@ -38,33 +41,37 @@ struct ExperimentalCoaching {
         let reasons: [String]
     }
     struct Output: Codable {
-        let time: Double
+        let time: Double?
         let metrics: [String: Metric]
         let candidates: [Candidate]
     }
     private struct History {
-        let time: Double
-        let phase: String
-        let exercise: String
         let metrics: [String: Metric]
     }
-    private var history: History?
+    private var histories: [String: History] = [:]
     private var since: [String: Double] = [:]
     private var previousTime: Double?
+    private var previousProfile: Profile?
+    private var previousContext: String?
     var minConfidence = 0.5
     var maxCorrectionDegrees = 10.0
     var maxGapSeconds = 0.25
 
     mutating func update(_ frame: Frame, profile: Profile? = nil) -> Output {
-        if !frame.time.isFinite || previousTime.map({ frame.time <= $0 || frame.time - $0 > maxGapSeconds }) == true {
-            history = nil; since.removeAll()
+        let context = frame.exercise + "|" + (frame.phase ?? "")
+        if profile != previousProfile || context != previousContext || !frame.time.isFinite
+            || previousTime.map({ frame.time <= $0 || frame.time - $0 > maxGapSeconds }) == true {
+            histories.removeAll(); since.removeAll()
         }
-        previousTime = frame.time
+        previousProfile = profile
+        previousContext = context
+        // Never retain NaN/Inf in the temporal state. A later finite frame starts from scratch.
+        previousTime = frame.time.isFinite ? frame.time : nil
         var metrics: [String: Metric] = [:]
         func measure(_ ids: [Int], _ fn: ([SIMD3<Double>]) -> Double?) -> Metric {
             let corrected = frame.corrected.flatMap { $0.count == 17 ? fn($0) : nil }
             let raw = frame.raw.flatMap { $0.count == 17 ? fn($0) : nil }
-            var reasons: [String] = []
+            var reasons: [String] = frame.time.isFinite ? [] : ["invalid_timestamp"]
             if !["ok", "partial_3d"].contains(frame.state) { reasons.append("unusable_3d") }
             if let invalid = frame.invalid {
                 if !invalid.isDisjoint(with: ids) { reasons.append("invalid_joint") }
@@ -99,12 +106,6 @@ struct ExperimentalCoaching {
         if frame.up == nil { trunk = Metric(value: trunk.value, rawValue: trunk.rawValue, reasons: trunk.reasons + ["missing_gravity"]) }
         metrics["trunkInclineDeg"] = trunk
         let phase = frame.phase ?? ""
-        if history?.phase != phase || history?.exercise != frame.exercise {
-            history = nil; since.removeAll()
-        }
-        let prior = history
-        // Baseline is only the beginning of the same uninterrupted movement phase, never an ideal pose.
-        if history == nil, frame.time.isFinite { history = History(time: frame.time, phase: phase, exercise: frame.exercise, metrics: metrics) }
         var candidates: [Candidate] = []
         func profileReasons(_ variant: String) -> [String] {
             guard let p = profile, p.approved, p.exercise == frame.exercise, p.variant == variant,
@@ -113,15 +114,21 @@ struct ExperimentalCoaching {
                   p.elbowFlexionDegrees.isFinite, p.elbowFlexionDegrees > 0 else { return ["approved_profile_required"] }
             return []
         }
-        func metricReasons(_ keys: [String], baseline: Bool = false) -> [String] {
-            var reasons = keys.flatMap { metrics[$0]?.reasons ?? ["missing_geometry"] }
-            if baseline {
-                if let prior { reasons += keys.flatMap { prior.metrics[$0]?.reasons ?? ["missing_baseline"] } }
-                else { reasons.append("phase_baseline_required") }
-            }
-            return Array(Set(reasons)).sorted()
+        func metricReasons(_ keys: [String]) -> [String] {
+            Array(Set(keys.flatMap { metrics[$0]?.reasons ?? ["missing_geometry"] })).sorted()
         }
-        func delta(_ key: String) -> Double {
+        // Each candidate owns its movement baseline. Any loss of its required observation or approval
+        // discards both baseline and persistence, even when unrelated metrics remain available.
+        func baseline(_ candidate: String, reasons: [String]) -> History? {
+            guard reasons.isEmpty else {
+                histories[candidate] = nil; since[candidate] = nil
+                return nil
+            }
+            if let prior = histories[candidate] { return prior }
+            histories[candidate] = History(metrics: metrics)
+            return nil // first valid frame is a new reference, not evidence of unseen movement
+        }
+        func delta(_ key: String, from prior: History?) -> Double {
             guard let now = metrics[key]?.value, let start = prior?.metrics[key]?.value else { return 0 }
             return now - start
         }
@@ -134,9 +141,11 @@ struct ExperimentalCoaching {
         }
         if frame.exercise == "barbell_row" {
             let keys = ["leftKneeDeg", "rightKneeDeg", "leftElbowDeg", "rightElbowDeg"]
-            let reasons = profileReasons("strict_row") + metricReasons(keys, baseline: true) + (phase == "pulling" ? [] : ["pulling_phase_required"])
-            let legs = min(delta(keys[0]), delta(keys[1])) >= (profile?.legExtensionDegrees ?? .infinity)
-            let arms = min(-delta(keys[2]), -delta(keys[3])) >= (profile?.elbowFlexionDegrees ?? .infinity)
+            var reasons = profileReasons("strict_row") + metricReasons(keys) + (phase == "pulling" ? [] : ["pulling_phase_required"])
+            let prior = baseline("row_leg_drive", reasons: reasons)
+            if prior == nil { reasons.append("phase_baseline_required") }
+            let legs = min(delta(keys[0], from: prior), delta(keys[1], from: prior)) >= (profile?.legExtensionDegrees ?? .infinity)
+            let arms = min(-delta(keys[2], from: prior), -delta(keys[3], from: prior)) >= (profile?.elbowFlexionDegrees ?? .infinity)
             // Coincident joint motion only: cannot establish force, intentional cheating, or bar travel.
             emit("row_leg_drive", reasons: reasons, condition: legs && arms)
         }
@@ -148,18 +157,18 @@ struct ExperimentalCoaching {
             if !["descending", "bottom", "ascending"].contains(phase) { reasons.append("active_phase_required") }
             emit("pushup_elbow_flare", reasons: reasons, condition: keys.contains { key in
                 guard let value = metrics[key]?.value, let range else { return false }
-                return !range.contains(value)
+                return value > range.upperBound // a narrower approved variation is not excessive flare
             })
         }
         if frame.exercise == "deadlift" {
             let keys = ["leftElbowDeg", "rightElbowDeg"]
-            let reasons = profileReasons("double_overhand_deadlift") + metricReasons(keys, baseline: true) + (phase == "rising" ? [] : ["rising_phase_required"])
+            var reasons = profileReasons("double_overhand_deadlift") + metricReasons(keys) + (phase == "rising" ? [] : ["rising_phase_required"])
+            let prior = baseline("deadlift_arm_pull", reasons: reasons)
+            if prior == nil { reasons.append("phase_baseline_required") }
             emit("deadlift_arm_pull", reasons: reasons,
-                 condition: keys.contains { -delta($0) >= (profile?.elbowFlexionDegrees ?? .infinity) })
+                 condition: keys.contains { -delta($0, from: prior) >= (profile?.elbowFlexionDegrees ?? .infinity) })
         }
-        // An unobservable phase must not become a later valid baseline.
-        if metrics.values.allSatisfy({ !$0.available }) { history = nil }
-        return Output(time: frame.time.isFinite ? frame.time : 0, metrics: metrics, candidates: candidates)
+        return Output(time: frame.time.isFinite ? frame.time : nil, metrics: metrics, candidates: candidates)
     }
     static func unit(_ v: SIMD3<Double>) -> SIMD3<Double>? {
         let length = simd_length(v)

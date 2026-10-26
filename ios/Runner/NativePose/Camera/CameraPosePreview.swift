@@ -85,6 +85,8 @@ struct CameraProcessingResult {
     let handResults: [HandLandmarkResult]
     /// CACurrentMediaTime when the frame reached processFrame (input → judgement latency).
     var arrivedAt: CFTimeInterval = 0
+    /// Original capture/video sample PTS, carried with this frame through XS lookahead. Never a latency clock.
+    var sourcePTS: Double?
     /// XS input wrists replaced by MediaPipe (left, right); raw wrists stay in rawCoco17.
     var wristsReplaced = (left: false, right: false)
     /// Both wrist crops returned the same hand and neither MediaPipe wrist was used (CameraPreviewOptions.handDedupe).
@@ -754,6 +756,8 @@ final class CameraPoseViewModel: ObservableObject {
                     handResults: handResults
                 )
                 result.arrivedAt = arrivedAt
+                let sourcePTS = CMTimeGetSeconds(CMSampleBufferGetPresentationTimeStamp(sampleBuffer))
+                result.sourcePTS = sourcePTS.isFinite ? sourcePTS : nil
                 result.wristAnchor = anchorStates
 
                 guard lifter != nil else {
@@ -827,7 +831,7 @@ final class CameraPoseViewModel: ObservableObject {
             let gravity = motion?.state
             let up: SIMD3<Double>? = gravity?.isAvailable == true && gravity?.gravity.count == 3
                 ? formTracker?.up3D : nil
-            let observation = ExperimentalCoaching.Frame(time: result.arrivedAt, exercise: formTracker?.exercise.rawValue ?? exercise.rawValue,
+            let observation = ExperimentalCoaching.Frame(time: result.sourcePTS ?? .nan, exercise: formTracker?.exercise.rawValue ?? exercise.rawValue,
                 phase: formTracker?.observationPhase, state: frame3D.state.rawValue, raw: frame3D.raw,
                 corrected: frame3D.masked3D, confidence: frame3D.confidence, invalid: frame3D.invalidJoints, up: up)
             // There is no approved variant/ROM profile in the current UI. Measurements are logged, candidates
@@ -836,6 +840,8 @@ final class CameraPoseViewModel: ObservableObject {
             if let data = try? JSONEncoder().encode(output),
                var line = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] {
                 line["frame"] = result.frameIndex
+                line["time_basis"] = "sample_pts"
+                line["arrival_host"] = result.arrivedAt
                 line["exercise"] = exercise.rawValue
                 line["phase"] = formTracker?.observationPhase ?? NSNull()
                 line["state"] = frame3D.state.rawValue

@@ -22,7 +22,7 @@
 
 `ExperimentalCoaching.swift`는 포즈를 수정하거나 기존 음성을 발생시키지 않는 독립 모듈이다. `BPT_EXPERIMENTAL_COACHING=1`일 때만 현재 네이티브 XS 프레임을 읽고, 이미 활성화된 DemoPoseLog/VideoRunLog에 `experimental_coaching`을 기록한다. 로그가 꺼져 있으면 별도 화면이나 새 파일은 생성하지 않는다. 기본값 OFF.
 
-입력은 같은 프레임의 raw/최종 masked 3D, H36M 관절 confidence, 실제 invalid mask, 평가기의 실제 phase, 도착 시각, 사용 가능한 중력이다. 카메라 UI 문구에서 phase를 추측하지 않는다. `barbellRow` 같은 UI 운동명은 FormExercise의 정규화된 ID로 전달한다.
+입력은 같은 프레임의 raw/최종 masked 3D, H36M 관절 confidence, 실제 invalid mask, 평가기의 실제 phase, 원본 sample PTS, 사용 가능한 중력이다. 카메라 UI 문구에서 phase를 추측하지 않는다. `barbellRow` 같은 UI 운동명은 FormExercise의 정규화된 ID로 전달한다.
 
 측정: 좌우 무릎·팔꿈치·고관절각, 전체 몸통과 중력 사이 각도, 몸통 정면 평면에 투영한 상완 각도. 상완각은 몸통의 아래 방향에 대한 **부호 없는 각도**이며 앞뒤 어깨 굽힘을 제거한다. 요추 곡률·척추 분절·관절 부하·통증을 측정하지 않는다.
 
@@ -33,7 +33,7 @@
 | 후보 | 필요한 계약 | 실제 의미와 한계 |
 |---|---|---|
 | row_leg_drive | 승인 strict_row 변형, pulling, 양측 무릎·팔꿈치, 승인 변화 임계/지속시간 | 같은 pulling 구간 시작 대비 양측 무릎 폄과 팔꿈치 굽힘이 함께 지속됨. 힘·반동 원인·바 경로를 입증하지 않음 |
-| pushup_elbow_flare | 승인 pushup 변형 및 상완 범위, 활성 phase, 양측 어깨/상완·몸통 | 투영 상완각이 승인 범위를 벗어난 상태의 지속. 보편적 이상 각도를 임의 설정하지 않음 |
+| pushup_elbow_flare | 승인 pushup 변형 및 상완 범위, 활성 phase, 양측 어깨/상완·몸통 | 투영 상완각이 승인 상한을 초과한 상태의 지속. 좁힌 팔은 flare로 분류하지 않음. 보편적 이상 각도를 임의 설정하지 않음 |
 | deadlift_arm_pull | 승인 double-overhand 변형, rising, 팔꿈치, 승인 변화 임계/지속시간 | 같은 상승 구간 시작 대비 팔꿈치 굽힘 증가. 바/그립/힘을 직접 보지 못하므로 승인 변형 필수 |
 
 구간 시작 값은 움직임 차분을 위한 좌표일 뿐 정상 자세 기준이 아니다. 초기 반복을 정상으로 자동 승인하지 않는다. 현재 앱에는 승인 변형·ROM 프로필 입력 UI가 없으므로 호출부가 profile을 전달하지 않는다. 따라서 앱 실험에서 후보는 명시적으로 보류되고 수치 관측만 남는다. 후보 발화/사용자 코칭 완료로 표시하지 않는다.
@@ -76,4 +76,33 @@ swiftc ios/Runner/NativePose/Evaluators/ExperimentalCoaching.swift scripts/repla
 
 ## G. 남은 범위
 
-안전 버그는 독립 선택 이식할 수 있다. 새 실험은 검토용 브랜치에서 OFF 상태로 동결한다. 다음 독립 검토는 Camera 연결부 빌드, 프로필 계약/상완각 의미, deadlift 추가 회귀, 미관측 구간·프로필 교체 시 지속 상태, Dart 문구/기본 필터 통합 검증을 확인해야 한다. 54개 전체 완성, 요추 진단, 실시간 오류 정확도, 실기기 동작 완료는 이 문서의 결론이 아니다.
+안전 버그는 독립 선택 이식할 수 있다. 새 실험은 검토용 브랜치에서 OFF 상태로 동결한다. 다음 독립 검토는 Camera 연결부 빌드, 프로필 계약/상완각 의미, Dart 문구/기본 필터 통합 검증을 확인해야 한다. 아래 2차 감사에서 deadlift 회귀 및 미관측/프로필 교체 상태를 보완했다. 54개 전체 완성, 요추 진단, 실시간 오류 정확도, 실기기 동작 완료는 이 문서의 결론이 아니다.
+
+
+## 2차 독립 감사 보완
+
+root 검토에서 최초 실험의 상태 유지 결함을 발견해 수정했다. 최초 5개 테스트 통과가 아래 사례를 보장하지 않았음을 명시한다.
+
+1. Profile 전체 값 및 명시적 approval `revision`을 비교한다. 승인 해제/변형/임계/지속시간/버전이 바뀌면 모든 이동 기준과 지속시간을 초기화한다.
+2. 로우와 데드리프트는 후보별 필수 관측이 하나라도 사라지면 해당 기준과 지속 상태를 버린다. 다른 정상 관절이 있어도 가림 전 기준을 쓰지 않는다. 처음부터 불량한 phase도 회복한 첫 유효 프레임을 새 이동 기준으로 확보하고, 이후 **직접 관측된** 변화만 평가한다. 새 기준 자체를 정상 자세로 승인하지 않는다.
+3. NaN/±Inf PTS는 `invalid_timestamp`로 보류하고 내부 시각을 nil로 되돌린다. JSON 결과에 비유한 수를 남기지 않으며 finite 복구는 새 관측 구간이다.
+4. `pushup_elbow_flare`는 승인 상한 초과만 판단한다. 하한보다 좁힌 팔은 이 오류가 아니다.
+5. 새 회귀 7개로 profile 동등성/변경/승인, baseline 교체, 부분 가림과 회복, 첫 프레임 불량, NaN/Inf와 finite복구, 좁은 상완, 데드리프트 정상/굴곡/위상/가림을 추가했다.
+
+### 시간축
+
+기존 `arrivedAt`은 달력 벽시계가 아니라 CACurrentMediaTime의 단조 host 시각이지만, 프레임 전달 속도·처리 지연에 영향을 받으므로 동작 지속시간에 부적절했다. 이제 `CMSampleBufferGetPresentationTimeStamp`를 CameraProcessingResult에 저장해 같은 프레임의 XS lookahead payload와 함께 전달한다. PTS가 없으면 보류하며 arrival/frameIndex 추정시간으로 대체하지 않는다. VideoCameraSource의 mirror/rotate는 원본 sample timing을 보존한다. 따라서 **같은 sample PTS를 유지한** 재생 지연/배속 변경은 관측 동작 시간을 바꾸지 않는다. PTS 자체를 바꿔 재인코딩한 영상은 원본 시간 메타데이터 없이 되돌릴 수 없으며 별도 계약이 필요하다.
+
+진단 행은 `time_basis: sample_pts`, `time`(유효할 때), `arrival_host`(지연 비교용), frame/phase/state를 구분한다. 이전 로그 replay는 sample PTS가 없으므로 도착 시각을 사용한 **정적 수치 분포 감사**로만 유지하며 지속 후보 검증으로 재해석하지 않는다.
+
+### 마지막 기기 하니스 인계
+
+기존 a05848a local capture 하니스와 dataset 전송 차단 provider는 그대로 유지한다. 별도 review 앱에만 coaching commits를 선택 적용한 뒤 기존 허용된 local clip 1회에서 아래 두 값만 추가한다. 기존 bpt_demo.json의 영상·보정·XS 설정을 덮어쓰지 않는다.
+
+```json
+{"BPT_EXPERIMENTAL_COACHING":"1","BPT_POSE3D_LOG":"1"}
+```
+
+기기 담당자가 `Documents/demo/pose_*.jsonl`의 `type=experimental_coaching` 행을 회수한다. 확인할 것은 실제 native frame 대응, sample_pts 시간축, 유효 관절의 raw/value 쌍, 부분 가림 보류, 모든 candidate의 approved_profile_required 보류다. profile을 가짜로 승인하거나 기본 음성을 켜지 않는다. local dataset 업로드 금지는 그대로다. 이 검증은 네이티브 입력→진단 로그 연결만 입증하며 운동 오류 정확도·승인 코칭의 실기기 검증이 아니다.
+
+2차 실행 결과: root/device 조율 후 동일 `/tmp/bpt-coaching-minimal-20261026` 최소 패키지에서 production 모듈과 실제 XCTest 파일의 symlink를 사용해 **12/12 통과**(2026-10-26 18:26:34, 빌드 10.38초, 테스트 0.007초). 로그 `/tmp/bpt-coaching-review-regression-20261026.log`를 보존했다. 실행 명령은 `swift test --package-path /tmp/bpt-coaching-minimal-20261026 --jobs 2`. 전체 패키지/iOS/DD/ML을 실행하지 않았다. 생성된 `.build` 120MiB만 정리했고 df는 정리 전1.9GiB→후2.0GiB였다. PTS Camera wiring은 소스 확인 상태이며 이 최소 패키지가 Camera를 typecheck하거나 기기 실행한 것은 아니다.
