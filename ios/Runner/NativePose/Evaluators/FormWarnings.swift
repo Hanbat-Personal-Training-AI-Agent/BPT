@@ -492,8 +492,8 @@ final class FormWarningTracker {
         .barbellRow: ["torso_min", "torso_max", "elbow_behind_max"],
     ]
 
-    /// Bench press / deadlift keys (track G): their lines are drafted in docs/progress/2026-10-10.md for the
-    /// teammate who owns kori_feedback_lines.dart. They stay off until the dart file has them.
+    /// Historical name: bench/deadlift drafts now have Flutter lines, but remain deliberately OFF.
+    /// A phrase alone is not validation or authorization to enable these measurements as coaching.
     static let keysWithoutFlutterLines: Set<String> = [
         "bench_hips_up", "bench_shallow", "bench_no_lockout",
         "deadlift_hips_first", "deadlift_no_lockout", "deadlift_lean_back",
@@ -538,6 +538,8 @@ final class FormWarningTracker {
 
     private var facing: Double?
     private var facingCandidateRun = 0
+    /// Actual evaluator phase for opt-in observation diagnostics; never inferred from UI text.
+    var observationPhase: String? { current?.phase }
     private var current: FormFrameSample?
     /// Same quantities measured on the 3D pose of the same frame (nil when it has no usable 3D).
     private var current3D: FormFrameSample?

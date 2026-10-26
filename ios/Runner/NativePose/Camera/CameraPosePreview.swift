@@ -397,6 +397,9 @@ final class CameraPoseViewModel: ObservableObject {
         ]
     }
 
+    private var experimentalCoaching = ExperimentalCoaching()
+    private let experimentalCoachingEnabled = DemoConfig.environment["BPT_EXPERIMENTAL_COACHING"] == "1"
+
     private var formTracker: FormWarningTracker? {
         squatEvaluator?.formTracker ?? pushUpEvaluator?.formTracker ?? barbellRowEvaluator?.formTracker
             ?? benchPressEvaluator?.formTracker ?? deadliftEvaluator?.formTracker
@@ -820,6 +823,26 @@ final class CameraPoseViewModel: ObservableObject {
         let (statusText, rep, done) = runEvaluator(frameIndex: result.frameIndex, rawCoco17: result.rawCoco17,
                                                    feet: result.feet, pose3D: frame3D.masked3D, pose3DState: frame3D.state)
         let now = CACurrentMediaTime()
+        if experimentalCoachingEnabled {
+            let gravity = motion?.state
+            let up: SIMD3<Double>? = gravity?.isAvailable == true && gravity?.gravity.count == 3
+                ? formTracker?.up3D : nil
+            let observation = ExperimentalCoaching.Frame(time: result.arrivedAt, exercise: formTracker?.exercise.rawValue ?? exercise.rawValue,
+                phase: formTracker?.observationPhase, state: frame3D.state.rawValue, raw: frame3D.raw,
+                corrected: frame3D.masked3D, confidence: frame3D.confidence, invalid: frame3D.invalidJoints, up: up)
+            // There is no approved variant/ROM profile in the current UI. Measurements are logged, candidates
+            // explicitly withheld. These diagnostics cannot emit a warning, speech, or modify the existing pose.
+            let output = experimentalCoaching.update(observation)
+            if let data = try? JSONEncoder().encode(output),
+               var line = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] {
+                line["frame"] = result.frameIndex
+                line["exercise"] = exercise.rawValue
+                line["phase"] = formTracker?.observationPhase ?? NSNull()
+                line["state"] = frame3D.state.rawValue
+                DemoPoseLog.shared?.write("experimental_coaching", line)
+                VideoRunLog.shared?.write("experimental_coaching", line)
+            }
+        }
         if let demo = DemoPoseLog.shared {
             let round = { (v: Double, k: Double) -> Double in (v * k).rounded() / k }
             var kp2d: [Double] = []

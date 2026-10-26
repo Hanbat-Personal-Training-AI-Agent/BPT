@@ -2,7 +2,7 @@
 ///
 /// 네이티브 평가기가 `onFeedback` 으로 키를 보내면 이 목록에서 대사를 찾아 말풍선에
 /// 띄운다. `{n}`(해당 렙 수), `{reps}`(세트 렙 수), `{k}`(고칠 점 개수)는 [render]에서
-/// 채운다. 벤치프레스·데드리프트 대사는 기획 문서에 아직 없다.
+/// 채운다. 벤치프레스·데드리프트 초안은 등록되어 있지만 기본 전달은 보류되어 있다.
 library;
 
 enum KoriFeedbackKind {
@@ -52,6 +52,44 @@ class KoriFeedbackLine {
 }
 
 const List<KoriFeedbackLine> _lines = [
+  // 벤치·데드 초안: 네이티브 기본 전달 필터는 유지. 측정 가능한 변화만 표현.
+  KoriFeedbackLine(
+    key: 'bench_hips_up',
+    kind: KoriFeedbackKind.warning,
+    ko: '엉덩이 높이가 달라 보여. 벤치 지지를 확인해 줘.',
+    en: 'Your hip height appears to change. Check your support on the bench.',
+  ),
+  KoriFeedbackLine(
+    key: 'bench_shallow',
+    kind: KoriFeedbackKind.warning,
+    ko: '내리는 범위가 기준보다 줄어 보여. 설정한 가동범위를 확인해 줘.',
+    en: 'The lowering range appears reduced. Check your planned range of motion.',
+  ),
+  KoriFeedbackLine(
+    key: 'bench_no_lockout',
+    kind: KoriFeedbackKind.warning,
+    ko: '상단에서 팔 폄이 줄어 보인 렙이 {n}번 있었어. 설정한 끝 자세를 확인해 줘.',
+    en: 'Arm extension appeared reduced on {n} reps. Check your planned top position.',
+  ),
+  KoriFeedbackLine(
+    key: 'deadlift_hips_first',
+    kind: KoriFeedbackKind.warning,
+    ko: '엉덩이가 먼저 올라오는 것 같아. 가슴과 함께 움직이는지 확인해 줘.',
+    en: 'Your hips appear to rise first. Check that your chest moves with them.',
+  ),
+  KoriFeedbackLine(
+    key: 'deadlift_no_lockout',
+    kind: KoriFeedbackKind.warning,
+    ko: '상단 엉덩이 폄을 확인할 렙이 {n}번 있었어. 설정한 끝 자세를 확인해 줘.',
+    en: 'Hip extension needs checking on {n} reps. Check your planned top position.',
+  ),
+  KoriFeedbackLine(
+    key: 'deadlift_lean_back',
+    kind: KoriFeedbackKind.warning,
+    ko: '상단에서 뒤로 기운 것처럼 보인 렙이 {n}번 있었어. 끝 자세를 확인해 줘.',
+    en: 'You appeared to lean back at the top on {n} reps. Check your finish position.',
+  ),
+
   // 푸시업
   KoriFeedbackLine(
     key: 'pushup_hip_sag',
@@ -242,6 +280,13 @@ final Map<String, KoriFeedbackLine> koriFeedbackLines = {
 
 /// 리포트 "자주 나온 실수"에 쓰는 경고 키별 짧은 이름 (한국어, 영어).
 const Map<String, (String, String)> koriMistakeLabels = {
+  'bench_hips_up': ('엉덩이 높이 변화', 'Hip height change'),
+  'bench_shallow': ('내리는 범위 감소', 'Lowering range reduced'),
+  'bench_no_lockout': ('상단 팔 폄 확인', 'Check top arm extension'),
+  'deadlift_hips_first': ('엉덩이 선행 상승 후보', 'Possible early hip rise'),
+  'deadlift_no_lockout': ('상단 엉덩이 폄 확인', 'Check top hip extension'),
+  'deadlift_lean_back': ('상단 뒤 기울임 후보', 'Possible backward lean'),
+
   'pushup_hip_sag': ('엉덩이 처짐', 'Hips sagging'),
   'pushup_hip_pike': ('엉덩이 들림', 'Hips piking'),
   'pushup_shallow': ('내려가는 깊이 부족', 'Shallow depth'),
@@ -266,6 +311,8 @@ const Map<String, (String, String)> koriMistakeLabels = {
 
 /// 경고 키의 운동 id (키 앞부분 기준). 알 수 없으면 null.
 String? koriMistakeExerciseId(String key) {
+  if (key.startsWith('bench_')) return 'benchpress';
+  if (key.startsWith('deadlift_')) return 'deadlift';
   if (key.startsWith('pushup_')) return 'pushup';
   if (key.startsWith('squat_')) return 'squat';
   if (key.startsWith('row_')) return 'barbell-row';

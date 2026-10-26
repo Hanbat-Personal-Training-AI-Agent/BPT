@@ -19,8 +19,7 @@ final class WorkoutSessionBridgeTests: XCTestCase {
         return lines
     }
 
-    /// Keys whose dart line does not exist yet (`FormWarningTracker.keysWithoutFlutterLines`); remove a key
-    /// there once its line is in the dart file. They must stay off (`enabledFeedbackKeys`) until then.
+    /// Reserved keys remain disabled even after draft lines are prepared; wording does not authorize activation.
     static let keysAwaitingDartLines = FormWarningTracker.keysWithoutFlutterLines
 
     func testSwiftKeysMatchDartLines() throws {
