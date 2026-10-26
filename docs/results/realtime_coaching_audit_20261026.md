@@ -26,7 +26,7 @@
 
 측정: 좌우 무릎·팔꿈치·고관절각, 전체 몸통과 중력 사이 각도, 몸통 정면 평면에 투영한 상완 각도. 상완각은 몸통의 아래 방향에 대한 **부호 없는 각도**이며 앞뒤 어깨 굽힘을 제거한다. 요추 곡률·척추 분절·관절 부하·통증을 측정하지 않는다.
 
-관절별 confidence 0.5 미만, invalid 관절, raw 부재, 관측 불량, raw/보정 각 차이 10° 초과, 퇴화 기하를 개별 보류한다. 중력이 없으면 몸통 기울기를 보류한다. 0.25초 넘는 관측 간격/시간 역행/위상 변경은 지속 상태를 초기화한다. 이 수치들은 실험용 품질 가드이며 임상·카탈로그 검증 임계가 아니다.
+관절별 confidence 0.5 미만, invalid 관절, raw 부재, 관측 불량, raw/보정 각 차이 10° 초과, 퇴화 기하를 개별 보류한다. source frame과 동기화된 중력이라는 증거가 없으면 몸통 기울기를 보류한다. 현재 앱은 이 증거가 없으므로 해당 지표를 available로 내보내지 않는다. 0.25초 넘는 관측 간격/시간 역행/위상 변경은 지속 상태를 초기화한다. 이 수치들은 실험용 품질 가드이며 임상·카탈로그 검증 임계가 아니다.
 
 후보 3개:
 
@@ -106,3 +106,25 @@ root 검토에서 최초 실험의 상태 유지 결함을 발견해 수정했�
 기기 담당자가 `Documents/demo/pose_*.jsonl`의 `type=experimental_coaching` 행을 회수한다. 확인할 것은 실제 native frame 대응, sample_pts 시간축, 유효 관절의 raw/value 쌍, 부분 가림 보류, 모든 candidate의 approved_profile_required 보류다. profile을 가짜로 승인하거나 기본 음성을 켜지 않는다. local dataset 업로드 금지는 그대로다. 이 검증은 네이티브 입력→진단 로그 연결만 입증하며 운동 오류 정확도·승인 코칭의 실기기 검증이 아니다.
 
 2차 실행 결과: root/device 조율 후 동일 `/tmp/bpt-coaching-minimal-20261026` 최소 패키지에서 production 모듈과 실제 XCTest 파일의 symlink를 사용해 **12/12 통과**(2026-10-26 18:26:34, 빌드 10.38초, 테스트 0.007초). 로그 `/tmp/bpt-coaching-review-regression-20261026.log`를 보존했다. 실행 명령은 `swift test --package-path /tmp/bpt-coaching-minimal-20261026 --jobs 2`. 전체 패키지/iOS/DD/ML을 실행하지 않았다. 생성된 `.build` 120MiB만 정리했고 df는 정리 전1.9GiB→후2.0GiB였다. PTS Camera wiring은 소스 확인 상태이며 이 최소 패키지가 Camera를 typecheck하거나 기기 실행한 것은 아니다.
+
+
+## 최종 프레임·시간·관측 신뢰도 감사
+
+- Camera/video 모두 공통 `processFrame`이 원본 CMSampleBuffer의 PTS를 한 번 읽는다. CameraProcessingResult를 값으로 캡처한 `shown`이 XS의 Entry.payload에 들어간다. async/sync push, warming/tracking-lost 방출, 정상 window 방출, 회전/세트 종료 flush 모두 `e.payload`와 `e.frameIndex`를 함께 반환한다. lookahead의 출력 row를 현재 화면 프레임의 PTS로 바꾸는 경로는 발견하지 않았다.
+- `time`, `maxGapSeconds`, `sustainSeconds`는 모두 **초**다. 기존 offline JSONL replay의 `arrival_host`도 초이지만 sample PTS가 아니므로 정적 분포 감사로만 제한한다. millisecond 변환·frame index 기반 시간 대체는 새 실험에 없다. exercise 또는 phase 변경, profile 전체/approval revision 변경, 시간 역행·동일 시각·0.25초 초과 간격은 상태 초기화 조건이다. 후보별 필수 관측/승인 소실은 추가 초기화 조건이다. 앱의 XS set-end/회전 flush 뒤 warmup도 유효 관측으로 취급하지 않는다.
+- 각도는 유한한 길이를 가진 비퇴화 벡터만 정규화하며 dot을 [-1,1]로 제한한다. NaN/Inf 좌표·중력 및 계산 중 overflow는 값 nil로 귀결된다. nonfinite 입력 시각은 결과 time nil 및 invalid_timestamp 보류다. profile 수치는 JSON 결과에 넣지 않으며 잘못된 임계는 판정을 보류한다. 이 경로가 만든 Codable 결과에 NaN/Inf를 실어 JSON 인코딩을 조용히 실패시키는 경로는 발견하지 않았다.
+- Swift frontend parse는 CameraPosePreview와 ExperimentalCoaching 두 파일에서 통과했다. `/tmp/bpt-coaching-final-parse-20261026.log`(0바이트, exit 0). **parse는 iOS typecheck/링크/기기 실행 증거가 아니다.**
+
+### 내부 spine와 전체 몸통의 구분
+
+전체 몸통 기울기는 골반–흉곽 방향과 중력의 관계다. pelvis0–spine7–thorax8의 내부 굽힘 proxy는 두 선분 사이의 기하 관계이며, 둘은 서로 다른 변수다. 어느 쪽도 실제 요추 분절의 곡률 자체가 아니다.
+
+현재 COCO→H36M 입력 매핑은 pelvis0=양측 hip의 평균, thorax8=양측 shoulder의 평균, spine7=pelvis0와 thorax8의 평균이다. confidence도 endpoint 평균에서 전달된다. **어깨/골반 2D endpoint confidence가 높아도 보간한 내부 spine를 직접 관측했거나 실제 요추 측정 정확도를 검증했다는 뜻이 아니다.** XS가 이후 생성한 내부 3D spine 또한 독립적인 분절 관측/GT 검증 없이 요추 굽힘 진단의 근거가 되지 않는다. 이 제한을 54행 CSV의 로우·스쿼트·데드리프트 spinal_control 항목에도 명시했다.
+
+### Gravity의 명시적 보류
+
+추가 감사에서 실험 몸통 기울기가 delayed XS source frame 대신 현재 기기 gravity를 읽는 문제가 발견되었다. 특히 재생 영상의 촬영 카메라 중력은 현재 폰 중력과 다르다. 단순 문서 경고로 남기지 않고 코드를 보수적으로 수정했다.
+
+`Frame.gravityIsSynchronized`는 기본 false다. source-frame snapshot 및 sensor age가 확인되거나 명시된 clip calibration을 받은 경우에만 true로 계산할 수 있다. 현재 Camera 호출부에는 그 계약이 없으므로 **up=nil**을 전달하고 몸통 값/rawValue를 nil, `synchronized_gravity_required`와 `missing_gravity`로 보류한다. 기존 production evaluator의 up3D 경로는 그대로다. 팔꿈치/무릎/상완 및 후보 3종은 중력 비의존이라 기존 관절별 관측 조건으로 계속 계산한다. 테스트의 알려진 합성 좌표계만 동기화 flag를 true로 지정한다. 최신 폰 gravity를 넣어도 동기화 flag가 false이면 몸통은 보류되고 팔 지표는 유지되는 회귀를 추가했다.
+
+최종 최소 package 검증: **13/13 통과**, 2026-10-26 18:31:21(빌드10.33초, 테스트0.006초). 로그 `/tmp/bpt-coaching-gravity-regression-20261026.log` 보존. 승인된 1회 실행 후 해당 `.build` 120MiB만 다시 정리했다. 전체 앱 빌드/DD/ML/폰 실행은 하지 않았다. 이전 12/12와 5/5는 단계별 기록이며 최종 모듈 회귀 수는 13개다. Camera PTS wiring·실제 native 진단 클립·Dart/Bridge 전체 통합의 미검증 경계는 유지한다.

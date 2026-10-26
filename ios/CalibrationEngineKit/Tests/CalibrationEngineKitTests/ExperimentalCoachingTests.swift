@@ -23,7 +23,7 @@ final class ExperimentalCoachingTests: XCTestCase {
                        exercise: String = "pushup", phase: String? = "bottom", invalid: Set<Int>? = [],
                        confidence: [Double]? = Array(repeating: 0.9, count: 17)) -> ExperimentalCoaching.Frame {
         .init(time: t, exercise: exercise, phase: phase, state: "ok", raw: raw ?? p,
-              corrected: p, confidence: confidence, invalid: invalid, up: [0,-1,0])
+              corrected: p, confidence: confidence, invalid: invalid, up: [0,-1,0], gravityIsSynchronized: true)
     }
     private let pushProfile = ExperimentalCoaching.Profile(exercise: "pushup", variant: "approved_pushup", approved: true,
         upperArmRange: 20...45, legExtensionDegrees: 15, elbowFlexionDegrees: 15, sustainSeconds: 0.2)
@@ -36,7 +36,7 @@ final class ExperimentalCoachingTests: XCTestCase {
         let q = simd_quatd(angle: .pi/3, axis: simd_normalize(SIMD3<Double>(1,2,3)))
         let rotated = p.map { q.act($0) }
         let f = ExperimentalCoaching.Frame(time: 0.1, exercise: "pushup", phase: "bottom", state: "ok", raw: rotated,
-            corrected: rotated, confidence: Array(repeating: 0.9,count:17), invalid: [], up: q.act([0,-1,0]))
+            corrected: rotated, confidence: Array(repeating: 0.9,count:17), invalid: [], up: q.act([0,-1,0]), gravityIsSynchronized: true)
         let b = engine.update(f)
         XCTAssertEqual(try XCTUnwrap(b.metrics["leftUpperArmDeg"]?.value), 60, accuracy: 1e-8)
         XCTAssertEqual(try XCTUnwrap(b.metrics["trunkInclineDeg"]?.value), 0, accuracy: 1e-6)
@@ -189,6 +189,19 @@ final class ExperimentalCoachingTests: XCTestCase {
         XCTAssertEqual(e.update(frame(1.0,pose(elbow:100),exercise:"deadlift",phase:"rising"),profile:deadProfile).candidates.first?.assessment,"not_triggered")
         _ = e.update(frame(1.1,pose(elbow:70),exercise:"deadlift",phase:"rising"),profile:deadProfile)
         XCTAssertEqual(e.update(frame(1.31,pose(elbow:70),exercise:"deadlift",phase:"rising"),profile:deadProfile).candidates.first?.assessment,"candidate")
+    }
+
+    func testUnsynchronizedDeviceGravityIsWithheldButArmMetricsSurvive() throws {
+        var e = ExperimentalCoaching()
+        var replay = frame(0,pose())
+        replay.gravityIsSynchronized = false // even a plausible current-device vector is not clip calibration
+        let output = e.update(replay,profile:pushProfile)
+        XCTAssertNil(output.metrics["trunkInclineDeg"]?.value)
+        XCTAssertFalse(output.metrics["trunkInclineDeg"]!.available)
+        XCTAssertTrue(output.metrics["trunkInclineDeg"]!.reasons.contains("synchronized_gravity_required"))
+        XCTAssertTrue(output.metrics["leftUpperArmDeg"]!.available)
+        XCTAssertEqual(output.candidates.first?.assessment,"not_triggered")
+        XCTAssertNoThrow(try JSONEncoder().encode(output))
     }
 
 }

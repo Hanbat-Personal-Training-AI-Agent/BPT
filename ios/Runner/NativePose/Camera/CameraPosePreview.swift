@@ -828,12 +828,12 @@ final class CameraPoseViewModel: ObservableObject {
                                                    feet: result.feet, pose3D: frame3D.masked3D, pose3DState: frame3D.state)
         let now = CACurrentMediaTime()
         if experimentalCoachingEnabled {
-            let gravity = motion?.state
-            let up: SIMD3<Double>? = gravity?.isAvailable == true && gravity?.gravity.count == 3
-                ? formTracker?.up3D : nil
+            // Latest device gravity is not synchronized to this delayed XS source frame. It is also not
+            // the camera gravity of a replayed clip. Keep the experimental metric withheld until a source
+            // snapshot + sensor age or explicit clip calibration is carried in this same payload.
             let observation = ExperimentalCoaching.Frame(time: result.sourcePTS ?? .nan, exercise: formTracker?.exercise.rawValue ?? exercise.rawValue,
                 phase: formTracker?.observationPhase, state: frame3D.state.rawValue, raw: frame3D.raw,
-                corrected: frame3D.masked3D, confidence: frame3D.confidence, invalid: frame3D.invalidJoints, up: up)
+                corrected: frame3D.masked3D, confidence: frame3D.confidence, invalid: frame3D.invalidJoints, up: nil)
             // There is no approved variant/ROM profile in the current UI. Measurements are logged, candidates
             // explicitly withheld. These diagnostics cannot emit a warning, speech, or modify the existing pose.
             let output = experimentalCoaching.update(observation)

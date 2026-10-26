@@ -10,7 +10,7 @@ barbell_row,row_head_up,고개 들기 변화,partial,head_centroid_proxy_not_ear
 barbell_row,row_leg_drive,다리 반동으로 당김,partial,derivable_missing_contract,false,not_implemented,false,필요 관절 기하 가능; 위상/승인 프로필/가림 조건과 독립 검증 필요,profile_gated_candidate_default_off,not_implemented
 barbell_row,row_pendlay_no_reset,Pendlay 바닥 재설정 누락,no,additional_observation_required,false,not_implemented,false,장비·손/지지면·분절·통증 등 현재 입력 밖 증거 필요,unchanged,not_implemented
 barbell_row,row_grip_mismatch,선택 그립과 불일치,no,additional_observation_required,false,not_implemented,false,장비·손/지지면·분절·통증 등 현재 입력 밖 증거 필요,unchanged,not_implemented
-barbell_row,row_spinal_control,척추 통제 확인 필요,no,additional_observation_required,false,not_implemented,false,요추 분절/곡률은 어깨-골반 또는 H36M spine 한 점으로 진단 불가,unchanged,not_implemented
+barbell_row,row_spinal_control,척추 통제 확인 필요,no,additional_observation_required,false,not_implemented,false,몸통 전체 기울기와 내부 spine proxy는 요추 곡률과 다름; COCO 어깨/골반 endpoint의 높은 2D confidence는 보간 spine의 실제 분절 측정 검증이 아님; 요추 진단 불가,unchanged,not_implemented
 squat,squat_hips_first,엉덩이 선행 상승,yes,hybrid_3d_angle_2d_height,true,default_candidate_delivery,false,높이/상승속도는 pelvis-relative 3D가 아닌 2D 절대 영상값; 프레임수 기반 창,unchanged,default_candidate_delivery
 squat,squat_knee_valgus,무릎 안쪽 이동 후보,partial,3d_proxy_available,true,quiet_default,false,동일 ID 존재만 확인; 후보 임계·초기 자동기준·단계 조건은 catalog와 완전히 일치하지 않음,unchanged,quiet_default
 squat,squat_heel_rise,뒤꿈치 지지 이탈 후보,partial,2d_only_disabled,true,rule_disabled_no_3d_metric,false,동일 ID 존재만 확인; 후보 임계·초기 자동기준·단계 조건은 catalog와 완전히 일치하지 않음,unchanged,rule_disabled_no_3d_metric
@@ -18,7 +18,7 @@ squat,squat_shallow,목표 깊이 부족,yes,3d_proxy_available,true,default_can
 squat,squat_no_lockout,상단 폄 부족,yes,3d_proxy_available,true,quiet_default,false,동일 ID 존재만 확인; 후보 임계·초기 자동기준·단계 조건은 catalog와 완전히 일치하지 않음,unchanged,quiet_default
 squat,squat_lean_drift,상체 기울기 추세 변화,yes,3d_proxy_available,true,default_candidate_delivery,false,동일 ID 존재만 확인; 후보 임계·초기 자동기준·단계 조건은 catalog와 완전히 일치하지 않음,unchanged,default_candidate_delivery
 squat,squat_depth_fade,반복 깊이 감소,yes,3d_proxy_available,true,default_candidate_delivery,false,동일 ID 존재만 확인; 후보 임계·초기 자동기준·단계 조건은 catalog와 완전히 일치하지 않음,unchanged,default_candidate_delivery
-squat,squat_spinal_control,척추·골반 통제 확인 필요,no,additional_observation_required,false,not_implemented,false,요추 분절/곡률은 어깨-골반 또는 H36M spine 한 점으로 진단 불가,unchanged,not_implemented
+squat,squat_spinal_control,척추·골반 통제 확인 필요,no,additional_observation_required,false,not_implemented,false,몸통 전체 기울기와 내부 spine proxy는 요추 곡률과 다름; COCO 어깨/골반 endpoint의 높은 2D confidence는 보간 spine의 실제 분절 측정 검증이 아님; 요추 진단 불가,unchanged,not_implemented
 squat,squat_bar_balance,바 지지·균형 상실 후보,no,additional_observation_required,false,not_implemented,false,장비·손/지지면·분절·통증 등 현재 입력 밖 증거 필요,unchanged,not_implemented
 pushup,pushup_hip_sag,엉덩이 처짐,yes,3d_proxy_available,true,default_candidate_delivery,false,동일 ID 존재만 확인; 후보 임계·초기 자동기준·단계 조건은 catalog와 완전히 일치하지 않음,unchanged,default_candidate_delivery
 pushup,pushup_hip_pike,엉덩이 들림,yes,3d_proxy_available,true,quiet_default,false,동일 ID 존재만 확인; 후보 임계·초기 자동기준·단계 조건은 catalog와 완전히 일치하지 않음,unchanged,quiet_default
@@ -34,7 +34,7 @@ deadlift,deadlift_hips_first,엉덩이 선행 이륙,partial,hybrid_3d_angle_2d_
 deadlift,deadlift_no_lockout,상단 폄 부족,yes,3d_proxy_available,true,no_flutter_line_filter,false,동일 ID 존재만 확인; 후보 임계·초기 자동기준·단계 조건은 catalog와 완전히 일치하지 않음,unchanged,draft_line_present_default_still_held
 deadlift,deadlift_lean_back,상단 뒤 젖힘 후보,partial,3d_proxy_available,true,no_flutter_line_filter,false,동일 ID 존재만 확인; 후보 임계·초기 자동기준·단계 조건은 catalog와 완전히 일치하지 않음,unchanged,draft_line_present_default_still_held
 deadlift,deadlift_bar_drift,바가 몸에서 멀어짐,no,additional_observation_required,false,not_implemented,false,장비·손/지지면·분절·통증 등 현재 입력 밖 증거 필요,unchanged,not_implemented
-deadlift,deadlift_spinal_control,척추 통제 확인 필요,no,additional_observation_required,false,not_implemented,false,요추 분절/곡률은 어깨-골반 또는 H36M spine 한 점으로 진단 불가,unchanged,not_implemented
+deadlift,deadlift_spinal_control,척추 통제 확인 필요,no,additional_observation_required,false,not_implemented,false,몸통 전체 기울기와 내부 spine proxy는 요추 곡률과 다름; COCO 어깨/골반 endpoint의 높은 2D confidence는 보간 spine의 실제 분절 측정 검증이 아님; 요추 진단 불가,unchanged,not_implemented
 deadlift,deadlift_arm_pull,팔꿈치로 당기기,partial,derivable_missing_contract,false,not_implemented,false,필요 관절 기하 가능; 위상/승인 프로필/가림 조건과 독립 검증 필요,profile_gated_candidate_default_off,not_implemented
 deadlift,deadlift_knee_bar_collision,하강 중 바-무릎 간섭,no,additional_observation_required,false,not_implemented,false,장비·손/지지면·분절·통증 등 현재 입력 밖 증거 필요,unchanged,not_implemented
 bench_press,bench_hips_up,엉덩이 지지 이탈 후보,partial,hybrid_3d_angle_2d_height,true,no_flutter_line_filter,false,높이/상승속도는 pelvis-relative 3D가 아닌 2D 절대 영상값; 프레임수 기반 창,unchanged,draft_line_present_default_still_held

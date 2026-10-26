@@ -15,6 +15,8 @@ struct ExperimentalCoaching {
         let confidence: [Double]?
         let invalid: Set<Int>?
         let up: SIMD3<Double>?
+        /// True only for a source-frame gravity sample with verified sensor age, or explicit clip calibration.
+        var gravityIsSynchronized = false
     }
     /// Supplied explicitly by a caller after approval; never learned from initial repetitions.
     /// Thresholds are experimental candidate settings, not a validated catalogue or medical norms.
@@ -99,12 +101,14 @@ struct ExperimentalCoaching {
                 return Self.angle(down, arm - simd_dot(arm, normal) * normal)
             }
         }
-        var trunk = measure([0, 8]) { j in
-            guard let up = frame.up else { return nil }
-            return Self.angle(j[8] - j[0], up)
+        if frame.gravityIsSynchronized, let up = frame.up {
+            metrics["trunkInclineDeg"] = measure([0, 8]) { Self.angle($0[8] - $0[0], up) }
+        } else {
+            var reasons = ["synchronized_gravity_required"]
+            if frame.up == nil { reasons.append("missing_gravity") }
+            if !frame.time.isFinite { reasons.append("invalid_timestamp") }
+            metrics["trunkInclineDeg"] = Metric(value: nil, rawValue: nil, reasons: reasons)
         }
-        if frame.up == nil { trunk = Metric(value: trunk.value, rawValue: trunk.rawValue, reasons: trunk.reasons + ["missing_gravity"]) }
-        metrics["trunkInclineDeg"] = trunk
         let phase = frame.phase ?? ""
         var candidates: [Candidate] = []
         func profileReasons(_ variant: String) -> [String] {
