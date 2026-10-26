@@ -22,6 +22,19 @@ struct PushUpSupportEvidence2D {
         let evidence: [Corridor.Observation]
         let bodyScale: Double
         let reset: Bool
+        /// JSON-safe diagnostics even when a transient capture timestamp or optional measurement is invalid.
+        var diagnostics: [String: Any] {
+            func number(_ value: Double?) -> Any {
+                guard let value, value.isFinite else { return NSNull() }
+                return value
+            }
+            return ["reasons": [corridor.left.reason.rawValue, corridor.right.reason.rawValue],
+                    "inferred": [corridor.left.inferred, corridor.right.inferred],
+                    "eligible": [corridor.left.armAndHandCoachingEligible, corridor.right.armAndHandCoachingEligible],
+                    "source_pts": number(corridor.sourcePTS),
+                    "age_s": [number(corridor.left.occlusionAge), number(corridor.right.occlusionAge)],
+                    "correction_px": [number(corridor.left.correctionMagnitude), number(corridor.right.correctionMagnitude)]]
+        }
         /// Conservative arm-coaching veto includes the elbow and wrist; coordinates remain untouched in raw.
         var invalid3DJoints: Set<Int> {
             var out: Set<Int> = []

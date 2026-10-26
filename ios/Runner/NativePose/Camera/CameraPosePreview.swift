@@ -951,16 +951,13 @@ final class CameraPoseViewModel: ObservableObject {
             if let row = frame3D.row { line["row"] = row }
             if rep == 0, let s = setupLog { line["setup"] = s }
             if let support = result.supportCorridor {
-                line["support_corridor"] = ["reasons": [support.corridor.left.reason.rawValue, support.corridor.right.reason.rawValue],
-                    "inferred": [support.corridor.left.inferred, support.corridor.right.inferred],
-                    "eligible": [support.corridor.left.armAndHandCoachingEligible, support.corridor.right.armAndHandCoachingEligible],
-                    "assessment_state": (support.assessmentState(frame3D.state) ?? frame3D.state).rawValue,
-                    "assessment_invalid": support.invalid3DJoints.sorted(),
-                    "camera_evidence": VideoCameraOptions.isActive && CameraPreviewOptions.fixedSupportReplay ? "controlled_replay_assertion" : "unknown",
-                    "source_pts": support.corridor.sourcePTS,
-                    "contact_source": "explicit_controlled_replay_interval_and_readiness_eligibility",
-                    "age_s": [support.corridor.left.occlusionAge.map { $0 as Any } ?? NSNull(), support.corridor.right.occlusionAge.map { $0 as Any } ?? NSNull()],
-                    "correction_px": [support.corridor.left.correctionMagnitude.map { $0 as Any } ?? NSNull(), support.corridor.right.correctionMagnitude.map { $0 as Any } ?? NSNull()]]
+                var diagnostic = support.diagnostics
+                diagnostic["assessment_state"] = (support.assessmentState(frame3D.state) ?? frame3D.state).rawValue
+                diagnostic["assessment_invalid"] = support.invalid3DJoints.sorted()
+                diagnostic["camera_evidence"] = VideoCameraOptions.isActive && CameraPreviewOptions.fixedSupportReplay
+                    ? "controlled_replay_assertion" : "unknown"
+                diagnostic["contact_source"] = "explicit_controlled_replay_interval_and_readiness_eligibility"
+                line["support_corridor"] = diagnostic
             }
             if let a = result.wristAnchor { line["wrist_anchor"] = a }
             if let src = log.clipFrame(result.frameIndex) { line["src"] = src }

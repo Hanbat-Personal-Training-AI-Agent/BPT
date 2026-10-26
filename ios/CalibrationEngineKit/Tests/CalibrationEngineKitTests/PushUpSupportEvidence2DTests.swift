@@ -147,4 +147,20 @@ final class PushUpSupportEvidence2DTests: XCTestCase {
         XCTAssertTrue(before.eligible,"old source snapshot cannot mutate with latest control")
     }
 
+    func testTransientInvalidTimestampDiagnosticsRemainJSONSafeAndRecover() throws {
+        for invalid in [Double.nan, .infinity, -.infinity] {
+            var adapter=Adapter(enabled:true); acquire(&adapter)
+            let output=adapter.update(frame(invalid))
+            XCTAssertTrue(JSONSerialization.isValidJSONObject(output.diagnostics))
+            let data=try JSONSerialization.data(withJSONObject:output.diagnostics)
+            let decoded=try XCTUnwrap(JSONSerialization.jsonObject(with:data) as? [String:Any])
+            XCTAssertTrue(decoded["source_pts"] is NSNull)
+            XCTAssertFalse(output.corridor.left.assessmentEligible)
+            XCTAssertNil(output.corridor.left.anchor)
+            let recovered=adapter.update(frame(0.35))
+            XCTAssertTrue(recovered.reset)
+            XCTAssertNil(recovered.corridor.left.anchor,"a fresh observation cannot reuse expired support")
+        }
+    }
+
 }
