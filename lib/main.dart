@@ -9,6 +9,7 @@ import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'features/profile/providers/profile_provider.dart';
 import 'demo/demo_autopilot.dart';
+import 'features/workout/data/deep_analysis_queue.dart';
 import 'services/local_storage_service.dart';
 import 'services/reminder_notification_service.dart';
 
@@ -53,6 +54,7 @@ class BPTApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(deepAnalysisQueueProvider.notifier);
     final router = ref.watch(appRouterProvider);
     final locale = ref.watch(appLocaleProvider);
 

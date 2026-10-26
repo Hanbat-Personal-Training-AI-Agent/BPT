@@ -290,14 +290,15 @@ class AuthNotifier extends ChangeNotifier {
     } catch (_) {
       return '탈퇴하지 못했어. 잠시 후 다시 시도해줘.';
     }
-    if (user != null) await _storage.removeWorkoutData(user.id);
-    await _storage.removeUser();
-    await _storage.clearSession();
+    // Invalidate account-bound requests before removing their persisted queues.
     _authService.restoreAuthToken(null);
     _currentUser = null;
     _error = null;
     _isOfflineMode = false;
     notifyListeners();
+    if (user != null) await _storage.removeWorkoutData(user.id);
+    await _storage.removeUser();
+    await _storage.clearSession();
     return null;
   }
 

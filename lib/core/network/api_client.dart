@@ -173,11 +173,16 @@ class ApiClient {
   /// POST /auth/refresh 로 새 토큰을 받는다. 성공하면 true.
   Future<bool> _refreshTokens() {
     return _refreshing ??= () async {
+      final originalAccess = _authToken;
+      final originalRefresh = _refreshToken;
+      bool sameSession() =>
+          _authToken == originalAccess && _refreshToken == originalRefresh;
       try {
         final response = await _refreshDio.post(
           '/auth/refresh',
-          data: {'refreshToken': _refreshToken},
+          data: {'refreshToken': originalRefresh},
         );
+        if (!sameSession()) return false;
         final data = response.data;
         final access =
             data is Map ? data['accessToken'] ?? data['token'] : null;
@@ -191,7 +196,7 @@ class ApiClient {
         // 서버가 거절했으면(401·403) 리프레시 토큰도 만료 → 다시 로그인.
         // 네트워크·서버 오류면 세션은 그대로 두고 원래 에러를 돌려준다.
         final status = e.response?.statusCode;
-        if (status == 401 || status == 403) {
+        if (sameSession() && (status == 401 || status == 403)) {
           _authToken = null;
           _refreshToken = null;
           onSessionExpired?.call();
@@ -201,6 +206,14 @@ class ApiClient {
         _refreshing = null;
       }
     }();
+  }
+
+  /// Reuse the session's single-flight refresh for a trusted external API.
+  /// Call only after that API rejects the access token, and retry it once.
+  Future<String?> refreshAccessToken(String rejectedToken) async {
+    if (_authToken == null || _refreshToken == null) return null;
+    if (_authToken != rejectedToken) return _authToken;
+    return await _refreshTokens() ? _authToken : null;
   }
 
   String? get authToken => _authToken;

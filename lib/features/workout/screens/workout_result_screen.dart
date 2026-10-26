@@ -18,6 +18,7 @@ import '../../../data/dto/workout_metadata_dto.dart';
 import '../../../data/mock_data.dart';
 import '../../../services/workout_records_service.dart';
 import '../providers/workout_provider.dart';
+import 'deep_analysis_report_screen.dart';
 
 const _monthsEn = [
   'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
@@ -77,10 +78,12 @@ class _SetRecord {
     required this.reps,
     required this.weightKg,
     required this.badCount,
+    this.videoPath,
   });
   final int reps;
   final int weightKg;
   final int badCount;
+  final String? videoPath;
 }
 
 class WorkoutResultScreen extends ConsumerStatefulWidget {
@@ -122,7 +125,7 @@ class _WorkoutResultScreenState extends ConsumerState<WorkoutResultScreen>
     final r = widget.result;
     final dto = WorkoutMetadataRequestDto(
       weightKg: _heaviestSetWeightKg(),
-      clientRecordId: newClientRecordId(),
+      clientRecordId: r['clientRecordId'] as String? ?? newClientRecordId(),
       exerciseId: r['exerciseId'] as String? ?? 'squat',
       exerciseName: r['exerciseName'] as String? ?? 'Squat',
       date: DateTime.now(),
@@ -189,6 +192,7 @@ class _WorkoutResultScreenState extends ConsumerState<WorkoutResultScreen>
           reps: (m['reps'] as num?)?.toInt() ?? 0,
           weightKg: (m['weightKg'] as num?)?.toInt() ?? weightKg,
           badCount: (m['badCount'] as num?)?.toInt() ?? 0,
+          videoPath: m['videoLocalPath'] as String?,
         );
       }).toList();
     }
@@ -329,6 +333,8 @@ class _WorkoutResultScreenState extends ConsumerState<WorkoutResultScreen>
                               ),
                               const SizedBox(height: 16),
                               _ReplaySection(isKo: isKo, records: setRecords),
+                              const SizedBox(height: 16),
+                              DeepAnalysisSection(recordId: r['clientRecordId'] as String?),
                             ],
                           ),
                         ),
@@ -811,8 +817,7 @@ class _ReplaySection extends StatefulWidget {
 }
 
 class _ReplaySectionState extends State<_ReplaySection> {
-  // 세트별 실제 녹화 저장소가 아직 없어서, 데모용 영상 하나를 세트 전환마다
-  // 처음부터 다시 재생하는 방식으로 "세트별로 볼 수 있다"는 동작만 보여준다.
+  // 세트 녹화(BPT_SET_RECORDING)가 꺼져 기기 영상이 없으면 예전처럼 데모 영상 하나를 보여 준다.
   static const _demoVideoUrl = 'https://www.w3schools.com/html/mov_bbb.mp4';
 
   late int _index;
@@ -848,12 +853,11 @@ class _ReplaySectionState extends State<_ReplaySection> {
     final next = (_index + delta).clamp(0, widget.records.length - 1);
     if (next == _index) return;
     _controller?.pause();
-    _controller?.seekTo(Duration.zero);
-    setState(() => _index = next);
+    _controller?.dispose();
+    setState(() { _controller = null; _index = next; });
   }
 
-  /// 지금 보고 있는 세트의 영상만 갤러리에 저장한다. 세트별 실제 녹화 파일이
-  /// 생기면 [_demoVideoUrl] 대신 해당 세트의 파일 경로/URL을 넘기면 된다.
+  /// 지금 보고 있는 세트의 기기 녹화 파일을 갤러리에 저장한다.
   Future<void> _saveCurrentSetVideo() async {
     if (_savingVideo || widget.records.isEmpty) return;
     final isKo = widget.isKo;
@@ -862,10 +866,16 @@ class _ReplaySectionState extends State<_ReplaySection> {
     setState(() => _savingVideo = true);
     File? tmp;
     try {
-      tmp = File(
-          '${Directory.systemTemp.path}/bpt_set${setNo}_${DateTime.now().millisecondsSinceEpoch}.mp4');
-      await Dio().download(_demoVideoUrl, tmp.path);
-      await Gal.putVideo(tmp.path, album: 'BPT');
+      final path = widget.records[_index].videoPath;
+      if (path != null && await File(path).exists()) {
+        if (!await Gal.hasAccess() && !await Gal.requestAccess()) throw const FileSystemException();
+        await Gal.putVideo(path);
+      } else {
+        tmp = File(
+            '${Directory.systemTemp.path}/bpt_set${setNo}_${DateTime.now().millisecondsSinceEpoch}.mp4');
+        await Dio().download(_demoVideoUrl, tmp.path);
+        await Gal.putVideo(tmp.path, album: 'BPT');
+      }
       messenger.showSnackBar(SnackBar(
         content: Text(isKo
             ? '$setNo세트 영상을 갤러리에 저장했어!'
@@ -889,7 +899,10 @@ class _ReplaySectionState extends State<_ReplaySection> {
   Future<void> _togglePlay() async {
     final controller = _controller;
     if (controller == null) {
-      final c = VideoPlayerController.networkUrl(Uri.parse(_demoVideoUrl));
+      final path = widget.records[_index].videoPath;
+      final c = path != null && await File(path).exists()
+          ? VideoPlayerController.file(File(path))
+          : VideoPlayerController.networkUrl(Uri.parse(_demoVideoUrl));
       try {
         await c.initialize();
         c.setLooping(true);

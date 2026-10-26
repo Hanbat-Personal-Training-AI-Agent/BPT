@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -125,10 +126,38 @@ class LocalStorageService {
     await _prefs.remove(legacySyncQueueKey);
   }
 
+  static String deepAnalysisTempPrefix(String uid) =>
+      'bpt-deep-${base64Url.encode(utf8.encode(uid)).replaceAll('=', '')}-';
+
   /// 탈퇴한 계정의 운동 기록 캐시와 전송 대기열을 지운다.
   Future<void> removeWorkoutData(String uid) async {
     await _prefs.remove(_recordsKey(uid));
     await _prefs.remove(syncQueueKey(uid));
+    for (final key in _prefs
+        .getKeys()
+        .where((key) => key.startsWith('deep_analysis:$uid:'))
+        .toList()) {
+      await _prefs.remove(key);
+    }
+    // Only our account-tagged generated downloads, never original recordings.
+    final prefix = deepAnalysisTempPrefix(uid);
+    try {
+      await for (final entry in Directory.systemTemp.list(followLinks: false)) {
+        if (entry is Directory &&
+            entry.uri.pathSegments
+                .where((s) => s.isNotEmpty)
+                .last
+                .startsWith(prefix)) {
+          try {
+            await entry.delete(recursive: true);
+          } on FileSystemException {
+            /* active download cleanup also runs on cancellation */
+          }
+        }
+      }
+    } on FileSystemException {
+      /* cache cleanup must not block account deletion */
+    }
   }
 
   // ── Session ───────────────────────────────────────────────────────────────

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:bpt/core/network/api_client.dart';
@@ -45,6 +46,8 @@ void main() {
       'bpt_workout_records_7': '[]',
       LocalStorageService.syncQueueKey('7'): '[]',
       'bpt_workout_records_other': '[]',
+      'deep_analysis:7:https://api.example/v1': <String>[],
+      'deep_analysis:other:https://api.example/v1': <String>[],
     });
     prefs = await SharedPreferences.getInstance();
     server = _FakeServer();
@@ -64,9 +67,23 @@ void main() {
   });
 
   test('successful delete removes only that account\'s local data', () async {
+    final owned = await Directory.systemTemp
+        .createTemp(LocalStorageService.deepAnalysisTempPrefix('7'));
+    final other = await Directory.systemTemp
+        .createTemp(LocalStorageService.deepAnalysisTempPrefix('other'));
+    addTearDown(() async {
+      if (await owned.exists()) await owned.delete(recursive: true);
+      await other.delete(recursive: true);
+    });
     server.deleteStatus = 200;
     expect(await auth.deleteAccount(), isNull);
     expect(auth.isLoggedIn, isFalse);
-    expect(prefs.getKeys(), {'bpt_workout_records_other', 'bpt_auto_login'});
+    expect(await owned.exists(), isFalse);
+    expect(await other.exists(), isTrue);
+    expect(prefs.getKeys(), {
+      'bpt_workout_records_other',
+      'bpt_auto_login',
+      'deep_analysis:other:https://api.example/v1'
+    });
   });
 }
