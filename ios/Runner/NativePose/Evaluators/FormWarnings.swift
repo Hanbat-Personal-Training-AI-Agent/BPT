@@ -812,7 +812,7 @@ final class FormWarningTracker {
             lastSpokenRep[key] = repIndex
             // n only for set scope: rep-scope lines have no {n}, and the app adds `n ?? 1` per event to feedbackCounts.
             emit(FormFeedbackEvent(key: key, n: nil))
-        } else if let last = previousSpoken, !fired.contains(last), common.enabledFeedbackKeys.contains("praise_fixed") {
+        } else if judged, fired.isEmpty, previousSpoken != nil, common.enabledFeedbackKeys.contains("praise_fixed") {
             spoken = "praise_fixed"
             emit(FormFeedbackEvent(key: "praise_fixed", n: nil))
         } else if judged, fired.isEmpty, common.enabledFeedbackKeys.contains("praise_good"),

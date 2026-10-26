@@ -240,12 +240,11 @@ final class FormWarningsTests: XCTestCase {
         XCTAssertEqual(sag.spoken, "pushup_hip_sag")
         XCTAssertEqual(tracker.drainEvents(), [FormFeedbackEvent(key: "pushup_hip_sag", n: nil)])
 
-        // 개선 (pike): not said the first time, and praise_fixed because the sag is gone.
+        // A different fault remains: delayed delivery must not turn it into correction praise.
         let pike1 = pushUpRep(tracker, hipDrop: -50, frame: 4)
         XCTAssertEqual(pike1.warnings, ["pushup_hip_pike"], "\(pike1.metrics2D)")
-        XCTAssertEqual(pike1.spoken, "praise_fixed")
-        XCTAssertEqual(tracker.drainEvents(), [FormFeedbackEvent(key: "praise_fixed", n: nil)],
-                       "the unchosen pike is not sent (report / set counts only)")
+        XCTAssertNil(pike1.spoken)
+        XCTAssertEqual(tracker.drainEvents(), [], "a remaining fault prevents praise even before its delivery")
         // Second rep in a row: spoken.
         let pike2 = pushUpRep(tracker, hipDrop: -50, frame: 6)
         XCTAssertEqual(pike2.spoken, "pushup_hip_pike")
@@ -530,6 +529,32 @@ extension FormWarningsTests {
         hidden.recordCurrentFrame()
         XCTAssertNil(hidden.finishRep(repIndex: 1).spoken)
         XCTAssertTrue(hidden.drainEvents().filter { $0.key == "praise_good" }.isEmpty)
+    }
+
+    func testCorrectionPraiseRequiresFullyObservedClean3D() {
+        for state: Pose3DState in [.bad3D, .partial3D, .warmingUp, .trackingLost, .ok] {
+            let tracker = FormWarningTracker(exercise: .pushUp)
+            // Establish the same real warning history through the public evaluator path.
+            _ = pushUpRep(tracker, hipDrop: 70, frame: 0)
+            XCTAssertEqual(tracker.drainEvents().map(\.key), ["pushup_hip_sag"])
+            tracker.common.form3DRequired = true
+            var j = [SIMD3<Double>](repeating: .zero, count: 17)
+            j[1] = [-0.1, 0, 0]; j[4] = [0.1, 0, 0]
+            j[8] = [0, 0, -0.5]; j[7] = [0, 0, -0.25]; j[10] = [0, 0, -0.75]
+            j[3] = [-0.1, 0, 1]; j[6] = [0.1, 0, 1]
+            j[2] = [-0.1, 0, 0.5]; j[5] = [0.1, 0, 0.5]
+            j[11] = [0.15, 0, -0.5]; j[12] = [0.15, 0.25, -0.5]; j[13] = [0.15, 0.5, -0.5]
+            j[14] = [-0.15, 0, -0.5]; j[15] = [-0.15, 0.25, -0.5]; j[16] = [-0.15, 0.5, -0.5]
+            let pose: [SIMD3<Double>]? = state == .warmingUp || state == .trackingLost ? nil : j
+            tracker.observe(frameIndex: 2, coco17: sidePushUp(hipDrop: 0), pose3D: pose, pose3DState: state, phase: "descending")
+            tracker.beginRep()
+            tracker.observe(frameIndex: 3, coco17: sidePushUp(hipDrop: 0, elbowBend: 60), pose3D: pose, pose3DState: state, phase: "bottom")
+            tracker.recordCurrentFrame()
+            let report = tracker.finishRep(repIndex: 2)
+            XCTAssertEqual(report.warnings, [], "\(state)")
+            XCTAssertEqual(report.spoken, state == .ok ? "praise_fixed" : nil, "\(state)")
+            XCTAssertEqual(tracker.drainEvents().map(\.key), state == .ok ? ["praise_fixed"] : [], "\(state)")
+        }
     }
 
     func testPraiseGoodCooldown() {
