@@ -48,3 +48,20 @@ Display override runs **after** the unchanged One-Euro smoother so observed wris
 Each immutable output stays in CameraProcessingResult through XS lookahead. Both ordinary evaluator input and ExperimentalCoaching receive assessment copies with uncertain arm elbow/wrist indices invalid, zero confidence and NaN assessment coordinates. Original raw3D remains unchanged. A raw `.ok` becomes `.partial3D` for assessment when a guard arm veto exists, preventing full-observation praise; raw telemetry retains the original model state. ExperimentalCoaching logs `raw_model_state` separately. Pose3D bridge retains its raw model `state` and adds `assessment_state`/`support_invalid` plus a change-detection suffix. No Flutter UI or speech strings changed. When overlay source wrists differ materially from the evaluator's original RTMPose wrist, assessment2D invalidates the wrist instead of certifying different coordinates or replacing raw anatomy.
 
 Focused tests exercise real FormWarningTracker and ExperimentalCoaching paths: raw-ok plus inferred arms cannot produce praise or arm candidates. Native Camera/SwiftUI files receive syntax parsing and project-file lint only; no Xcode/app build, device test, model load or deployment was performed. Swift package tests compile the adapter, original smoother and assessment functions; they do not establish iOS runtime correctness.
+
+## Actual native build verification, 2026-10-26 followup
+
+Source `2f216cbdb092368801700eb9796754dd7ee248ec` passed a real Runner **Release / arm64 / generic iOS** build against iPhoneOS27.1, with signing disabled and `lib/main.dart` as the Flutter target. This compiled the guard, adapter, renderer and camera wiring, then linked the app. The Runner Swift source list and the resulting binary both contain the opt-in implementation. This supersedes the earlier syntax-only native limitation; there was no device install, launch or runtime/UI validation.
+
+The review found one additional defect: a transient NaN/Inf capture timestamp could put a non-JSON number in the opt-in diagnostic payload. Commit `2f216cb` converts nonfinite optional diagnostic numbers to JSON null, preserving reason/veto reporting. All 12 adapter tests passed after this fix, including invalid-time serialization/recovery. The earlier 28-test run remains recorded separately; no additional accuracy claim follows from either test run or native compilation.
+
+The default flag remains OFF. Raw RTMPose, original accepted-wrist XS input and raw3D are preserved. Both normal and ExperimentalCoaching paths use the same source-frame assessment veto; uncertain source wrists cannot gain full-observation praise. The post-smoother override and renderer visibility/style path remain as previously described. Unknown live camera/contact still cannot acquire support. Automatic live support/contact estimation and device behavior remain unverified.
+
+Build artifacts, full log, command, dependency configuration diff and input hashes are retained outside the repository under `/Users/6_month/Documents/bpt-handoff/pushup-wrist-build-20261026/`. `evidence.json` records:
+
+- Runner executable SHA-256: `87c1027bd5d704cad84cae41da6e79099154d56738e3893bd52850c3a0a911fb`.
+- Dart AOT SHA-256: `b6fa0bc99952c320dff428e72fdf30914bcf03c6a1f4079aabebc895d07b3e91`.
+- Canonical app-file manifest SHA-256: `afb37f12a0a8ddfad93cbf621bdc0f6259296207ec708db63e2e7161213d9881` (223 entries, relative paths and file hashes/symlink targets).
+- Bundled XS weight SHA-256: `37a5c83431601e421a4d3d1e6fa6af39951062a08a7372cea172b98110d2f38e`, matching the original source weight.
+
+The build acquired the existing advisory heavy lock, used independent APFS clones of cached dependencies/DerivedData, and released the lock on completion. All eight frozen Runner binaries matched before/after; all 200 archived model-file hashes also matched their existing reference manifests. Original benchmark DD/apps and phone state were not modified. Only this worktree's generated CocoaPods lock changed during setup; its exact build diff was recorded externally and its tracked file was restored afterward. No merge or push occurred.
