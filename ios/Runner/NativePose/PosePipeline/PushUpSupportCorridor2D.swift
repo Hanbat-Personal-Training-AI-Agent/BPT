@@ -53,7 +53,7 @@ struct PushUpSupportCorridor2D {
         var valid: Bool {
             [reliableConfidence, acquisitionSeconds, maximumSampleGap, stableRadius,
              corridorRadius, maximumOcclusionSeconds].allSatisfy(\.isFinite)
-                && (0...1).contains(reliableConfidence) && acquisitionSeconds > 0
+                && reliableConfidence >= 0 && acquisitionSeconds > 0
                 && minimumSamples >= 2 && maximumSampleGap > 0 && stableRadius > 0
                 && corridorRadius >= stableRadius && maximumOcclusionSeconds > 0
         }
@@ -131,9 +131,9 @@ struct PushUpSupportCorridor2D {
         return Result(sourcePTS: input.sourcePTS, left: l, right: r)
     }
     private static func reliable(_ o: Observation, config: Config) -> Bool {
-        config.reliableConfidence.isFinite && (0...1).contains(config.reliableConfidence)
+        config.reliableConfidence.isFinite && config.reliableConfidence >= 0
             && o.reliablyObserved && o.neighborEvidenceConsistent && o.temporalEvidenceConsistent
-            && o.confidence.isFinite && (config.reliableConfidence...1).contains(o.confidence)
+            && o.confidence.isFinite && o.confidence >= config.reliableConfidence
             && o.point?.finite == true
     }
     private static func updateWrist(_ raw: Observation, pts: Double, scale: Double,

@@ -7,6 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		AC1026ABCDEF000000000021 /* OverlaySmoother.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC1026ABCDEF000000000022 /* OverlaySmoother.swift */; };
+		AC1026ABCDEF000000000011 /* PushUpSupportEvidence2D.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC1026ABCDEF000000000012 /* PushUpSupportEvidence2D.swift */; };
+		AC1026ABCDEF000000000001 /* PushUpSupportCorridor2D.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC1026ABCDEF000000000002 /* PushUpSupportCorridor2D.swift */; };
 		B0D1E5A0C0FFEE0000000004 /* GLBMesh.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0D1E5A0C0FFEE0000000002 /* GLBMesh.swift */; };
 		B0D1E5A0C0FFEE0000000005 /* BodyMeshPlatformView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0D1E5A0C0FFEE0000000003 /* BodyMeshPlatformView.swift */; };
 		05A1975E6E323360F6D4A55A /* HandLandmarkTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = B403B85320DD7A4B0C166027 /* HandLandmarkTypes.swift */; };
@@ -98,6 +101,9 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		AC1026ABCDEF000000000022 /* OverlaySmoother.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverlaySmoother.swift; sourceTree = "<group>"; };
+		AC1026ABCDEF000000000012 /* PushUpSupportEvidence2D.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushUpSupportEvidence2D.swift; sourceTree = "<group>"; };
+		AC1026ABCDEF000000000002 /* PushUpSupportCorridor2D.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushUpSupportCorridor2D.swift; sourceTree = "<group>"; };
 		B0D1E5A0C0FFEE0000000002 /* GLBMesh.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = GLBMesh.swift; sourceTree = "<group>"; };
 		B0D1E5A0C0FFEE0000000003 /* BodyMeshPlatformView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BodyMeshPlatformView.swift; sourceTree = "<group>"; };
 		1498D2321E8E86230040F4C2 /* GeneratedPluginRegistrant.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = GeneratedPluginRegistrant.h; sourceTree = "<group>"; };
@@ -306,6 +312,9 @@
 				7B3D2C9E4F5A6B7C8D9E0F04 /* Pose3DConstraints.swift */,
 				5C9A1E3B7D2F4A6C8E0B1D02 /* AdaptiveRelationConstraint.swift */,
 				5C9A1E3B7D2F4A6C8E0B1E02 /* WristFloorAnchor.swift */,
+				AC1026ABCDEF000000000022 /* OverlaySmoother.swift */,
+				AC1026ABCDEF000000000012 /* PushUpSupportEvidence2D.swift */,
+				AC1026ABCDEF000000000002 /* PushUpSupportCorridor2D.swift */,
 			);
 			path = PosePipeline;
 			sourceTree = "<group>";
@@ -660,6 +669,9 @@
 				7B3D2C9E4F5A6B7C8D9E0F03 /* Pose3DConstraints.swift in Sources */,
 				5C9A1E3B7D2F4A6C8E0B1D01 /* AdaptiveRelationConstraint.swift in Sources */,
 				5C9A1E3B7D2F4A6C8E0B1E01 /* WristFloorAnchor.swift in Sources */,
+				AC1026ABCDEF000000000021 /* OverlaySmoother.swift in Sources */,
+				AC1026ABCDEF000000000011 /* PushUpSupportEvidence2D.swift in Sources */,
+				AC1026ABCDEF000000000001 /* PushUpSupportCorridor2D.swift in Sources */,
 				223CDB2759C9124390D74E5F /* BundledVideoHandFrameProcessor.swift in Sources */,
 				08C943D98F2961D3E7FD292C /* HandCropBuilder.swift in Sources */,
 				05A1975E6E323360F6D4A55A /* HandLandmarkTypes.swift in Sources */,

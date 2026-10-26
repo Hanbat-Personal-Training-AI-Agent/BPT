@@ -35,8 +35,19 @@ private enum CameraPreviewOptions {
     /// EXPERIMENTAL confidence-aware relation constraint after Pose3DConstraints (AdaptiveRelationConstraint, ai/setup-constraint).
     /// Off unless BPT_ADAPTIVE_3D=1: not validated as a default (docs/results/setup_constraint_prereg.md).
     static let adaptive3D = ProcessInfo.processInfo.environment["BPT_ADAPTIVE_3D"] == "1"
-    /// EXPERIMENTAL push-up wrist floor anchor on the 2D (WristFloorAnchor, user 2026-10-20): on with BPT_WRIST_ANCHOR=1
-    /// or Flutter creationParams `wristAnchor` (dart-define BPT_WRIST_ANCHOR → WristFloorAnchor.enabledByFlutter).
+    /// Explicit experiment only. Live camera/contact anchoring is NOT implemented: both are unknown.
+    /// Assertions below are a controlled harness, never detected conditions or GT-seeded wrist locations.
+    static let supportCorridor = ProcessInfo.processInfo.environment["BPT_PUSHUP_SUPPORT_CORRIDOR"] == "1"
+    static let fixedSupportReplay = ProcessInfo.processInfo.environment["BPT_SUPPORT_FIXED_REPLAY"] == "1"
+    static func controlledSupport(at pts: Double) -> Bool {
+        guard VideoCameraOptions.isActive, fixedSupportReplay,
+              let value = ProcessInfo.processInfo.environment["BPT_SUPPORT_CONTACT_PTS"] else { return false }
+        let bounds = value.split(separator: ":", omittingEmptySubsequences: false)
+        guard bounds.count == 2, let start = Double(bounds[0]), let end = Double(bounds[1]),
+              start.isFinite, end.isFinite, start < end else { return false }
+        return pts.isFinite && pts >= start && pts <= end
+    }
+    /// Old independent experiment, OFF unless explicitly requested; never activated by supportCorridor.
     static let wristAnchor = ProcessInfo.processInfo.environment["BPT_WRIST_ANCHOR"] == "1"
     /// RTMPose input: 3:4 person crop from the previous frame's keypoints (RTMPoseCropTracker).
     /// false = old input, whole frame stretched to 192×256 every frame.
@@ -67,6 +78,8 @@ struct CameraFrameData: Identifiable {
     let statusText: String
     let rep: Int
     let done: Bool
+    /// Inferred wrist endpoints/segments are dashed, without confident joint dots.
+    var supportUncertainJoints: Set<Int> = []
     /// Overlay colour per body segment: (severity 0 green … 1 red, opacity; dim = uncertain 3D), smoothed for display.
     var shade: [OverlaySegment: (severity: Double, opacity: Double)] = [:]
 }
@@ -93,6 +106,7 @@ struct CameraProcessingResult {
     var sameHandDropped = false
     /// WristFloorAnchor states (left, right) when that experiment is on; then visualCoco17 = rawCoco17 = XS input.
     var wristAnchor: [String]?
+    var supportCorridor: PushUpSupportEvidence2D.Output?
 }
 
 // MARK: - Camera capture manager
@@ -293,7 +307,10 @@ final class CameraPoseViewModel: ObservableObject {
     nonisolated(unsafe) private var cropTracker = RTMPoseCropTracker()
     /// Live 3D. Only touched on `liftQueue` (serial, frame order kept).
     nonisolated(unsafe) private var lifter: MotionAGFormerLive<CameraProcessingResult>?
-    /// Push-up only, experimental (CameraPreviewOptions.wristAnchor); touched on the capture queue only.
+    /// Push-up support experiment; capture queue only. Immutable result accompanies each source frame.
+    nonisolated(unsafe) private var supportEvidence = PushUpSupportEvidence2D(enabled: CameraPreviewOptions.supportCorridor)
+    nonisolated(unsafe) private var supportEpoch = 0
+    nonisolated private let supportControl = PushUpSupportExperimentControl()
     nonisolated(unsafe) private var wristAnchor: WristFloorAnchor?
     nonisolated(unsafe) private var wristAnchorLastFrame = Int.min / 2
     nonisolated(unsafe) private var wristAnchorResetPending = false
@@ -586,7 +603,7 @@ final class CameraPoseViewModel: ObservableObject {
             }
         }
 
-        if (CameraPreviewOptions.wristAnchor || WristFloorAnchor.enabledByFlutter) && exercise == .pushUp { wristAnchor = WristFloorAnchor() }
+        if !CameraPreviewOptions.supportCorridor && (CameraPreviewOptions.wristAnchor || WristFloorAnchor.enabledByFlutter) && exercise == .pushUp { wristAnchor = WristFloorAnchor() }
         let handEnabled = (CameraPreviewOptions.enableMotion3DForCamera && CameraPreviewOptions.motion3DWristFromHands)
             || exercise.handBranchEnabled(override: CameraPreviewOptions.handBranchOverride)
         if handEnabled {
@@ -741,6 +758,20 @@ final class CameraPoseViewModel: ObservableObject {
                 }
                 let input2D = anchoredInput
                 let visualCoco17 = input2D
+                let sourcePTS = CMTimeGetSeconds(CMSampleBufferGetPresentationTimeStamp(sampleBuffer))
+                var supportOutput: PushUpSupportEvidence2D.Output?
+                if CameraPreviewOptions.supportCorridor && exercise == .pushUp {
+                    let control = supportControl.snapshot()
+                    if estimate.recheckSwitched == true { supportEpoch += 1; supportEvidence.reset() }
+                    // Inverse-affine crop region changes are conservative reset boundaries, even though coordinates
+                    // have been transformed back into the analysis image. No old crop identity is assumed stable.
+                    let crop = "\(inverseAffine.a),\(inverseAffine.b),\(inverseAffine.c),\(inverseAffine.d),\(inverseAffine.e),\(inverseAffine.f)"
+                    supportOutput = supportEvidence.update(.init(keypoints: input2D, sourcePTS: sourcePTS,
+                        width: Double(cgImage.width), height: Double(cgImage.height), rotation: rotation.rawValue,
+                        epoch: "\(control.generation)/\(supportEpoch)/\(crop)", supportActive: control.eligible && CameraPreviewOptions.controlledSupport(at: sourcePTS),
+                        cameraEvidence: VideoCameraOptions.isActive && CameraPreviewOptions.fixedSupportReplay
+                            ? .controlledReplayAssertion : .unknown, sameHandRejected: sameHand))
+                }
 
                 var result = CameraProcessingResult(
                     frameIndex: frameIdx,
@@ -748,7 +779,7 @@ final class CameraPoseViewModel: ObservableObject {
                     imageWidth: Double(cgImage.width),
                     imageHeight: Double(cgImage.height),
                     visualCoco17: visualCoco17,
-                    rawCoco17: anchorStates != nil ? input2D : rawCoco17,
+                    rawCoco17: CameraPreviewOptions.supportCorridor ? rawCoco17 : (anchorStates != nil ? input2D : rawCoco17),
                     feet: PoseCoordinateTransforms.applyInverseAffineToFeet(
                         decoded: decoded,
                         inverseAffine: inverseAffine
@@ -756,7 +787,7 @@ final class CameraPoseViewModel: ObservableObject {
                     handResults: handResults
                 )
                 result.arrivedAt = arrivedAt
-                let sourcePTS = CMTimeGetSeconds(CMSampleBufferGetPresentationTimeStamp(sampleBuffer))
+                result.supportCorridor = supportOutput
                 result.sourcePTS = sourcePTS.isFinite ? sourcePTS : nil
                 result.wristAnchor = anchorStates
 
@@ -803,15 +834,22 @@ final class CameraPoseViewModel: ObservableObject {
         }
     }
 
+    @MainActor
+    private func displayKeypoints(_ result: CameraProcessingResult) -> [PoseKeypoint] {
+        let smoothed = overlaySmoother.smooth(result.visualCoco17, at: CACurrentMediaTime())
+        return result.supportCorridor?.display(over: smoothed) ?? smoothed
+    }
+
     /// Overlay only (3D path): the newest 2D right away, status/rep from the last judged frame.
     @MainActor
     private func showFrame(_ result: CameraProcessingResult) {
         if currentFrame?.rotation != result.rotation { overlaySmoother = OverlaySmoother() }
         currentFrame = CameraFrameData(
             id: result.frameIndex, frameIndex: result.frameIndex, rotation: result.rotation, imageWidth: result.imageWidth,
-            imageHeight: result.imageHeight, coco17: overlaySmoother.smooth(result.visualCoco17, at: CACurrentMediaTime()),
+            imageHeight: result.imageHeight, coco17: displayKeypoints(result),
             rawCoco17: result.rawCoco17, handResults: result.handResults, exerciseTitle: exercise.displayName,
             statusText: lastReportedStatus ?? "", rep: lastReportedRep ?? 0, done: lastReportedDone ?? false,
+            supportUncertainJoints: result.supportCorridor?.uncertainJoints ?? [],
             shade: severityTrack.update(liveSeverity, at: CACurrentMediaTime()))
     }
 
@@ -824,16 +862,19 @@ final class CameraPoseViewModel: ObservableObject {
         }
         let t0 = CACurrentMediaTime()
         judgingFrame = (result.frameIndex, result.arrivedAt)
-        let (statusText, rep, done) = runEvaluator(frameIndex: result.frameIndex, rawCoco17: result.rawCoco17,
-                                                   feet: result.feet, pose3D: frame3D.masked3D, pose3DState: frame3D.state)
+        let (statusText, rep, done) = runEvaluator(frameIndex: result.frameIndex, rawCoco17: result.supportCorridor?.assessment2D(result.rawCoco17) ?? result.rawCoco17,
+                                                   feet: result.feet, pose3D: result.supportCorridor?.assessment3D(frame3D.masked3D) ?? frame3D.masked3D, pose3DState: result.supportCorridor?.assessmentState(frame3D.state) ?? frame3D.state)
         let now = CACurrentMediaTime()
         if experimentalCoachingEnabled {
             // Latest device gravity is not synchronized to this delayed XS source frame. It is also not
             // the camera gravity of a replayed clip. Keep the experimental metric withheld until a source
             // snapshot + sensor age or explicit clip calibration is carried in this same payload.
             let observation = ExperimentalCoaching.Frame(time: result.sourcePTS ?? .nan, exercise: formTracker?.exercise.rawValue ?? exercise.rawValue,
-                phase: formTracker?.observationPhase, state: frame3D.state.rawValue, raw: frame3D.raw,
-                corrected: frame3D.masked3D, confidence: frame3D.confidence, invalid: frame3D.invalidJoints, up: nil)
+                phase: formTracker?.observationPhase,
+                state: (result.supportCorridor?.assessmentState(frame3D.state) ?? frame3D.state).rawValue, raw: frame3D.raw,
+                corrected: result.supportCorridor?.assessment3D(frame3D.masked3D) ?? frame3D.masked3D,
+                confidence: result.supportCorridor?.assessmentConfidence(frame3D.confidence) ?? frame3D.confidence,
+                invalid: frame3D.invalidJoints.union(result.supportCorridor?.invalid3DJoints ?? []), up: nil)
             // There is no approved variant/ROM profile in the current UI. Measurements are logged, candidates
             // explicitly withheld. These diagnostics cannot emit a warning, speech, or modify the existing pose.
             let output = experimentalCoaching.update(observation)
@@ -844,7 +885,8 @@ final class CameraPoseViewModel: ObservableObject {
                 line["arrival_host"] = result.arrivedAt
                 line["exercise"] = exercise.rawValue
                 line["phase"] = formTracker?.observationPhase ?? NSNull()
-                line["state"] = frame3D.state.rawValue
+                line["state"] = observation.state
+                line["raw_model_state"] = frame3D.state.rawValue
                 DemoPoseLog.shared?.write("experimental_coaching", line)
                 VideoRunLog.shared?.write("experimental_coaching", line)
             }
@@ -869,11 +911,17 @@ final class CameraPoseViewModel: ObservableObject {
         perfLog?.sample("evaluate", ms: (now - t0) * 1000)
         perfLog?.sample("latency_input_to_judgement", ms: (now - result.arrivedAt) * 1000)
         perfLog?.judged()
-        let pose3D = Pose3DBridge.payload(frame3D)
-        let pose3DKey = Pose3DBridge.key(frame3D)
+        var pose3D = Pose3DBridge.payload(frame3D)
+        var pose3DKey = Pose3DBridge.key(frame3D)
+        if let support = result.supportCorridor {
+            // Preserve the raw model state; the independent assessment veto has explicit provenance.
+            pose3D["assessment_state"] = (support.assessmentState(frame3D.state) ?? frame3D.state).rawValue
+            pose3D["support_invalid"] = support.invalid3DJoints.sorted()
+            pose3DKey += "/support:" + support.invalid3DJoints.sorted().map(String.init).joined(separator: ",")
+        }
         // the setup panel lives before the first rep; foot items only when the active 2D model gives Halpe26 feet
         let setup = rep == 0 ? updateSetup(frame3D, feet: result.feet, coco17: result.rawCoco17, now: now) : nil
-        if rep >= 1 || setupSeeded { wristAnchorActive = true }
+        if rep >= 1 || setupSeeded { wristAnchorActive = true; supportControl.markReady() }
         if rep != lastReportedRep || statusText != lastReportedStatus || done != lastReportedDone || pose3DKey != lastReportedPose3D
             || setup != nil {
             lastReportedRep = rep
@@ -902,6 +950,18 @@ final class CameraPoseViewModel: ObservableObject {
             if result.sameHandDropped { line["same_hand"] = true }
             if let row = frame3D.row { line["row"] = row }
             if rep == 0, let s = setupLog { line["setup"] = s }
+            if let support = result.supportCorridor {
+                line["support_corridor"] = ["reasons": [support.corridor.left.reason.rawValue, support.corridor.right.reason.rawValue],
+                    "inferred": [support.corridor.left.inferred, support.corridor.right.inferred],
+                    "eligible": [support.corridor.left.armAndHandCoachingEligible, support.corridor.right.armAndHandCoachingEligible],
+                    "assessment_state": (support.assessmentState(frame3D.state) ?? frame3D.state).rawValue,
+                    "assessment_invalid": support.invalid3DJoints.sorted(),
+                    "camera_evidence": VideoCameraOptions.isActive && CameraPreviewOptions.fixedSupportReplay ? "controlled_replay_assertion" : "unknown",
+                    "source_pts": support.corridor.sourcePTS,
+                    "contact_source": "explicit_controlled_replay_interval_and_readiness_eligibility",
+                    "age_s": [support.corridor.left.occlusionAge.map { $0 as Any } ?? NSNull(), support.corridor.right.occlusionAge.map { $0 as Any } ?? NSNull()],
+                    "correction_px": [support.corridor.left.correctionMagnitude.map { $0 as Any } ?? NSNull(), support.corridor.right.correctionMagnitude.map { $0 as Any } ?? NSNull()]]
+            }
             if let a = result.wristAnchor { line["wrist_anchor"] = a }
             if let src = log.clipFrame(result.frameIndex) { line["src"] = src }
             // RTMPose keypoints the evaluators used (frame px, 1 decimal) and the raw MediaPipe wrist per crop side, for
@@ -964,6 +1024,7 @@ final class CameraPoseViewModel: ObservableObject {
 
     /// Flutter "다시 설정": measure the setup again and drop the relations it seeded.
     private func resetSetup() {
+        supportControl.reset()
         wristAnchorResetPending = true
         wristAnchorActive = false
         exerciseSetup?.reset()
@@ -975,9 +1036,9 @@ final class CameraPoseViewModel: ObservableObject {
     @MainActor
     private func handleProcessingResult(_ result: CameraProcessingResult) {
         if currentFrame?.rotation != result.rotation { overlaySmoother = OverlaySmoother() }
-        let (statusText, rep, done) = self.runEvaluator(frameIndex: result.frameIndex, rawCoco17: result.rawCoco17,
+        let (statusText, rep, done) = self.runEvaluator(frameIndex: result.frameIndex, rawCoco17: result.supportCorridor?.assessment2D(result.rawCoco17) ?? result.rawCoco17,
                                                         feet: result.feet, pose3D: nil, pose3DState: nil)
-        if rep >= 1 { wristAnchorActive = true }
+        if rep >= 1 { wristAnchorActive = true; supportControl.markReady() }
 
         let frameData = CameraFrameData(
             id: result.frameIndex,
@@ -985,13 +1046,14 @@ final class CameraPoseViewModel: ObservableObject {
             rotation: result.rotation,
             imageWidth: result.imageWidth,
             imageHeight: result.imageHeight,
-            coco17: overlaySmoother.smooth(result.visualCoco17, at: CACurrentMediaTime()),
+            coco17: displayKeypoints(result),
             rawCoco17: result.rawCoco17,
             handResults: result.handResults,
             exerciseTitle: self.exercise.displayName,
             statusText: statusText,
             rep: rep,
             done: done,
+            supportUncertainJoints: result.supportCorridor?.uncertainJoints ?? [],
             shade: severityTrack.update(liveSeverity, at: CACurrentMediaTime())
         )
 
@@ -1232,7 +1294,7 @@ private struct CameraLiveView: View {
         let shown = upright ? (width: frame.imageWidth, height: frame.imageHeight)
             : frame.rotation.bufferSize(width: frame.imageWidth, height: frame.imageHeight)
         let rect = aspectFillRect(imageWidth: shown.width, imageHeight: shown.height, in: size)
-        PoseOverlayRenderer.draw(frame.coco17, shade: frame.shade, in: &context) {
+        PoseOverlayRenderer.draw(frame.coco17, shade: frame.shade, uncertainJoints: frame.supportUncertainJoints, in: &context) {
             viewPoint($0, frame: frame, rect: rect, upright: upright)
         }
     }
