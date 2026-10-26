@@ -26,20 +26,6 @@ import UIKit
 /// TRIAL BRANCH ONLY (demo recording): `Documents/bpt_demo.json` = {"BPT_…": "value", …} merged over the launch
 /// environment, so a Flutter integration_test run (no launch env) can turn on the video sources, pose log and screen
 /// recording. Absent file = nothing changes.
-enum DemoConfig {
-    static let values: [String: String] = {
-        guard let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first,
-              let data = try? Data(contentsOf: documents.appendingPathComponent("bpt_demo.json")),
-              let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return [:] }
-        return object.mapValues { "\($0)" }
-    }()
-    static let environment = ProcessInfo.processInfo.environment.merging(values) { _, file in file }
-    static func url(_ key: String) -> URL? {
-        guard let path = environment[key], !path.isEmpty else { return nil }
-        let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-        return path.hasPrefix("/") ? URL(fileURLWithPath: path) : documents.appendingPathComponent(path)
-    }
-}
 
 enum VideoCameraOptions {
     static let environment = DemoConfig.environment
