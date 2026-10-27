@@ -53,7 +53,7 @@ public class WorkoutController {
         return ResponseEntity.ok(records);
     }
 
-    @Operation(summary = "월별 운동 캘린더 요약 조회", description = "지정한 연/월의 일별 운동 요약(운동명, 무게, 세트수, 반복수) 및 총 운동 일수를 반환합니다.")
+    @Operation(summary = "월별 운동 캘린더 요약 조회", description = "지정한 연/월의 일별 운동 요약 및 총 운동 일수를 반환합니다. 운동 일수, 날짜 목록, 일별 기록에는 totalReps가 0보다 큰 기록만 포함합니다. 연/월을 생략하면 한국 시간(Asia/Seoul)의 현재 연/월을 사용합니다. dailySummaries.records에는 id(문자열, GET /workouts/records와 동일한 기록 ID), exerciseId(종목 코드), 운동명, 무게, 세트수, 반복수가 포함됩니다.")
     @GetMapping("/calendar")
     public ResponseEntity<MonthlyCalendarResponseDto> getMonthlyCalendar(
             @AuthenticationPrincipal UserPrincipal userPrincipal,

@@ -152,13 +152,16 @@ public class UserService {
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
         String userName = user.getName() != null && !user.getName().isBlank() ? user.getName() : user.getUsername();
-        int weeklyGoal = user.getWeeklyFrequency() != null ? user.getWeeklyFrequency() : 5;
+        int weeklyGoal = user.getWeeklyFrequency() != null ? user.getWeeklyFrequency() : 3;
 
         LocalDate today = LocalDate.now();
         LocalDateTime todayStart = today.atStartOfDay();
         LocalDateTime todayEnd = today.atTime(LocalTime.MAX);
 
-        List<WorkoutRecord> todayRecords = workoutRecordRepository.findAllByUserIdAndDateBetweenOrderByDateAsc(userId, todayStart, todayEnd);
+        List<WorkoutRecord> todayRecords = workoutRecordRepository
+                .findAllByUserIdAndDateBetweenOrderByDateAsc(userId, todayStart, todayEnd).stream()
+                .filter(r -> r.getTotalReps() != null && r.getTotalReps() > 0)
+                .collect(Collectors.toList());
 
         int todayWorkoutMinutes = todayRecords.stream()
                 .mapToInt(r -> r.getDurationSeconds() != null ? r.getDurationSeconds() : 0)
@@ -177,6 +180,7 @@ public class UserService {
                 userId, monday.atStartOfDay(), sunday.atTime(LocalTime.MAX));
 
         List<String> weeklyActiveDays = weekRecords.stream()
+                .filter(r -> r.getTotalReps() != null && r.getTotalReps() > 0)
                 .map(r -> {
                     DayOfWeek dow = r.getDate().getDayOfWeek();
                     switch (dow) {
@@ -217,6 +221,7 @@ public class UserService {
 
         List<WorkoutRecord> allRecent = workoutRecordRepository.findAllByUserIdOrderByDateDesc(userId);
         List<DashboardSummaryResponseDto.RecentWorkoutItemDto> recentWorkouts = allRecent.stream()
+                .filter(r -> r.getTotalReps() != null && r.getTotalReps() > 0)
                 .limit(2)
                 .map(r -> {
                     LocalDate recordDate = r.getDate().toLocalDate();
