@@ -80,8 +80,8 @@ struct CameraFrameData: Identifiable {
     let done: Bool
     /// Inferred wrist endpoints/segments are dashed, without confident joint dots.
     var supportUncertainJoints: Set<Int> = []
-    /// Overlay colour per body segment: (severity 0 green … 1 red, opacity; dim = uncertain 3D), smoothed for display.
-    var shade: [OverlaySegment: (severity: Double, opacity: Double)] = [:]
+    /// Typed scoped shades: neutral withholding, relative-only consistency, or measured rule geometry/deviation.
+    var shade: [OverlaySegment: OverlayShade] = [:]
 }
 
 struct CameraProcessingResult {
@@ -334,7 +334,7 @@ final class CameraPoseViewModel: ObservableObject {
     private var setupLog: [String: Any]?
     private var lastSetupSignature: String?
     private var lastSetupSent: CFTimeInterval = 0
-    /// Overlay colour: FormWarningTracker.liveSeverity of the last judged frame (display only), and its smoothing.
+    /// Scoped overlay evidence from the last judged frame (display only); only severity is smoothed.
     private var liveSeverity = OverlayState()
     private var severityTrack = OverlaySeverityTrack()
     private var overlaySmoother = OverlaySmoother()
@@ -1285,7 +1285,7 @@ private struct CameraLiveView: View {
         videoLayer == nil && size.width > size.height
     }
 
-    /// Glowing body skeleton coloured by live posture severity (green default, dim green when uncertain), no head, no hands.
+    /// Scoped body observations: neutral when withheld/relative-only; known issues retain their limited scope. No head/hands.
     private func drawSkeleton(frame: CameraFrameData, context: inout GraphicsContext, size: CGSize) {
         let upright = previewShowsAnalysisFrame(size)
         let shown = upright ? (width: frame.imageWidth, height: frame.imageHeight)

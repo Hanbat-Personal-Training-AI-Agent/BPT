@@ -418,8 +418,7 @@ final class FormWarningsTests: XCTestCase {
     }
 }
 
-/// Overlay colour table (display only): rule → segments → per-frame quantity → normal / threshold. Body only, green
-/// by default, dim green when uncertain.
+/// Scoped overlay table (display only): inactive/withheld evidence never defaults to assessed normal.
 extension FormWarningsTests {
     func testOverlayTableMatchesTheRulesAndDrawnSegments() {
         let drawn = Set(OverlaySegment.edges)
@@ -470,7 +469,7 @@ extension FormWarningsTests {
         XCTAssertEqual(try XCTUnwrap(state(hipDrop: -17).severity[.edge(13, 15)]), 0.5, accuracy: 0.02, "pike half way")
         XCTAssertTrue(state(hipDrop: 0).uncertain.isEmpty)
 
-        // 3D required but this frame has no 3D (warming up / lost / bad): every segment uncertain (dim green), no severity.
+        // 3D required but unavailable: every segment withheld/neutral, no measured severity.
         let required = FormWarningTracker(exercise: .pushUp)
         required.common.form3DRequired = true
         required.observe(frameIndex: 0, coco17: sidePushUp(hipDrop: 70), pose3DState: .warmingUp, phase: "top")
@@ -479,18 +478,24 @@ extension FormWarningsTests {
         XCTAssertEqual(dim.uncertain, Set(OverlaySegment.edges))
     }
 
-    func testOverlaySeverityTrackSmoothsAndDimsUncertainGreen() {
+    func testOverlayTrackSmoothsOnlyWithinTheSameObservationStatus() {
         var track = OverlaySeverityTrack()
         let seg = OverlaySegment.edge(5, 11)
-        XCTAssertEqual(track.update(OverlayState(severity: [seg: 0]), at: 0)[seg]?.severity, 0)
-        let mid = track.update(OverlayState(severity: [seg: 1]), at: 0.2)[seg]
-        XCTAssertEqual(mid?.severity ?? -1, 1 - exp(-1), accuracy: 1e-9, "one time constant: 63%")
-        XCTAssertEqual(track.update(OverlayState(), at: 0.2)[.edge(6, 12)]?.severity, 0, "no rule: plain green")
-        XCTAssertEqual(track.update(OverlayState(), at: 0.2)[.edge(6, 12)]?.opacity, 1)
-        let dim = track.update(OverlayState(uncertain: [seg]), at: 0.4)[seg]
-        XCTAssertEqual(dim?.severity, 0, "uncertain: green at once, never red")
-        XCTAssertEqual(dim?.opacity ?? 0, 1 - (1 - 0.4) * (1 - exp(-1)), accuracy: 1e-9, "dims smoothly towards 0.4")
+        let known = [seg: OverlayObservation(measured: ["geometry": .frameGeometry])]
+        XCTAssertEqual(track.update(OverlayState(severity: [seg: 0], observations: known), at: 0)[seg]?.severity, 0)
+        let mid = track.update(OverlayState(severity: [seg: 1], observations: known), at: 0.2)[seg]
+        XCTAssertEqual(mid?.severity ?? -1, 1 - exp(-1), accuracy: 1e-9)
+        let empty = track.update(OverlayState(), at: 0.4)[seg]
+        XCTAssertEqual(empty?.severity, 0, "old issue must not leak across lost evidence")
+        XCTAssertEqual(empty?.status, .unassessed)
+        XCTAssertEqual(empty?.style(rawJointUncertain: false), .withheld)
+        XCTAssertEqual(empty?.opacity, 0.4)
+        let relative = [seg: OverlayObservation(measured: ["lockout": .selfRelative])]
+        let noDrift = track.update(OverlayState(severity: [seg: 0], observations: relative), at: 0.6)[seg]
+        XCTAssertEqual(noDrift?.status, .relativeConsistency)
+        XCTAssertEqual(noDrift?.style(rawJointUncertain: false), .relative)
     }
+
 }
 
 /// praise_good: positive feedback from the real judgement — only for reps judged on usable data with nothing fired.
@@ -581,5 +586,173 @@ extension FormWarningsTests {
         XCTAssertTrue(caption.contains("엉덩이 선 최소"), caption)
         let clean = pushUpRep(tracker, hipDrop: 0, frame: 2)
         XCTAssertTrue(clean.debugCaption(sent: [], enabled: []).contains("울림: 없음"))
+    }
+}
+
+
+/// Assessment semantics only: synthetic geometry exercises the actual tracker/display path, not posture accuracy.
+extension FormWarningsTests {
+    func testOverlayUniformlyBentInitialRepsAreOnlySelfRelativeConsistency() throws {
+        let tracker = FormWarningTracker(exercise: .pushUp)
+        for rep in 0..<3 {
+            tracker.observe(frameIndex: rep*2, coco17: sidePushUp(hipDrop: 0, elbowBend: 60), phase: "top")
+            tracker.beginRep()
+            tracker.observe(frameIndex: rep*2+1, coco17: sidePushUp(hipDrop: 0, elbowBend: 60), phase: "bottom")
+            tracker.recordCurrentFrame()
+            _ = tracker.finishRep(repIndex: rep+1)
+        }
+        XCTAssertLessThan(try XCTUnwrap(tracker.reports.last?.metrics2D["elbow_max"]), 150)
+        tracker.observe(frameIndex: 7, coco17: sidePushUp(hipDrop: 0, elbowBend: 60), phase: "top")
+        let state = tracker.liveSeverity(), seg = OverlaySegment.edge(5, 7)
+        XCTAssertEqual(state.severity[seg], 0, "unchanged arithmetic: no decrease from this bent set's own best")
+        XCTAssertEqual(state.observations[seg]?.measured["pushup_no_lockout"], .selfRelative)
+        var track = OverlaySeverityTrack()
+        XCTAssertEqual(state.observations[seg]?.displayStatus, .relativeConsistency)
+        XCTAssertEqual(track.update(state, at: 0)[seg]?.style(rawJointUncertain: false), .relative,
+                       "uniformly poor initialization cannot certify extension or correct form")
+        tracker.observe(frameIndex: 8, coco17: sidePushUp(hipDrop: 0, elbowBend: 60), phase: "bottom")
+        let bottom = tracker.liveSeverity()
+        XCTAssertEqual(bottom.observations[seg]?.measured["pushup_shallow"], .selfRelative)
+        XCTAssertEqual(bottom.observations[seg]?.displayStatus, .relativeConsistency)
+        XCTAssertEqual(track.update(bottom, at: 1)[seg]?.style(rawJointUncertain: false), .relative)
+    }
+
+    func testOverlayMissingBaselineAndWrongPhaseOrViewAreWithheld() throws {
+        let tracker = FormWarningTracker(exercise: .pushUp)
+        let arm = OverlaySegment.edge(5, 7)
+        tracker.observe(frameIndex: 0, coco17: sidePushUp(hipDrop: 0), phase: "bottom")
+        let state = tracker.liveSeverity()
+        XCTAssertEqual(state.observations[arm]?.withheld["pushup_shallow"], [.baseline])
+        XCTAssertEqual(state.observations[arm]?.inactive["pushup_no_lockout"], .phase)
+        XCTAssertNil(state.severity[arm])
+        tracker.observe(frameIndex: 1, coco17: sidePushUp(hipDrop: 0), phase: "descending")
+        XCTAssertEqual(tracker.liveSeverity().observations[arm]?.displayStatus, .unassessed,
+                       "both arm rules are deliberately out of phase")
+        var front = sidePushUp(hipDrop: 0)
+        front[6].x += 300
+        tracker.observe(frameIndex: 1, coco17: front, phase: "top")
+        let view = tracker.liveSeverity()
+        XCTAssertEqual(view.observations[arm]?.inactive["pushup_no_lockout"], .view)
+        XCTAssertTrue(view.severity.isEmpty)
+        var track = OverlaySeverityTrack()
+        XCTAssertEqual(track.update(view, at: 0)[arm]?.style(rawJointUncertain: false), .withheld)
+    }
+
+    func testOverlayMissingHipCannotBeErasedByMeasuredNormalKnee() throws {
+        let tracker = FormWarningTracker(exercise: .squat)
+        tracker.common.form3DRequired = true
+        var pose = standing3D(kneeTheta: 5)
+        pose[11] = SIMD3(repeating: .nan)  // selected hip angle requires this shoulder, knee does not
+        tracker.observe(frameIndex: 0, coco17: sidePushUp(hipDrop: 0), pose3D: pose, pose3DState: .partial3D, phase: "top")
+        let state = tracker.liveSeverity(), seg = OverlaySegment.edge(11, 13)
+        XCTAssertEqual(state.severity[seg], 0)
+        XCTAssertEqual(state.observations[seg]?.measured["squat_no_lockout"], .selfRelative)
+        XCTAssertEqual(state.observations[seg]?.withheld["squat_no_lockout"], [.missingQuantity])
+        XCTAssertTrue(state.uncertain.contains(seg))
+        var track = OverlaySeverityTrack()
+        XCTAssertEqual(track.update(state, at: 0)[seg]?.style(rawJointUncertain: false), .withheld)
+    }
+
+    func testOverlayKnownKneeIssueSurvivesMissingHipWithPartialEvidence() throws {
+        let tracker = FormWarningTracker(exercise: .squat)
+        tracker.common.form3DRequired = true
+        tracker.observe(frameIndex: 0, coco17: sidePushUp(hipDrop: 0), pose3D: standing3D(kneeTheta: 5), pose3DState: .ok, phase: "top")
+        tracker.beginRep()
+        var pose = standing3D(kneeTheta: 40)
+        pose[11] = SIMD3(repeating: .nan)
+        tracker.observe(frameIndex: 1, coco17: sidePushUp(hipDrop: 0), pose3D: pose, pose3DState: .partial3D, phase: "top")
+        let state = tracker.liveSeverity(), seg = OverlaySegment.edge(11, 13)
+        XCTAssertEqual(state.severity[seg], 1)
+        XCTAssertTrue(state.uncertain.contains(seg))
+        XCTAssertEqual(state.observations[seg]?.displayStatus, .partial)
+        var track = OverlaySeverityTrack()
+        let shade = try XCTUnwrap(track.update(state, at: 0)[seg])
+        XCTAssertEqual(shade.severity, 1)
+        XCTAssertEqual(shade.style(rawJointUncertain: false), .limitedIssue)
+        XCTAssertEqual(shade.style(rawJointUncertain: true), .withheld, "raw wrist/source guard wins even over red")
+    }
+
+    func testOverlayDifferentRulesKeepTheirOwnEvidenceAndMissingSegmentsStayNeutral() throws {
+        let tracker = FormWarningTracker(exercise: .barbellRow)
+        let rules = try XCTUnwrap(OverlayRule.table[.barbellRow])
+        let swing = try XCTUnwrap(rules.first { $0.key == "row_torso_swing" })
+        let standing = try XCTUnwrap(rules.first { $0.key == "row_standing_up" })
+        var state = OverlayState()
+        state.record(swing, side: .left, value: .measured(0), threshold: swing.threshold(tracker))
+        state.record(standing, side: .left, value: .unavailable(.missingQuantity), threshold: standing.threshold(tracker))
+        let seg = OverlaySegment.edge(5, 11)
+        XCTAssertEqual(state.severity[seg], 0)
+        XCTAssertTrue(state.uncertain.contains(seg))
+        XCTAssertEqual(state.observations[seg]?.withheld[standing.key], [.missingQuantity])
+        XCTAssertEqual(state.observations[seg]?.measured[swing.key], .withinRepChange)
+        var track = OverlaySeverityTrack()
+        let shade = track.update(state, at: 0)
+        XCTAssertEqual(shade[seg]?.style(rawJointUncertain: false), .withheld)
+        XCTAssertEqual(shade[.edge(6, 12)]?.status, .unassessed)
+    }
+
+    func testOverlayValidFrameGeometryIsScopedAndQuietDeliveryIsUnchanged() throws {
+        let tracker = FormWarningTracker(exercise: .pushUp)
+        tracker.common.enabledFeedbackKeys = []
+        tracker.observe(frameIndex: 0, coco17: sidePushUp(hipDrop: 0), phase: "top")
+        let seg = OverlaySegment.edge(5, 11), state = tracker.liveSeverity()
+        XCTAssertEqual(state.observations[seg]?.displayStatus, .observed)
+        XCTAssertEqual(Set(state.observations[seg]?.measured.keys ?? Dictionary<String, OverlayObservationScope>().keys),
+                       ["pushup_hip_sag", "pushup_hip_pike"])
+        XCTAssertTrue(state.observations[seg]?.measured.values.allSatisfy { $0 == .frameGeometry } == true)
+        var track = OverlaySeverityTrack()
+        XCTAssertEqual(track.update(state, at: 0)[seg]?.style(rawJointUncertain: false), .observed)
+        tracker.observe(frameIndex: 1, coco17: sidePushUp(hipDrop: 70), phase: "top")
+        XCTAssertEqual(tracker.liveSeverity().severity[seg], 1, "quiet delivery never silently drops measurement")
+        XCTAssertTrue(tracker.drainEvents().isEmpty)
+        XCTAssertTrue(tracker.common.enabledFeedbackKeys.isEmpty)
+    }
+}
+
+
+extension FormWarningsTests {
+    func testOverlayUnknownViewIsWithheldUntilRowSessionGateIsVerified() throws {
+        var missingFarShoulder = sidePushUp(hipDrop: 0)
+        missingFarShoulder[6].confidence = 0
+        let push = FormWarningTracker(exercise: .pushUp)
+        push.observe(frameIndex: 0, coco17: missingFarShoulder, phase: "top")
+        XCTAssertEqual(push.liveSeverity().observations[.edge(5, 7)]?.withheld["pushup_no_lockout"], [.viewUnknown])
+        let squat = FormWarningTracker(exercise: .squat)
+        squat.observe(frameIndex: 0, coco17: missingFarShoulder, phase: "top")
+        XCTAssertEqual(squat.liveSeverity().observations[.edge(11, 13)]?.withheld["squat_no_lockout"], [.viewUnknown])
+        let row = FormWarningTracker(exercise: .barbellRow)
+        row.observe(frameIndex: 0, coco17: missingFarShoulder, phase: "ascending")
+        row.beginRep()
+        XCTAssertNil(row.sideView)
+        XCTAssertEqual(row.liveSeverity().observations[.edge(5, 11)]?.withheld["row_torso_swing"], [.viewUnknown])
+        row.common.sideViewMinFrames = 1
+        row.common.sideViewWindowFrames = 1
+        row.observe(frameIndex: 1, coco17: sidePushUp(hipDrop: 0), phase: "ascending")
+        XCTAssertEqual(row.sideView, true)
+        row.observe(frameIndex: 2, coco17: missingFarShoulder, phase: "ascending")
+        XCTAssertEqual(row.sideView, true)
+        XCTAssertEqual(row.liveSeverity().observations[.edge(5, 11)]?.measured["row_torso_swing"], .withinRepChange,
+                       "an established row session gate remains available when this frame's view is missing")
+    }
+}
+
+
+extension FormWarningsTests {
+    func testOverlayBaselineNeedsTheRelevantMetricInEveryReferenceRep() {
+        let tracker = FormWarningTracker(exercise: .pushUp)
+        for rep in 0..<3 {
+            var coco = sidePushUp(hipDrop: 0, elbowBend: 60)
+            if rep == 0 { coco[9].confidence = 0 }
+            tracker.observe(frameIndex: rep*2, coco17: coco, phase: "top")
+            tracker.beginRep()
+            tracker.observe(frameIndex: rep*2+1, coco17: coco, phase: "bottom")
+            tracker.recordCurrentFrame()
+            _ = tracker.finishRep(repIndex: rep+1)
+        }
+        tracker.observe(frameIndex: 7, coco17: sidePushUp(hipDrop: 0, elbowBend: 60), phase: "bottom")
+        let state = tracker.liveSeverity(), seg = OverlaySegment.edge(5, 7)
+        XCTAssertEqual(state.observations[seg]?.withheld["pushup_shallow"], [.baseline],
+                       "three completed reps do not imply three observed elbow references")
+        XCTAssertNil(state.severity[seg])
     }
 }
