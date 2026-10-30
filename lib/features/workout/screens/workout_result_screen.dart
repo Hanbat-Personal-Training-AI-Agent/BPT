@@ -43,25 +43,6 @@ String _formatWorkoutDateTime(DateTime date, bool isKo) {
       '${date.day}, $hour12:$minute $period';
 }
 
-// 운동별로 자세가 흐트러졌을 때 가장 흔히 지적되는 부위. 관절별 세부 분석
-// 데이터가 아직 없어서, 운동 종류당 대표 부위 하나로 단순화해 보여준다.
-const _issueBodyPartKo = <String, String>{
-  'squat': '무릎',
-  'benchpress': '가슴',
-  'deadlift': '허리',
-  'barbell-row': '허리',
-  'pushup': '상체',
-  'lat-pulldown': '어깨',
-};
-const _issueBodyPartEn = <String, String>{
-  'squat': 'knees',
-  'benchpress': 'chest',
-  'deadlift': 'lower back',
-  'barbell-row': 'lower back',
-  'pushup': 'upper body',
-  'lat-pulldown': 'shoulders',
-};
-
 String _groupThousands(int n) {
   final digits = n.abs().toString();
   final buf = StringBuffer();
@@ -321,15 +302,12 @@ class _WorkoutResultScreenState extends ConsumerState<WorkoutResultScreen>
                               const SizedBox(height: 16),
                               _SetRecordsCard(
                                 isKo: isKo,
-                                exerciseId: exerciseId,
                                 records: setRecords,
                               ),
                               const SizedBox(height: 16),
                               _FeedbackCard(
                                 isKo: isKo,
-                                exerciseId: exerciseId,
                                 records: setRecords,
-                                isHistory: isHistory,
                               ),
                               const SizedBox(height: 16),
                               _ReplaySection(isKo: isKo, records: setRecords),
@@ -618,19 +596,13 @@ class _ResultStatTile extends StatelessWidget {
 class _SetRecordsCard extends StatelessWidget {
   const _SetRecordsCard({
     required this.isKo,
-    required this.exerciseId,
     required this.records,
   });
   final bool isKo;
-  final String exerciseId;
   final List<_SetRecord> records;
 
   @override
   Widget build(BuildContext context) {
-    final bodyPart = isKo
-        ? (_issueBodyPartKo[exerciseId] ?? _issueBodyPartKo['squat']!)
-        : (_issueBodyPartEn[exerciseId] ?? _issueBodyPartEn['squat']!);
-
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -655,7 +627,6 @@ class _SetRecordsCard extends StatelessWidget {
               index: i + 1,
               record: records[i],
               isKo: isKo,
-              bodyPart: bodyPart,
             ),
           ],
         ],
@@ -669,20 +640,20 @@ class _SetRecordRow extends StatelessWidget {
     required this.index,
     required this.record,
     required this.isKo,
-    required this.bodyPart,
   });
   final int index;
   final _SetRecord record;
   final bool isKo;
-  final String bodyPart;
 
   @override
   Widget build(BuildContext context) {
-    final ok = record.badCount == 0;
-    final tag = ok
-        ? (isKo ? '안정' : 'Stable')
-        : (isKo ? '$bodyPart ${record.badCount}회' : '$bodyPart x${record.badCount}');
-    final tagColor = ok ? AppColors.green : AppColors.red;
+    final noRecordedWarnings = record.badCount == 0;
+    final tag = noRecordedWarnings
+        ? (isKo ? '완료' : 'Completed')
+        : (isKo ? '경고 ${record.badCount}회' : 'Warnings x${record.badCount}');
+    final tagColor = noRecordedWarnings
+        ? Colors.white.withValues(alpha: 0.65)
+        : AppColors.red;
 
     return Row(
       children: [
@@ -732,14 +703,10 @@ class _SetRecordRow extends StatelessWidget {
 class _FeedbackCard extends StatelessWidget {
   const _FeedbackCard({
     required this.isKo,
-    required this.exerciseId,
     required this.records,
-    this.isHistory = false,
   });
   final bool isKo;
-  final String exerciseId;
   final List<_SetRecord> records;
-  final bool isHistory;
 
   @override
   Widget build(BuildContext context) {
@@ -747,23 +714,20 @@ class _FeedbackCard extends StatelessWidget {
       for (var i = 0; i < records.length; i++)
         if (records[i].badCount > 0) i + 1,
     ];
-    final bodyPartKo = _issueBodyPartKo[exerciseId] ?? _issueBodyPartKo['squat']!;
-    final bodyPartEn = _issueBodyPartEn[exerciseId] ?? _issueBodyPartEn['squat']!;
-
     final String message;
     final String character;
     if (badIndices.isEmpty) {
       character = 'assets/images/character/face2.png';
       message = isKo
-          ? '${isHistory ? '이 날' : '오늘'} 자세 다 좋았어!\n이 페이스 그대로 가자!'
-          : 'Great form all the way through ${isHistory ? 'that day' : 'today'}!\nKeep this pace up.';
+          ? '기록된 경고는 없어.\n세트 마치느라 수고했어!'
+          : 'No warnings were recorded.\nNice work completing your sets!';
     } else {
       character = 'assets/images/character/worrying.png';
       final setsLabelKo = badIndices.join('·');
       final setsLabelEn = badIndices.join(', ');
       message = isKo
-          ? '$setsLabelKo세트에서 $bodyPartKo이(가) 안쪽으로 모였어.\n다음엔 방향만 살짝 신경 써줘. 깊이랑 속도는 좋았어!'
-          : 'Your $bodyPartEn drifted inward on set $setsLabelEn.\nWatch the direction next time — depth and tempo were great!';
+          ? '$setsLabelKo세트에 경고가 기록됐어.\n세부 내용을 확인해줘.'
+          : 'Warnings were recorded on set $setsLabelEn.\nReview the details.';
     }
 
     return Container(

@@ -51,3 +51,20 @@ swift test --package-path ios/CalibrationEngineKit \
 이 테스트의 synthetic geometry는 표시 계약을 검증하며, 실제 영상의 자세/관절 정확도 또는 전문가 라벨 대비 FP/FN을 측정하지 않는다. GVHMR row 범위 압축·pushup 기준 반복 선택 오류·관절 정의 문제는 해결되지 않았다. 기존 rep judge와 `praise_good`/음성은 범위 밖이어서 그대로다. 따라서 이 overlay 패치만으로 앱 전체의 허위 정상 피드백이 없어졌다고 주장하지 않는다.
 
 다음 검토는 이 소스의 실제 iPhone 표시에서 neutral/relative/partial의 구분과 손목 우선순위를 확인하고, 전문가 기준·독립 절대 정상 표준과 관측 phase가 고정된 독립 검증에서 표시/판정/음성 의미를 함께 검사하는 것이다. 처음 나쁜3회를 올바른 자세의 표준으로 사용하거나 임의 절대 각도·대칭 보정을 추가하지 않는다. 설치/배포는 이번 범위에 없다.
+
+## 같은 세트 요약의 허위 정상 표현 후속 수정
+
+후속 범위는 native 화면의 세트 완료 요약, 그 화면이 넘긴 저장 세트 기록 표시, 공유 `praise_clean_set` 대사다. `praise_good`/`praise_fixed`와 event ID/kind·grade·quiet·집계·metrics·스키마·모델/기준은 변경하지 않았다.
+
+실제 호출/집계 경로를 확인했다. `_onNativeFeedback`가 전달된 warning event마다 `_badCountThisSet`를1 증가시키고 `_warningKeysThisSet`에는 서로 다른 키를 저장한다. `_SetResult.badCount`는 이 event 수, `fixCount`는 키 집합 크기다. `_speakSetSummary`와 `_KoriBreakMessage`가 모두 fixCount==0이면 같은 `praise_clean_set`을 선택한다. 전자는 native KoriVoiceService로 텍스트를 전달하고 후자는 같은 텍스트를 말풍선에 표시한다. scope=set 요약 경고는 별도 `_nativeFeedbackCounts`에만 더해지고 이 fixCount/badCount에는 들어가지 않는다. 따라서 quiet/관측 불가/초기 기준/서로 다른 집계 범위에서도0이 나올 수 있다. 이 선택/집계는 유지하고 그때 나가는 대사를 완료·수고 격려로 바꿨다: “{reps}회 완료! 수고했어!” / “{reps} reps completed! Nice effort”.
+
+native `_SetRow`의 badCount==0 “완벽해/Perfect” 녹색은 중립 “완료/Completed”로 바꾸고 세트 번호 배경도 중립 처리했다. 동일 `setResults.badCount`를 읽는 결과 `_SetRecordRow`의 “안정/Stable” 녹색도 중립 완료로 바꿨다. 양수 count에서 운동명만으로 body part를 추정하던 row는 일반 기록 경고 횟수로 표시한다. 같은 `_FeedbackCard`의 경고0→“모든 자세 좋음”, 경고 있음→임의 inward drift 및 “depth/tempo 좋음” 문구도 각각 기록된 경고 유무와 완료 격려로 교체했다. 원 카운트만으로 특정 오자세나 별도 품질을 추정하지 않는다.
+
+기존 캐시에서 `flutter pub get --offline` 성공했고 lock 변경/Pods/외부 패키지 다운로드는 없다. 최종 Dart 코드에서:
+
+- `flutter test --no-pub test/kori_feedback_lines_test.dart test/native_pose_workout_screen_test.dart test/native_pose_channel_test.dart`: **12개 통과**(대사 계약3, native channel4, widget5).
+- 실제 widget의 **관측·자세 이벤트 없이 rep-count만 증가시킨 세트 완료**를 ko/en으로 실행해 중립 완료 색상과 횟수 격려, 완벽/교정 단정 부재를 확인했다. read-only history fixture는 저장/네트워크 없이 badCount0/1을 각각 렌더해 완료 또는 일반 기록 경고를 표시하고 “안정/정상”이나 추정 knee fault/inward drift/depth·tempo 승인으로 바뀌지 않음을 검사했다.
+- 기존 widget fixture에 mock SharedPreferences/앱 font theme를 제공하고, 기존 대사 키 계약에 이미 등록돼 있던 log-only bench/dead6개를 반영했다. 실제 활성화 키는 바꾸지 않았다. 새 테스트는 대사 복사본만 비교하는 대신 실제 완료/저장 표시 흐름을 검사한다.
+- 수정된3개 lib 파일과2개 테스트에 대한 `flutter analyze --no-pub ...`: **No issues found**. `git diff --check` 통과. native runtime 코드는 앞 절의63개 테스트 이후 변경하지 않았다.
+
+남은 의미 차이는 명확하다. 저장되는 legacy `correctReps = totalReps - warningEventCount`와 그 기반 달성률/점수는 **실제 올바른 반복 수가 아니다**. 경고 event 수·고유 경고 키 수·set-scope 경고 수가 서로 다르며 판정불가 분모도 기록하지 않는다. 이번에는 이를 스키마/계산까지 확장하지 않았다. 다른 mock/provider의 “Perfect rep!” 및 기존 `praise_fixed`의 품질 문구도 별도 남아 있고 `praise_good`는 일반 격려로 유지했다. 그러므로 앱 전체 허위 정상 피드백이 해결됐다고 부르지 않는다. 실기기 시각/음성 재생·원 자세 정확도는 여전히 미검증이며, 설치·전체 앱 빌드·배포는 하지 않았다.

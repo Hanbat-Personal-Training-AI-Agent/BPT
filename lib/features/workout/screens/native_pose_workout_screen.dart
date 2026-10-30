@@ -345,7 +345,7 @@ class _NativePoseWorkoutScreenState
         isKo: isKo, interrupt: line.kind == KoriFeedbackKind.warning);
   }
 
-  /// 방금 끝낸 세트에 대한 코멘트 (_KoriBreakMessage 와 같은 대사)를 말한다.
+  /// 방금 끝낸 세트의 완료/기록 경고 코멘트. 경고 키0개는 자세 정상의 증거가 아니다.
   void _speakSetSummary() {
     if (_voiceMuted) return;
     final result = _setResults.last;
@@ -2079,7 +2079,7 @@ class _KoriBreakMessage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 경고 없이 끝난 세트 → praise_clean_set, 경고가 있었으면 → set_summary.
+    // 전달된 경고 키가 없으면 완료 격려. 판정 범위/가시성이나 자세의 정상 여부를 뜻하지 않는다.
     final line = fixCount == 0
         ? koriFeedbackLines['praise_clean_set']!
         : koriFeedbackLines['set_summary']!;
@@ -2276,8 +2276,8 @@ class _SetRow extends StatelessWidget {
       trailingText = null;
       trailingColor = Colors.transparent;
     } else if (badCount == 0) {
-      trailingText = isKo ? '완벽해' : 'Perfect';
-      trailingColor = AppColors.green;
+      trailingText = isKo ? '완료' : 'Completed';
+      trailingColor = Colors.white.withValues(alpha: 0.65);
     } else {
       trailingText = isKo ? '교정 $badCount회' : 'Fix x$badCount';
       trailingColor = AppColors.pink;
@@ -2293,14 +2293,14 @@ class _SetRow extends StatelessWidget {
             alignment: Alignment.center,
             decoration: BoxDecoration(
               color:
-                  done ? AppColors.green : Colors.white.withValues(alpha: 0.1),
+                  done ? Colors.white.withValues(alpha: 0.16) : Colors.white.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(
               '$setNumber',
               style: TextStyle(
                 color: done
-                    ? AppColors.black
+                    ? Colors.white
                     : Colors.white.withValues(alpha: 0.4),
                 fontWeight: FontWeight.w800,
                 fontSize: 12,

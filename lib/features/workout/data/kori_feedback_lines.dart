@@ -261,10 +261,11 @@ const List<KoriFeedbackLine> _lines = [
     en: 'Nice, keep it up!',
   ),
   KoriFeedbackLine(
+    // Legacy ID: selected when no warning keys were delivered, not evidence of correct form.
     key: 'praise_clean_set',
     kind: KoriFeedbackKind.praise,
-    ko: '{reps}개 다 완벽해!',
-    en: 'All {reps} reps looked great! Nice work',
+    ko: '{reps}회 완료! 수고했어!',
+    en: '{reps} reps completed! Nice effort',
   ),
   KoriFeedbackLine(
     key: 'set_summary',

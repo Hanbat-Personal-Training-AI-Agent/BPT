@@ -4,6 +4,9 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   test('기획 문서의 키가 모두 있다', () {
     const keys = [
+      // Existing log-only draft keys are registered, but this does not enable delivery.
+      'bench_hips_up', 'bench_shallow', 'bench_no_lockout',
+      'deadlift_hips_first', 'deadlift_no_lockout', 'deadlift_lean_back',
       'pushup_hip_sag', 'pushup_hip_pike', 'pushup_shallow', 'pushup_no_lockout',
       'pushup_head_drop', 'pushup_head_up', 'pushup_hand_position',
       'pushup_depth_fade',
@@ -21,7 +24,7 @@ void main() {
   test('{reps} {k} 를 채운다', () {
     expect(
       koriFeedbackLines['praise_clean_set']!.render(isKo: true, reps: 12),
-      '12개 다 완벽해!',
+      '12회 완료! 수고했어!',
     );
     expect(
       koriFeedbackLines['set_summary']!.render(isKo: true, k: 2),
