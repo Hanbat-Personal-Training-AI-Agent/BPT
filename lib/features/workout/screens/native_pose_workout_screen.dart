@@ -19,6 +19,7 @@ import '../../../services/kori_voice_service.dart';
 import '../../onboarding/services/calibration_result_store.dart';
 import '../data/kori_feedback_lines.dart';
 import '../data/native_pose_channel.dart';
+import '../data/workout_evidence.dart';
 import '../widgets/exercise_setup_panel.dart';
 import '../data/deep_analysis_queue.dart';
 import 'deep_analysis_report_screen.dart';
@@ -523,8 +524,16 @@ class _NativePoseWorkoutScreenState
         'exerciseName': exercise.name,
         'exerciseNameKr': exercise.nameKr,
         'totalReps': totalReps,
-        'correctReps': totalReps - totalBad,
-        'incorrectReps': totalBad,
+        // Required legacy wire fields cannot encode unknown: 0/0 are explicit placeholders.
+        'correctReps': 0,
+        'incorrectReps': 0,
+        'poseMetricsSummary': WorkoutEvidence.nativeSummary(
+          completedReps: totalReps,
+          recordedWarningEvents: totalBad,
+          sets: performedSets.map((r) => <String, dynamic>{
+            'reps': r.reps, 'weightKg': r.weightKg, 'badCount': r.badCount,
+          }).toList(),
+        ),
         'elapsedSeconds': elapsedSeconds,
         'postureScore': null,
         'feedbackHistory': null,
@@ -1650,7 +1659,7 @@ class _SetResult {
   final int reps;
   final int weightKg;
 
-  /// 경고가 나온 횟수 (결과 기록의 incorrectReps).
+  /// 전달된 경고 이벤트 수. 올바른/잘못된 반복 수가 아니다.
   final int badCount;
 
   /// 이 세트에서 나온 서로 다른 경고 종류 수 (set_summary 의 {k}).

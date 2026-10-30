@@ -125,6 +125,7 @@ void main() {
             'exerciseId': 'squat', 'totalReps': 2,
             'correctReps': 2 - warningCount, 'incorrectReps': warningCount,
             'targetSets': 1,
+            'targetReps': warningCount == 0 ? 2 : 4,
             'setResults': [
               {'reps': 2, 'weightKg': 0, 'badCount': warningCount}
             ],
@@ -132,13 +133,16 @@ void main() {
         ),
       ));
       await tester.pump(const Duration(seconds: 1));
+      expect(find.textContaining('전체 자세 판정: 미확인'), findsOneWidget);
       if (warningCount == 0) {
+        expect(find.text('목표 횟수 완료!'), findsOneWidget);
         final completed = find.text('완료');
         expect(completed, findsOneWidget);
         expect(tester.widget<Text>(completed).style?.color,
             Colors.white.withValues(alpha: 0.65));
         expect(find.textContaining('기록된 경고는 없어.'), findsOneWidget);
       } else {
+        expect(find.text('목표 횟수 50% 완료'), findsOneWidget);
         expect(find.textContaining('1세트에 경고가 기록됐어.'), findsOneWidget);
         expect(find.text('경고 1회'), findsOneWidget);
         expect(find.text('무릎 1회'), findsNothing);

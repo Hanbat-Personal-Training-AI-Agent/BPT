@@ -250,8 +250,8 @@ const List<KoriFeedbackLine> _lines = [
   KoriFeedbackLine(
     key: 'praise_fixed',
     kind: KoriFeedbackKind.praise,
-    ko: '바로 그거야!',
-    en: 'Nice, that rep was spot on!',
+    ko: '관찰한 항목이 나아졌어!',
+    en: 'That measured issue improved!',
   ),
   // 실제 판정으로 문제없이 판정된 렙 칭찬(판정 불가 렙에는 안 옴, 3렙마다 최대 1번 — FormWarningTracker).
   KoriFeedbackLine(

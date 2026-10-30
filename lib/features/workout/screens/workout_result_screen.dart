@@ -17,7 +17,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../data/dto/workout_metadata_dto.dart';
 import '../../../data/mock_data.dart';
 import '../../../services/workout_records_service.dart';
-import '../providers/workout_provider.dart';
+import '../data/workout_evidence.dart';
 import 'deep_analysis_report_screen.dart';
 
 const _monthsEn = [
@@ -63,7 +63,7 @@ class _SetRecord {
   });
   final int reps;
   final int weightKg;
-  final int badCount;
+  final int? badCount;
   final String? videoPath;
 }
 
@@ -95,7 +95,6 @@ class _WorkoutResultScreenState extends ConsumerState<WorkoutResultScreen>
     final isHistory = widget.result['isHistory'] as bool? ?? false;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!isHistory) {
-        ref.read(workoutProvider.notifier).reset();
         _saveRecord();
       }
     });
@@ -114,7 +113,8 @@ class _WorkoutResultScreenState extends ConsumerState<WorkoutResultScreen>
       correctReps: r['correctReps'] as int? ?? 0,
       incorrectReps: r['incorrectReps'] as int? ?? 0,
       durationSeconds: r['elapsedSeconds'] as int? ?? 0,
-      postureScore: (r['postureScore'] as num?)?.toDouble() ?? 0.0,
+      postureScore: (r['postureScore'] as num?)?.toDouble(),
+      poseMetricsSummary: (r['poseMetricsSummary'] as Map?)?.cast<String, dynamic>(),
       feedbackNotes: (r['feedbackHistory'] as List?)?.cast<String>() ?? [],
       targetReps: r['targetReps'] as int? ?? 0,
       targetSets: r['targetSets'] as int? ?? 1,
@@ -162,17 +162,17 @@ class _WorkoutResultScreenState extends ConsumerState<WorkoutResultScreen>
   List<_SetRecord> _buildSetRecords({
     required int targetSets,
     required int totalReps,
-    required int incorrectReps,
     required int weightKg,
   }) {
-    final raw = widget.result['setResults'];
+    final summary = (widget.result['poseMetricsSummary'] as Map?)?.cast<String, dynamic>();
+    final raw = widget.result['setResults'] ?? WorkoutEvidence.details(summary)?['sets'];
     if (raw is List && raw.isNotEmpty) {
       return raw.map((e) {
         final m = (e as Map).cast<String, dynamic>();
         return _SetRecord(
           reps: (m['reps'] as num?)?.toInt() ?? 0,
           weightKg: (m['weightKg'] as num?)?.toInt() ?? weightKg,
-          badCount: (m['badCount'] as num?)?.toInt() ?? 0,
+          badCount: (m['badCount'] as num?)?.toInt(),
           videoPath: m['videoLocalPath'] as String?,
         );
       }).toList();
@@ -181,13 +181,11 @@ class _WorkoutResultScreenState extends ConsumerState<WorkoutResultScreen>
     final sets = targetSets > 0 ? targetSets : 1;
     final baseReps = totalReps ~/ sets;
     final repsRemainder = totalReps % sets;
-    final baseBad = incorrectReps ~/ sets;
-    final badRemainder = incorrectReps % sets;
     return List.generate(sets, (i) {
       return _SetRecord(
         reps: baseReps + (i < repsRemainder ? 1 : 0),
         weightKg: weightKg,
-        badCount: baseBad + (i < badRemainder ? 1 : 0),
+        badCount: null, // Legacy correctness counters cannot locate or identify warning events.
       );
     });
   }
@@ -224,9 +222,6 @@ class _WorkoutResultScreenState extends ConsumerState<WorkoutResultScreen>
         : (r['exerciseName'] as String? ?? '');
 
     final totalReps = r['totalReps'] as int? ?? 0;
-    final correctReps = r['correctReps'] as int? ?? totalReps;
-    final incorrectReps =
-        r['incorrectReps'] as int? ?? (totalReps - correctReps).clamp(0, totalReps);
     final elapsedSec = r['elapsedSeconds'] as int? ?? 0;
     final targetReps = r['targetReps'] as int? ?? 0;
     var targetSets = r['targetSets'] as int? ?? 0;
@@ -239,7 +234,6 @@ class _WorkoutResultScreenState extends ConsumerState<WorkoutResultScreen>
     final setRecords = _buildSetRecords(
       targetSets: targetSets > 0 ? targetSets : 1,
       totalReps: totalReps,
-      incorrectReps: incorrectReps,
       weightKg: weightKg,
     );
     if (targetSets <= 0) targetSets = setRecords.length;
@@ -247,12 +241,8 @@ class _WorkoutResultScreenState extends ConsumerState<WorkoutResultScreen>
     final volume =
         setRecords.fold<int>(0, (sum, set) => sum + set.reps * set.weightKg);
 
-    final achieved = targetReps > 0
-        ? correctReps >= targetReps
-        : (incorrectReps == 0 && totalReps > 0);
-    final achievementPct = targetReps > 0
-        ? ((correctReps / targetReps) * 100).clamp(0, 100).round()
-        : (totalReps == 0 ? 0 : ((correctReps / totalReps) * 100).round());
+    final achievementPct = WorkoutEvidence.completionPercent(totalReps, targetReps);
+    final achieved = achievementPct == 100;
 
     final historyTitle = _formatWorkoutDateTime(date, isKo);
 
@@ -291,6 +281,9 @@ class _WorkoutResultScreenState extends ConsumerState<WorkoutResultScreen>
                                 achieved: achieved,
                                 achievementPct: achievementPct,
                               ),
+                              const SizedBox(height: 8),
+                              Text(isKo ? '전체 자세 판정: 미확인 · 완료율은 수행 횟수 기준' : 'Overall form unassessed · completion uses performed reps',
+                                style: TextStyle(color: Colors.white.withValues(alpha: 0.65), fontSize: 12)),
                               const SizedBox(height: 16),
                               _StatsRow(
                                 isKo: isKo,
@@ -414,7 +407,7 @@ class _HeroCard extends StatelessWidget {
   final DateTime date;
   final String exerciseName;
   final bool achieved;
-  final int achievementPct;
+  final int? achievementPct;
 
   static const double _cardHeight = 112;
   static const double _characterSize = 230;
@@ -465,10 +458,10 @@ class _HeroCard extends StatelessWidget {
                       ),
                       child: Text(
                         achieved
-                            ? (isKo ? '목표 달성!' : 'Goal hit!')
+                            ? (isKo ? '목표 횟수 완료!' : 'Rep goal completed!')
                             : (isKo
-                                ? '$achievementPct% 달성'
-                                : '$achievementPct% done'),
+                                ? (achievementPct == null ? '목표 횟수 미기록' : '목표 횟수 $achievementPct% 완료')
+                                : (achievementPct == null ? 'Rep goal not recorded' : '$achievementPct% of rep goal completed')),
                         style: TextStyle(
                           color: achieved ? Colors.white : AppColors.green,
                           fontSize: 11,
@@ -648,10 +641,12 @@ class _SetRecordRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final noRecordedWarnings = record.badCount == 0;
-    final tag = noRecordedWarnings
+    final tag = record.badCount == null
+        ? (isKo ? '경고 기록 미확인' : 'Warning record unavailable')
+        : noRecordedWarnings
         ? (isKo ? '완료' : 'Completed')
         : (isKo ? '경고 ${record.badCount}회' : 'Warnings x${record.badCount}');
-    final tagColor = noRecordedWarnings
+    final tagColor = noRecordedWarnings || record.badCount == null
         ? Colors.white.withValues(alpha: 0.65)
         : AppColors.red;
 
@@ -712,11 +707,14 @@ class _FeedbackCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final badIndices = [
       for (var i = 0; i < records.length; i++)
-        if (records[i].badCount > 0) i + 1,
+        if ((records[i].badCount ?? 0) > 0) i + 1,
     ];
     final String message;
     final String character;
-    if (badIndices.isEmpty) {
+    if (records.any((r) => r.badCount == null)) {
+      character = 'assets/images/character/face2.png';
+      message = isKo ? '경고 기록의 범위를 확인할 수 없어.\n수행 기록을 확인해줘.' : 'Warning evidence is unavailable.\nReview the completion record.';
+    } else if (badIndices.isEmpty) {
       character = 'assets/images/character/face2.png';
       message = isKo
           ? '기록된 경고는 없어.\n세트 마치느라 수고했어!'
@@ -799,8 +797,8 @@ class _ReplaySectionState extends State<_ReplaySection> {
     var best = 0;
     var bestBad = -1;
     for (var i = 0; i < widget.records.length; i++) {
-      if (widget.records[i].badCount > bestBad) {
-        bestBad = widget.records[i].badCount;
+      if ((widget.records[i].badCount ?? 0) > bestBad) {
+        bestBad = widget.records[i].badCount ?? 0;
         best = i;
       }
     }

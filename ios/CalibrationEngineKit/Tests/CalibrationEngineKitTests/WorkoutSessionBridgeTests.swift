@@ -86,6 +86,15 @@ final class WorkoutSessionBridgeTests: XCTestCase {
         XCTAssertEqual(asked, [])
     }
 
+    func testChangedMeaningUsesCurrentTextInsteadOfLegacyBundledAudio() {
+        for key in ["praise_fixed", "praise_clean_set"] {
+            XCTAssertEqual(workoutVoiceAudioNames(key: key, n: nil), [])
+            XCTAssertEqual(workoutVoiceAudioNames(key: key, n: 10), [], "no numbered legacy recording either")
+        }
+        XCTAssertEqual(workoutVoiceAudioNames(key: "pushup_hip_sag", n: nil), ["pushup_hip_sag"],
+                       "unrelated warning routing is unchanged")
+    }
+
     func testSetRecorderWritesH264() throws {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: dir) }

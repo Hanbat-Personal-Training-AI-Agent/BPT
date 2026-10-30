@@ -135,7 +135,10 @@ struct WorkoutVoiceQueue {
 /// Bundled recording for a line: `<key>_<n>.mp3` when n is set, then `<key>.mp3`. Lines with {n}
 /// only get numbered files, so a missing number falls through to TTS.
 func workoutVoiceAudioNames(key: String, n: Int?) -> [String] {
-    (n.map { ["\(key)_\($0)"] } ?? []) + [key]
+    // These IDs have deliberately changed semantics. Old bundled recordings must not override
+    // the current scoped/completion text supplied by Flutter. Keep assets, route to text/TTS.
+    if key == "praise_fixed" || key == "praise_clean_set" { return [] }
+    return (n.map { ["\(key)_\($0)"] } ?? []) + [key]
 }
 
 // MARK: - Voice

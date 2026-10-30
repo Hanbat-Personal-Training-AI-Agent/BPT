@@ -68,3 +68,7 @@ native `_SetRow`의 badCount==0 “완벽해/Perfect” 녹색은 중립 “완�
 - 수정된3개 lib 파일과2개 테스트에 대한 `flutter analyze --no-pub ...`: **No issues found**. `git diff --check` 통과. native runtime 코드는 앞 절의63개 테스트 이후 변경하지 않았다.
 
 남은 의미 차이는 명확하다. 저장되는 legacy `correctReps = totalReps - warningEventCount`와 그 기반 달성률/점수는 **실제 올바른 반복 수가 아니다**. 경고 event 수·고유 경고 키 수·set-scope 경고 수가 서로 다르며 판정불가 분모도 기록하지 않는다. 이번에는 이를 스키마/계산까지 확장하지 않았다. 다른 mock/provider의 “Perfect rep!” 및 기존 `praise_fixed`의 품질 문구도 별도 남아 있고 `praise_good`는 일반 격려로 유지했다. 그러므로 앱 전체 허위 정상 피드백이 해결됐다고 부르지 않는다. 실기기 시각/음성 재생·원 자세 정확도는 여전히 미검증이며, 설치·전체 앱 빌드·배포는 하지 않았다.
+
+### 이어서 진행한 근거 계약 수정
+
+위에 남긴 legacy correctReps/score 연결과 교정 칭찬의 실제 관측 조건을 추가 수정했다. 최신 범위·호환성 제한·최종75 Swift/25 Dart 테스트 증거는 [완료·경고·자세 근거 분리 보고서](workout_evidence_semantics_20261030.md)에 있다. backend/deployed API 의미 검증과 실제 자세 정확도 검증은 여전히 별개다.

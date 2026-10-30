@@ -1,5 +1,6 @@
 import 'dart:convert';
 import '../data/dto/workout_metadata_dto.dart';
+import '../features/workout/data/workout_evidence.dart';
 
 class WorkoutRecordModel {
   final String id; // Client side unique ID
@@ -12,7 +13,8 @@ class WorkoutRecordModel {
   final int correctReps;
   final int incorrectReps;
   final int durationSeconds;
-  final double postureScore; // 피드백 점수 (0.0 ~ 100.0)
+  final double? postureScore; // Raw legacy value; not independently validated form evidence.
+  final Map<String, dynamic> poseMetricsSummary;
   final List<String> feedbackNotes;
   final int targetReps;
   final int targetSets;
@@ -38,13 +40,13 @@ class WorkoutRecordModel {
     this.targetSets = 1,
     this.isSynced = false,
     this.feedbackCounts = const {},
+    this.poseMetricsSummary = const {},
   });
 
-  int get accuracy =>
-      totalReps == 0 ? 0 : ((correctReps / totalReps) * 100).round();
-
-  int get achievement =>
-      targetReps == 0 ? 100 : ((correctReps / targetReps) * 100).clamp(0.0, 100.0).round();
+  /// No current producer supplies independently validated correct-form rep evidence.
+  int? get accuracy => null;
+  double? get assessedPostureScore => null;
+  int? get achievement => WorkoutEvidence.completionPercent(totalReps, targetReps);
 
   /// 세트당 평균 반복 수. `totalReps` 는 전체 세트 합계라서 목록에 "N세트 × M회"
   /// 로 보여줄 때는 이 값을 쓴다.
@@ -69,10 +71,13 @@ class WorkoutRecordModel {
     int? incorrectReps,
     int? durationSeconds,
     double? postureScore,
+    bool clearPostureScore = false,
     List<String>? feedbackNotes,
     int? targetReps,
     int? targetSets,
     bool? isSynced,
+    Map<String, dynamic>? poseMetricsSummary,
+    Map<String, int>? feedbackCounts,
   }) {
     return WorkoutRecordModel(
       id: id ?? this.id,
@@ -85,12 +90,13 @@ class WorkoutRecordModel {
       correctReps: correctReps ?? this.correctReps,
       incorrectReps: incorrectReps ?? this.incorrectReps,
       durationSeconds: durationSeconds ?? this.durationSeconds,
-      postureScore: postureScore ?? this.postureScore,
+      postureScore: clearPostureScore ? null : postureScore ?? this.postureScore,
       feedbackNotes: feedbackNotes ?? this.feedbackNotes,
       targetReps: targetReps ?? this.targetReps,
       targetSets: targetSets ?? this.targetSets,
       isSynced: isSynced ?? this.isSynced,
-      feedbackCounts: feedbackCounts,
+      feedbackCounts: feedbackCounts ?? this.feedbackCounts,
+      poseMetricsSummary: poseMetricsSummary ?? this.poseMetricsSummary,
     );
   }
 
@@ -110,6 +116,7 @@ class WorkoutRecordModel {
       targetReps: targetReps,
       targetSets: targetSets,
       feedbackCounts: feedbackCounts,
+      poseMetricsSummary: poseMetricsSummary,
     );
   }
 
@@ -131,6 +138,7 @@ class WorkoutRecordModel {
       targetSets: dto.targetSets,
       isSynced: isSynced,
       feedbackCounts: dto.feedbackCounts,
+      poseMetricsSummary: dto.poseMetricsSummary ?? const {},
     );
   }
 
@@ -151,6 +159,7 @@ class WorkoutRecordModel {
         'targetSets': targetSets,
         'isSynced': isSynced,
         'feedbackCounts': feedbackCounts,
+        'poseMetricsSummary': poseMetricsSummary,
       };
 
   factory WorkoutRecordModel.fromJson(Map<String, dynamic> json) =>
@@ -167,12 +176,13 @@ class WorkoutRecordModel {
         correctReps: (json['correctReps'] as num?)?.toInt() ?? 0,
         incorrectReps: (json['incorrectReps'] as num?)?.toInt() ?? 0,
         durationSeconds: (json['durationSeconds'] as num?)?.toInt() ?? 0,
-        postureScore: (json['postureScore'] as num?)?.toDouble() ?? 0.0,
+        postureScore: (json['postureScore'] as num?)?.toDouble(),
         feedbackNotes:
             (json['feedbackNotes'] as List?)?.cast<String>() ?? [],
         targetReps: (json['targetReps'] as num?)?.toInt() ?? 0,
         targetSets: (json['targetSets'] as num?)?.toInt() ?? 1,
         isSynced: json['isSynced'] as bool? ?? false,
+        poseMetricsSummary: (json['poseMetricsSummary'] as Map?)?.cast<String, dynamic>() ?? const {},
         feedbackCounts: (json['feedbackCounts'] as Map?)?.map(
                 (k, v) => MapEntry(k.toString(), (v as num?)?.toInt() ?? 0)) ??
             const {},

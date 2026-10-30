@@ -526,6 +526,7 @@ class _CalendarRecordTile extends StatelessWidget {
           'incorrectReps': record.incorrectReps,
           'elapsedSeconds': record.durationSeconds,
           'postureScore': record.postureScore,
+          'poseMetricsSummary': record.poseMetricsSummary,
           'feedbackHistory': record.feedbackNotes,
           'targetReps': record.targetReps,
           'targetSets': record.targetSets,

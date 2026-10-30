@@ -26,7 +26,7 @@ class WorkoutMetadataRequestDto {
   final int correctReps;
   final int incorrectReps;
   final int durationSeconds;
-  final double postureScore; // 핵심 피드백 점수 (0.0 ~ 100.0)
+  final double? postureScore; // Raw legacy value only; missing is not a measured zero.
   final List<String> feedbackNotes;
   final int targetReps;
   final int targetSets;
@@ -100,7 +100,7 @@ class WorkoutMetadataRequestDto {
       correctReps: (json['correctReps'] as num?)?.toInt() ?? 0,
       incorrectReps: (json['incorrectReps'] as num?)?.toInt() ?? 0,
       durationSeconds: (json['durationSeconds'] as num?)?.toInt() ?? 0,
-      postureScore: (json['postureScore'] as num?)?.toDouble() ?? 0.0,
+      postureScore: (json['postureScore'] as num?)?.toDouble(),
       feedbackNotes: (json['feedbackNotes'] as List?)?.cast<String>() ?? [],
       targetReps: (json['targetReps'] as num?)?.toInt() ?? 0,
       targetSets: (json['targetSets'] as num?)?.toInt() ?? 1,
@@ -131,7 +131,7 @@ class WorkoutMetadataRequestDto {
 class WorkoutMetadataResponseDto {
   final String serverRecordId;
   final String clientRecordId;
-  final double postureScore;
+  final double? postureScore;
   final bool success;
   final String message;
   final DateTime syncedAt;
@@ -150,7 +150,7 @@ class WorkoutMetadataResponseDto {
       serverRecordId:
           json['serverRecordId'] as String? ?? json['id'] as String? ?? '',
       clientRecordId: json['clientRecordId'] as String? ?? '',
-      postureScore: (json['postureScore'] as num?)?.toDouble() ?? 0.0,
+      postureScore: (json['postureScore'] as num?)?.toDouble(),
       success: json['success'] as bool? ?? true,
       message: json['message'] as String? ?? 'Record synced successfully',
       syncedAt: json['syncedAt'] != null

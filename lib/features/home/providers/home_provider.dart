@@ -149,10 +149,8 @@ final todaySummaryProvider = Provider<Map<String, dynamic>>((ref) {
   final totalReps = todayRecords.fold(0, (sum, r) => sum + r.totalReps);
   final totalSecs = todayRecords.fold(0, (sum, r) => sum + r.durationSeconds);
   final completedSets = todayRecords.fold(0, (sum, r) => sum + r.targetSets);
-  final avgScore = todayRecords.isEmpty
-      ? 0.0
-      : todayRecords.fold(0.0, (sum, r) => sum + r.postureScore) /
-          todayRecords.length;
+  final assessedScores = todayRecords.map((r) => r.assessedPostureScore).whereType<double>().toList();
+  final avgScore = assessedScores.isEmpty ? null : assessedScores.reduce((a, b) => a + b) / assessedScores.length;
 
   // 운동 시간·세트·반복은 서버 요약이 있으면 그 값을 쓴다.
   final server = ref.watch(dashboardSummaryProvider).valueOrNull;

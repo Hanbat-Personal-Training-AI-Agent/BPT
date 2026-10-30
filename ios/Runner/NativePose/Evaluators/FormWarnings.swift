@@ -553,6 +553,7 @@ final class FormWarningTracker {
     private var trackingLostSent = false
     private var lastSpokenRep: [String: Int] = [:]
     private var previousFired: Set<String> = []
+    private var previousSpoken3D: Bool?
     private var previousSpoken: String?
     private var events: [FormFeedbackEvent] = []
 
@@ -586,6 +587,7 @@ final class FormWarningTracker {
         lastSpokenRep = [:]
         previousFired = []
         previousSpoken = nil
+        previousSpoken3D = nil
         events = []
     }
 
@@ -728,7 +730,8 @@ final class FormWarningTracker {
         repFrames = []
         repFrames3D = []
         let metrics = metrics2D(frames, isFirstRep: reports.isEmpty)
-        let fired2D = judge(metrics, history: repMetrics, repIndex: repIndex)
+        var assessed2D: Set<String> = []
+        let fired2D = judge(metrics, history: repMetrics, repIndex: repIndex, assessed: { assessed2D = $0 })
         repMetrics.append(metrics)
         if repMetrics.count > 100 { repMetrics.removeFirst() }
         // 3D: the same aggregation and rules on the 3D samples, with its own baseline history.
@@ -737,11 +740,12 @@ final class FormWarningTracker {
         let enough3D = !frames.isEmpty && Double(frames3D.count) >= common.min3DRepFraction * Double(frames.count)
         var metrics3D: [String: Double] = [:]
         var fired3D: [String]?
+        var assessed3D: Set<String> = []
         if !frames3D.isEmpty {
             metrics3D = metrics2D(frames3D, isFirstRep: repMetrics3D.isEmpty)
         }
         if enough3D {
-            fired3D = judge(metrics3D, history: repMetrics3D, repIndex: repIndex)
+            fired3D = judge(metrics3D, history: repMetrics3D, repIndex: repIndex, assessed: { assessed3D = $0 })
             repMetrics3D.append(metrics3D)
             if repMetrics3D.count > 100 { repMetrics3D.removeFirst() }
         }
@@ -751,7 +755,8 @@ final class FormWarningTracker {
             warningRepCounts[key, default: 0] += 1
             setWarningRepCounts[key, default: 0] += 1
         }
-        let spoken = deliver(fired, repIndex: repIndex,
+        let spoken = deliver(fired, repIndex: repIndex, assessed: common.form3DRequired ? assessed3D : assessed2D,
+                             source3D: common.form3DRequired,
                              judged: judgedForPraise(frames: frames, metrics: common.form3DRequired ? metrics3D : metrics,
                                                      judged3D: fired3D != nil))
         let sides = frames.map(\.side)
@@ -791,9 +796,9 @@ final class FormWarningTracker {
         return counts
     }
 
-    /// The rep was judged on usable data, so "nothing fired" means good form, not "unknown": the judgement came from
-    /// the required source (3D when form3DRequired), every frame was fully usable (3D ok — no warming up, tracking lost,
-    /// bad or partial 3D; 2D: required joints visible) and the exercise's key metrics exist.
+    /// Enough source data for generic encouragement, never proof of whole-form correctness.
+    /// Per-rule gates/references can still be inapplicable; correction praise separately requires the prior rule
+    /// to be evaluated under the same source, current gate and complete finite reference.
     private func judgedForPraise(frames: [FormFrameSample], metrics: [String: Double], judged3D: Bool) -> Bool {
         guard !frames.isEmpty, let needed = Self.praiseMetrics[exercise], needed.allSatisfy({ metrics[$0] != nil }) else { return false }
         if common.form3DRequired { return judged3D && frames.allSatisfy { $0.state3D == .ok } }
@@ -802,7 +807,7 @@ final class FormWarningTracker {
 
     /// Picks the one key said after this rep and queues it (scope "rep"). A rep judged on usable data with nothing fired
     /// gets praise_good (not on a rep that said a warning or praise_fixed, at most once per `cooldownReps` + 1 reps).
-    private func deliver(_ fired: [String], repIndex: Int, judged: Bool = false) -> String? {
+    private func deliver(_ fired: [String], repIndex: Int, assessed: Set<String>, source3D: Bool, judged: Bool = false) -> String? {
         let eligible = fired.filter { key in
             let grade = Self.grade(of: key)
             guard grade != .reference, common.enabledFeedbackKeys.contains(key) else { return false }
@@ -814,7 +819,9 @@ final class FormWarningTracker {
             lastSpokenRep[key] = repIndex
             // n only for set scope: rep-scope lines have no {n}, and the app adds `n ?? 1` per event to feedbackCounts.
             emit(FormFeedbackEvent(key: key, n: nil))
-        } else if judged, fired.isEmpty, previousSpoken != nil, common.enabledFeedbackKeys.contains("praise_fixed") {
+        } else if judged, fired.isEmpty, let previousSpoken, assessed.contains(previousSpoken),
+                  previousSpoken3D == source3D, common.enabledFeedbackKeys.contains(previousSpoken),
+                  common.enabledFeedbackKeys.contains("praise_fixed") {
             spoken = "praise_fixed"
             emit(FormFeedbackEvent(key: "praise_fixed", n: nil))
         } else if judged, fired.isEmpty, common.enabledFeedbackKeys.contains("praise_good"),
@@ -825,6 +832,7 @@ final class FormWarningTracker {
         }
         previousFired = Set(fired)
         previousSpoken = spoken == "praise_fixed" || spoken == "praise_good" ? nil : spoken
+        previousSpoken3D = previousSpoken == nil ? nil : source3D
         return spoken
     }
 
@@ -1043,9 +1051,36 @@ final class FormWarningTracker {
     // MARK: Rules (run on the 2D metrics and, separately, on the same metrics measured in 3D)
 
     /// Keys whose condition holds for this rep, in rule order. `history` = earlier reps' metrics.
-    func judge(_ m: [String: Double], history: [[String: Double]], repIndex: Int) -> [String] {
-        var fired: Set<String> = []
-        func fire(_ key: String, _ condition: Bool?) { if condition == true { fired.insert(key) } }
+    func judge(_ m: [String: Double], history: [[String: Double]], repIndex: Int,
+               assessed: ((Set<String>) -> Void)? = nil) -> [String] {
+        var fired: Set<String> = [], evaluated: Set<String> = []
+        var viewQualified = false
+        func completeReference(_ key: String) -> Bool {
+            let baselineMetric: String?
+            switch key {
+            case "pushup_shallow", "bench_shallow": baselineMetric = "elbow_min"
+            case "squat_shallow": baselineMetric = "knee_min"
+            case "row_standing_up": baselineMetric = "torso_mean"
+            case "row_short_pull": baselineMetric = "elbow_behind_max"
+            default: baselineMetric = nil
+            }
+            if let metric = baselineMetric {
+                guard history.count >= common.baselineRepCount,
+                      history.prefix(common.baselineRepCount).allSatisfy({ $0[metric]?.isFinite == true }) else { return false }
+            }
+            if key == "squat_no_lockout" { return m["knee_max"] != nil && m["hip_angle_max"] != nil }
+            if key == "deadlift_no_lockout" { return m["knee_max"] != nil && m["hip_angle_max"] != nil }
+            return true
+        }
+        func fire(_ key: String, _ condition: Bool?) {
+            // Preserve historical rule decisions. Only the delivery qualification is new.
+            if condition == true { fired.insert(key) }
+            if condition != nil, viewQualified, m.values.allSatisfy(\.isFinite),
+               history.allSatisfy({ $0.values.allSatisfy(\.isFinite) }),
+               Self.grade(of: key) != .setup, completeReference(key) {
+                evaluated.insert(key)
+            }
+        }
         func over(_ name: String, _ t: Double) -> Bool? { m[name].map { $0 > t } }
         func under(_ name: String, _ t: Double) -> Bool? { m[name].map { $0 < t } }
         /// (current − baseline median of the first reps) > t; nil until the baseline exists.
@@ -1071,6 +1106,7 @@ final class FormWarningTracker {
         // Row: the session gate when decided, else the per-rep front-view fraction.
         let sideView = (exercise == .barbellRow ? self.sideView : nil)
             ?? ((m["front_view_fraction"] ?? 0) < common.frontViewRepFraction)
+        viewQualified = (exercise == .barbellRow && self.sideView != nil) || m["front_view_fraction"]?.isFinite == true
         let firstRep = history.isEmpty
 
         switch exercise {
@@ -1140,6 +1176,7 @@ final class FormWarningTracker {
                  || belowSetMax("knee_max", c.noLockoutBelowSetMaxDegrees) == true)
             fire("deadlift_lean_back", under("torso_min", -c.leanBackDegrees))
         }
+        assessed?(evaluated)
         return (Self.rules[exercise] ?? []).map(\.key).filter(fired.contains)
     }
 }

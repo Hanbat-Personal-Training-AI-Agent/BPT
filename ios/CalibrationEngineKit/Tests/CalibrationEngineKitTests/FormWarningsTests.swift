@@ -557,8 +557,8 @@ extension FormWarningsTests {
             tracker.recordCurrentFrame()
             let report = tracker.finishRep(repIndex: 2)
             XCTAssertEqual(report.warnings, [], "\(state)")
-            XCTAssertEqual(report.spoken, state == .ok ? "praise_fixed" : nil, "\(state)")
-            XCTAssertEqual(tracker.drainEvents().map(\.key), state == .ok ? ["praise_fixed"] : [], "\(state)")
+            XCTAssertEqual(report.spoken, state == .ok ? "praise_good" : nil, "\(state)")
+            XCTAssertEqual(tracker.drainEvents().map(\.key), state == .ok ? ["praise_good"] : [], "\(state)")
         }
     }
 
@@ -754,5 +754,67 @@ extension FormWarningsTests {
         XCTAssertEqual(state.observations[seg]?.withheld["pushup_shallow"], [.baseline],
                        "three completed reps do not imply three observed elbow references")
         XCTAssertNil(state.severity[seg])
+    }
+}
+
+
+extension FormWarningsTests {
+    func testCorrectionPraiseNeedsThePreviouslyWarnedRuleUnderCurrentGate() {
+        let tracker = FormWarningTracker(exercise: .pushUp)
+        _ = pushUpRep(tracker, hipDrop: 70, frame: 0)
+        XCTAssertEqual(tracker.drainEvents().map(\.key), ["pushup_hip_sag"])
+        var front = sidePushUp(hipDrop: 0)
+        front[6].x += 300
+        tracker.observe(frameIndex: 2, coco17: front, phase: "top")
+        tracker.beginRep()
+        tracker.observe(frameIndex: 3, coco17: front, phase: "bottom")
+        tracker.recordCurrentFrame()
+        let r = tracker.finishRep(repIndex: 2)
+        XCTAssertFalse(r.warnings.contains("pushup_hip_sag"))
+        XCTAssertNotEqual(r.spoken, "praise_fixed", "view-gated absence of the prior issue is not observed correction")
+    }
+
+    func testCorrectionPraiseNeedsReferenceAndEnabledPriorRule() {
+        let tracker = FormWarningTracker(exercise: .pushUp)
+        tracker.common.enabledFeedbackKeys = ["pushup_shallow", "praise_fixed"]
+        for i in 0..<3 { _ = pushUpRep(tracker, hipDrop: 0, frame: i*2, bend: 60) }
+        for i in 3..<5 { _ = pushUpRep(tracker, hipDrop: 0, frame: i*2, bend: 0) }
+        XCTAssertEqual(tracker.drainEvents().last?.key, "pushup_shallow")
+        tracker.common.baselineRepCount = 10
+        XCTAssertNil(pushUpRep(tracker, hipDrop: 0, frame: 10, bend: 0).spoken,
+                     "a missing new reference does not clear the old warned rule")
+        let quiet = FormWarningTracker(exercise: .pushUp)
+        _ = pushUpRep(quiet, hipDrop: 70, frame: 0)
+        _ = quiet.drainEvents()
+        quiet.common.enabledFeedbackKeys.remove("pushup_hip_sag")
+        XCTAssertNotEqual(pushUpRep(quiet, hipDrop: 0, frame: 2).spoken, "praise_fixed")
+    }
+
+    func testCorrectionPraiseStillWorksForSameObservedRuleAndSource() {
+        let tracker = FormWarningTracker(exercise: .pushUp)
+        _ = pushUpRep(tracker, hipDrop: 70, frame: 0)
+        _ = tracker.drainEvents()
+        XCTAssertEqual(pushUpRep(tracker, hipDrop: 0, frame: 2).spoken, "praise_fixed")
+        var assessed: Set<String> = []
+        _ = tracker.judge(["hip_dev_max": 0, "hip_dev_min": 0, "elbow_min": 90, "elbow_max": 170],
+                          history: [], repIndex: 3, assessed: { assessed = $0 })
+        XCTAssertFalse(assessed.contains("pushup_hip_sag"), "missing view evidence is not a verified branch")
+    }
+}
+
+
+extension FormWarningsTests {
+    func testCorrectionAssessmentRejectsNonfiniteCurrentReferenceAndView() {
+        let tracker = FormWarningTracker(exercise: .pushUp)
+        let valid = ["hip_dev_max": 0.0, "hip_dev_min": 0.0, "elbow_min": 90.0, "elbow_max": 170.0, "front_view_fraction": 0.0]
+        for key in ["hip_dev_max", "front_view_fraction"] {
+            var m = valid; m[key] = .nan
+            var assessed: Set<String> = []
+            _ = tracker.judge(m, history: [], repIndex: 2, assessed: { assessed = $0 })
+            XCTAssertFalse(assessed.contains("pushup_hip_sag"))
+        }
+        var assessed: Set<String> = []
+        _ = tracker.judge(valid, history: [["elbow_min": .infinity]], repIndex: 2, assessed: { assessed = $0 })
+        XCTAssertTrue(assessed.isEmpty)
     }
 }
