@@ -1,6 +1,5 @@
-// Offline renderer of an actual, hash-bound server response and its original video.
+// Offline renderer of an actual, hash-bound worker report with explicit local test metadata and its original video.
 // Never execute the normal main, sign in, fetch, upload or persist a workout.
-import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:bpt/core/theme/app_theme.dart';
@@ -33,7 +32,7 @@ Future<void> main() async {
     frames += values.length;
   });
   testWidgets(
-    'actual server payload and original local native recording render',
+    'actual worker report with synthetic local parser metadata and original recording render',
     (tester) async {
       final docs = await getApplicationDocumentsDirectory();
       final out = Directory(
@@ -76,8 +75,10 @@ Future<void> main() async {
       };
       VideoPlayerController? player;
       File? ownedResponse;
+      File? ownedWorker;
       File? ownedBinding;
       String? ownedResponseHash;
+      String? ownedWorkerHash;
       String? ownedBindingHash;
       try {
         stage('entry');
@@ -89,34 +90,58 @@ Future<void> main() async {
         ownedBindingHash = sha256.convert(bindingBytes).toString();
         expect(
           binding['scope'],
-          'new_actual_row_native_to_deep_offline_phone_render',
+          'new_actual_row_worker_report_offline_phone_render',
         );
-        expect(
-            (binding['jobEnvelopeRelativePath'] as String)
-                .startsWith('actual_deep_validation/input/'),
-            isTrue);
-        final response = local(binding['jobEnvelopeRelativePath'] as String);
+        expect(binding['workerReportActualInference'], isTrue);
+        expect(binding['localWrapperSyntheticMetadataOnly'], isTrue);
+        for (final key in [
+          'workerReportRelativePath',
+          'localWrapperRelativePath'
+        ]) {
+          expect(
+              (binding[key] as String)
+                  .startsWith('actual_deep_validation/input/'),
+              isTrue);
+        }
+        final workerFile = local(binding['workerReportRelativePath'] as String);
+        final wrapperFile =
+            local(binding['localWrapperRelativePath'] as String);
         final video = local(binding['videoRelativePath'] as String);
-        final responseHash =
-            sha256.convert(await response.readAsBytes()).toString();
+        final workerBytes = await workerFile.readAsBytes();
+        final wrapperBytes = await wrapperFile.readAsBytes();
+        final workerHash = sha256.convert(workerBytes).toString();
+        final wrapperHash = sha256.convert(wrapperBytes).toString();
         final videoHash =
             (await sha256.bind(video.openRead()).first).toString();
-        expect(responseHash, binding['jobEnvelopeSHA256']);
-        ownedResponse = response;
-        ownedResponseHash = responseHash;
+        expect(workerHash, binding['workerReportSHA256']);
+        expect(wrapperHash, binding['localWrapperSHA256']);
         expect(videoHash, binding['videoSHA256']);
         expect(videoHash, binding['gpuInputVideoSHA256']);
-        final job = DeepAnalysisJob.fromJson(
-          (jsonDecode(await response.readAsString()) as Map)
-              .cast<String, dynamic>(),
-        );
+        ownedWorker = workerFile;
+        ownedWorkerHash = workerHash;
+        ownedResponse = wrapperFile;
+        ownedResponseHash = wrapperHash;
+        final actualWorkerReport = (jsonDecode(utf8.decode(workerBytes)) as Map)
+            .cast<String, dynamic>();
+        final localWrapper = (jsonDecode(utf8.decode(wrapperBytes)) as Map)
+            .cast<String, dynamic>();
+        expect(localWrapper['localTestWrapper'], isTrue);
+        expect(localWrapper['syntheticLocalMetadataOnly'], isTrue);
+        expect(localWrapper['sourceWorkerReportSHA256'], workerHash);
+        expect((localWrapper['result'] as Map)['videoUrl'],
+            'file:///__local_fixture_original_video__');
+        final job = DeepAnalysisJob.fromJson(localWrapper);
         expect(job.status, 'done');
         final report = (job.result!['report'] as Map).cast<String, dynamic>();
+        expect(report, equals(actualWorkerReport),
+            reason:
+                'Only envelope metadata is synthetic; actual report observations must remain identical');
         final reps = report['reps'] as List;
         expect(reps, isNotEmpty);
-        stage('actual_job_parsed_hashes_bound', {
+        stage('actual_worker_report_parsed_through_explicit_local_wrapper', {
           'repCount': reps.length,
           'timelineCount': (report['timeline'] as List).length,
+          'localWrapperSyntheticMetadataOnly': true
         });
         player = VideoPlayerController.file(video);
         await player.initialize().timeout(const Duration(seconds: 30));
@@ -124,7 +149,7 @@ Future<void> main() async {
         await player.setVolume(0);
         expect(player.value.duration.inMilliseconds, greaterThan(0));
         stage('original_local_video_initialized');
-        final seek = Completer<Map<String, int>>();
+        var seekRequests = 0;
         await tester
             .pumpWidget(
               MaterialApp(
@@ -140,26 +165,10 @@ Future<void> main() async {
                           child: VideoPlayer(player),
                         ),
                       ),
-                      onSeek: (target) async {
-                        try {
-                          await player!
-                              .seekTo(target)
-                              .timeout(const Duration(seconds: 10));
-                          await player.play();
-                          await Future<void>.delayed(
-                            const Duration(milliseconds: 200),
-                          );
-                          await player.pause();
-                          if (!seek.isCompleted) {
-                            seek.complete({
-                              'targetMs': target.inMilliseconds,
-                              'reportedPositionMs':
-                                  player.value.position.inMilliseconds,
-                            });
-                          }
-                        } catch (e, st) {
-                          if (!seek.isCompleted) seek.completeError(e, st);
-                        }
+                      onSeek: (_) {
+                        seekRequests++;
+                        throw StateError(
+                            'Seek is outside this initial-render fixture');
                       },
                     ),
                   ),
@@ -189,13 +198,21 @@ Future<void> main() async {
         expect(errors, 0);
         expect(tester.takeException(), isNull);
         expect(deny.attempts, 0);
+        expect(seekRequests, 0);
         expect(frames, greaterThan(0));
         File('${out.path}/success.json').writeAsStringSync(
           jsonEncode({
             'scope':
-                'actual_server_report_offline_production_widget_same_original_native_video',
+                'actual_worker_report_local_metadata_wrapper_offline_production_widget_same_original_video',
             'syntheticReport': false,
-            'serverResponseSHA256': responseHash,
+            'actualWorkerReportSHA256': workerHash,
+            'localTestWrapperSHA256': wrapperHash,
+            'syntheticLocalMetadataOnly': true,
+            'workerReportActualInference': true,
+            'workerReportObjectUnchanged': true,
+            'authenticatedAPIJobOrResponseTested': false,
+            'seekTested': false,
+            'sustainedPlaybackTested': false,
             'videoSHA256': videoHash,
             'parsedByProductionDeepAnalysisJob': true,
             'reportRepCount': reps.length,
@@ -241,6 +258,7 @@ Future<void> main() async {
           }
           for (final entry in [
             (ownedResponse, ownedResponseHash),
+            (ownedWorker, ownedWorkerHash),
             (ownedBinding, ownedBindingHash)
           ]) {
             final file = entry.$1;
@@ -254,9 +272,11 @@ Future<void> main() async {
           }
           File('${out.path}/owned-input-cleanup.json').writeAsStringSync(
               jsonEncode({
-                'ownedServerPayloadVerified': ownedResponse != null,
-                'ownedServerPayloadAbsent':
+                'ownedLocalWrapperVerified': ownedResponse != null,
+                'ownedLocalWrapperAbsent':
                     ownedResponse == null ? null : !ownedResponse.existsSync(),
+                'ownedWorkerCopyAbsent':
+                    ownedWorker == null ? null : !ownedWorker.existsSync(),
                 'ownedBindingAbsent':
                     ownedBinding == null ? null : !ownedBinding.existsSync(),
                 'originalVideoNotDeleted': true
