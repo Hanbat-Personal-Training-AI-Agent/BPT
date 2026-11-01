@@ -27,7 +27,7 @@ def test_development_peak_closes_before_actual_next_rep_without_plateau_or_futur
 
 
 def test_top_exit_and_missing_support_never_select_the_later_attractive_value():
-    frames=[frame(0),frame(1,150),frame(2,175),frame(3,180,'lowering')]
+    frames=[frame(0),frame(1,150),frame(2,175),frame(3,180,'descending')]
     result=d.development_span(original(),frames)
     assert result['maxima']=={'elbow':175} and result['stop']=='actual_top_phase_exit'
     frames[2]['required2D']=False
@@ -63,3 +63,40 @@ def test_fixed15_comparison_keeps_its_original_denominator_and_next_begin_bounda
     assert d.fixed15_pair(o,epochs[1],'elbow')==pytest.approx((90,150))
     epochs[1]['frames'][12]['active_rep_start']=12
     assert d.fixed15_pair(o,epochs[1],'elbow') is None
+
+
+@pytest.mark.parametrize('change,reason', [
+    ({'phase':'unknown'},'unknown_phase'),
+    ({'phase':None},'unknown_phase'),
+    ({'phase':''},'unknown_phase'),
+    ({'phase':'lowering'},'unknown_phase'),  # not a native squat/pushup phase
+    ({'phase':'descending','required2D':False},'native_support_or_side_missing'),
+    ({'phase':'descending','state':'tracking_lost'},'native_support_or_side_missing'),
+    ({'phase':'descending','sideView':None},'native_support_or_side_missing'),
+    ({'phase':'descending','side':'right'},'native_support_or_side_missing'),
+    ({'phase':'descending','assessmentAngles':{}},'native_support_or_side_missing'),
+    ({'phase':'descending','flushed':True},'lifter_flush_boundary'),
+    ({'phase':'descending','coordinateKey':'changed'},'coordinate_change'),
+])
+def test_invalid_observation_after_top_cannot_qualify_as_a_phase_exit(change,reason):
+    frames=[frame(0),frame(1,150),frame(2,175),frame(3,180,'descending')]
+    frames[-1].update(change)
+    result=d.development_span(original(),frames)
+    assert result['stop']==reason
+    assert result['bounded'] is False and result['supported_peak_window'] is False
+    assert result['maxima']=={'elbow':175}  # prior evidence remains visible without becoming qualified
+    assert len(result['frames'])==2
+
+
+def test_actual_next_begin_is_an_explicit_boundary_before_new_rep_quality():
+    frames=[frame(0),frame(1,175),frame(2,180,'unknown')]
+    frames[-1].update(activeRepStart=12,required2D=False,flushed=True,coordinateKey='next-context')
+    result=d.development_span(original(),frames)
+    assert result['stop']=='actual_next_rep_begin' and result['supported_peak_window'] is True
+    assert result['maxima']=={'elbow':175} and len(result['frames'])==1
+
+
+def test_summary_uses_conventional_even_and_odd_medians():
+    assert d.stats([1,100])['median']==50.5
+    assert d.stats([6,2,4])['median']==4
+    assert d.stats([7])['median']==7

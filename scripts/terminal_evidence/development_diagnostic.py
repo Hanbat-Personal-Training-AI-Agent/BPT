@@ -6,6 +6,7 @@ import collections
 import hashlib
 import json
 import math
+import statistics
 from pathlib import Path
 import replay as strict
 
@@ -13,7 +14,7 @@ import replay as strict
 def stats(values):
     values=sorted(v for v in values if strict.finite(v))
     if not values:return {'count':0}
-    return {'count':len(values),'mean':sum(values)/len(values),'min':values[0],'median':values[len(values)//2],
+    return {'count':len(values),'mean':sum(values)/len(values),'min':values[0],'median':statistics.median(values),
             'p95':values[min(len(values)-1,int(.95*(len(values)-1)))],'max':values[-1]}
 
 
@@ -55,16 +56,18 @@ def development_span(original,frames,maximum_gap=.15):
             result['stop']='source_gap';break
         if frame.get('activeRepStart') is not None and frame['activeRepStart']>original['startFrame']:
             result.update(stop='actual_next_rep_begin',bounded=True);break
-        if result['seen_top'] and frame.get('phase')!='top':
-            result.update(stop='actual_top_phase_exit',bounded=True);break
         if frame.get('flushed'):
             result['stop']='lifter_flush_boundary';break
         if frame.get('coordinateKey')!=coordinate:
             result['stop']='coordinate_change';break
         if not trustworthy(frame,original):
             result['stop']='native_support_or_side_missing';break
-        if frame.get('phase') in (None,'','unknown'):
+        if frame.get('phase') not in ('top','descending','bottom','ascending'):
             result['stop']='unknown_phase';break
+        # Unlike an actual next-begin event above, a phase exit must itself be
+        # a known, supported, genuine observation in the same coordinate context.
+        if result['seen_top'] and frame['phase']!='top':
+            result.update(stop='actual_top_phase_exit',bounded=True);break
         result['seen_top']|=frame['phase']=='top';result['frames'].append(frame)
         for key in metrics(original):
             value=frame['assessmentAngles'][key];result['maxima'][key]=max(result['maxima'].get(key,value),value)
