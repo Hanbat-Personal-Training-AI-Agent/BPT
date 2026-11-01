@@ -182,7 +182,7 @@ class WorkoutRecordModel {
         targetReps: (json['targetReps'] as num?)?.toInt() ?? 0,
         targetSets: (json['targetSets'] as num?)?.toInt() ?? 1,
         isSynced: json['isSynced'] as bool? ?? false,
-        poseMetricsSummary: (json['poseMetricsSummary'] as Map?)?.cast<String, dynamic>() ?? const {},
+        poseMetricsSummary: WorkoutEvidence.summaryObject(json['poseMetricsSummary']) ?? const {},
         feedbackCounts: (json['feedbackCounts'] as Map?)?.map(
                 (k, v) => MapEntry(k.toString(), (v as num?)?.toInt() ?? 0)) ??
             const {},

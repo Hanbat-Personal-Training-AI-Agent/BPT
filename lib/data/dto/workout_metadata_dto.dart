@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:math';
+import '../../features/workout/data/workout_evidence.dart';
 
 /// 새 운동 기록 번호(UUID v4). 서버는 이 번호를 모든 계정에서 하나뿐인 값으로
 /// 다루므로, 시각만으로 만들면 다른 사람 기록과 겹칠 수 있다.
@@ -40,7 +41,11 @@ class WorkoutMetadataRequestDto {
   final Map<String, int> feedbackCounts;
 
   /// 실제로 수행한 세트 수. setsDetail 이 있으면 그 개수.
-  int get totalSets => setsDetail.isNotEmpty ? setsDetail.length : targetSets;
+  int get totalSets {
+    final evidence = WorkoutEvidence.details(poseMetricsSummary, completedReps: totalReps);
+    if (evidence != null) return (evidence['sets'] as List).length;
+    return setsDetail.isNotEmpty ? setsDetail.length : targetSets;
+  }
 
   /// 총 볼륨(kg × 회). setsDetail 이 없으면 대표 무게 × 총 반복.
   int get totalVolume => setsDetail.isNotEmpty
@@ -104,7 +109,7 @@ class WorkoutMetadataRequestDto {
       feedbackNotes: (json['feedbackNotes'] as List?)?.cast<String>() ?? [],
       targetReps: (json['targetReps'] as num?)?.toInt() ?? 0,
       targetSets: (json['targetSets'] as num?)?.toInt() ?? 1,
-      poseMetricsSummary: json['poseMetricsSummary'] as Map<String, dynamic>?,
+      poseMetricsSummary: WorkoutEvidence.summaryObject(json['poseMetricsSummary']),
       setsDetail: (json['setsDetail'] as List?)
               ?.whereType<Map>()
               .map((m) => WorkoutSetDetail.fromJson(m.cast<String, dynamic>()))

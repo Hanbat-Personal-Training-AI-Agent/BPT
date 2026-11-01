@@ -1,7 +1,6 @@
 package com.bpt.kori.domain.workout.dto;
 
 import com.bpt.kori.domain.workout.entity.WorkoutRecord;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -19,8 +18,6 @@ import java.util.stream.Collectors;
 @Builder
 @Schema(description = "운동 세션 기록 상세 응답 DTO")
 public class WorkoutRecordResponseDto {
-
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     @Schema(description = "서버 레코드 ID", example = "101")
     private final String id;
@@ -86,7 +83,7 @@ public class WorkoutRecordResponseDto {
     private final Map<String, Integer> feedbackCounts;
 
     @Schema(description = "자세 측정 통계 요약 (JSON 객체)")
-    private final Object poseMetricsSummary;
+    private final Map<String, Object> poseMetricsSummary;
 
     public static WorkoutRecordResponseDto fromEntity(WorkoutRecord entity) {
         List<String> notes = entity.getFeedbackLogs().stream()
@@ -101,20 +98,16 @@ public class WorkoutRecordResponseDto {
                 ? new LinkedHashMap<>(entity.getFeedbackCounts())
                 : Collections.emptyMap();
 
-        Object metricsSummary = null;
-        if (entity.getPoseMetricsSummary() != null && !entity.getPoseMetricsSummary().isBlank()) {
-            try {
-                metricsSummary = OBJECT_MAPPER.readValue(entity.getPoseMetricsSummary(), Object.class);
-            } catch (Exception ignored) {
-                metricsSummary = entity.getPoseMetricsSummary();
-            }
-        }
+        Map<String, Object> metricsSummary = WorkoutEvidenceContract.readSummary(entity.getPoseMetricsSummary());
 
-        int effectiveTotalSets = entity.getTotalSets() != null && entity.getTotalSets() > 0
+        boolean nativeEnvelope = metricsSummary != null
+                && metricsSummary.get("workoutEvidence") instanceof Map<?, ?> evidence
+                && Integer.valueOf(1).equals(evidence.get("version"));
+        int effectiveTotalSets = entity.getTotalSets() != null && (entity.getTotalSets() > 0 || nativeEnvelope)
                 ? entity.getTotalSets()
                 : (entity.getTargetSets() != null && entity.getTargetSets() > 0 ? entity.getTargetSets() : 1);
         int effectiveSets = entity.getTargetSets() != null && entity.getTargetSets() > 0 ? entity.getTargetSets() : 1;
-        int effectiveReps = entity.getTargetReps() != null && entity.getTargetReps() > 0 ? entity.getTargetReps() :
+        int effectiveReps = entity.getTargetReps() != null && (entity.getTargetReps() > 0 || nativeEnvelope) ? entity.getTargetReps() :
                 (entity.getTotalReps() != null ? entity.getTotalReps() : 0);
 
         return WorkoutRecordResponseDto.builder()
@@ -127,7 +120,7 @@ public class WorkoutRecordResponseDto {
                 .sets(effectiveSets)
                 .targetSets(effectiveSets)
                 .totalSets(effectiveTotalSets)
-                .isGoalAchieved(entity.getIsGoalAchieved() != null ? entity.getIsGoalAchieved() : false)
+                .isGoalAchieved(entity.getIsGoalAchieved())
                 .totalVolume(entity.getTotalVolume() != null ? entity.getTotalVolume() : 0)
                 .setsDetail(setsDetail)
                 .reps(effectiveReps)

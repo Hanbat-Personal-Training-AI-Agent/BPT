@@ -8,6 +8,7 @@ import com.bpt.kori.domain.workout.dto.MonthlyCalendarResponseDto;
 import com.bpt.kori.domain.workout.dto.WorkoutMetadataRequestDto;
 import com.bpt.kori.domain.workout.dto.WorkoutMetadataResponseDto;
 import com.bpt.kori.domain.workout.dto.WorkoutRecordResponseDto;
+import com.bpt.kori.domain.workout.dto.WorkoutEvidenceContract;
 import com.bpt.kori.domain.workout.entity.WorkoutFeedbackLog;
 import com.bpt.kori.domain.workout.entity.WorkoutRecord;
 import com.bpt.kori.domain.workout.entity.WorkoutSetRecord;
@@ -60,17 +61,18 @@ public class WorkoutService {
                     .build();
         }
 
+        boolean nativeEvidence = WorkoutEvidenceContract.validateRequest(dto);
         String summaryJson = null;
         if (dto.getPoseMetricsSummary() != null) {
             try {
                 summaryJson = objectMapper.writeValueAsString(dto.getPoseMetricsSummary());
             } catch (Exception e) {
-                log.warn("Failed to serialize poseMetricsSummary: {}", e.getMessage());
+                throw new CustomException(ErrorCode.INVALID_INPUT_VALUE);
             }
         }
 
         int sets = dto.getEffectiveSets();
-        int reps = dto.getEffectiveReps();
+        int reps = nativeEvidence ? (dto.getTargetReps() != null ? dto.getTargetReps() : 0) : dto.getEffectiveReps();
 
         int calculatedVolume = 0;
         int completedSetsCount = (dto.getTotalSets() != null && dto.getTotalSets() > 0) ? dto.getTotalSets() : sets;
@@ -87,6 +89,11 @@ public class WorkoutService {
             calculatedVolume = (int) (dto.getWeightKg().doubleValue() * totalReps);
         }
 
+        if (nativeEvidence) {
+            Map<?, ?> evidence = (Map<?, ?>) dto.getPoseMetricsSummary().get("workoutEvidence");
+            completedSetsCount = ((List<?>) evidence.get("sets")).size();
+        }
+
         int finalVolume = (dto.getTotalVolume() != null && dto.getTotalVolume() > 0)
                 ? dto.getTotalVolume()
                 : calculatedVolume;
@@ -94,6 +101,11 @@ public class WorkoutService {
         Boolean isGoalAchieved = dto.getIsGoalAchieved() != null
                 ? dto.getIsGoalAchieved()
                 : (completedSetsCount >= sets);
+
+        if (nativeEvidence) {
+            isGoalAchieved = dto.getTargetReps() != null && dto.getTargetReps() > 0
+                    ? dto.getTotalReps() >= dto.getTargetReps() : null;
+        }
 
         Map<String, Integer> feedbackCounts = (dto.getFeedbackCounts() != null)
                 ? new HashMap<>(dto.getFeedbackCounts())
@@ -106,7 +118,7 @@ public class WorkoutService {
                 .exerciseName(dto.getExerciseName())
                 .date(dto.getDate() != null ? dto.getDate() : LocalDateTime.now())
                 .weightKg(dto.getWeightKg() != null ? dto.getWeightKg() : BigDecimal.ZERO)
-                .totalReps(dto.getTotalReps() > 0 ? dto.getTotalReps() : (sets * reps))
+                .totalReps(nativeEvidence ? dto.getTotalReps() : (dto.getTotalReps() > 0 ? dto.getTotalReps() : (sets * reps)))
                 .correctReps(dto.getCorrectReps())
                 .incorrectReps(dto.getIncorrectReps())
                 .durationSeconds(dto.getDurationSeconds())

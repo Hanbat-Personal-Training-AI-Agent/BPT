@@ -114,7 +114,7 @@ class _WorkoutResultScreenState extends ConsumerState<WorkoutResultScreen>
       incorrectReps: r['incorrectReps'] as int? ?? 0,
       durationSeconds: r['elapsedSeconds'] as int? ?? 0,
       postureScore: (r['postureScore'] as num?)?.toDouble(),
-      poseMetricsSummary: (r['poseMetricsSummary'] as Map?)?.cast<String, dynamic>(),
+      poseMetricsSummary: WorkoutEvidence.summaryObject(r['poseMetricsSummary']),
       feedbackNotes: (r['feedbackHistory'] as List?)?.cast<String>() ?? [],
       targetReps: r['targetReps'] as int? ?? 0,
       targetSets: r['targetSets'] as int? ?? 1,
@@ -164,8 +164,8 @@ class _WorkoutResultScreenState extends ConsumerState<WorkoutResultScreen>
     required int totalReps,
     required int weightKg,
   }) {
-    final summary = (widget.result['poseMetricsSummary'] as Map?)?.cast<String, dynamic>();
-    final raw = widget.result['setResults'] ?? WorkoutEvidence.details(summary)?['sets'];
+    final summary = WorkoutEvidence.summaryObject(widget.result['poseMetricsSummary']);
+    final raw = widget.result['setResults'] ?? WorkoutEvidence.details(summary, completedReps: totalReps)?['sets'];
     if (raw is List && raw.isNotEmpty) {
       return raw.map((e) {
         final m = (e as Map).cast<String, dynamic>();
@@ -237,6 +237,8 @@ class _WorkoutResultScreenState extends ConsumerState<WorkoutResultScreen>
       weightKg: weightKg,
     );
     if (targetSets <= 0) targetSets = setRecords.length;
+    final evidence = WorkoutEvidence.details(WorkoutEvidence.summaryObject(r['poseMetricsSummary']), completedReps: totalReps);
+    final completedSets = evidence != null ? (evidence['sets'] as List).length : targetSets;
 
     final volume =
         setRecords.fold<int>(0, (sum, set) => sum + set.reps * set.weightKg);
@@ -287,7 +289,7 @@ class _WorkoutResultScreenState extends ConsumerState<WorkoutResultScreen>
                               const SizedBox(height: 16),
                               _StatsRow(
                                 isKo: isKo,
-                                sets: targetSets,
+                                sets: completedSets,
                                 totalReps: totalReps,
                                 volume: volume,
                                 elapsedSec: elapsedSec,
