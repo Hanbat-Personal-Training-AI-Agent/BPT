@@ -76,16 +76,26 @@ class DeepAnalysisService {
       required this.tokenProvider,
       this.refreshToken,
       this.userId,
+      this.sessionGuard,
       Dio? api,
       Dio? storage})
       : _api = api ?? Dio(),
         _storage = storage ?? Dio() {
     _api.options.connectTimeout = const Duration(seconds: 10);
     _storage.options.connectTimeout = const Duration(seconds: 10);
-    _api.interceptors.add(InterceptorsWrapper(onError: (error, handler) async {
+    _api.interceptors.add(InterceptorsWrapper(onRequest: (request, handler) {
+      if (!isCurrent) return handler.reject(_sessionCancelled(request));
+      handler.next(request);
+    }, onResponse: (response, handler) {
+      if (!isCurrent) {
+        return handler.reject(_sessionCancelled(response.requestOptions));
+      }
+      handler.next(response);
+    }, onError: (error, handler) async {
       final request = error.requestOptions;
+      if (!isCurrent) return handler.reject(_sessionCancelled(request));
       final authorization = request.headers['Authorization'];
-      if (_closed ||
+      if (!isCurrent ||
           request.cancelToken?.isCancelled == true ||
           error.response?.statusCode != 401 ||
           refreshToken == null ||
@@ -96,7 +106,7 @@ class DeepAnalysisService {
       }
       try {
         final token = await refreshToken!(authorization.substring(7));
-        if (_closed ||
+        if (!isCurrent ||
             request.cancelToken?.isCancelled == true ||
             token == null) {
           return handler.next(error);
@@ -112,23 +122,43 @@ class DeepAnalysisService {
         handler.next(error);
       }
     }));
+    _storage.interceptors
+        .add(InterceptorsWrapper(onRequest: (request, handler) {
+      if (!isCurrent) return handler.reject(_sessionCancelled(request));
+      handler.next(request);
+    }));
   }
 
   final CalibrationUploadConfig config;
   final Future<String?> Function() tokenProvider;
   final Future<String?> Function(String rejectedToken)? refreshToken;
   final String? userId;
+  final bool Function()? sessionGuard;
   final Dio _api;
   // 로그인 인증 헤더는 서명 URL 전송 클라이언트에 넣지 않는다.
   final Dio _storage;
   bool _closed = false;
+  bool get isCurrent {
+    if (_closed) return false;
+    try {
+      return sessionGuard?.call() ?? true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  static DioException _sessionCancelled(RequestOptions request) => DioException(
+      requestOptions: request,
+      type: DioExceptionType.cancel,
+      error: ApiException('Account session changed',
+          code: ApiClient.sessionChangedCode));
   String get _historyKey => 'deep_analysis:$userId:${config.apiBaseUrl}';
 
   Future<Options> _options([String? session]) async {
     final issue = config.configurationIssue;
     if (issue != null) throw CalibrationUploadException(issue);
     final token = await tokenProvider();
-    if (_closed || token == null || token.isEmpty) {
+    if (!isCurrent || token == null || token.isEmpty) {
       throw const CalibrationUploadException('로그인 후 다시 시도해 주세요.');
     }
     return Options(
@@ -163,11 +193,14 @@ class DeepAnalysisService {
   Uri videoUri(Map<String, dynamic> result) => _storageUri(result['videoUrl']);
 
   Future<bool> canUpload(DeepAnalysisCapture capture) async {
+    if (!isCurrent) return false;
     final size = await File(capture.videoPath).length();
+    if (!isCurrent) return false;
     if (size <= 0 || size > 32 * 1024 * 1024) {
       throw const FormatException('영상 크기가 제한을 넘었어.');
     }
     final connections = await Connectivity().checkConnectivity();
+    if (!isCurrent) return false;
     if (connections.contains(ConnectivityResult.none)) return false;
     return connections.contains(ConnectivityResult.wifi) ||
         size <= 8 * 1024 * 1024;
@@ -258,18 +291,21 @@ class DeepAnalysisService {
   }
 
   Future<List<Map<String, dynamic>>> loadQueue() async {
-    if (_closed || userId == null) return [];
+    if (!isCurrent || userId == null) return [];
     final prefs = await SharedPreferences.getInstance();
+    if (!isCurrent) return [];
     return (prefs.getStringList(_historyKey) ?? [])
         .map((row) => (jsonDecode(row) as Map).cast<String, dynamic>())
         .toList();
   }
 
   Future<void> saveQueue(List<Map<String, dynamic>> rows) async {
-    if (_closed || userId == null) return;
+    if (!isCurrent || userId == null) return;
     final prefs = await SharedPreferences.getInstance();
-    if (_closed) return;
-    await prefs.setStringList(_historyKey, rows.map(jsonEncode).toList());
+    await LocalStorageService(prefs).serializeSessionWrite(() async {
+      if (!isCurrent) return;
+      await prefs.setStringList(_historyKey, rows.map(jsonEncode).toList());
+    });
   }
 
   Future<String> retryJob(String jobId, CancelToken cancel) async {
@@ -303,9 +339,14 @@ class DeepAnalysisService {
               followRedirects: false,
               receiveTimeout: const Duration(minutes: 3),
               validateStatus: (status) => status == 200));
+      if (!isCurrent) throw const CalibrationUploadException('로그인 상태가 바뀌었어요.');
       return file;
     } catch (_) {
-      await directory.delete(recursive: true);
+      try {
+        if (await directory.exists()) await directory.delete(recursive: true);
+      } on FileSystemException {
+        // Account cleanup may already have removed this generated download.
+      }
       rethrow;
     }
   }
@@ -319,21 +360,20 @@ class DeepAnalysisService {
 
 final deepAnalysisServiceProvider = Provider<DeepAnalysisService>((ref) {
   final api = ref.watch(apiClientProvider);
-  final userId = ref.watch(currentUserIdProvider);
+  ref.watch(authSessionIdentityProvider);
+  final session = ref.read(authNotifierProvider).captureSession();
+  bool active() => session?.isCurrent ?? false;
   final service = DeepAnalysisService(
       config: CalibrationUploadConfig.fromEnvironment(),
-      tokenProvider: () async =>
-          userId != null && ref.read(currentUserIdProvider) == userId
-              ? api.authToken
-              : null,
+      tokenProvider: () async => active() ? api.authToken : null,
+      sessionGuard: active,
       refreshToken: (rejected) async {
-        if (userId == null || ref.read(currentUserIdProvider) != userId) {
-          return null;
-        }
-        final token = await api.refreshAccessToken(rejected);
-        return ref.read(currentUserIdProvider) == userId ? token : null;
+        if (!active()) return null;
+        final token =
+            await api.refreshAccessToken(rejected, sessionGuard: active);
+        return active() ? token : null;
       },
-      userId: userId);
+      userId: session?.userId);
   ref.onDispose(service.close);
   return service;
 });

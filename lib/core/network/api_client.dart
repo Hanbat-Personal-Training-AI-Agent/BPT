@@ -61,6 +61,8 @@ class ApiClient {
 
   /// 진행 중인 토큰 갱신. 여러 요청이 동시에 만료돼도 갱신은 한 번만 한다.
   Future<bool>? _refreshing;
+  bool Function()? _refreshingCurrent;
+  Object? _refreshingTicket;
 
   /// 토큰을 갱신하면 새 액세스·리프레시 토큰을 넘긴다 (기기에 저장용).
   void Function(String accessToken, String? refreshToken)? onTokensRefreshed;
@@ -87,12 +89,15 @@ class ApiClient {
           return handler.next(options);
         },
         onError: (DioException error, handler) async {
+          final originalRequest = error.requestOptions;
           if (!_sessionActive(error.requestOptions)) {
             return handler.reject(_sessionCancelled(error.requestOptions));
           }
           // 액세스 토큰 만료(서버는 403, 일부 401) → 한 번만 갱신하고 원래 요청을 다시 보낸다.
           if (_shouldRefresh(error) &&
-              (_sentWithOldToken(error) || await _refreshTokens())) {
+              (_sentWithOldToken(error) ||
+                  await _refreshTokens(
+                      sessionGuard: () => _sessionActive(originalRequest)))) {
             if (!_sessionActive(error.requestOptions)) {
               return handler.reject(_sessionCancelled(error.requestOptions));
             }
@@ -141,8 +146,12 @@ class ApiClient {
     final guard = options.extra[sessionGuardKey];
     if (guard == null) return true;
     if (guard is! bool Function()) return false;
+    return _guardCurrent(guard);
+  }
+
+  static bool _guardCurrent(bool Function()? guard) {
     try {
-      return guard();
+      return guard?.call() ?? true;
     } catch (_) {
       return false;
     }
@@ -205,12 +214,20 @@ class ApiClient {
       'Bearer $_authToken';
 
   /// POST /auth/refresh 로 새 토큰을 받는다. 성공하면 true.
-  Future<bool> _refreshTokens() {
-    return _refreshing ??= () async {
-      final originalAccess = _authToken;
-      final originalRefresh = _refreshToken;
-      bool sameSession() =>
-          _authToken == originalAccess && _refreshToken == originalRefresh;
+  Future<bool> _refreshTokens({bool Function()? sessionGuard}) {
+    if (_refreshing != null && _guardCurrent(_refreshingCurrent)) {
+      return _refreshing!;
+    }
+    final originalAccess = _authToken;
+    final originalRefresh = _refreshToken;
+    bool sameSession() =>
+        _guardCurrent(sessionGuard) &&
+        _authToken == originalAccess &&
+        _refreshToken == originalRefresh;
+    final ticket = Object();
+    _refreshingTicket = ticket;
+    _refreshingCurrent = sameSession;
+    final pending = () async {
       try {
         final response = await _refreshDio.post(
           '/auth/refresh',
@@ -237,17 +254,26 @@ class ApiClient {
         }
         return false;
       } finally {
-        _refreshing = null;
+        if (identical(_refreshingTicket, ticket)) {
+          _refreshing = null;
+          _refreshingCurrent = null;
+          _refreshingTicket = null;
+        }
       }
     }();
+    _refreshing = pending;
+    return pending;
   }
 
   /// Reuse the session's single-flight refresh for a trusted external API.
   /// Call only after that API rejects the access token, and retry it once.
-  Future<String?> refreshAccessToken(String rejectedToken) async {
+  Future<String?> refreshAccessToken(String rejectedToken,
+      {bool Function()? sessionGuard}) async {
+    if (!_guardCurrent(sessionGuard)) return null;
     if (_authToken == null || _refreshToken == null) return null;
     if (_authToken != rejectedToken) return _authToken;
-    return await _refreshTokens() ? _authToken : null;
+    final refreshed = await _refreshTokens(sessionGuard: sessionGuard);
+    return refreshed && _guardCurrent(sessionGuard) ? _authToken : null;
   }
 
   String? get authToken => _authToken;
