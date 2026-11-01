@@ -545,6 +545,16 @@ final class FormWarningTracker {
     private var current: FormFrameSample?
     /// Same quantities measured on the 3D pose of the same frame (nil when it has no usable 3D).
     private var current3D: FormFrameSample?
+    /// Read-only actual samples for the OFF-by-default terminal experiment; no raw/2D fallback.
+    var terminalCandidateSnapshot: (frame: Int, side: String, phase: String, required2D: Bool, sideView: Bool?, angles: [String: Double])? {
+        guard let current else { return nil }
+        var angles: [String: Double] = [:]
+        for (key, value) in [("elbow", current3D?.elbow), ("knee", current3D?.knee), ("hip", current3D?.hipAngle)] {
+            if let value, value.isFinite { angles[key] = value }
+        }
+        let knownSideView = current.frontView.map { !$0 }
+        return (current.frame, current.side.rawValue, current.phase, current.requiredOK, knownSideView, angles)
+    }
     private var repFrames: [FormFrameSample] = []
     private var repFrames3D: [FormFrameSample] = []
     private var repMetrics: [[String: Double]] = []

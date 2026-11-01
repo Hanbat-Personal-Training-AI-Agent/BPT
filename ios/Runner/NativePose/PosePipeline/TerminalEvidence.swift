@@ -6,14 +6,34 @@ final class TerminalEvidenceCapture: @unchecked Sendable {
     private var generation = 0
     private var active = false
     private var closing = false
+    private var inFlight: Set<Int> = []
+    private var abandoned = false
     func begin() -> Int {
         lock.lock(); defer { lock.unlock() }
         generation += 1; active = true; closing = false
+        inFlight = []; abandoned = false
         return generation
     }
     func snapshot() -> Int? {
         lock.lock(); defer { lock.unlock() }
         return active && !closing ? generation : nil
+    }
+    func capture(frame: Int) -> Int? {
+        lock.lock(); defer { lock.unlock() }
+        guard active && !closing else { return nil }
+        guard inFlight.count < 6000 else { abandoned = true; return nil }
+        inFlight.insert(frame)
+        return generation
+    }
+    func delivered(epoch: Int?, frame: Int, failed: Bool = false) {
+        lock.lock(); defer { lock.unlock() }
+        guard active, epoch == generation, inFlight.remove(frame) != nil else { return }
+        abandoned = abandoned || failed
+    }
+    func drainStatus(_ expected: Int) -> (pending: Int, failed: Bool)? {
+        lock.lock(); defer { lock.unlock() }
+        guard active, generation == expected else { return nil }
+        return (inFlight.count, abandoned)
     }
     func accepts(_ value: Int?) -> Bool {
         lock.lock(); defer { lock.unlock() }
@@ -105,6 +125,11 @@ final class TerminalEvidenceStream: @unchecked Sendable {
             let marker = Data("{\"schema\":\"bpt.terminal-evidence.v1\",\"type\":\"terminal_capped\",\"sequence\":\(sequence),\"incomplete\":true}\n".utf8)
             enqueue(marker)
         }
+    }
+
+    func invalidate() {
+        lock.lock(); defer { lock.unlock() }
+        encodingStopped = true // a missing candidate event must never precede a complete footer
     }
 
     /// Used for explicit test/export synchronization; capture callbacks never block on disk.

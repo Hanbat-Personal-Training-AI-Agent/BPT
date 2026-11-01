@@ -151,3 +151,18 @@ def test_huge_malformed_numbers_reject_without_overflow(tmp_path):
     with pytest.raises(r.InvalidCapture):r.replay(write(tmp_path,rows))
     rows=capture();rows[2]['source_time_scale']=10**400
     with pytest.raises(r.InvalidCapture):r.replay(write(tmp_path,rows))
+
+
+def test_mixed_candidate_events_and_real_eof_flush_preserve_raw_geometry(tmp_path):
+    rows=capture()
+    original=r.replay(write(tmp_path,rows))['groups']
+    rows[0]['candidate_protocol']='bpt.terminal-candidate.v1'
+    extra=[dict(schema=r.SCHEMA,type='terminal_candidate_config',candidate_protocol='bpt.terminal-candidate.v1',payload={
+        'stableSeconds':.25,'minimumSamples':5,'maximumAngularSpeed':10.,'maximumSourceGap':.15,'timeoutSeconds':1.5,'minimumReferences':3}),
+        dict(schema=r.SCHEMA,type='terminal_candidate_start',epoch=1)]
+    rows[2:2]=extra
+    rows[-1:-1]=[dict(schema=r.SCHEMA,type='terminal_eof_flush',epoch=1,trigger='video_eof_test_hook'),
+        dict(schema=r.SCHEMA,type='terminal_candidate_end',epoch=1,reason='set_end',host_time=3.0)]
+    assert r.replay(write(tmp_path,rows))['groups']==original
+    rows[0].pop('candidate_protocol')
+    with pytest.raises(r.InvalidCapture,match='candidate_protocol'):r.replay(write(tmp_path,rows))

@@ -122,4 +122,28 @@ final class TerminalEvidenceTests: XCTestCase {
         XCTAssertEqual(changed.map { $0.0 }, [5,6,7,8,9])
     }
 
+    func testAlreadyCapturedPayloadDrainCannotBeClosedByFlushOrStaleCallbacks() throws {
+        let capture = TerminalEvidenceCapture()
+        let first = capture.begin()
+        XCTAssertEqual(capture.capture(frame: 10), first)
+        XCTAssertEqual(capture.capture(frame: 11), first)
+        XCTAssertEqual(capture.beginFlush(), first)
+        XCTAssertNil(capture.capture(frame: 12)) // no new post-end sources join the closing lease
+        XCTAssertEqual(capture.drainStatus(first)?.pending, 2)
+        capture.delivered(epoch: first, frame: 11) // clamped tail delivered first
+        XCTAssertEqual(capture.drainStatus(first)?.pending, 1) // genuine older nonflush is still pending
+        capture.delivered(epoch: first, frame: 11) // duplicate cannot release somebody else's payload
+        XCTAssertEqual(capture.drainStatus(first)?.pending, 1)
+        capture.delivered(epoch: first, frame: 10)
+        XCTAssertEqual(capture.drainStatus(first)?.pending, 0)
+        let next = capture.begin()
+        XCTAssertEqual(capture.capture(frame: 10), next)
+        capture.delivered(epoch: first, frame: 10)
+        XCTAssertEqual(capture.drainStatus(next)?.pending, 1)
+        XCTAssertFalse(capture.finish(first))
+        capture.delivered(epoch: next, frame: 10, failed: true)
+        XCTAssertEqual(capture.drainStatus(next)?.pending, 0)
+        XCTAssertEqual(capture.drainStatus(next)?.failed, true)
+    }
+
 }

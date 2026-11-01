@@ -7,6 +7,8 @@ from pathlib import Path
 
 SCHEMA = 'bpt.terminal-evidence.v1'
 KINDS = {'terminal_header', 'terminal_start', 'terminal_frame', 'terminal_rep', 'terminal_end', 'terminal_capped'}
+CANDIDATE_KINDS = {'terminal_candidate_config','terminal_candidate_start','terminal_candidate_begin','terminal_candidate_frame','terminal_candidate_tick','terminal_candidate_end','terminal_candidate_report'}
+KINDS |= CANDIDATE_KINDS | {'terminal_eof_flush'}
 STATES = {'warming_up', 'tracking_lost', 'bad_3d', 'partial_3d', 'ok'}
 
 
@@ -78,6 +80,36 @@ def load(path):
             require(row.get('incomplete') is True, 'cap_incomplete')
             capped = True
             continue
+        if kind in CANDIDATE_KINDS:
+            require(header.get('candidate_protocol') == 'bpt.terminal-candidate.v1', 'candidate_protocol')
+            payload = row.get('payload')
+            if kind in ('terminal_candidate_config','terminal_candidate_begin','terminal_candidate_frame','terminal_candidate_report'):
+                require(type(payload) is dict and row.get('candidate_protocol') == 'bpt.terminal-candidate.v1', 'candidate_payload')
+                def numeric_tree(x):
+                    if isinstance(x, dict): return all(numeric_tree(v) for v in x.values())
+                    if isinstance(x, list): return all(numeric_tree(v) for v in x)
+                    return type(x) not in (int,float) or finite(x)
+                require(numeric_tree(payload), 'candidate_nonfinite')
+            if kind == 'terminal_candidate_begin':
+                require(type(payload.get('original')) is dict and integer(payload['original'].get('epoch')) and payload['original']['epoch'] == active and finite(payload.get('hostTime')), 'candidate_begin')
+                epochs[active]['candidate_originals'].append(payload['original'])
+            if kind == 'terminal_candidate_frame':
+                require(integer(payload.get('epoch')) and payload['epoch'] == active, 'candidate_stale_epoch')
+                require(integer(payload.get('frame')) and finite(payload.get('hostTime')), 'candidate_clock')
+                require(type(payload.get('required2D')) is bool and type(payload.get('flushed')) is bool and type(payload.get('setEndFlushTail')) is bool, 'candidate_support')
+                require(payload.get('sideView') is None or type(payload['sideView']) is bool, 'candidate_support')
+                require(payload.get('sourceTime') is None or finite(payload['sourceTime']), 'candidate_clock')
+                for key in ('assessmentAngles','rawAngles'):
+                    require(type(payload.get(key)) is dict and all(k in ('elbow','knee','hip') and finite(v) for k,v in payload[key].items()), 'candidate_angles')
+            if kind == 'terminal_candidate_frame':
+                epochs[active]['candidate_frames'].append(payload)
+            if kind in ('terminal_candidate_start','terminal_candidate_end','terminal_candidate_tick'):
+                require(integer(row.get('epoch')) and row['epoch'] == active, 'candidate_stale_epoch')
+            if kind == 'terminal_candidate_tick':
+                require(integer(row.get('rep')) and finite(row.get('host_time')), 'candidate_tick')
+            if kind == 'terminal_candidate_end':
+                require(finite(row.get('host_time')) and type(row.get('reason')) is str, 'candidate_end')
+            continue  # raw frame/rep order and sequence remain intact; derived reports are not GT
         epoch = row.get('epoch')
         require(integer(epoch), 'epoch')
         if kind == 'terminal_start':
@@ -86,12 +118,14 @@ def load(path):
             require(integer(row.get('lookahead')) and integer(row.get('cadence')) and row['cadence'] >= 1 and row['lookahead'] + row['cadence'] <= 27, 'model_window')
             require(row.get('exercise') in ('squat', 'pushUp', 'pushup', 'benchPress', 'barbellRow', 'deadlift'), 'exercise')
             row['provenance'] = header['provenance']
-            epochs[epoch] = {'start': row, 'frames': [], 'reps': [], 'end': None}
+            epochs[epoch] = {'start': row, 'frames': [], 'reps': [], 'candidate_frames': [], 'candidate_originals': [], 'end': None}
             active = epoch
             continue
         require(active == epoch, 'stale_or_unstarted_epoch')
         data = epochs[epoch]
-        if kind == 'terminal_end':
+        if kind == 'terminal_eof_flush':
+            require(row.get('trigger') == 'video_eof_test_hook', 'eof_flush_provenance')
+        elif kind == 'terminal_end':
             require(type(row.get('incomplete')) is bool and type(row.get('flush_complete')) is bool, 'end_status')
             require(row['incomplete'] or row['flush_complete'], 'false_complete')
             data['end'] = row
@@ -140,6 +174,19 @@ def load(path):
         frames = {f['frame']: f for f in data['frames']}
         for rep in data['reps']:
             require(rep['start_frame'] in frames and rep['end_frame'] in frames, 'missing_boundary_frame')
+        for candidate in data['candidate_frames']:
+            source = frames.get(candidate['frame'])
+            require(source is not None and candidate.get('sourceTime') == source['source_pts'] and candidate.get('sourceIndex') == source['source_index'], 'candidate_source_binding')
+            require(candidate.get('side') == source.get('side') and candidate.get('phase') == source.get('phase') and candidate.get('activeRepStart') == source.get('active_rep_start'), 'candidate_native_binding')
+            require(candidate.get('state') == source['assessment_state'] and candidate.get('flushed') == source['flush_tail'], 'candidate_assessment_binding')
+            for metric,value in candidate['assessmentAngles'].items():
+                require(candidate.get('side') in ('left','right'), 'candidate_geometry_binding')
+                actual=angle(source,'assessment_3d',candidate['side'],metric)
+                require(actual is not None and math.isclose(actual,value,rel_tol=1e-9,abs_tol=1e-7), 'candidate_geometry_binding')
+        for original in data['candidate_originals']:
+            matches = [rep for rep in data['reps'] if rep['rep'] == original.get('rep')]
+            require(len(matches) == 1 and matches[0]['start_frame'] == original.get('startFrame') and matches[0]['end_frame'] == original.get('endFrame') and matches[0]['side'] == original.get('side'), 'candidate_original_binding')
+
     return epochs, capped, hashlib.sha256(raw).hexdigest()
 
 

@@ -303,7 +303,8 @@ final class VideoPreviewUIView: UIView {
 /// warnings), every line Flutter asked the Kori voice to speak, one tick per second (frames, drops, judged, XS
 /// inferences, process CPU, thermal, battery). Only exists in video mode.
 final class VideoRunLog: @unchecked Sendable {
-    static let terminalEvidence = DemoConfig.environment["BPT_TERMINAL_EVIDENCE"] == "1"
+    static let terminalCandidate = DemoConfig.environment["BPT_TERMINAL_CANDIDATE"] == "1"
+    static let terminalEvidence = DemoConfig.environment["BPT_TERMINAL_EVIDENCE"] == "1" || terminalCandidate
     static let shared: VideoRunLog? = (VideoCameraOptions.isActive || terminalEvidence) ? VideoRunLog() : nil
     private lazy var evidenceStream = TerminalEvidenceStream { [weak self] data in
         guard let handle = self?.handle else { throw CocoaError(.fileWriteUnknown) }
@@ -368,7 +369,8 @@ final class VideoRunLog: @unchecked Sendable {
                 "max_records": 6000, "max_bytes": 64 * 1024 * 1024,
                 "provenance": VideoCameraOptions.isActive ? "ios_video_as_camera_pipeline" : "ios_live_camera_pipeline",
                 "model_hashes": Self.bundledModelHashes(),
-                "configuration_location": "terminal_start"])
+                "configuration_location": "terminal_start",
+                "candidate_protocol": Self.terminalCandidate ? "bpt.terminal-candidate.v1" : NSNull()])
             return
         }
         write("start", [
@@ -390,6 +392,12 @@ final class VideoRunLog: @unchecked Sendable {
         lock.lock()
         counters[name, default: 0] += n
         lock.unlock()
+    }
+
+    func invalidateTerminalEvidence() {
+        guard Self.terminalEvidence else { return }
+        evidenceStream.invalidate()
+        print("[TerminalEvidence] candidate_encoding_failed; incomplete")
     }
 
     func write(_ type: String, _ fields: [String: Any]) {
