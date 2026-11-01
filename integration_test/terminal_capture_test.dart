@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:video_player/video_player.dart';
 
 class _NoHttp extends HttpOverrides {
   int attempts = 0;
@@ -68,7 +69,9 @@ Future<void> main() async {
             reason: 'Explicit host-owned opt-in required');
       }
       expect('${config['BPT_VOICE_MUTE']}', '1');
-      expect('${config['BPT_SET_RECORDING']}', '0');
+      final recording =
+          '${config['BPT_TERMINAL_TEST_RECORDING'] ?? '0'}' == '1';
+      expect('${config['BPT_SET_RECORDING']}', recording ? '1' : '0');
       expect('${config['BPT_CAMERA_VIDEO_LOOPS']}', '1');
       expect('${config['BPT_DEMO_AUTOPILOT'] ?? '0'}', '0');
       final clip = '${config['BPT_CAMERA_VIDEO'] ?? ''}';
@@ -80,7 +83,22 @@ Future<void> main() async {
           isTrue);
       expect(File('${docs.path}/$clip').existsSync(), isTrue);
       final exercise = '${config['BPT_TERMINAL_TEST_EXERCISE'] ?? ''}';
-      expect(['squat', 'pushup'], contains(exercise));
+      expect(['squat', 'pushup', 'barbell-row'], contains(exercise));
+      expect(recording, exercise == 'barbell-row',
+          reason:
+              'Only the separately authorized full row capture records video');
+      if (recording) {
+        final videos = Directory('${docs.path}/workout_videos');
+        final count = videos.existsSync()
+            ? videos
+                .listSync()
+                .whereType<File>()
+                .where((f) => f.path.endsWith('.mp4'))
+                .length
+            : 0;
+        expect(count, lessThan(20),
+            reason: 'Never permit recorder pruning of an existing video');
+      }
       final logDir = Directory('${docs.path}/video_runs');
       final before = logDir.existsSync()
           ? logDir
@@ -123,7 +141,8 @@ Future<void> main() async {
           .timeout(const Duration(seconds: 15));
       await ready.future.timeout(const Duration(seconds: 20));
       stage('production_native_view_started');
-      await setEnd.future.timeout(const Duration(minutes: 3));
+      final actualSetEnd =
+          await setEnd.future.timeout(const Duration(minutes: 3));
       stage('actual_native_set_end_received');
       File? fresh;
       List<Map> rows = [];
@@ -165,6 +184,48 @@ Future<void> main() async {
         expect(rows[i]['sequence'], i);
         expect(rows[i]['schema'], 'bpt.terminal-evidence.v1');
       }
+      Map<String, dynamic>? recordingEvidence;
+      if (recording) {
+        final videoPath = actualSetEnd['videoLocalPath'];
+        expect(videoPath, isA<String>());
+        final video = File(videoPath as String);
+        expect(video.existsSync(), isTrue);
+        expect(video.lengthSync(), inInclusiveRange(1, 256 * 1024 * 1024));
+        final manifest = actualSetEnd['deepAnalysis'] as Map;
+        expect(manifest['timebase'], 'video_ms');
+        final reps = manifest['reps'] as List;
+        expect(reps, isNotEmpty);
+        final player = VideoPlayerController.file(video);
+        try {
+          await player.initialize().timeout(const Duration(seconds: 20));
+          expect(player.value.duration.inMilliseconds,
+              inInclusiveRange(1, 180000));
+          var previousEnd = 0.0;
+          for (var i = 0; i < reps.length; i++) {
+            final rep = reps[i] as Map;
+            final start = (rep['startMs'] as num).toDouble();
+            final end = (rep['endMs'] as num).toDouble();
+            expect(rep['repIndex'], i + 1);
+            expect(start.isFinite && end.isFinite, isTrue);
+            expect(start, greaterThanOrEqualTo(previousEnd));
+            expect(end, greaterThan(start));
+            expect(end,
+                lessThanOrEqualTo(player.value.duration.inMilliseconds + 100));
+            previousEnd = end;
+          }
+          recordingEvidence = {
+            'videoPath': videoPath,
+            'durationMs': player.value.duration.inMilliseconds,
+            'width': player.value.size.width,
+            'height': player.value.size.height,
+            'manifest': manifest,
+            'uploaded': false,
+            'queuePersisted': false
+          };
+        } finally {
+          await player.dispose();
+        }
+      }
       expect(noHttp.attempts, 0);
       expect(flutterErrors, 0,
           reason: 'No rendering error may be hidden by success evidence');
@@ -174,6 +235,8 @@ Future<void> main() async {
             'scope': 'actual_native_existing_video_terminal_candidate_capture',
             'synthetic_input': false,
             'new_camera_recording': false,
+            'new_native_video_as_camera_recording': recording,
+            if (recordingEvidence != null) 'recording': recordingEvidence,
             'uploaded': false,
             'native_counter_unchanged_by_test': true,
             'DartNetworkAttempts': noHttp.attempts,
