@@ -8,6 +8,7 @@ import 'package:bpt/services/local_storage_service.dart';
 import 'package:bpt/core/network/api_client.dart';
 import 'package:bpt/models/user_model.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -39,9 +40,14 @@ class _PendingJob extends CalibrationUploadService {
             config: const CalibrationUploadConfig(),
             tokenProvider: () async => 'token');
   final response = Completer<CalibrationJob>();
+  CancelToken? observedCancel;
+  int polls = 0;
   @override
-  Future<CalibrationJob> fetchJob(String id, {dynamic cancelToken}) =>
-      response.future;
+  Future<CalibrationJob> fetchJob(String id, {dynamic cancelToken}) {
+    polls++;
+    observedCancel = cancelToken as CancelToken?;
+    return response.future;
+  }
 }
 
 class _SlowClear extends LocalStorageService {
@@ -456,6 +462,50 @@ void main() {
     expect(container.read(authSessionIdentityProvider), isNot(identity));
     expect(await fresh.save('new-owner-lifetime', measurement()), isTrue);
   });
+
+  testWidgets(
+      'disposing the result observer cancels its wait without deleting the accepted job',
+      (tester) async {
+    final prefs = await SharedPreferences.getInstance();
+    final f = await sessionFixture(prefs);
+    addTearDown(f.auth.dispose);
+    final store = CalibrationResultStore.forSession(f.auth.captureSession());
+    final service = _PendingJob();
+    addTearDown(service.close);
+    final pending = store.track(service, 'accepted-job');
+    service.response.complete(const CalibrationJob('running', 50));
+    await tester.pump();
+    expect(service.polls, 1);
+    store.dispose();
+    await tester.pump();
+    await pending;
+    expect(service.observedCancel?.isCancelled, isTrue);
+    expect(service.polls, 1);
+    // A fresh observer in the same login may recover that same accepted job.
+    final replacement =
+        CalibrationResultStore.forSession(f.auth.captureSession());
+    expect(await replacement.save('accepted-job', measurement()), isTrue);
+    expect((await replacement.load())?['jobId'], 'accepted-job');
+  }, skip: !CalibrationResultStore.enabled);
+
+  test(
+      'disposed result observer ignores an already in-flight late done response',
+      () async {
+    final prefs = await SharedPreferences.getInstance();
+    final f = await sessionFixture(prefs);
+    addTearDown(f.auth.dispose);
+    final store = CalibrationResultStore.forSession(f.auth.captureSession());
+    final service = _PendingJob();
+    addTearDown(service.close);
+    final pending = store.track(service, 'accepted-job');
+    store.dispose();
+    expect(service.observedCancel?.isCancelled, isTrue);
+    service.response
+        .complete(CalibrationJob('done', 100, result: measurement()));
+    await pending;
+    expect(prefs.containsKey(CalibrationResultStore.accountResultKey('A')),
+        isFalse);
+  }, skip: !CalibrationResultStore.enabled);
 
   test('late tracked done job cannot save into B or new A session', () async {
     final prefs = await SharedPreferences.getInstance();

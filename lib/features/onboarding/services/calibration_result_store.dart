@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -20,7 +21,18 @@ class CalibrationResultStore {
   CalibrationResultStore.forSession(this._session);
 
   final AuthSessionLease? _session;
-  bool get isCurrent => _session?.isCurrent ?? false;
+  bool _disposed = false;
+  final _polls = <CancelToken>{};
+  bool get isCurrent => !_disposed && (_session?.isCurrent ?? false);
+
+  /// Stops local observation only. Accepted server jobs and capture files remain.
+  void dispose() {
+    _disposed = true;
+    for (final cancel in _polls.toList()) {
+      cancel.cancel('calibration observer disposed');
+    }
+  }
+
   String? get ownerId => _session?.userId;
 
   static const bool enabled = bool.fromEnvironment('BPT_EXERCISE_SETUP');
@@ -46,26 +58,39 @@ class CalibrationResultStore {
       Duration timeout = const Duration(minutes: 3)}) async {
     if (!enabled || !isCurrent) return;
     final deadline = DateTime.now().add(timeout);
-    while (isCurrent && DateTime.now().isBefore(deadline)) {
-      try {
-        final job = await service.fetchJob(jobId);
-        if (!isCurrent) return;
-        if (job.status == 'done' && job.result != null) {
-          if (await save(jobId, job.result!)) {
-            debugPrint('[Calibration] 체형 결과 저장');
+    final cancel = CancelToken();
+    _polls.add(cancel);
+    try {
+      while (isCurrent && DateTime.now().isBefore(deadline)) {
+        try {
+          final job = await service.fetchJob(jobId, cancelToken: cancel);
+          if (!isCurrent) return;
+          if (job.status == 'done') {
+            if (job.result != null && await save(jobId, job.result!)) {
+              debugPrint('[Calibration] 체형 결과 저장');
+            }
+            return;
           }
-          return;
+          if (job.status == 'failed') {
+            debugPrint('[Calibration] 체형 분석 실패: ${job.error}');
+            return;
+          }
+        } catch (_) {
+          // 네트워크·토큰 오류는 다음 조회에서 다시 시도한다 (예외 내용은 주소를 담을 수 있어 남기지 않음).
         }
-        if (job.status == 'failed') {
-          debugPrint('[Calibration] 체형 분석 실패: ${job.error}');
-          return;
-        }
-      } catch (_) {
-        // 네트워크·토큰 오류는 다음 조회에서 다시 시도한다 (예외 내용은 주소를 담을 수 있어 남기지 않음).
+        if (!isCurrent) return;
+        final ready = Completer<void>();
+        final timer = Timer(interval, () => ready.complete());
+        cancel.whenCancel.then((_) {
+          timer.cancel();
+          if (!ready.isCompleted) ready.complete();
+        });
+        await ready.future;
       }
-      await Future<void>.delayed(interval);
+      debugPrint('[Calibration] 체형 결과 대기 시간 초과');
+    } finally {
+      _polls.remove(cancel);
     }
-    debugPrint('[Calibration] 체형 결과 대기 시간 초과');
   }
 
   /// done 결과에서 앱이 쓰는 필드만 저장 (GLB 주소·debug 제외).
@@ -187,6 +212,8 @@ class CalibrationResultStore {
 
 final calibrationResultStoreProvider = Provider<CalibrationResultStore>((ref) {
   ref.watch(authSessionIdentityProvider);
-  return CalibrationResultStore.forSession(
+  final store = CalibrationResultStore.forSession(
       ref.read(authNotifierProvider).captureSession());
+  ref.onDispose(store.dispose);
+  return store;
 });

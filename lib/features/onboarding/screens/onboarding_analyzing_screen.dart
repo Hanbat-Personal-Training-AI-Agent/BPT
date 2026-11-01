@@ -48,6 +48,28 @@ class _OnboardingAnalyzingScreenState
   late final Future<void> _analysis;
   final _cancel = CancelToken();
   final _uploadCancel = CancelToken();
+  Timer? _pollTimer;
+  Timer? _resultDeadline;
+  Completer<void>? _pollWait;
+
+  void _stopResultObservation() {
+    _cancel.cancel('calibration observation ended');
+    _resultDeadline?.cancel();
+    _pollTimer?.cancel();
+    final wait = _pollWait;
+    if (wait != null && !wait.isCompleted) wait.complete();
+  }
+
+  Future<void> _waitForPoll() async {
+    if (_cancel.isCancelled) return;
+    final wait = Completer<void>();
+    _pollWait = wait;
+    _pollTimer = Timer(const Duration(seconds: 3), () => wait.complete());
+    await wait.future;
+    _pollWait = null;
+    _pollTimer = null;
+  }
+
   BodyAnalysisResult _result = const BodyAnalysisResult();
   bool _finished = false;
 
@@ -61,7 +83,7 @@ class _OnboardingAnalyzingScreenState
 
   void _sessionChanged() {
     if (_ownsResult) return;
-    _cancel.cancel('account session changed');
+    _stopResultObservation();
     _uploadCancel.cancel('account session changed');
     final mesh = _result.meshId;
     _result = const BodyAnalysisResult();
@@ -75,7 +97,11 @@ class _OnboardingAnalyzingScreenState
     _auth = ref.read(authNotifierProvider);
     _session = widget.capture?.session;
     _service = ref.read(calibrationUploadServiceProvider);
-    _store = CalibrationResultStore.forSession(_session);
+    // The account provider owns setup-only background observation across routes.
+    // Never adopt a stale capture into the current account's store.
+    _store = _ownsResult
+        ? ref.read(calibrationResultStoreProvider)
+        : CalibrationResultStore.forSession(_session);
     _auth.addListener(_sessionChanged);
     _upload = _startUpload();
     _analysis = kBodyMeshReveal ? _prepareResult() : _upload;
@@ -106,7 +132,7 @@ class _OnboardingAnalyzingScreenState
       if (!_ownsResult) return;
       _jobId = receipt.jobId;
       debugPrint('[Calibration] 전송·접수 완료 (접수 번호 ${receipt.jobId})');
-      if (CalibrationResultStore.enabled) {
+      if (CalibrationResultStore.enabled && !kBodyMeshReveal) {
         unawaited(_store.track(service, receipt.jobId));
       }
     } on CalibrationUploadException catch (error) {
@@ -134,7 +160,8 @@ class _OnboardingAnalyzingScreenState
     final limit = DemoAutopilot.active
         ? const Duration(minutes: 7)
         : const Duration(minutes: 3);
-    final timeout = Timer(limit, () => _cancel.cancel());
+    final timeout = Timer(limit, _stopResultObservation);
+    _resultDeadline = timeout;
     try {
       while (mounted && !_finished && _ownsResult && !_cancel.isCancelled) {
         CalibrationJob job;
@@ -142,7 +169,7 @@ class _OnboardingAnalyzingScreenState
           job = await service.fetchJob(jobId, cancelToken: _cancel);
         } on CalibrationUploadException catch (error) {
           DemoAutopilot.logJob(jobId, started, error: 'poll: ${error.message}');
-          await Future<void>.delayed(const Duration(seconds: 3));
+          await _waitForPoll();
           continue;
         }
         if (!mounted || _finished || !_ownsResult || _cancel.isCancelled) {
@@ -152,6 +179,8 @@ class _OnboardingAnalyzingScreenState
         if (job.status == 'failed') return;
         if (job.status == 'done') {
           final values = job.result ?? const <String, dynamic>{};
+          if (CalibrationResultStore.enabled) await _store.save(jobId, values);
+          if (!mounted || !_ownsResult || _cancel.isCancelled) return;
           _result = BodyAnalysisResult(values: values, session: _session);
           final url = values['modelGlbUrl'];
           if (url is! String || url.isEmpty) return;
@@ -168,10 +197,11 @@ class _OnboardingAnalyzingScreenState
             await BodyMeshReveal.release(meshId);
             return;
           }
-          _result = BodyAnalysisResult(values: values, meshId: meshId, session: _session);
+          _result = BodyAnalysisResult(
+              values: values, meshId: meshId, session: _session);
           return;
         }
-        await Future<void>.delayed(const Duration(seconds: 3));
+        await _waitForPoll();
       }
     } catch (error) {
       DemoAutopilot.logJob(jobId, started,
@@ -201,7 +231,7 @@ class _OnboardingAnalyzingScreenState
   @override
   void dispose() {
     _auth.removeListener(_sessionChanged);
-    _cancel.cancel();
+    _stopResultObservation();
     if (!_finished) BodyMeshReveal.release(_result.meshId);
     _controller.dispose();
     super.dispose();

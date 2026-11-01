@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:bpt/features/onboarding/services/calibration_result_store.dart';
 
 import 'package:bpt/features/onboarding/models/body_analysis_result.dart';
 import 'package:bpt/features/onboarding/models/calibration_capture.dart';
@@ -107,6 +108,49 @@ void main() {
       authNotifierProvider.overrideWith((ref) => auth),
     ], child: MaterialApp.router(routerConfig: router)));
   }
+
+  testWidgets(
+      'disposing an accepted running-job screen stops local observation',
+      (tester) async {
+    final service = _Uploader()..job = const CalibrationJob('running', 50);
+    await show(tester, service);
+    service.result
+        .complete(const CalibrationUploadReceipt('session', 'accepted-job'));
+    await tester.pump();
+    expect(service.polls,
+        (kBodyMeshReveal || CalibrationResultStore.enabled) ? 1 : 0);
+    final before = service.polls;
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump();
+    // No pump-away timer: widget-test teardown itself checks no pending timers.
+    expect(service.polls, before);
+    expect(
+        service.calls, 1); // Accepted upload is not submitted or deleted again.
+  });
+
+  testWidgets(
+      'setup-only accepted job continues across result navigation under its account owner',
+      (tester) async {
+    final service = _Uploader()..job = const CalibrationJob('running', 50);
+    await show(tester, service);
+    service.result
+        .complete(const CalibrationUploadReceipt('session', 'accepted-job'));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 41));
+    await tester.pumpAndSettle();
+    expect(find.text('result destination'), findsOneWidget);
+    service.job = const CalibrationJob('done', 100, result: {
+      'boneLengthData': {
+        'unit': 'cm',
+        'segments': {'hip_width': 28.0}
+      },
+    });
+    await tester.pump(const Duration(seconds: 3));
+    await tester.pump();
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getString(CalibrationResultStore.accountResultKey('A')),
+        contains('accepted-job'));
+  }, skip: !CalibrationResultStore.enabled || kBodyMeshReveal);
 
   testWidgets('uploads right away without a button', (tester) async {
     final service = _Uploader();
@@ -255,7 +299,7 @@ void main() {
 
   if (!kBodyMeshReveal) {
     testWidgets(
-        'flag off preserves the old flow without polling or downloading',
+        'mesh off never downloads and only enabled setup observes the accepted job',
         (tester) async {
       final service = _Uploader();
       await show(tester, service);
@@ -263,7 +307,7 @@ void main() {
           .complete(const CalibrationUploadReceipt('session', 'job-1'));
       await tester.pump(const Duration(seconds: 41));
       await tester.pumpAndSettle();
-      expect(service.polls, 0);
+      expect(service.polls, CalibrationResultStore.enabled ? 1 : 0);
       expect(service.downloads, 0);
       expect(delivered, isNull);
     });
@@ -378,6 +422,11 @@ void main() {
       service.job = const CalibrationJob('done', 100, result: {
         'userHeightCm': 170,
         'modelGlbUrl': 'https://photos.example.test/synthetic.glb',
+        'smplBeta': [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+        'boneLengthData': {
+          'unit': 'cm',
+          'segments': {'hip_width': 28.0}
+        },
       });
       await tester.pump(const Duration(seconds: 3));
       expect(service.downloads, 1);
@@ -391,6 +440,11 @@ void main() {
       expect(delivered?.session?.userId, 'A');
       expect(delivered?.session?.isCurrent, isTrue);
       expect(delivered?.summary['키'], '170.0 cm');
+      if (CalibrationResultStore.enabled) {
+        final prefs = await SharedPreferences.getInstance();
+        expect(prefs.getString(CalibrationResultStore.accountResultKey('A')),
+            contains('job-1'));
+      }
       debugDefaultTargetPlatformOverride = null;
     });
 
@@ -401,6 +455,10 @@ void main() {
         ..job = const CalibrationJob('done', 100, result: {
           'userHeightCm': 170,
           'modelGlbUrl': 'https://photos.example.test/synthetic.glb',
+          'boneLengthData': {
+            'unit': 'cm',
+            'segments': {'hip_width': 28.0}
+          },
         });
       await show(tester, service);
       service.result
@@ -409,6 +467,11 @@ void main() {
       await tester.pumpAndSettle();
       expect(delivered?.meshId, isNull);
       expect(delivered?.summary['키'], '170.0 cm');
+      if (CalibrationResultStore.enabled) {
+        final prefs = await SharedPreferences.getInstance();
+        expect(prefs.getString(CalibrationResultStore.accountResultKey('A')),
+            contains('job-1'));
+      }
       expect(find.text('result destination'), findsOneWidget);
     });
 
