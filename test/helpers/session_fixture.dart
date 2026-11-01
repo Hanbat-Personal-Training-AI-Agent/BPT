@@ -27,27 +27,32 @@ class SessionAuthService extends AuthService {
 
   @override
   Future<UserModel> login(
-      {required String email, required String password}) async {
+      {required String email,
+      required String password,
+      bool Function()? canCommit}) async {
     id = email;
     restoreAuthToken('token-$email', refreshToken: 'refresh-$email');
     return sessionUser(email);
   }
 
   @override
-  Future<UserModel> fetchUserProfile() =>
+  Future<UserModel> fetchUserProfile({bool Function()? sessionGuard}) =>
       profile?.future ?? Future.value(sessionUser(id));
 
   @override
-  Future<UserModel> recordBodyScan({String? sessionPath}) =>
+  Future<UserModel> recordBodyScan(
+          {String? sessionPath, bool Function()? sessionGuard}) =>
       scan?.future ??
       Future.value(
           sessionUser(id).copyWith(lastBodyScanDate: DateTime(2026, 11, 2)));
 
   @override
-  Future<void> deleteAccount() => deletion?.future ?? Future<void>.value();
+  Future<void> deleteAccount({bool Function()? sessionGuard}) =>
+      deletion?.future ?? Future<void>.value();
 
   @override
-  Future<void> saveUserData(UserModel user) async {
+  Future<void> saveUserData(UserModel user,
+      {bool Function()? sessionGuard}) async {
     profileWrites.add(user.id);
   }
 
@@ -57,7 +62,8 @@ class SessionAuthService extends AuthService {
       required double heightCm,
       required double weightKg,
       required String workoutGoal,
-      required int weeklyFrequency}) async {
+      required int weeklyFrequency,
+      bool Function()? sessionGuard}) async {
     onboardingWrites.add(id);
   }
 }

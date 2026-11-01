@@ -70,6 +70,20 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
+  test(
+      'an active profile response with a different owner invalidates a mismatched cached session',
+      () async {
+    final f = await sessionFixture(await SharedPreferences.getInstance());
+    addTearDown(f.auth.dispose);
+    f.service.profile = Completer();
+    final pending = f.auth.tryAutoLogin();
+    f.service.profile!.complete(sessionUser('B'));
+    expect(await pending, isFalse);
+    expect(f.auth.currentUser, isNull);
+    expect(f.storage.loadAuthToken(), isNull);
+    expect(f.storage.loadAutoLogin(), isFalse);
+  });
+
   for (final onboarding in [false, true]) {
     test(
         'account switch during ${onboarding ? 'onboarding' : 'profile'} persistence prevents an A-data PUT with B token',

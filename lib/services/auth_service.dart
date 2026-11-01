@@ -9,10 +9,21 @@ class AuthService {
 
   AuthService(this._apiClient);
 
+  static Options? _sessionOptions(bool Function()? guard) =>
+      guard == null ? null : Options(extra: {ApiClient.sessionGuardKey: guard});
+
+  static void _requireCurrent(bool Function()? guard) {
+    if (guard != null && !guard()) {
+      throw ApiException('Account session changed',
+          code: ApiClient.sessionChangedCode);
+    }
+  }
+
   /// Authenticate user via Spring Boot REST API
   Future<UserModel> login({
     required String email,
     required String password,
+    bool Function()? canCommit,
   }) async {
     final response = await _apiClient.post(
       '/auth/login',
@@ -20,17 +31,20 @@ class AuthService {
         'email': email.trim(),
         'password': password,
       },
+      options: _sessionOptions(canCommit),
     );
 
     if (response.statusCode == 200) {
       final data = response.data as Map<String, dynamic>;
+      final userJson = data['user'] as Map<String, dynamic>? ?? data;
+      final user = UserModel.fromJson(userJson);
+      _requireCurrent(canCommit);
       final token = data['token'] as String?;
       if (token != null) {
         _apiClient.setAuthToken(token);
       }
       _apiClient.setRefreshToken(data['refreshToken'] as String?);
-      final userJson = data['user'] as Map<String, dynamic>? ?? data;
-      return UserModel.fromJson(userJson);
+      return user;
     } else {
       throw ApiException('Login failed', statusCode: response.statusCode);
     }
@@ -45,6 +59,7 @@ class AuthService {
     required String phoneNumber, // 010-1234-5678
     required String birthDate, // 1998-05-15
     bool termsAgreed = true,
+    bool Function()? canCommit,
   }) async {
     final response = await _apiClient.post(
       '/auth/signup',
@@ -57,17 +72,20 @@ class AuthService {
         'birthDate': birthDate,
         'termsAgreed': termsAgreed,
       },
+      options: _sessionOptions(canCommit),
     );
 
     if (response.statusCode == 200 || response.statusCode == 201) {
       final data = response.data as Map<String, dynamic>;
+      final userJson = data['user'] as Map<String, dynamic>? ?? data;
+      final user = UserModel.fromJson(userJson);
+      _requireCurrent(canCommit);
       final token = data['token'] as String?;
       if (token != null) {
         _apiClient.setAuthToken(token);
       }
       _apiClient.setRefreshToken(data['refreshToken'] as String?);
-      final userJson = data['user'] as Map<String, dynamic>? ?? data;
-      return UserModel.fromJson(userJson);
+      return user;
     } else {
       throw ApiException('Sign up failed', statusCode: response.statusCode);
     }
@@ -164,6 +182,7 @@ class AuthService {
     required double weightKg,
     required String workoutGoal,
     required int weeklyFrequency,
+    bool Function()? sessionGuard,
   }) async {
     await _apiClient.put(
       '/users/me/onboarding',
@@ -174,15 +193,18 @@ class AuthService {
         'workoutGoal': workoutGoal,
         'weeklyFrequency': weeklyFrequency,
       },
+      options: _sessionOptions(sessionGuard),
     );
   }
 
   /// 체형 촬영(사진 4장)을 끝냈다고 서버에 알린다. 서버가 오늘 날짜를 측정일로
   /// 저장하고 갱신된 사용자 정보를 돌려준다.
-  Future<UserModel> recordBodyScan({String? sessionPath}) async {
+  Future<UserModel> recordBodyScan(
+      {String? sessionPath, bool Function()? sessionGuard}) async {
     final response = await _apiClient.post(
       '/users/me/body-scan',
       data: {if (sessionPath != null) 'bodyScanLocalPath': sessionPath},
+      options: _sessionOptions(sessionGuard),
     );
     return UserModel.fromJson(response.data as Map<String, dynamic>);
   }
@@ -209,26 +231,31 @@ class AuthService {
       _apiClient.onSessionExpired = callback;
 
   /// Fetch current user profile from Spring Boot server
-  Future<UserModel> fetchUserProfile() async {
-    final response = await _apiClient.get('/users/me');
+  Future<UserModel> fetchUserProfile({bool Function()? sessionGuard}) async {
+    final response = await _apiClient.get('/users/me',
+        options: _sessionOptions(sessionGuard));
     if (response.statusCode == 200) {
       return UserModel.fromJson(response.data as Map<String, dynamic>);
     } else {
-      throw ApiException('Failed to fetch user profile', statusCode: response.statusCode);
+      throw ApiException('Failed to fetch user profile',
+          statusCode: response.statusCode);
     }
   }
 
   /// Save or update user profile data
-  Future<void> saveUserData(UserModel user) async {
+  Future<void> saveUserData(UserModel user,
+      {bool Function()? sessionGuard}) async {
     await _apiClient.put(
       '/users/me',
       data: user.toUpdateJson(),
+      options: _sessionOptions(sessionGuard),
     );
   }
 
   /// Delete current user account from Spring Boot backend
-  Future<void> deleteAccount() async {
-    await _apiClient.delete('/users/me');
+  Future<void> deleteAccount({bool Function()? sessionGuard}) async {
+    await _apiClient.delete('/users/me',
+        options: _sessionOptions(sessionGuard));
   }
 }
 

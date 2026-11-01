@@ -32,6 +32,7 @@ class AuthNotifier extends ChangeNotifier {
   bool _isOfflineMode = false;
   int _sessionGeneration = 0;
   bool _disposed = false;
+  static const _sessionChangedMessage = '로그인 상태가 바뀌었어. 다시 확인해 줘.';
   Future<void> _sessionWrites = Future<void>.value();
 
   // Keep an already-started clear/save in order with a subsequent login. This
@@ -111,8 +112,13 @@ class AuthNotifier extends ChangeNotifier {
 
     // Try background refresh from Spring Boot server
     try {
-      final freshUser = await _authService.fetchUserProfile();
-      if (!lease.isCurrent || freshUser.id != lease.userId) return false;
+      final freshUser = await _authService.fetchUserProfile(
+          sessionGuard: () => lease.isCurrent);
+      if (!lease.isCurrent) return false;
+      if (freshUser.id != lease.userId) {
+        await logout();
+        return false;
+      }
       // 서버에 주간 목표가 아직 없으면 기기에 있던 값을 유지한다.
       _currentUser = freshUser.copyWith(
           weeklyFrequency:
@@ -149,7 +155,10 @@ class AuthNotifier extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final user = await _authService.login(email: email, password: password);
+      final user = await _authService.login(
+          email: email,
+          password: password,
+          canCommit: () => !_disposed && generation == _sessionGeneration);
       if (_disposed || generation != _sessionGeneration) return;
       _currentUser = user;
       await _saveLogin(user, rememberMe);
@@ -196,25 +205,38 @@ class AuthNotifier extends ChangeNotifier {
         birthDate: '${birthDate.year.toString().padLeft(4, '0')}-'
             '${birthDate.month.toString().padLeft(2, '0')}-'
             '${birthDate.day.toString().padLeft(2, '0')}',
+        canCommit: () => !_disposed && generation == _sessionGeneration,
       );
-      if (_disposed || generation != _sessionGeneration) return null;
+      if (_disposed || generation != _sessionGeneration) {
+        return _sessionChangedMessage;
+      }
       _currentUser = user;
       await _saveLogin(user, true);
-      if (_disposed || generation != _sessionGeneration) return null;
+      if (_disposed || generation != _sessionGeneration) {
+        return _sessionChangedMessage;
+      }
       _isOfflineMode = false;
     } on NetworkException {
-      if (_disposed || generation != _sessionGeneration) return null;
+      if (_disposed || generation != _sessionGeneration) {
+        return _sessionChangedMessage;
+      }
       message = '서버에 연결할 수 없어. 인터넷 연결을 확인하고 다시 시도해줘.';
     } on ApiException catch (e) {
-      if (_disposed || generation != _sessionGeneration) return null;
+      if (_disposed || generation != _sessionGeneration) {
+        return _sessionChangedMessage;
+      }
       // 백엔드가 보내는 안내 문구(예: 이미 가입된 이메일 주소입니다.)를 그대로 보여준다.
       message = e.message;
     } catch (_) {
-      if (_disposed || generation != _sessionGeneration) return null;
+      if (_disposed || generation != _sessionGeneration) {
+        return _sessionChangedMessage;
+      }
       message = '가입 중에 문제가 생겼어. 잠시 후 다시 시도해줘.';
     }
 
-    if (_disposed || generation != _sessionGeneration) return null;
+    if (_disposed || generation != _sessionGeneration) {
+      return _sessionChangedMessage;
+    }
     _error = message;
     _isLoading = false;
     notifyListeners();
@@ -247,6 +269,7 @@ class AuthNotifier extends ChangeNotifier {
     }
     try {
       await _authService.updateOnboarding(
+        sessionGuard: () => lease.isCurrent,
         gender: gender,
         heightCm: heightCm,
         weightKg: weightKg,
@@ -255,6 +278,7 @@ class AuthNotifier extends ChangeNotifier {
       );
       return null;
     } on ApiException catch (e) {
+      if (!lease.isCurrent) return null;
       return e is NetworkException
           ? '서버에 연결할 수 없어서 신체 정보를 저장하지 못했어.'
           : e.message;
@@ -266,6 +290,8 @@ class AuthNotifier extends ChangeNotifier {
   void debugSkipLogin() {
     if (!kDebugMode) return;
     _sessionGeneration++;
+    _authService.restoreAuthToken(null);
+    unawaited(_persist(_storage.clearSession));
     _currentUser = _createLocalFallbackUser(
         username: 'tester', email: 'test@bpt.dev', name: 'Tester');
     _isOfflineMode = true;
@@ -319,7 +345,8 @@ class AuthNotifier extends ChangeNotifier {
     await _saveUser(updated, lease);
     if (!lease.isCurrent) return;
     try {
-      await _authService.saveUserData(updated);
+      await _authService.saveUserData(updated,
+          sessionGuard: () => lease.isCurrent);
     } catch (_) {
       // Saved locally if offline
     }
@@ -345,8 +372,13 @@ class AuthNotifier extends ChangeNotifier {
     final lease = captureSession();
     if (user == null || lease == null) return;
     try {
-      final fresh = await _authService.recordBodyScan(sessionPath: sessionPath);
-      if (!lease.isCurrent || fresh.id != lease.userId) return;
+      final fresh = await _authService.recordBodyScan(
+          sessionPath: sessionPath, sessionGuard: () => lease.isCurrent);
+      if (!lease.isCurrent) return;
+      if (fresh.id != lease.userId) {
+        await logout();
+        return;
+      }
       _currentUser = fresh.copyWith(
           weeklyFrequency: fresh.weeklyFrequency ?? user.weeklyFrequency);
     } catch (_) {
@@ -364,14 +396,17 @@ class AuthNotifier extends ChangeNotifier {
   Future<String?> deleteAccount() async {
     final user = _currentUser;
     final lease = captureSession();
+    if (lease == null) return null;
     try {
-      await _authService.deleteAccount();
+      await _authService.deleteAccount(sessionGuard: () => lease.isCurrent);
     } on NetworkException {
+      if (!lease.isCurrent) return _sessionChangedMessage;
       return '서버에 연결할 수 없어서 탈퇴하지 못했어. 인터넷 연결을 확인하고 다시 시도해줘.';
     } catch (_) {
+      if (!lease.isCurrent) return _sessionChangedMessage;
       return '탈퇴하지 못했어. 잠시 후 다시 시도해줘.';
     }
-    if (lease == null || !lease.isCurrent) return null;
+    if (!lease.isCurrent) return _sessionChangedMessage;
     // Invalidate account-bound requests before removing their persisted queues.
     _sessionGeneration++;
     _authService.restoreAuthToken(null);

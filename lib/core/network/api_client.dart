@@ -77,6 +77,9 @@ class ApiClient {
       if (kDebugMode) _ApiDebugLogInterceptor(),
       InterceptorsWrapper(
         onRequest: (options, handler) {
+          if (!_sessionActive(options)) {
+            return handler.reject(_sessionCancelled(options));
+          }
           if (_authToken != null && _authToken!.isNotEmpty) {
             options.headers[HttpHeaders.authorizationHeader] =
                 'Bearer $_authToken';
@@ -84,9 +87,15 @@ class ApiClient {
           return handler.next(options);
         },
         onError: (DioException error, handler) async {
+          if (!_sessionActive(error.requestOptions)) {
+            return handler.reject(_sessionCancelled(error.requestOptions));
+          }
           // 액세스 토큰 만료(서버는 403, 일부 401) → 한 번만 갱신하고 원래 요청을 다시 보낸다.
           if (_shouldRefresh(error) &&
               (_sentWithOldToken(error) || await _refreshTokens())) {
+            if (!_sessionActive(error.requestOptions)) {
+              return handler.reject(_sessionCancelled(error.requestOptions));
+            }
             try {
               final options = error.requestOptions..extra[_retriedKey] = true;
               options.headers[HttpHeaders.authorizationHeader] =
@@ -95,6 +104,9 @@ class ApiClient {
             } on DioException catch (e) {
               error = e;
             }
+          }
+          if (!_sessionActive(error.requestOptions)) {
+            return handler.reject(_sessionCancelled(error.requestOptions));
           }
           final customException = error.error is ApiException
               ? error.error as ApiException
@@ -120,6 +132,28 @@ class ApiClient {
 
   /// 다른 계정의 운동 기록에 접근했을 때 백엔드가 주는 403 에러 코드.
   static const sessionAccessDenied = 'SESSION_ACCESS_DENIED';
+
+  /// Local callback only: never put this in headers, query parameters or data.
+  static const sessionGuardKey = 'bpt.sessionGuard';
+  static const sessionChangedCode = 'STALE_SESSION';
+
+  static bool _sessionActive(RequestOptions options) {
+    final guard = options.extra[sessionGuardKey];
+    if (guard == null) return true;
+    if (guard is! bool Function()) return false;
+    try {
+      return guard();
+    } catch (_) {
+      return false;
+    }
+  }
+
+  static DioException _sessionCancelled(RequestOptions options) => DioException(
+        requestOptions: options,
+        type: DioExceptionType.cancel,
+        error:
+            ApiException('Account session changed', code: sessionChangedCode),
+      );
 
   static Dio _createDio(String? baseUrl) => Dio(
         BaseOptions(
