@@ -30,7 +30,9 @@ For each eligible interval compute knee and hip chain angles for squat, elbow fo
 
 Report original-window max, original+15-window max and their difference; earliest extended-max offset in observed frames/actual saved seconds relative to original end; exact observation count, source states and reasons for withholding. Export counts/distributions/hashes only; per-frame coordinates and per-rep results remain private. No threshold crossing, corrected-form claim, GT comparison, expert sensitivity/specificity, or new runtime terminal gate is computed. If0 original reps or0 complete eligible windows occur, report that directly; do not tune the model/gates to create a result.
 
-## Pre-metric implicit-flush guard refinement (UTC2026-11-01, before diagnostic angle computation)
+## Pre-metric implicit-flush guard refinement (after inference, before diagnostic angle computation)
+
+Refinement receipt UTC `2026-11-01T21:51:55.287144+00:00`. Inference had finished at UTC2026-11-01T21:50:17.788714; this source-only guard was added afterward and before real per-rep angle computation or viewing. The original pre-inference protocol remains preserved in commits6b24b44/fd956b2; this is a conservative later refinement, not a retroactive claim that every condition preceded inference.
 
 Frozen `MotionAGFormerLive.emitWindow` uses row26−(end+extraLookahead−p); in flush, shortfall=p+lookahead−end, so even padded/clamped output can keep row21. A row21 value is **not** proof of an unclamped window. Do not fabricate a clamped flag from it. The source's midstream flush triggers are orientation change and the tracking-loss reset; model failure would fail the run. This frozen PoseReplay passes constant default `.up` and completed successfully.
 
