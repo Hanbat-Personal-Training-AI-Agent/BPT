@@ -1,0 +1,2423 @@
+{
+  "schemaVersion": 1,
+  "exerciseId": "squat",
+  "fps": 30,
+  "summary": {
+    "title": "총평",
+    "body": "4회 기록했어! 반복마다 깊이와 리듬을 비교해 봐.",
+    "severity": "info",
+    "repCount": 4,
+    "faultCount": 0
+  },
+  "reps": [
+    {
+      "repIndex": 1,
+      "startMs": 0,
+      "endMs": 1000,
+      "side": "left",
+      "onDeviceWarnings": [],
+      "primaryJoint": "knee",
+      "anglesDeg": {
+        "knee": {
+          "min": null,
+          "max": null,
+          "rom": null,
+          "top": null,
+          "bottom": null
+        },
+        "hip": {
+          "min": 180.0,
+          "max": 180.0,
+          "rom": 0.0,
+          "top": null,
+          "bottom": null
+        },
+        "elbow": {
+          "min": 180.0,
+          "max": 180.0,
+          "rom": 0.0,
+          "top": null,
+          "bottom": null
+        },
+        "shoulder": {
+          "min": 21.801,
+          "max": 21.801,
+          "rom": 0.0,
+          "top": null,
+          "bottom": null
+        },
+        "torso": {
+          "min": 0.0,
+          "max": 0.0,
+          "rom": 0.0,
+          "top": null,
+          "bottom": null
+        }
+      },
+      "metricValidity": {
+        "knee": {
+          "assessment": "withheld",
+          "reasons": [
+            "invalid_geometry"
+          ],
+          "minimumJointSupport": 0.8
+        },
+        "hip": {
+          "assessment": "available",
+          "reasons": [],
+          "minimumJointSupport": 0.8
+        },
+        "elbow": {
+          "assessment": "available",
+          "reasons": [],
+          "minimumJointSupport": 0.8
+        },
+        "shoulder": {
+          "assessment": "available",
+          "reasons": [],
+          "minimumJointSupport": 0.8
+        },
+        "torso": {
+          "assessment": "available",
+          "reasons": [],
+          "minimumJointSupport": 0.8
+        },
+        "depthAngleDeg": {
+          "assessment": "withheld",
+          "reasons": [
+            "invalid_geometry"
+          ],
+          "minimumJointSupport": 0.8
+        },
+        "romDeg": {
+          "assessment": "withheld",
+          "reasons": [
+            "invalid_geometry"
+          ],
+          "minimumJointSupport": 0.8
+        },
+        "tempoSeconds": {
+          "assessment": "withheld",
+          "reasons": [
+            "invalid_geometry"
+          ],
+          "minimumJointSupport": 0.8
+        },
+        "depthMeters": {
+          "assessment": "available",
+          "reasons": [],
+          "minimumJointSupport": 0.8
+        },
+        "handPath": {
+          "assessment": "available",
+          "reasons": [],
+          "minimumJointSupport": 0.8
+        },
+        "trunkStdDeg": {
+          "assessment": "available",
+          "reasons": [],
+          "minimumJointSupport": 0.8
+        },
+        "symmetryMaxDeg": {
+          "assessment": "withheld",
+          "reasons": [
+            "invalid_geometry"
+          ],
+          "minimumJointSupport": 0.8
+        },
+        "phase": {
+          "assessment": "withheld",
+          "reasons": [
+            "invalid_geometry"
+          ],
+          "minimumJointSupport": 0.8
+        },
+        "depthDriftDeg": {
+          "assessment": "withheld",
+          "reasons": [
+            "invalid_geometry",
+            "requires_baseline_reps"
+          ],
+          "minimumJointSupport": 0.8
+        },
+        "romDropDeg": {
+          "assessment": "withheld",
+          "reasons": [
+            "invalid_geometry",
+            "requires_baseline_reps"
+          ],
+          "minimumJointSupport": 0.8
+        },
+        "tempoDriftRatio": {
+          "assessment": "withheld",
+          "reasons": [
+            "invalid_geometry",
+            "requires_baseline_reps"
+          ],
+          "minimumJointSupport": 0.8
+        }
+      },
+      "topFrame": null,
+      "bottomFrame": null,
+      "topTime": null,
+      "bottomTime": null,
+      "depthAngleDeg": null,
+      "romDeg": null,
+      "depthMeters": 0.0,
+      "tempoSeconds": {
+        "eccentric": null,
+        "pause": null,
+        "concentric": null,
+        "total": null
+      },
+      "tempoOrder": "eccentric_pause_concentric",
+      "handPath": {
+        "source": "wrist_midpoint_pelvis_relative",
+        "unit": "m",
+        "length": 0.0,
+        "horizontalExcursion": 0.0,
+        "verticalRange": 0.0,
+        "samples": [
+          {
+            "t": 0.0,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 0.033,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 0.067,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 0.1,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 0.133,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 0.167,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 0.2,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 0.233,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 0.267,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 0.3,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 0.333,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 0.367,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 0.4,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 0.433,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 0.467,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 0.5,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 0.533,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 0.567,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 0.6,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 0.633,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 0.667,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 0.7,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 0.733,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 0.767,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 0.8,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 0.833,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 0.867,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 0.9,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 0.933,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 0.967,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          }
+        ]
+      },
+      "symmetryDeg": {
+        "knee": {
+          "mean": null,
+          "max": null
+        },
+        "hip": {
+          "mean": 0.0,
+          "max": 0.0
+        },
+        "elbow": {
+          "mean": 0.0,
+          "max": 0.0
+        },
+        "shoulder": {
+          "mean": 0.0,
+          "max": 0.0
+        }
+      },
+      "trunkStability": {
+        "stdDeg": 0.0,
+        "rangeDeg": 0.0,
+        "swayMeters": 0.0
+      },
+      "confidence": 0.8,
+      "fatigueDrift": {
+        "depthDriftDeg": null,
+        "romDropDeg": null,
+        "tempoDriftRatio": null,
+        "comparable": false
+      },
+      "validity": {
+        "confidenceSource": "2d_detection_support",
+        "detectionSupport": "available",
+        "reasons": [
+          "invalid_geometry"
+        ]
+      },
+      "serverWarnings": [],
+      "evaluatedKeys": [],
+      "faults": [],
+      "comparison": "not_comparable",
+      "unassessedDeviceWarnings": []
+    },
+    {
+      "repIndex": 2,
+      "startMs": 1000,
+      "endMs": 2000,
+      "side": "left",
+      "onDeviceWarnings": [],
+      "primaryJoint": "knee",
+      "anglesDeg": {
+        "knee": {
+          "min": 90.0,
+          "max": 170.0,
+          "rom": 80.0,
+          "top": 170.0,
+          "bottom": 90.0
+        },
+        "hip": {
+          "min": 180.0,
+          "max": 180.0,
+          "rom": 0.0,
+          "top": 180.0,
+          "bottom": 180.0
+        },
+        "elbow": {
+          "min": 180.0,
+          "max": 180.0,
+          "rom": 0.0,
+          "top": 180.0,
+          "bottom": 180.0
+        },
+        "shoulder": {
+          "min": 21.801,
+          "max": 21.801,
+          "rom": 0.0,
+          "top": 21.801,
+          "bottom": 21.801
+        },
+        "torso": {
+          "min": 0.0,
+          "max": 0.0,
+          "rom": 0.0,
+          "top": 0.0,
+          "bottom": 0.0
+        }
+      },
+      "metricValidity": {
+        "knee": {
+          "assessment": "available",
+          "reasons": [],
+          "minimumJointSupport": 0.8
+        },
+        "hip": {
+          "assessment": "available",
+          "reasons": [],
+          "minimumJointSupport": 0.8
+        },
+        "elbow": {
+          "assessment": "available",
+          "reasons": [],
+          "minimumJointSupport": 0.8
+        },
+        "shoulder": {
+          "assessment": "available",
+          "reasons": [],
+          "minimumJointSupport": 0.8
+        },
+        "torso": {
+          "assessment": "available",
+          "reasons": [],
+          "minimumJointSupport": 0.8
+        },
+        "depthAngleDeg": {
+          "assessment": "available",
+          "reasons": [],
+          "minimumJointSupport": 0.8
+        },
+        "romDeg": {
+          "assessment": "available",
+          "reasons": [],
+          "minimumJointSupport": 0.8
+        },
+        "tempoSeconds": {
+          "assessment": "available",
+          "reasons": [],
+          "minimumJointSupport": 0.8
+        },
+        "depthMeters": {
+          "assessment": "available",
+          "reasons": [],
+          "minimumJointSupport": 0.8
+        },
+        "handPath": {
+          "assessment": "available",
+          "reasons": [],
+          "minimumJointSupport": 0.8
+        },
+        "trunkStdDeg": {
+          "assessment": "available",
+          "reasons": [],
+          "minimumJointSupport": 0.8
+        },
+        "symmetryMaxDeg": {
+          "assessment": "available",
+          "reasons": [],
+          "minimumJointSupport": 0.8
+        },
+        "depthDriftDeg": {
+          "assessment": "withheld",
+          "reasons": [
+            "requires_baseline_reps"
+          ],
+          "minimumJointSupport": 0.8
+        },
+        "romDropDeg": {
+          "assessment": "withheld",
+          "reasons": [
+            "requires_baseline_reps"
+          ],
+          "minimumJointSupport": 0.8
+        },
+        "tempoDriftRatio": {
+          "assessment": "withheld",
+          "reasons": [
+            "requires_baseline_reps"
+          ],
+          "minimumJointSupport": 0.8
+        }
+      },
+      "topFrame": 30,
+      "bottomFrame": 45,
+      "topTime": 1.0,
+      "bottomTime": 1.5,
+      "depthAngleDeg": 90.0,
+      "romDeg": 80.0,
+      "depthMeters": 0.0,
+      "tempoSeconds": {
+        "eccentric": 0.5,
+        "pause": 0.0,
+        "concentric": 0.5,
+        "total": 1.0
+      },
+      "tempoOrder": "eccentric_pause_concentric",
+      "handPath": {
+        "source": "wrist_midpoint_pelvis_relative",
+        "unit": "m",
+        "length": 0.0,
+        "horizontalExcursion": 0.0,
+        "verticalRange": 0.0,
+        "samples": [
+          {
+            "t": 1.0,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 1.033,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 1.067,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 1.1,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 1.133,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 1.167,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 1.2,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 1.233,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 1.267,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 1.3,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 1.333,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 1.367,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 1.4,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 1.433,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 1.467,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 1.5,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 1.533,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 1.567,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 1.6,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 1.633,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 1.667,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 1.7,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 1.733,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 1.767,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 1.8,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 1.833,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 1.867,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 1.9,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 1.933,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 1.967,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          }
+        ]
+      },
+      "symmetryDeg": {
+        "knee": {
+          "mean": 0.0,
+          "max": 0.0
+        },
+        "hip": {
+          "mean": 0.0,
+          "max": 0.0
+        },
+        "elbow": {
+          "mean": 0.0,
+          "max": 0.0
+        },
+        "shoulder": {
+          "mean": 0.0,
+          "max": 0.0
+        }
+      },
+      "trunkStability": {
+        "stdDeg": 0.0,
+        "rangeDeg": 0.0,
+        "swayMeters": 0.0
+      },
+      "confidence": 0.8,
+      "fatigueDrift": {
+        "depthDriftDeg": null,
+        "romDropDeg": null,
+        "tempoDriftRatio": null,
+        "comparable": false
+      },
+      "validity": {
+        "confidenceSource": "2d_detection_support",
+        "detectionSupport": "available",
+        "reasons": []
+      },
+      "serverWarnings": [],
+      "evaluatedKeys": [],
+      "faults": [],
+      "comparison": "not_comparable",
+      "unassessedDeviceWarnings": []
+    },
+    {
+      "repIndex": 3,
+      "startMs": 2000,
+      "endMs": 3000,
+      "side": "left",
+      "onDeviceWarnings": [],
+      "primaryJoint": "knee",
+      "anglesDeg": {
+        "knee": {
+          "min": 90.0,
+          "max": 170.0,
+          "rom": 80.0,
+          "top": 170.0,
+          "bottom": 90.0
+        },
+        "hip": {
+          "min": 180.0,
+          "max": 180.0,
+          "rom": 0.0,
+          "top": 180.0,
+          "bottom": 180.0
+        },
+        "elbow": {
+          "min": 180.0,
+          "max": 180.0,
+          "rom": 0.0,
+          "top": 180.0,
+          "bottom": 180.0
+        },
+        "shoulder": {
+          "min": 21.801,
+          "max": 21.801,
+          "rom": 0.0,
+          "top": 21.801,
+          "bottom": 21.801
+        },
+        "torso": {
+          "min": 0.0,
+          "max": 0.0,
+          "rom": 0.0,
+          "top": 0.0,
+          "bottom": 0.0
+        }
+      },
+      "metricValidity": {
+        "knee": {
+          "assessment": "available",
+          "reasons": [],
+          "minimumJointSupport": 0.8
+        },
+        "hip": {
+          "assessment": "available",
+          "reasons": [],
+          "minimumJointSupport": 0.8
+        },
+        "elbow": {
+          "assessment": "available",
+          "reasons": [],
+          "minimumJointSupport": 0.8
+        },
+        "shoulder": {
+          "assessment": "available",
+          "reasons": [],
+          "minimumJointSupport": 0.8
+        },
+        "torso": {
+          "assessment": "available",
+          "reasons": [],
+          "minimumJointSupport": 0.8
+        },
+        "depthAngleDeg": {
+          "assessment": "available",
+          "reasons": [],
+          "minimumJointSupport": 0.8
+        },
+        "romDeg": {
+          "assessment": "available",
+          "reasons": [],
+          "minimumJointSupport": 0.8
+        },
+        "tempoSeconds": {
+          "assessment": "available",
+          "reasons": [],
+          "minimumJointSupport": 0.8
+        },
+        "depthMeters": {
+          "assessment": "available",
+          "reasons": [],
+          "minimumJointSupport": 0.8
+        },
+        "handPath": {
+          "assessment": "available",
+          "reasons": [],
+          "minimumJointSupport": 0.8
+        },
+        "trunkStdDeg": {
+          "assessment": "available",
+          "reasons": [],
+          "minimumJointSupport": 0.8
+        },
+        "symmetryMaxDeg": {
+          "assessment": "available",
+          "reasons": [],
+          "minimumJointSupport": 0.8
+        },
+        "depthDriftDeg": {
+          "assessment": "withheld",
+          "reasons": [
+            "requires_baseline_reps"
+          ],
+          "minimumJointSupport": 0.8
+        },
+        "romDropDeg": {
+          "assessment": "withheld",
+          "reasons": [
+            "requires_baseline_reps"
+          ],
+          "minimumJointSupport": 0.8
+        },
+        "tempoDriftRatio": {
+          "assessment": "withheld",
+          "reasons": [
+            "requires_baseline_reps"
+          ],
+          "minimumJointSupport": 0.8
+        }
+      },
+      "topFrame": 60,
+      "bottomFrame": 75,
+      "topTime": 2.0,
+      "bottomTime": 2.5,
+      "depthAngleDeg": 90.0,
+      "romDeg": 80.0,
+      "depthMeters": 0.0,
+      "tempoSeconds": {
+        "eccentric": 0.5,
+        "pause": 0.0,
+        "concentric": 0.5,
+        "total": 1.0
+      },
+      "tempoOrder": "eccentric_pause_concentric",
+      "handPath": {
+        "source": "wrist_midpoint_pelvis_relative",
+        "unit": "m",
+        "length": 0.0,
+        "horizontalExcursion": 0.0,
+        "verticalRange": 0.0,
+        "samples": [
+          {
+            "t": 2.0,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 2.033,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 2.067,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 2.1,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 2.133,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 2.167,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 2.2,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 2.233,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 2.267,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 2.3,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 2.333,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 2.367,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 2.4,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 2.433,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 2.467,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 2.5,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 2.533,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 2.567,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 2.6,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 2.633,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 2.667,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 2.7,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 2.733,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 2.767,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 2.8,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 2.833,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 2.867,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 2.9,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 2.933,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 2.967,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          }
+        ]
+      },
+      "symmetryDeg": {
+        "knee": {
+          "mean": 0.0,
+          "max": 0.0
+        },
+        "hip": {
+          "mean": 0.0,
+          "max": 0.0
+        },
+        "elbow": {
+          "mean": 0.0,
+          "max": 0.0
+        },
+        "shoulder": {
+          "mean": 0.0,
+          "max": 0.0
+        }
+      },
+      "trunkStability": {
+        "stdDeg": 0.0,
+        "rangeDeg": 0.0,
+        "swayMeters": 0.0
+      },
+      "confidence": 0.8,
+      "fatigueDrift": {
+        "depthDriftDeg": null,
+        "romDropDeg": null,
+        "tempoDriftRatio": null,
+        "comparable": false
+      },
+      "validity": {
+        "confidenceSource": "2d_detection_support",
+        "detectionSupport": "available",
+        "reasons": []
+      },
+      "serverWarnings": [],
+      "evaluatedKeys": [],
+      "faults": [],
+      "comparison": "not_comparable",
+      "unassessedDeviceWarnings": []
+    },
+    {
+      "repIndex": 4,
+      "startMs": 3000,
+      "endMs": 4000,
+      "side": "left",
+      "onDeviceWarnings": [],
+      "primaryJoint": "knee",
+      "anglesDeg": {
+        "knee": {
+          "min": 120.0,
+          "max": 170.0,
+          "rom": 50.0,
+          "top": 170.0,
+          "bottom": 120.0
+        },
+        "hip": {
+          "min": 180.0,
+          "max": 180.0,
+          "rom": 0.0,
+          "top": 180.0,
+          "bottom": 180.0
+        },
+        "elbow": {
+          "min": 180.0,
+          "max": 180.0,
+          "rom": 0.0,
+          "top": 180.0,
+          "bottom": 180.0
+        },
+        "shoulder": {
+          "min": 21.801,
+          "max": 21.801,
+          "rom": 0.0,
+          "top": 21.801,
+          "bottom": 21.801
+        },
+        "torso": {
+          "min": 0.0,
+          "max": 0.0,
+          "rom": 0.0,
+          "top": 0.0,
+          "bottom": 0.0
+        }
+      },
+      "metricValidity": {
+        "knee": {
+          "assessment": "available",
+          "reasons": [],
+          "minimumJointSupport": 0.8
+        },
+        "hip": {
+          "assessment": "available",
+          "reasons": [],
+          "minimumJointSupport": 0.8
+        },
+        "elbow": {
+          "assessment": "available",
+          "reasons": [],
+          "minimumJointSupport": 0.8
+        },
+        "shoulder": {
+          "assessment": "available",
+          "reasons": [],
+          "minimumJointSupport": 0.8
+        },
+        "torso": {
+          "assessment": "available",
+          "reasons": [],
+          "minimumJointSupport": 0.8
+        },
+        "depthAngleDeg": {
+          "assessment": "available",
+          "reasons": [],
+          "minimumJointSupport": 0.8
+        },
+        "romDeg": {
+          "assessment": "available",
+          "reasons": [],
+          "minimumJointSupport": 0.8
+        },
+        "tempoSeconds": {
+          "assessment": "available",
+          "reasons": [],
+          "minimumJointSupport": 0.8
+        },
+        "depthMeters": {
+          "assessment": "available",
+          "reasons": [],
+          "minimumJointSupport": 0.8
+        },
+        "handPath": {
+          "assessment": "available",
+          "reasons": [],
+          "minimumJointSupport": 0.8
+        },
+        "trunkStdDeg": {
+          "assessment": "available",
+          "reasons": [],
+          "minimumJointSupport": 0.8
+        },
+        "symmetryMaxDeg": {
+          "assessment": "available",
+          "reasons": [],
+          "minimumJointSupport": 0.8
+        },
+        "depthDriftDeg": {
+          "assessment": "withheld",
+          "reasons": [
+            "low_baseline_support",
+            "invalid_baseline_geometry"
+          ],
+          "minimumJointSupport": 0.8
+        },
+        "romDropDeg": {
+          "assessment": "withheld",
+          "reasons": [
+            "low_baseline_support",
+            "invalid_baseline_geometry"
+          ],
+          "minimumJointSupport": 0.8
+        },
+        "tempoDriftRatio": {
+          "assessment": "withheld",
+          "reasons": [
+            "low_baseline_support",
+            "invalid_baseline_geometry"
+          ],
+          "minimumJointSupport": 0.8
+        }
+      },
+      "topFrame": 90,
+      "bottomFrame": 105,
+      "topTime": 3.0,
+      "bottomTime": 3.5,
+      "depthAngleDeg": 120.0,
+      "romDeg": 50.0,
+      "depthMeters": 0.0,
+      "tempoSeconds": {
+        "eccentric": 0.5,
+        "pause": 0.0,
+        "concentric": 0.5,
+        "total": 1.0
+      },
+      "tempoOrder": "eccentric_pause_concentric",
+      "handPath": {
+        "source": "wrist_midpoint_pelvis_relative",
+        "unit": "m",
+        "length": 0.0,
+        "horizontalExcursion": 0.0,
+        "verticalRange": 0.0,
+        "samples": [
+          {
+            "t": 3.0,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 3.033,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 3.067,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 3.1,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 3.133,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 3.167,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 3.2,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 3.233,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 3.267,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 3.3,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 3.333,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 3.367,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 3.4,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 3.433,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 3.467,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 3.5,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 3.533,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 3.567,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 3.6,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 3.633,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 3.667,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 3.7,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 3.733,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 3.767,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 3.8,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 3.833,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 3.867,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 3.9,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 3.933,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          },
+          {
+            "t": 3.967,
+            "left": [
+              0.2,
+              0.0,
+              0.2
+            ],
+            "right": [
+              -0.2,
+              0.0,
+              0.2
+            ]
+          }
+        ]
+      },
+      "symmetryDeg": {
+        "knee": {
+          "mean": 0.0,
+          "max": 0.0
+        },
+        "hip": {
+          "mean": 0.0,
+          "max": 0.0
+        },
+        "elbow": {
+          "mean": 0.0,
+          "max": 0.0
+        },
+        "shoulder": {
+          "mean": 0.0,
+          "max": 0.0
+        }
+      },
+      "trunkStability": {
+        "stdDeg": 0.0,
+        "rangeDeg": 0.0,
+        "swayMeters": 0.0
+      },
+      "confidence": 0.8,
+      "fatigueDrift": {
+        "depthDriftDeg": null,
+        "romDropDeg": null,
+        "tempoDriftRatio": null,
+        "comparable": false
+      },
+      "validity": {
+        "confidenceSource": "2d_detection_support",
+        "detectionSupport": "available",
+        "reasons": [
+          "low_baseline_support",
+          "invalid_baseline_geometry"
+        ]
+      },
+      "serverWarnings": [],
+      "evaluatedKeys": [],
+      "faults": [],
+      "comparison": "not_comparable",
+      "unassessedDeviceWarnings": []
+    }
+  ],
+  "timeline": [
+    {
+      "t": 0,
+      "title": "총평",
+      "body": "4회 기록했어! 반복마다 깊이와 리듬을 비교해 봐.",
+      "severity": "info",
+      "rep": null
+    },
+    {
+      "t": 0.0,
+      "title": "1회 · 움직임 살펴보기",
+      "body": "관절값을 계산할 수 없는 구간이 있어 해당 측정은 보류했어. 다른 항목은 각각 확인해 줘.",
+      "severity": "info",
+      "rep": 1
+    },
+    {
+      "t": 1.0,
+      "title": "2회 · 움직임 살펴보기",
+      "body": "추정 가동 범위 80°야. 늘림 0.5초 · 멈춤 0.0초 · 수축 0.5초로 추정했어.",
+      "severity": "info",
+      "rep": 2
+    },
+    {
+      "t": 2.0,
+      "title": "3회 · 움직임 살펴보기",
+      "body": "추정 가동 범위 80°야. 늘림 0.5초 · 멈춤 0.0초 · 수축 0.5초로 추정했어.",
+      "severity": "info",
+      "rep": 3
+    },
+    {
+      "t": 3.0,
+      "title": "4회 · 움직임 살펴보기",
+      "body": "추정 가동 범위 50°야. 늘림 0.5초 · 멈춤 0.0초 · 수축 0.5초로 추정했어. 처음 3회의 관절값을 계산할 수 없어 반복 간 변화 판정은 보류했어.",
+      "severity": "info",
+      "rep": 4
+    }
+  ],
+  "faults": [],
+  "unassessedCatalog": [],
+  "catalogMeasurements": [],
+  "consistency": {
+    "baselineReps": 3,
+    "romStdDeg": null,
+    "tempoCv": null
+  },
+  "rules": {
+    "source": "deep_rules.csv",
+    "placeholder": true
+  },
+  "notes": [
+    "최대 60초 영상에 온전히 담긴 반복만 살펴봤어.",
+    "3D 추정값이야. 손목 경로는 바벨 위치와 다를 수 있어.",
+    "신뢰도는 2D 검출 지지도야. 자세 판정이 맞을 확률은 아니야.",
+    "회색 골격은 관절이나 추적 지지도가 부족한 부분이야. 지표마다 판정 가능 여부가 달라.",
+    "처음 3회와 비교한 변화야. 피로의 원인을 확정하진 않아.",
+    "계산할 수 없는 관절 구간이 있어 해당 측정값은 보류했어. 보류한 항목은 정상이나 이상으로 확정하지 않았어."
+  ]
+}

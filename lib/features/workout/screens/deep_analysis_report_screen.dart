@@ -237,7 +237,16 @@ class _VideoControls extends StatelessWidget {
       );
 }
 
+num? _finiteNumber(Object? value) =>
+    value is num && value.isFinite ? value : null;
+
+Map _reportMap(Object? value) => value is Map ? value : const {};
+
+String _measurement(Object? value, String unit) =>
+    _finiteNumber(value) == null ? '확인 불가' : '$value$unit';
+
 String _timestamp(num seconds) {
+  if (!seconds.isFinite) return '확인 불가';
   final total = seconds.floor();
   return '${total ~/ 60}:${(total % 60).toString().padLeft(2, '0')}';
 }
@@ -296,35 +305,54 @@ class DeepAnalysisReport extends StatelessWidget {
       'warning' => Colors.amber,
       _ => Colors.lightBlueAccent,
     };
-    final seconds = item['t'] as num;
+    final candidateTime = _finiteNumber(item['t']);
+    final seconds =
+        candidateTime != null && candidateTime >= 0 ? candidateTime : null;
     return Card(
         child: ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      leading: Text(_timestamp(seconds),
+      leading: Text(seconds == null ? '시간 확인 불가' : _timestamp(seconds),
           style: TextStyle(color: color, fontWeight: FontWeight.bold)),
       title: Text('${item['title']}',
           style: TextStyle(color: color, fontWeight: FontWeight.w700)),
       subtitle:
           Text('${item['body']}', maxLines: 2, overflow: TextOverflow.ellipsis),
-      onTap: () => onSeek(Duration(milliseconds: (seconds * 1000).round())),
+      onTap: seconds == null
+          ? null
+          : () => onSeek(Duration(milliseconds: (seconds * 1000).round())),
     ));
   }
 
   Widget _metrics(Map rep) {
     final validity = rep['validity'] as Map?;
-    final confidence = (rep['confidence'] as num?) ?? 0;
-    final held = confidence < .35 ||
+    final confidence = _finiteNumber(rep['confidence']);
+    final held = confidence == null ||
+        confidence < .35 ||
         validity?['confidenceSource'] == 'missing' ||
         validity?['detectionSupport'] == 'insufficient';
     final metricValidity = rep['metricValidity'] as Map? ?? const {};
-    String metricNote(String key) =>
+    String metricNote(String key, [Object? value]) =>
         (metricValidity[key] as Map?)?['assessment'] == 'withheld'
-            ? ' (추정값 · 판정 보류)'
+            ? (_finiteNumber(value) == null ? ' (판정 보류)' : ' (추정값 · 판정 보류)')
             : '';
-    final angles = rep['anglesDeg'] as Map;
-    final tempo = rep['tempoSeconds'] as Map;
-    final path = rep['handPath'] as Map;
-    final trunk = rep['trunkStability'] as Map;
+    final angles = _reportMap(rep['anglesDeg']);
+    final tempo = _reportMap(rep['tempoSeconds']);
+    final path = _reportMap(rep['handPath']);
+    final trunk = _reportMap(rep['trunkStability']);
+    final symmetry =
+        _reportMap(_reportMap(rep['symmetryDeg'])[rep['primaryJoint']]);
+    final fatigue = _reportMap(rep['fatigueDrift']);
+    String angleText(String key, String label) {
+      final a = _reportMap(angles[key]);
+      if ((_finiteNumber(a['top']) == null ||
+              _finiteNumber(a['bottom']) == null) &&
+          _finiteNumber(a['min']) != null &&
+          _finiteNumber(a['max']) != null) {
+        return '$label · 최소 ${_measurement(a['min'], '°')} / 최대 ${_measurement(a['max'], '°')} · 위·아래 시점 확인 불가${metricNote(key, a['min'])}';
+      }
+      return '$label · 위 ${_measurement(a['top'], '°')} / 아래 ${_measurement(a['bottom'], '°')}${metricNote(key, a['top'])}';
+    }
+
     final deviceNotes = (rep['onDeviceWarnings'] as List? ?? [])
         .map((key) =>
             koriFeedbackLines[key]?.render(isKo: true) ?? '다른 자세 메모가 있어.')
@@ -357,15 +385,26 @@ class DeepAnalysisReport extends StatelessWidget {
             const Text(
                 '일부 관절이나 추적 근거가 부족해서 해당 수치의 판정을 보류했어. 아래 표시된 추정값은 참고만 해 줘.',
                 style: TextStyle(color: Colors.amber)),
+          if (metricValidity.values.any((value) =>
+              value is Map &&
+              (value['reasons'] as List? ?? []).any(const {
+                'invalid_geometry',
+                'invalid_baseline_geometry'
+              }.contains)))
+            const Text('일부 관절값을 계산할 수 없어 해당 측정을 보류했어. 확인 불가 항목은 숫자로 해석하지 마.',
+                style: TextStyle(color: Colors.amber)),
           if ((validity?['reasons'] as List? ?? [])
               .contains('low_baseline_support'))
-            const Text('처음 반복의 영상 근거가 부족해서 세트 중 자세 변화는 비교하지 않았어.'),
+            Text((validity?['reasons'] as List? ?? [])
+                    .contains('invalid_baseline_geometry')
+                ? '처음 반복의 관절값을 계산할 수 없어 세트 중 자세 변화는 비교하지 않았어.'
+                : '처음 반복의 영상 근거가 부족해서 세트 중 자세 변화는 비교하지 않았어.'),
           if ((rep['unassessedCatalog'] as List? ?? []).isNotEmpty ||
               (rep['catalogMeasurements'] as List? ?? []).any(
                   (item) => item is Map && item['assessment'] == 'withheld'))
             const Text('일부 자세 항목은 판정에 필요한 조건을 확인하지 못했어.'),
           Text(
-              'ROM ${rep['romDeg']}°${metricNote('romDeg')} · 깊이 최소각 ${rep['depthAngleDeg']}°${metricNote('depthAngleDeg')} · 골반 높이 변화 ${rep['depthMeters']}m${metricNote('depthMeters')}'),
+              'ROM ${_measurement(rep['romDeg'], '°')}${metricNote('romDeg', rep['romDeg'])} · 깊이 최소각 ${_measurement(rep['depthAngleDeg'], '°')}${metricNote('depthAngleDeg', rep['depthAngleDeg'])} · 골반 높이 변화 ${_measurement(rep['depthMeters'], 'm')}${metricNote('depthMeters', rep['depthMeters'])}'),
           for (final entry in const {
             'knee': '무릎',
             'hip': '고관절',
@@ -373,30 +412,42 @@ class DeepAnalysisReport extends StatelessWidget {
             'shoulder': '어깨',
             'torso': '몸통(중력 기준)'
           }.entries)
+            Text(angleText(entry.key, entry.value)),
+          Text(
+              '늘림 ${_measurement(tempo['eccentric'], '초')} · 멈춤 ${_measurement(tempo['pause'], '초')} · 수축 ${_measurement(tempo['concentric'], '초')}${metricNote('tempoSeconds', tempo['total'])}'),
+          Text(
+              '손목 경로 ${_measurement(path['length'], 'm')} · 수평 이동 ${_measurement(path['horizontalExcursion'], 'm')}${metricNote('handPath', path['length'])}'),
+          Text(
+              '몸통 흔들림 ${_measurement(trunk['stdDeg'], '°')}${metricNote('trunkStdDeg', trunk['stdDeg'])} · 좌우 최대 차이 ${_measurement(symmetry['max'], '°')}${metricNote('symmetryMaxDeg', symmetry['max'])}'),
+          if (fatigue['comparable'] == true)
             Text(
-                '${entry.value} · 위 ${angles[entry.key]['top']}° / 아래 ${angles[entry.key]['bottom']}°${metricNote(entry.key)}'),
-          Text(
-              '늘림 ${tempo['eccentric']}초 · 멈춤 ${tempo['pause']}초 · 수축 ${tempo['concentric']}초${metricNote('tempoSeconds')}'),
-          Text(
-              '손목 경로 ${path['length']}m · 수평 이동 ${path['horizontalExcursion']}m${metricNote('handPath')}'),
-          Text(
-              '몸통 흔들림 ${trunk['stdDeg']}°${metricNote('trunkStdDeg')} · 좌우 최대 차이 ${rep['symmetryDeg'][rep['primaryJoint']]['max']}°${metricNote('symmetryMaxDeg')}'),
-          if (rep['fatigueDrift']['comparable'] == true)
-            Text(
-                '첫 3회 대비 ROM 감소 ${rep['fatigueDrift']['romDropDeg']}°${metricNote('romDropDeg')}'),
+                '첫 3회 대비 ROM 감소 ${_measurement(fatigue['romDropDeg'], '°')}${metricNote('romDropDeg', fatigue['romDropDeg'])}'),
           Text('기기 메모: ${deviceNotes.isEmpty ? '별도 경고는 없었어.' : deviceNotes}'),
           Text(
-              '$comparison · ${validity?['confidenceSource'] == 'missing' ? '검출 지지도 확인 불가' : '검출 지지도 ${(confidence * 100).round()}%'}'),
+              '$comparison · ${confidence == null || validity?['confidenceSource'] == 'missing' ? '검출 지지도 확인 불가' : '검출 지지도 ${(confidence * 100).round()}%'}'),
           if ((rep['unassessedDeviceWarnings'] as List? ?? []).isNotEmpty)
             const Text('기기 경고 중 아직 비교하지 못한 항목이 있어.'),
           for (final fault in rep['faults'] as List? ?? [])
-            TextButton(
-                onPressed: () => onSeek(Duration(
-                    milliseconds:
-                        ((fault['evidence'][0]['t'] as num) * 1000).round())),
-                child: Text(
-                    '${fault['title']} · 근거 보기 (${((fault['confidence'] as num) * 100).round()}%)')),
+            _faultButton(fault as Map),
         ]);
+  }
+
+  Widget _faultButton(Map fault) {
+    final evidence = fault['evidence'];
+    final rawTime =
+        evidence is List && evidence.isNotEmpty && evidence.first is Map
+            ? _finiteNumber((evidence.first as Map)['t'])
+            : null;
+    final time = rawTime != null && rawTime >= 0 ? rawTime : null;
+    final confidence = _finiteNumber(fault['confidence']);
+    final support =
+        confidence == null ? '검출 지지도 확인 불가' : '${(confidence * 100).round()}%';
+    return TextButton(
+        onPressed: time == null
+            ? null
+            : () => onSeek(Duration(milliseconds: (time * 1000).round())),
+        child: Text(
+            '${fault['title']} · ${time == null ? '근거 시간 확인 불가' : '근거 보기'} ($support)'));
   }
 }
 

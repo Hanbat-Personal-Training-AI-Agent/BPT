@@ -1,0 +1,16 @@
+{
+  "sourceCommit": "17583f3",
+  "sourceSha256": "8508ac907d7185ac541363b7cc4092713d8e80cd2937790a62fc78ed388fd2c3",
+  "canonicalJsonSha256": {
+    "squat/left": "53c310ada783631ddba3fa0d0658945b8de745c8934adac9f614ddfe4bfaf60e",
+    "squat/right": "90bf89146328bf026f5b5135a60af07700d3d8ffeb1426d70a02b756d64ebb09",
+    "pushup/left": "7e31f68e23d2f96847e037d31b5e19f6479ff383e90c9f234a4d935f6eeb3a0b",
+    "pushup/right": "61e53eb4afe478e9ab850ccd34b5bb7e89d9266a8f0cc6fb707148b215874302",
+    "barbell-row/left": "45c415d6bcfc9fc9dd06cc40bb29fc4edc37eccce5392f7f16c770dfc75c4040",
+    "barbell-row/right": "9ccb63392e18ba6f4508a5ca9c67a431233aba7a4fe716e00fbc6d456da453ca",
+    "deadlift/left": "089d397c72f40851ba14318c57f3e2bff160afe4d0eb2753a1c649245e67bd3a",
+    "deadlift/right": "e91ec455ed5a1b45f751ccfb384bf6b5b0f05524db0132fdfa121e36f9bb9825",
+    "benchpress/left": "02905f3cfc416636ff856ffd5ba43cc6487adbe035c66a1368e68869d9c7f248",
+    "benchpress/right": "990f349af80b999861c7d863d7bba26ad07b832dfe8659cc0129dd0f113f5210"
+  }
+}

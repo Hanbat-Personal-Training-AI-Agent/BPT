@@ -13,7 +13,7 @@ import numpy as np
 
 from checks import Rejected
 from deep_analysis import frame_angles, metrics, verify_upload
-from deep_metrics import COCO_ANGLE_JOINTS, TRUNK_JOINTS
+from deep_metrics import COCO_ANGLE_JOINTS, TRUNK_JOINTS, finite_number
 
 RUNTIME_INSTANCE = uuid.uuid4().hex
 RUNTIME_JOB_ORDINAL = itertools.count(1)
@@ -52,7 +52,11 @@ def panel_lines(current, frame, angles, joint_support=None, tracked_mask=None):
 
     def available(key):
         indices = groups[key]
+        value = (current.get("romDeg") if key == "romDeg" else
+                 current.get("tempoSeconds", {}).get("total") if key == "tempoSeconds" else
+                 angles[side][key][frame])
         return (current.get("metricValidity", {}).get(key, {}).get("assessment") == "available"
+                and finite_number(value)
                 and tracked_mask is not None and bool(tracked_mask[frame])
                 and joint_support is not None and bool(indices)
                 and bool(np.all(np.isfinite(joint_support[frame, indices])))

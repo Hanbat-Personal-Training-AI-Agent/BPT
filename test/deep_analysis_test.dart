@@ -232,7 +232,7 @@ void main() {
     expect(find.text('1회 · 자세히 보기'), findsOneWidget);
     expect(tester.widget<Text>(find.textContaining('손목 경로')).data,
         contains('판정 보류'));
-    expect(tester.widget<Text>(find.textContaining('ROM null')).data,
+    expect(tester.widget<Text>(find.textContaining('ROM 확인 불가')).data,
         isNot(contains('판정 보류')));
     expect(tester.takeException(), isNull);
   });
