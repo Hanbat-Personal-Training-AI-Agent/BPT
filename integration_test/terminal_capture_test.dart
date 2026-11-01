@@ -28,9 +28,16 @@ Future<void> main() async {
     final output = Directory(
         '${docs.path}/terminal_capture_validation/${DateTime.now().microsecondsSinceEpoch}')
       ..createSync(recursive: true);
+    final stages = <Map<String, dynamic>>[];
     void stage(String name, [Map<String, dynamic> fields = const {}]) {
+      stages.add({
+        'stage': name,
+        'at': DateTime.now().toUtc().toIso8601String(),
+        ...fields
+      });
       File('${output.path}/progress.json').writeAsStringSync(
           jsonEncode({
+            'stages': stages,
             'stage': name,
             'at': DateTime.now().toUtc().toIso8601String(),
             ...fields
@@ -124,8 +131,12 @@ Future<void> main() async {
           : <String>{};
       expect(before.length, lessThan(3),
           reason: 'Preserve/archive prior files before cap; never delete here');
-      stage('preflight_pass',
-          {'terminalFilesBefore': before.length, 'exercise': exercise});
+      stage('preflight_pass', {
+        'terminalFilesBefore': before.length,
+        'exercise': exercise,
+        'recording': recording,
+        'sourceDurationMs': sourceDurationMs
+      });
       await tester
           .pumpWidget(MaterialApp(
               home: Scaffold(
@@ -155,6 +166,15 @@ Future<void> main() async {
       stage('production_native_view_started');
       final actualSetEnd =
           await setEnd.future.timeout(const Duration(minutes: 3));
+      File('${output.path}/native-set-end.json').writeAsStringSync(
+          jsonEncode({
+            'scope': 'actual_native_onSetEnd_before_test_verdict',
+            'exerciseId': exercise,
+            'sourceDurationMs': sourceDurationMs,
+            'recording': recording,
+            'actualSetEnd': actualSetEnd
+          }),
+          flush: true);
       stage('actual_native_set_end_received');
       File? fresh;
       List<Map> rows = [];
@@ -184,6 +204,23 @@ Future<void> main() async {
         }
         await Future<void>.delayed(const Duration(milliseconds: 200));
       }
+      final pendingTestException = tester.takeException();
+      File('${output.path}/operational-snapshot.json').writeAsStringSync(
+          jsonEncode({
+            'exerciseId': exercise,
+            'recording': recording,
+            'sourceDurationMs': sourceDurationMs,
+            'terminalFileName': fresh?.path.split('/').last,
+            'rows': rows.length,
+            'footer': rows.isEmpty ? null : rows.last,
+            'DartNetworkAttempts': noHttp.attempts,
+            'flutterErrors': flutterErrors,
+            'pendingTestExceptionType':
+                pendingTestException?.runtimeType.toString(),
+            'poseUpdateEvents': observed.length
+          }),
+          flush: true);
+      stage('operational_output_preserved');
       expect(fresh, isNotNull);
       expect(rows.first['type'], 'terminal_header');
       expect(rows.last['type'], 'terminal_end');
@@ -244,7 +281,7 @@ Future<void> main() async {
       expect(noHttp.attempts, 0);
       expect(flutterErrors, 0,
           reason: 'No rendering error may be hidden by success evidence');
-      expect(tester.takeException(), isNull);
+      expect(pendingTestException, isNull);
       File('${output.path}/success.json').writeAsStringSync(
           jsonEncode({
             'scope': 'actual_native_existing_video_terminal_candidate_capture',
@@ -271,6 +308,20 @@ Future<void> main() async {
           }),
           flush: true);
       stage('all_assertions_passed');
+    } catch (error, stack) {
+      File('${output.path}/failure.json').writeAsStringSync(
+          jsonEncode({
+            'testFailed': true,
+            'type': error.runtimeType.toString(),
+            'lastStage': stages.isEmpty ? null : stages.last['stage']
+          }),
+          flush: true);
+      File('${output.path}/private-errors.txt').writeAsStringSync(
+          '$error\n$stack\n',
+          mode: FileMode.append,
+          flush: true);
+      stage('test_error', {'type': error.runtimeType.toString()});
+      rethrow;
     } finally {
       try {
         await tester
