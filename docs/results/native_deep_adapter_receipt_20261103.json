@@ -1,0 +1,42 @@
+{
+  "scope": "local_only_no_remote_transport",
+  "sourceKind": "native_local_capture_receipt",
+  "status": "exact_video_and_manifest_verified",
+  "captureEvidenceSha256": "a9902d5fc54b9f33ca33b7d74c59bac6f41b237ec9f992494bd76291acb5f522",
+  "canonicalNativeManifestSha256": "9c50cf754ec91121bd1b892620f9dc04770aa5823403a78ffeff3a979abc2e2c",
+  "serviceSourceSha256": {
+    "deep_analysis.py": "6dcbe2a96e168a78000b2078d0cde7fcdc4b492c849953f848732b64dbf54357",
+    "deep_metrics.py": "441c9de6bfbad46fe63e1da7794b830d9ec8ba8730080ebb7acc1b64b7636775",
+    "checks.py": "b9927f1b738a54e4c23950b5705a4d15c0bbd97da41ac7abc164a59a222ab635"
+  },
+  "durationMs": 6266,
+  "repetitionCount": 3,
+  "exerciseId": "barbell-row",
+  "timebase": "video_ms",
+  "copiedVideoSha256": "7e0fc12c567677fc12e5dabcad50c7443828d955b8ba2fe635648d8317830ad0",
+  "videoByteIdentityVerified": true,
+  "remoteTransportAllowed": false,
+  "onDeviceObservationsChanged": false,
+  "deviceCopyReceiptCanonicalSha256": "9dc7d39a3e56aa1548546fa85352147a12689f95f8a8417d9f552b53a9aea2ac",
+  "deviceCopyReceiptFileSha256": "c09f9fb6cbaf52b167d0b07ed5e84b02649302438ed25bf799c0252fbe44d6ee",
+  "newInferenceExecuted": false,
+  "serviceReportProduced": false,
+  "streamMetadata": {
+    "codec_name": "h264",
+    "width": 720,
+    "height": 1280,
+    "r_frame_rate": "30/1",
+    "time_base": "1/600",
+    "duration": "6.266667",
+    "nb_frames": "186"
+  },
+  "sourceCaptureCommit": "770b2a0a7349559342e8e681a8b80bfe1e998da8",
+  "serviceSourceBase": "4eea822",
+  "pythonContractTestsPassed": 9,
+  "flutterPrivateContractTestsPassed": 3,
+  "privateAdapterArtifactsSha256": {
+    "capture.json": "8f89969be931c665eac56329ba691a0cad6869e575763bbb9d97a087a1a666d7",
+    "verification.json": "9f89d7924dfad22c9f23e4ca239e862f6b8652abdaca2f7ca8c5a4bad7b75ca2",
+    "reps.json": "f5cc914d5cf6f4ea86351a84c53a2a2a4e92901a0d36079b200dc8a1764e0c81"
+  }
+}
