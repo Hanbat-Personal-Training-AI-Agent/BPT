@@ -1,0 +1,64 @@
+{
+  "sourceKind": "mac_pose_replay_raw_geometry_only",
+  "startedAtUtc": "2026-11-01T21:49:23.234524+00:00",
+  "finishedAtUtc": "2026-11-01T21:50:17.788714+00:00",
+  "status": "completed",
+  "nativeParityClaim": false,
+  "stages": [
+    {
+      "kind": "build",
+      "returnCode": 0,
+      "elapsedSeconds": 18.478,
+      "sampledProcessTreePeakRssKiB": 749312,
+      "bsdMaximumResidentBytes": 603504640,
+      "guardStopReason": null
+    },
+    {
+      "kind": "inference",
+      "returnCode": 0,
+      "elapsedSeconds": 20.551,
+      "sampledProcessTreePeakRssKiB": 117936,
+      "bsdMaximumResidentBytes": 120061952,
+      "guardStopReason": null,
+      "exercise": "squat"
+    },
+    {
+      "kind": "inference",
+      "returnCode": 0,
+      "elapsedSeconds": 15.424,
+      "sampledProcessTreePeakRssKiB": 121376,
+      "bsdMaximumResidentBytes": 123420672,
+      "guardStopReason": null,
+      "exercise": "pushup"
+    }
+  ],
+  "protocolRevisionHashes": {
+    "6b24b44": "7d3d04fd485a9e1ddb9637b401cacc0a8a3f35bff2244fb8b5e8f7ab782fb431",
+    "fd956b2": "2d9cfd8f5375e1a40fdb0d8a2bae94fb936bd5ea572c8b6cabd25a19ec366c9d",
+    "5d4eb12": "9ef864a32efc4c6da35567c2564954c856be8c52e3e2465990b8414a2a1757a9",
+    "8616a8d": "ab8116298187755cbd948c0d2dde6a0a4fff9a571877f33fafb6a73baaf2e9fd"
+  },
+  "diagnosticScriptSha256": "bfe6cc39a5390e6e6661d27ee7862e869a33de23a7f2125ebfd39faef1e6076c",
+  "runnerScriptSha256": "34b0158334adf866a4631e764ad4b6e9586335273456c6bf9b37591410cba550",
+  "inferenceTimeLimitIsAcceptanceGate": false,
+  "guardRefinementTiming": "after_inference_completed_before_real_angle_computation_or_viewing",
+  "rawDataExported": false,
+  "originalReportsChanged": false,
+  "limitedCopiedVideoCleanup": [
+    {
+      "exercise": "squat",
+      "copiedVideoRemoved": true,
+      "verifiedSourceUnchangedAtCleanup": true,
+      "destinationSha256BeforeRemoval": "6672c453b7e9179a662c1733e7f6e954da072b68f60e895a598fd87f85dc8416"
+    },
+    {
+      "exercise": "pushup",
+      "copiedVideoRemoved": true,
+      "verifiedSourceUnchangedAtCleanup": true,
+      "destinationSha256BeforeRemoval": "a45dfaab3514828178fcb3ffdbcd95b5f50e89a8d8328c3ef1b1a1d6653a0a04"
+    }
+  ],
+  "privateNumericEvidenceRetained": true,
+  "frozenSourceModelFilesRecheckedUnchanged": true,
+  "copiedVideosRemaining": 0
+}

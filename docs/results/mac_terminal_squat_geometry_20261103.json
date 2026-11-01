@@ -1,0 +1,139 @@
+{
+  "sourceKind": "mac_pose_replay_raw_geometry_only",
+  "exercise": "squat",
+  "extraObservations": 15,
+  "processed2DFrames": 979,
+  "stored3DFrameRows": 979,
+  "originalObservedReports": 7,
+  "windowWithheldReasons": {
+    "last_or_open_next_rep_unknown": 1
+  },
+  "completeFutureClosedWindows": 6,
+  "wholeRun3DStates": {
+    "warming_up": 21,
+    "ok": 958
+  },
+  "nativeAssessmentEligible": false,
+  "constraintInvalidMaskAvailable": false,
+  "supportCorridorAssessmentAvailable": false,
+  "originalPacketIndexAvailable": false,
+  "sourceRationalPtsAvailable": false,
+  "savedCsvPrecisionDecimals": 4,
+  "observedClampedFlagAvailable": false,
+  "row21ProvesUnclamped": false,
+  "legacyFlushSafety": "only_explicit_eof_tail_reachable_from_frozen_source",
+  "knownEofTailExcludedFrames": 5,
+  "rawSimccScores": {
+    "finiteCount": 25454,
+    "nonfiniteCount": 0,
+    "min": 0.1602,
+    "max": 1.125,
+    "outsideZeroOne": 685,
+    "clamped": false
+  },
+  "metrics": {
+    "raw_knee": {
+      "completeFiniteWindows": 6,
+      "geometryWithheldWindows": 0,
+      "positiveObservedDifferenceCount": 6,
+      "differenceDegrees": {
+        "count": 6,
+        "median": 16.81868262872905,
+        "min": 7.765808597513171,
+        "max": 20.073504005027672
+      },
+      "maxOffsetFrames": {
+        "count": 6,
+        "median": 14.5,
+        "min": 7,
+        "max": 15
+      },
+      "maxOffsetSeconds": {
+        "count": 6,
+        "median": 0.2899999999999996,
+        "min": 0.14000000000000057,
+        "max": 0.3000000000000007
+      }
+    },
+    "constrained_knee": {
+      "completeFiniteWindows": 6,
+      "geometryWithheldWindows": 0,
+      "positiveObservedDifferenceCount": 6,
+      "differenceDegrees": {
+        "count": 6,
+        "median": 16.82938001402549,
+        "min": 7.75059164978984,
+        "max": 20.061627809850734
+      },
+      "maxOffsetFrames": {
+        "count": 6,
+        "median": 14.5,
+        "min": 7,
+        "max": 15
+      },
+      "maxOffsetSeconds": {
+        "count": 6,
+        "median": 0.2899999999999996,
+        "min": 0.14000000000000057,
+        "max": 0.3000000000000007
+      }
+    },
+    "raw_hip": {
+      "completeFiniteWindows": 6,
+      "geometryWithheldWindows": 0,
+      "positiveObservedDifferenceCount": 6,
+      "differenceDegrees": {
+        "count": 6,
+        "median": 13.252540760413922,
+        "min": 8.922917615872592,
+        "max": 37.821696838011036
+      },
+      "maxOffsetFrames": {
+        "count": 6,
+        "median": 14.0,
+        "min": 11,
+        "max": 15
+      },
+      "maxOffsetSeconds": {
+        "count": 6,
+        "median": 0.28000000000000025,
+        "min": 0.22000000000000064,
+        "max": 0.2999999999999998
+      }
+    },
+    "constrained_hip": {
+      "completeFiniteWindows": 6,
+      "geometryWithheldWindows": 0,
+      "positiveObservedDifferenceCount": 6,
+      "differenceDegrees": {
+        "count": 6,
+        "median": 13.25654997093126,
+        "min": 8.942226347423144,
+        "max": 37.82562232472105
+      },
+      "maxOffsetFrames": {
+        "count": 6,
+        "median": 14.0,
+        "min": 11,
+        "max": 15
+      },
+      "maxOffsetSeconds": {
+        "count": 6,
+        "median": 0.28000000000000025,
+        "min": 0.22000000000000064,
+        "max": 0.2999999999999998
+      }
+    }
+  },
+  "extraSpanSeconds": {
+    "count": 6,
+    "median": 0.30000000000000027,
+    "min": 0.29999999999999893,
+    "max": 0.3000000000000007
+  },
+  "inputSha256": {
+    "report": "c6f15af4229966fe03d08b6a16dc9c9dea6c02c678eaf241030f3266bfb22247",
+    "csv2d": "fc179aaff232d4a2609ee99b70df8bf9d2dbf9b70e24cb08bcae879cc5c588ff",
+    "csv3d": "61421c8b9a151c6b23fc53db62c63582d7236d7ca2b89c6478fec13ead8d9581"
+  }
+}
