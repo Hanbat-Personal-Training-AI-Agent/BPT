@@ -16,31 +16,54 @@ FILES = {"video.mp4": ("video/mp4", 32 * 1024 * 1024),
 EXERCISES = {"squat", "pushup", "barbell-row", "benchpress", "deadlift"}
 
 
+def _unique_json_object(pairs):
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("duplicate JSON key")
+        result[key] = value
+    return result
+
+
+def _invalid_json_constant(_value):
+    raise ValueError("nonfinite JSON constant")
+
+
 def manifest(data, session):
+    """Validate actual native observations; checks remain active under Python -O."""
     try:
-        m = json.loads(data)
-        assert isinstance(m, dict) and m.get("schemaVersion") == 1
-        assert m.get("sessionId") == session and m.get("exerciseId") in EXERCISES
-        assert m.get("timebase") == "video_ms"
-        assert isinstance(m.get("reps"), list) and 1 <= len(m["reps"]) <= 100
+        m = json.loads(data, object_pairs_hook=_unique_json_object, parse_constant=_invalid_json_constant)
+        if not isinstance(m, dict) or type(m.get("schemaVersion")) is not int or m["schemaVersion"] != 1:
+            raise ValueError("schema")
+        if not isinstance(m.get("sessionId"), str) or not m["sessionId"] or m["sessionId"] != session:
+            raise ValueError("session")
+        if not isinstance(m.get("exerciseId"), str) or m["exerciseId"] not in EXERCISES or m.get("timebase") != "video_ms":
+            raise ValueError("exercise/timebase")
+        if not isinstance(m.get("reps"), list) or not 1 <= len(m["reps"]) <= 100:
+            raise ValueError("repetitions")
         previous = 0
         for i, rep in enumerate(m["reps"]):
-            assert isinstance(rep, dict) and rep.get("repIndex") == i + 1
+            if not isinstance(rep, dict) or type(rep.get("repIndex")) is not int or rep["repIndex"] != i + 1:
+                raise ValueError("rep identity")
+            if "onDeviceRepIndex" in rep and (type(rep["onDeviceRepIndex"]) is not int or rep["onDeviceRepIndex"] < 1):
+                raise ValueError("on-device rep identity")
             start, end = rep["startMs"], rep["endMs"]
-            assert all(type(x) in (int, float) and math.isfinite(x) for x in (start, end))
-            assert previous <= start < end <= 60_000
-            assert rep.get("side") in ("left", "right")
+            if not all(type(x) in (int, float) and math.isfinite(x) for x in (start, end)) or not previous <= start < end <= 60_000:
+                raise ValueError("rep time")
+            if rep.get("side") not in ("left", "right"):
+                raise ValueError("side")
             warnings = rep["onDeviceWarnings"]
-            assert isinstance(warnings, list) and len(warnings) <= 30
-            assert all(isinstance(w, str) and len(w) <= 80 for w in warnings)
+            if not isinstance(warnings, list) or len(warnings) > 30 or not all(isinstance(w, str) and len(w) <= 80 for w in warnings):
+                raise ValueError("warnings")
             for field in ("onDeviceMetrics2D", "onDeviceMetrics3D"):
                 values = rep.get(field, {})
-                assert isinstance(values, dict) and len(values) <= 128
-                assert all(isinstance(k, str) and len(k) <= 80 and type(v) in (int, float)
-                           and math.isfinite(v) for k, v in values.items())
+                if not isinstance(values, dict) or len(values) > 128:
+                    raise ValueError("metrics")
+                if not all(isinstance(k, str) and len(k) <= 80 and type(v) in (int, float) and math.isfinite(v) for k, v in values.items()):
+                    raise ValueError("metric values")
             previous = end
         return m
-    except (ValueError, TypeError, KeyError, AssertionError):
+    except (ValueError, TypeError, KeyError, OverflowError, RecursionError):
         raise Rejected(422, "invalid_reps") from None
 
 
