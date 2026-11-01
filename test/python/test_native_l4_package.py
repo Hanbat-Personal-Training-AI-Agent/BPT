@@ -32,6 +32,22 @@ class L4PackageTests(unittest.TestCase):
         payload={'plan':{'videoSha256':m.sha(video),'nativeManifestCanonicalSha256':'0'*64},'video':video,'manifest':{'synthetic':True}}
         with self.assertRaisesRegex(ValueError,'pinned manifest SHA'):m.gpu_once(payload)
 
+    def test_installed_modal_definition_and_single_file_mount_without_running_app(self):
+        import modal
+        # Lazy handles only. No hydrate/info/app.run/remote and no local media provided.
+        image=modal.Image.from_id(m.IMAGE)
+        volume=modal.Volume.from_name('bpt-gvhmr',create_if_missing=False)
+        # Register this file module for local source inspection, not serialization.
+        sys.modules['native_l4']=m
+        app,call=m.define_modal_call(modal,image,volume)
+        source=call._get_source_info()
+        mounts=source.get_entrypoint_mount()
+        self.assertEqual(source.module_name,'native_deep_isolated_l4')
+        self.assertEqual(len(mounts),1)
+        self.assertIn('native_deep_isolated_l4',mounts)
+        self.assertEqual(Path(source._file).resolve(),SCRIPT.resolve())
+        self.assertFalse(source.is_serialized())
+
     def test_embedded_remote_programs_compile_without_executing_them(self):
         tree=ast.parse(SCRIPT.read_text());programs=[]
         for node in ast.walk(tree):

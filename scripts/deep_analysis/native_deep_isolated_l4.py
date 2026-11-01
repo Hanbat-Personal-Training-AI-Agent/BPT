@@ -12,7 +12,7 @@ import subprocess
 import sys
 
 BEFORE='17583f391f6dd028bf0515b2be3e8d2257c95866'
-CURRENT='4eea822'
+CURRENT='8e00f543a70dd85b93b6ed716c1377a70586dffd'
 IMAGE='im-4SiTgQLfJqcNflEuz14dR3'
 VOLUME='vo-PaJI2oGtteoNeTikv2DP3O'
 REQUIRED={'gvhmr/gvhmr_siga24_release.ckpt':163508011,'hmr2/epoch=10-step=25000.ckpt':2709494041,
@@ -195,6 +195,15 @@ evidence['preprocessingDuplicatesAreNewIndependentObservations']=False
         return {'returnCode':result.returncode,'archive':archive.getvalue(),'remoteTempCleanupOnReturn':True}
 
 
+def define_modal_call(modal,image,volume):
+    app=modal.App('bpt-owned-native-report-verification')
+    call=app.function(image=image,gpu='L4',cpu=(2,4),memory=(8192,16384),timeout=900,startup_timeout=120,
+      min_containers=0,max_containers=1,buffer_containers=0,scaledown_window=2,retries=0,
+      secrets=[],volumes={'/vol':volume.read_only()},block_network=True,restrict_modal_access=True,
+      serialized=False,include_source=True,single_use_containers=True)(gpu_once)
+    return app,call
+
+
 def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--root',required=True);p.add_argument('--package',required=True);p.add_argument('--video',required=True)
@@ -218,11 +227,7 @@ def main():
     volume=modal.Volume.from_name('bpt-gvhmr',create_if_missing=False);volume.hydrate()
     if volume.object_id!=VOLUME:raise ValueError('weights volume identity changed')
     image=modal.Image.from_id(IMAGE)
-    app=modal.App('bpt-owned-native-report-verification')
-    call=app.function(image=image,gpu='L4',cpu=(2,4),memory=(8192,16384),timeout=900,startup_timeout=120,
-      min_containers=0,max_containers=1,buffer_containers=0,scaledown_window=2,retries=0,
-      secrets=[],volumes={'/vol':volume.read_only()},block_network=True,restrict_modal_access=True,
-      serialized=False,include_source=True,max_inputs=1)(gpu_once)
+    app,call=define_modal_call(modal,image,volume)
     output.mkdir(mode=0o700)
     with app.run(detach=False):
         result=call.remote({'plan':plan,'sources':sources,'manifest':manifest,'video':Path(args.video).read_bytes()})
