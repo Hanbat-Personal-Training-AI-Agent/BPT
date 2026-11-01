@@ -133,6 +133,10 @@ private final class CameraCaptureManager: NSObject, AVCaptureVideoDataOutputSamp
     nonisolated(unsafe) var recordingRotation = 0
     nonisolated(unsafe) var perfLog: WorkoutPerfLog?
 
+    func afterPendingExternalFrames(_ completion: @escaping @Sendable () -> Void) {
+        TerminalEvidenceIngressFence.afterPending(on: processingQueue, completion: completion)
+    }
+
     func startRecording(to url: URL) {
         processingQueue.async { [weak self] in self?.recorder = WorkoutSetRecorder(url: url) }
     }
@@ -1317,8 +1321,14 @@ final class CameraPoseViewModel: ObservableObject {
         // Explicit capture-harness hook only: close through the real production flush lifecycle.
         if VideoRunLog.terminalEvidence, DemoConfig.environment["BPT_TERMINAL_EOF_FLUSH"] == "1", !betweenSets,
            let index = terminalSetIndex, let epoch = terminalCapture.snapshot() {
-            VideoRunLog.shared?.write("terminal_eof_flush", ["epoch": epoch, "set": index, "trigger": "video_eof_test_hook"])
-            endSet(index)
+            captureManager.afterPendingExternalFrames { [weak self] in
+                Task { @MainActor [weak self] in
+                    guard let self, !self.betweenSets, self.terminalCapture.snapshot() == epoch else { return }
+                    VideoRunLog.shared?.write("terminal_eof_flush", ["epoch": epoch, "set": index,
+                        "trigger": "video_eof_test_hook", "processing_queue_drained": true])
+                    self.endSet(index)
+                }
+            }
             return
         }
         if VideoRunLog.terminalEvidence, let epoch = terminalCapture.beginFlush() {

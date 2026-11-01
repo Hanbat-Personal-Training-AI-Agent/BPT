@@ -124,7 +124,7 @@ def load(path):
         require(active == epoch, 'stale_or_unstarted_epoch')
         data = epochs[epoch]
         if kind == 'terminal_eof_flush':
-            require(row.get('trigger') == 'video_eof_test_hook', 'eof_flush_provenance')
+            require(row.get('trigger') == 'video_eof_test_hook' and row.get('processing_queue_drained') is True, 'eof_flush_provenance')
         elif kind == 'terminal_end':
             require(type(row.get('incomplete')) is bool and type(row.get('flush_complete')) is bool, 'end_status')
             require(row['incomplete'] or row['flush_complete'], 'false_complete')

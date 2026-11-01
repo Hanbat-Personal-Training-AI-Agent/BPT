@@ -51,7 +51,7 @@ import Foundation
                 try emit(input,degrees)
             }
         }
-        append("terminal_eof_flush",["epoch":1,"trigger":"video_eof_test_hook"])
+        append("terminal_eof_flush",["epoch":1,"trigger":"video_eof_test_hook","processing_queue_drained":true])
         append("terminal_candidate_end",["epoch":1,"reason":"set_end","host_time":8.5]);engine.end(epoch:1,reason:"set_end",hostTime:8.5);try flush()
         append("terminal_end",["epoch":1,"reason":"set_end","flush_complete":true,"incomplete":false])
         for row in rows { print(String(decoding:try JSONSerialization.data(withJSONObject:row,options:.sortedKeys),as:UTF8.self)) }

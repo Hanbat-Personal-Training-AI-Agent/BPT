@@ -161,7 +161,7 @@ def test_mixed_candidate_events_and_real_eof_flush_preserve_raw_geometry(tmp_pat
         'stableSeconds':.25,'minimumSamples':5,'maximumAngularSpeed':10.,'maximumSourceGap':.15,'timeoutSeconds':1.5,'minimumReferences':3}),
         dict(schema=r.SCHEMA,type='terminal_candidate_start',epoch=1)]
     rows[2:2]=extra
-    rows[-1:-1]=[dict(schema=r.SCHEMA,type='terminal_eof_flush',epoch=1,trigger='video_eof_test_hook'),
+    rows[-1:-1]=[dict(schema=r.SCHEMA,type='terminal_eof_flush',epoch=1,trigger='video_eof_test_hook',processing_queue_drained=True),
         dict(schema=r.SCHEMA,type='terminal_candidate_end',epoch=1,reason='set_end',host_time=3.0)]
     assert r.replay(write(tmp_path,rows))['groups']==original
     rows[0].pop('candidate_protocol')

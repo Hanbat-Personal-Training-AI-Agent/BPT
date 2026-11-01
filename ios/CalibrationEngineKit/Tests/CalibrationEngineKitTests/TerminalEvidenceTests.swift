@@ -146,4 +146,27 @@ final class TerminalEvidenceTests: XCTestCase {
         XCTAssertEqual(capture.drainStatus(next)?.failed, true)
     }
 
+    func testEOFFenceAdmitsAlreadyAcceptedProcessingBeforeClosingEpoch() {
+        let queue = DispatchQueue(label: "terminal-ingress-fence-test")
+        let accepted = DispatchSemaphore(value: 0)
+        let completed = expectation(description: "EOF barrier after last accepted frame")
+        let capture = TerminalEvidenceCapture()
+        let epoch = capture.begin()
+        queue.async {
+            accepted.wait()
+            XCTAssertEqual(capture.capture(frame: 999), epoch)
+        }
+        TerminalEvidenceIngressFence.afterPending(on: queue) {
+            XCTAssertEqual(capture.drainStatus(epoch)?.pending, 1)
+            XCTAssertEqual(capture.beginFlush(), epoch)
+            XCTAssertNil(capture.capture(frame: 1000))
+            capture.delivered(epoch: epoch, frame: 999)
+            XCTAssertEqual(capture.drainStatus(epoch)?.pending, 0)
+            completed.fulfill()
+        }
+        XCTAssertEqual(capture.drainStatus(epoch)?.pending, 0)
+        accepted.signal()
+        wait(for: [completed], timeout: 2)
+    }
+
 }

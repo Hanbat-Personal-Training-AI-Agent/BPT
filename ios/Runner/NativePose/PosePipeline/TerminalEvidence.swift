@@ -135,3 +135,11 @@ final class TerminalEvidenceStream: @unchecked Sendable {
     /// Used for explicit test/export synchronization; capture callbacks never block on disk.
     func drain() { queue.sync {} }
 }
+
+/// Diagnostic EOF fence: wait only for work already accepted by the serial processing queue.
+/// It does not request another source frame or inference and does not change normal endSet.
+enum TerminalEvidenceIngressFence {
+    static func afterPending(on queue: DispatchQueue, completion: @escaping @Sendable () -> Void) {
+        queue.async(execute: completion)
+    }
+}

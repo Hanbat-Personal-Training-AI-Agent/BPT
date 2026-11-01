@@ -16,11 +16,11 @@ A stable140° terminal window following three covered170° references preserves 
 
 ## End and queue ownership
 
-The existing production endSet/lifter flush/assessor/bridge callbacks keep their behavior. Only diagnostic finalization waits for the epoch's **already admitted payloads** to deliver or be abandoned. The collector tracks source frame identities, not a guessed frame count. Duplicate/stale delivery cannot release another frame or close a new epoch. No new inference or future input is requested. Genuine pending nonflush deliveries can contribute; explicit set-end clamped tail is recorded but excluded from candidate observations. Implicit reset/rotation flush remains invalidating.
+The existing production endSet/lifter flush/assessor/bridge callbacks keep their behavior. Only diagnostic finalization waits for the epoch's **already admitted payloads** to deliver or be abandoned. The collector tracks source frame identities admitted at processFrame entry, not a guessed frame count. The explicit video EOF fence additionally admits the last feeder-accepted frame still waiting on that processing queue; ordinary live endSet retains its original call-time admission boundary and does not request additional camera frames. Duplicate/stale delivery cannot release another frame or close a new epoch. No new inference or future input is requested. Genuine pending nonflush deliveries can contribute; explicit set-end clamped tail is recorded but excluded from candidate observations. Implicit reset/rotation flush remains invalidating.
 
 After source drain, candidate reports precede the single terminal_end footer. Processing failure, missing drain or the2s bounded diagnostic-drain timeout gives an incomplete footer and withheld candidate. Camera stop/reset cannot claim completeness. Candidate operational watchdog can close first during drain, yielding explicit timeout withholding. A log of reordered/invalid source records is rejected by strict replay rather than silently sorted into an invented assessor history.
 
-`BPT_TERMINAL_EOF_FLUSH=1` plus terminal evidence is a separate explicit capture-test hook. Video EOF calls the **existing real endSet(currentIndex)** and records its trigger; the genuine lifter flush and finalization generate the footer. Without this flag the previous EOF/incomplete behavior remains. Recording and onSetEnd use their existing paths; the capture harness owns any recording option.
+`BPT_TERMINAL_EOF_FLUSH=1` plus terminal evidence is a separate explicit capture-test hook. Video EOF first fences already accepted work on the serial camera processing queue, rechecks the captured epoch, then calls the **existing real endSet(currentIndex)** and records `processing_queue_drained:true`; the genuine lifter flush and finalization generate the footer. Without this flag the previous EOF/incomplete behavior remains. Recording and onSetEnd use their existing paths; the capture harness owns any recording option.
 
 ## Reproduction and integrity
 
@@ -35,7 +35,7 @@ The original v1 strict geometry reader explicitly recognizes candidate/config/re
 
 ## Validation at native source freeze
 
-- Swift: **243 executed,240 passed,3 skipped**, including21 candidate state/negative tests and the payload-drain/stale-release race. Existing native parity/regression tests remain included.
+- Swift: **244 executed,241 passed,3 skipped**, including21 candidate state/negative tests and the payload-drain/stale-release race. Existing native parity/regression tests remain included.
 - Python: **33 passed**, including production-module synthetic live-log/offline replay parity, modified-output rejection, source/geometry binding and mixed v1/candidate/EOF stream preservation.
 - Synthetic4-rep replay:3 reference-shortage withholds, then one30° relative-deficit result; all4 have observed stable windows. This proves state/math/replay behavior, not form accuracy.
 - **Unsigned iOS compiler/link passed**,3-target project build, frozen source hashes unchanged. Existing exact673 Pods products were cloned into a new DD. As previously documented, compilation used the actual donor-matching temporary dependency lock520ca391…; original tracked lock79c96ff… was restored. This is not a fresh original-lock dependency rebuild. GeneratedPluginRegistrant m/h were hashed; IntegrationTestPlugin registration/link symbol is present. No install was performed by this source task.
