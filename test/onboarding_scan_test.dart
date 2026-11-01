@@ -1,14 +1,21 @@
 import 'package:bpt/features/onboarding/screens/onboarding_scan_screen.dart';
 import 'package:bpt/features/auth/providers/auth_provider.dart';
+import 'package:bpt/models/user_model.dart';
+import 'package:bpt/features/onboarding/models/calibration_capture.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'helpers/session_fixture.dart';
 
 /// The capture itself is native (camera + RTMPose + judging engine); these cover the
 /// overlay this screen owns before any native event arrives.
 class _AnonymousAuth extends ChangeNotifier implements AuthNotifier {
   @override
   AuthSessionLease? captureSession() => null;
+  @override
+  UserModel? get currentUser => null;
   @override
   ({String userId, int generation})? get sessionIdentity => null;
   @override
@@ -21,6 +28,59 @@ Widget _screen() => ProviderScope(
     );
 
 void main() {
+  for (final switchAccount in [false, true]) {
+    testWidgets(
+        'capture route ${switchAccount ? 'rejects old A after A-B-A' : 'carries the original owner lease'}',
+        (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      final f = await sessionFixture(await SharedPreferences.getInstance());
+      CalibrationCapture? delivered;
+      final router = GoRouter(initialLocation: '/scan', routes: [
+        GoRoute(
+            path: '/scan', builder: (_, __) => const OnboardingScanScreen()),
+        GoRoute(
+            path: '/onboarding/analyzing',
+            builder: (_, state) {
+              delivered = state.extra as CalibrationCapture?;
+              return const Scaffold(body: Text('capture destination'));
+            }),
+      ]);
+      addTearDown(router.dispose);
+      tester.view.physicalSize = const Size(1179, 2556);
+      tester.view.devicePixelRatio = 3;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(ProviderScope(
+          overrides: [authNotifierProvider.overrideWith((ref) => f.auth)],
+          child: MaterialApp.router(routerConfig: router)));
+      for (final label in ['정면', '왼쪽', '뒷면']) {
+        await tester.tap(find.text('$label 촬영 완료 (테스트용)'));
+        await tester.pump(const Duration(milliseconds: 200));
+      }
+      if (switchAccount) {
+        await f.auth.logout();
+        await f.auth.login('B', 'password');
+        await f.auth.logout();
+        await f.auth.login('A', 'password');
+        await tester.pump();
+        for (var i = 0; i < 4; i++) {
+          await tester.tap(find.text('정면 촬영 완료 (테스트용)'));
+          await tester.pump(const Duration(milliseconds: 200));
+        }
+        expect(delivered, isNull);
+        expect(f.service.scanCalls, 0);
+        expect(find.text('capture destination'), findsNothing);
+        expect(find.textContaining('로그인 상태가 바뀌어서'), findsOneWidget);
+      } else {
+        await tester.tap(find.text('오른쪽 촬영 완료 (테스트용)'));
+        await tester.pumpAndSettle();
+        expect(delivered?.session?.userId, 'A');
+        expect(delivered?.session?.isCurrent, isTrue);
+        expect(f.service.scanCalls, 1);
+        expect(find.text('capture destination'), findsOneWidget);
+      }
+    });
+  }
+
   testWidgets('shows the first pose, close button and help link on entry',
       (tester) async {
     await tester.pumpWidget(_screen());

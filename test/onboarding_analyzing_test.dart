@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:bpt/features/onboarding/models/body_analysis_result.dart';
+import 'package:bpt/features/onboarding/models/calibration_capture.dart';
 import 'package:bpt/features/auth/providers/auth_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'helpers/session_fixture.dart';
@@ -68,7 +69,10 @@ void main() {
   BodyAnalysisResult? delivered;
   late AuthNotifier auth;
   Future<void> show(WidgetTester tester, _Uploader service,
-      {String? path = '/capture/session', bool signedIn = true}) async {
+      {String? path = '/capture/session',
+      bool signedIn = true,
+      bool ownedCapture = true,
+      bool staleCapture = false}) async {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -78,10 +82,18 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     auth = (await sessionFixture(await SharedPreferences.getInstance())).auth;
     if (!signedIn) await auth.logout();
+    final capture = ownedCapture
+        ? CalibrationCapture(sessionPath: path, session: auth.captureSession())
+        : null;
+    if (staleCapture) {
+      await auth.logout();
+      await auth.login('B', 'password');
+    }
     final router = GoRouter(initialLocation: '/analyzing', routes: [
       GoRoute(
           path: '/analyzing',
-          builder: (_, __) => OnboardingAnalyzingScreen(sessionPath: path)),
+          builder: (_, __) =>
+              OnboardingAnalyzingScreen(sessionPath: path, capture: capture)),
       GoRoute(
           path: '/onboarding/result',
           builder: (_, state) {
@@ -107,6 +119,32 @@ void main() {
     service.result.complete(const CalibrationUploadReceipt('session', 'job-1'));
     await tester.pump(const Duration(seconds: 41));
     await tester.pumpAndSettle();
+  });
+
+  testWidgets(
+      'legacy path is not silently assigned to the account present at mount',
+      (tester) async {
+    final service = _Uploader();
+    await show(tester, service, ownedCapture: false);
+    await tester.pump(const Duration(seconds: 41));
+    await tester.pumpAndSettle();
+    expect(service.calls, 0);
+    expect(service.polls, 0);
+    expect(delivered?.summary ?? {}, isEmpty);
+  });
+
+  testWidgets(
+      'capture A lease invalidated before mount cannot be uploaded by B',
+      (tester) async {
+    final service = _Uploader();
+    await show(tester, service, staleCapture: true);
+    await tester.pump(const Duration(seconds: 41));
+    await tester.pumpAndSettle();
+    expect(service.calls, 0);
+    expect(service.polls, 0);
+    expect(service.downloads, 0);
+    expect(delivered, isNull);
+    expect(find.text('result destination'), findsNothing);
   });
 
   testWidgets('goes to the result after the animation once upload is accepted',
@@ -350,6 +388,8 @@ void main() {
       prepared.complete('prepared-box');
       await tester.pumpAndSettle();
       expect(delivered?.meshId, 'prepared-box');
+      expect(delivered?.session?.userId, 'A');
+      expect(delivered?.session?.isCurrent, isTrue);
       expect(delivered?.summary['키'], '170.0 cm');
       debugDefaultTargetPlatformOverride = null;
     });

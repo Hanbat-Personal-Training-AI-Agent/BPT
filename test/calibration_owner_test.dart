@@ -70,6 +70,69 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
+  test('session writers in unrelated prefs stores do not block or share state',
+      () async {
+    final first = LocalStorageService(await SharedPreferences.getInstance());
+    final held = Completer<void>();
+    final old = first.serializeSessionWrite(() => held.future);
+    SharedPreferences.setMockInitialValues({});
+    final second = LocalStorageService(await SharedPreferences.getInstance());
+    var ran = false;
+    await second.serializeSessionWrite(() async {
+      ran = true;
+    });
+    expect(ran, isTrue);
+    held.complete();
+    await old;
+  });
+
+  test('recreated notifier persists B after an already-started A clear',
+      () async {
+    final prefs = await SharedPreferences.getInstance();
+    final oldStorage = _SlowClear(prefs);
+    final oldAuth = AuthNotifier(SessionAuthService(), oldStorage);
+    await oldAuth.login('A', 'password');
+    final logout = oldAuth.logout();
+    await Future<void>.delayed(Duration.zero);
+    oldAuth.dispose();
+    final storage = LocalStorageService(prefs);
+    final replacement = AuthNotifier(SessionAuthService(), storage);
+    addTearDown(replacement.dispose);
+    final login = replacement.login('B', 'password', rememberMe: true);
+    await Future<void>.delayed(Duration.zero);
+    oldStorage.clear.complete();
+    await logout;
+    await login;
+    expect(storage.loadUser()!.id, 'B');
+    expect(storage.loadAuthToken(), 'token-B');
+    expect(storage.loadAutoLogin(), isTrue);
+  });
+
+  test('recreated notifier persists B after an already-started A profile save',
+      () async {
+    final prefs = await SharedPreferences.getInstance();
+    final oldStorage = _SlowSave(prefs), service = SessionAuthService();
+    final oldAuth = AuthNotifier(service, oldStorage);
+    await oldAuth.login('A', 'password');
+    final held = Completer<void>();
+    oldStorage.hold = held;
+    final saved =
+        oldAuth.updateProfile(sessionUser('A').copyWith(name: 'late A'));
+    await Future<void>.delayed(Duration.zero);
+    oldAuth.dispose();
+    final storage = LocalStorageService(prefs);
+    final replacement = AuthNotifier(SessionAuthService(), storage);
+    addTearDown(replacement.dispose);
+    final login = replacement.login('B', 'password', rememberMe: true);
+    await Future<void>.delayed(Duration.zero);
+    held.complete();
+    await saved;
+    await login;
+    expect(storage.loadUser()!.id, 'B');
+    expect(storage.loadAuthToken(), 'token-B');
+    expect(service.profileWrites, isEmpty);
+  });
+
   test(
       'an active profile response with a different owner invalidates a mismatched cached session',
       () async {
@@ -367,6 +430,31 @@ void main() {
     await f.auth.login('A', 'password');
     expect(a.isCurrent, isFalse);
     expect(container.read(calibrationResultStoreProvider).isCurrent, isTrue);
+  });
+
+  test(
+      'same-id notifier replacement gets a unique identity and a live replacement store',
+      () async {
+    final prefs = await SharedPreferences.getInstance();
+    final first = await sessionFixture(prefs),
+        replacement = await sessionFixture(prefs);
+    var active = first.auth;
+    final container = ProviderContainer(
+        overrides: [authNotifierProvider.overrideWith((ref) => active)]);
+    addTearDown(container.dispose);
+    final subscription =
+        container.listen(calibrationResultStoreProvider, (_, __) {});
+    addTearDown(subscription.close);
+    final old = container.read(calibrationResultStoreProvider);
+    final identity = container.read(authSessionIdentityProvider);
+    active = replacement.auth;
+    container.invalidate(authNotifierProvider);
+    final fresh = container.read(calibrationResultStoreProvider);
+    expect(old.isCurrent, isFalse);
+    expect(fresh.isCurrent, isTrue);
+    expect(fresh.ownerId, 'A');
+    expect(container.read(authSessionIdentityProvider), isNot(identity));
+    expect(await fresh.save('new-owner-lifetime', measurement()), isTrue);
   });
 
   test('late tracked done job cannot save into B or new A session', () async {

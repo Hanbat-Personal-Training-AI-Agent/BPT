@@ -13,6 +13,7 @@ import '../../../demo/demo_autopilot.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../services/calibration_result_store.dart';
 import '../models/body_analysis_result.dart';
+import '../models/calibration_capture.dart';
 import '../services/calibration_upload_service.dart';
 import '../widgets/body_mesh_reveal.dart';
 
@@ -21,10 +22,14 @@ import '../widgets/body_mesh_reveal.dart';
 /// prepares the result during the existing wait when the mesh flag is enabled.
 /// Missing or failed analysis never blocks continuing to the result.
 class OnboardingAnalyzingScreen extends ConsumerStatefulWidget {
-  const OnboardingAnalyzingScreen({super.key, this.sessionPath});
+  const OnboardingAnalyzingScreen({super.key, this.sessionPath, this.capture});
 
   /// `Documents/calibration/<sessionId>` written by the native calibration session.
   final String? sessionPath;
+
+  /// Only a capture-start lease can authorize upload/result use. A legacy path
+  /// alone remains unowned and can continue only with an empty local result.
+  final CalibrationCapture? capture;
 
   @override
   ConsumerState<OnboardingAnalyzingScreen> createState() =>
@@ -68,7 +73,7 @@ class _OnboardingAnalyzingScreenState
   void initState() {
     super.initState();
     _auth = ref.read(authNotifierProvider);
-    _session = _auth.captureSession();
+    _session = widget.capture?.session;
     _service = ref.read(calibrationUploadServiceProvider);
     _store = CalibrationResultStore.forSession(_session);
     _auth.addListener(_sessionChanged);
@@ -84,7 +89,7 @@ class _OnboardingAnalyzingScreenState
   /// Sends the 4 photos + metadata right away. Keeps running if the user
   /// leaves the screen, so the bundle still reaches the server.
   Future<void> _startUpload() async {
-    final path = widget.sessionPath;
+    final path = widget.capture?.sessionPath ?? widget.sessionPath;
     final service = _service;
     final issue = service.config.configurationIssue;
     if (!_ownsResult || path == null || path.isEmpty) {
@@ -147,7 +152,7 @@ class _OnboardingAnalyzingScreenState
         if (job.status == 'failed') return;
         if (job.status == 'done') {
           final values = job.result ?? const <String, dynamic>{};
-          _result = BodyAnalysisResult(values: values);
+          _result = BodyAnalysisResult(values: values, session: _session);
           final url = values['modelGlbUrl'];
           if (url is! String || url.isEmpty) return;
           final glb = await service.fetchModel(url, cancelToken: _cancel);
@@ -163,7 +168,7 @@ class _OnboardingAnalyzingScreenState
             await BodyMeshReveal.release(meshId);
             return;
           }
-          _result = BodyAnalysisResult(values: values, meshId: meshId);
+          _result = BodyAnalysisResult(values: values, meshId: meshId, session: _session);
           return;
         }
         await Future<void>.delayed(const Duration(seconds: 3));
@@ -204,6 +209,7 @@ class _OnboardingAnalyzingScreenState
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(authSessionIdentityProvider, (_, __) => _sessionChanged());
     return Theme(
       data: ThemeData.dark().copyWith(
         textTheme: ThemeData.dark().textTheme.apply(fontFamily: 'Pretendard'),

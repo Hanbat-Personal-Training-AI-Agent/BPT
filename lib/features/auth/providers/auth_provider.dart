@@ -30,19 +30,17 @@ class AuthNotifier extends ChangeNotifier {
   bool _isLoading = false;
   String? _error;
   bool _isOfflineMode = false;
-  int _sessionGeneration = 0;
+  // Unique across notifier/provider recreation as well as relogin.
+  static int _nextSessionGeneration = 0;
+  int _sessionGeneration = ++_nextSessionGeneration;
+  int _advanceSession() => _sessionGeneration = ++_nextSessionGeneration;
   bool _disposed = false;
   static const _sessionChangedMessage = '로그인 상태가 바뀌었어. 다시 확인해 줘.';
-  Future<void> _sessionWrites = Future<void>.value();
 
   // Keep an already-started clear/save in order with a subsequent login. This
   // prevents delayed persistence from clearing the new account's credentials.
-  Future<void> _persist(Future<void> Function() action) {
-    final pending = _sessionWrites.then((_) => action());
-    _sessionWrites =
-        pending.then<void>((_) {}, onError: (Object _, StackTrace __) {});
-    return pending;
-  }
+  Future<void> _persist(Future<void> Function() action) =>
+      _storage.serializeSessionWrite(action);
 
   Future<void> _saveUser(UserModel user, AuthSessionLease lease) =>
       _persist(() async {
@@ -102,7 +100,7 @@ class AuthNotifier extends ChangeNotifier {
     // 저장해 둔 토큰이 없으면 서버 인증을 되살릴 수 없으니 다시 로그인하게 한다.
     final token = _storage.loadAuthToken();
     if (token == null) return false;
-    _sessionGeneration++;
+    _advanceSession();
     _authService.restoreAuthToken(token,
         refreshToken: _storage.loadRefreshToken());
 
@@ -149,7 +147,7 @@ class AuthNotifier extends ChangeNotifier {
     String password, {
     bool rememberMe = false,
   }) async {
-    final generation = ++_sessionGeneration;
+    final generation = _advanceSession();
     _isLoading = true;
     _error = null;
     notifyListeners();
@@ -189,7 +187,7 @@ class AuthNotifier extends ChangeNotifier {
     required String phoneNumber,
     required DateTime birthDate,
   }) async {
-    final generation = ++_sessionGeneration;
+    final generation = _advanceSession();
     _isLoading = true;
     _error = null;
     notifyListeners();
@@ -289,7 +287,7 @@ class AuthNotifier extends ChangeNotifier {
   /// 디버그 빌드에서 로그인 화면 UI 확인용으로만 쓰고, 배포 전 제거할 것.
   void debugSkipLogin() {
     if (!kDebugMode) return;
-    _sessionGeneration++;
+    _advanceSession();
     _authService.restoreAuthToken(null);
     unawaited(_persist(_storage.clearSession));
     _currentUser = _createLocalFallbackUser(
@@ -355,7 +353,7 @@ class AuthNotifier extends ChangeNotifier {
   /// Logout
   Future<void> logout() async {
     // Invalidate synchronously, before persistence/network callbacks can resume.
-    _sessionGeneration++;
+    _advanceSession();
     _authService.restoreAuthToken(null);
     _currentUser = null;
     _error = null;
@@ -408,7 +406,7 @@ class AuthNotifier extends ChangeNotifier {
     }
     if (!lease.isCurrent) return _sessionChangedMessage;
     // Invalidate account-bound requests before removing their persisted queues.
-    _sessionGeneration++;
+    _advanceSession();
     _authService.restoreAuthToken(null);
     _currentUser = null;
     _error = null;
@@ -430,7 +428,7 @@ class AuthNotifier extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
-    _sessionGeneration++;
+    _advanceSession();
     super.dispose();
   }
 

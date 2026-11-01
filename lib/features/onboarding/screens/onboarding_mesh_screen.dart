@@ -1,21 +1,64 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/route_constants.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../models/body_analysis_result.dart';
 import '../widgets/body_mesh_reveal.dart';
 
 /// The complete analysis result, including a small, already prepared mesh.
-class OnboardingMeshScreen extends StatelessWidget {
+class OnboardingMeshScreen extends ConsumerStatefulWidget {
   const OnboardingMeshScreen(
       {super.key, this.analysis = const BodyAnalysisResult()});
 
   final BodyAnalysisResult analysis;
 
   @override
+  ConsumerState<OnboardingMeshScreen> createState() =>
+      _OnboardingMeshScreenState();
+}
+
+class _OnboardingMeshScreenState extends ConsumerState<OnboardingMeshScreen> {
+  bool _presentedMesh = false;
+  bool _releasedUnused = false;
+
+  void _releaseUnused() {
+    if (_presentedMesh || _releasedUnused) return;
+    _releasedUnused = true;
+    unawaited(BodyMeshReveal.release(widget.analysis.meshId));
+  }
+
+  @override
+  void didUpdateWidget(covariant OnboardingMeshScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.analysis, widget.analysis)) {
+      if (!_presentedMesh && !_releasedUnused) {
+        unawaited(BodyMeshReveal.release(oldWidget.analysis.meshId));
+      }
+      _presentedMesh = false;
+      _releasedUnused = false;
+    }
+  }
+
+  @override
+  void dispose() {
+    _releaseUnused();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final rows = analysis.summary.entries.toList();
+    ref.watch(authSessionIdentityProvider);
+    final owned = widget.analysis.session?.isCurrent ?? false;
+    if (!owned) _releaseUnused();
+    if (owned) _presentedMesh = true;
+    final rows = owned
+        ? widget.analysis.summary.entries.toList()
+        : <MapEntry<String, String>>[];
     return Theme(
       data: ThemeData.dark().copyWith(
         textTheme: ThemeData.dark().textTheme.apply(fontFamily: 'Pretendard'),
@@ -28,8 +71,8 @@ class OnboardingMeshScreen extends StatelessWidget {
             child: Column(
               children: [
                 const SizedBox(height: 16),
-                const Text('신체분석 완료!',
-                    style: TextStyle(
+                Text(owned ? '신체분석 완료!' : '신체분석 결과',
+                    style: const TextStyle(
                         color: AppColors.white,
                         fontSize: 24,
                         fontWeight: FontWeight.w900)),
@@ -50,7 +93,13 @@ class OnboardingMeshScreen extends StatelessWidget {
                     ),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(24),
-                      child: BodyMeshReveal(meshId: analysis.meshId),
+                      child: owned
+                          ? BodyMeshReveal(
+                              key: ValueKey(widget.analysis),
+                              meshId: widget.analysis.meshId)
+                          : const Center(
+                              child: Icon(Icons.accessibility_new_rounded,
+                                  color: Color(0xFF77777F), size: 150)),
                     ),
                   ),
                 ),

@@ -23,6 +23,7 @@ class SessionAuthService extends AuthService {
   Completer<void>? deletion;
   final profileWrites = <String>[];
   final onboardingWrites = <String>[];
+  int scanCalls = 0;
   String id = 'A';
 
   @override
@@ -41,10 +42,12 @@ class SessionAuthService extends AuthService {
 
   @override
   Future<UserModel> recordBodyScan(
-          {String? sessionPath, bool Function()? sessionGuard}) =>
-      scan?.future ??
-      Future.value(
-          sessionUser(id).copyWith(lastBodyScanDate: DateTime(2026, 11, 2)));
+      {String? sessionPath, bool Function()? sessionGuard}) {
+    scanCalls++;
+    return scan?.future ??
+        Future.value(
+            sessionUser(id).copyWith(lastBodyScanDate: DateTime(2026, 11, 2)));
+  }
 
   @override
   Future<void> deleteAccount({bool Function()? sessionGuard}) =>

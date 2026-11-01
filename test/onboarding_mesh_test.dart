@@ -1,6 +1,10 @@
 import 'dart:async';
 
 import 'package:bpt/features/onboarding/models/body_analysis_result.dart';
+import 'package:bpt/features/auth/providers/auth_provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'helpers/session_fixture.dart';
 import 'package:bpt/features/onboarding/screens/onboarding_mesh_screen.dart';
 import 'package:bpt/features/onboarding/widgets/body_mesh_reveal.dart';
 import 'package:flutter/foundation.dart';
@@ -11,6 +15,45 @@ import 'package:go_router/go_router.dart';
 
 void main() {
   const channel = MethodChannel('bpt/body_mesh');
+
+  for (final scenario in ['afterDisplay', 'staleBeforeMount', 'unowned']) {
+    testWidgets('private result is hidden and mesh released: $scenario',
+        (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      final f = await sessionFixture(await SharedPreferences.getInstance());
+      final result = BodyAnalysisResult(
+          values: const {'userHeightCm': 170},
+          meshId: 'private-A',
+          session: scenario == 'unowned' ? null : f.auth.captureSession());
+      final released = <String>[];
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(channel,
+          (call) async {
+        if (call.method == 'release') {
+          released.add((call.arguments as Map)['meshId'] as String);
+        }
+        return null;
+      });
+      addTearDown(() => tester.binding.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, null));
+      if (scenario == 'staleBeforeMount') {
+        await f.auth.logout();
+        await f.auth.login('B', 'password');
+      }
+      await tester.pumpWidget(ProviderScope(
+          overrides: [authNotifierProvider.overrideWith((ref) => f.auth)],
+          child: MaterialApp(home: OnboardingMeshScreen(analysis: result))));
+      if (scenario == 'afterDisplay') {
+        expect(find.text('170.0 cm'), findsOneWidget);
+        await f.auth.logout();
+        await f.auth.login('B', 'password');
+      }
+      await tester.pumpAndSettle();
+      expect(find.text('170.0 cm'), findsNothing);
+      expect(find.text('신체분석 결과'), findsOneWidget);
+      expect(released, contains('private-A'));
+      expect(tester.takeException(), isNull);
+    });
+  }
 
   testWidgets('native parse failure returns a placeholder result',
       (tester) async {
@@ -95,17 +138,23 @@ void main() {
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
+      SharedPreferences.setMockInitialValues({});
+      final f = await sessionFixture(await SharedPreferences.getInstance());
       final router = GoRouter(initialLocation: '/result', routes: [
         GoRoute(
             path: '/result',
-            builder: (_, __) => const OnboardingMeshScreen(
-                  analysis: BodyAnalysisResult(values: {'userHeightCm': 170}),
+            builder: (_, __) => OnboardingMeshScreen(
+                  analysis: BodyAnalysisResult(
+                      values: const {'userHeightCm': 170},
+                      session: f.auth.captureSession()),
                 )),
         GoRoute(
             path: '/home', builder: (_, __) => const Scaffold(body: Text('홈'))),
       ]);
       addTearDown(router.dispose);
-      await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+      await tester.pumpWidget(ProviderScope(
+          overrides: [authNotifierProvider.overrideWith((ref) => f.auth)],
+          child: MaterialApp.router(routerConfig: router)));
       expect(find.text('신체분석 완료!'), findsOneWidget);
       expect(find.byIcon(Icons.accessibility_new_rounded), findsOneWidget);
       expect(find.text('170.0 cm'), findsOneWidget);

@@ -39,6 +39,19 @@ class LocalStorageService {
 
   LocalStorageService(this._prefs);
 
+  // Notifier/provider recreation still writes the same physical session store.
+  // Share ordering by prefs identity, without retaining credentials or coupling
+  // unrelated stores/tests. Expando keys are weak and are never persisted.
+  static final Expando<Future<void>> _sessionWriters =
+      Expando('session writes');
+  Future<void> serializeSessionWrite(Future<void> Function() action) {
+    final previous = _sessionWriters[_prefs] ?? Future<void>.value();
+    final pending = previous.then((_) => action());
+    _sessionWriters[_prefs] =
+        pending.then<void>((_) {}, onError: (Object _, StackTrace __) {});
+    return pending;
+  }
+
   // ── User ──────────────────────────────────────────────────────────────────
   Future<void> saveUser(UserModel user) async {
     await _prefs.setString(_keyUser, user.toJsonString());

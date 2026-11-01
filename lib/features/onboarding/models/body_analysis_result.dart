@@ -1,9 +1,12 @@
+import '../../auth/providers/auth_provider.dart';
+
 /// Analysis values and an in-memory native mesh prepared before navigation.
 class BodyAnalysisResult {
-  const BodyAnalysisResult({this.values = const {}, this.meshId});
+  const BodyAnalysisResult({this.values = const {}, this.meshId, this.session});
 
   final Map<String, dynamic> values;
   final String? meshId;
+  final AuthSessionLease? session;
 
   /// Only measured fields are shown. Limb lengths require both segments.
   Map<String, String> get summary {

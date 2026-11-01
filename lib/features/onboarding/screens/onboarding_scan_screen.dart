@@ -10,6 +10,7 @@ import '../../../core/constants/route_constants.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../providers/onboarding_provider.dart';
+import '../models/calibration_capture.dart';
 import '../services/calibration_upload_service.dart';
 import '../widgets/calibration_silhouette.dart';
 
@@ -26,7 +27,8 @@ class OnboardingScanScreen extends ConsumerStatefulWidget {
   static const String viewType = 'bpt/body_scan_camera';
 
   @override
-  ConsumerState<OnboardingScanScreen> createState() => _OnboardingScanScreenState();
+  ConsumerState<OnboardingScanScreen> createState() =>
+      _OnboardingScanScreenState();
 }
 
 class _OnboardingScanScreenState extends ConsumerState<OnboardingScanScreen> {
@@ -48,6 +50,32 @@ class _OnboardingScanScreenState extends ConsumerState<OnboardingScanScreen> {
   bool _isPassing = false;
   String? _error;
   bool _finished = false;
+  late final AuthNotifier _auth;
+  AuthSessionLease? _session;
+  bool _captureInvalidated = false;
+  bool get _captureActive =>
+      !_captureInvalidated &&
+      (_session?.isCurrent ?? _auth.currentUser == null);
+
+  void _accountChanged() {
+    if (_captureActive) return;
+    _captureInvalidated = true;
+    unawaited(_channel?.invokeMethod<void>('cancel'));
+    if (mounted) {
+      setState(() {
+        _capturedViews = const [];
+        _person = null;
+        _guidance = null;
+        _guide = const CalibrationGuide();
+        _captureLine = null;
+        _flash = false;
+        _targetView = 'front';
+        _holdProgress = 0;
+        _isPassing = false;
+        _error = 'account_session_changed';
+      });
+    }
+  }
 
   /// White flash over the preview each time a view is captured.
   bool _flash = false;
@@ -63,6 +91,9 @@ class _OnboardingScanScreenState extends ConsumerState<OnboardingScanScreen> {
   @override
   void initState() {
     super.initState();
+    _auth = ref.read(authNotifierProvider);
+    _session = _auth.captureSession();
+    _auth.addListener(_accountChanged);
     // The GPU container starts while the user is being photographed (~65 s cold start).
     ref.read(calibrationUploadServiceProvider).warmUp();
     CalibrationSilhouettes.load().then((value) {
@@ -73,13 +104,17 @@ class _OnboardingScanScreenState extends ConsumerState<OnboardingScanScreen> {
   void _onPlatformViewCreated(int id) {
     _channel = MethodChannel('${OnboardingScanScreen.viewType}/$id');
     _channel!.setMethodCallHandler(_handleNativeCall);
+    if (!_captureActive) {
+      unawaited(_channel!.invokeMethod<void>('cancel'));
+      return;
+    }
     _channel!.invokeMethod<void>('start', {
       'userHeightCm': ref.read(onboardingProvider).heightCm,
     });
   }
 
   Future<dynamic> _handleNativeCall(MethodCall call) async {
-    if (!mounted) return null;
+    if (!mounted || !_captureActive || _finished) return null;
     switch (call.method) {
       case 'onCalibrationUpdate':
         final args = (call.arguments as Map).cast<String, dynamic>();
@@ -91,8 +126,10 @@ class _OnboardingScanScreenState extends ConsumerState<OnboardingScanScreen> {
           _guidance = args['guidance'] as String?;
           _targetView = args['targetView'] as String?;
           _capturedViews = captured;
-          _guide = CalibrationGuide.fromMap((args['guide'] as Map?)?.cast<String, dynamic>());
-          final person = CalibrationPerson.fromMap((args['person'] as Map?)?.cast<String, dynamic>());
+          _guide = CalibrationGuide.fromMap(
+              (args['guide'] as Map?)?.cast<String, dynamic>());
+          final person = CalibrationPerson.fromMap(
+              (args['person'] as Map?)?.cast<String, dynamic>());
           final now = DateTime.now();
           if (person != null) {
             _person = person;
@@ -116,10 +153,11 @@ class _OnboardingScanScreenState extends ConsumerState<OnboardingScanScreen> {
         if (args['isFinished'] == true && sessionPath != null && !_finished) {
           _finished = true;
           // 4장을 다 찍은 시점이 체형 측정일이다 (POST /users/me/body-scan).
-          unawaited(ref
-              .read(authNotifierProvider)
-              .recordBodyScan(sessionPath: sessionPath));
-          context.go(RouteConstants.onboardingAnalyzing, extra: sessionPath);
+          unawaited(_auth.recordBodyScan(sessionPath: sessionPath));
+          if (!_captureActive) return null;
+          context.go(RouteConstants.onboardingAnalyzing,
+              extra: CalibrationCapture(
+                  sessionPath: sessionPath, session: _session));
         }
       case 'onCalibrationError':
         final args = (call.arguments as Map).cast<String, dynamic>();
@@ -132,7 +170,7 @@ class _OnboardingScanScreenState extends ConsumerState<OnboardingScanScreen> {
   // 누를 때마다 지금 방향을 찍은 것처럼 정면 → 왼쪽 → 뒷면 → 오른쪽 순서로 넘기는
   // 테스트용 동작. 4장째에서 분석 화면으로 간다 (촬영 데이터가 없어 업로드는 건너뜀).
   void _debugCaptureNext() {
-    if (_finished) return;
+    if (_finished || !_captureActive) return;
     const views = CalibrationScanOverlay.views;
     final captured = [..._capturedViews, views[_capturedViews.length]];
     setState(() {
@@ -147,8 +185,10 @@ class _OnboardingScanScreenState extends ConsumerState<OnboardingScanScreen> {
     if (captured.length < views.length) return;
     _channel?.invokeMethod<void>('cancel');
     _finished = true;
-    unawaited(ref.read(authNotifierProvider).recordBodyScan());
-    context.go(RouteConstants.onboardingAnalyzing);
+    unawaited(_auth.recordBodyScan());
+    if (!_captureActive) return;
+    context.go(RouteConstants.onboardingAnalyzing,
+        extra: CalibrationCapture(sessionPath: null, session: _session));
   }
 
   void _cancel() {
@@ -194,6 +234,7 @@ class _OnboardingScanScreenState extends ConsumerState<OnboardingScanScreen> {
 
   @override
   void dispose() {
+    _auth.removeListener(_accountChanged);
     // Leaving mid-run (back swipe) throws the partial session away; a finished one is kept.
     if (!_finished) _channel?.invokeMethod<void>('cancel');
     _channel?.setMethodCallHandler(null);
@@ -202,6 +243,12 @@ class _OnboardingScanScreenState extends ConsumerState<OnboardingScanScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(authSessionIdentityProvider, (_, __) {
+      if (!identical(ref.read(authNotifierProvider), _auth)) {
+        _captureInvalidated = true;
+      }
+      _accountChanged();
+    });
     return CalibrationScanOverlay(
       // Camera fills the screen edge to edge; everything else floats on top of it.
       preview: _isIOS
@@ -231,6 +278,7 @@ class _OnboardingScanScreenState extends ConsumerState<OnboardingScanScreen> {
   }
 
   String _errorMessage(String error) => switch (error) {
+        'account_session_changed' => '로그인 상태가 바뀌어서 촬영을 멈췄어. 다시 시작해 줘.',
         'camera_permission_denied' => '설정에서 카메라 권한을 켜줘',
         _ => '카메라를 시작하지 못했어. 다시 시도해줘',
       };
@@ -535,12 +583,16 @@ class _PoseChip extends StatelessWidget {
     final (text, background, textColor) = switch (state) {
       _ChipState.done => ('$label 완료', const Color(0xFF1E1E1E), AppColors.pink),
       _ChipState.active => ('$label 촬영 중', AppColors.purple, AppColors.black),
-      _ChipState.waiting => (label, const Color(0xFF1E1E1E), const Color(0xFF6B6B6B)),
+      _ChipState.waiting => (
+          label,
+          const Color(0xFF1E1E1E),
+          const Color(0xFF6B6B6B)
+        ),
     };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 11),
-      decoration:
-          BoxDecoration(color: background, borderRadius: BorderRadius.circular(14)),
+      decoration: BoxDecoration(
+          color: background, borderRadius: BorderRadius.circular(14)),
       // 좁은 화면에서도 한 줄을 지키도록 넘치면 글자를 줄인다.
       child: FittedBox(
         fit: BoxFit.scaleDown,

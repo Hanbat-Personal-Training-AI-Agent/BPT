@@ -16,6 +16,7 @@ import '../../features/onboarding/screens/onboarding_analyzing_screen.dart';
 import '../../features/onboarding/screens/onboarding_result_screen.dart';
 import '../../features/onboarding/screens/onboarding_mesh_screen.dart';
 import '../../features/onboarding/models/body_analysis_result.dart';
+import '../../features/onboarding/models/calibration_capture.dart';
 import '../../features/onboarding/widgets/body_mesh_reveal.dart';
 import '../../features/calendar/screens/calendar_screen.dart';
 import '../../features/home/screens/home_screen.dart';
@@ -82,9 +83,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ? null
         : {
             'exerciseId': autostartWorkout,
-            'targetReps': int.tryParse(_autostartValue(prefs, 'bpt_autostart_reps') ?? '') ?? 999,
+            'targetReps': int.tryParse(
+                    _autostartValue(prefs, 'bpt_autostart_reps') ?? '') ??
+                999,
             // TRIAL BRANCH ONLY: BPT_AUTOSTART_SETS (demo: 3 sets, 10 s rest); default 1 set as before.
-            'targetSets': int.tryParse(_autostartValue(prefs, 'bpt_autostart_sets') ?? '') ?? 1,
+            'targetSets': int.tryParse(
+                    _autostartValue(prefs, 'bpt_autostart_sets') ?? '') ??
+                1,
             'restSeconds': 10,
           },
     refreshListenable: authNotifier,
@@ -146,8 +151,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: RouteConstants.onboardingAnalyzing,
         pageBuilder: (context, state) {
-          return _slidePage(state,
-              OnboardingAnalyzingScreen(sessionPath: state.extra as String?));
+          return _slidePage(
+              state,
+              OnboardingAnalyzingScreen(
+                capture: state.extra is CalibrationCapture
+                    ? state.extra as CalibrationCapture
+                    : null,
+                sessionPath:
+                    state.extra is String ? state.extra as String : null,
+              ));
         },
       ),
       GoRoute(
