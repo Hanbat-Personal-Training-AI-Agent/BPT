@@ -13,6 +13,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'helpers/session_fixture.dart';
 
 class _FakeConnectivity implements Connectivity {
   @override
@@ -88,6 +89,7 @@ void main() {
       () async {
     SharedPreferences.setMockInitialValues({});
     final prefs = await SharedPreferences.getInstance();
+    final session = await sessionFixture(prefs);
     final server = _FakeServer();
     final refresh = _FakeServer();
     final api = ApiClient(
@@ -101,7 +103,7 @@ void main() {
       sharedPreferencesProvider.overrideWithValue(prefs),
       apiClientProvider.overrideWithValue(api),
       connectivityProvider.overrideWithValue(_FakeConnectivity()),
-      currentUserIdProvider.overrideWithValue('A'),
+      authNotifierProvider.overrideWith((ref) => session.auth),
     ]);
     addTearDown(container.dispose);
 

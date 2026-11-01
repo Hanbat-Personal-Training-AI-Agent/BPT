@@ -15,6 +15,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'helpers/session_fixture.dart';
 
 class _FakeConnectivity implements Connectivity {
   bool online = false;
@@ -81,11 +82,12 @@ void main() {
   late _FakeConnectivity connectivity;
   late _FakeServer server;
   late ApiClient api;
-  final uid = StateProvider<String?>((_) => null);
+  late AuthNotifier auth;
 
   setUp(() async {
     SharedPreferences.setMockInitialValues({});
     final prefs = await SharedPreferences.getInstance();
+    auth = (await sessionFixture(prefs)).auth;
     connectivity = _FakeConnectivity();
     server = _FakeServer(connectivity);
     api = ApiClient(baseUrl: 'http://test');
@@ -94,7 +96,7 @@ void main() {
       sharedPreferencesProvider.overrideWithValue(prefs),
       apiClientProvider.overrideWithValue(api),
       connectivityProvider.overrideWithValue(connectivity),
-      currentUserIdProvider.overrideWith((ref) => ref.watch(uid)),
+      authNotifierProvider.overrideWith((ref) => auth),
     ]);
   });
 
@@ -102,7 +104,11 @@ void main() {
 
   /// 계정을 바꾸고 그 계정의 기록을 다 불러올 때까지 기다린다.
   Future<List<String>> loginAs(String? user) async {
-    container.read(uid.notifier).state = user;
+    if (user == null) {
+      await auth.logout();
+    } else {
+      await auth.login(user, 'password');
+    }
     api.setAuthToken(user == null ? null : 'token-$user');
     container.read(workoutRecordsProvider); // 기록 불러오기 시작
     await container.read(workoutRecordsProvider.notifier).loadRecords();
@@ -161,9 +167,9 @@ void main() {
         .read(workoutRecordsProvider.notifier)
         .addMetadataRecord(dto);
     await pumpEventQueue();
-    await container
-        .read(localStorageServiceProvider)
-        .saveRecords([saved!.copyWith(isSynced: true, serverId: 'old-server')], uid: 'A');
+    await container.read(localStorageServiceProvider).saveRecords(
+        [saved!.copyWith(isSynced: true, serverId: 'old-server')],
+        uid: 'A');
     return summary;
   }
 
@@ -193,7 +199,7 @@ void main() {
     final oldRepository = container.read(workoutRepositoryProvider);
     final pending = oldRepository.getWorkoutRecords();
     await pumpEventQueue();
-    container.read(uid.notifier).state = 'B';
+    await auth.login('B', 'password');
     api.setAuthToken('token-B');
     server.getGate!.complete();
     expect(await pending, isEmpty);
@@ -218,15 +224,22 @@ void main() {
         isEmpty);
   });
 
-  test('same-owner reused server id cannot attach evidence to a conflicting client id', () async {
+  test(
+      'same-owner reused server id cannot attach evidence to a conflicting client id',
+      () async {
     await loginAs('A');
     await seedEvidence();
     connectivity.online = true;
-    server.records = [{..._dto('different-client').toJson(), 'id': 'old-server', 'poseMetricsSummary': null}];
+    server.records = [
+      {
+        ..._dto('different-client').toJson(),
+        'id': 'old-server',
+        'poseMetricsSummary': null
+      }
+    ];
     await loginAs('A');
     final record = container.read(workoutRecordsProvider).value!.single;
     expect(record.id, 'different-client');
     expect(record.poseMetricsSummary, isEmpty);
   });
-
 }

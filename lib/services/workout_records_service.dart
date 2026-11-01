@@ -9,8 +9,7 @@ class WorkoutRecordsNotifier
     extends StateNotifier<AsyncValue<List<WorkoutRecordModel>>> {
   final IWorkoutRepository _repository;
 
-  WorkoutRecordsNotifier(this._repository)
-      : super(const AsyncValue.loading()) {
+  WorkoutRecordsNotifier(this._repository) : super(const AsyncValue.loading()) {
     loadRecords();
   }
 
@@ -19,8 +18,10 @@ class WorkoutRecordsNotifier
     state = const AsyncValue.loading();
     try {
       final records = await _repository.getWorkoutRecords();
+      if (!mounted) return;
       state = AsyncValue.data(records);
     } catch (e, st) {
+      if (!mounted) return;
       state = AsyncValue.error(e, st);
     }
   }
@@ -32,6 +33,7 @@ class WorkoutRecordsNotifier
   ) async {
     try {
       final newRecord = await _repository.submitWorkoutRecord(dto);
+      if (!mounted) return null;
 
       final currentRecords = state.value ?? [];
       final updatedList = [
@@ -42,6 +44,7 @@ class WorkoutRecordsNotifier
       state = AsyncValue.data(updatedList);
       return newRecord;
     } catch (e, st) {
+      if (!mounted) return null;
       state = AsyncValue.error(e, st);
       return null;
     }
@@ -53,10 +56,7 @@ class WorkoutRecordsNotifier
     if (list.isEmpty) return 0;
 
     final today = _dateOnly(DateTime.now());
-    final uniqueDays = list
-        .map((r) => _dateOnly(r.date))
-        .toSet()
-        .toList()
+    final uniqueDays = list.map((r) => _dateOnly(r.date)).toSet().toList()
       ..sort((a, b) => b.compareTo(a));
 
     final diff = today.difference(uniqueDays.first).inDays;
@@ -77,8 +77,8 @@ class WorkoutRecordsNotifier
   DateTime _dateOnly(DateTime dt) => DateTime(dt.year, dt.month, dt.day);
 }
 
-final workoutRecordsProvider = StateNotifierProvider<
-    WorkoutRecordsNotifier, AsyncValue<List<WorkoutRecordModel>>>(
+final workoutRecordsProvider = StateNotifierProvider<WorkoutRecordsNotifier,
+    AsyncValue<List<WorkoutRecordModel>>>(
   (ref) {
     final repository = ref.watch(workoutRepositoryProvider);
     return WorkoutRecordsNotifier(repository);

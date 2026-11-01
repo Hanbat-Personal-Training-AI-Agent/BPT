@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:dio/dio.dart' show Response;
+import 'package:dio/dio.dart' show Response, Options;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -17,12 +17,14 @@ class SyncState {
   final int pendingCount;
   final String? lastSyncError;
   final DateTime? lastSyncedAt;
+  final Map<String, String> recordErrors;
 
   const SyncState({
     this.isSyncing = false,
     this.pendingCount = 0,
     this.lastSyncError,
     this.lastSyncedAt,
+    this.recordErrors = const {},
   });
 
   SyncState copyWith({
@@ -30,12 +32,14 @@ class SyncState {
     int? pendingCount,
     String? lastSyncError,
     DateTime? lastSyncedAt,
+    Map<String, String>? recordErrors,
   }) {
     return SyncState(
       isSyncing: isSyncing ?? this.isSyncing,
       pendingCount: pendingCount ?? this.pendingCount,
       lastSyncError: lastSyncError,
       lastSyncedAt: lastSyncedAt ?? this.lastSyncedAt,
+      recordErrors: recordErrors ?? this.recordErrors,
     );
   }
 }
@@ -52,6 +56,28 @@ class SyncQueueStorage {
   String get _queueKey => LocalStorageService.syncQueueKey(uid);
 
   SyncQueueStorage(this._prefs, this.uid);
+
+  String get _errorsKey => 'bpt_workout_sync_errors_$uid';
+  Map<String, String> getFailures() {
+    try {
+      final raw = _prefs.getString(_errorsKey);
+      return raw == null
+          ? {}
+          : Map<String, String>.from(jsonDecode(raw) as Map);
+    } catch (_) {
+      return {};
+    }
+  }
+
+  Future<void> recordFailure(String id, String error) async {
+    await _prefs.setString(
+        _errorsKey, jsonEncode({...getFailures(), id: error}));
+  }
+
+  Future<void> clearFailure(String id) async {
+    final failures = getFailures()..remove(id);
+    await _prefs.setString(_errorsKey, jsonEncode(failures));
+  }
 
   List<WorkoutMetadataRequestDto> getQueue() {
     final raw = _prefs.getString(_queueKey);
@@ -73,6 +99,7 @@ class SyncQueueStorage {
     queue.removeWhere((item) => item.clientRecordId == dto.clientRecordId);
     queue.add(dto);
     await _saveQueue(queue);
+    await clearFailure(dto.clientRecordId);
   }
 
   /// 같은 자리에서 기록을 바꾼다 (보내는 순서 유지).
@@ -84,16 +111,19 @@ class SyncQueueStorage {
     if (index == -1) return;
     queue[index] = dto;
     await _saveQueue(queue);
+    await clearFailure(clientRecordId);
   }
 
   Future<void> remove(String clientRecordId) async {
     final queue = getQueue();
     queue.removeWhere((item) => item.clientRecordId == clientRecordId);
     await _saveQueue(queue);
+    await clearFailure(clientRecordId);
   }
 
   Future<void> clear() async {
     await _prefs.remove(_queueKey);
+    await _prefs.remove(_errorsKey);
   }
 
   Future<void> _saveQueue(List<WorkoutMetadataRequestDto> queue) async {
@@ -127,6 +157,8 @@ class WorkoutSyncNotifier extends StateNotifier<AsyncValue<SyncState>> {
   /// (로그아웃·계정 변경 직후에는 이 객체가 잠깐 남아 있을 수 있고, 그때
   /// 요청에는 새 계정의 토큰이 붙는다)
   final bool Function() _isCurrentAccount;
+  Future<bool>? _inFlight;
+  bool get _ownsSession => mounted && _isCurrentAccount();
 
   WorkoutSyncNotifier(
     this._apiClient,
@@ -134,7 +166,7 @@ class WorkoutSyncNotifier extends StateNotifier<AsyncValue<SyncState>> {
     this._localStorage,
     this._connectivity, {
     bool Function()? isCurrentAccount,
-  })  : _isCurrentAccount = isCurrentAccount ?? (() => true),
+  })  : _isCurrentAccount = isCurrentAccount ?? (() => false),
         super(const AsyncValue.data(SyncState())) {
     _initConnectivityListener();
     _updatePendingCount();
@@ -155,84 +187,116 @@ class WorkoutSyncNotifier extends StateNotifier<AsyncValue<SyncState>> {
       _queueStorage?.getQueue() ?? const [];
 
   void _updatePendingCount() {
-    if (!mounted) return;
+    if (!_ownsSession) return;
     final count = _queue().length;
     final current = state.value ?? const SyncState();
-    state = AsyncValue.data(current.copyWith(pendingCount: count));
+    final errors = _queueStorage?.getFailures() ?? const <String, String>{};
+    state = AsyncValue.data(current.copyWith(
+        pendingCount: count,
+        recordErrors: errors,
+        lastSyncError: errors.isEmpty ? null : errors.values.first));
   }
 
   /// Adds an un-synced workout record to offline queue
   Future<void> queueOfflineRecord(WorkoutMetadataRequestDto dto) async {
+    if (!_ownsSession) return;
     await _queueStorage?.enqueue(dto);
+    if (!_ownsSession) return;
     _updatePendingCount();
   }
 
-  /// Batch or Sequential Sync logic: Drains queue to Spring Boot backend
-  Future<bool> syncPendingRecords() async {
-    final queueStorage = _queueStorage;
+  /// Concurrent triggers share the same owner-scoped drain; a row is posted at most once per run.
+  Future<bool> syncPendingRecords() {
+    final pending = _inFlight;
+    if (pending != null) return pending;
+    late final Future<bool> run;
+    run = _drain().whenComplete(() {
+      if (identical(_inFlight, run)) _inFlight = null;
+    });
+    _inFlight = run;
+    return run;
+  }
+
+  Future<bool> _drain() async {
+    final storage = _queueStorage;
+    if (!_ownsSession || storage == null) return false;
     final currentQueue = _queue();
-    if (queueStorage == null || currentQueue.isEmpty || !_isCurrentAccount()) {
+    if (currentQueue.isEmpty) {
       _updatePendingCount();
-      return true;
+      return storage.getFailures().isEmpty;
     }
-
-    final currentState = state.value ?? const SyncState();
-    state = AsyncValue.data(
-        currentState.copyWith(isSyncing: true, lastSyncError: null));
-
+    final before = state.value ?? const SyncState();
+    state =
+        AsyncValue.data(before.copyWith(isSyncing: true, lastSyncError: null));
     String? lastError;
-
-    for (var dto in List<WorkoutMetadataRequestDto>.from(currentQueue)) {
-      // 로그아웃하거나 계정이 바뀌면 이 대기열의 남은 기록은 보내지 않는다.
-      if (!mounted || !_isCurrentAccount()) break;
+    for (var dto in currentQueue) {
+      if (!_ownsSession) return false;
       try {
         Response response;
         try {
           response = await _post(dto);
         } on ApiException catch (e) {
-          // 기록 번호가 다른 계정 기록과 겹쳤다. 새 번호로 바꿔 한 번 더 보낸다.
-          // (이대로 두면 이 기록이 대기열 맨 앞에서 뒤 기록까지 계속 막는다)
+          if (!_ownsSession) return false;
           if (e.code != ApiClient.sessionAccessDenied) rethrow;
-          dto = await _renumber(queueStorage, dto);
+          dto = await _renumber(storage, dto);
+          if (!_ownsSession) {
+            return false; // No retry with a new account token after the await.
+          }
           response = await _post(dto);
         }
-
-        if (response.statusCode == 200 || response.statusCode == 201) {
-          final resDto = WorkoutMetadataResponseDto.fromJson(
-              response.data as Map<String, dynamic>);
-
-          // Remove successfully uploaded item from queue
-          await queueStorage.remove(dto.clientRecordId);
-
-          // Mark local record as synced
-          _markLocalRecordSynced(dto.clientRecordId, resDto.serverRecordId);
+        if (!_ownsSession) return false;
+        if (response.statusCode != 200 && response.statusCode != 201) {
+          throw ApiException('Unexpected sync response',
+              statusCode: response.statusCode);
         }
+        final result = WorkoutMetadataResponseDto.fromJson(
+            response.data as Map<String, dynamic>);
+        if (!result.success ||
+            result.serverRecordId.isEmpty ||
+            (result.clientRecordId.isNotEmpty &&
+                result.clientRecordId != dto.clientRecordId)) {
+          throw ApiException('Sync acknowledgement identity mismatch');
+        }
+        await storage.remove(dto.clientRecordId);
+        // A validated acknowledgement may finish bookkeeping only in its captured owner cache.
+        await _markLocalRecordSynced(dto.clientRecordId, result.serverRecordId);
+        if (!_ownsSession) return false;
       } catch (e) {
-        lastError = e.toString();
-        // Break on network error to try later when connection improves
-        break;
+        if (!_ownsSession) return false;
+        if (e is ApiException && (e.statusCode == 400 || e.statusCode == 422)) {
+          lastError =
+              'Record ${dto.clientRecordId} rejected (${e.statusCode}/${e.code ?? 'invalid input'}); retained for review.';
+          await storage.recordFailure(dto.clientRecordId, lastError);
+          if (!_ownsSession) return false;
+          continue; // Retain this row, but do not starve healthy rows behind it.
+        }
+        lastError = 'Sync interrupted; queued records retained.';
+        break; // Network/auth/server failures require a later retry, not a busy loop.
       }
     }
-
-    if (!mounted) return false;
-    _updatePendingCount();
-    final updatedQueueCount = _queue().length;
-
-    state = AsyncValue.data(
-      SyncState(
+    if (!_ownsSession) return false;
+    final count = _queue().length;
+    state = AsyncValue.data(SyncState(
         isSyncing: false,
-        pendingCount: updatedQueueCount,
-        lastSyncError:
-            updatedQueueCount > 0 ? (lastError ?? 'Partial sync failed') : null,
-        lastSyncedAt: DateTime.now(),
-      ),
-    );
-
-    return updatedQueueCount == 0;
+        pendingCount: count,
+        recordErrors: storage.getFailures(),
+        lastSyncError: count > 0
+            ? lastError ?? 'Pending records retained for review.'
+            : null,
+        lastSyncedAt: count == 0 ? DateTime.now() : before.lastSyncedAt));
+    return count == 0;
   }
 
-  Future<Response> _post(WorkoutMetadataRequestDto dto) =>
-      _apiClient.post('/workouts/records/sync', data: dto.toJson());
+  Future<Response> _post(WorkoutMetadataRequestDto dto) {
+    if (!_ownsSession) {
+      throw ApiException('Account session changed',
+          code: ApiClient.sessionChangedCode);
+    }
+    return _apiClient.post('/workouts/records/sync',
+        data: dto.toJson(),
+        options:
+            Options(extra: {ApiClient.sessionGuardKey: () => _ownsSession}));
+  }
 
   /// 대기열과 기기 기록의 번호를 새 번호로 바꾼다.
   Future<WorkoutMetadataRequestDto> _renumber(
@@ -248,7 +312,8 @@ class WorkoutSyncNotifier extends StateNotifier<AsyncValue<SyncState>> {
     return renumbered;
   }
 
-  void _markLocalRecordSynced(String clientRecordId, String serverRecordId) {
+  Future<void> _markLocalRecordSynced(
+      String clientRecordId, String serverRecordId) async {
     final uid = _queueStorage?.uid;
     if (uid == null) return;
     final records = _localStorage.loadRecords(uid: uid);
@@ -259,7 +324,7 @@ class WorkoutSyncNotifier extends StateNotifier<AsyncValue<SyncState>> {
         serverId: serverRecordId,
       );
       records[index] = updated;
-      _localStorage.saveRecords(records, uid: uid);
+      await _localStorage.saveRecords(records, uid: uid);
     }
   }
 
@@ -272,6 +337,8 @@ class WorkoutSyncNotifier extends StateNotifier<AsyncValue<SyncState>> {
 
 final workoutSyncProvider =
     StateNotifierProvider<WorkoutSyncNotifier, AsyncValue<SyncState>>((ref) {
+  ref.watch(authSessionIdentityProvider);
+  final lease = ref.read(authNotifierProvider).captureSession();
   final queueStorage = ref.watch(syncQueueStorageProvider);
   // 이 Provider가 다시 만들어진 뒤에도 안전하게 읽도록 container 로 읽는다.
   final container = ref.container;
@@ -282,6 +349,9 @@ final workoutSyncProvider =
     ref.watch(connectivityProvider),
     isCurrentAccount: () =>
         queueStorage != null &&
+        lease != null &&
+        lease.isCurrent &&
+        lease.userId == queueStorage.uid &&
         container.read(currentUserIdProvider) == queueStorage.uid,
   );
 });
