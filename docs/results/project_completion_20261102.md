@@ -24,9 +24,10 @@
 
 | 검사 | 결과 | 범위 |
 | --- | --- | --- |
-| 기본 Flutter, `6835d3c` | **238 통과 / 1 건너뜀 / 실패 0** | 실제 PostgreSQL GET 산출물을 주입한 전체 검사. 건너뜀은 setup 플래그 전용 |
+| 기본 Flutter, `bb88a32` | **239 통과 / 4 건너뜀 / 실패 0** | 실제 PostgreSQL GET 산출물을 주입한 전체 검사. 건너뜀은 feature 전용 |
+| setup+mesh 동시 활성화, 같은 소스 | **247 통과 / 1 건너뜀 / 실패 0** | 전체 Flutter 검사. 건너뜀은 setup-only route 검사 |
 | Dart 정적 검사, 같은 소스 | **문제 없음** | `flutter analyze --no-pub lib test` |
-| 서버·수치 스크립트, 같은 소스 | **158 통과 / 3 건너뜀** | server/calibration_modal와 scripts/deep_analysis. 정상 리포트 10종 전체 JSON이 수정 전과 byte 단위 일치 |
+| 서버·수치 스크립트, `6835d3c` | **158 통과 / 3 건너뜀** | 이후 해당 소스 동일. 정상 리포트 10종 전체 JSON이 수정 전과 byte 단위 일치 |
 | 실제 HTTP/PostgreSQL 포함 backend, `8001f4f` | **36 통과 / 건너뜀·실패 0** | localhost 임시 PostgreSQL 16.14, 합성 A/B 계정. 이후 backend 동일 |
 | Swift 소스 빌드, `6734902` | **210 통과 / 3 건너뜀 / 실패 0** | `swift test --package-path ios/CalibrationEngineKit --jobs 2`; 이후 native 동일 |
 | 독립 자세 평가 CLI | **15 통과** | 합성 수식·계약 회귀. Home 실제 미확인 작업팩 생성/채점도 실행 |
@@ -35,15 +36,15 @@ Python 건너뜀은 로컬 모델/SMPL 자산이 필요한 항목이다. Home의
 
 초기 합동 Flutter의 익명 report fixture 2개가 새 provider 의존성을 선언하지 않아 실패했다. 테스트 fixture에 익명 집계 범위를 명시한 후 위 전체 검사가 통과했다. production 오류를 숨기거나 기존 화면 검증을 지우지 않았다.
 
-**추가 검사 중:** setup과 mesh 플래그를 함께 켠 검사는 52 통과/7 실패였다. 분석 화면과 저장 추적기의 중복 poll 및 종료 후 pending timer가 드러나 수명 처리를 수정·재검증 중이다. 개별 플래그의 과거 성공을 이 조합의 성공으로 대신하지 않는다.
+setup과 mesh 플래그를 함께 켠 최초 검사는 52 통과/7 실패였다. 분석 화면과 저장 추적기의 중복 poll 및 종료 후 pending timer를 [수정](calibration_combined_flags_20261102.md)한 뒤 위 두 가지 전체 검사가 통과했다. setup-only 접수 작업은 정상 화면 이동 뒤에도 같은 계정에서 저장되며, 계정 교체/소유 provider 폐기 때 로컬 관측만 종료한다. 접수된 서버 작업과 사진을 삭제하지 않는다. mesh-on은 단일 poll에서 측정 저장과 미리보기를 처리한다. 별도 setup-only35개·mesh-only18개 검사도 통과했다. 설정별 검사는 겹치는 시험이므로 합산하지 않는다.
 
-로그·소스 해시·실제 응답은 `~/Documents/bpt-handoff/project-completion-20261102/`에 보존한다. 실제 GET SHA256은 `130dab9f10e26e2bd6d70ea4c13c3bdb5df13a31be652228edcd481775ea2776`이다. root 소유 임시 PostgreSQL은 시험 후 중지·자동 삭제됐고 부재를 확인했다. 기존 Docker 컨테이너는 건드리지 않았다.
+로그·소스 해시·실제 응답은 `~/Documents/bpt-handoff/project-completion-20261102/`에 보존한다. `final-combined-verification-bb88a32.json`은 182개 소스/fixture 해시와 검사 로그 해시를 기록한다. backend 70개 소스가 실제 HTTP/DB 시험 때와 같고 native 두 tree가6734902와 같음을 재확인했다. 실제 GET SHA256은 `130dab9f10e26e2bd6d70ea4c13c3bdb5df13a31be652228edcd481775ea2776`이다. root 소유 임시 PostgreSQL은 시험 후 중지·자동 삭제됐고 부재를 확인했다. 기존 Docker 컨테이너는 건드리지 않았다.
 
 ## iPhone
 
 6734902 native 소스를 실제 빌드한 시험 앱에서 실제 결과/기록 위젯과 native 계약을 실행했다. 실제 WorkoutVoice와 Dart KoriVoiceService → KoriSpeaker의 한국어 AVSpeech가 각각 시작·종료 callback 1회씩을 완료했다. 합계 2회, 취소 0회다. 합성 자세·메모리 기록의 전달 경로 검사이며 사람의 청취 확인이나 실제 오자세 정확도 검증은 아니다. 일반 격려는 교정 완료 칭찬과 구분했다.
 
-최초 음성 시도는 기존 mute 설정 때문에 실패했고 따로 보존했다. 원래 설정을 백업하고 시험에서만 mute를 해제해 성공한 뒤 원래 설정·motion 앱을 복원했다. 최신6835d3c Dart의 결과/기록·부분 유효 리포트 **무음 실기기 확인은 진행 중**이다. native/모델 변경이나 음성 반복은 하지 않는다.
+최초 음성 시도는 기존 mute 설정 때문에 실패했고 따로 보존했다. 원래 설정을 백업하고 시험에서만 mute를 해제해 성공한 뒤 원래 설정·motion 앱을 복원했다. 최신6835d3c Dart 결과/기록·부분 유효 리포트의 무음 시험 앱은 생성·서명됐지만 **첫 읽기 전용 연결 확인이 CoreDevice4016으로 실패해 설치/실행하지 않았다**. 잠금 원인으로 단정하지 않는다. 새 연결 상태를 요청한 뒤 blind retry·USB/reset 없이 대기한다. 이후bb88a32의 production Dart 차이는 onboarding 화면/저장소2개이며 해당 결과/리포트 및 native 소스는 동일하다. 자세한 출처와 보존은 [폰 검증 기록](coaching_runtime_673_20261102.md)에 있다.
 
 직전 [motion18·영상 리포트 시험](deep_analysis_status_20261102.md)은 별도 완료 기록이다. raw 로그/ZIP 141개 metadata 항목, 보호 앱 10개/2,421개 파일 hash 보존 근거도 phone receipt에 남긴다. 실제 카메라 overlay 그림을 이번 화면 시험으로 검증했다고 표현하지 않는다.
 
@@ -65,9 +66,9 @@ Home의 기존 20영상/5그룹/103반복에서 **588개 규칙별 검토 항목
 
 ## 남은 완료 조건
 
-1. **현재 진행:** setup+mesh 조합 회귀, 최신 Dart 무음 폰 확인·원래 앱/설정 복원. 스쿼트·푸시업 종료 구간이 끝까지 편 자세를 포함하는지도 보존 로그로 추가 감사한다.
+1. **폰 연결 필요:** 준비된 최신 Dart 무음 시험을 실제 실행하고 원래 앱/설정 복원을 재확인해야 한다. 마지막 시험은 설치 전에 중단돼 기존 복원 상태를 바꾸지 않았다.
 2. **자세 품질:** 로우/푸시업 각도·구간 실패, 실제 접촉점 이동, 긴 가림, 잘못된 자세를 정상화하는 누락을 독립 라벨로 검증해야 한다. 588항목 준비를 전문가 검증 완료로 부르지 않는다.
-3. **실제 연결:** 같은 실제 운동 입력으로 촬영→업로드→최신 서버→폰 결과→저장을 통과한 증거는 아직 없다. 서로 다른 입력의 녹화/서버/위젯 검사를 하나의 성공으로 만들지 않는다.
+3. **종료 구간·실제 연결:** [A7 감사](terminal_boundary_closure_20261102.md)에서 squat/pushup은 rep 경계에서 즉시 평가를 끝내고 bench만 추가 관측함을 확인했다. 두 no-lockout 규칙의 quiet 기본값은 terminal completeness를 보장하지 않는다. 원본 해시가 일치하는37로그에는 프레임별 원본3D가 없어 구간을 늘린3D 비교를 복원할 수 없었다. 향후 원래 경계·추가 관측·source PTS를 함께 수집해 검증해야 한다. 또한 같은 실제 입력의 촬영→최신 서버→폰 결과→저장 전체 성공 근거는 아직 없으며 서로 다른 입력 검사를 합쳐 만들지 않는다.
 4. **배포 설정·승인:** API_BASE_URL 기본값은 HTTP이고 iOS arbitrary loads가 허용돼 있다. 실제 HTTPS endpoint·전송 정책 확정이 필요하다. 임의 주소 변경·배포는 하지 않았다. 병합·모델/기본값 채택·배포는 사용자의 명시적 승인 대상이다.
 5. **별도 제품 범위:** Android 실시간 추론·랫풀다운·소셜/PASS 인증·관리자 화면은 기존 장기 계획의 미완료 항목이다. 이번 iPhone 5운동 검증으로 완료 처리하지 않는다.
 
