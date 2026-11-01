@@ -29,7 +29,8 @@
 | Dart 정적 검사, 같은 소스 | **문제 없음** | `flutter analyze --no-pub lib test` |
 | 서버·수치 스크립트, `6835d3c` | **158 통과 / 3 건너뜀** | 이후 해당 소스 동일. 정상 리포트 10종 전체 JSON이 수정 전과 byte 단위 일치 |
 | 실제 HTTP/PostgreSQL 포함 backend, `8001f4f` | **36 통과 / 건너뜀·실패 0** | localhost 임시 PostgreSQL 16.14, 합성 A/B 계정. 이후 backend 동일 |
-| Swift 소스 빌드, `6734902` | **210 통과 / 3 건너뜀 / 실패 0** | `swift test --package-path ios/CalibrationEngineKit --jobs 2`; 이후 native 동일 |
+| 최신 진단 Swift 소스 빌드, `0ce703e` / 검토 `e45abf7` | **218 통과 / 3 건너뜀 / 실패 0** | 8개 진단 검사가 추가된 전체 package. 두 native tree가 실제 검사 소스와 동일함을 확인 |
+| 최신 진단 Python 재생 검사 | **28 통과 / 실패 0** | 검토 브랜치에서도 별도 실행. 합성 기록·재생 무결성 검사 |
 | 독립 자세 평가 CLI | **15 통과** | 합성 수식·계약 회귀. Home 실제 미확인 작업팩 생성/채점도 실행 |
 
 Python 건너뜀은 로컬 모델/SMPL 자산이 필요한 항목이다. Home의 별도 실제 모델 검증과 중복 계산하지 않는다. Swift 건너뜀은 선택 비용 시험, CoreML parity 자산, 별도 수치 replay 입력을 요구한다. Python의 기존 deprecation·합성 짧은 JWT 키 경고는 남아 있다.
@@ -38,7 +39,7 @@ Python 건너뜀은 로컬 모델/SMPL 자산이 필요한 항목이다. Home의
 
 setup과 mesh 플래그를 함께 켠 최초 검사는 52 통과/7 실패였다. 분석 화면과 저장 추적기의 중복 poll 및 종료 후 pending timer를 [수정](calibration_combined_flags_20261102.md)한 뒤 위 두 가지 전체 검사가 통과했다. setup-only 접수 작업은 정상 화면 이동 뒤에도 같은 계정에서 저장되며, 계정 교체/소유 provider 폐기 때 로컬 관측만 종료한다. 접수된 서버 작업과 사진을 삭제하지 않는다. mesh-on은 단일 poll에서 측정 저장과 미리보기를 처리한다. 별도 setup-only35개·mesh-only18개 검사도 통과했다. 설정별 검사는 겹치는 시험이므로 합산하지 않는다.
 
-로그·소스 해시·실제 응답은 `~/Documents/bpt-handoff/project-completion-20261102/`에 보존한다. `final-combined-verification-bb88a32.json`은 182개 소스/fixture 해시와 검사 로그 해시를 기록한다. backend 70개 소스가 실제 HTTP/DB 시험 때와 같고 native 두 tree가6734902와 같음을 재확인했다. 실제 GET SHA256은 `130dab9f10e26e2bd6d70ea4c13c3bdb5df13a31be652228edcd481775ea2776`이다. root 소유 임시 PostgreSQL은 시험 후 중지·자동 삭제됐고 부재를 확인했다. 기존 Docker 컨테이너는 건드리지 않았다.
+로그·소스 해시·실제 응답은 `~/Documents/bpt-handoff/project-completion-20261102/`에 보존한다. `final-combined-verification-bb88a32.json`은 당시182개 소스/fixture 해시와 검사 로그 해시를 기록한다. backend70개 소스는 실제 HTTP/DB 시험 때와 같다. bb88a32 당시 native는6734902와 같았으며210개 통과였지만, **이후 e45abf7에 진단 기능을 추가했으므로 현재 native가6734902와 같다고 표현하지 않는다.** 최신218개 Swift 검사와 [native 컴파일 영수증](terminal_evidence_compile_20261102.json)을 별도로 따른다. Dart/backend/심층 서버는 이번 진단 추가에서 바뀌지 않았다. 실제 GET SHA256은 `130dab9f10e26e2bd6d70ea4c13c3bdb5df13a31be652228edcd481775ea2776`이다. root 소유 임시 PostgreSQL은 시험 후 중지·자동 삭제됐고 부재를 확인했다. 기존 Docker 컨테이너는 건드리지 않았다.
 
 ## iPhone
 
@@ -47,6 +48,18 @@ setup과 mesh 플래그를 함께 켠 최초 검사는 52 통과/7 실패였다.
 최초 음성 시도는 기존 mute 설정 때문에 실패했고 따로 보존했다. 원래 설정을 백업하고 시험에서만 mute를 해제해 성공한 뒤 원래 설정·motion 앱을 복원했다. 최신6835d3c Dart 결과/기록·부분 유효 리포트의 무음 시험 앱은 생성·서명됐지만 **첫 읽기 전용 연결 확인이 CoreDevice4016으로 실패해 설치/실행하지 않았다**. 잠금 원인으로 단정하지 않는다. 새 연결 상태를 요청한 뒤 blind retry·USB/reset 없이 대기한다. 이후bb88a32의 production Dart 차이는 onboarding 화면/저장소2개이며 해당 결과/리포트 및 native 소스는 동일하다. 자세한 출처와 보존은 [폰 검증 기록](coaching_runtime_673_20261102.md)에 있다.
 
 직전 [motion18·영상 리포트 시험](deep_analysis_status_20261102.md)은 별도 완료 기록이다. raw 로그/ZIP 141개 metadata 항목, 보호 앱 10개/2,421개 파일 hash 보존 근거도 phone receipt에 남긴다. 실제 카메라 overlay 그림을 이번 화면 시험으로 검증했다고 표현하지 않는다.
+
+사용자의 재개 요청 뒤 읽기 전용 기기 목록을 다시 확인했다. paired/available 표시는 있었으나 실제 Wi-Fi 터널은 disconnected, 개발 기기 서비스는 비활성 상태였다. 새 연결 근거가 없어 설치/실행을 반복하지 않았다. 새 진단 native도 폰에 설치하지 않았다.
+
+## 폰 없이 재개한 진단 구현
+
+`0ce703e`를 검토 브랜치 `e45abf7`에 반영했다. 기존 VideoRunLog의 **기본 OFF `BPT_TERMINAL_EVIDENCE=1`** 경로에 원본/제약 후/실제 평가3D, 실제 입력2D·점수, 원래 source CMTime·frame·반복 경계와 중단 정보를 함께 남긴다. 기존 자료를 자동 삭제하지 않고, 파일/용량 제한에 도달하면 명시적으로 미완료 처리한다. [구현·범위](terminal_evidence_optin_20261102.md).
+
+재생기는 실제15개 후속 관측만 비교하며 XS의 clamped flush를 제외한다. 끝나지 않은 다음 반복이 이미 시작된 경우도 이전 반복의 마무리로 섞지 않는다. raw SimCC 점수를 확률로 간주해0~1로 잘라내지 않는다. 원래 반복 횟수·판정·임계값·모델을 바꾸는 기능이 아니며 A7 해결이나 자세 정확도 향상을 입증한 것은 아니다.
+
+실제 iOS native 컴파일/링크도 통과했다. 기존673 Pods와 일치하는 **임시 dependency manifest를 쓴 compile-only 검사**이며 원래 lock으로 새 앱을 처음부터 빌드한 성공으로 확대하지 않는다. 원래 lock은 복원했고 폰 설치·기록 비용 측정은 미실행이다.
+
+별도로 Mac의 기존 PoseReplay를 이용한 스쿼트1·푸시업1 영상 진단을 준비했다. 기존 Home 자료의 허용된 임시 사본2개만 사용하며 모델·clip·소스·진단 절차를 추론 전에 고정했다. 원래 반복 구간은 실제 PoseReplay의 관찰 결과만 사용하고 dataset GT 경계/각도/side는 입력하지 않는다. 현재 실행 결과를 회수·검토 중이며, Mac과 현재 폰의 MediaPipe/corridor 차이를 native 동등성으로 포장하지 않는다.
 
 ## 심층분석의 정량 결론
 
