@@ -1,0 +1,75 @@
+{
+  "candidateCommit": "8006bafc870d70534a5077bb23a3894ace434cf9",
+  "sourceKind": "mac_pose_replay_raw_geometry_only",
+  "clipCount": 2,
+  "clips": [
+    {
+      "exercise": "squat",
+      "sourceSha256": "6672c453b7e9179a662c1733e7f6e954da072b68f60e895a598fd87f85dc8416",
+      "destinationSha256": "6672c453b7e9179a662c1733e7f6e954da072b68f60e895a598fd87f85dc8416",
+      "sourcePostCopySha256": "6672c453b7e9179a662c1733e7f6e954da072b68f60e895a598fd87f85dc8416",
+      "sourceUnchanged": true,
+      "sourceBytes": 9369557,
+      "streamMetadata": {
+        "width": 900,
+        "height": 900,
+        "r_frame_rate": "50/1",
+        "avg_frame_rate": "50/1",
+        "time_base": "1/12800",
+        "duration": "19.580000",
+        "nb_frames": "979"
+      }
+    },
+    {
+      "exercise": "pushup",
+      "sourceSha256": "a45dfaab3514828178fcb3ffdbcd95b5f50e89a8d8328c3ef1b1a1d6653a0a04",
+      "destinationSha256": "a45dfaab3514828178fcb3ffdbcd95b5f50e89a8d8328c3ef1b1a1d6653a0a04",
+      "sourcePostCopySha256": "a45dfaab3514828178fcb3ffdbcd95b5f50e89a8d8328c3ef1b1a1d6653a0a04",
+      "sourceUnchanged": true,
+      "sourceBytes": 7497348,
+      "streamMetadata": {
+        "width": 900,
+        "height": 900,
+        "r_frame_rate": "50/1",
+        "avg_frame_rate": "50/1",
+        "time_base": "1/12800",
+        "duration": "15.440000",
+        "nb_frames": "772"
+      }
+    }
+  ],
+  "models": {
+    "rtmpose_m_halpe26_forward": {
+      "fileSha256": {
+        "Data/com.apple.CoreML/model.mlmodel": "9629373af5161123a184d1bbc4c3627a42e925c51b1b31a26083de889bd13be0",
+        "Data/com.apple.CoreML/weights/weight.bin": "eec87e9dccdb278f695669243e24f8a6c656c0ab98bd9de25ff3c5e0d1574b1e",
+        "Manifest.json": "649d02743369181d0556fdbfa37c508be8d77942d10e799e57055fa1ebe5b68a"
+      },
+      "treeSha256": "ef54418d7fb66dbf9a3282627c555d1e6f945b06bfe797cfb8140c2b150e1e0d",
+      "totalBytes": 27953272
+    },
+    "motionagformer_xs": {
+      "fileSha256": {
+        "Data/com.apple.CoreML/model.mlmodel": "62cfec0dd4ac48fde2cb2c682755b30cdf898c301eb0e5afd5611ce79d376b61",
+        "Data/com.apple.CoreML/weights/weight.bin": "37a5c83431601e421a4d3d1e6fa6af39951062a08a7372cea172b98110d2f38e",
+        "Manifest.json": "4f8c28b49a69e017891a3ba238e5be7ac4c5e418ccccb3502badfa0ea09a24e0"
+      },
+      "treeSha256": "1b8b8a21bc9724918e631c53f49f5ce3d14167c833ff444007322d441b08f299",
+      "totalBytes": 5118155
+    }
+  },
+  "sourceSha256": {
+    "ios/CalibrationEngineKit/Package.swift": "042e0c12d466648444b87685ba1a6f50391ea5286fc1128a6df48c66851bd35f",
+    "ios/CalibrationEngineKit/Sources/PoseReplay/main.swift": "2b6e078234f4acd39b5ddc179bca0eac3ebc60187cb953f034c51a371993eb78",
+    "ios/Runner/NativePose/PosePipeline/MotionAGFormerLive.swift": "fca0afde2d5073d5dc039d88d5b686a466f2956361e4b7730d3d119dcc9a6d1b",
+    "ios/Runner/NativePose/PosePipeline/Pose3DConstraints.swift": "4fc033f249228ab6557b7313c773b5521823c64e65e2097046dfcbde1886257e",
+    "ios/Runner/NativePose/PosePipeline/PushUpSupportCorridor2D.swift": "8904f80af303bad49f1d157ee027fd28972da97cb179eb092a1d7df46663f7f9",
+    "ios/Runner/NativePose/Evaluators/FormWarnings.swift": "c1732bc977b7250ae11cb46d67e982a8c142415c76945b0b1f8f5bd5ffb6dfb3",
+    "ios/Runner/NativePose/Evaluators/SquatEvaluator.swift": "d0a400571f03fbfbd940584a76438bc7e4996768f084964b1466825c2ad65265",
+    "ios/Runner/NativePose/Evaluators/PushUpEvaluator.swift": "6f25545cc6df4afe32cb71070a3a0b8b328bd5637dfa658c27ea4b1c8f686805",
+    "ios/Runner/NativePose/Camera/CameraPosePreview.swift": "14985bf38ab3060eed43b767545e30e7b47c360196b82dde1901742518925967"
+  },
+  "symlinkNativeSourceHashesMatch": true,
+  "poseReplayDefaultXsPathExists": false,
+  "inferenceStarted": false
+}
