@@ -1,4 +1,5 @@
 import 'package:bpt/features/onboarding/services/calibration_result_store.dart';
+import 'helpers/session_fixture.dart';
 import 'package:bpt/features/workout/data/native_pose_channel.dart';
 import 'package:bpt/features/workout/widgets/exercise_setup_panel.dart';
 import 'package:flutter/material.dart';
@@ -108,6 +109,7 @@ void main() {
     final p = CalibrationResultStore.bodyProfileFrom({
       'userHeightCm': 170,
       'boneLengthData': {
+        'unit': 'cm',
         'segments': {
           'hip_width': 28.0, 'shoulder_width': 30.0,
           'right_hip-right_knee': 44.0, 'left_hip-left_knee': 46.0,
@@ -123,12 +125,14 @@ void main() {
     });
 
     SharedPreferences.setMockInitialValues({});
-    final store = CalibrationResultStore.instance;
+    final fixture = await sessionFixture(await SharedPreferences.getInstance());
+    addTearDown(fixture.auth.dispose);
+    final store = CalibrationResultStore.forSession(fixture.auth.captureSession());
     expect(await store.loadReference('squat', 'bodyweight'), isEmpty);
     await store.saveReference('squat', 'back_squat', {'feet_width': 1.4});
     expect(await store.loadReference('squat', 'back_squat'), {'feet_width': 1.4});
     expect(await store.loadReference('squat', 'bodyweight'), isEmpty, reason: 'per variant');
-    await store.save('job-1', {'userHeightCm': 170, 'smplBeta': [0.1], 'boneLengthData': {'segments': {'hip_width': 28.0}}, 'modelGlbUrl': 'https://x'});
+    await store.save('job-1', {'userHeightCm': 170, 'smplBeta': List.filled(10, 0.1), 'boneLengthData': {'unit': 'cm', 'segments': {'hip_width': 28.0}}, 'modelGlbUrl': 'https://x'});
     final saved = (await store.load())!;
     expect(saved.containsKey('modelGlbUrl'), isFalse, reason: 'expiring signed URL is not stored');
     expect((await store.bodyProfile())!['hipWidthCm'], 28.0);

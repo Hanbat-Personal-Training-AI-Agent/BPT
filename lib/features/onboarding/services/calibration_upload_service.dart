@@ -6,6 +6,8 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/api_client.dart';
+import '../../auth/providers/auth_provider.dart';
+import 'calibration_measurements.dart';
 
 /// Independent of the existing Spring API. No endpoint means no network request.
 class CalibrationUploadConfig {
@@ -424,7 +426,9 @@ class CalibrationUploadService {
         // Never show a stub or a result without a body as an analysis.
         if (result['stub'] != false ||
             result['smplBeta'] is! List ||
-            result['boneLengthData'] is! Map) {
+            result['boneLengthData'] is! Map ||
+            result['userHeightCm'] is! num ||
+            calibrationMeasurements(result) == null) {
           throw const FormatException('Not a body fit');
         }
         return CalibrationJob(status, 100, result: result);
@@ -512,9 +516,12 @@ class CalibrationUploadService {
 final calibrationUploadServiceProvider =
     Provider<CalibrationUploadService>((ref) {
   final auth = ref.watch(apiClientProvider);
+  ref.watch(authSessionIdentityProvider);
+  final session = ref.read(authNotifierProvider).captureSession();
   final service = CalibrationUploadService(
     config: CalibrationUploadConfig.fromEnvironment(),
-    tokenProvider: () async => auth.authToken,
+    tokenProvider: () async =>
+        session?.isCurrent == true ? auth.authToken : null,
   );
   ref.onDispose(service.close);
   return service;

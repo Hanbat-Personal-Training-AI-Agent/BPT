@@ -1,6 +1,9 @@
 import 'dart:async';
 
 import 'package:bpt/features/onboarding/models/body_analysis_result.dart';
+import 'package:bpt/features/auth/providers/auth_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'helpers/session_fixture.dart';
 import 'package:bpt/features/onboarding/screens/onboarding_analyzing_screen.dart';
 import 'package:bpt/features/onboarding/services/calibration_upload_service.dart';
 import 'package:bpt/features/onboarding/widgets/body_mesh_reveal.dart';
@@ -29,17 +32,21 @@ class _Uploader extends CalibrationUploadService {
   int downloads = 0;
   CalibrationJob job = const CalibrationJob('done', 100);
   bool failDownload = false;
+  Completer<CalibrationJob>? pendingPoll;
+  Completer<Uint8List>? pendingDownload;
 
   @override
   Future<CalibrationJob> fetchJob(String jobId,
       {CancelToken? cancelToken}) async {
     polls++;
+    if (pendingPoll != null) return pendingPoll!.future;
     return job;
   }
 
   @override
   Future<Uint8List> fetchModel(String url, {CancelToken? cancelToken}) async {
     downloads++;
+    if (pendingDownload != null) return pendingDownload!.future;
     if (failDownload) throw const CalibrationUploadException('내려받기 실패');
     // The native channel is mocked; no real mesh or filesystem access.
     return Uint8List.fromList([0x67, 0x6c, 0x54, 0x46]);
@@ -59,14 +66,18 @@ class _Uploader extends CalibrationUploadService {
 
 void main() {
   BodyAnalysisResult? delivered;
+  late AuthNotifier auth;
   Future<void> show(WidgetTester tester, _Uploader service,
-      {String? path = '/capture/session'}) async {
+      {String? path = '/capture/session', bool signedIn = true}) async {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     addTearDown(service.close);
     delivered = null;
+    SharedPreferences.setMockInitialValues({});
+    auth = (await sessionFixture(await SharedPreferences.getInstance())).auth;
+    if (!signedIn) await auth.logout();
     final router = GoRouter(initialLocation: '/analyzing', routes: [
       GoRoute(
           path: '/analyzing',
@@ -81,6 +92,7 @@ void main() {
     addTearDown(router.dispose);
     await tester.pumpWidget(ProviderScope(overrides: [
       calibrationUploadServiceProvider.overrideWithValue(service),
+      authNotifierProvider.overrideWith((ref) => auth),
     ], child: MaterialApp.router(routerConfig: router)));
   }
 
@@ -151,6 +163,37 @@ void main() {
     expect(find.text('result destination'), findsOneWidget);
   });
 
+  testWidgets(
+      'anonymous local onboarding can continue without uploading or using a result',
+      (tester) async {
+    final service = _Uploader();
+    await show(tester, service, signedIn: false);
+    await tester.pump(const Duration(seconds: 41));
+    await tester.pumpAndSettle();
+    expect(service.calls, 0);
+    expect(service.polls, 0);
+    expect(service.downloads, 0);
+    expect(delivered?.summary ?? {}, isEmpty);
+    expect(find.text('result destination'), findsOneWidget);
+  });
+
+  testWidgets(
+      'late accepted upload after account switch does not poll or navigate',
+      (tester) async {
+    final service = _Uploader();
+    await show(tester, service);
+    await auth.logout();
+    await auth.login('B', 'password');
+    service.result
+        .complete(const CalibrationUploadReceipt('session', 'old-A-job'));
+    await tester.pump(const Duration(seconds: 41));
+    await tester.pumpAndSettle();
+    expect(service.polls, 0);
+    expect(service.downloads, 0);
+    expect(find.text('result destination'), findsNothing);
+    expect(delivered, isNull);
+  });
+
   testWidgets('three steps go keypoints → 3D body → bone lengths in order',
       (tester) async {
     final service = _Uploader();
@@ -187,6 +230,88 @@ void main() {
       expect(delivered, isNull);
     });
   } else {
+    testWidgets('late job and model responses cannot reach a different account',
+        (tester) async {
+      final service = _Uploader()..pendingPoll = Completer<CalibrationJob>();
+      await show(tester, service);
+      service.result
+          .complete(const CalibrationUploadReceipt('session', 'job-A'));
+      await tester.pump();
+      expect(service.polls, 1);
+      await auth.logout();
+      await auth.login('B', 'password');
+      service.pendingPoll!.complete(const CalibrationJob('done', 100, result: {
+        'userHeightCm': 170,
+        'modelGlbUrl': 'https://photos.example.test/old.glb',
+      }));
+      await tester.pump(const Duration(seconds: 41));
+      await tester.pumpAndSettle();
+      expect(service.downloads, 0);
+      expect(delivered, isNull);
+      expect(find.text('result destination'), findsNothing);
+    });
+
+    testWidgets('late model download cannot prepare or display an old mesh',
+        (tester) async {
+      final service = _Uploader()
+        ..pendingDownload = Completer<Uint8List>()
+        ..job = const CalibrationJob('done', 100, result: {
+          'userHeightCm': 170,
+          'modelGlbUrl': 'https://photos.example.test/old.glb',
+        });
+      await show(tester, service);
+      service.result
+          .complete(const CalibrationUploadReceipt('session', 'job-A'));
+      await tester.pump();
+      expect(service.downloads, 1);
+      await auth.logout();
+      await auth.login('B', 'password');
+      service.pendingDownload!.complete(Uint8List.fromList([1, 2, 3]));
+      await tester.pump(const Duration(seconds: 41));
+      await tester.pumpAndSettle();
+      expect(delivered, isNull);
+      expect(find.text('result destination'), findsNothing);
+    });
+
+    testWidgets('late native preparation is released after A to B to A login',
+        (tester) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+      addTearDown(() => debugDefaultTargetPlatformOverride = null);
+      const channel = MethodChannel('bpt/body_mesh');
+      final prepared = Completer<String>();
+      final released = <String>[];
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(channel,
+          (call) async {
+        if (call.method == 'prepare') return prepared.future;
+        if (call.method == 'release') {
+          released.add((call.arguments as Map)['meshId'] as String);
+        }
+        return null;
+      });
+      addTearDown(() => tester.binding.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, null));
+      final service = _Uploader()
+        ..job = const CalibrationJob('done', 100, result: {
+          'userHeightCm': 170,
+          'modelGlbUrl': 'https://photos.example.test/old.glb',
+        });
+      await show(tester, service);
+      service.result
+          .complete(const CalibrationUploadReceipt('session', 'job-A'));
+      await tester.pump();
+      await auth.logout();
+      await auth.login('B', 'password');
+      await auth.logout();
+      await auth.login('A', 'password');
+      prepared.complete('old-A-mesh');
+      await tester.pump(const Duration(seconds: 41));
+      await tester.pumpAndSettle();
+      expect(released, contains('old-A-mesh'));
+      expect(delivered, isNull);
+      expect(find.text('result destination'), findsNothing);
+      debugDefaultTargetPlatformOverride = null;
+    });
+
     testWidgets(
         'polls and prepares during analysis, then delivers the ready mesh',
         (tester) async {
@@ -211,11 +336,12 @@ void main() {
           .complete(const CalibrationUploadReceipt('session', 'job-1'));
       await tester.pump();
       expect(service.polls, 1);
+      await tester.pump(const Duration(seconds: 32));
       service.job = const CalibrationJob('done', 100, result: {
         'userHeightCm': 170,
         'modelGlbUrl': 'https://photos.example.test/synthetic.glb',
       });
-      await tester.pump(const Duration(seconds: 35));
+      await tester.pump(const Duration(seconds: 3));
       expect(service.downloads, 1);
       expect(preparations, 1);
       await tester.pump(const Duration(seconds: 6));
@@ -225,6 +351,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(delivered?.meshId, 'prepared-box');
       expect(delivered?.summary['키'], '170.0 cm');
+      debugDefaultTargetPlatformOverride = null;
     });
 
     testWidgets('download failure keeps measurements and still continues',

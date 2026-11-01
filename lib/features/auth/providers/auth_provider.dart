@@ -8,6 +8,19 @@ import '../../../models/user_model.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/local_storage_service.dart';
 
+/// Account identity plus login lifetime; token refresh does not invalidate it.
+/// Keeping the notifier instance also invalidates leases on provider disposal.
+class AuthSessionLease {
+  AuthSessionLease._(this._owner, this.userId, this.generation);
+  final AuthNotifier _owner;
+  final String userId;
+  final int generation;
+  bool get isCurrent =>
+      !_owner._disposed &&
+      _owner._sessionGeneration == generation &&
+      _owner.currentUser?.id == userId;
+}
+
 // ── Auth Notifier (Spring Boot REST API + Offline Dev Fallback) ──────────────
 class AuthNotifier extends ChangeNotifier {
   final AuthService _authService;
@@ -17,16 +30,50 @@ class AuthNotifier extends ChangeNotifier {
   bool _isLoading = false;
   String? _error;
   bool _isOfflineMode = false;
+  int _sessionGeneration = 0;
+  bool _disposed = false;
+  Future<void> _sessionWrites = Future<void>.value();
+
+  // Keep an already-started clear/save in order with a subsequent login. This
+  // prevents delayed persistence from clearing the new account's credentials.
+  Future<void> _persist(Future<void> Function() action) {
+    final pending = _sessionWrites.then((_) => action());
+    _sessionWrites =
+        pending.then<void>((_) {}, onError: (Object _, StackTrace __) {});
+    return pending;
+  }
+
+  Future<void> _saveUser(UserModel user, AuthSessionLease lease) =>
+      _persist(() async {
+        if (lease.isCurrent) await _storage.saveUser(user);
+      });
+
+  Future<void> _saveLogin(UserModel user, bool rememberMe) {
+    final lease = captureSession()!;
+    final access = _authService.authToken, refresh = _authService.refreshToken;
+    return _persist(() async {
+      if (!lease.isCurrent) return;
+      await _storage.saveUser(user);
+      await _storage.saveAuthToken(access);
+      await _storage.saveRefreshToken(refresh);
+      await _storage.saveAutoLogin(rememberMe);
+    });
+  }
 
   AuthNotifier(this._authService, this._storage) {
     // 액세스 토큰은 1시간이면 만료된다. API 클라이언트가 자동으로 갱신하면
     // 새 토큰을 기기에 저장하고, 리프레시 토큰까지 만료되면 로그인 화면으로 보낸다.
     _authService.onTokensRefreshed = (accessToken, refreshToken) {
-      _storage.saveAuthToken(accessToken);
-      _storage.saveRefreshToken(refreshToken);
+      final lease = captureSession();
+      if (lease == null) return;
+      unawaited(_persist(() async {
+        if (!lease.isCurrent) return;
+        await _storage.saveAuthToken(accessToken);
+        await _storage.saveRefreshToken(refreshToken);
+      }));
     };
     _authService.onSessionExpired = () {
-      if (_currentUser != null) logout();
+      if (!_disposed && _currentUser != null) unawaited(logout());
     };
   }
 
@@ -35,6 +82,12 @@ class AuthNotifier extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
   bool get isOfflineMode => _isOfflineMode;
+  ({String userId, int generation})? get sessionIdentity => _currentUser == null
+      ? null
+      : (userId: _currentUser!.id, generation: _sessionGeneration);
+  AuthSessionLease? captureSession() => _currentUser == null || _disposed
+      ? null
+      : AuthSessionLease._(this, _currentUser!.id, _sessionGeneration);
 
   /// Try restoring user session from local storage or fetching from Spring Boot API
   Future<bool> tryAutoLogin() async {
@@ -48,27 +101,33 @@ class AuthNotifier extends ChangeNotifier {
     // 저장해 둔 토큰이 없으면 서버 인증을 되살릴 수 없으니 다시 로그인하게 한다.
     final token = _storage.loadAuthToken();
     if (token == null) return false;
+    _sessionGeneration++;
     _authService.restoreAuthToken(token,
         refreshToken: _storage.loadRefreshToken());
 
     _currentUser = cachedUser;
+    final lease = captureSession()!;
     notifyListeners();
 
     // Try background refresh from Spring Boot server
     try {
       final freshUser = await _authService.fetchUserProfile();
+      if (!lease.isCurrent || freshUser.id != lease.userId) return false;
       // 서버에 주간 목표가 아직 없으면 기기에 있던 값을 유지한다.
       _currentUser = freshUser.copyWith(
           weeklyFrequency:
               freshUser.weeklyFrequency ?? cachedUser.weeklyFrequency);
-      await _storage.saveUser(_currentUser!);
+      await _saveUser(_currentUser!, lease);
+      if (!lease.isCurrent) return false;
       _isOfflineMode = false;
       notifyListeners();
     } on UnauthorizedException {
+      if (!lease.isCurrent) return false;
       // 토큰이 만료됐거나 서버에서 거절됨 → 저장된 세션을 지우고 로그인 화면으로
       await logout();
       return false;
     } catch (_) {
+      if (!lease.isCurrent) return false;
       // Offline fallback: continue with cached user profile
       _isOfflineMode = true;
     }
@@ -84,25 +143,28 @@ class AuthNotifier extends ChangeNotifier {
     String password, {
     bool rememberMe = false,
   }) async {
+    final generation = ++_sessionGeneration;
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
       final user = await _authService.login(email: email, password: password);
+      if (_disposed || generation != _sessionGeneration) return;
       _currentUser = user;
-      await _storage.saveUser(user);
-      await _storage.saveAuthToken(_authService.authToken);
-      await _storage.saveRefreshToken(_authService.refreshToken);
-      await _storage.saveAutoLogin(rememberMe);
+      await _saveLogin(user, rememberMe);
+      if (_disposed || generation != _sessionGeneration) return;
       _isOfflineMode = false;
       _error = null;
     } on ApiException catch (e) {
+      if (_disposed || generation != _sessionGeneration) return;
       _error = _mapApiError(e);
     } catch (e) {
+      if (_disposed || generation != _sessionGeneration) return;
       _error = 'unknown_error';
     }
 
+    if (_disposed || generation != _sessionGeneration) return;
     _isLoading = false;
     notifyListeners();
   }
@@ -118,6 +180,7 @@ class AuthNotifier extends ChangeNotifier {
     required String phoneNumber,
     required DateTime birthDate,
   }) async {
+    final generation = ++_sessionGeneration;
     _isLoading = true;
     _error = null;
     notifyListeners();
@@ -134,21 +197,24 @@ class AuthNotifier extends ChangeNotifier {
             '${birthDate.month.toString().padLeft(2, '0')}-'
             '${birthDate.day.toString().padLeft(2, '0')}',
       );
+      if (_disposed || generation != _sessionGeneration) return null;
       _currentUser = user;
-      await _storage.saveUser(user);
-      await _storage.saveAuthToken(_authService.authToken);
-      await _storage.saveRefreshToken(_authService.refreshToken);
-      await _storage.saveAutoLogin(true);
+      await _saveLogin(user, true);
+      if (_disposed || generation != _sessionGeneration) return null;
       _isOfflineMode = false;
     } on NetworkException {
+      if (_disposed || generation != _sessionGeneration) return null;
       message = '서버에 연결할 수 없어. 인터넷 연결을 확인하고 다시 시도해줘.';
     } on ApiException catch (e) {
+      if (_disposed || generation != _sessionGeneration) return null;
       // 백엔드가 보내는 안내 문구(예: 이미 가입된 이메일 주소입니다.)를 그대로 보여준다.
       message = e.message;
     } catch (_) {
+      if (_disposed || generation != _sessionGeneration) return null;
       message = '가입 중에 문제가 생겼어. 잠시 후 다시 시도해줘.';
     }
 
+    if (_disposed || generation != _sessionGeneration) return null;
     _error = message;
     _isLoading = false;
     notifyListeners();
@@ -165,6 +231,8 @@ class AuthNotifier extends ChangeNotifier {
     required int weeklyFrequency,
   }) async {
     final user = _currentUser;
+    final lease = captureSession();
+    if (lease == null) return null;
     if (user != null) {
       _currentUser = user.copyWith(
         gender: gender,
@@ -173,7 +241,8 @@ class AuthNotifier extends ChangeNotifier {
         workoutGoal: workoutGoal,
         weeklyFrequency: weeklyFrequency,
       );
-      await _storage.saveUser(_currentUser!);
+      await _saveUser(_currentUser!, lease);
+      if (!lease.isCurrent) return null;
       notifyListeners();
     }
     try {
@@ -196,6 +265,7 @@ class AuthNotifier extends ChangeNotifier {
   /// 디버그 빌드에서 로그인 화면 UI 확인용으로만 쓰고, 배포 전 제거할 것.
   void debugSkipLogin() {
     if (!kDebugMode) return;
+    _sessionGeneration++;
     _currentUser = _createLocalFallbackUser(
         username: 'tester', email: 'test@bpt.dev', name: 'Tester');
     _isOfflineMode = true;
@@ -239,12 +309,15 @@ class AuthNotifier extends ChangeNotifier {
 
   /// Update profile data
   Future<void> updateProfile(UserModel updated) async {
+    if (_currentUser?.id != updated.id) return;
+    final lease = captureSession()!;
     // 화면(예: 프로필 수정 바텀시트)이 서버 왕복을 기다리지 않고 바로 닫히고
     // 최신 값을 보여줄 수 있도록, 로컬 상태부터 즉시 반영한 뒤 저장/동기화는
     // 백그라운드에서 진행한다.
     _currentUser = updated;
     notifyListeners();
-    await _storage.saveUser(updated);
+    await _saveUser(updated, lease);
+    if (!lease.isCurrent) return;
     try {
       await _authService.saveUserData(updated);
     } catch (_) {
@@ -254,27 +327,34 @@ class AuthNotifier extends ChangeNotifier {
 
   /// Logout
   Future<void> logout() async {
-    await _storage.clearSession();
+    // Invalidate synchronously, before persistence/network callbacks can resume.
+    _sessionGeneration++;
     _authService.restoreAuthToken(null);
     _currentUser = null;
     _error = null;
     _isOfflineMode = false;
+    _isLoading = false;
     notifyListeners();
+    await _persist(_storage.clearSession);
   }
 
   /// 체형 촬영 완료를 서버에 기록하고, 오늘 날짜를 마지막 측정일로 반영한다.
   /// 서버에 못 보내도 기기에는 측정일을 남겨 재측정 알림이 바로 사라지게 한다.
   Future<void> recordBodyScan({String? sessionPath}) async {
     final user = _currentUser;
-    if (user == null) return;
+    final lease = captureSession();
+    if (user == null || lease == null) return;
     try {
       final fresh = await _authService.recordBodyScan(sessionPath: sessionPath);
+      if (!lease.isCurrent || fresh.id != lease.userId) return;
       _currentUser = fresh.copyWith(
           weeklyFrequency: fresh.weeklyFrequency ?? user.weeklyFrequency);
     } catch (_) {
-      _currentUser = user.copyWith(lastBodyScanDate: DateTime.now());
+      if (!lease.isCurrent) return;
+      _currentUser = _currentUser!.copyWith(lastBodyScanDate: DateTime.now());
     }
-    await _storage.saveUser(_currentUser!);
+    await _saveUser(_currentUser!, lease);
+    if (!lease.isCurrent) return;
     notifyListeners();
   }
 
@@ -283,6 +363,7 @@ class AuthNotifier extends ChangeNotifier {
   /// 성공하면 null, 실패하면 화면에 보여줄 안내 문구를 돌려준다 (로그인 상태 유지).
   Future<String?> deleteAccount() async {
     final user = _currentUser;
+    final lease = captureSession();
     try {
       await _authService.deleteAccount();
     } on NetworkException {
@@ -290,21 +371,32 @@ class AuthNotifier extends ChangeNotifier {
     } catch (_) {
       return '탈퇴하지 못했어. 잠시 후 다시 시도해줘.';
     }
+    if (lease == null || !lease.isCurrent) return null;
     // Invalidate account-bound requests before removing their persisted queues.
+    _sessionGeneration++;
     _authService.restoreAuthToken(null);
     _currentUser = null;
     _error = null;
     _isOfflineMode = false;
     notifyListeners();
-    if (user != null) await _storage.removeWorkoutData(user.id);
-    await _storage.removeUser();
-    await _storage.clearSession();
+    await _persist(() async {
+      if (user != null) await _storage.removeWorkoutData(user.id);
+      await _storage.removeUser();
+      await _storage.clearSession();
+    });
     return null;
   }
 
   void clearError() {
     _error = null;
     notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    _sessionGeneration++;
+    super.dispose();
   }
 
   String _mapApiError(ApiException exception) {
@@ -329,6 +421,11 @@ final authNotifierProvider = ChangeNotifierProvider<AuthNotifier>((ref) {
 /// 대기열을 계정별로 나누는 데 쓴다. 바뀌면 그 Provider들이 새로 만들어진다.
 final currentUserIdProvider = Provider<String?>(
   (ref) => ref.watch(authNotifierProvider.select((a) => a.currentUser?.id)),
+);
+
+final authSessionIdentityProvider =
+    Provider<({String userId, int generation})?>(
+  (ref) => ref.watch(authNotifierProvider.select((a) => a.sessionIdentity)),
 );
 
 final autoLoginProvider = StateProvider<bool>((ref) => false);

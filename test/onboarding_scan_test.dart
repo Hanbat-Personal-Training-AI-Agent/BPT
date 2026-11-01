@@ -1,12 +1,23 @@
 import 'package:bpt/features/onboarding/screens/onboarding_scan_screen.dart';
+import 'package:bpt/features/auth/providers/auth_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// The capture itself is native (camera + RTMPose + judging engine); these cover the
 /// overlay this screen owns before any native event arrives.
-Widget _screen() => const ProviderScope(
-      child: MaterialApp(home: OnboardingScanScreen()),
+class _AnonymousAuth extends ChangeNotifier implements AuthNotifier {
+  @override
+  AuthSessionLease? captureSession() => null;
+  @override
+  ({String userId, int generation})? get sessionIdentity => null;
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+Widget _screen() => ProviderScope(
+      overrides: [authNotifierProvider.overrideWith((ref) => _AnonymousAuth())],
+      child: const MaterialApp(home: OnboardingScanScreen()),
     );
 
 void main() {
@@ -20,7 +31,8 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('shows no Kori bubble or hold indicator before the camera reports',
+  testWidgets(
+      'shows no Kori bubble or hold indicator before the camera reports',
       (tester) async {
     await tester.pumpWidget(_screen());
 
@@ -40,7 +52,8 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('pose chips follow the turn order with front active, others waiting',
+  testWidgets(
+      'pose chips follow the turn order with front active, others waiting',
       (tester) async {
     await tester.pumpWidget(_screen());
 
@@ -59,7 +72,8 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('Kori bubble sits at the top in one line, status chips at the bottom',
+  testWidgets(
+      'Kori bubble sits at the top in one line, status chips at the bottom',
       (tester) async {
     tester.view.physicalSize = const Size(1179, 2556);
     tester.view.devicePixelRatio = 3;

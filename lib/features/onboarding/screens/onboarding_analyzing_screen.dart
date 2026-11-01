@@ -10,6 +10,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/route_constants.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../demo/demo_autopilot.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../services/calibration_result_store.dart';
 import '../models/body_analysis_result.dart';
 import '../services/calibration_upload_service.dart';
@@ -41,15 +42,36 @@ class _OnboardingAnalyzingScreenState
   late final Future<void> _upload;
   late final Future<void> _analysis;
   final _cancel = CancelToken();
+  final _uploadCancel = CancelToken();
   BodyAnalysisResult _result = const BodyAnalysisResult();
   bool _finished = false;
 
   /// Accepted fit job, for the 3D body reveal ([kBodyMeshReveal]).
   String? _jobId;
+  late final AuthNotifier _auth;
+  AuthSessionLease? _session;
+  late final CalibrationUploadService _service;
+  late final CalibrationResultStore _store;
+  bool get _ownsResult => _session?.isCurrent ?? false;
+
+  void _sessionChanged() {
+    if (_ownsResult) return;
+    _cancel.cancel('account session changed');
+    _uploadCancel.cancel('account session changed');
+    final mesh = _result.meshId;
+    _result = const BodyAnalysisResult();
+    _jobId = null;
+    unawaited(BodyMeshReveal.release(mesh));
+  }
 
   @override
   void initState() {
     super.initState();
+    _auth = ref.read(authNotifierProvider);
+    _session = _auth.captureSession();
+    _service = ref.read(calibrationUploadServiceProvider);
+    _store = CalibrationResultStore.forSession(_session);
+    _auth.addListener(_sessionChanged);
     _upload = _startUpload();
     _analysis = kBodyMeshReveal ? _prepareResult() : _upload;
     _controller = AnimationController(vsync: this, duration: _duration)
@@ -63,9 +85,9 @@ class _OnboardingAnalyzingScreenState
   /// leaves the screen, so the bundle still reaches the server.
   Future<void> _startUpload() async {
     final path = widget.sessionPath;
-    final service = ref.read(calibrationUploadServiceProvider);
+    final service = _service;
     final issue = service.config.configurationIssue;
-    if (path == null || path.isEmpty) {
+    if (!_ownsResult || path == null || path.isEmpty) {
       debugPrint('[Calibration] 촬영 데이터 없음 → 전송 건너뜀');
       return;
     }
@@ -75,10 +97,13 @@ class _OnboardingAnalyzingScreenState
     }
     try {
       debugPrint('[Calibration] 사진 4장 자동 전송 시작');
-      final receipt = await service.upload(path, cancelToken: CancelToken());
+      final receipt = await service.upload(path, cancelToken: _uploadCancel);
+      if (!_ownsResult) return;
       _jobId = receipt.jobId;
       debugPrint('[Calibration] 전송·접수 완료 (접수 번호 ${receipt.jobId})');
-      if (CalibrationResultStore.enabled) unawaited(CalibrationResultStore.instance.track(service, receipt.jobId));
+      if (CalibrationResultStore.enabled) {
+        unawaited(_store.track(service, receipt.jobId));
+      }
     } on CalibrationUploadException catch (error) {
       debugPrint('[Calibration] 전송 실패: ${error.message}');
     } on DioException catch (error) {
@@ -97,14 +122,16 @@ class _OnboardingAnalyzingScreenState
   Future<void> _prepareResult() async {
     await _upload;
     final jobId = _jobId;
-    if (!mounted || _finished || jobId == null) return;
-    final service = ref.read(calibrationUploadServiceProvider);
+    if (!mounted || _finished || !_ownsResult || jobId == null) return;
+    final service = _service;
     // TRIAL BRANCH ONLY: the demo autopilot waits up to 7 min (a cold GPU start took longer than 3).
     final started = DateTime.now();
-    final limit = DemoAutopilot.active ? const Duration(minutes: 7) : const Duration(minutes: 3);
+    final limit = DemoAutopilot.active
+        ? const Duration(minutes: 7)
+        : const Duration(minutes: 3);
     final timeout = Timer(limit, () => _cancel.cancel());
     try {
-      while (mounted && !_finished && !_cancel.isCancelled) {
+      while (mounted && !_finished && _ownsResult && !_cancel.isCancelled) {
         CalibrationJob job;
         try {
           job = await service.fetchJob(jobId, cancelToken: _cancel);
@@ -112,6 +139,9 @@ class _OnboardingAnalyzingScreenState
           DemoAutopilot.logJob(jobId, started, error: 'poll: ${error.message}');
           await Future<void>.delayed(const Duration(seconds: 3));
           continue;
+        }
+        if (!mounted || _finished || !_ownsResult || _cancel.isCancelled) {
+          return;
         }
         DemoAutopilot.logJob(jobId, started, job: job);
         if (job.status == 'failed') return;
@@ -121,10 +151,15 @@ class _OnboardingAnalyzingScreenState
           final url = values['modelGlbUrl'];
           if (url is! String || url.isEmpty) return;
           final glb = await service.fetchModel(url, cancelToken: _cancel);
-          DemoAutopilot.logJob(jobId, started, error: 'glb ${glb.length} bytes');
+          if (!mounted || _finished || !_ownsResult || _cancel.isCancelled) {
+            return;
+          }
+          DemoAutopilot.logJob(jobId, started,
+              error: 'glb ${glb.length} bytes');
           final meshId = await BodyMeshReveal.prepare(glb);
-          DemoAutopilot.logJob(jobId, started, error: 'mesh prepared ${meshId != null}');
-          if (!mounted || _finished || _cancel.isCancelled) {
+          DemoAutopilot.logJob(jobId, started,
+              error: 'mesh prepared ${meshId != null}');
+          if (!mounted || _finished || !_ownsResult || _cancel.isCancelled) {
             await BodyMeshReveal.release(meshId);
             return;
           }
@@ -134,7 +169,8 @@ class _OnboardingAnalyzingScreenState
         await Future<void>.delayed(const Duration(seconds: 3));
       }
     } catch (error) {
-      DemoAutopilot.logJob(jobId, started, error: 'stopped: ${error.runtimeType}');
+      DemoAutopilot.logJob(jobId, started,
+          error: 'stopped: ${error.runtimeType}');
       // Preserve the summary on download/parse failure; never log signed URLs.
       debugPrint('[BodyMesh] 미리보기 없이 분석 결과 표시');
     } finally {
@@ -144,7 +180,7 @@ class _OnboardingAnalyzingScreenState
 
   void _finish() {
     // The capture bundle stays on disk so a failed upload can be sent again later.
-    if (!mounted || _finished) return;
+    if (!mounted || _finished || (_session != null && !_ownsResult)) return;
     _finished = true;
     context.go(RouteConstants.onboardingResult,
         extra: kBodyMeshReveal ? _result : null);
@@ -159,6 +195,7 @@ class _OnboardingAnalyzingScreenState
 
   @override
   void dispose() {
+    _auth.removeListener(_sessionChanged);
     _cancel.cancel();
     if (!_finished) BodyMeshReveal.release(_result.meshId);
     _controller.dispose();

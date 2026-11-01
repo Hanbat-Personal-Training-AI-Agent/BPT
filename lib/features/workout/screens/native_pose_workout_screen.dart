@@ -16,6 +16,7 @@ import '../../../data/mock_data.dart';
 import '../../../data/dto/workout_metadata_dto.dart';
 import '../../home/providers/home_provider.dart';
 import '../../../services/kori_voice_service.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../../onboarding/services/calibration_result_store.dart';
 import '../data/kori_feedback_lines.dart';
 import '../data/native_pose_channel.dart';
@@ -173,10 +174,10 @@ class _NativePoseWorkoutScreenState
 
   // ── 실험용 준비 자세 (BPT_EXERCISE_SETUP) ─────────────────────────────────
   Future<void> _loadSetup() async {
-    final store = CalibrationResultStore.instance;
+    final store = ref.read(calibrationResultStoreProvider);
     final profile = await store.bodyProfile();
     final reference = await store.loadReference(widget.exerciseId, _setupVariant);
-    if (!mounted) return;
+    if (!mounted || !store.isCurrent) return;
     setState(() {
       _bodyProfile = profile;
       _setupReference = reference;
@@ -200,15 +201,17 @@ class _NativePoseWorkoutScreenState
   Future<void> _saveSetupReference() async {
     final snapshot = _setupStatus?.snapshot;
     if (snapshot == null) return;
-    await CalibrationResultStore.instance.saveReference(widget.exerciseId, _setupVariant, snapshot);
-    if (!mounted) return;
+    final store = ref.read(calibrationResultStoreProvider);
+    final saved = await store.saveReference(widget.exerciseId, _setupVariant, snapshot);
+    if (!mounted || !store.isCurrent || !saved) return;
     setState(() => _setupReference = snapshot);
     _channel?.invokeMethod<void>(NativePoseChannel.setSetupVariant, {'variant': _setupVariant, 'reference': snapshot});
   }
 
   Future<void> _changeSetupVariant(String variant) async {
-    final reference = await CalibrationResultStore.instance.loadReference(widget.exerciseId, variant);
-    if (!mounted) return;
+    final store = ref.read(calibrationResultStoreProvider);
+    final reference = await store.loadReference(widget.exerciseId, variant);
+    if (!mounted || !store.isCurrent) return;
     setState(() {
       _setupVariant = variant;
       _setupReference = reference;
@@ -567,6 +570,16 @@ class _NativePoseWorkoutScreenState
 
   @override
   Widget build(BuildContext context) {
+    if (_setupEnabled) {
+      ref.listen(authSessionIdentityProvider, (previous, next) {
+        if (previous == next || !mounted) return;
+        // Dispose the camera's creation-time body dimensions as well as Dart UI.
+        // An account switch must not retain another account's native setup view.
+        _bodyProfile = null;
+        _setupReference = const {};
+        context.go(RouteConstants.home);
+      });
+    }
     final s = ref.watch(appStringsProvider);
     final isKo = s.locale == 'ko';
     final exercise = findExercise(widget.exerciseId);
