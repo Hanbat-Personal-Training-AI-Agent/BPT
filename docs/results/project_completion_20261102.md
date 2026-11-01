@@ -93,3 +93,7 @@ Android 추론·소셜/PASS 인증·관리자 대시보드는 오래된 README�
 검토 과정에서 서로 다른 notifier가 같은 저장소를 사용하는 두 반례도 재현했다. 이전 A 로그아웃이 늦게 완료되면 B 토큰이 사라졌고, 이전 A 프로필 저장이 늦게 완료되면 B 사용자 정보가 A로 덮였다. 실제 SharedPreferences 인스턴스를 weak key로 하는 저장 순서 공유 후 두 반례가 통과했다. 서로 다른 저장소는 독립적으로 유지한다. 개별 테스트 범위·feature flag는 `calibration_owner_20261102.md`를 따른다.
 
 루트 검토 브랜치 `d642f36`에서 backend 소스를 직접 빌드해 **29/29, 건너뜀 0**을 다시 확인했다. 테스트 이후 backend 변경은 없었다. 기록은 `~/Documents/bpt-handoff/project-completion-20261102/backend-contract-run.json`에 소스 69개 해시와 실제 응답 해시로 보존했다. 아직 이 결과는 mock repository 기반이다.
+
+## 실제 배포 전 확인할 설정
+
+현재 `lib/core/network/api_client.dart`의 `API_BASE_URL` 기본값은 HTTP이며 `ios/Runner/Info.plist`는 arbitrary loads를 허용한다. 로그인 정보와 토큰을 전송하는 경로이므로 공개 배포 전에 실제 HTTPS endpoint와 iOS 전송 정책을 함께 확정해야 한다. 임의 HTTPS 주소로 바꾸거나 기존 서버·기본 설정을 변경하지 않았다. 이번 localhost 합성 계정 시험은 실제 배포 통신 보안을 검증하는 시험이 아니다.
