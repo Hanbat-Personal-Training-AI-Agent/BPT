@@ -1,4 +1,6 @@
-# Mac terminal raw geometry protocol — frozen before inference, 2026-11-03
+# Mac terminal raw geometry protocol — frozen before inference
+
+Actual revision timestamp UTC `2026-11-01T21:48:57.656767+00:00` (KST2026-11-02); `20261103` is a task-path suffix, not the execution date.
 
 Purpose: acquire missing **Mac-replay raw3D** evidence and describe original observed repetition end versus exactly15 subsequent processed observations. This is not native capture, native assessment, a real-time causal terminal classifier, posture accuracy, human labels or an A7 fix. Original device15-source comparison remains unrun unless its complete original raw/mask/time evidence exists. No GT angles, GT sides, GT rep boundaries or AI-labelled top anchors are inputs.
 
@@ -12,7 +14,7 @@ Current RTMPose-m Halpe26 and MotionAGFormer-XS packages have real model/weight 
 
 ## Execution/resource bound
 
-No heavy jobs parallel. Wait for handoff's iOS build to finish, then take `/tmp/bpt-heavy.lock` for a release build in our own private scratch path and one clip at a time. Source/model packages remain read-only. Max two clips, no new weights/data/training. Conservative per-process planning cap6GiB RSS, inference timeout600s per clip; stop on failure/excess, do not tune/retry alternatives. Record actual wall/RSS and report phases separately. Decoded images are processed transiently, not saved. Frame payload arrays for1751 frames are small; CoreML allocation/compilation peak is unknown before measurement, so the cap is an operational bound, not measured performance.
+No heavy jobs parallel. Wait for handoff's iOS build to finish, then take `/tmp/bpt-heavy.lock` for a release build in our own private scratch path and one clip at a time. Source/model packages remain read-only. Max two clips, no new weights/data/training. Conservative per-process planning cap6GiB RSS, initial operational inference timeout600s per clip; this is not a speed/acceptance gate and may be extended for verified normal progress. Stop on failure/excess, do not tune/retry model alternatives. Record actual wall/RSS and report phases separately. Decoded images are processed transiently, not saved. Frame payload arrays for1751 frames are small; CoreML allocation/compilation peak is unknown before measurement, so the cap is an operational bound, not measured performance.
 
 ## Observation contract and differences
 

@@ -71,5 +71,8 @@
   },
   "symlinkNativeSourceHashesMatch": true,
   "poseReplayDefaultXsPathExists": false,
-  "inferenceStarted": false
+  "inferenceStarted": false,
+  "protocolFrozenAtUtc": "2026-11-01T21:48:57.656767+00:00",
+  "hostArchitecture": "arm64",
+  "hostMemoryBytes": 17179869184
 }
