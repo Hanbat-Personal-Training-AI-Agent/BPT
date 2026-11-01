@@ -1,0 +1,13 @@
+{
+  "videos": 20,
+  "reusedPairs": 11,
+  "newPairs": 9,
+  "cachedOutputHashesUnchanged": true,
+  "inputHashesUnchanged": true,
+  "allFortyOutputChecksPass": true,
+  "allReplayChecksPass": true,
+  "historicalInputHashesAvailable": false,
+  "finishedKST": "2026-10-26T18:47:17+09:00",
+  "frozenCoreHashesUnchanged": true,
+  "frozenCoreFilesChecked": 4
+}

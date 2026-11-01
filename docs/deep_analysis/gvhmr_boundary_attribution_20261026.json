@@ -1,0 +1,2158 @@
+{
+  "purpose": "aggregate_legacy_boundary_failure_attribution_not_acceptance_rescore",
+  "boundaryDegrees": 5.0,
+  "videos": 20,
+  "metrics": {
+    "row_torso_swing": {
+      "exercise": "barbell_row",
+      "thresholdDegrees": 39.9,
+      "operator": "value_strictly_greater_than_threshold",
+      "variants": {
+        "A2D": {
+          "nearTotal": 3,
+          "nearAgree": 1,
+          "falsePositiveVsAngleThreshold": 0,
+          "falseNegativeVsAngleThreshold": 2,
+          "baselineCorrectVariantWrong": 1,
+          "baselineWrongVariantCorrect": 0,
+          "truthSignedMarginDegrees": {
+            "count": 3,
+            "min": -4.439508124471061,
+            "median": 2.2028991194009393,
+            "max": 2.8656151563290635,
+            "meanAbsolute": 3.169340800067021
+          },
+          "predictionSignedMarginDegrees": {
+            "count": 3,
+            "min": -23.097456815539346,
+            "median": -19.541440964363076,
+            "max": -6.091899162105442,
+            "meanAbsolute": 16.243598980669287
+          },
+          "signedPredictionErrorDegrees": {
+            "count": 3,
+            "min": -22.40705612069214,
+            "median": -18.657948691068285,
+            "max": -8.294798281506381,
+            "meanAbsolute": 16.453267697755603
+          },
+          "disagreementTruthSignedMarginDegrees": {
+            "count": 2,
+            "min": 2.2028991194009393,
+            "median": 2.5342571378650014,
+            "max": 2.8656151563290635,
+            "meanAbsolute": 2.5342571378650014
+          },
+          "disagreementPredictionSignedMarginDegrees": {
+            "count": 2,
+            "min": -19.541440964363076,
+            "median": -12.816670063234259,
+            "max": -6.091899162105442,
+            "meanAbsolute": 12.816670063234259
+          },
+          "disagreementSignedPredictionErrorDegrees": {
+            "count": 2,
+            "min": -22.40705612069214,
+            "median": -15.35092720109926,
+            "max": -8.294798281506381,
+            "meanAbsolute": 15.35092720109926
+          }
+        },
+        "A": {
+          "nearTotal": 3,
+          "nearAgree": 2,
+          "falsePositiveVsAngleThreshold": 0,
+          "falseNegativeVsAngleThreshold": 1,
+          "baselineCorrectVariantWrong": 0,
+          "baselineWrongVariantCorrect": 0,
+          "truthSignedMarginDegrees": {
+            "count": 3,
+            "min": -4.439508124471061,
+            "median": 2.2028991194009393,
+            "max": 2.8656151563290635,
+            "meanAbsolute": 3.169340800067021
+          },
+          "predictionSignedMarginDegrees": {
+            "count": 3,
+            "min": -17.026575799387224,
+            "median": -12.650385093645884,
+            "max": 1.8610109016461678,
+            "meanAbsolute": 10.512657264893091
+          },
+          "signedPredictionErrorDegrees": {
+            "count": 3,
+            "min": -15.516000249974947,
+            "median": -12.587067674916163,
+            "max": -0.3418882177547715,
+            "meanAbsolute": 9.481652047548627
+          },
+          "disagreementTruthSignedMarginDegrees": {
+            "count": 1,
+            "min": 2.8656151563290635,
+            "median": 2.8656151563290635,
+            "max": 2.8656151563290635,
+            "meanAbsolute": 2.8656151563290635
+          },
+          "disagreementPredictionSignedMarginDegrees": {
+            "count": 1,
+            "min": -12.650385093645884,
+            "median": -12.650385093645884,
+            "max": -12.650385093645884,
+            "meanAbsolute": 12.650385093645884
+          },
+          "disagreementSignedPredictionErrorDegrees": {
+            "count": 1,
+            "min": -15.516000249974947,
+            "median": -15.516000249974947,
+            "max": -15.516000249974947,
+            "meanAbsolute": 15.516000249974947
+          }
+        },
+        "B": {
+          "nearTotal": 3,
+          "nearAgree": 1,
+          "falsePositiveVsAngleThreshold": 0,
+          "falseNegativeVsAngleThreshold": 2,
+          "baselineCorrectVariantWrong": 1,
+          "baselineWrongVariantCorrect": 0,
+          "truthSignedMarginDegrees": {
+            "count": 3,
+            "min": -4.439508124471061,
+            "median": 2.2028991194009393,
+            "max": 2.8656151563290635,
+            "meanAbsolute": 3.169340800067021
+          },
+          "predictionSignedMarginDegrees": {
+            "count": 3,
+            "min": -12.483897428546555,
+            "median": -11.30643250445982,
+            "max": -5.048067914208154,
+            "meanAbsolute": 9.612799282404843
+          },
+          "signedPredictionErrorDegrees": {
+            "count": 3,
+            "min": -14.172047660788884,
+            "median": -8.044389304075494,
+            "max": -7.2509670336090934,
+            "meanAbsolute": 9.822467999491158
+          },
+          "disagreementTruthSignedMarginDegrees": {
+            "count": 2,
+            "min": 2.2028991194009393,
+            "median": 2.5342571378650014,
+            "max": 2.8656151563290635,
+            "meanAbsolute": 2.5342571378650014
+          },
+          "disagreementPredictionSignedMarginDegrees": {
+            "count": 2,
+            "min": -11.30643250445982,
+            "median": -8.177250209333987,
+            "max": -5.048067914208154,
+            "meanAbsolute": 8.177250209333987
+          },
+          "disagreementSignedPredictionErrorDegrees": {
+            "count": 2,
+            "min": -14.172047660788884,
+            "median": -10.711507347198989,
+            "max": -7.2509670336090934,
+            "meanAbsolute": 10.711507347198989
+          }
+        },
+        "C": {
+          "nearTotal": 3,
+          "nearAgree": 1,
+          "falsePositiveVsAngleThreshold": 0,
+          "falseNegativeVsAngleThreshold": 2,
+          "baselineCorrectVariantWrong": 1,
+          "baselineWrongVariantCorrect": 0,
+          "truthSignedMarginDegrees": {
+            "count": 3,
+            "min": -4.439508124471061,
+            "median": 2.2028991194009393,
+            "max": 2.8656151563290635,
+            "meanAbsolute": 3.169340800067021
+          },
+          "predictionSignedMarginDegrees": {
+            "count": 3,
+            "min": -12.504129725664836,
+            "median": -11.245636635027342,
+            "max": -4.705958453589588,
+            "meanAbsolute": 9.485241604760589
+          },
+          "signedPredictionErrorDegrees": {
+            "count": 3,
+            "min": -14.111251791356406,
+            "median": -8.064621601193775,
+            "max": -6.908857572990527,
+            "meanAbsolute": 9.694910321846903
+          },
+          "disagreementTruthSignedMarginDegrees": {
+            "count": 2,
+            "min": 2.2028991194009393,
+            "median": 2.5342571378650014,
+            "max": 2.8656151563290635,
+            "meanAbsolute": 2.5342571378650014
+          },
+          "disagreementPredictionSignedMarginDegrees": {
+            "count": 2,
+            "min": -11.245636635027342,
+            "median": -7.975797544308465,
+            "max": -4.705958453589588,
+            "meanAbsolute": 7.975797544308465
+          },
+          "disagreementSignedPredictionErrorDegrees": {
+            "count": 2,
+            "min": -14.111251791356406,
+            "median": -10.510054682173466,
+            "max": -6.908857572990527,
+            "meanAbsolute": 10.510054682173466
+          }
+        },
+        "Bw": {
+          "nearTotal": 3,
+          "nearAgree": 1,
+          "falsePositiveVsAngleThreshold": 0,
+          "falseNegativeVsAngleThreshold": 2,
+          "baselineCorrectVariantWrong": 1,
+          "baselineWrongVariantCorrect": 0,
+          "truthSignedMarginDegrees": {
+            "count": 3,
+            "min": -4.439508124471061,
+            "median": 2.2028991194009393,
+            "max": 2.8656151563290635,
+            "meanAbsolute": 3.169340800067021
+          },
+          "predictionSignedMarginDegrees": {
+            "count": 3,
+            "min": -12.819926543365895,
+            "median": -12.071794878194211,
+            "max": -6.67859786848561,
+            "meanAbsolute": 10.523439763348572
+          },
+          "signedPredictionErrorDegrees": {
+            "count": 3,
+            "min": -15.685541699694959,
+            "median": -8.88149698788655,
+            "max": -7.63228675372315,
+            "meanAbsolute": 10.733108480434886
+          },
+          "disagreementTruthSignedMarginDegrees": {
+            "count": 2,
+            "min": 2.2028991194009393,
+            "median": 2.5342571378650014,
+            "max": 2.8656151563290635,
+            "meanAbsolute": 2.5342571378650014
+          },
+          "disagreementPredictionSignedMarginDegrees": {
+            "count": 2,
+            "min": -12.819926543365895,
+            "median": -9.749262205925753,
+            "max": -6.67859786848561,
+            "meanAbsolute": 9.749262205925753
+          },
+          "disagreementSignedPredictionErrorDegrees": {
+            "count": 2,
+            "min": -15.685541699694959,
+            "median": -12.283519343790754,
+            "max": -8.88149698788655,
+            "meanAbsolute": 12.283519343790754
+          }
+        },
+        "Cw": {
+          "nearTotal": 3,
+          "nearAgree": 1,
+          "falsePositiveVsAngleThreshold": 0,
+          "falseNegativeVsAngleThreshold": 2,
+          "baselineCorrectVariantWrong": 1,
+          "baselineWrongVariantCorrect": 0,
+          "truthSignedMarginDegrees": {
+            "count": 3,
+            "min": -4.439508124471061,
+            "median": 2.2028991194009393,
+            "max": 2.8656151563290635,
+            "meanAbsolute": 3.169340800067021
+          },
+          "predictionSignedMarginDegrees": {
+            "count": 3,
+            "min": -12.879066507833848,
+            "median": -12.119436559567433,
+            "max": -6.5449755301392685,
+            "meanAbsolute": 10.514492865846849
+          },
+          "signedPredictionErrorDegrees": {
+            "count": 3,
+            "min": -15.744681664162911,
+            "median": -8.747874649540208,
+            "max": -7.679928435096372,
+            "meanAbsolute": 10.724161582933164
+          },
+          "disagreementTruthSignedMarginDegrees": {
+            "count": 2,
+            "min": 2.2028991194009393,
+            "median": 2.5342571378650014,
+            "max": 2.8656151563290635,
+            "meanAbsolute": 2.5342571378650014
+          },
+          "disagreementPredictionSignedMarginDegrees": {
+            "count": 2,
+            "min": -12.879066507833848,
+            "median": -9.712021018986558,
+            "max": -6.5449755301392685,
+            "meanAbsolute": 9.712021018986558
+          },
+          "disagreementSignedPredictionErrorDegrees": {
+            "count": 2,
+            "min": -15.744681664162911,
+            "median": -12.24627815685156,
+            "max": -8.747874649540208,
+            "meanAbsolute": 12.24627815685156
+          }
+        },
+        "floor": {
+          "nearTotal": 3,
+          "nearAgree": 2,
+          "falsePositiveVsAngleThreshold": 0,
+          "falseNegativeVsAngleThreshold": 1,
+          "baselineCorrectVariantWrong": 0,
+          "baselineWrongVariantCorrect": 0,
+          "truthSignedMarginDegrees": {
+            "count": 3,
+            "min": -4.439508124471061,
+            "median": 2.2028991194009393,
+            "max": 2.8656151563290635,
+            "meanAbsolute": 3.169340800067021
+          },
+          "predictionSignedMarginDegrees": {
+            "count": 3,
+            "min": -8.258022278041246,
+            "median": -2.197963696179869,
+            "max": 1.3695824222051982,
+            "meanAbsolute": 3.9418561321421044
+          },
+          "signedPredictionErrorDegrees": {
+            "count": 3,
+            "min": -5.0635788525089325,
+            "median": -3.8185141535701845,
+            "max": -0.8333166971957411,
+            "meanAbsolute": 3.2384699010916194
+          },
+          "disagreementTruthSignedMarginDegrees": {
+            "count": 1,
+            "min": 2.8656151563290635,
+            "median": 2.8656151563290635,
+            "max": 2.8656151563290635,
+            "meanAbsolute": 2.8656151563290635
+          },
+          "disagreementPredictionSignedMarginDegrees": {
+            "count": 1,
+            "min": -2.197963696179869,
+            "median": -2.197963696179869,
+            "max": -2.197963696179869,
+            "meanAbsolute": 2.197963696179869
+          },
+          "disagreementSignedPredictionErrorDegrees": {
+            "count": 1,
+            "min": -5.0635788525089325,
+            "median": -5.0635788525089325,
+            "max": -5.0635788525089325,
+            "meanAbsolute": 5.0635788525089325
+          }
+        }
+      },
+      "separateWorldUpDiagnostic": {
+        "B_to_Bw": {
+          "nearTotal": 3,
+          "decisionChanged": 0,
+          "worldMinusCameraAbsoluteErrorDegrees": {
+            "count": 3,
+            "min": -0.4121025503523441,
+            "median": 1.5134940389060745,
+            "max": 1.6305299542774563,
+            "meanAbsolute": 1.1853755145119582
+          }
+        },
+        "C_to_Cw": {
+          "nearTotal": 3,
+          "decisionChanged": 0,
+          "worldMinusCameraAbsoluteErrorDegrees": {
+            "count": 3,
+            "min": -0.3846931660974029,
+            "median": 1.6334298728065058,
+            "max": 1.8390170765496805,
+            "meanAbsolute": 1.285713371817863
+          }
+        }
+      }
+    },
+    "squat_shallow": {
+      "exercise": "squat",
+      "thresholdDegrees": 15.0,
+      "operator": "value_strictly_greater_than_threshold",
+      "variants": {
+        "A2D": {
+          "nearTotal": 0,
+          "nearAgree": 0,
+          "falsePositiveVsAngleThreshold": 0,
+          "falseNegativeVsAngleThreshold": 0,
+          "baselineCorrectVariantWrong": 0,
+          "baselineWrongVariantCorrect": 0,
+          "truthSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "predictionSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "signedPredictionErrorDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "disagreementTruthSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "disagreementPredictionSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "disagreementSignedPredictionErrorDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          }
+        },
+        "A": {
+          "nearTotal": 0,
+          "nearAgree": 0,
+          "falsePositiveVsAngleThreshold": 0,
+          "falseNegativeVsAngleThreshold": 0,
+          "baselineCorrectVariantWrong": 0,
+          "baselineWrongVariantCorrect": 0,
+          "truthSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "predictionSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "signedPredictionErrorDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "disagreementTruthSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "disagreementPredictionSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "disagreementSignedPredictionErrorDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          }
+        },
+        "B": {
+          "nearTotal": 0,
+          "nearAgree": 0,
+          "falsePositiveVsAngleThreshold": 0,
+          "falseNegativeVsAngleThreshold": 0,
+          "baselineCorrectVariantWrong": 0,
+          "baselineWrongVariantCorrect": 0,
+          "truthSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "predictionSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "signedPredictionErrorDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "disagreementTruthSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "disagreementPredictionSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "disagreementSignedPredictionErrorDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          }
+        },
+        "C": {
+          "nearTotal": 0,
+          "nearAgree": 0,
+          "falsePositiveVsAngleThreshold": 0,
+          "falseNegativeVsAngleThreshold": 0,
+          "baselineCorrectVariantWrong": 0,
+          "baselineWrongVariantCorrect": 0,
+          "truthSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "predictionSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "signedPredictionErrorDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "disagreementTruthSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "disagreementPredictionSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "disagreementSignedPredictionErrorDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          }
+        },
+        "Bw": {
+          "nearTotal": 0,
+          "nearAgree": 0,
+          "falsePositiveVsAngleThreshold": 0,
+          "falseNegativeVsAngleThreshold": 0,
+          "baselineCorrectVariantWrong": 0,
+          "baselineWrongVariantCorrect": 0,
+          "truthSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "predictionSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "signedPredictionErrorDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "disagreementTruthSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "disagreementPredictionSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "disagreementSignedPredictionErrorDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          }
+        },
+        "Cw": {
+          "nearTotal": 0,
+          "nearAgree": 0,
+          "falsePositiveVsAngleThreshold": 0,
+          "falseNegativeVsAngleThreshold": 0,
+          "baselineCorrectVariantWrong": 0,
+          "baselineWrongVariantCorrect": 0,
+          "truthSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "predictionSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "signedPredictionErrorDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "disagreementTruthSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "disagreementPredictionSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "disagreementSignedPredictionErrorDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          }
+        },
+        "floor": {
+          "nearTotal": 0,
+          "nearAgree": 0,
+          "falsePositiveVsAngleThreshold": 0,
+          "falseNegativeVsAngleThreshold": 0,
+          "baselineCorrectVariantWrong": 0,
+          "baselineWrongVariantCorrect": 0,
+          "truthSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "predictionSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "signedPredictionErrorDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "disagreementTruthSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "disagreementPredictionSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "disagreementSignedPredictionErrorDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          }
+        }
+      },
+      "separateWorldUpDiagnostic": {
+        "B_to_Bw": {
+          "nearTotal": 0,
+          "decisionChanged": 0,
+          "worldMinusCameraAbsoluteErrorDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          }
+        },
+        "C_to_Cw": {
+          "nearTotal": 0,
+          "decisionChanged": 0,
+          "worldMinusCameraAbsoluteErrorDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          }
+        }
+      }
+    },
+    "squat_no_lockout": {
+      "exercise": "squat",
+      "thresholdDegrees": 10.0,
+      "operator": "value_strictly_greater_than_threshold",
+      "variants": {
+        "A2D": {
+          "nearTotal": 0,
+          "nearAgree": 0,
+          "falsePositiveVsAngleThreshold": 0,
+          "falseNegativeVsAngleThreshold": 0,
+          "baselineCorrectVariantWrong": 0,
+          "baselineWrongVariantCorrect": 0,
+          "truthSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "predictionSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "signedPredictionErrorDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "disagreementTruthSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "disagreementPredictionSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "disagreementSignedPredictionErrorDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "disagreementDeficitComponents": {
+            "identity": "deficit_error_equals_running_set_max_error_minus_current_rep_max_error",
+            "runningSetMaxErrorDegrees": {
+              "count": 0,
+              "min": null,
+              "median": null,
+              "max": null,
+              "meanAbsolute": null
+            },
+            "currentRepMaxErrorDegrees": {
+              "count": 0,
+              "min": null,
+              "median": null,
+              "max": null,
+              "meanAbsolute": null
+            }
+          }
+        },
+        "A": {
+          "nearTotal": 0,
+          "nearAgree": 0,
+          "falsePositiveVsAngleThreshold": 0,
+          "falseNegativeVsAngleThreshold": 0,
+          "baselineCorrectVariantWrong": 0,
+          "baselineWrongVariantCorrect": 0,
+          "truthSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "predictionSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "signedPredictionErrorDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "disagreementTruthSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "disagreementPredictionSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "disagreementSignedPredictionErrorDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "disagreementDeficitComponents": {
+            "identity": "deficit_error_equals_running_set_max_error_minus_current_rep_max_error",
+            "runningSetMaxErrorDegrees": {
+              "count": 0,
+              "min": null,
+              "median": null,
+              "max": null,
+              "meanAbsolute": null
+            },
+            "currentRepMaxErrorDegrees": {
+              "count": 0,
+              "min": null,
+              "median": null,
+              "max": null,
+              "meanAbsolute": null
+            }
+          }
+        },
+        "B": {
+          "nearTotal": 0,
+          "nearAgree": 0,
+          "falsePositiveVsAngleThreshold": 0,
+          "falseNegativeVsAngleThreshold": 0,
+          "baselineCorrectVariantWrong": 0,
+          "baselineWrongVariantCorrect": 0,
+          "truthSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "predictionSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "signedPredictionErrorDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "disagreementTruthSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "disagreementPredictionSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "disagreementSignedPredictionErrorDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "disagreementDeficitComponents": {
+            "identity": "deficit_error_equals_running_set_max_error_minus_current_rep_max_error",
+            "runningSetMaxErrorDegrees": {
+              "count": 0,
+              "min": null,
+              "median": null,
+              "max": null,
+              "meanAbsolute": null
+            },
+            "currentRepMaxErrorDegrees": {
+              "count": 0,
+              "min": null,
+              "median": null,
+              "max": null,
+              "meanAbsolute": null
+            }
+          }
+        },
+        "C": {
+          "nearTotal": 0,
+          "nearAgree": 0,
+          "falsePositiveVsAngleThreshold": 0,
+          "falseNegativeVsAngleThreshold": 0,
+          "baselineCorrectVariantWrong": 0,
+          "baselineWrongVariantCorrect": 0,
+          "truthSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "predictionSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "signedPredictionErrorDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "disagreementTruthSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "disagreementPredictionSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "disagreementSignedPredictionErrorDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "disagreementDeficitComponents": {
+            "identity": "deficit_error_equals_running_set_max_error_minus_current_rep_max_error",
+            "runningSetMaxErrorDegrees": {
+              "count": 0,
+              "min": null,
+              "median": null,
+              "max": null,
+              "meanAbsolute": null
+            },
+            "currentRepMaxErrorDegrees": {
+              "count": 0,
+              "min": null,
+              "median": null,
+              "max": null,
+              "meanAbsolute": null
+            }
+          }
+        },
+        "Bw": {
+          "nearTotal": 0,
+          "nearAgree": 0,
+          "falsePositiveVsAngleThreshold": 0,
+          "falseNegativeVsAngleThreshold": 0,
+          "baselineCorrectVariantWrong": 0,
+          "baselineWrongVariantCorrect": 0,
+          "truthSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "predictionSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "signedPredictionErrorDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "disagreementTruthSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "disagreementPredictionSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "disagreementSignedPredictionErrorDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "disagreementDeficitComponents": {
+            "identity": "deficit_error_equals_running_set_max_error_minus_current_rep_max_error",
+            "runningSetMaxErrorDegrees": {
+              "count": 0,
+              "min": null,
+              "median": null,
+              "max": null,
+              "meanAbsolute": null
+            },
+            "currentRepMaxErrorDegrees": {
+              "count": 0,
+              "min": null,
+              "median": null,
+              "max": null,
+              "meanAbsolute": null
+            }
+          }
+        },
+        "Cw": {
+          "nearTotal": 0,
+          "nearAgree": 0,
+          "falsePositiveVsAngleThreshold": 0,
+          "falseNegativeVsAngleThreshold": 0,
+          "baselineCorrectVariantWrong": 0,
+          "baselineWrongVariantCorrect": 0,
+          "truthSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "predictionSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "signedPredictionErrorDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "disagreementTruthSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "disagreementPredictionSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "disagreementSignedPredictionErrorDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "disagreementDeficitComponents": {
+            "identity": "deficit_error_equals_running_set_max_error_minus_current_rep_max_error",
+            "runningSetMaxErrorDegrees": {
+              "count": 0,
+              "min": null,
+              "median": null,
+              "max": null,
+              "meanAbsolute": null
+            },
+            "currentRepMaxErrorDegrees": {
+              "count": 0,
+              "min": null,
+              "median": null,
+              "max": null,
+              "meanAbsolute": null
+            }
+          }
+        },
+        "floor": {
+          "nearTotal": 0,
+          "nearAgree": 0,
+          "falsePositiveVsAngleThreshold": 0,
+          "falseNegativeVsAngleThreshold": 0,
+          "baselineCorrectVariantWrong": 0,
+          "baselineWrongVariantCorrect": 0,
+          "truthSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "predictionSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "signedPredictionErrorDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "disagreementTruthSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "disagreementPredictionSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "disagreementSignedPredictionErrorDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "disagreementDeficitComponents": {
+            "identity": "deficit_error_equals_running_set_max_error_minus_current_rep_max_error",
+            "runningSetMaxErrorDegrees": {
+              "count": 0,
+              "min": null,
+              "median": null,
+              "max": null,
+              "meanAbsolute": null
+            },
+            "currentRepMaxErrorDegrees": {
+              "count": 0,
+              "min": null,
+              "median": null,
+              "max": null,
+              "meanAbsolute": null
+            }
+          }
+        }
+      },
+      "separateWorldUpDiagnostic": {
+        "B_to_Bw": {
+          "nearTotal": 0,
+          "decisionChanged": 0,
+          "worldMinusCameraAbsoluteErrorDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          }
+        },
+        "C_to_Cw": {
+          "nearTotal": 0,
+          "decisionChanged": 0,
+          "worldMinusCameraAbsoluteErrorDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          }
+        }
+      }
+    },
+    "pushup_shallow": {
+      "exercise": "pushup",
+      "thresholdDegrees": 15.0,
+      "operator": "value_strictly_greater_than_threshold",
+      "variants": {
+        "A2D": {
+          "nearTotal": 0,
+          "nearAgree": 0,
+          "falsePositiveVsAngleThreshold": 0,
+          "falseNegativeVsAngleThreshold": 0,
+          "baselineCorrectVariantWrong": 0,
+          "baselineWrongVariantCorrect": 0,
+          "truthSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "predictionSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "signedPredictionErrorDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "disagreementTruthSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "disagreementPredictionSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "disagreementSignedPredictionErrorDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          }
+        },
+        "A": {
+          "nearTotal": 0,
+          "nearAgree": 0,
+          "falsePositiveVsAngleThreshold": 0,
+          "falseNegativeVsAngleThreshold": 0,
+          "baselineCorrectVariantWrong": 0,
+          "baselineWrongVariantCorrect": 0,
+          "truthSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "predictionSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "signedPredictionErrorDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "disagreementTruthSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "disagreementPredictionSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "disagreementSignedPredictionErrorDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          }
+        },
+        "B": {
+          "nearTotal": 0,
+          "nearAgree": 0,
+          "falsePositiveVsAngleThreshold": 0,
+          "falseNegativeVsAngleThreshold": 0,
+          "baselineCorrectVariantWrong": 0,
+          "baselineWrongVariantCorrect": 0,
+          "truthSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "predictionSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "signedPredictionErrorDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "disagreementTruthSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "disagreementPredictionSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "disagreementSignedPredictionErrorDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          }
+        },
+        "C": {
+          "nearTotal": 0,
+          "nearAgree": 0,
+          "falsePositiveVsAngleThreshold": 0,
+          "falseNegativeVsAngleThreshold": 0,
+          "baselineCorrectVariantWrong": 0,
+          "baselineWrongVariantCorrect": 0,
+          "truthSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "predictionSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "signedPredictionErrorDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "disagreementTruthSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "disagreementPredictionSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "disagreementSignedPredictionErrorDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          }
+        },
+        "Bw": {
+          "nearTotal": 0,
+          "nearAgree": 0,
+          "falsePositiveVsAngleThreshold": 0,
+          "falseNegativeVsAngleThreshold": 0,
+          "baselineCorrectVariantWrong": 0,
+          "baselineWrongVariantCorrect": 0,
+          "truthSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "predictionSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "signedPredictionErrorDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "disagreementTruthSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "disagreementPredictionSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "disagreementSignedPredictionErrorDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          }
+        },
+        "Cw": {
+          "nearTotal": 0,
+          "nearAgree": 0,
+          "falsePositiveVsAngleThreshold": 0,
+          "falseNegativeVsAngleThreshold": 0,
+          "baselineCorrectVariantWrong": 0,
+          "baselineWrongVariantCorrect": 0,
+          "truthSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "predictionSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "signedPredictionErrorDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "disagreementTruthSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "disagreementPredictionSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "disagreementSignedPredictionErrorDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          }
+        },
+        "floor": {
+          "nearTotal": 0,
+          "nearAgree": 0,
+          "falsePositiveVsAngleThreshold": 0,
+          "falseNegativeVsAngleThreshold": 0,
+          "baselineCorrectVariantWrong": 0,
+          "baselineWrongVariantCorrect": 0,
+          "truthSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "predictionSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "signedPredictionErrorDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "disagreementTruthSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "disagreementPredictionSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "disagreementSignedPredictionErrorDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          }
+        }
+      },
+      "separateWorldUpDiagnostic": {
+        "B_to_Bw": {
+          "nearTotal": 0,
+          "decisionChanged": 0,
+          "worldMinusCameraAbsoluteErrorDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          }
+        },
+        "C_to_Cw": {
+          "nearTotal": 0,
+          "decisionChanged": 0,
+          "worldMinusCameraAbsoluteErrorDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          }
+        }
+      }
+    },
+    "pushup_no_lockout": {
+      "exercise": "pushup",
+      "thresholdDegrees": 10.0,
+      "operator": "value_strictly_greater_than_threshold",
+      "variants": {
+        "A2D": {
+          "nearTotal": 1,
+          "nearAgree": 1,
+          "falsePositiveVsAngleThreshold": 0,
+          "falseNegativeVsAngleThreshold": 0,
+          "baselineCorrectVariantWrong": 0,
+          "baselineWrongVariantCorrect": 0,
+          "truthSignedMarginDegrees": {
+            "count": 1,
+            "min": -2.738405489268189,
+            "median": -2.738405489268189,
+            "max": -2.738405489268189,
+            "meanAbsolute": 2.738405489268189
+          },
+          "predictionSignedMarginDegrees": {
+            "count": 1,
+            "min": -6.418611188535863,
+            "median": -6.418611188535863,
+            "max": -6.418611188535863,
+            "meanAbsolute": 6.418611188535863
+          },
+          "signedPredictionErrorDegrees": {
+            "count": 1,
+            "min": -3.680205699267674,
+            "median": -3.680205699267674,
+            "max": -3.680205699267674,
+            "meanAbsolute": 3.680205699267674
+          },
+          "disagreementTruthSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "disagreementPredictionSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "disagreementSignedPredictionErrorDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "disagreementDeficitComponents": {
+            "identity": "deficit_error_equals_running_set_max_error_minus_current_rep_max_error",
+            "runningSetMaxErrorDegrees": {
+              "count": 0,
+              "min": null,
+              "median": null,
+              "max": null,
+              "meanAbsolute": null
+            },
+            "currentRepMaxErrorDegrees": {
+              "count": 0,
+              "min": null,
+              "median": null,
+              "max": null,
+              "meanAbsolute": null
+            }
+          }
+        },
+        "A": {
+          "nearTotal": 1,
+          "nearAgree": 1,
+          "falsePositiveVsAngleThreshold": 0,
+          "falseNegativeVsAngleThreshold": 0,
+          "baselineCorrectVariantWrong": 0,
+          "baselineWrongVariantCorrect": 0,
+          "truthSignedMarginDegrees": {
+            "count": 1,
+            "min": -2.738405489268189,
+            "median": -2.738405489268189,
+            "max": -2.738405489268189,
+            "meanAbsolute": 2.738405489268189
+          },
+          "predictionSignedMarginDegrees": {
+            "count": 1,
+            "min": -6.49040747683307,
+            "median": -6.49040747683307,
+            "max": -6.49040747683307,
+            "meanAbsolute": 6.49040747683307
+          },
+          "signedPredictionErrorDegrees": {
+            "count": 1,
+            "min": -3.7520019875648813,
+            "median": -3.7520019875648813,
+            "max": -3.7520019875648813,
+            "meanAbsolute": 3.7520019875648813
+          },
+          "disagreementTruthSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "disagreementPredictionSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "disagreementSignedPredictionErrorDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "disagreementDeficitComponents": {
+            "identity": "deficit_error_equals_running_set_max_error_minus_current_rep_max_error",
+            "runningSetMaxErrorDegrees": {
+              "count": 0,
+              "min": null,
+              "median": null,
+              "max": null,
+              "meanAbsolute": null
+            },
+            "currentRepMaxErrorDegrees": {
+              "count": 0,
+              "min": null,
+              "median": null,
+              "max": null,
+              "meanAbsolute": null
+            }
+          }
+        },
+        "B": {
+          "nearTotal": 1,
+          "nearAgree": 0,
+          "falsePositiveVsAngleThreshold": 1,
+          "falseNegativeVsAngleThreshold": 0,
+          "baselineCorrectVariantWrong": 1,
+          "baselineWrongVariantCorrect": 0,
+          "truthSignedMarginDegrees": {
+            "count": 1,
+            "min": -2.738405489268189,
+            "median": -2.738405489268189,
+            "max": -2.738405489268189,
+            "meanAbsolute": 2.738405489268189
+          },
+          "predictionSignedMarginDegrees": {
+            "count": 1,
+            "min": 1.245610949188631,
+            "median": 1.245610949188631,
+            "max": 1.245610949188631,
+            "meanAbsolute": 1.245610949188631
+          },
+          "signedPredictionErrorDegrees": {
+            "count": 1,
+            "min": 3.9840164384568197,
+            "median": 3.9840164384568197,
+            "max": 3.9840164384568197,
+            "meanAbsolute": 3.9840164384568197
+          },
+          "disagreementTruthSignedMarginDegrees": {
+            "count": 1,
+            "min": -2.738405489268189,
+            "median": -2.738405489268189,
+            "max": -2.738405489268189,
+            "meanAbsolute": 2.738405489268189
+          },
+          "disagreementPredictionSignedMarginDegrees": {
+            "count": 1,
+            "min": 1.245610949188631,
+            "median": 1.245610949188631,
+            "max": 1.245610949188631,
+            "meanAbsolute": 1.245610949188631
+          },
+          "disagreementSignedPredictionErrorDegrees": {
+            "count": 1,
+            "min": 3.9840164384568197,
+            "median": 3.9840164384568197,
+            "max": 3.9840164384568197,
+            "meanAbsolute": 3.9840164384568197
+          },
+          "disagreementDeficitComponents": {
+            "identity": "deficit_error_equals_running_set_max_error_minus_current_rep_max_error",
+            "runningSetMaxErrorDegrees": {
+              "count": 1,
+              "min": -10.277280081995002,
+              "median": -10.277280081995002,
+              "max": -10.277280081995002,
+              "meanAbsolute": 10.277280081995002
+            },
+            "currentRepMaxErrorDegrees": {
+              "count": 1,
+              "min": -14.261296520451822,
+              "median": -14.261296520451822,
+              "max": -14.261296520451822,
+              "meanAbsolute": 14.261296520451822
+            }
+          }
+        },
+        "C": {
+          "nearTotal": 1,
+          "nearAgree": 0,
+          "falsePositiveVsAngleThreshold": 1,
+          "falseNegativeVsAngleThreshold": 0,
+          "baselineCorrectVariantWrong": 1,
+          "baselineWrongVariantCorrect": 0,
+          "truthSignedMarginDegrees": {
+            "count": 1,
+            "min": -2.738405489268189,
+            "median": -2.738405489268189,
+            "max": -2.738405489268189,
+            "meanAbsolute": 2.738405489268189
+          },
+          "predictionSignedMarginDegrees": {
+            "count": 1,
+            "min": 0.6046826067774873,
+            "median": 0.6046826067774873,
+            "max": 0.6046826067774873,
+            "meanAbsolute": 0.6046826067774873
+          },
+          "signedPredictionErrorDegrees": {
+            "count": 1,
+            "min": 3.343088096045676,
+            "median": 3.343088096045676,
+            "max": 3.343088096045676,
+            "meanAbsolute": 3.343088096045676
+          },
+          "disagreementTruthSignedMarginDegrees": {
+            "count": 1,
+            "min": -2.738405489268189,
+            "median": -2.738405489268189,
+            "max": -2.738405489268189,
+            "meanAbsolute": 2.738405489268189
+          },
+          "disagreementPredictionSignedMarginDegrees": {
+            "count": 1,
+            "min": 0.6046826067774873,
+            "median": 0.6046826067774873,
+            "max": 0.6046826067774873,
+            "meanAbsolute": 0.6046826067774873
+          },
+          "disagreementSignedPredictionErrorDegrees": {
+            "count": 1,
+            "min": 3.343088096045676,
+            "median": 3.343088096045676,
+            "max": 3.343088096045676,
+            "meanAbsolute": 3.343088096045676
+          },
+          "disagreementDeficitComponents": {
+            "identity": "deficit_error_equals_running_set_max_error_minus_current_rep_max_error",
+            "runningSetMaxErrorDegrees": {
+              "count": 1,
+              "min": -10.48724356340702,
+              "median": -10.48724356340702,
+              "max": -10.48724356340702,
+              "meanAbsolute": 10.48724356340702
+            },
+            "currentRepMaxErrorDegrees": {
+              "count": 1,
+              "min": -13.830331659452696,
+              "median": -13.830331659452696,
+              "max": -13.830331659452696,
+              "meanAbsolute": 13.830331659452696
+            }
+          }
+        },
+        "Bw": {
+          "nearTotal": 1,
+          "nearAgree": 0,
+          "falsePositiveVsAngleThreshold": 1,
+          "falseNegativeVsAngleThreshold": 0,
+          "baselineCorrectVariantWrong": 1,
+          "baselineWrongVariantCorrect": 0,
+          "truthSignedMarginDegrees": {
+            "count": 1,
+            "min": -2.738405489268189,
+            "median": -2.738405489268189,
+            "max": -2.738405489268189,
+            "meanAbsolute": 2.738405489268189
+          },
+          "predictionSignedMarginDegrees": {
+            "count": 1,
+            "min": 1.173275237092696,
+            "median": 1.173275237092696,
+            "max": 1.173275237092696,
+            "meanAbsolute": 1.173275237092696
+          },
+          "signedPredictionErrorDegrees": {
+            "count": 1,
+            "min": 3.911680726360885,
+            "median": 3.911680726360885,
+            "max": 3.911680726360885,
+            "meanAbsolute": 3.911680726360885
+          },
+          "disagreementTruthSignedMarginDegrees": {
+            "count": 1,
+            "min": -2.738405489268189,
+            "median": -2.738405489268189,
+            "max": -2.738405489268189,
+            "meanAbsolute": 2.738405489268189
+          },
+          "disagreementPredictionSignedMarginDegrees": {
+            "count": 1,
+            "min": 1.173275237092696,
+            "median": 1.173275237092696,
+            "max": 1.173275237092696,
+            "meanAbsolute": 1.173275237092696
+          },
+          "disagreementSignedPredictionErrorDegrees": {
+            "count": 1,
+            "min": 3.911680726360885,
+            "median": 3.911680726360885,
+            "max": 3.911680726360885,
+            "meanAbsolute": 3.911680726360885
+          },
+          "disagreementDeficitComponents": {
+            "identity": "deficit_error_equals_running_set_max_error_minus_current_rep_max_error",
+            "runningSetMaxErrorDegrees": {
+              "count": 1,
+              "min": -10.227938594575676,
+              "median": -10.227938594575676,
+              "max": -10.227938594575676,
+              "meanAbsolute": 10.227938594575676
+            },
+            "currentRepMaxErrorDegrees": {
+              "count": 1,
+              "min": -14.13961932093656,
+              "median": -14.13961932093656,
+              "max": -14.13961932093656,
+              "meanAbsolute": 14.13961932093656
+            }
+          }
+        },
+        "Cw": {
+          "nearTotal": 1,
+          "nearAgree": 0,
+          "falsePositiveVsAngleThreshold": 1,
+          "falseNegativeVsAngleThreshold": 0,
+          "baselineCorrectVariantWrong": 1,
+          "baselineWrongVariantCorrect": 0,
+          "truthSignedMarginDegrees": {
+            "count": 1,
+            "min": -2.738405489268189,
+            "median": -2.738405489268189,
+            "max": -2.738405489268189,
+            "meanAbsolute": 2.738405489268189
+          },
+          "predictionSignedMarginDegrees": {
+            "count": 1,
+            "min": 0.5431728906236515,
+            "median": 0.5431728906236515,
+            "max": 0.5431728906236515,
+            "meanAbsolute": 0.5431728906236515
+          },
+          "signedPredictionErrorDegrees": {
+            "count": 1,
+            "min": 3.2815783798918403,
+            "median": 3.2815783798918403,
+            "max": 3.2815783798918403,
+            "meanAbsolute": 3.2815783798918403
+          },
+          "disagreementTruthSignedMarginDegrees": {
+            "count": 1,
+            "min": -2.738405489268189,
+            "median": -2.738405489268189,
+            "max": -2.738405489268189,
+            "meanAbsolute": 2.738405489268189
+          },
+          "disagreementPredictionSignedMarginDegrees": {
+            "count": 1,
+            "min": 0.5431728906236515,
+            "median": 0.5431728906236515,
+            "max": 0.5431728906236515,
+            "meanAbsolute": 0.5431728906236515
+          },
+          "disagreementSignedPredictionErrorDegrees": {
+            "count": 1,
+            "min": 3.2815783798918403,
+            "median": 3.2815783798918403,
+            "max": 3.2815783798918403,
+            "meanAbsolute": 3.2815783798918403
+          },
+          "disagreementDeficitComponents": {
+            "identity": "deficit_error_equals_running_set_max_error_minus_current_rep_max_error",
+            "runningSetMaxErrorDegrees": {
+              "count": 1,
+              "min": -10.440703878756807,
+              "median": -10.440703878756807,
+              "max": -10.440703878756807,
+              "meanAbsolute": 10.440703878756807
+            },
+            "currentRepMaxErrorDegrees": {
+              "count": 1,
+              "min": -13.722282258648647,
+              "median": -13.722282258648647,
+              "max": -13.722282258648647,
+              "meanAbsolute": 13.722282258648647
+            }
+          }
+        },
+        "floor": {
+          "nearTotal": 1,
+          "nearAgree": 1,
+          "falsePositiveVsAngleThreshold": 0,
+          "falseNegativeVsAngleThreshold": 0,
+          "baselineCorrectVariantWrong": 0,
+          "baselineWrongVariantCorrect": 0,
+          "truthSignedMarginDegrees": {
+            "count": 1,
+            "min": -2.738405489268189,
+            "median": -2.738405489268189,
+            "max": -2.738405489268189,
+            "meanAbsolute": 2.738405489268189
+          },
+          "predictionSignedMarginDegrees": {
+            "count": 1,
+            "min": -2.3484244036558266,
+            "median": -2.3484244036558266,
+            "max": -2.3484244036558266,
+            "meanAbsolute": 2.3484244036558266
+          },
+          "signedPredictionErrorDegrees": {
+            "count": 1,
+            "min": 0.3899810856123622,
+            "median": 0.3899810856123622,
+            "max": 0.3899810856123622,
+            "meanAbsolute": 0.3899810856123622
+          },
+          "disagreementTruthSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "disagreementPredictionSignedMarginDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "disagreementSignedPredictionErrorDegrees": {
+            "count": 0,
+            "min": null,
+            "median": null,
+            "max": null,
+            "meanAbsolute": null
+          },
+          "disagreementDeficitComponents": {
+            "identity": "deficit_error_equals_running_set_max_error_minus_current_rep_max_error",
+            "runningSetMaxErrorDegrees": {
+              "count": 0,
+              "min": null,
+              "median": null,
+              "max": null,
+              "meanAbsolute": null
+            },
+            "currentRepMaxErrorDegrees": {
+              "count": 0,
+              "min": null,
+              "median": null,
+              "max": null,
+              "meanAbsolute": null
+            }
+          }
+        }
+      },
+      "separateWorldUpDiagnostic": {
+        "B_to_Bw": {
+          "nearTotal": 1,
+          "decisionChanged": 0,
+          "worldMinusCameraAbsoluteErrorDegrees": {
+            "count": 1,
+            "min": -0.07233571209593492,
+            "median": -0.07233571209593492,
+            "max": -0.07233571209593492,
+            "meanAbsolute": 0.07233571209593492
+          }
+        },
+        "C_to_Cw": {
+          "nearTotal": 1,
+          "decisionChanged": 0,
+          "worldMinusCameraAbsoluteErrorDegrees": {
+            "count": 1,
+            "min": -0.061509716153835825,
+            "median": -0.061509716153835825,
+            "max": -0.061509716153835825,
+            "meanAbsolute": 0.061509716153835825
+          }
+        }
+      }
+    }
+  },
+  "evaluatorSha256": "87bbcbba75f880882741ec191cec9a10a0bd919c1034d0cc73109453c881e8c3",
+  "scoreSha256": "fd84c4971a601fa2fe5b23260f55bb73bed172a8cce0642017775fc619061f5f",
+  "validation": {
+    "allExistingNearAgreementCountsMatch": true,
+    "export": "exercise_metric_aggregates_only_no_subject_camera_rep_identifiers",
+    "inferenceRun": false,
+    "gtUsedAsInferenceInput": false
+  }
+}
