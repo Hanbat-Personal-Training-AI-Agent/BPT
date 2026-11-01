@@ -2,6 +2,8 @@
 
 These are scoped runtime/transport/UI checks, not expert form-accuracy or actual camera-overlay validation. The sole device agent used the existing Wi-Fi pairing; no USB/CoreDevice reset, main merge, model change or production deployment occurred.
 
+**Follow-up completed at Nov2 07:46 KST:** the previously pending6835 silent fixture passed after the user restored the connection. [Fresh device result and preservation](final_dart_runtime_device_20261102.md) supersedes the pending status below; the original failed readiness history remains preserved. The new terminal candidate is a separate ongoing experiment, not covered by this673-native fixture.
+
 ## Completed baseline
 
 Product base6734902 was actually compiled and linked for iPhone. Native test source2c15319 and Dart test source15019d2 use the real native feedback contract and production Result/history widgets, with synthetic pose inputs, memory-only records/preferences and a transport that refuses network use. Native770 code was not reused. Protected model weights and source/signing receipts establish the actual673 native donor; no user record was written.
