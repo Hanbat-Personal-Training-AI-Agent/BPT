@@ -71,7 +71,8 @@ void main() {
   for (final mode in [
     'new_ack_absent',
     'new_evidence_omitted',
-    'old_pending_acked'
+    'old_pending_acked',
+    'old_ack_with_newer_server'
   ]) {
     test('pending GET reconciles concurrent submit: $mode', () async {
       SharedPreferences.setMockInitialValues({});
@@ -79,14 +80,27 @@ void main() {
       final f = await sessionFixture(prefs);
       addTearDown(f.auth.dispose);
       final dto = _dto();
-      if (mode == 'old_pending_acked') {
+      if (mode.startsWith('old_')) {
         await f.storage.addRecord(WorkoutRecordModel.fromDto(dto), uid: 'A');
       }
-      final server = _DelayedGet(mode == 'new_evidence_omitted'
+      final server = _DelayedGet(mode == 'old_ack_with_newer_server'
           ? [
-              {...dto.toJson(), 'id': 'server-one', 'poseMetricsSummary': null}
+              {
+                ...dto.toJson(),
+                'clientRecordId': 'newer',
+                'id': 'server-newer',
+                'date': '2026-11-03T12:00:00'
+              }
             ]
-          : []);
+          : mode == 'new_evidence_omitted'
+              ? [
+                  {
+                    ...dto.toJson(),
+                    'id': 'server-one',
+                    'poseMetricsSummary': null
+                  }
+                ]
+              : []);
       final api = ApiClient(baseUrl: 'http://test')..setAuthToken('token-A');
       api.dio.httpClientAdapter = server;
       final lease = f.auth.captureSession()!,
@@ -102,12 +116,21 @@ void main() {
       expect((await repo.submitWorkoutRecord(dto)).isSynced, true);
       server.release.complete();
       final result = await get;
-      expect(result, hasLength(1));
-      expect(result.single.isSynced, true);
-      expect(result.single.poseMetricsSummary, dto.poseMetricsSummary);
-      expect(f.storage.loadRecords(uid: 'A'), hasLength(1));
-      expect(f.storage.loadRecords(uid: 'A').single.poseMetricsSummary,
+      expect(result, hasLength(mode == 'old_ack_with_newer_server' ? 2 : 1));
+      final submitted = result.singleWhere((r) => r.id == dto.clientRecordId);
+      expect(submitted.isSynced, true);
+      expect(submitted.poseMetricsSummary, dto.poseMetricsSummary);
+      expect(
+          f.storage
+              .loadRecords(uid: 'A')
+              .singleWhere((r) => r.id == dto.clientRecordId)
+              .poseMetricsSummary,
           dto.poseMetricsSummary);
+      if (mode == 'old_ack_with_newer_server') {
+        expect(result.map((r) => r.id), ['newer', dto.clientRecordId]);
+        expect(f.storage.loadRecords(uid: 'A').map((r) => r.id),
+            ['newer', dto.clientRecordId]);
+      }
       expect(q.getQueue(), isEmpty);
     });
   }

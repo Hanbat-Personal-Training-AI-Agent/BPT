@@ -12,6 +12,7 @@ import com.bpt.kori.domain.user.entity.UserCalibration;
 import com.bpt.kori.domain.user.repository.UserCalibrationRepository;
 import com.bpt.kori.domain.user.repository.UserRepository;
 import com.bpt.kori.domain.workout.entity.WorkoutRecord;
+import com.bpt.kori.domain.workout.dto.WorkoutEvidenceContract;
 import com.bpt.kori.domain.workout.repository.WorkoutRecordRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -163,9 +164,12 @@ public class UserService {
         int todayWorkoutMinutes = todayRecords.stream()
                 .mapToInt(r -> r.getDurationSeconds() != null ? r.getDurationSeconds() : 0)
                 .sum() / 60;
-        int todayCompletedSets = todayRecords.stream()
-                .mapToInt(r -> r.getTargetSets() != null ? r.getTargetSets() : 1)
-                .sum();
+        Integer todayCompletedSets = 0;
+        for (WorkoutRecord record : todayRecords) {
+            Integer actual = WorkoutEvidenceContract.actualCompletedSets(record);
+            if (actual == null) { todayCompletedSets = null; break; }
+            todayCompletedSets += actual;
+        }
         int todayTotalReps = todayRecords.stream()
                 .mapToInt(r -> r.getTotalReps() != null ? r.getTotalReps() : 0)
                 .sum();
@@ -246,6 +250,7 @@ public class UserService {
                 .achievementRate(achievementRate)
                 .todayWorkoutMinutes(todayWorkoutMinutes)
                 .todayCompletedSets(todayCompletedSets)
+                .completedSetsEvidenceVersion(1)
                 .todayTotalReps(todayTotalReps)
                 .weeklyGoalCount(weeklyGoal)
                 .weeklyCompletedCount(weeklyCompletedCount)

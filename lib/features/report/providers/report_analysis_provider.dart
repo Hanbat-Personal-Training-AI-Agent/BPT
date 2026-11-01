@@ -7,7 +7,7 @@ import '../../../data/mock_data.dart';
 import '../../../models/workout_record_model.dart';
 import '../../../services/report_service.dart';
 import '../../../services/workout_records_service.dart';
-import '../../auth/providers/auth_provider.dart';
+import '../../../services/aggregate_session_scope.dart';
 import '../../home/providers/home_provider.dart';
 import '../../workout/data/kori_feedback_lines.dart';
 
@@ -75,11 +75,25 @@ class ReportAnalysisData {
 /// 서버 분석 집계 (전체 기간). 운동 기록이 바뀌면 다시 받는다.
 /// 로그인 전이거나 연결이 안 되면 null.
 final serverReportCountsProvider =
-    FutureProvider<ReportAnalysisCounts?>((ref) async {
+    Provider<AsyncValue<ReportAnalysisCounts?>>((ref) {
+  final scope = ref.watch(aggregateSessionScopeProvider);
+  return scope == null
+      ? const AsyncValue.data(null)
+      : ref.watch(_sessionReportProvider(scope));
+});
+
+final _sessionReportProvider = FutureProvider.autoDispose
+    .family<ReportAnalysisCounts?, AggregateSessionScope>((ref, scope) async {
   ref.watch(workoutRecordsProvider);
-  if (ref.watch(authNotifierProvider).currentUser == null) return null;
+  var active = true;
+  ref.onDispose(() => active = false);
+  bool ownsSession() => active && scope.lease.isCurrent;
+  if (!ownsSession()) return null;
   try {
-    return await ref.watch(reportServiceProvider).fetchAnalysis();
+    final result = await ref
+        .watch(reportServiceProvider)
+        .fetchAnalysis(sessionGuard: ownsSession);
+    return ownsSession() ? result : null;
   } catch (_) {
     return null;
   }

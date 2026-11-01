@@ -290,7 +290,7 @@ class _QuickStatsRow extends StatelessWidget {
         Expanded(
           child: _StatBox(
             label: isKo ? '완료 세트' : 'Sets done',
-            value: summary['completedSets'] as int? ?? 0,
+            value: summary['completedSets'] as int?,
             unit: isKo ? '세트' : ' sets',
           ),
         ),
@@ -314,7 +314,7 @@ class _StatBox extends StatelessWidget {
     required this.unit,
   });
   final String label;
-  final int value;
+  final int? value;
   final String unit;
 
   @override
@@ -339,14 +339,14 @@ class _StatBox extends StatelessWidget {
           const SizedBox(height: 6),
           // 화면이 열릴 때 0부터 실제 값까지 빠르게 올라간다.
           TweenAnimationBuilder<int>(
-            tween: IntTween(begin: 0, end: value),
+            tween: IntTween(begin: 0, end: value ?? 0),
             duration: const Duration(milliseconds: 800),
             curve: Curves.easeOutCubic,
             builder: (context, shown, _) => RichText(
               text: TextSpan(
                 children: [
                   TextSpan(
-                    text: '$shown',
+                    text: value == null ? '—' : '$shown',
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 23,
@@ -747,7 +747,9 @@ class _RecentRecordTile extends StatelessWidget {
                   ),
                   const SizedBox(height: 3),
                   WorkoutRecordCompletionText(
-                    record: record, isKo: isKo, includeWeight: true,
+                    record: record,
+                    isKo: isKo,
+                    includeWeight: true,
                     style: TextStyle(
                       color: Colors.white.withValues(alpha: 0.5),
                       fontSize: 13,

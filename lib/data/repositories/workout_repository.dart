@@ -202,7 +202,7 @@ class WorkoutRepository implements IWorkoutRepository {
           ...protected.where((local) =>
               !visibleServer.any((remote) => sameRecord(local, remote))),
           ...visibleServer,
-        ];
+        ]..sort((a, b) => b.date.compareTo(a.date));
 
         // Update local cache
         await _localStorage.saveRecords(merged, uid: uid);

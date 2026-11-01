@@ -28,8 +28,11 @@ public class DashboardSummaryResponseDto {
     @Schema(description = "오늘 순수 운동 시간 (분)", example = "42")
     private Integer todayWorkoutMinutes;
 
-    @Schema(description = "오늘 완료한 세트 수", example = "4")
+    @Schema(description = "오늘 실제 완료 세트 수. 기록 중 실제 세트 근거가 없으면 null", example = "4")
     private Integer todayCompletedSets;
+
+    @Schema(description = "완료 세트 근거 계약 버전. 1: 목표 세트로 대체하지 않음", example = "1")
+    private Integer completedSetsEvidenceVersion;
 
     @Schema(description = "오늘 수행한 총 반복 횟수", example = "45")
     private Integer todayTotalReps;

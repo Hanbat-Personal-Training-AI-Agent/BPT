@@ -6,6 +6,7 @@ import '../../../models/exercise_model.dart';
 import '../../../models/user_model.dart';
 import '../../../models/workout_record_model.dart';
 import '../../../services/dashboard_service.dart';
+import '../../../services/aggregate_session_scope.dart';
 import '../../../services/workout_records_service.dart';
 
 // ── Current user (auth first, mock fallback) ──────────────────────────────
@@ -23,13 +24,25 @@ final weeklyWorkoutGoalProvider = Provider<int>(
 // ── 서버 홈 요약 (GET /users/me/dashboard) ───────────────────────────────
 // 운동 기록이나 사용자 정보가 바뀌면 다시 받는다. 로그인 전, 연결 실패, 서버와
 // 기기의 날짜가 다를 때는 null 이고, 그때는 아래 Provider들이 기기 기록으로 계산한다.
-final dashboardSummaryProvider = FutureProvider<DashboardSummary?>((ref) async {
+final dashboardSummaryProvider = Provider<AsyncValue<DashboardSummary?>>((ref) {
+  final scope = ref.watch(aggregateSessionScopeProvider);
+  return scope == null
+      ? const AsyncValue.data(null)
+      : ref.watch(_sessionDashboardProvider(scope));
+});
+
+final _sessionDashboardProvider = FutureProvider.autoDispose
+    .family<DashboardSummary?, AggregateSessionScope>((ref, scope) async {
   ref.watch(workoutRecordsProvider);
-  if (ref.watch(authNotifierProvider).currentUser == null) return null;
-  ref.watch(currentUserProvider);
+  var active = true;
+  ref.onDispose(() => active = false);
+  bool ownsSession() => active && scope.lease.isCurrent;
+  if (!ownsSession()) return null;
   try {
-    final summary = await ref.watch(dashboardServiceProvider).fetchSummary();
-    return summary.isFor(DateTime.now()) ? summary : null;
+    final summary = await ref
+        .watch(dashboardServiceProvider)
+        .fetchSummary(sessionGuard: ownsSession);
+    return ownsSession() && summary.isFor(DateTime.now()) ? summary : null;
   } catch (_) {
     return null;
   }
@@ -148,9 +161,18 @@ final todaySummaryProvider = Provider<Map<String, dynamic>>((ref) {
 
   final totalReps = todayRecords.fold(0, (sum, r) => sum + r.totalReps);
   final totalSecs = todayRecords.fold(0, (sum, r) => sum + r.durationSeconds);
-  final completedSets = todayRecords.fold(0, (sum, r) => sum + r.targetSets);
-  final assessedScores = todayRecords.map((r) => r.assessedPostureScore).whereType<double>().toList();
-  final avgScore = assessedScores.isEmpty ? null : assessedScores.reduce((a, b) => a + b) / assessedScores.length;
+  final unknownSetRecords =
+      todayRecords.where((r) => r.completedSets == null).length;
+  final completedSets = unknownSetRecords > 0
+      ? null
+      : todayRecords.fold(0, (sum, r) => sum + r.completedSets!);
+  final assessedScores = todayRecords
+      .map((r) => r.assessedPostureScore)
+      .whereType<double>()
+      .toList();
+  final avgScore = assessedScores.isEmpty
+      ? null
+      : assessedScores.reduce((a, b) => a + b) / assessedScores.length;
 
   // 운동 시간·세트·반복은 서버 요약이 있으면 그 값을 쓴다.
   final server = ref.watch(dashboardSummaryProvider).valueOrNull;
@@ -159,7 +181,11 @@ final todaySummaryProvider = Provider<Map<String, dynamic>>((ref) {
     'workoutsToday': todayRecords.length,
     'totalReps': server?.todayTotalReps ?? totalReps,
     'totalMinutes': server?.todayWorkoutMinutes ?? totalSecs ~/ 60,
-    'completedSets': server?.todayCompletedSets ?? completedSets,
+    // A versioned server null is explicitly unknown; an old server has no count provenance.
+    'completedSets': server?.hasCompletedSetsEvidence == true
+        ? server!.todayCompletedSets
+        : completedSets,
+    'unknownSetRecordCount': unknownSetRecords,
     'avgPostureScore': avgScore,
     'streak': streak,
     if (showMockTodayStats && todayRecords.isEmpty) ..._mockTodayStats,

@@ -19,7 +19,8 @@ class WorkoutRecordsNotifier
     try {
       final records = await _repository.getWorkoutRecords();
       if (!mounted) return;
-      state = AsyncValue.data(records);
+      state = AsyncValue.data(
+          [...records]..sort((a, b) => b.date.compareTo(a.date)));
     } catch (e, st) {
       if (!mounted) return;
       state = AsyncValue.error(e, st);
@@ -39,7 +40,7 @@ class WorkoutRecordsNotifier
       final updatedList = [
         newRecord,
         ...currentRecords.where((r) => r.id != newRecord.id),
-      ];
+      ]..sort((a, b) => b.date.compareTo(a.date));
 
       state = AsyncValue.data(updatedList);
       return newRecord;

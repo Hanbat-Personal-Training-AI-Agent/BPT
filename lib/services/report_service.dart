@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart' show Options;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/network/api_client.dart';
@@ -42,8 +43,12 @@ class ReportService {
   final ApiClient _apiClient;
 
   /// 기간을 안 주면 전체 기록을 집계한다.
-  Future<ReportAnalysisCounts> fetchAnalysis() async {
-    final response = await _apiClient.get('/reports/analysis');
+  Future<ReportAnalysisCounts> fetchAnalysis(
+      {bool Function()? sessionGuard}) async {
+    final response = await _apiClient.get('/reports/analysis',
+        options: Options(extra: {
+          if (sessionGuard != null) ApiClient.sessionGuardKey: sessionGuard
+        }));
     return ReportAnalysisCounts.fromJson(response.data as Map<String, dynamic>);
   }
 }

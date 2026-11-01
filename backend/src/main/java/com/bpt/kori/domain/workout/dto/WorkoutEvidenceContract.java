@@ -5,6 +5,7 @@ import com.bpt.kori.common.exception.ErrorCode;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List;
+import com.bpt.kori.domain.workout.entity.WorkoutRecord;
 import java.util.Map;
 
 /** Structural contract for the versioned, explicitly UNASSESSED native envelope. Not form validation. */
@@ -43,6 +44,33 @@ public final class WorkoutEvidenceContract {
         // Event counts may exceed rep counts and do not have to equal feedbackCounts (different scopes).
         if (repsSum != completed || eventsSum != warnings) throw invalid();
         return true;
+    }
+
+    /** Actual set count only; planned targets and legacy totalSets are not observation evidence. */
+    public static Integer actualCompletedSets(WorkoutRecord record) {
+        Map<String, Object> summary = readSummary(record.getPoseMetricsSummary());
+        if (summary != null && summary.containsKey("workoutEvidence")) {
+            try {
+                var request = new WorkoutMetadataRequestDto();
+                request.setTotalReps(record.getTotalReps() != null ? record.getTotalReps() : 0);
+                request.setCorrectReps(record.getCorrectReps() != null ? record.getCorrectReps() : 0);
+                request.setIncorrectReps(record.getIncorrectReps() != null ? record.getIncorrectReps() : 0);
+                request.setPoseMetricsSummary(summary);
+                if (validateRequest(request)) {
+                    return ((List<?>) ((Map<?, ?>) summary.get("workoutEvidence")).get("sets")).size();
+                }
+            } catch (RuntimeException ignored) { return null; }
+        }
+        var sets = record.getSetRecords();
+        if (sets == null || sets.isEmpty()) return null;
+        long reps = 0;
+        var numbers = new java.util.HashSet<Integer>();
+        for (var set : sets) {
+            if (set.getReps() == null || set.getReps() < 0 || set.getSetNumber() == null
+                    || set.getSetNumber() < 1 || !numbers.add(set.getSetNumber())) return null;
+            reps += set.getReps();
+        }
+        return record.getTotalReps() != null && reps == record.getTotalReps() ? sets.size() : null;
     }
 
     private static long count(Object value) {
