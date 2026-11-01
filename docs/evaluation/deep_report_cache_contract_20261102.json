@@ -1,0 +1,112 @@
+{
+  "purpose": "saved_cache_contract_audit_not_service_replay_or_accuracy",
+  "status": "service_replay_not_executed",
+  "jobs": 20,
+  "resultFiles": 40,
+  "inputFilesHashedAndRechecked": 81,
+  "inputsUnchanged": true,
+  "inputSetSha256": "a7980ffb36e9dcd42bb51af2b4b761be7269c16185b762ef9cac635240524ab0",
+  "jobsSha256": "bb354a201824681ba1e78ac9c1b1c47cdb4f85ed160b4212db7b8ddb26c5e7f8",
+  "headerChecks": {
+    "world_T_17_3": 40,
+    "vitpose_T_17_3": 40,
+    "matching_world_vitpose_frames": 40,
+    "matching_metadata_frames": 40,
+    "runtime_fps_30": 40,
+    "source_fps_50": 40,
+    "person_frame_ratio_available": 40
+  },
+  "missingArrays": {
+    "tracked_mask": 40
+  },
+  "npzSchemaCounts": [
+    {
+      "keys": [
+        "K",
+        "bbx_xyxy",
+        "contact_prob",
+        "h36m17_cam",
+        "h36m17_world",
+        "meta",
+        "smplx_global_betas",
+        "smplx_global_body_pose",
+        "smplx_global_global_orient",
+        "smplx_global_transl",
+        "smplx_incam_betas",
+        "smplx_incam_body_pose",
+        "smplx_incam_global_orient",
+        "smplx_incam_transl",
+        "vitpose_coco17"
+      ],
+      "count": 40
+    }
+  ],
+  "nonCodeJsonFilesInspected": 53,
+  "videoMsManifestCandidates": 0,
+  "exerciseRepsObjects": 0,
+  "nestedManifestObjects": 0,
+  "researchBoundarySource": "dataset_reference_intervals_50fps_with_side_gt_not_native_manifest",
+  "beforeReportsExecuted": 0,
+  "afterReportsExecuted": 0,
+  "fullyValidContentParity": null,
+  "actualPartialNullCount": null,
+  "wholeJobRejectionCount": null,
+  "withheldMetricCount": null,
+  "blocker": "no_saved_native_video_ms_manifest_or_observed_side_warning_correspondence",
+  "sourceSnapshots": {
+    "17583f391f6dd028bf0515b2be3e8d2257c95866": {
+      "server/calibration_modal/deep_metrics.py": {
+        "present": true,
+        "sha256": "8508ac907d7185ac541363b7cc4092713d8e80cd2937790a62fc78ed388fd2c3"
+      },
+      "server/calibration_modal/deep_worker.py": {
+        "present": true,
+        "sha256": "7bef80812a1250ce8dfd870361ad7069674cb247d80ec8b2272b96c05948038d"
+      },
+      "server/calibration_modal/deep_analysis.py": {
+        "present": true,
+        "sha256": "6dcbe2a96e168a78000b2078d0cde7fcdc4b492c849953f848732b64dbf54357"
+      },
+      "server/calibration_modal/deep_rules.csv": {
+        "present": true,
+        "sha256": "ce95348cf2324cbe7818d894e1c18f8d1a9586bdd7f7012b41be96e32f518a32"
+      },
+      "server/calibration_modal/checks.py": {
+        "present": true,
+        "sha256": "b9927f1b738a54e4c23950b5705a4d15c0bbd97da41ac7abc164a59a222ab635"
+      },
+      "docs/coaching/fault_catalog.csv": {
+        "present": false,
+        "sha256": null
+      }
+    },
+    "6835d3cf5b3eaf64a80c70d60ec2be373e2d6d30": {
+      "server/calibration_modal/deep_metrics.py": {
+        "present": true,
+        "sha256": "441c9de6bfbad46fe63e1da7794b830d9ec8ba8730080ebb7acc1b64b7636775"
+      },
+      "server/calibration_modal/deep_worker.py": {
+        "present": true,
+        "sha256": "cdb444f7a1f6bdd92bc1949e5b58bc4af0237383767c7e1957703aa49840d8ae"
+      },
+      "server/calibration_modal/deep_analysis.py": {
+        "present": true,
+        "sha256": "6dcbe2a96e168a78000b2078d0cde7fcdc4b492c849953f848732b64dbf54357"
+      },
+      "server/calibration_modal/deep_rules.csv": {
+        "present": true,
+        "sha256": "ce95348cf2324cbe7818d894e1c18f8d1a9586bdd7f7012b41be96e32f518a32"
+      },
+      "server/calibration_modal/checks.py": {
+        "present": true,
+        "sha256": "b9927f1b738a54e4c23950b5705a4d15c0bbd97da41ac7abc164a59a222ab635"
+      },
+      "docs/coaching/fault_catalog.csv": {
+        "present": false,
+        "sha256": null
+      }
+    }
+  },
+  "auditScriptSha256": "ce2b5499b15dafe56bd2c618e68a5472db155ee278141a065b955efeb1ab6d53",
+  "localHomeScriptHashMatch": true
+}
