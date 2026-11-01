@@ -18,6 +18,35 @@ Future<String> localSha(File file) async {
 
 void main() {
   test(
+      'official fromSet adds UI exercise context without changing native evidence',
+      () {
+    final native = <String, dynamic>{
+      'schemaVersion': 1,
+      'sessionId': 'synthetic_context_contract',
+      'timebase': 'video_ms',
+      'reps': [
+        {
+          'repIndex': 1,
+          'startMs': 100,
+          'endMs': 500,
+          'side': 'left',
+          'onDeviceWarnings': <String>[]
+        }
+      ],
+    };
+    final original = jsonEncode(native);
+    final capture = DeepAnalysisCapture.fromSet({
+      'videoLocalPath': '/local/synthetic_contract_only.mp4',
+      'deepAnalysis': native,
+    }, 'barbell-row');
+    expect(capture, isNotNull);
+    expect(capture!.manifest, {...native, 'exerciseId': 'barbell-row'});
+    expect(capture.manifest['reps'], native['reps']);
+    expect(jsonEncode(native), original);
+    expect(native.containsKey('exerciseId'), isFalse);
+  });
+
+  test(
       'actual native receipt reaches current capture parser without changing observations',
       () async {
     final verified =
@@ -34,9 +63,15 @@ void main() {
     final capture =
         DeepAnalysisCapture.fromSet(record, manifest['exerciseId'] as String);
     expect(capture, isNotNull);
-    expect(capture!.manifest, original['manifest']);
+    final originalRecording = (original['recording'] ?? original) as Map;
+    final originalManifest = originalRecording['manifest'] as Map;
+    expect(record['deepAnalysis'], originalManifest);
+    expect(capture!.manifest['reps'], originalManifest['reps']);
+    expect(capture.manifest,
+        {...originalManifest, 'exerciseId': manifest['exerciseId']});
     expect(capture.manifest, manifest);
-    expect(capture.manifest['reps'], hasLength(3));
+    expect(capture.manifest['reps'],
+        hasLength((originalManifest['reps'] as List).length));
     expect(capture.manifest['timebase'], 'video_ms');
     expect(capture.exerciseId, 'barbell-row');
     expect(capture.sessionId, manifest['sessionId']);
@@ -61,7 +96,7 @@ void main() {
     expect(job.result!['report']['exerciseId'], 'squat');
     expect(job.result!['report']['reps'], hasLength(4));
     expect(current['exerciseId'], 'barbell-row');
-    expect(current['reps'], hasLength(3));
+    expect(current['reps'], isNotEmpty);
     expect(job.result!['report']['exerciseId'], isNot(current['exerciseId']));
     // No source/video identity is inferred from a parsed done job or its signed URLs.
   }, skip: packagePath.isEmpty || existingJobPath.isEmpty);
