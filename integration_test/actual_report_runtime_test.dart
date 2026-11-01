@@ -75,17 +75,26 @@ Future<void> main() async {
         oldError?.call(details);
       };
       VideoPlayerController? player;
+      File? ownedResponse;
+      File? ownedBinding;
+      String? ownedResponseHash;
+      String? ownedBindingHash;
       try {
         stage('entry');
-        final binding = jsonDecode(
-          File(
-            '${docs.path}/actual_deep_validation/input-binding.json',
-          ).readAsStringSync(),
-        ) as Map;
+        final bindingFile =
+            File('${docs.path}/actual_deep_validation/input-binding.json');
+        final bindingBytes = await bindingFile.readAsBytes();
+        final binding = jsonDecode(utf8.decode(bindingBytes)) as Map;
+        ownedBinding = bindingFile;
+        ownedBindingHash = sha256.convert(bindingBytes).toString();
         expect(
           binding['scope'],
           'new_actual_row_native_to_deep_offline_phone_render',
         );
+        expect(
+            (binding['jobEnvelopeRelativePath'] as String)
+                .startsWith('actual_deep_validation/input/'),
+            isTrue);
         final response = local(binding['jobEnvelopeRelativePath'] as String);
         final video = local(binding['videoRelativePath'] as String);
         final responseHash =
@@ -93,6 +102,8 @@ Future<void> main() async {
         final videoHash =
             (await sha256.bind(video.openRead()).first).toString();
         expect(responseHash, binding['jobEnvelopeSHA256']);
+        ownedResponse = response;
+        ownedResponseHash = responseHash;
         expect(videoHash, binding['videoSHA256']);
         expect(videoHash, binding['gpuInputVideoSHA256']);
         final job = DeepAnalysisJob.fromJson(
@@ -110,6 +121,7 @@ Future<void> main() async {
         player = VideoPlayerController.file(video);
         await player.initialize().timeout(const Duration(seconds: 30));
         expect(player.value.isInitialized, isTrue);
+        await player.setVolume(0);
         expect(player.value.duration.inMilliseconds, greaterThan(0));
         stage('original_local_video_initialized');
         final seek = Completer<Map<String, int>>();
@@ -227,6 +239,41 @@ Future<void> main() async {
           } finally {
             await player?.dispose();
           }
+          for (final entry in [
+            (ownedResponse, ownedResponseHash),
+            (ownedBinding, ownedBindingHash)
+          ]) {
+            final file = entry.$1;
+            final expected = entry.$2;
+            if (file != null && expected != null && file.existsSync()) {
+              expect(
+                  sha256.convert(file.readAsBytesSync()).toString(), expected,
+                  reason: 'Never delete an externally modified input');
+              file.deleteSync();
+            }
+          }
+          File('${out.path}/owned-input-cleanup.json').writeAsStringSync(
+              jsonEncode({
+                'ownedServerPayloadVerified': ownedResponse != null,
+                'ownedServerPayloadAbsent':
+                    ownedResponse == null ? null : !ownedResponse.existsSync(),
+                'ownedBindingAbsent':
+                    ownedBinding == null ? null : !ownedBinding.existsSync(),
+                'originalVideoNotDeleted': true
+              }),
+              flush: true);
+        } catch (error, stack) {
+          File('${out.path}/cleanup-failure.json').writeAsStringSync(
+              jsonEncode({
+                'cleanupFailed': true,
+                'type': error.runtimeType.toString()
+              }),
+              flush: true);
+          File('${out.path}/private-errors.txt').writeAsStringSync(
+              '$error\n$stack\n',
+              mode: FileMode.append,
+              flush: true);
+          rethrow;
         } finally {
           HttpOverrides.global = oldHttp;
           FlutterError.onError = oldError;
