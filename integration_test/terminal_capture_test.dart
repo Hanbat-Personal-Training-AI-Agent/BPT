@@ -115,7 +115,6 @@ Future<void> main() async {
                 return null;
               });
               await channel!.invokeMethod('setVoiceMuted', {'muted': true});
-              await channel!.invokeMethod('startSet', {'setIndex': 1});
               ready.complete();
             },
           ))))
@@ -189,13 +188,26 @@ Future<void> main() async {
           flush: true);
       stage('all_assertions_passed');
     } finally {
-      await tester
-          .pumpWidget(const SizedBox())
-          .timeout(const Duration(seconds: 10));
-      channel?.setMethodCallHandler(null);
-      HttpOverrides.global = oldHttp;
-      FlutterError.onError = oldError;
-      stage('test_finally');
+      try {
+        await tester
+            .pumpWidget(const SizedBox())
+            .timeout(const Duration(seconds: 10));
+      } catch (error, stack) {
+        File('${output.path}/cleanup-failure.json').writeAsStringSync(
+            jsonEncode(
+                {'cleanupFailed': true, 'type': error.runtimeType.toString()}),
+            flush: true);
+        File('${output.path}/private-errors.txt').writeAsStringSync(
+            '$error\n$stack\n',
+            mode: FileMode.append,
+            flush: true);
+        rethrow;
+      } finally {
+        channel?.setMethodCallHandler(null);
+        HttpOverrides.global = oldHttp;
+        FlutterError.onError = oldError;
+        stage('test_finally');
+      }
     }
   }, timeout: const Timeout(Duration(minutes: 5)));
 }
