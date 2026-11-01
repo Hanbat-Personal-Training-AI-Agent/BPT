@@ -43,14 +43,18 @@ String _formatWorkoutDateTime(DateTime date, bool isKo) {
       '${date.day}, $hour12:$minute $period';
 }
 
-String _groupThousands(int n) {
-  final digits = n.abs().toString();
+String _groupThousands(num n) {
+  final raw = n.abs().toString();
+  if (raw.contains('e')) return n.toString();
+  final parts = raw.split('.');
+  final digits = parts.first;
+  final fraction = parts.length > 1 && parts[1] != '0' ? '.${parts[1]}' : '';
   final buf = StringBuffer();
   for (var i = 0; i < digits.length; i++) {
     if (i > 0 && (digits.length - i) % 3 == 0) buf.write(',');
     buf.write(digits[i]);
   }
-  return (n < 0 ? '-' : '') + buf.toString();
+  return (n < 0 ? '-' : '') + buf.toString() + fraction;
 }
 
 /// 완료된 세트 1개의 기록 (반복 수 / 무게 / 자세 이슈 횟수).
@@ -62,7 +66,7 @@ class _SetRecord {
     this.videoPath,
   });
   final int reps;
-  final int weightKg;
+  final num weightKg;
   final int? badCount;
   final String? videoPath;
 }
@@ -162,7 +166,7 @@ class _WorkoutResultScreenState extends ConsumerState<WorkoutResultScreen>
   List<_SetRecord> _buildSetRecords({
     required int targetSets,
     required int totalReps,
-    required int weightKg,
+    required num weightKg,
   }) {
     final summary = WorkoutEvidence.summaryObject(widget.result['poseMetricsSummary']);
     final raw = widget.result['setResults'] ?? WorkoutEvidence.details(summary, completedReps: totalReps)?['sets'];
@@ -171,7 +175,7 @@ class _WorkoutResultScreenState extends ConsumerState<WorkoutResultScreen>
         final m = (e as Map).cast<String, dynamic>();
         return _SetRecord(
           reps: (m['reps'] as num?)?.toInt() ?? 0,
-          weightKg: (m['weightKg'] as num?)?.toInt() ?? weightKg,
+          weightKg: (m['weightKg'] as num?) ?? weightKg,
           badCount: (m['badCount'] as num?)?.toInt(),
           videoPath: m['videoLocalPath'] as String?,
         );
@@ -227,7 +231,7 @@ class _WorkoutResultScreenState extends ConsumerState<WorkoutResultScreen>
     var targetSets = r['targetSets'] as int? ?? 0;
 
     // 과거 기록에 저장된 무게가 있으면 그걸 쓰고, 없으면 운동별 기본값.
-    final recordedWeight = (r['weightKg'] as num?)?.round() ?? 0;
+    final recordedWeight = (r['weightKg'] as num?) ?? 0;
     final weightKg = recordedWeight > 0
         ? recordedWeight
         : mockWeightKgByExercise[exerciseId] ?? 0;
@@ -241,7 +245,7 @@ class _WorkoutResultScreenState extends ConsumerState<WorkoutResultScreen>
     final completedSets = evidence != null ? (evidence['sets'] as List).length : targetSets;
 
     final volume =
-        setRecords.fold<int>(0, (sum, set) => sum + set.reps * set.weightKg);
+        setRecords.fold<num>(0, (sum, set) => sum + set.reps * set.weightKg);
 
     final achievementPct = WorkoutEvidence.completionPercent(totalReps, targetReps);
     final achieved = achievementPct == 100;
@@ -516,7 +520,7 @@ class _StatsRow extends StatelessWidget {
   final bool isKo;
   final int sets;
   final int totalReps;
-  final int volume;
+  final num volume;
   final int elapsedSec;
 
   @override

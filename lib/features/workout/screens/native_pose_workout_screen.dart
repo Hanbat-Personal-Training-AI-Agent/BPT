@@ -542,8 +542,8 @@ class _NativePoseWorkoutScreenState
         'feedbackHistory': null,
         'feedbackCounts': Map<String, int>.of(_nativeFeedbackCounts),
         'targetReps': _totalPlannedReps,
-        // 계획한 세트 수가 아니라 실제로 수행한 세트 수를 기록한다.
-        'targetSets': performedSets.length,
+        // Keep the planned goal separate; actual performed sets live in workoutEvidence/totalSets.
+        'targetSets': widget.targetSets,
         'clientRecordId': _recordId,
         'setResults': performedSets
             .indexed.map((entry) => {

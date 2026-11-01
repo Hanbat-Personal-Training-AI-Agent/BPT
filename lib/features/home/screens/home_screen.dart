@@ -1,3 +1,4 @@
+import '../../workout/widgets/workout_record_completion_text.dart';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -745,17 +746,8 @@ class _RecentRecordTile extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 3),
-                  Text(
-                    () {
-                      // 무게가 저장되지 않은 기록(맨몸 운동 등)은 무게를 표시하지 않는다.
-                      final weight = record.weightKg;
-                      final weightPart = weight <= 0
-                          ? ''
-                          : ' · ${weight == weight.roundToDouble() ? weight.toInt() : weight}kg';
-                      return isKo
-                          ? '${record.targetSets}세트 × ${record.repsPerSet}회$weightPart'
-                          : '${record.targetSets} sets × ${record.repsPerSet} reps$weightPart';
-                    }(),
+                  WorkoutRecordCompletionText(
+                    record: record, isKo: isKo, includeWeight: true,
                     style: TextStyle(
                       color: Colors.white.withValues(alpha: 0.5),
                       fontSize: 13,

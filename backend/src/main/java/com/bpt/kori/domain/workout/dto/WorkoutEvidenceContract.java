@@ -25,6 +25,8 @@ public final class WorkoutEvidenceContract {
         for (String field : List.of("assessedReps", "validatedCorrectReps", "postureScore")) {
             if (!e.containsKey(field) || e.get(field) != null) throw invalid();
         }
+        if ((request.getTargetReps() != null && request.getTargetReps() < 0)
+                || (request.getTargetSets() != null && request.getTargetSets() < 0)) throw invalid();
         long completed = count(e.get("completedReps"));
         long warnings = count(e.get("recordedWarningEvents"));
         if (request.getTotalReps() != completed || request.getCorrectReps() != 0 || request.getIncorrectReps() != 0)

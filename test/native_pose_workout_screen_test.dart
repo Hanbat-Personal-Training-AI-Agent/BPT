@@ -4,6 +4,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:bpt/features/workout/screens/workout_result_screen.dart';
 import 'package:bpt/features/workout/screens/native_pose_workout_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:bpt/data/dto/workout_metadata_dto.dart';
+import 'package:bpt/features/workout/data/workout_evidence.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -155,4 +158,55 @@ void main() {
       await tester.pumpWidget(const SizedBox.shrink());
     });
   }
+
+  testWidgets(
+      'ending after one partial set preserves three planned sets separately',
+      (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    Map<String, dynamic>? sent;
+    final router = GoRouter(initialLocation: '/exercise', routes: [
+      GoRoute(
+          path: '/exercise',
+          builder: (_, __) => const NativePoseWorkoutScreen(
+              exerciseId: 'squat',
+              targetReps: 2,
+              targetSets: 3,
+              setReps: [2, 2, 2],
+              setWeightsKg: [10, 10, 10])),
+      GoRoute(
+          path: '/workout-result',
+          builder: (_, state) {
+            sent = (state.extra as Map).cast<String, dynamic>();
+            return const Scaffold(body: Text('captured result'));
+          }),
+    ]);
+    addTearDown(router.dispose);
+    await tester.pumpWidget(ProviderScope(
+        overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+        child: MaterialApp.router(
+            theme: ThemeData(fontFamily: 'Pretendard'), routerConfig: router)));
+    await tester.pump(const Duration(milliseconds: 1800));
+    await tester.pump(const Duration(seconds: 3));
+    await tester.tap(find.text('+1회 (테스트용)'));
+    await tester.pump();
+    await tester.tap(find.text('끝내기'));
+    await tester.pumpAndSettle();
+    await tester.tap(
+        find.descendant(of: find.byType(Dialog), matching: find.text('끝내기')));
+    await tester.pumpAndSettle();
+    expect(find.text('captured result'), findsOneWidget);
+    expect(sent?['targetSets'], 3);
+    expect(sent?['targetReps'], 6);
+    expect(sent?['totalReps'], 1);
+    final dto = WorkoutMetadataRequestDto.fromJson(sent!);
+    expect(dto.totalSets, 1);
+    expect(dto.totalVolume, 10);
+    expect(WorkoutEvidence.details(dto.poseMetricsSummary)?['formAssessment'],
+        'not_available');
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
 }

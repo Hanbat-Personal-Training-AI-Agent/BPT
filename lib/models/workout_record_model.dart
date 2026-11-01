@@ -48,10 +48,16 @@ class WorkoutRecordModel {
   double? get assessedPostureScore => null;
   int? get achievement => WorkoutEvidence.completionPercent(totalReps, targetReps);
 
-  /// 세트당 평균 반복 수. `totalReps` 는 전체 세트 합계라서 목록에 "N세트 × M회"
-  /// 로 보여줄 때는 이 값을 쓴다.
-  int get repsPerSet =>
-      targetSets <= 0 ? totalReps : (totalReps / targetSets).round();
+  /// Actual recorded sets are available only from a matching supported envelope, never from a goal.
+  int? get completedSets => (WorkoutEvidence.details(poseMetricsSummary, completedReps: totalReps)?['sets'] as List?)?.length;
+
+  /// Only a uniform observed set list has one reps-per-set value. Mixed/legacy unknown is not an average.
+  int? get repsPerSet {
+    final sets = WorkoutEvidence.details(poseMetricsSummary, completedReps: totalReps)?['sets'] as List?;
+    if (sets == null || sets.isEmpty) return null;
+    final counts = sets.map((s) => (s as Map)['reps'] as int).toSet();
+    return counts.length == 1 ? counts.single : null;
+  }
 
   String get durationFormatted {
     final m = durationSeconds ~/ 60;
@@ -127,7 +133,7 @@ class WorkoutRecordModel {
       exerciseId: dto.exerciseId,
       exerciseName: dto.exerciseName,
       date: dto.date,
-      weightKg: dto.weightKg,
+      weightKg: dto.effectiveWeightKg,
       totalReps: dto.totalReps,
       correctReps: dto.correctReps,
       incorrectReps: dto.incorrectReps,

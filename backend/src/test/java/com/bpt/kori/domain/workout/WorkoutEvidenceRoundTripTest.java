@@ -103,22 +103,72 @@ class WorkoutEvidenceRoundTripTest {
     }
 
     @Test void explicitZeroCompletedDoesNotBecomeThePlannedRepsOrSets() throws Exception {
-        var dto = fixture(); dto.setTotalReps(0);
+        var dto = fixture(); dto.setTotalReps(0); dto.setWeightKg(new java.math.BigDecimal("60"));
+        dto.setTargetSets(3); dto.setTotalSets(0); dto.setTotalVolume(-100);
         evidence(dto).put("completedReps", 0); evidence(dto).put("recordedWarningEvents", 0);
         evidence(dto).put("sets", List.of());
         service.saveWorkoutRecord(1L, dto);
         var response = service.getWorkoutRecords(1L).get(0);
         assertThat(response.getTotalReps()).isZero();
         assertThat(response.getTotalSets()).isZero();
+        assertThat(response.getTargetSets()).isEqualTo(3);
+        assertThat(response.getTotalVolume()).isZero();
+        assertThat(response.getWeightKg()).isEqualByComparingTo("0");
+        assertThat(response.getSetsDetail()).isEmpty();
         assertThat(response.getIsGoalAchieved()).isFalse();
     }
 
     @Test void missingGoalRemainsUnknownRatherThanBecomingCompletedCount() throws Exception {
-        var dto = fixture(); dto.setTargetReps(null);
+        var dto = fixture(); dto.setTargetReps(null); dto.setTargetSets(null);
         service.saveWorkoutRecord(1L, dto);
         var response = service.getWorkoutRecords(1L).get(0);
         assertThat(response.getTargetReps()).isZero();
+        assertThat(response.getTargetSets()).isZero();
         assertThat(response.getIsGoalAchieved()).isNull();
+    }
+
+    @Test void plannedSetsRemainIndependentOfOneActualSet() throws Exception {
+        var dto = fixture(); dto.setTargetSets(3); dto.setTotalSets(1); dto.setTargetReps(1);
+        service.saveWorkoutRecord(1L, dto);
+        var response = service.getWorkoutRecords(1L).get(0);
+        assertThat(response.getTargetSets()).isEqualTo(3);
+        assertThat(response.getTotalSets()).isEqualTo(1);
+        assertThat(response.getIsGoalAchieved()).isFalse();
+    }
+
+    @Test void mixedActualSetWeightsOverrideStaleVolumeAndSetDetails() throws Exception {
+        var dto = fixture(); dto.setTotalReps(4); dto.setTargetSets(3); dto.setTotalSets(99);
+        dto.setTotalVolume(-999); dto.setWeightKg(new java.math.BigDecimal("999"));
+        var stale = new WorkoutSetRecordDto(); stale.setSetNumber(99); stale.setReps(99); stale.setWeightKg(999.0);
+        dto.setSetsDetail(List.of(stale));
+        evidence(dto).put("completedReps", 4);
+        evidence(dto).put("sets", List.of(Map.of("reps", 1, "weightKg", 2.5, "badCount", 1),
+                Map.of("reps", 3, "weightKg", 7.5, "badCount", 3)));
+        service.saveWorkoutRecord(1L, dto);
+        var response = service.getWorkoutRecords(1L).get(0);
+        assertThat(response.getWeightKg()).isEqualByComparingTo("7.5");
+        assertThat(response.getTotalVolume()).isEqualTo(25); // round(2.5+22.5), once after the sum
+        assertThat(response.getTotalSets()).isEqualTo(2);
+        assertThat(response.getSetsDetail()).extracting(WorkoutSetRecordDto::getReps).containsExactly(1, 3);
+        assertThat(response.getSetsDetail()).extracting(WorkoutSetRecordDto::getWeightKg).containsExactly(2.5, 7.5);
+        assertThat(response.getTargetSets()).isEqualTo(3);
+    }
+
+    @Test void fractionalVolumeRoundsFinalSumOnlyAndKeepsExactWeights() throws Exception {
+        var dto = fixture(); dto.setTotalReps(2);
+        evidence(dto).put("completedReps", 2);
+        evidence(dto).put("sets", List.of(Map.of("reps", 1, "weightKg", 2.5, "badCount", 1),
+                Map.of("reps", 1, "weightKg", 7.5, "badCount", 3)));
+        service.saveWorkoutRecord(1L, dto);
+        assertThat(service.getWorkoutRecords(1L).get(0).getTotalVolume()).isEqualTo(10);
+        stored = null; // New disposable record for the next independent request.
+        dto.setTotalReps(6); evidence(dto).put("completedReps", 6);
+        evidence(dto).put("sets", List.of(Map.of("reps", 1, "weightKg", 2.5, "badCount", 1),
+                Map.of("reps", 5, "weightKg", 5.0, "badCount", 3)));
+        service.saveWorkoutRecord(1L, dto);
+        var response = service.getWorkoutRecords(1L).get(0);
+        assertThat(response.getTotalVolume()).isEqualTo(28); // 27.5, integer compatibility only.
+        assertThat(response.getSetsDetail()).extracting(WorkoutSetRecordDto::getWeightKg).containsExactly(2.5, 5.0);
     }
 
     @Test void anotherOwnerCannotReadOrReplaceEvidenceUsingClientId() throws Exception {

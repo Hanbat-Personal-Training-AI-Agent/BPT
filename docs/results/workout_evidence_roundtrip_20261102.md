@@ -28,4 +28,14 @@ flutter test --no-pub \
 
 Without that define, only the JVM-generated-response widget test is explicitly skipped; its shared-fixture/parser tests still run. The21-test result above supplied the define. No real media/personal data is in these fixtures.
 
-No deployed HTTP writes or reads, user history mutation, DB migration, install, merge or default activation occurred. Live API/auth/DB integration and expert posture accuracy remain unverified. This completes the local client/server metadata contract, not the full project or clinical/expert validation. Next independent task: annotation-ready expert-label evaluation CLI/protocol; GT-angle proxies will not be copied into expert labels.
+No deployed HTTP writes or reads, user history mutation, DB migration, install, merge or default activation occurred. Live API/auth/DB integration and expert posture accuracy remain unverified. This completes the local client/server metadata contract, not the full project or clinical/expert validation. Next independent task: transport/session-guard blocker, then annotation-ready expert-label evaluation CLI/protocol; GT-angle proxies will not be copied into expert labels.
+
+## Reviewer follow-up: actual volume and planned/actual sets
+
+Native v1 alone now derives persisted set rows, completed set count, representative max kg and volume from the validated actual evidence sets. Stale DTO weight/volume/setsDetail cannot override them. Planned targetSets remains separate; native partial-exit payload preserves widget.targetSets, and no goals gives an unknown goal flag. The generic backend goal flag requires every provided positive rep/set goal; the UI completion percentage remains explicitly rep-goal completion, not form quality. Legacy calculation/storage behavior is unchanged.
+
+The existing integer volume wire field rounds the **final kg×rep sum once** (nonnegative half-up), not each set:2.5+7.5→10;2.5+5×5=27.5→wire28. Original set weights/reps remain available; result UI preserves2.5kg and displays27.5 volume. This integer field is an approximation for fractional totals, not an exact decimal volume or posture score. No schema migration was made.
+
+Home/calendar use a shared presenter: valid actual1/planned3/12reps shows1set and12total, never3×4. Mixed reps are never averaged into an invented equal-set history; legacy unknown actual sets show total reps and the goal separately. Empty v1 sets remain actual0. New tests cover nonzero weight with zero reps, planned3/actual1, stale negative volume/details, mixed fractional weights, final-sum rounding, fractional UI, actual partial-exit route payload and both history consumers.
+
+Final follow-up validation: **29 backend JUnit tests and26 relevant Flutter tests pass**, including a freshly regenerated JVM response read by Flutter. Repository persistence remains mocked in these JVM tests; this is not actual DB/HTTP verification. Broad `flutter analyze --no-pub lib test`: no issues; `git diff --check`: passed. Current transport/session-retry races are a separate prioritized fix, not claimed solved here; expert-label tooling follows those blockers.

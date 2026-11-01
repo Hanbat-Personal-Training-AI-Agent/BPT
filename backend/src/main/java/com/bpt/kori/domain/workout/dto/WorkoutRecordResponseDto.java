@@ -106,7 +106,7 @@ public class WorkoutRecordResponseDto {
         int effectiveTotalSets = entity.getTotalSets() != null && (entity.getTotalSets() > 0 || nativeEnvelope)
                 ? entity.getTotalSets()
                 : (entity.getTargetSets() != null && entity.getTargetSets() > 0 ? entity.getTargetSets() : 1);
-        int effectiveSets = entity.getTargetSets() != null && entity.getTargetSets() > 0 ? entity.getTargetSets() : 1;
+        int effectiveSets = entity.getTargetSets() != null && (entity.getTargetSets() > 0 || nativeEnvelope) ? entity.getTargetSets() : 1;
         int effectiveReps = entity.getTargetReps() != null && (entity.getTargetReps() > 0 || nativeEnvelope) ? entity.getTargetReps() :
                 (entity.getTotalReps() != null ? entity.getTotalReps() : 0);
 

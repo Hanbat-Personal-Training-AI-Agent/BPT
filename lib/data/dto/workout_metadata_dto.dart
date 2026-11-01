@@ -40,17 +40,38 @@ class WorkoutMetadataRequestDto {
   /// 자세 피드백 키별 횟수 (kori_feedback_lines.dart 키). 실제 판정에서 나온 것만 담는다.
   final Map<String, int> feedbackCounts;
 
-  /// 실제로 수행한 세트 수. setsDetail 이 있으면 그 개수.
+  /// V1 evidence owns actual sets. Legacy setsDetail remains a compatibility input only.
+  List<WorkoutSetDetail> get effectiveSetsDetail {
+    final evidence = WorkoutEvidence.details(poseMetricsSummary, completedReps: totalReps);
+    if (evidence == null) return setsDetail;
+    return (evidence['sets'] as List).indexed.map((entry) {
+      final set = entry.$2 as Map;
+      return WorkoutSetDetail(setNumber: entry.$1 + 1, reps: set['reps'] as int,
+          weightKg: (set['weightKg'] as num).toDouble());
+    }).toList();
+  }
+
+  double get effectiveWeightKg {
+    if (WorkoutEvidence.details(poseMetricsSummary, completedReps: totalReps) == null) return weightKg;
+    return effectiveSetsDetail.fold<double>(0, (best, set) => set.weightKg > best ? set.weightKg : best);
+  }
+
   int get totalSets {
     final evidence = WorkoutEvidence.details(poseMetricsSummary, completedReps: totalReps);
-    if (evidence != null) return (evidence['sets'] as List).length;
+    if (evidence != null) return effectiveSetsDetail.length;
     return setsDetail.isNotEmpty ? setsDetail.length : targetSets;
   }
 
-  /// 총 볼륨(kg × 회). setsDetail 이 없으면 대표 무게 × 총 반복.
-  int get totalVolume => setsDetail.isNotEmpty
-      ? setsDetail.fold(0, (sum, s) => sum + (s.weightKg * s.reps).round())
-      : (weightKg * totalReps).round();
+  /// Native v1: kg × actual reps, round the final sum once for the existing integer wire field.
+  int get totalVolume {
+    if (WorkoutEvidence.details(poseMetricsSummary, completedReps: totalReps) != null) {
+      return effectiveSetsDetail.fold<double>(0, (sum, s) => sum + s.weightKg * s.reps).round();
+    }
+    // Historical legacy behavior is deliberately unchanged.
+    return setsDetail.isNotEmpty
+        ? setsDetail.fold(0, (sum, s) => sum + (s.weightKg * s.reps).round())
+        : (weightKg * totalReps).round();
+  }
 
   const WorkoutMetadataRequestDto({
     required this.clientRecordId,
@@ -76,7 +97,7 @@ class WorkoutMetadataRequestDto {
         'exerciseId': exerciseId,
         'exerciseName': exerciseName,
         'date': date.toIso8601String(),
-        'weightKg': weightKg,
+        'weightKg': effectiveWeightKg,
         'totalReps': totalReps,
         'correctReps': correctReps,
         'incorrectReps': incorrectReps,
@@ -88,7 +109,7 @@ class WorkoutMetadataRequestDto {
         'poseMetricsSummary': poseMetricsSummary ?? {},
         'totalSets': totalSets,
         'totalVolume': totalVolume,
-        'setsDetail': setsDetail.map((s) => s.toJson()).toList(),
+        'setsDetail': effectiveSetsDetail.map((s) => s.toJson()).toList(),
         'feedbackCounts': feedbackCounts,
       };
 
