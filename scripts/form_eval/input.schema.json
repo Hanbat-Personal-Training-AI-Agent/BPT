@@ -1,0 +1,470 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:bpt:independent-form-eval:v1",
+  "description": "Metadata-only input shapes. Run CLI semantic validation too: exact row identity/hash/time, independent human attestations and split checks.",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/manifest"
+    },
+    {
+      "$ref": "#/$defs/labels"
+    },
+    {
+      "$ref": "#/$defs/predictions"
+    }
+  ],
+  "$defs": {
+    "identity": {
+      "type": "object",
+      "properties": {
+        "sampleId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_.:-]{1,100}$"
+        },
+        "clipSha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "exercise": {
+          "enum": [
+            "squat",
+            "pushup",
+            "barbell_row",
+            "bench_press",
+            "deadlift"
+          ]
+        },
+        "rep": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "rule": {
+          "enum": [
+            "squat_hips_first",
+            "squat_shallow",
+            "squat_no_lockout",
+            "squat_lean_drift",
+            "squat_depth_fade",
+            "squat_knee_valgus",
+            "squat_heel_rise",
+            "pushup_hip_sag",
+            "pushup_hip_pike",
+            "pushup_shallow",
+            "pushup_no_lockout",
+            "pushup_head_drop",
+            "pushup_head_up",
+            "pushup_hand_position",
+            "pushup_depth_fade",
+            "row_torso_swing",
+            "row_standing_up",
+            "row_short_pull",
+            "row_head_up",
+            "row_shrug",
+            "bench_hips_up",
+            "bench_shallow",
+            "bench_no_lockout",
+            "deadlift_hips_first",
+            "deadlift_no_lockout",
+            "deadlift_lean_back"
+          ]
+        },
+        "side": {
+          "enum": [
+            "none",
+            "left",
+            "right",
+            "both"
+          ]
+        },
+        "startSeconds": {
+          "type": "number",
+          "minimum": 0
+        },
+        "endSeconds": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "timeUnit": {
+          "const": "seconds"
+        },
+        "labelUnit": {
+          "const": "per_rep_rule_binary_fault"
+        },
+        "split": {
+          "enum": [
+            "development",
+            "holdout"
+          ]
+        },
+        "splitGroup": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_.:-]{1,100}$"
+        },
+        "visibility": {
+          "enum": [
+            "adequate",
+            "occluded",
+            "out_of_view",
+            "unknown"
+          ]
+        },
+        "contactChange": {
+          "enum": [
+            "yes",
+            "no",
+            "unknown"
+          ]
+        },
+        "windowCoverage": {
+          "enum": [
+            "full_rep",
+            "partial_rep",
+            "unknown"
+          ]
+        }
+      },
+      "required": [
+        "sampleId",
+        "clipSha256",
+        "exercise",
+        "rep",
+        "rule",
+        "side",
+        "startSeconds",
+        "endSeconds",
+        "timeUnit",
+        "labelUnit",
+        "split",
+        "splitGroup",
+        "visibility",
+        "contactChange",
+        "windowCoverage"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "exercise": {
+                "const": "squat"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "rule": {
+                "enum": [
+                  "squat_hips_first",
+                  "squat_shallow",
+                  "squat_no_lockout",
+                  "squat_lean_drift",
+                  "squat_depth_fade",
+                  "squat_knee_valgus",
+                  "squat_heel_rise"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "exercise": {
+                "const": "pushup"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "rule": {
+                "enum": [
+                  "pushup_hip_sag",
+                  "pushup_hip_pike",
+                  "pushup_shallow",
+                  "pushup_no_lockout",
+                  "pushup_head_drop",
+                  "pushup_head_up",
+                  "pushup_hand_position",
+                  "pushup_depth_fade"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "exercise": {
+                "const": "barbell_row"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "rule": {
+                "enum": [
+                  "row_torso_swing",
+                  "row_standing_up",
+                  "row_short_pull",
+                  "row_head_up",
+                  "row_shrug"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "exercise": {
+                "const": "bench_press"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "rule": {
+                "enum": [
+                  "bench_hips_up",
+                  "bench_shallow",
+                  "bench_no_lockout"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "exercise": {
+                "const": "deadlift"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "rule": {
+                "enum": [
+                  "deadlift_hips_first",
+                  "deadlift_no_lockout",
+                  "deadlift_lean_back"
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "annotation": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/identity"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "label": {
+              "enum": [
+                "unknown",
+                "positive",
+                "negative"
+              ]
+            },
+            "sourceType": {
+              "enum": [
+                "unreviewed",
+                "human_adjudicated"
+              ]
+            },
+            "observerId": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_.:-]{1,100}$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "adjudicatorId": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_.:-]{1,100}$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "protocolId": {
+              "const": "bpt-independent-form-v1"
+            }
+          },
+          "required": [
+            "label",
+            "sourceType",
+            "observerId",
+            "adjudicatorId",
+            "protocolId"
+          ]
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "observation": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/identity"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "state": {
+              "enum": [
+                "warning",
+                "no_warning",
+                "withheld",
+                "missing"
+              ]
+            },
+            "reason": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_.:-]{1,100}$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "state",
+            "reason"
+          ]
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "manifest": {
+      "type": "object",
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "protocolId": {
+          "const": "bpt-independent-form-v1"
+        },
+        "protocolSha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "candidateCommit": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "splitPlanId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_.:-]{1,100}$"
+        },
+        "dataKind": {
+          "enum": [
+            "synthetic_fixture",
+            "evaluation"
+          ]
+        },
+        "boundarySource": {
+          "enum": [
+            "synthetic",
+            "human_windows",
+            "ai_windows",
+            "dataset_reference_intervals"
+          ]
+        },
+        "boundaryManifestSha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "samples": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "allOf": [
+              {
+                "$ref": "#/$defs/identity"
+              }
+            ],
+            "unevaluatedProperties": false
+          }
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "protocolId",
+        "protocolSha256",
+        "candidateCommit",
+        "splitPlanId",
+        "dataKind",
+        "boundarySource",
+        "boundaryManifestSha256",
+        "samples"
+      ],
+      "additionalProperties": false
+    },
+    "labels": {
+      "type": "object",
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "manifestSha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "annotations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/annotation"
+          }
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "manifestSha256",
+        "annotations"
+      ],
+      "additionalProperties": false
+    },
+    "predictions": {
+      "type": "object",
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "manifestSha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "candidateCommit": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "observations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/observation"
+          }
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "manifestSha256",
+        "candidateCommit",
+        "observations"
+      ],
+      "additionalProperties": false
+    }
+  }
+}
