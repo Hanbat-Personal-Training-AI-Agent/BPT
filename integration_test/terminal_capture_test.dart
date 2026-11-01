@@ -119,20 +119,39 @@ Future<void> main() async {
             reason: 'Never permit recorder pruning of an existing video');
       }
       final logDir = Directory('${docs.path}/video_runs');
-      final before = logDir.existsSync()
-          ? logDir
-              .listSync()
-              .whereType<File>()
-              .where((f) =>
-                  f.path.split('/').last.startsWith('terminal_') &&
-                  f.path.endsWith('.jsonl'))
-              .map((f) => f.path)
-              .toSet()
-          : <String>{};
+      final attemptId = '${config['BPT_TERMINAL_TEST_ATTEMPT'] ?? ''}';
+      expect(RegExp(r'^terminal_[A-Za-z0-9_-]+$').hasMatch(attemptId), isTrue);
+      final priorNames = (jsonDecode(
+                  config['BPT_TERMINAL_TEST_PRIOR_TERMINAL_NAMES'] as String)
+              as List)
+          .cast<String>();
+      expect(priorNames.toSet().length, priorNames.length);
+      for (final name in priorNames) {
+        expect(
+            name.startsWith('terminal_') &&
+                name.endsWith('.jsonl') &&
+                !name.contains('/'),
+            isTrue);
+      }
+      // NativePoseRegistration opens this process's header before Dart main.
+      // Ownership therefore comes from the host's bound prelaunch snapshot.
+      final before = priorNames.map((name) => '${logDir.path}/$name').toSet();
       expect(before.length, lessThan(3),
-          reason: 'Preserve/archive prior files before cap; never delete here');
+          reason:
+              'Native cap applies to prior files, not this already-created header');
+      for (final name in before) {
+        expect(File(name).existsSync(), isTrue);
+      }
+      expect('${config['BPT_TERMINAL_TEST_ORIGINAL_DEMO_SHA256']}',
+          matches(RegExp(r'^[0-9a-f]{64}$')));
+      expect('${config['BPT_TERMINAL_TEST_PRIOR_INVENTORY_SHA256']}',
+          matches(RegExp(r'^[0-9a-f]{64}$')));
       stage('preflight_pass', {
         'terminalFilesBefore': before.length,
+        'hostAttemptId': attemptId,
+        'originalDemoSHA256': config['BPT_TERMINAL_TEST_ORIGINAL_DEMO_SHA256'],
+        'priorInventorySHA256':
+            config['BPT_TERMINAL_TEST_PRIOR_INVENTORY_SHA256'],
         'exercise': exercise,
         'recording': recording,
         'sourceDurationMs': sourceDurationMs
@@ -169,6 +188,7 @@ Future<void> main() async {
       File('${output.path}/native-set-end.json').writeAsStringSync(
           jsonEncode({
             'scope': 'actual_native_onSetEnd_before_test_verdict',
+            'hostAttemptId': attemptId,
             'exerciseId': exercise,
             'sourceDurationMs': sourceDurationMs,
             'recording': recording,
@@ -286,6 +306,8 @@ Future<void> main() async {
           jsonEncode({
             'scope': 'actual_native_existing_video_terminal_candidate_capture',
             'synthetic_input': false,
+            'hostAttemptId': attemptId,
+            'exerciseId': exercise,
             'new_camera_recording': false,
             'new_native_video_as_camera_recording': recording,
             if (recordingEvidence != null) 'recording': recordingEvidence,
