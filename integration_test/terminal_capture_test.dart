@@ -41,8 +41,10 @@ Future<void> main() async {
     final noHttp = _NoHttp();
     HttpOverrides.global = noHttp;
     SharedPreferences.setMockInitialValues({});
+    var flutterErrors = 0;
     final oldError = FlutterError.onError;
     FlutterError.onError = (details) {
+      flutterErrors++;
       File('${output.path}/private-errors.txt').writeAsStringSync(
           '$details\n${details.stack}\n',
           mode: FileMode.append,
@@ -164,6 +166,9 @@ Future<void> main() async {
         expect(rows[i]['schema'], 'bpt.terminal-evidence.v1');
       }
       expect(noHttp.attempts, 0);
+      expect(flutterErrors, 0,
+          reason: 'No rendering error may be hidden by success evidence');
+      expect(tester.takeException(), isNull);
       File('${output.path}/success.json').writeAsStringSync(
           jsonEncode({
             'scope': 'actual_native_existing_video_terminal_candidate_capture',
@@ -175,6 +180,7 @@ Future<void> main() async {
             'realPreferencesBackendUsed': false,
             'realRecordWrites': 0,
             'TTSRequested': false,
+            'flutterErrorCount': flutterErrors,
             'terminalFileName': fresh!.path.split('/').last,
             'records': rows.length,
             'frameRows':
