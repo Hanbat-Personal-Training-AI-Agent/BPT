@@ -1,6 +1,6 @@
 # One isolated L4 replay — prepared, transfer NOT approved
 
-Actual date2026-11-02 KST. Adapter6204700 verifies historical770 actual bytes/manifests locally. The execution script now requires explicit expected video SHA256, canonical native-manifest SHA256 and native source commit, so the phone owner's upcoming **current-native full recording** can become the final input without manufacturing GT boundaries. Its exact final input/plan digest must be frozen after read-only recovery and adapter verification. The770 dry preparation is a contract rehearsal, not authorization to send that video instead.
+Actual date2026-11-02 KST. Adapter6204700 verifies historical770 actual bytes/manifests locally. The execution script now requires explicit expected video SHA256, canonical production service-ready manifest SHA256 and native source commit, so the phone owner's upcoming **current-native full recording** can become the final input without manufacturing GT boundaries. Its exact final input/plan digest must be frozen after read-only recovery and adapter verification. The770 dry preparation is a contract rehearsal, not authorization to send that video instead.
 
 ## Destination and existing assets, read-only verified
 
@@ -37,9 +37,11 @@ Seven local tests pass without remote execution: wrong video scope; remote chang
 Prepare final input (placeholders must be replaced only with owner-proven actual values):
 
 ```sh
-python native_deep_isolated_l4.py --root REVIEW --package VERIFIED_PRIVATE_PACKAGE --video RECOVERED_PRIVATE_VIDEO --expected-video-sha ACTUAL_SHA --expected-native-manifest-sha ACTUAL_CANONICAL_SHA --capture-source-commit ACTUAL_NATIVE_COMMIT --output-dir NEW_PRIVATE_PLAN
+python native_deep_isolated_l4.py --root REVIEW --package VERIFIED_PRIVATE_PACKAGE --video RECOVERED_PRIVATE_VIDEO --expected-video-sha ACTUAL_SHA --expected-service-manifest-sha ACTUAL_SERVICE_CANONICAL_SHA --capture-source-commit ACTUAL_NATIVE_COMMIT --output-dir NEW_PRIVATE_PLAN
 ```
 
 No transfer or paid GPU invocation has happened in this preparation. Final approval belongs after final concrete input/plan review.
 
 SDK definition check: `restrict_modal_access`, `include_source`, Image.from_id and volume.read_only construct successfully without network. Deprecated max_inputs was replaced by current `single_use_containers=True` while preserving one-call policy. The entrypoint is exactly the one public Python file mounted at/root; no private input/media directory is source-mounted. Source hash is part of the approved plan.
+
+Manifest identities: preserve/hash the original native object separately from the service-ready object. If native metadata has no exerciseId, only official fromSet context from actual UiKitView creation/config plus terminal_start may add it. The plan pins the exact service-ready digest used by both scorers; a separate original-native digest and source/header provenance remain recorded. The legacy nativeManifestCanonicalSha256 plan key denotes the same service-ready input and is accompanied by an explicit scope label.

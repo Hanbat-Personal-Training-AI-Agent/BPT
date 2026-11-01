@@ -29,7 +29,7 @@ class L4PackageTests(unittest.TestCase):
 
     def test_remote_changed_canonical_manifest_rejected_before_model_access(self):
         video=b'synthetic_not_real_media'
-        payload={'plan':{'videoSha256':m.sha(video),'nativeManifestCanonicalSha256':'0'*64},'video':video,'manifest':{'synthetic':True}}
+        payload={'plan':{'videoSha256':m.sha(video),'serviceReadyManifestCanonicalSha256':'0'*64},'video':video,'manifest':{'synthetic':True}}
         with self.assertRaisesRegex(ValueError,'pinned manifest SHA'):m.gpu_once(payload)
 
     def test_installed_modal_definition_and_single_file_mount_without_running_app(self):

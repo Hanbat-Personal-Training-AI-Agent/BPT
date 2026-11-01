@@ -35,7 +35,7 @@ def prepare(root,package,video,expected_video_sha,expected_manifest_sha,capture_
     if video.stat().st_size>32*1024*1024 or (package/'reps.json').stat().st_size>256*1024:raise ValueError('service input size cap exceeded')
     import re
     if not re.fullmatch('[0-9a-f]{64}',expected_video_sha) or not re.fullmatch('[0-9a-f]{64}',expected_manifest_sha) or not re.fullmatch('[0-9a-f]{40}',capture_source_commit):raise ValueError('explicit exact input/capture-source digests required')
-    if verification['status']!='exact_video_and_manifest_verified' or verification['copiedVideoSha256']!=expected_video_sha or verification['canonicalNativeManifestSha256']!=expected_manifest_sha or sha(video.read_bytes())!=expected_video_sha or sha(canonical(manifest))!=expected_manifest_sha:
+    if verification['status']!='exact_video_and_manifest_verified' or verification['copiedVideoSha256']!=expected_video_sha or verification.get('serviceReadyManifestCanonicalSha256',verification.get('canonicalNativeManifestSha256'))!=expected_manifest_sha or sha(video.read_bytes())!=expected_video_sha or sha(canonical(manifest))!=expected_manifest_sha:
         raise ValueError('not the approved-scope original video/native manifest')
     snapshots={}
     for relative in CURRENT_FILES:snapshots['current/'+relative]=subprocess.check_output(['git','-C',str(root),'show',CURRENT+':'+relative])
@@ -50,7 +50,10 @@ def prepare(root,package,video,expected_video_sha,expected_manifest_sha,capture_
             result=subprocess.run(['git','-C',str(root),'show',CURRENT+':'+path],capture_output=True)
             if result.returncode==0:snapshots[label+'/'+path]=result.stdout
     plan={'schemaVersion':1,'purpose':'isolated_current_worker_not_deployed_API','videoSha256':expected_video_sha,
-      'nativeManifestCanonicalSha256':expected_manifest_sha,'videoBytes':video.stat().st_size,'manifestBytes':len((package/'reps.json').read_bytes()),
+      'nativeManifestCanonicalSha256':expected_manifest_sha,
+      'serviceReadyManifestCanonicalSha256':expected_manifest_sha,
+      'originalNativeManifestCanonicalSha256':verification.get('originalNativeManifestCanonicalSha256',verification.get('canonicalNativeManifestSha256')),
+      'manifestDigestScope':'exact_service_ready_native_observations_plus_verified_UI_context','videoBytes':video.stat().st_size,'manifestBytes':len((package/'reps.json').read_bytes()),
       'sourceKind':'verified_native_capture_current_service_replay','captureSourceCommit':capture_source_commit,
       'currentSourceCommit':subprocess.check_output(['git','-C',str(root),'rev-parse',CURRENT],text=True).strip(),
       'beforeScorerCommit':BEFORE,'imageId':IMAGE,'volumeId':VOLUME,'weightFilesAndBytes':REQUIRED,
@@ -79,7 +82,7 @@ def gpu_once(payload):
     plan=payload['plan']
     if hashlib.sha256(payload['video']).hexdigest()!=plan['videoSha256']:raise ValueError('remote input SHA mismatch')
     manifest_sha=hashlib.sha256(json.dumps(payload['manifest'],sort_keys=True,separators=(',',':'),allow_nan=False).encode()).hexdigest()
-    if manifest_sha!=plan['nativeManifestCanonicalSha256']:raise ValueError('remote pinned manifest SHA mismatch')
+    if manifest_sha!=plan['serviceReadyManifestCanonicalSha256']:raise ValueError('remote pinned manifest SHA mismatch')
     # Existing immutable assets only; missing/mutated sizes STOP before any model invocation.
     weights={}
     for name,size in plan['weightFilesAndBytes'].items():
@@ -104,7 +107,7 @@ work=Path(sys.argv[1]);plan=json.loads((work/'plan.json').read_text());m=json.lo
 sys.path[:0]=[str(work/'current/server/calibration_modal'),str(work/'current/scripts/deep_analysis')]
 import deep_analysis,deep_metrics,deep_worker,checks,gvhmr_runner
 pinned_manifest_sha=hashlib.sha256(json.dumps(m,sort_keys=True,separators=(',',':'),allow_nan=False).encode()).hexdigest()
-if pinned_manifest_sha!=plan['nativeManifestCanonicalSha256']:raise ValueError('staged pinned manifest SHA mismatch')
+if pinned_manifest_sha!=plan['serviceReadyManifestCanonicalSha256']:raise ValueError('staged pinned manifest SHA mismatch')
 if deep_analysis.manifest((work/'reps.json').read_bytes(),m['sessionId'])!=m:raise ValueError('manifest changed')
 if gvhmr_runner.run.__defaults__[1] is not False:raise ValueError('unexpected default precision')
 source_hashes={name:hashlib.sha256((work/name).read_bytes()).hexdigest() for name in plan['sourceSha256']}
@@ -207,7 +210,7 @@ def define_modal_call(modal,image,volume):
 def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--root',required=True);p.add_argument('--package',required=True);p.add_argument('--video',required=True)
-    p.add_argument('--expected-video-sha',required=True);p.add_argument('--expected-native-manifest-sha',required=True);p.add_argument('--capture-source-commit',required=True)
+    p.add_argument('--expected-video-sha',required=True);p.add_argument('--expected-service-manifest-sha','--expected-native-manifest-sha',dest='expected_native_manifest_sha',required=True);p.add_argument('--capture-source-commit',required=True)
     p.add_argument('--output-dir',required=True);p.add_argument('--execute',action='store_true');p.add_argument('--approved-plan-sha')
     args=p.parse_args();plan,sources,manifest=prepare(args.root,args.package,args.video,args.expected_video_sha,args.expected_native_manifest_sha,args.capture_source_commit)
     plan_sha=sha(canonical(plan));output=Path(args.output_dir)
