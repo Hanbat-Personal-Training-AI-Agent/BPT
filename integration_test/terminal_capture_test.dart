@@ -82,6 +82,18 @@ Future<void> main() async {
               !clip.split('/').contains('..'),
           isTrue);
       expect(File('${docs.path}/$clip').existsSync(), isTrue);
+      int? sourceDurationMs;
+      if (recording) {
+        final sourcePlayer =
+            VideoPlayerController.file(File('${docs.path}/$clip'));
+        try {
+          await sourcePlayer.initialize().timeout(const Duration(seconds: 20));
+          sourceDurationMs = sourcePlayer.value.duration.inMilliseconds;
+          expect(sourceDurationMs, greaterThan(0));
+        } finally {
+          await sourcePlayer.dispose();
+        }
+      }
       final exercise = '${config['BPT_TERMINAL_TEST_EXERCISE'] ?? ''}';
       expect(['squat', 'pushup', 'barbell-row'], contains(exercise));
       expect(recording, exercise == 'barbell-row',
@@ -216,6 +228,9 @@ Future<void> main() async {
           recordingEvidence = {
             'videoPath': videoPath,
             'durationMs': player.value.duration.inMilliseconds,
+            'sourceDurationMs': sourceDurationMs,
+            'durationDeltaMsDescriptiveOnly':
+                player.value.duration.inMilliseconds - sourceDurationMs!,
             'width': player.value.size.width,
             'height': player.value.size.height,
             'manifest': manifest,
