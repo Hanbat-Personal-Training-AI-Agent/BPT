@@ -100,6 +100,10 @@ struct CameraProcessingResult {
     var arrivedAt: CFTimeInterval = 0
     /// Original capture/video sample PTS, carried with this frame through XS lookahead. Never a latency clock.
     var sourcePTS: Double?
+    var sourceTimeValue: Int64?
+    var sourceTimeScale: Int32?
+    var terminalEpoch: Int?
+    var terminalDetector2D: [PoseKeypoint]?
     /// XS input wrists replaced by MediaPipe (left, right); raw wrists stay in rawCoco17.
     var wristsReplaced = (left: false, right: false)
     /// Both wrist crops returned the same hand and neither MediaPipe wrist was used (CameraPreviewOptions.handDedupe).
@@ -285,6 +289,9 @@ final class CameraPoseViewModel: ObservableObject {
     private var formLog: WorkoutFormLog?
     private var lastLoggedRep = 0
     private var betweenSets = false
+    nonisolated private let terminalCapture = TerminalEvidenceCapture()
+    private var terminalFlushing = false
+    private var terminalJudgingEpoch: Int?
     private var recording = false
     private var perfTimer: Timer?
 
@@ -367,6 +374,10 @@ final class CameraPoseViewModel: ObservableObject {
     }
 
     func stopCamera() {
+        if VideoRunLog.terminalEvidence, let epoch = terminalCapture.beginFlush() {
+            VideoRunLog.shared?.write("terminal_end", ["epoch": epoch, "reason": "camera_stop", "flush_complete": false, "incomplete": true])
+            terminalCapture.finish(epoch)
+        }
         cameraRunning = false
         keepScreenAwake(false, reason: "camera_stop")
         lifecycleObservers.forEach { NotificationCenter.default.removeObserver($0) }
@@ -432,6 +443,11 @@ final class CameraPoseViewModel: ObservableObject {
         // Bench press closes a rep's report 0.5 s after the count (lockout window), so log by rep index.
         for report in tracker.reports where report.repIndex > lastLoggedRep {
             formLog?.append(report)
+            if VideoRunLog.terminalEvidence, let epoch = terminalJudgingEpoch, terminalCapture.accepts(epoch) {
+                VideoRunLog.shared?.write("terminal_rep", ["epoch": epoch, "rep": report.repIndex,
+                    "start_frame": report.startFrame, "end_frame": report.endFrame,
+                    "side": report.side, "form_source": report.formSource])
+            }
             lastLoggedRep = report.repIndex
             DemoPoseLog.shared?.write("rep", ["rep": report.repIndex, "warnings": report.warnings,
                                               "warnings_3d": report.warnings3D ?? [], "form_source": report.formSource])
@@ -464,6 +480,15 @@ final class CameraPoseViewModel: ObservableObject {
     // MARK: Sets (Flutter startSet / endSet)
 
     private func startSet(_ index: Int) {
+        if VideoRunLog.terminalEvidence {
+            if let old = terminalCapture.beginFlush() {
+                VideoRunLog.shared?.write("terminal_end", ["epoch": old, "reason": "superseded_set", "flush_complete": false, "incomplete": true])
+            }
+            let epoch = terminalCapture.begin()
+            VideoRunLog.shared?.write("terminal_start", ["epoch": epoch, "exercise": exercise.rawValue,
+                "set": index, "time_basis": "sample_pts_seconds", "lookahead": CameraPreviewOptions.motion3DLookahead,
+                "cadence": CameraPreviewOptions.motion3DCadence, "raw_source": "xs_output_before_constraints"])
+        }
         VideoRunLog.shared?.write("start_set", ["set": index])
         betweenSets = false
         guard WorkoutDebugFlags.setRecording, let directory = WorkoutSetRecorder.directory() else { return }
@@ -478,24 +503,38 @@ final class CameraPoseViewModel: ObservableObject {
         VideoRunLog.shared?.write("end_set_received", ["set": index, "between_sets": betweenSets])
         guard !betweenSets else { return }
         betweenSets = true
+        let evidenceEpoch = VideoRunLog.terminalEvidence ? terminalCapture.beginFlush() : nil
         recording = false
         // The last `lookahead` frames are still in the 3D window: judge them (window clamped at the newest frame)
         // before the set summary.
-        guard lifter != nil else { return finishEndSet(index) }
+        guard lifter != nil else { return finishEndSet(index, evidenceEpoch: evidenceEpoch) }
         liftQueue.async { [weak self] in
             guard let self else { return }
-            let tail = (try? self.lifter?.flush()) ?? []
+            let flushed = try? self.lifter?.flush()
+            let tail = flushed ?? []
+            let flushSucceeded = flushed != nil
             VideoRunLog.shared?.write("end_set_flush", ["set": index, "tail_frames": tail.count,
                                                         "tail_states": tail.map { $0.1.state.rawValue },
                                                         "tail_frame_index": tail.map { $0.1.frameIndex }])
             Task { @MainActor in
+                let currentEvidence = self.terminalCapture.accepts(evidenceEpoch)
+                if currentEvidence { self.terminalFlushing = true }
                 for (result, frame3D) in tail { self.handleLifted(result, frame3D) }
-                self.finishEndSet(index)
+                if currentEvidence { self.terminalFlushing = false }
+                self.finishEndSet(index, evidenceEpoch: evidenceEpoch, flushSucceeded: flushSucceeded)
             }
         }
     }
 
-    private func finishEndSet(_ index: Int) {
+    private func finishEndSet(_ index: Int, evidenceEpoch: Int? = nil, flushSucceeded: Bool = false) {
+        defer {
+            if VideoRunLog.terminalEvidence, let epoch = evidenceEpoch, terminalCapture.accepts(epoch) {
+                VideoRunLog.shared?.write("terminal_end", ["epoch": epoch, "reason": "set_end",
+                    "flush_complete": flushSucceeded, "incomplete": !flushSucceeded,
+                    "active_rep_start": formTracker?.diagnosticActiveRepStart as Any? ?? NSNull()])
+                terminalCapture.finish(epoch)
+            }
+        }
         // 심층분석용 반복 목록에 마지막 벤치 반복까지 넣는다. 녹화가 꺼진 기본 동작은 그대로 둔다.
         if WorkoutDebugFlags.setRecording {
             benchPressEvaluator?.finishPendingFormRep()
@@ -692,6 +731,7 @@ final class CameraPoseViewModel: ObservableObject {
         handLandmarkers: MediaPipeHandLandmarkerPair?,
         ciContext: CIContext
     ) {
+        let terminalEpoch = VideoRunLog.terminalEvidence ? terminalCapture.snapshot() : nil
         autoreleasepool {
             do {
                 let arrivedAt = arrival
@@ -758,7 +798,8 @@ final class CameraPoseViewModel: ObservableObject {
                 }
                 let input2D = anchoredInput
                 let visualCoco17 = input2D
-                let sourcePTS = CMTimeGetSeconds(CMSampleBufferGetPresentationTimeStamp(sampleBuffer))
+                let sourceTime = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
+                let sourcePTS = CMTimeGetSeconds(sourceTime)
                 var supportOutput: PushUpSupportEvidence2D.Output?
                 if CameraPreviewOptions.supportCorridor && exercise == .pushUp {
                     let control = supportControl.snapshot()
@@ -789,6 +830,10 @@ final class CameraPoseViewModel: ObservableObject {
                 result.arrivedAt = arrivedAt
                 result.supportCorridor = supportOutput
                 result.sourcePTS = sourcePTS.isFinite ? sourcePTS : nil
+                result.sourceTimeValue = sourceTime.isValid ? sourceTime.value : nil
+                result.sourceTimeScale = sourceTime.isValid ? sourceTime.timescale : nil
+                result.terminalEpoch = terminalEpoch
+                if terminalEpoch != nil { result.terminalDetector2D = rawCoco17 }
                 result.wristAnchor = anchorStates
 
                 guard lifter != nil else {
@@ -861,9 +906,43 @@ final class CameraPoseViewModel: ObservableObject {
                                                       frontCamera: isFrontCamera)
         }
         let t0 = CACurrentMediaTime()
+        terminalJudgingEpoch = result.terminalEpoch
         judgingFrame = (result.frameIndex, result.arrivedAt)
         let (statusText, rep, done) = runEvaluator(frameIndex: result.frameIndex, rawCoco17: result.supportCorridor?.assessment2D(result.rawCoco17) ?? result.rawCoco17,
                                                    feet: result.feet, pose3D: result.supportCorridor?.assessment3D(frame3D.masked3D) ?? frame3D.masked3D, pose3DState: result.supportCorridor?.assessmentState(frame3D.state) ?? frame3D.state)
+        if VideoRunLog.terminalEvidence, terminalCapture.accepts(result.terminalEpoch), let epoch = result.terminalEpoch {
+            func flat(_ p: [SIMD3<Double>]?) -> Any {
+                TerminalEvidence.vector(p?.flatMap { [$0.x, $0.y, $0.z] })
+            }
+            func kp(_ p: [PoseKeypoint]) -> Any {
+                TerminalEvidence.vector(p.flatMap { [$0.x, $0.y, $0.confidence] })
+            }
+            let assessment = result.supportCorridor?.assessment3D(frame3D.masked3D) ?? frame3D.masked3D
+            let confidence = result.supportCorridor?.assessmentConfidence(frame3D.confidence) ?? frame3D.confidence
+            let up = formTracker?.up3D
+            VideoRunLog.shared?.write("terminal_frame", ["epoch": epoch, "frame": result.frameIndex,
+                "source_index": VideoCameraOptions.isActive ? (VideoRunLog.shared?.clipFrame(result.frameIndex) as Any? ?? NSNull()) : result.frameIndex,
+                "source_kind": VideoCameraOptions.isActive ? "video_frame" : "camera_capture_index",
+                "source_pts": TerminalEvidence.number(result.sourcePTS),
+                "source_time_value": result.sourceTimeValue as Any? ?? NSNull(),
+                "source_time_scale": result.sourceTimeScale as Any? ?? NSNull(), "time_basis": "sample_pts_seconds",
+                "size": [result.imageWidth, result.imageHeight], "rotation": result.rotation.rawValue,
+                "front_camera": isFrontCamera, "source_mirrored": VideoCameraOptions.isActive ? VideoCameraOptions.mirror : isFrontCamera,
+                "raw_2d": result.terminalDetector2D.map(kp) ?? NSNull(), "input_2d": kp(result.visualCoco17),
+                "assessment_2d": kp(result.supportCorridor?.assessment2D(result.rawCoco17) ?? result.rawCoco17),
+                "raw_3d": flat(frame3D.raw), "constrained_3d": flat(frame3D.pose3D), "adapted_3d": flat(frame3D.adapted),
+                "assessment_3d": flat(assessment), "confidence_h36m": TerminalEvidence.vector(confidence),
+                "invalid": frame3D.invalidJoints.union(result.supportCorridor?.invalid3DJoints ?? []).sorted(),
+                "raw_state": frame3D.state.rawValue,
+                "assessment_state": (result.supportCorridor?.assessmentState(frame3D.state) ?? frame3D.state).rawValue,
+                "phase": formTracker?.observationPhase as Any? ?? NSNull(),
+                "active_rep_start": formTracker?.diagnosticActiveRepStart as Any? ?? NSNull(), "side": formTracker?.side?.rawValue as Any? ?? NSNull(),
+                "side_view": formTracker?.sideView as Any? ?? NSNull(), "status": statusText, "rep": rep,
+                "filled": frame3D.filled, "row": frame3D.row as Any? ?? NSNull(), "flush_tail": terminalFlushing || frame3D.diagnosticFlushed,
+                "unit_px": TerminalEvidence.number(frame3D.unit),
+                "judgement_up": TerminalEvidence.vector(up.map { [$0.x, $0.y, $0.z] }),
+                "up_time_basis": "judgement_time_not_source_sensor", "source_gravity_available": false])
+        }
         let now = CACurrentMediaTime()
         if experimentalCoachingEnabled {
             // Latest device gravity is not synchronized to this delayed XS source frame. It is also not
@@ -1109,6 +1188,10 @@ final class CameraPoseViewModel: ObservableObject {
     /// Video-as-camera: the clip list ended. Like the real app with main's workout screen, no endSet arrives, so the
     /// frames still in the 3D window are not flushed and no set-scope keys / onSetEnd are produced.
     private func videoFinished() {
+        if VideoRunLog.terminalEvidence, let epoch = terminalCapture.beginFlush() {
+            VideoRunLog.shared?.write("terminal_end", ["epoch": epoch, "reason": "video_end_without_set_flush", "flush_complete": false, "incomplete": true])
+            terminalCapture.finish(epoch)
+        }
         guard let log = VideoRunLog.shared else { return }
         let tracker = formTracker
         log.write("session_end", [

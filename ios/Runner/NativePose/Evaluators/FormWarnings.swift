@@ -540,6 +540,8 @@ final class FormWarningTracker {
     private var facingCandidateRun = 0
     /// Actual evaluator phase for opt-in observation diagnostics; never inferred from UI text.
     var observationPhase: String? { current?.phase }
+    /// Diagnostic-only boundary of the actual open tracker span; no predicted/GT phase inference.
+    var diagnosticActiveRepStart: Int? { repOpen ? repFrames.first?.frame : nil }
     private var current: FormFrameSample?
     /// Same quantities measured on the 3D pose of the same frame (nil when it has no usable 3D).
     private var current3D: FormFrameSample?

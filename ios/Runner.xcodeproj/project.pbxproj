@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		B77E00000000000000000001 /* TerminalEvidence.swift in Sources */ = {isa = PBXBuildFile; fileRef = B77E00000000000000000002 /* TerminalEvidence.swift */; };
 		AC1026ABCDEF000000000021 /* OverlaySmoother.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC1026ABCDEF000000000022 /* OverlaySmoother.swift */; };
 		AC1026ABCDEF000000000011 /* PushUpSupportEvidence2D.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC1026ABCDEF000000000012 /* PushUpSupportEvidence2D.swift */; };
 		AC1026ABCDEF000000000001 /* PushUpSupportCorridor2D.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC1026ABCDEF000000000002 /* PushUpSupportCorridor2D.swift */; };
@@ -101,6 +102,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		B77E00000000000000000002 /* TerminalEvidence.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalEvidence.swift; sourceTree = "<group>"; };
 		AC1026ABCDEF000000000022 /* OverlaySmoother.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverlaySmoother.swift; sourceTree = "<group>"; };
 		AC1026ABCDEF000000000012 /* PushUpSupportEvidence2D.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushUpSupportEvidence2D.swift; sourceTree = "<group>"; };
 		AC1026ABCDEF000000000002 /* PushUpSupportCorridor2D.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushUpSupportCorridor2D.swift; sourceTree = "<group>"; };
@@ -309,6 +311,7 @@
 				C7C4940B99ECEFA823DD8EB1 /* SimCCDecoder.swift */,
 				6A2C1B8D3E4F5A6B7C8D9E02 /* BoneLengthConstraint.swift */,
 				7B3D2C9E4F5A6B7C8D9E0F02 /* MotionAGFormerLive.swift */,
+				B77E00000000000000000002 /* TerminalEvidence.swift */,
 				7B3D2C9E4F5A6B7C8D9E0F04 /* Pose3DConstraints.swift */,
 				5C9A1E3B7D2F4A6C8E0B1D02 /* AdaptiveRelationConstraint.swift */,
 				5C9A1E3B7D2F4A6C8E0B1E02 /* WristFloorAnchor.swift */,
@@ -689,6 +692,7 @@
 				511C8B1A5E3231BB606B95BE /* SquatTypes.swift in Sources */,
 				7A3F0C1E9B2D4E5F6A7B8C01 /* FormWarnings.swift in Sources */,
 				A16F0C1E9B2D4E5F6A7B8C01 /* ExperimentalCoaching.swift in Sources */,
+				B77E00000000000000000001 /* TerminalEvidence.swift in Sources */,
 				5C9A1E3B7D2F4A6C8E0B1D03 /* ExerciseSetup.swift in Sources */,
 				B7BF1D830B9649D4FFEE946D /* NativePoseExercise.swift in Sources */,
 				622CB33062458ACA0B781D8B /* NativePoseCameraPlatformView.swift in Sources */,

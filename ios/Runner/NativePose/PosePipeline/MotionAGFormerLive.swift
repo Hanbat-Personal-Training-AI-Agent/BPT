@@ -47,6 +47,8 @@ struct Lifted3DFrame {
     var confidence: [Double]? = nil
     /// px per crop unit (person-crop side / 2) of this frame's input.
     var unit: Double? = nil
+    /// Diagnostic provenance only: includes implicit orientation/lost-tracking flush, not a new future observation.
+    var diagnosticFlushed = false
     /// After AdaptiveRelationConstraint (experimental, nil when `MotionAGFormerLive.adaptive` is off). `raw` and `pose3D`
     /// stay as they were, so the unconstrained / constrained / adapted 3D can always be compared.
     var adapted: [SIMD3<Double>]? = nil
@@ -174,7 +176,11 @@ struct MotionAGFormerLive<Payload> {
                 }
             }
         }
-        return out
+        return out.map { payload, frame in
+            var marked = frame
+            marked.diagnosticFlushed = true
+            return (payload, marked)
+        }
     }
 
     mutating func reset() {

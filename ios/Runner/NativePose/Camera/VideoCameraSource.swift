@@ -303,7 +303,12 @@ final class VideoPreviewUIView: UIView {
 /// warnings), every line Flutter asked the Kori voice to speak, one tick per second (frames, drops, judged, XS
 /// inferences, process CPU, thermal, battery). Only exists in video mode.
 final class VideoRunLog: @unchecked Sendable {
-    static let shared: VideoRunLog? = VideoCameraOptions.isActive ? VideoRunLog() : nil
+    static let terminalEvidence = DemoConfig.environment["BPT_TERMINAL_EVIDENCE"] == "1"
+    static let shared: VideoRunLog? = (VideoCameraOptions.isActive || terminalEvidence) ? VideoRunLog() : nil
+    private lazy var evidenceStream = TerminalEvidenceStream { [weak self] data in
+        guard let handle = self?.handle else { throw CocoaError(.fileWriteUnknown) }
+        try handle.write(contentsOf: data)
+    }
 
     let url: URL
     let t0 = CACurrentMediaTime()
@@ -338,14 +343,33 @@ final class VideoRunLog: @unchecked Sendable {
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.dateFormat = "yyyyMMdd_HHmmss"
         // BPT_RUN_TAG gives a fixed name (the host pulls exactly that file); otherwise a timestamp.
-        let name = VideoCameraOptions.environment["BPT_RUN_TAG"].map { "run_\($0)" } ?? "run_\(formatter.string(from: Date()))"
+        let name = Self.terminalEvidence ? "terminal_\(UUID().uuidString)" : VideoCameraOptions.environment["BPT_RUN_TAG"].map { "run_\($0)" } ?? "run_\(formatter.string(from: Date()))"
         url = directory.appendingPathComponent("\(name).jsonl")
+        if Self.terminalEvidence {
+            // Preserve every existing evidence file; refuse a fourth capture.
+            let prior = ((try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: [.contentModificationDateKey])) ?? [])
+                .filter { $0.lastPathComponent.hasPrefix("terminal_") && $0.pathExtension == "jsonl" }
+                .sorted { ((try? $0.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast) > ((try? $1.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast) }
+            guard prior.count < 3 else {
+                print("[TerminalEvidence] capture_refused:file_limit; incomplete")
+                return nil
+            }
+        }
         do {
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-            try Data().write(to: url)
+            try Data().write(to: url, options: Self.terminalEvidence ? .withoutOverwriting : [])
             handle = try FileHandle(forWritingTo: url)
         } catch {
             return nil
+        }
+        if Self.terminalEvidence {
+            write("terminal_header", ["schema": TerminalEvidence.schema, "clock": "sample_pts_seconds",
+                "units_3d": "h36m17_xs_model_space_no_metric_guarantee", "units_2d": "analysis_image_pixels", "unit_px_meaning": "input_2d_crop_px_per_unit_not_3d_scale",
+                "max_records": 6000, "max_bytes": 64 * 1024 * 1024,
+                "provenance": VideoCameraOptions.isActive ? "ios_video_as_camera_pipeline" : "ios_live_camera_pipeline",
+                "model_hashes": Self.bundledModelHashes(),
+                "configuration_location": "terminal_start"])
+            return
         }
         write("start", [
             "env": VideoCameraOptions.environment.filter { $0.key.hasPrefix("BPT_") },
@@ -369,6 +393,12 @@ final class VideoRunLog: @unchecked Sendable {
     }
 
     func write(_ type: String, _ fields: [String: Any]) {
+        if Self.terminalEvidence {
+            guard type.hasPrefix("terminal_") else { return }
+            // All numeric callers are MainActor; this existing log owns one bounded stream.
+            evidenceStream.append(type, fields)
+            return
+        }
         var line = fields
         line["type"] = type
         line["t"] = rel(CACurrentMediaTime())
