@@ -1,3 +1,9 @@
+> **2026-11-02 검토 후보 — `review/project-completion-20261102`**
+>
+> 이 브랜치는 최신 iPhone 코칭 후보와 심층분석 서버, 후속 오류 수정을 함께 검토하기 위한 작업본입니다. main/integration에 병합하거나 배포한 버전이 아닙니다. 아래 기존 소개·일정은 10월8일 상태를 포함하므로 현재 완료 여부의 근거로 사용하지 마세요. 최신 범위·검증·남은 항목은 [프로젝트 완료 작업 기록](docs/results/project_completion_20261102.md)을 기준으로 확인합니다.
+>
+> 현재 native 운동 화면은 스쿼트·푸시업·바벨로우·데드리프트·벤치프레스 5종을 지원하며 RTMPose → MotionAGFormer-XS 3D 경로를 유지합니다. 랫풀다운과 Android 실시간 추론은 이 후보의 완료 기능이 아닙니다. 반복 완료율과 자세 정확도는 다릅니다. 관측되지 않은 자세를 정상으로 판정하지 않으며, 새 제약·모델의 정확도와 실제 요추 굽힘 코칭이 검증됐다고 주장하지 않습니다.
+
 <div align="center">
 
 <img src="assets/images/character/splash_logo.png" alt="BPT" width="320">
