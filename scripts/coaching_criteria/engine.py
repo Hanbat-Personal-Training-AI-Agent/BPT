@@ -156,7 +156,7 @@ def assess(atom, request, observations, profiles):
     if not isinstance(p.get('revision'),str) or not p.get('revision'):r.append('profile_revision_required')
     if not isinstance(p.get('source'),str) or not p.get('source'):r.append('profile_source_required')
     confirmation=p.get('confirmation',{});review=confirmation.get('scope',{}) if isinstance(confirmation,dict) else {}
-    if not isinstance(confirmation,dict) or not confirmation.get('kind') or not confirmation.get('at') or not confirmation.get('reference'):r.append('confirmation_metadata_required')
+    if not isinstance(confirmation,dict) or any(not isinstance(confirmation.get(k),str) or not confirmation.get(k) for k in ('kind','at','reference')):r.append('confirmation_metadata_required')
     expected_review={**identity(o),'exercise':request.get('exercise'),'variant':request.get('variant'),'ruleId':atom.id}
     if not isinstance(review,dict) or any(review.get(k)!=v for k,v in expected_review.items()):r.append('review_scope_mismatch_or_missing')
     for key in ('phase','side','view'):
@@ -175,7 +175,7 @@ def assess(atom, request, observations, profiles):
         if valid:
             ids=[x.get('id') for x in refs];ends=[x.get('endPts') for x in refs]
             valid=(all(isinstance(x,str) and x for x in ids) and len(set(ids))==3 and all(finite(t) for t in ends)
-                   and [x.get('repIndex') for x in refs]==[1,2,3] and ends==sorted(ends) and all(ends[i]<ends[i+1] for i in range(2)) and finite(start) and ends[-1]<start
+                   and all(type(x.get('repIndex')) is int for x in refs) and [x.get('repIndex') for x in refs]==[1,2,3] and ends==sorted(ends) and all(ends[i]<ends[i+1] for i in range(2)) and finite(start) and ends[-1]<start
                    and all(finite(x.get('value')) and x.get('available') is True and x.get('coverageComplete') is True
                            and identity(x)==identity(o) and isinstance(x.get('context'),dict) and all(x['context'].get(k)==o.get('scope',{}).get(k) for k in ('sourceIdentity','selectedSide','side','phase','view')) for x in refs))
         if not valid:r.append('invalid_incomplete_or_future_first3_reference')
@@ -192,6 +192,7 @@ def assess(atom, request, observations, profiles):
         out['reasons'].append('complete_phase_span_required');return out
     if aggregation=='sample' and len(samples)!=1:out['reasons'].append('sample_aggregation_requires_one_sample');return out
     value={'sample':lambda:values[-1],'max':lambda:max(values),'min':lambda:min(values),'rom':lambda:max(values)-min(values),'delta':lambda:values[-1]-values[0]}[aggregation]()-offset
+    if not finite(value) or any(not finite(x-offset) for x in values) or not finite(o['scope']['endPts']-o['scope']['startPts']):out['reasons'].append('arithmetic_overflow');return out
     out['evaluatedValue']=value
     out['aggregation']=aggregation
     out['sampleMembership']=[{'sourceIndex':x['sourceIndex'],'pts':x['pts']} for x in samples]
@@ -206,14 +207,20 @@ def assess(atom, request, observations, profiles):
         if aggregation not in ('sample','max'):out['reasons'].append('sustain_requires_sample_predicate');return out
         gap=p.get('maximumGapSeconds')
         if not finite(gap) or gap<=0:out['reasons'].append('explicit_maximum_gap_required');return out
-        longest=0;begin=None;previous=None
+        longest=0;begin=None;previous=None;run=[];qualifying=[]
         for s,e in zip(samples,sample_evidence):
             valid=e['supported'] and predicate(s['value']-offset,p)
             contiguous=previous is not None and s['pts']-previous['pts']<=gap and type(s.get('sourceIndex')) is int and type(previous.get('sourceIndex')) is int and s['sourceIndex']==previous['sourceIndex']+1
-            if not valid:begin=None
-            elif begin is None or not contiguous:begin=s['pts']
+            if not valid or not contiguous:
+                if run and run[-1]['pts']-run[0]['pts']>=sustain:qualifying.extend(run)
+                run=[];begin=None
+            if valid:
+                if begin is None:begin=s['pts']
+                run.append(s)
             if begin is not None:longest=max(longest,s['pts']-begin)
             previous=s
+        if run and run[-1]['pts']-run[0]['pts']>=sustain:qualifying.extend(run)
+        out['supportedPositiveSamples']=[{'sourceIndex':x['sourceIndex'],'pts':x['pts']} for x in qualifying]
         out['supportedDurationSeconds']=longest;result=longest>=sustain
         has_gap=any(samples[i+1]['pts']-samples[i]['pts']>gap or samples[i+1]['sourceIndex']!=samples[i]['sourceIndex']+1 for i in range(len(samples)-1))
         if not result and (not full or has_gap or o['scope']['endPts']-o['scope']['startPts']<sustain):out['reasons'].append('incomplete_sustain_coverage');return out
@@ -232,13 +239,22 @@ def evaluate(request:dict[str,Any])->dict[str,Any]:
         if isinstance(value,list):
             for child in value:reject_nonfinite(child)
     reject_nonfinite(request)
+    def raw_budget(node,depth=0,count=None):
+        if count is None:count=[0]
+        count[0]+=1
+        if depth>16 or count[0]>128:raise ValueError('criterion structural budget exceeded')
+        if isinstance(node,dict) and isinstance(node.get('children'),list):
+            for child in node['children']:raw_budget(child,depth+1,count)
+    raw_budget(request['criterion'])
     tree=parse(request['criterion'])
     seen=set()
-    def check_ids(node):
+    def check_ids(node,depth=0):
+        if depth>16:raise ValueError('criterion depth budget exceeded')
+        if len(seen)>=128:raise ValueError('criterion node budget exceeded')
         if not node.id or node.id in seen:raise ValueError('empty or duplicate criterion id')
         seen.add(node.id)
         if isinstance(node,Group):
-            for child in node.children:check_ids(child)
+            for child in node.children:check_ids(child,depth+1)
     check_ids(tree)
     def visit(node):
         if isinstance(node,Atom):return assess(node,request,observations,profiles)
@@ -256,7 +272,10 @@ def evaluate(request:dict[str,Any])->dict[str,Any]:
         if node.op=='AND' and not valid_pairing:reasons.append('explicit_component_pairing_required')
         common=None
         if compatible and pairing.get('temporal')=='simultaneous':
-            if any(x.get('aggregation') not in ('sample','max') and x.get('type')=='atom' for x in active):
+            def summary_evidence(x):
+                if x.get('type')=='atom':return x.get('aggregation') not in ('sample','max')
+                return any(summary_evidence(child) for child in x.get('children',[]) if child['state']=='positive_evidence')
+            if any(summary_evidence(x) for x in active):
                 compatible=False;reasons.append('summary_metric_requires_same_window_contract')
             for child in active:
                 samples={(x['sourceIndex'],x['pts']) for x in child.get('supportedPositiveSamples',[])}
@@ -265,8 +284,9 @@ def evaluate(request:dict[str,Any])->dict[str,Any]:
         compare_keys=tuple(k for k in CONTEXT if not (isinstance(pairing,dict) and pairing.get('sidePolicy')=='bilateral' and k=='side'))
         known_conflict=bool(known_scopes) and any(any(other.get(k)!=known_scopes[0].get(k) for k in compare_keys) for other in known_scopes[1:])
         if known_conflict:reasons.append('conflicting_known_component_contexts')
-        membership=active[0].get('sampleMembership') if active else None
-        if not membership or any(x.get('sampleMembership')!=membership for x in active):membership=None
+        membership_children=[x for x in active if x['state']=='positive_evidence'] if node.op=='OR' and not known_conflict else active
+        membership=membership_children[0].get('sampleMembership') if membership_children else None
+        if not membership or any(x.get('sampleMembership')!=membership for x in membership_children):membership=None
         if not active:state='not_applicable'
         elif node.op=='AND':
             if not compatible:state='unknown';reasons.append('noncoincident_component_scopes')
@@ -279,7 +299,7 @@ def evaluate(request:dict[str,Any])->dict[str,Any]:
             state=('unknown' if known_conflict else 'positive_evidence' if 'positive_evidence' in states else 'negative_evidence' if compatible and all(s=='negative_evidence' for s in states) else 'unknown')
         return {'id':node.id,'type':'group','op':node.op,'state':state,'scope':scope if compatible else known_scopes[0] if known_scopes and not known_conflict and node.op=='OR' else None,'reasons':reasons,
                 'partialCoverage':not compatible or any(x['state']=='unknown' or x.get('partialCoverage') for x in children),
-                'sampleMembership':membership,'interpretation':'compound_supplied_predicates_only','predicateMeanings':unique([x.get('predicateMeaning','compound') for x in children]),'pairing':copy.deepcopy(pairing),'sharedPositiveSamples':[{'sourceIndex':i,'pts':t} for i,t in sorted(common or [])],'supportedPositiveSamples':[{'sourceIndex':i,'pts':t} for i,t in sorted(common or [])] if state=='positive_evidence' and node.op=='AND' else [sample for child in children if child['state']=='positive_evidence' for sample in child.get('supportedPositiveSamples',[])] if compatible else [],'children':children,'knownComponents':[x['id'] for x in children if x['state'] in ('positive_evidence','negative_evidence')]}
+                'sampleMembership':membership,'interpretation':'compound_supplied_predicates_only','predicateMeanings':unique([x.get('predicateMeaning','compound') for x in children]),'pairing':copy.deepcopy(pairing),'sharedPositiveSamples':[{'sourceIndex':i,'pts':t} for i,t in sorted(common or [])],'supportedPositiveSamples':[{'sourceIndex':i,'pts':t} for i,t in sorted(common or [])] if state=='positive_evidence' and node.op=='AND' else [sample for child in children if child['state']=='positive_evidence' for sample in child.get('supportedPositiveSamples',[])] if compatible or node.op=='OR' and not known_conflict else [],'children':children,'knownComponents':[x['id'] for x in children if x['state'] in ('positive_evidence','negative_evidence')]}
     result=visit(tree)
     return {'schema':'bpt.coaching-criteria.v1','catalogVersion':CATALOG_VERSION,'exercise':request.get('exercise'),'variant':request.get('variant'),
             'criterion':result,'providedObservations':copy.deepcopy(observations),'profileAuthority':'scoped_reference_only_not_whole_form_or_clinical_validation'}

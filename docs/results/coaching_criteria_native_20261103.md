@@ -1,0 +1,9 @@
+# Independent Swift coaching criteria kernel
+
+Pure native port of the scoped Python JSON contract on isolated ab22c47; existing judge, models, voice and ExperimentalCoaching sources unchanged. New API: `CoachingCriteria.evaluate([String: Any]) throws -> [String: Any]`. Xcode source entry and package symlink compile the same independent implementation. No Python subprocess or runtime file/model/profile loading.
+
+Validation: 52 Python criteria/replay tests passed; two native XCTest methods passed, covering 93 shared synthetic full-output cases plus malformed object/nonfinite/nested-JSON/criterion node/depth guards. All fields, reasons, evidence, metrics and profile fingerprints are compared with numeric tolerance <=1e-10. Decimal/Unicode fingerprint cases are included. Package compiled on Mac; no Xcode/phone/build deployment or actual form accuracy validation claimed.
+
+Hardening while porting: nested positive OR evidence retains membership through missing children; confirmation metadata requires nonempty strings; first3 rep indices reject booleans; every sample-reference difference and window-duration arithmetic remains finite; sustained positive membership excludes isolated blips outside qualifying runs; nested summary predicates cannot bypass simultaneous-evidence requirements. Shared regressions cover the two key false-conjunction cases.
+
+Native accepts JSON only with a bounded 64-level/100000-value container budget, in addition to the 16-level/128-node criterion budget. Unknown or missing target context preserves supplied observations and explicit reasons. Positive means the supplied predicate holds; engineering, first3 and explicit targets remain distinct. Caller metadata is not authenticated review authority or independent correctness evidence. No new thresholds, training, inference, GPU, uploads, default activation, integration merge or deployment.

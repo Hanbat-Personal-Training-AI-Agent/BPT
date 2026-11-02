@@ -31,3 +31,11 @@ The catalog currently contains11 quantities, not all requirements for complete c
 ## Tests
 
 `python -m unittest discover -s scripts/coaching_criteria/tests -v` (stdlib only): typed/number/enum/identity guards, OR/AND, paired bilateral versus temporal side switch, disjoint positive peaks, clip/model/clock mismatch, min/ROM coverage, actual PTS sustain, raw-correction/blocking evidence, first3/future causality, no-profile preservation and strict replay mapping. Independent production counterexamples remain in `scripts/audit/tests/test_criteria_counterexamples.py` and `CriteriaCounterexamplesTests.swift`.
+
+## Independent native kernel
+
+`ios/Runner/NativePose/Evaluators/CoachingCriteria.swift` implements the same pure dictionary API without calling Python. The package source symlink and Xcode source entry use the same file. `CoachingCriteria.evaluate([String:Any]) throws -> [String:Any]` checks JSON depth/size, criterion depth/node/ID budgets, native booleans and nonfinite values. JSON decimal numbers use their exact NSNumber string before Double conversion to avoid Foundation NSDecimalNumber conversion drift. Profile fingerprints match sorted compact Python JSON, including ASCII escaping and decimal formatting.
+
+Generate synthetic full-output parity fixtures with `python -m scripts.coaching_criteria.generate_parity_fixtures`; `--check` detects stale outputs. `swift test --package-path ios/CalibrationEngineKit --filter CoachingCriteriaTests --jobs 2` checks every field and reason (numeric tolerance 1e-10), plus malformed/nonfinite/depth/node guards. Current 93 cases include nested OR/AND, clip/clock/side/membership conflicts, sustained qualifying-run membership, summary-only nested predicates, first3, overflow and decimal/Unicode fingerprints. These are contract tests, not measured exercise accuracy.
+
+Sustained evidence only propagates samples belonging to contiguous positive runs that actually reach the supplied duration. A nested positive summary remains a summary through groups and cannot become instantaneous evidence at an outer simultaneous AND. Every finite input arithmetic subtraction used for predicate support is checked before decision. No runtime bridge, target loading, delivery, default activation or whole-form correctness follows merely from compiling the kernel.

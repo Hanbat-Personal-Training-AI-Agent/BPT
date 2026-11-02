@@ -123,6 +123,30 @@ class CriteriaTests(unittest.TestCase):
         from scripts.coaching_criteria.json_contract import loads
         for text in ['{"x":1,"x":2}','{"x":NaN}','{"x":Infinity}']:
             with self.assertRaises(ValueError):loads(text)
+    def test_arithmetic_overflow_is_unknown_not_infinite_evidence(self):
+        r=request('rom',values=(-1e308,0,1e308));d=decision(r);self.assertEqual(d['state'],'unknown');self.assertIn('arithmetic_overflow',d['reasons'])
+    def test_profile_fingerprint_decimal_and_unicode_parity(self):
+        for number in [95.0, 1e-4, 1e-5, 1e15, 1e16, 1.2345678901234567e-4, 1e100]:
+            r=request();r['profiles']['p']['upper']=number
+            self.assertEqual(len(decision(r)['profileIntegrityHash']),64)
+        r=request();r['profiles']['p']['source']='한글 😀 / é';self.assertEqual(len(decision(r)['profileIntegrityHash']),64)
+    def test_confirmation_requires_strings(self):
+        for field in ['kind','at','reference']:
+            r=request();r['profiles']['p']['confirmation'][field]=True
+            self.assertIn('confirmation_metadata_required',decision(r)['reasons'])
+    def test_overflowing_sample_offset_cannot_prove_positive(self):
+        r=request(values=(-1e308,0,1e308));p=r['profiles']['p'];p['referenceKind']='observed_first3'
+        o=r['observations']['o'];o['scope'].update(startPts=10,endPts=10.2);r['evaluation']['asOfPts']=10.2
+        for sample in o['samples']:sample['pts']+=10
+        p['references']=[{**{k:o[k] for k in ['metricId','metricVersion','definitionHash','unit','coordinate','aggregation']},'id':f'r{i}','repIndex':i,'endPts':i,'value':-1e308,'available':True,'coverageComplete':True,'context':copy.deepcopy(o['scope'])} for i in [1,2,3]]
+        d=decision(r);self.assertEqual(d['state'],'unknown');self.assertIn('arithmetic_overflow',d['reasons'])
+    def test_tree_budgets(self):
+        r=request();node=r['criterion']
+        for i in range(18):node={'type':'group','id':str(i),'op':'OR','children':[node]}
+        r['criterion']=node
+        with self.assertRaises(ValueError):evaluate(r)
+        r=request();r['criterion']={'type':'group','id':'root','op':'OR','children':[{'type':'atom','id':str(i),'observation':'missing'} for i in range(130)]}
+        with self.assertRaises(ValueError):evaluate(r)
     def test_all_outputs_json_compatible(self):
         json.dumps(evaluate(combined(request(),'AND')),allow_nan=False)
 
@@ -141,6 +165,28 @@ class PairingTests(unittest.TestCase):
         child['id']='nested';r['criterion']={'type':'group','id':'outer','op':'AND','pairing':{'sidePolicy':'same_selected_side','temporal':'same_window_summary'},'children':[child]}
         d=decision(r);self.assertEqual(d['state'],'positive_evidence');self.assertTrue(d['sampleMembership'])
         r['observations']['o2']['scope']['startPts']=-1;self.assertEqual(decision(r)['state'],'unknown')
+    def test_nested_or_knownpositive_missing_can_support_outer_and(self):
+        r=self.pair();left=r['criterion']['children'][0];r['criterion']['children'][0]={'type':'group','id':'inner','op':'OR','children':[left,{'type':'atom','id':'missing','observation':'absent'}]}
+        d=decision(r);self.assertEqual(d['state'],'positive_evidence');self.assertTrue(d['partialCoverage'])
+    def test_sustained_evidence_does_not_pair_isolated_earlier_blip(self):
+        r=self.pair()
+        for key,values in [('o',[100,0,100,100,100]),('o2',[100,0,0,0,0])]:
+            o=r['observations'][key];o['scope']['endPts']=.4;o['scope']['expectedSourceIndices']=list(range(5))
+            template=o['samples'][0]
+            o['samples']=[{**template,'sourceIndex':i,'pts':i*.1,'value':v,'rawValue':v} for i,v in enumerate(values)]
+        r['evaluation']['asOfPts']=.4;r['profiles']['p'].update(sustainSeconds=.15,maximumGapSeconds=.11)
+        d=decision(r);self.assertEqual(d['children'][0]['state'],'positive_evidence');self.assertEqual(d['state'],'unknown')
+        self.assertEqual([x['sourceIndex'] for x in d['children'][0]['supportedPositiveSamples']],[2,3,4])
+        r['observations']['o2']['samples'][3].update(value=100,rawValue=100)
+        self.assertEqual(decision(r)['state'],'positive_evidence')
+    def test_nested_summary_or_cannot_become_simultaneous_sample(self):
+        r=self.pair();o=r['observations']['o'];o['aggregation']='rom'
+        p=r['profiles']['p'];p['aggregation']='rom';p['confirmation']['scope']['aggregation']='rom';p['upper']=10
+        left=r['criterion']['children'][0]
+        r['criterion']['children'][0]={'type':'group','id':'summary-or','op':'OR','children':[left,{'type':'atom','id':'missing','observation':'absent'}]}
+        d=decision(r);self.assertEqual(d['children'][0]['state'],'positive_evidence');self.assertEqual(d['state'],'unknown')
+        self.assertIn('summary_metric_requires_same_window_contract',d['reasons'])
+        r['criterion']['pairing']['temporal']='same_window_summary';self.assertEqual(decision(r)['state'],'positive_evidence')
     def test_same_samples_positive_pair(self):
         self.assertEqual(decision(self.pair())['state'],'positive_evidence')
     def test_different_clip_same_pts_never_pairs(self):
