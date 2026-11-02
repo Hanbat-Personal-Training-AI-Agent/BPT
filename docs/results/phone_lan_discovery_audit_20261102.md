@@ -1,0 +1,9 @@
+# Bounded Mac discovery audit after readiness4016
+
+A distinct Mac-side read-only audit confirmed the frozen physical device identifier and CoreDevice identifier match the selected paired record. Discovery showed `tunnelState=unavailable`, no current transport, DDI services unavailable and last successful connection at08:25KST. Independent xcdevice inventory reported available=false and deviceprep−27, browsing the local network. Its unavailable record's `usb` interface field is not proof of a current cable connection.
+
+The Mac default route was the en0 Wi-Fi hardware interface; the interface was active with IPv4 and link-localIPv6. SSID association could not be verified: networksetup reported not associated despite active link/routing, so the audit does not infer Wi-Fi radio-off. There was no default utun route. Bounded10-minute local CoreDevice/remoted logs contained only the usage-assertion request/error, with no evidence identifying lock or a specific network cause. No broad diagnostics/sysdiagnose or logging profile was collected/installed.
+
+The observed block is before trusted LAN/RSD transport and app services, not an app install/parser result. No new lock query, install, launch, source/model operation, service reset/restart, unpair, VPN or network-setting change followed. Root may request one specific changed physical state: iPhone Wi-Fi off/on, select the Mac's network and keep the screen awake; no USB step is needed. Another query requires actual changed state, not elapsed time.
+
+Filtered proof: handoff `actual-report/discovery-audit-filtered.json`; raw selected-device inventory and bounded local diagnostics remain private under `~/bpt-data/terminal-device-capture-20261102/actual-report-device/discovery-audit/`. Private names, addresses and SSID values are omitted from the public proof. Corrected ready app, rollback app, source/data/symbols and required caches remain preserved. Physical actual-report validation is still unrun.
