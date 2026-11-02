@@ -1,0 +1,406 @@
+{
+  "scope": "actual_single_same_input_isolated_model_report_integrity_not_expert_accuracy_or_authenticated_API",
+  "recoveryAuthorization": "root scope judgment: recovery of same explicitly approved video/analysis within prior time budget; no new explicit user reply",
+  "newRecoveryGPUCalls": 1,
+  "automaticRetries": 0,
+  "totalGPUAttemptsIncludingOriginalOutputFailure": 2,
+  "planSha256": "6954efb7df225cc732c8cb08389c4ef7ac33cab4a30c878547a472017cb2340d",
+  "archiveSha256": "9b2a50e552eb39bea8be7c39abccaabb80bbabb2ca1d8534cd218548d4f25617",
+  "inputVideoSha256": "53658c052b52bde1285b3e3ee6a1951f201419831e9ce776af094f31749c44d8",
+  "serviceManifestSha256": "2cc367da42da9c2b218990a730e0e5e1310645ef043392ec2d1d53dfb147c66f",
+  "workerReportSha256": "f651a10ac6d8415908f3969353266be4175364e18d77a9eafe53ff4c2320c9fa",
+  "beforeAndCurrentCoreSha256": "d748fbd25b044ffc5d8d85762d1410ae459b4cca572ae5c05073b4652d60151b",
+  "actualSourceSnapshotsAndImportedModuleHashes": true,
+  "currentWorkerSourceCommit": "8e00f543a70dd85b93b6ed716c1377a70586dffd",
+  "beforeScorerCommit": "17583f391f6dd028bf0515b2be3e8d2257c95866",
+  "precision": "fp32",
+  "externalPersonalBetaUsed": false,
+  "arrayAndTrackingProof": {
+    "frames": 590,
+    "nonfiniteConfidenceScalars": 0,
+    "nonfiniteWorldScalars": 0,
+    "rawVitPoseConfidenceSha256": "decd4944e148ebabd69fdad78302311676a9d6830afb74ecfa8bf43d1ae352a5",
+    "trackedFrames": 590,
+    "trackedMaskSha256": "36e96baf3f685c324e2d84e1295ac9d52d6dfe13458ee6cbcf29b4643d923182",
+    "untrackedFrames": 0,
+    "worldArraySha256": "fc8e7f8194cde40a57b7358d0f77d0f2b8c39ac1a3f5f6e48e60c48c6a6585a0",
+    "worldShape": [
+      590,
+      17,
+      3
+    ]
+  },
+  "localNumericalReplay": {
+    "beforeExactCanonicalParity": true,
+    "currentExactCanonicalParity": true,
+    "currentMetricNullScalars": 0,
+    "currentNullAssessmentReasonsConsistent": true,
+    "rawInputsFilledOrFiltered": false,
+    "scope": "local_CPU_frozen_scorers_actual_same_saved_inputs_no_model"
+  },
+  "beforeCurrentCanonicalByteParity": true,
+  "metricValidity": {
+    "assessmentFields": {
+      "available": 141,
+      "withheld": 9
+    },
+    "reasonFields": {
+      "requires_baseline_reps": 9
+    }
+  },
+  "metricNullScalars": 0,
+  "allJSONNullScalars": 21,
+  "allJSONNullExplanation": "10 fault.deviceKey nulls in set list + same 10 in per-rep lists + summary timeline rep null; no metric nulls",
+  "originalDecodedVideoFrames": 587,
+  "preprocessedModelAndOverlayFrames": 590,
+  "CFRDuplicatesAreNewObservations": false,
+  "overlayDurationSeconds": 19.666667,
+  "overlayAndPreparedActualPtsGridSha256": "3f8df1c913e76191c0e6b7b3c43a552ed682fcb3dcb780734c59b3888e33c451",
+  "nativeManifestIntervalsEvaluated": 10,
+  "independentServerRepDetectionClaimed": false,
+  "manifestIntervalCoverage": {
+    "intervalSeconds": 12.83333333333333,
+    "preparedModelFramesInIntervals": 385,
+    "preparedFramesOutsideIntervals": 205,
+    "fraction": 0.652542372881356
+  },
+  "rulesSource": {
+    "source": "deep_rules.csv",
+    "placeholder": true
+  },
+  "ruleOpportunities": 40,
+  "ruleAvailable": 34,
+  "ruleWithheld": 6,
+  "ruleWarningEvents": 10,
+  "rules": [
+    {
+      "key": "rom_drop",
+      "metric": "romDropDeg",
+      "thresholdGreaterThan": 15.0,
+      "opportunities": 10,
+      "available": 7,
+      "withheld": 3,
+      "withheldReasons": {
+        "requires_baseline_reps": 3
+      },
+      "warnings": 0,
+      "assessedWithinThreshold": 7,
+      "deviceKey": "",
+      "availableValues": {
+        "n": 7,
+        "min": -6.576,
+        "median": -1.221,
+        "max": 1.822
+      }
+    },
+    {
+      "key": "symmetry",
+      "metric": "symmetryMaxDeg",
+      "thresholdGreaterThan": 15.0,
+      "opportunities": 10,
+      "available": 10,
+      "withheld": 0,
+      "withheldReasons": {},
+      "warnings": 10,
+      "assessedWithinThreshold": 0,
+      "deviceKey": "",
+      "availableValues": {
+        "n": 10,
+        "min": 22.803,
+        "median": 26.1725,
+        "max": 27.69
+      }
+    },
+    {
+      "key": "trunk_sway",
+      "metric": "trunkStdDeg",
+      "thresholdGreaterThan": 8.0,
+      "opportunities": 10,
+      "available": 10,
+      "withheld": 0,
+      "withheldReasons": {},
+      "warnings": 0,
+      "assessedWithinThreshold": 10,
+      "deviceKey": "",
+      "availableValues": {
+        "n": 10,
+        "min": 1.598,
+        "median": 2.351,
+        "max": 3.731
+      }
+    },
+    {
+      "key": "tempo_drift",
+      "metric": "tempoDriftRatio",
+      "thresholdGreaterThan": 0.3,
+      "opportunities": 10,
+      "available": 7,
+      "withheld": 3,
+      "withheldReasons": {
+        "requires_baseline_reps": 3
+      },
+      "warnings": 0,
+      "assessedWithinThreshold": 7,
+      "deviceKey": "",
+      "availableValues": {
+        "n": 7,
+        "min": -0.075,
+        "median": -0.05,
+        "max": -0.025
+      }
+    }
+  ],
+  "nativeWarningEvents": 0,
+  "nativeRuleMappingEvaluatedKeys": 0,
+  "comparisons": {
+    "not_comparable": 10
+  },
+  "angleRangesDeg": {
+    "knee": {
+      "perIntervalRomDeg": {
+        "n": 10,
+        "min": 3.139,
+        "median": 5.5375,
+        "max": 8.317
+      },
+      "assessment": {
+        "available": 10
+      }
+    },
+    "hip": {
+      "perIntervalRomDeg": {
+        "n": 10,
+        "min": 7.197,
+        "median": 8.7225,
+        "max": 14.165
+      },
+      "assessment": {
+        "available": 10
+      }
+    },
+    "elbow": {
+      "perIntervalRomDeg": {
+        "n": 10,
+        "min": 59.448,
+        "median": 67.0335,
+        "max": 72.51
+      },
+      "assessment": {
+        "available": 10
+      }
+    },
+    "torso": {
+      "perIntervalRomDeg": {
+        "n": 10,
+        "min": 4.95,
+        "median": 6.848,
+        "max": 11.491
+      },
+      "assessment": {
+        "available": 10
+      }
+    }
+  },
+  "nativeSameDeclaredWindowComparison": {
+    "elbow": {
+      "sameDeclaredManifestWindows": true,
+      "sameGeometricTripletAndDegreeUnit": true,
+      "perFrameAlignmentAndSamplingPolicyEquivalenceClaimed": false,
+      "nativeReportedRomDeg": {
+        "n": 10,
+        "min": 74.18931,
+        "median": 80.660464,
+        "max": 86.552043
+      },
+      "serverRomDegOnPairedWindows": {
+        "n": 10,
+        "min": 59.448,
+        "median": 67.0335,
+        "max": 72.51
+      },
+      "nativeIsGroundTruth": false,
+      "nativeFiniteAggregateIsAssessmentProof": false
+    },
+    "knee": {
+      "sameDeclaredManifestWindows": true,
+      "sameGeometricTripletAndDegreeUnit": true,
+      "perFrameAlignmentAndSamplingPolicyEquivalenceClaimed": false,
+      "nativeReportedRomDeg": {
+        "n": 10,
+        "min": 4.479872,
+        "median": 7.536731,
+        "max": 13.193984
+      },
+      "serverRomDegOnPairedWindows": {
+        "n": 10,
+        "min": 3.139,
+        "median": 5.5375,
+        "max": 8.317
+      },
+      "nativeIsGroundTruth": false,
+      "nativeFiniteAggregateIsAssessmentProof": false
+    }
+  },
+  "nativeHipRomComparable": false,
+  "nativeHipReason": "native summary only retains hip maximum, not minimum/range",
+  "nativeTorsoRomComparable": false,
+  "nativeTorsoReason": "native signed torso/up-reference vs server unsigned world-up torso angle",
+  "visualQA": {
+    "samplePtsSeconds": [
+      2.133333,
+      9.733333,
+      18.433333
+    ],
+    "KoreanPanelLegible": true,
+    "RGBProjectionWristMismatchQualitativelyObserved": true,
+    "visualOcclusionObserved": true,
+    "occludedAnatomicalSideIndependentlyLocalized": false,
+    "greenMeaning": "actual tracking plus mapped 2D detector support>=0.35, not visibility/3D accuracy/normal form"
+  },
+  "frame64ModelLabeledJointProjectionVersusDetector": [
+    {
+      "modelLabeledJoint": "leftShoulder",
+      "H36MIndex": 11,
+      "COCOIndex": 5,
+      "projectionDetectorDistancePx": 12.1560697555542,
+      "raw2DScore": 0.8736308813095093,
+      "overlaySupportPass": true,
+      "trackedMask": true
+    },
+    {
+      "modelLabeledJoint": "leftElbow",
+      "H36MIndex": 12,
+      "COCOIndex": 7,
+      "projectionDetectorDistancePx": 29.80430793762207,
+      "raw2DScore": 0.9794129133224487,
+      "overlaySupportPass": true,
+      "trackedMask": true
+    },
+    {
+      "modelLabeledJoint": "leftWrist",
+      "H36MIndex": 13,
+      "COCOIndex": 9,
+      "projectionDetectorDistancePx": 23.49197006225586,
+      "raw2DScore": 0.9267027378082275,
+      "overlaySupportPass": true,
+      "trackedMask": true
+    },
+    {
+      "modelLabeledJoint": "rightShoulder",
+      "H36MIndex": 14,
+      "COCOIndex": 6,
+      "projectionDetectorDistancePx": 13.134376525878906,
+      "raw2DScore": 0.7190748453140259,
+      "overlaySupportPass": true,
+      "trackedMask": true
+    },
+    {
+      "modelLabeledJoint": "rightElbow",
+      "H36MIndex": 15,
+      "COCOIndex": 8,
+      "projectionDetectorDistancePx": 49.455177307128906,
+      "raw2DScore": 0.4515225887298584,
+      "overlaySupportPass": true,
+      "trackedMask": true
+    },
+    {
+      "modelLabeledJoint": "rightWrist",
+      "H36MIndex": 16,
+      "COCOIndex": 10,
+      "projectionDetectorDistancePx": 38.42885208129883,
+      "raw2DScore": 0.7743468880653381,
+      "overlaySupportPass": true,
+      "trackedMask": true
+    }
+  ],
+  "projectionResidualIsGTError": false,
+  "projectionResidualReason": "two estimation branches with different landmark/model definitions; no expert 2D/3D ground truth",
+  "lifecycle": {
+    "observedAtUtc": "2026-11-02T01:27:37.133188+00:00",
+    "taskStateEvents": [
+      {
+        "taskId": "ta-01M6CXDYS1YEN41CTZJWZSHX4R",
+        "state": 7,
+        "timestamp": 1793582365.8067508,
+        "timestampNs": 1793582365806750774,
+        "stateName": "TASK_STATE_CREATING_CONTAINER",
+        "atUtc": "2026-11-02T01:19:25.806751+00:00"
+      },
+      {
+        "taskId": "ta-01M6CXDYS1YEN41CTZJWZSHX4R",
+        "state": 3,
+        "timestamp": 1793582366.0862002,
+        "timestampNs": 1793582366086200237,
+        "stateName": "TASK_STATE_LOADING_IMAGE",
+        "atUtc": "2026-11-02T01:19:26.086200+00:00"
+      },
+      {
+        "taskId": "ta-01M6CXDYS1YEN41CTZJWZSHX4R",
+        "state": 8,
+        "timestamp": 1793582368.7496314,
+        "timestampNs": 1793582368749631405,
+        "stateName": "TASK_STATE_IDLE",
+        "atUtc": "2026-11-02T01:19:28.749631+00:00"
+      },
+      {
+        "taskId": "ta-01M6CXDYS1YEN41CTZJWZSHX4R",
+        "state": 5,
+        "timestamp": 1793582553.6677692,
+        "timestampNs": 1793582553667769194,
+        "stateName": "TASK_STATE_COMPLETED",
+        "atUtc": "2026-11-02T01:22:33.667769+00:00"
+      }
+    ],
+    "tasks": [
+      {
+        "taskId": "ta-01M6CXDYS1YEN41CTZJWZSHX4R",
+        "appMatches": true,
+        "enqueuedAtUnix": 1793582365.553807,
+        "startedAtUnix": 1793582368.736927,
+        "finishedAtUnix": 1793582554.963116,
+        "gpuType": "L4",
+        "resultStatus": 1,
+        "enqueuedAtUtc": "2026-11-02T01:19:25.553807+00:00",
+        "startedAtUtc": "2026-11-02T01:19:28.736927+00:00",
+        "finishedAtUtc": "2026-11-02T01:22:34.963116+00:00",
+        "localSubmissionToTaskStartSeconds": 1693.2200510501862,
+        "taskRuntimeSeconds": 186.22618889808655
+      }
+    ],
+    "app": {
+      "appId": "ap-nkhyRFeEVZ40XFQP69of8b",
+      "state": "stopped",
+      "createdAt": "2026-11-02 09:51:12+09:00",
+      "stoppedAt": "2026-11-02 10:22:35+09:00"
+    },
+    "containers": []
+  },
+  "workerProcessingTimingSeconds": {
+    "normalizeVideo": 5.93,
+    "infer": 137.727,
+    "metrics": 0.029,
+    "render": 11.46,
+    "analyze": 155.147
+  },
+  "independentHumanExpertLabels": 0,
+  "accuracyImprovementClaimed": false,
+  "actualPartialGeometryFailureExercised": false,
+  "privateArtifactSha256": {
+    "evidence.json": "6129104d27bdbf2bcebb97a08a2f9dc0ed01bbdf483c657a24c592aca2b1e156",
+    "overlay.mp4": "b1630a93c243911bb154f8daad6dd489f2581f037cb9b2dd4bd9099fd6728113",
+    "occlusion-time-observation-private.json": "136b44bf02228d63929f2cfc33494ca07b7afdd6efd37af5ea389f11036c855f",
+    "timing.json": "bfbef89deccf2c199777dfacc450c2910716cdaadef72923448ad6e32cf93f98",
+    "overlay-02-frame-292.png": "dbd176c2132e076eef5e72825e5706158fb82c86fb131d502b31f8378642f21e",
+    "overlay-sample-receipt-private.json": "74af7d6e9792d0899ca718097435484940b124c92bab79096f64b877e2fa2645",
+    "run.log": "06304908bcd92978a6c399f4103ccb6e4dc57a5bedf1af69b0812cee9e94f5dd",
+    "local-numeric-replay-proof.json": "2b7779675f969934045082d6c369cd19a163fe5a5178130bc5185f499d780a4c",
+    "verification-summary.json": "ae2d567b319f3344a469ca7a4c80e02ad50e81426dd64d4ed83abe2ae742085a",
+    "result.npz": "620022c1f057114be510186db1495e01b0ffaef3ccefaa39eeb07a1c4e7e27ce",
+    "worker_report.json": "f651a10ac6d8415908f3969353266be4175364e18d77a9eafe53ff4c2320c9fa",
+    "before_metrics.json": "d748fbd25b044ffc5d8d85762d1410ae459b4cca572ae5c05073b4652d60151b",
+    "overlay-01-frame-64.png": "61052139fd4c60fdf23579a94ca5b5b586ae8743fd9c5473d5c510c8c4548d66",
+    "overlay-03-frame-553.png": "7ede656715a0f3b672ecd1be55b9d59751aa7e48c649156ef0a086cb47de1f6c",
+    "current_metrics.json": "d748fbd25b044ffc5d8d85762d1410ae459b4cca572ae5c05073b4652d60151b",
+    "projection-detection-frame64-private.json": "aa48f5222eeaf0dc247668209b3bffc7590f820b7060caf14897193dd717e77c"
+  }
+}
