@@ -48,7 +48,7 @@ enum BoneCorrectionReliability {
                 if !r.constrained {reasons.append("unsupported_not_constrained")}
                 if let a=observed,let b=output {
                     let c=abs(b-a);if c.isFinite {correction=c}
-                    if a>0 {let q=b/a;if q.isFinite {ratio=q}}
+                    if a>0 {let q=b/a;if q.isFinite {ratio=q} else {reasons.append("unsupported_expansion_overflow")}}
                 }
             } else {reasons.append("unsupported_missing_segment_report")}
             let unsupported = !reasons.isEmpty
