@@ -1,0 +1,58 @@
+{
+  "scope": "prepared_only_not_authorized_new_GPU_execution",
+  "planSha256": "6954efb7df225cc732c8cb08389c4ef7ac33cab4a30c878547a472017cb2340d",
+  "videoSha256": "53658c052b52bde1285b3e3ee6a1951f201419831e9ce776af094f31749c44d8",
+  "serviceReadyManifestCanonicalSha256": "2cc367da42da9c2b218990a730e0e5e1310645ef043392ec2d1d53dfb147c66f",
+  "executionScriptSha256": "ffd7789fa7b59b718c5c3358a962c78aeca4e89b2bf5d8c5eb833ecb784b6225",
+  "approvedAnalysisScriptSha256": "e7dc9ec5e9d7aefbc6f11a00696dc6c9841e11c7fa51e549570ea98b97e057f1",
+  "publicSourceMounts": [
+    {
+      "remotePath": "/root/native_deep_inline_l4.py",
+      "sha256": "ffd7789fa7b59b718c5c3358a962c78aeca4e89b2bf5d8c5eb833ecb784b6225"
+    },
+    {
+      "remotePath": "/root/native_deep_isolated_l4.py",
+      "sha256": "e7dc9ec5e9d7aefbc6f11a00696dc6c9841e11c7fa51e549570ea98b97e057f1"
+    },
+    {
+      "remotePath": "/root/inline_result_transport.py",
+      "sha256": "28b854cd1c6abcce2306ca7c79f34daec85b31e45120f7537f1ba7b507e29a9a"
+    }
+  ],
+  "currentSourceCommit": "8e00f543a70dd85b93b6ed716c1377a70586dffd",
+  "beforeScorerCommit": "17583f391f6dd028bf0515b2be3e8d2257c95866",
+  "resources": {
+    "cpuLimit": 4,
+    "cpuRequested": 2,
+    "gpu": "L4",
+    "gpuCount": 1,
+    "maxContainers": 1,
+    "maxInvocations": 1,
+    "memoryLimitMiB": 16384,
+    "memoryRequestedMiB": 8192,
+    "minContainers": 0,
+    "retries": 0,
+    "scaledownSeconds": 2,
+    "startupTimeoutSeconds": 90,
+    "timeoutSeconds": 600
+  },
+  "resultTransport": {
+    "chunkBytes": 65536,
+    "completeFile": "artifact.complete.bin",
+    "completionReceipt": "completion.json",
+    "generatorAutomaticRetriesSupported": false,
+    "maximumArchiveBytes": 268435456,
+    "partialFile": "artifact.incomplete.part",
+    "requiresEndAndEOF": true,
+    "requiresZeroReturnCode": true,
+    "schema": "bpt.inline-result.v1"
+  },
+  "localTests": {
+    "protocolAndWrapper": 23,
+    "historicalPackage": 7
+  },
+  "additionalGPUCalls": 0,
+  "newMediaTransferred": false,
+  "originalFailedAttemptRecovery": "no_received_archive_or_live_container;readonlyweights_volume_has_no_outputs;temporarydirectory_exited_before_failed_serialization",
+  "modelInferencePerApprovedNewInvocation": 1
+}
