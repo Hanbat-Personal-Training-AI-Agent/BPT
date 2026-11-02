@@ -1,0 +1,96 @@
+{
+  "scope": "actual_public_deterministic_bytes_CPU_transport_only",
+  "planSha256": "e4b8da2c7478a8b6f6e4ab313382a254e61dff3112692929d1981c6356fe6e01",
+  "scriptSha256": "28b854cd1c6abcce2306ca7c79f34daec85b31e45120f7537f1ba7b507e29a9a",
+  "imageId": "im-4SiTgQLfJqcNflEuz14dR3",
+  "comparison": {
+    "GPUCalls": 0,
+    "maxCPUCalls": 2,
+    "mediaTransferred": false,
+    "results": [
+      {
+        "childReturnCode": 1,
+        "cleanup": "already_stopped_verified",
+        "elapsedLocalSeconds": 10.792,
+        "gpuCalls": 0,
+        "localTimedOut": false,
+        "mode": "direct",
+        "modelCalls": 0,
+        "verifiedResult": false
+      },
+      {
+        "childReturnCode": 0,
+        "cleanup": "already_stopped_verified",
+        "elapsedLocalSeconds": 11.537,
+        "gpuCalls": 0,
+        "localTimedOut": false,
+        "mode": "chunks",
+        "modelCalls": 0,
+        "verifiedResult": true
+      }
+    ]
+  },
+  "directFailure": {
+    "errorType": "modal.exception.AuthError",
+    "gpuCalls": 0,
+    "modelCalls": 0,
+    "status": "failed_no_retry"
+  },
+  "directFailureBlobCreate401Confirmed": true,
+  "streamCompletion": {
+    "bytes": 4194304,
+    "chunks": 64,
+    "diagnostics": {
+      "blobThresholdBytes": 2097152,
+      "blobUtilsSha256": "8ab4ba863a6d32eba77ef2ea1a9d491a5d19dbede70251d9a3c31f5112cd2660",
+      "formatBlobDataSource": "async def format_blob_data(\n    data: bytes, api_stub: ModalClientModal, max_object_size_bytes: int = MAX_OBJECT_SIZE_BYTES\n) -> dict[str, Any]:\n    return {\"data_blob_id\": await blob_upload(data, api_stub)} if len(data) > max_object_size_bytes else {\"data\": data}\n",
+      "modalSdkVersion": "1.6.1",
+      "python": "3.10.17 (main, May 21 2025, 23:32:05) [GCC 12.2.0]",
+      "runtimeContainerManagerSha256": "f03c1c4b73477dbcac9b27b349d15be2087028666c1a6fac92648d245b995fc2"
+    },
+    "returnCode": 0,
+    "sha256": "2b07811057df887086f06a67edc6ebf911de8b6741156e7a2eb1416a4b8b1b2e",
+    "status": "complete_transport_and_zero_return_code"
+  },
+  "lifecycleProof": {
+    "direct": {
+      "appId": "ap-wqDgTrmHEOa48UXiQe4dMO",
+      "description": "bpt-owned-inline-public-cpu-direct",
+      "state": "stopped",
+      "createdAt": "2026-11-02 09:45:03+09:00",
+      "stoppedAt": "2026-11-02 09:45:11+09:00"
+    },
+    "chunks": {
+      "appId": "ap-P6Q7Qj0x1as0bLOW6N0oVd",
+      "description": "bpt-owned-inline-public-cpu-chunks",
+      "state": "stopped",
+      "createdAt": "2026-11-02 09:45:13+09:00",
+      "stoppedAt": "2026-11-02 09:45:22+09:00"
+    }
+  },
+  "artifactSha256": {
+    "plan.json": "e4b8da2c7478a8b6f6e4ab313382a254e61dff3112692929d1981c6356fe6e01",
+    "comparison.json": "c62da47bbd842803810d507161d441cb088054e37bcfe6b8f2f51132478c3175",
+    "direct/app.json": "740ac1aa51efc91ae6ba760aca95c8f1cee389cc8d148e549ee474a56370947f",
+    "direct/precall-plan.json": "ef56fc3b5cad4a8ae52c509fefc473ed1190359b4d4949fc09f362e899c565e3",
+    "direct/input.json": "10a4ac00ab0d76474ea2f6ba15c7d6ad15219323a0cdb1b0642c331d04750cdf",
+    "direct/call-failure.json": "16ac2668b4de6dca480885795247423a51c4b75215e635d26832715050e4138e",
+    "direct/log-private.txt": "1488409784906fcb7da8a4275d9bde9a177ea27d085ad1bb1934128f3c5c7738",
+    "direct/lifecycle-proof.json": "a0962c42fd7f16935ae8aa0c754e720c7505ea28a83c2b7281c593298c81d502",
+    "direct/attempt.json": "11e2747e894e810ebd154e992da313b892adf2afe8b570e93b287e5bc0cda367",
+    "direct/execution.json": "32afa91b9b1684bbec41a6b42634cdb72fb59f120bbb56ccc8f51653f09e2ecb",
+    "chunks/app.json": "872d7dc58529a27d8e2b2d516c349e7a1244494afbf29331c2428df6f21ae625",
+    "chunks/precall-plan.json": "3110276ddb48f537937a2fddf5cc65b1d6610feab2c4d1a6c42260872f2192bf",
+    "chunks/input.json": "713c095b8f31d7a6e4d8c2d18cab4a6608366a15110b2f9e407950550e078ab9",
+    "chunks/log-private.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "chunks/lifecycle-proof.json": "9d2d539e0e7c9845277acc80d43d1b29ddef17673765aee17bfad430a44a57d1",
+    "chunks/attempt.json": "396c92f13560348a4cb574bf9dd68d669e847893beb50fe862cc9ca985c027e3",
+    "chunks/artifact.complete.bin": "2b07811057df887086f06a67edc6ebf911de8b6741156e7a2eb1416a4b8b1b2e",
+    "chunks/execution.json": "c0435ea4d1fcf585aabed54b6ebf3adcb012df324843bb4b09cff54b80f2db3c",
+    "chunks/completion.json": "38690e4b13fad6e0af1cbc54980c86335aaa5ed5e794c6be80c2632daa8b69aa",
+    "direct/remote-runtime-log-private.txt": "51cfaa3e94f1f50761b95962f4ad411534a4e7065a58d87d730fa87aee268f98"
+  },
+  "GPUCalls": 0,
+  "modelCalls": 0,
+  "mediaTransferred": false
+}
