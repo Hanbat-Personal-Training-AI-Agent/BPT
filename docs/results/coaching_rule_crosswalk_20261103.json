@@ -1,0 +1,1625 @@
+{
+  "schema": "bpt.coaching-rule-crosswalk.v1",
+  "scope": "pinned_source_audit_no_runtime_accuracy_or_default_changes",
+  "baseCommit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+  "sourceSha256": {
+    "ios/Runner/NativePose/Evaluators/FormWarnings.swift": "b4161e2b386f46ab1db2f14075ef11e0ab9c709962ef6f7cfcf4a2ec74758449",
+    "lib/features/workout/data/kori_feedback_lines.dart": "e5543d96cf2826ed09543e274b22b818c383d978a302fa2690344d96c92d0793",
+    "ios/Runner/NativePose/Camera/CameraPosePreview.swift": "3b918e4b1422fb8de8813373aea09b93eaafef05dea0de0ef21f952466c1b8b7",
+    "ios/Runner/NativePose/Camera/VideoCameraSource.swift": "e9099e6b91de9968b4d119fd51a9aeed8e16a89a582b56fb88305dc84c7b61fc",
+    "ios/Runner/NativePose/PosePipeline/MotionAGFormerLive.swift": "b90bfc7f912f172caa7c81ee71acc71d6890e7b2ef55a8fd3e1f49a3c37a06aa",
+    "ios/Runner/NativePose/PosePipeline/PoseCoordinateTransforms.swift": "5963a4c7bf75fe41f1461b7de48d480481c1978dfa7ee33ec3f5e94f752e8579",
+    "ios/Runner/NativePose/Types/NativePoseExercise.swift": "409c7262d7ffab8159b3c79daae18f2f2737034dc080fd3fa4a4675127c3e6b6",
+    "lib/features/workout/screens/native_pose_workout_screen.dart": "c9062b0385738c4dd8c00e824f0408cb92c4c159ed6b7a033e93082086a471ad",
+    "lib/services/kori_voice_service.dart": "91de0aae20ec64f4540ffd45948daee286197d72f0448de25227f07cc8da70ce",
+    "ios/Runner/NativePose/Bridge/KoriSpeaker.swift": "2ba3938e9b7886ac8b3d6c247d4cc6f99159f6c1d8ca94b4f8a6dbee5380da22",
+    "ios/Runner/NativePose/Bridge/WorkoutSessionBridge.swift": "f7e62b96c93f557049b8a5d1665a4652155c1886f428271e878be3536bf0e55d",
+    "server/calibration_modal/deep_metrics.py": "441c9de6bfbad46fe63e1da7794b830d9ec8ba8730080ebb7acc1b64b7636775",
+    "server/calibration_modal/deep_worker.py": "cdb444f7a1f6bdd92bc1949e5b58bc4af0237383767c7e1957703aa49840d8ae",
+    "server/calibration_modal/deep_rules.csv": "ce95348cf2324cbe7818d894e1c18f8d1a9586bdd7f7012b41be96e32f518a32",
+    "server/calibration_modal/modal_app.py": "71827e6b6a0a8f17861855df686e696a842fbd0cf6eaec581649246211b6e984"
+  },
+  "nativePostureRules": [
+    {
+      "exercise": "pushup",
+      "key": "pushup_hip_sag",
+      "grade": "priority",
+      "metric": "hip_dev_max",
+      "repPredicate": "max signed pelvis offset from thorax-to-ankle-midpoint line > hipSagDeviation",
+      "defaultThresholds": {
+        "hipSagDeviation": 0.14
+      },
+      "thresholdRefs": [
+        {
+          "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+          "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+          "line": 82
+        }
+      ],
+      "requiredH36MJoints": [
+        0,
+        8,
+        3,
+        6
+      ],
+      "additional2DDependencies": [],
+      "liveOverlayPhase": "always",
+      "liveOverlayFullPredicate": true,
+      "liveOverlayNote": "quiet keys are not removed from overlay measurements",
+      "defaultConditionEnabled": true,
+      "defaultDeliveryKeyEnabled": true,
+      "effectiveDefaultPostureDelivery": true,
+      "current3DMetricAvailable": true,
+      "deliveryMode": "rep_bubble_and_text_voice_candidate",
+      "actualDartMessageKo": "엉덩이 처졌어! 배에 힘!",
+      "judgeRef": {
+        "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+        "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+        "line": 1129
+      },
+      "aggregationRef": {
+        "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+        "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+        "line": 970
+      },
+      "geometryRef": {
+        "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+        "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+        "line": 655
+      },
+      "existingDeepCounterpart": null,
+      "comparison": "no_existing_equivalent_deep_rule",
+      "expertValidated": false,
+      "catalogProposal": {
+        "metric_definition": "d_hip=H의 S-A 선 바닥쪽 수직거리/|S-A|; 양수 처짐; 요추각 아님",
+        "threshold_standard": "P:d_hip>0.10; 모든 모드 동일; 0.2초 유효 관측",
+        "measurable_now": "yes",
+        "needs": "측면; 어깨·골반·발목; 일반형/인클라인 변형 확인",
+        "phase": "전 단계"
+      },
+      "catalogProposalRef": {
+        "commit": "20d897c279a693117706750cddac37454e5b663d",
+        "path": "docs/coaching/fault_catalog.csv",
+        "line": 23
+      }
+    },
+    {
+      "exercise": "pushup",
+      "key": "pushup_hip_pike",
+      "grade": "improve",
+      "metric": "hip_dev_min",
+      "repPredicate": "min signed pelvis offset < -hipPikeDeviation",
+      "defaultThresholds": {
+        "hipPikeDeviation": 0.08
+      },
+      "thresholdRefs": [
+        {
+          "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+          "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+          "line": 84
+        }
+      ],
+      "requiredH36MJoints": [
+        0,
+        8,
+        3,
+        6
+      ],
+      "additional2DDependencies": [],
+      "liveOverlayPhase": "always",
+      "liveOverlayFullPredicate": true,
+      "liveOverlayNote": "quiet keys are not removed from overlay measurements",
+      "defaultConditionEnabled": true,
+      "defaultDeliveryKeyEnabled": false,
+      "effectiveDefaultPostureDelivery": false,
+      "current3DMetricAvailable": true,
+      "deliveryMode": "filtered_delivery_still_judged_logged_and_overlay_if_present",
+      "actualDartMessageKo": "엉덩이 내려! 몸 일자로",
+      "judgeRef": {
+        "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+        "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+        "line": 1130
+      },
+      "aggregationRef": {
+        "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+        "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+        "line": 970
+      },
+      "geometryRef": {
+        "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+        "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+        "line": 655
+      },
+      "existingDeepCounterpart": null,
+      "comparison": "no_existing_equivalent_deep_rule",
+      "expertValidated": false,
+      "catalogProposal": {
+        "metric_definition": "d_hip<0은 S-A 선 위쪽; 의도한 파이크 변형 제외",
+        "threshold_standard": "P:d_hip<-0.08",
+        "measurable_now": "yes",
+        "needs": "측면; 선택 변형; 현재 기본 발화 제외",
+        "phase": "전 단계"
+      },
+      "catalogProposalRef": {
+        "commit": "20d897c279a693117706750cddac37454e5b663d",
+        "path": "docs/coaching/fault_catalog.csv",
+        "line": 24
+      }
+    },
+    {
+      "exercise": "pushup",
+      "key": "pushup_shallow",
+      "grade": "improve",
+      "metric": "elbow_min",
+      "repPredicate": "current minimum elbow - median(first 3 earlier rep minima) > shallowOverBaselineDegrees",
+      "defaultThresholds": {
+        "shallowOverBaselineDegrees": 15.0
+      },
+      "thresholdRefs": [
+        {
+          "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+          "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+          "line": 86
+        }
+      ],
+      "requiredH36MJoints": "selected shoulder/elbow/wrist",
+      "additional2DDependencies": [],
+      "liveOverlayPhase": "bottom",
+      "liveOverlayFullPredicate": true,
+      "liveOverlayNote": "quiet keys are not removed from overlay measurements",
+      "defaultConditionEnabled": true,
+      "defaultDeliveryKeyEnabled": false,
+      "effectiveDefaultPostureDelivery": false,
+      "current3DMetricAvailable": true,
+      "deliveryMode": "filtered_delivery_still_judged_logged_and_overlay_if_present",
+      "actualDartMessageKo": "더 깊게 내려가!",
+      "judgeRef": {
+        "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+        "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+        "line": 1131
+      },
+      "aggregationRef": {
+        "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+        "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+        "line": 970
+      },
+      "geometryRef": {
+        "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+        "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+        "line": 655
+      },
+      "existingDeepCounterpart": "pushup_depth_drift",
+      "comparison": "conditional_same_scalar_formula_not_default_warning_parity",
+      "expertValidated": false,
+      "catalogProposal": {
+        "metric_definition": "D=min(e_rep)-B_e_min; 가슴 접촉과 동일하지 않음",
+        "threshold_standard": "P:D>15deg",
+        "measurable_now": "partial",
+        "needs": "측면; 승인 ROM; 현재 기본 발화 제외",
+        "phase": "하단"
+      },
+      "catalogProposalRef": {
+        "commit": "20d897c279a693117706750cddac37454e5b663d",
+        "path": "docs/coaching/fault_catalog.csv",
+        "line": 25
+      }
+    },
+    {
+      "exercise": "pushup",
+      "key": "pushup_no_lockout",
+      "grade": "reference",
+      "metric": "elbow_max",
+      "repPredicate": "max(all earlier maxima + current maximum) - current maximum > noLockoutBelowSetMaxDegrees",
+      "defaultThresholds": {
+        "noLockoutBelowSetMaxDegrees": 10.0
+      },
+      "thresholdRefs": [
+        {
+          "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+          "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+          "line": 88
+        }
+      ],
+      "requiredH36MJoints": "selected shoulder/elbow/wrist",
+      "additional2DDependencies": [],
+      "liveOverlayPhase": "top",
+      "liveOverlayFullPredicate": true,
+      "liveOverlayNote": "quiet keys are not removed from overlay measurements",
+      "defaultConditionEnabled": true,
+      "defaultDeliveryKeyEnabled": false,
+      "effectiveDefaultPostureDelivery": false,
+      "current3DMetricAvailable": true,
+      "deliveryMode": "filtered_delivery_still_judged_logged_and_overlay_if_present",
+      "actualDartMessageKo": "올라올 때 팔 끝까지 펴!",
+      "judgeRef": {
+        "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+        "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+        "line": 1132
+      },
+      "aggregationRef": {
+        "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+        "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+        "line": 970
+      },
+      "geometryRef": {
+        "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+        "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+        "line": 655
+      },
+      "existingDeepCounterpart": null,
+      "comparison": "no_existing_equivalent_deep_rule",
+      "expertValidated": false,
+      "catalogProposal": {
+        "metric_definition": "D=B_e_max-max(e_rep); 개인 편한 끝점; 과신전 강제 금지",
+        "threshold_standard": "P:D>10deg",
+        "measurable_now": "yes",
+        "needs": "측면; 승인 기준; 현재 기본 발화 제외",
+        "phase": "상단"
+      },
+      "catalogProposalRef": {
+        "commit": "20d897c279a693117706750cddac37454e5b663d",
+        "path": "docs/coaching/fault_catalog.csv",
+        "line": 26
+      }
+    },
+    {
+      "exercise": "pushup",
+      "key": "pushup_head_drop",
+      "grade": "reference",
+      "metric": "head_dev_change_max",
+      "repPredicate": "max head-centre line deviation - first valid deviation in rep > headDropDeviation",
+      "defaultThresholds": {
+        "headDropDeviation": 0.376
+      },
+      "thresholdRefs": [
+        {
+          "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+          "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+          "line": 91
+        }
+      ],
+      "requiredH36MJoints": [
+        10,
+        0,
+        8
+      ],
+      "additional2DDependencies": [],
+      "liveOverlayPhase": "none",
+      "liveOverlayFullPredicate": false,
+      "liveOverlayNote": "quiet keys are not removed from overlay measurements",
+      "defaultConditionEnabled": true,
+      "defaultDeliveryKeyEnabled": true,
+      "effectiveDefaultPostureDelivery": true,
+      "current3DMetricAvailable": true,
+      "deliveryMode": "set_end_recorded_count_only_in_current_Flutter",
+      "actualDartMessageKo": "고개 떨구지 마!",
+      "judgeRef": {
+        "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+        "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+        "line": 1133
+      },
+      "aggregationRef": {
+        "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+        "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+        "line": 970
+      },
+      "geometryRef": {
+        "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+        "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+        "line": 655
+      },
+      "existingDeepCounterpart": null,
+      "comparison": "no_existing_equivalent_deep_rule",
+      "expertValidated": false,
+      "catalogProposal": {
+        "metric_definition": "D=max(d_head)-d_head_start; d_head=귀의 H-S 선 바닥쪽 거리/L",
+        "threshold_standard": "P:D>0.15",
+        "measurable_now": "partial",
+        "needs": "측면; 귀 가시성; 경추 분절각 아님",
+        "phase": "하강"
+      },
+      "catalogProposalRef": {
+        "commit": "20d897c279a693117706750cddac37454e5b663d",
+        "path": "docs/coaching/fault_catalog.csv",
+        "line": 27
+      }
+    },
+    {
+      "exercise": "pushup",
+      "key": "pushup_head_up",
+      "grade": "reference",
+      "metric": "head_dev_change_min",
+      "repPredicate": "min head-centre line deviation - first valid deviation in rep < -headUpDeviation",
+      "defaultThresholds": {
+        "headUpDeviation": 0.15
+      },
+      "thresholdRefs": [
+        {
+          "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+          "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+          "line": 93
+        }
+      ],
+      "requiredH36MJoints": [
+        10,
+        0,
+        8
+      ],
+      "additional2DDependencies": [],
+      "liveOverlayPhase": "none",
+      "liveOverlayFullPredicate": false,
+      "liveOverlayNote": "quiet keys are not removed from overlay measurements",
+      "defaultConditionEnabled": true,
+      "defaultDeliveryKeyEnabled": false,
+      "effectiveDefaultPostureDelivery": false,
+      "current3DMetricAvailable": true,
+      "deliveryMode": "filtered_delivery_still_judged_logged_and_overlay_if_present",
+      "actualDartMessageKo": "고개 숙여! 바닥 봐",
+      "judgeRef": {
+        "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+        "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+        "line": 1134
+      },
+      "aggregationRef": {
+        "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+        "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+        "line": 970
+      },
+      "geometryRef": {
+        "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+        "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+        "line": 655
+      },
+      "existingDeepCounterpart": null,
+      "comparison": "no_existing_equivalent_deep_rule",
+      "expertValidated": false,
+      "catalogProposal": {
+        "metric_definition": "D=d_head_start-min(d_head); 시작부터 고정된 오류는 변화 규칙이 놓침",
+        "threshold_standard": "P:D>0.15",
+        "measurable_now": "partial",
+        "needs": "측면; 귀 가시성; 현재 기본 발화 제외",
+        "phase": "전 단계"
+      },
+      "catalogProposalRef": {
+        "commit": "20d897c279a693117706750cddac37454e5b663d",
+        "path": "docs/coaching/fault_catalog.csv",
+        "line": 28
+      }
+    },
+    {
+      "exercise": "pushup",
+      "key": "pushup_hand_position",
+      "grade": "setup",
+      "metric": "first_rep_top_wrist_ahead",
+      "repPredicate": "first rep only: wrist headward projection/arm length at maximum-elbow frame outside [-handBackwardRatio,+handForwardRatio]",
+      "defaultThresholds": {
+        "handForwardRatio": 0.35,
+        "handBackwardRatio": 0.35
+      },
+      "thresholdRefs": [
+        {
+          "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+          "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+          "line": 95
+        },
+        {
+          "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+          "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+          "line": 97
+        }
+      ],
+      "requiredH36MJoints": "selected shoulder/elbow/wrist plus 0/8",
+      "additional2DDependencies": [],
+      "liveOverlayPhase": "none",
+      "liveOverlayFullPredicate": false,
+      "liveOverlayNote": "quiet keys are not removed from overlay measurements",
+      "defaultConditionEnabled": true,
+      "defaultDeliveryKeyEnabled": true,
+      "effectiveDefaultPostureDelivery": true,
+      "current3DMetricAvailable": true,
+      "deliveryMode": "rep_bubble_and_text_voice_candidate",
+      "actualDartMessageKo": "손은 어깨 바로 밑에!",
+      "judgeRef": {
+        "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+        "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+        "line": 1136
+      },
+      "aggregationRef": {
+        "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+        "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+        "line": 970
+      },
+      "geometryRef": {
+        "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+        "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+        "line": 655
+      },
+      "existingDeepCounterpart": null,
+      "comparison": "no_existing_equivalent_deep_rule",
+      "expertValidated": false,
+      "catalogProposal": {
+        "metric_definition": "D=abs(몸 전방으로 투영한 W-S)/(|S-E|+|E-W|); 손 너비·손바닥 방향은 별도",
+        "threshold_standard": "P:D>0.35; 기본형에서 확인 안내; 변형 선택 우선",
+        "measurable_now": "partial",
+        "needs": "측면; 몸 전방; 선택 손 위치; 실제 손바닥 관측",
+        "phase": "셋업·상단"
+      },
+      "catalogProposalRef": {
+        "commit": "20d897c279a693117706750cddac37454e5b663d",
+        "path": "docs/coaching/fault_catalog.csv",
+        "line": 29
+      }
+    },
+    {
+      "exercise": "pushup",
+      "key": "pushup_depth_fade",
+      "grade": "reference",
+      "metric": "elbow_min",
+      "repPredicate": "mean(last 3 minima incl current) - mean(first 3 minima) > depthFadeDegrees; >=6 reps",
+      "defaultThresholds": {
+        "depthFadeDegrees": 15.0
+      },
+      "thresholdRefs": [
+        {
+          "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+          "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+          "line": 104
+        }
+      ],
+      "requiredH36MJoints": "selected shoulder/elbow/wrist",
+      "additional2DDependencies": [],
+      "liveOverlayPhase": "none",
+      "liveOverlayFullPredicate": false,
+      "liveOverlayNote": "quiet keys are not removed from overlay measurements",
+      "defaultConditionEnabled": true,
+      "defaultDeliveryKeyEnabled": true,
+      "effectiveDefaultPostureDelivery": true,
+      "current3DMetricAvailable": true,
+      "deliveryMode": "set_end_recorded_count_only_in_current_Flutter",
+      "actualDartMessageKo": "점점 얕아져! 끝까지 깊게",
+      "judgeRef": {
+        "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+        "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+        "line": 1138
+      },
+      "aggregationRef": {
+        "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+        "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+        "line": 970
+      },
+      "geometryRef": {
+        "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+        "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+        "line": 655
+      },
+      "existingDeepCounterpart": null,
+      "comparison": "no_existing_equivalent_deep_rule",
+      "expertValidated": false,
+      "catalogProposal": {
+        "metric_definition": "D=mean(최근3회 e_min)-mean(처음3회 e_min); 최소 6회",
+        "threshold_standard": "P:D>15deg",
+        "measurable_now": "yes",
+        "needs": "동일 시점·변형; 계획 ROM 변경 제외",
+        "phase": "세트 후"
+      },
+      "catalogProposalRef": {
+        "commit": "20d897c279a693117706750cddac37454e5b663d",
+        "path": "docs/coaching/fault_catalog.csv",
+        "line": 30
+      }
+    },
+    {
+      "exercise": "squat",
+      "key": "squat_hips_first",
+      "grade": "priority",
+      "metric": "hips_first_torso_rise + hip/shoulder rise speed",
+      "repPredicate": "after first minimum-knee frame over up to 8+1 frames: max wrapped torso rise>8deg AND normalized 2D hip rise/frame > shoulder rise/frame",
+      "defaultThresholds": {
+        "hipsFirstWindowFrames": 8,
+        "hipsFirstTorsoRiseDegrees": 8.0
+      },
+      "thresholdRefs": [
+        {
+          "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+          "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+          "line": 110
+        },
+        {
+          "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+          "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+          "line": 112
+        }
+      ],
+      "requiredH36MJoints": "selected hip/knee/ankle plus 0/8/1/4",
+      "additional2DDependencies": [
+        "selected 2D hipY, shoulderY, torsoLength; actual frame index delta"
+      ],
+      "liveOverlayPhase": "ascending",
+      "liveOverlayFullPredicate": false,
+      "liveOverlayNote": "angle part only; hip-vs-shoulder speed predicate not drawn",
+      "defaultConditionEnabled": true,
+      "defaultDeliveryKeyEnabled": true,
+      "effectiveDefaultPostureDelivery": true,
+      "current3DMetricAvailable": true,
+      "deliveryMode": "rep_bubble_and_text_voice_candidate",
+      "actualDartMessageKo": "엉덩이만 먼저 올라와! 가슴도 같이",
+      "judgeRef": {
+        "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+        "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+        "line": 1144
+      },
+      "aggregationRef": {
+        "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+        "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+        "line": 970
+      },
+      "geometryRef": {
+        "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+        "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+        "line": 655
+      },
+      "existingDeepCounterpart": null,
+      "comparison": "no_existing_equivalent_deep_rule",
+      "expertValidated": false,
+      "catalogProposal": {
+        "metric_definition": "하단 후 0.3초 내 theta 증가 R; 같은 시간의 위쪽 속도 vH와 vS를 L/초로 비교",
+        "threshold_standard": "P:R>8deg AND vH>vS; 저품질 보류",
+        "measurable_now": "yes",
+        "needs": "측면; 실제 timestamp; 바 위치·스탠스 확인",
+        "phase": "상승 초반"
+      },
+      "catalogProposalRef": {
+        "commit": "20d897c279a693117706750cddac37454e5b663d",
+        "path": "docs/coaching/fault_catalog.csv",
+        "line": 14
+      }
+    },
+    {
+      "exercise": "squat",
+      "key": "squat_knee_valgus",
+      "grade": "priority",
+      "metric": "knee_ankle_gap_ratio_min",
+      "repPredicate": "front view only: minimum projected knee gap/ankle gap from lowest 2D hip frame through end <1.0",
+      "defaultThresholds": {
+        "valgusKneeAnkleGapRatio": 1.0
+      },
+      "thresholdRefs": [
+        {
+          "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+          "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+          "line": 122
+        }
+      ],
+      "requiredH36MJoints": [
+        1,
+        4,
+        2,
+        5,
+        3,
+        6
+      ],
+      "additional2DDependencies": [
+        "2D selected hipY selects bottom"
+      ],
+      "liveOverlayPhase": "bottomOrAscending",
+      "liveOverlayFullPredicate": true,
+      "liveOverlayNote": "quiet keys are not removed from overlay measurements",
+      "defaultConditionEnabled": true,
+      "defaultDeliveryKeyEnabled": false,
+      "effectiveDefaultPostureDelivery": false,
+      "current3DMetricAvailable": true,
+      "deliveryMode": "filtered_delivery_still_judged_logged_and_overlay_if_present",
+      "actualDartMessageKo": "무릎 바깥으로 벌려!",
+      "judgeRef": {
+        "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+        "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+        "line": 1152
+      },
+      "aggregationRef": {
+        "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+        "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+        "line": 970
+      },
+      "geometryRef": {
+        "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+        "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+        "line": 655
+      },
+      "existingDeepCounterpart": null,
+      "comparison": "no_existing_equivalent_deep_rule",
+      "expertValidated": false,
+      "catalogProposal": {
+        "metric_definition": "V=max_좌우((K-A)의 내측 수평 투영/골반폭-B_같은단계); 발끝 방향도 확인; 3D 외반각 아님",
+        "threshold_standard": "P:V>0.05; 발 방향 미확인 시 보류; 부상 컷오프 아님",
+        "measurable_now": "partial",
+        "needs": "보정 정면; 좌우 구분; 발점; 승인 기준; 3D/전문가 확인",
+        "phase": "하단·상승"
+      },
+      "catalogProposalRef": {
+        "commit": "20d897c279a693117706750cddac37454e5b663d",
+        "path": "docs/coaching/fault_catalog.csv",
+        "line": 15
+      }
+    },
+    {
+      "exercise": "squat",
+      "key": "squat_shallow",
+      "grade": "improve",
+      "metric": "knee_min",
+      "repPredicate": "current minimum knee - median(first 3 earlier rep minima) > shallowOverBaselineDegrees",
+      "defaultThresholds": {
+        "shallowOverBaselineDegrees": 15.0
+      },
+      "thresholdRefs": [
+        {
+          "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+          "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+          "line": 114
+        }
+      ],
+      "requiredH36MJoints": "selected hip/knee/ankle",
+      "additional2DDependencies": [],
+      "liveOverlayPhase": "bottom",
+      "liveOverlayFullPredicate": true,
+      "liveOverlayNote": "quiet keys are not removed from overlay measurements",
+      "defaultConditionEnabled": true,
+      "defaultDeliveryKeyEnabled": true,
+      "effectiveDefaultPostureDelivery": true,
+      "current3DMetricAvailable": true,
+      "deliveryMode": "rep_bubble_and_text_voice_candidate",
+      "actualDartMessageKo": "더 앉아!",
+      "judgeRef": {
+        "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+        "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+        "line": 1146
+      },
+      "aggregationRef": {
+        "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+        "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+        "line": 970
+      },
+      "geometryRef": {
+        "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+        "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+        "line": 655
+      },
+      "existingDeepCounterpart": "squat_depth_drift",
+      "comparison": "conditional_same_scalar_formula_not_default_warning_parity",
+      "expertValidated": false,
+      "catalogProposal": {
+        "metric_definition": "D=min(k_rep)-B_k_min; 승인한 목표 ROM과 비교; 계획 부분 반복 제외",
+        "threshold_standard": "P:D>15deg",
+        "measurable_now": "yes",
+        "needs": "측면; 승인 목표; 접힘선 깊이 확정 불가",
+        "phase": "하단"
+      },
+      "catalogProposalRef": {
+        "commit": "20d897c279a693117706750cddac37454e5b663d",
+        "path": "docs/coaching/fault_catalog.csv",
+        "line": 17
+      }
+    },
+    {
+      "exercise": "squat",
+      "key": "squat_heel_rise",
+      "grade": "improve",
+      "metric": "heel_rise_max",
+      "repPredicate": "first valid heelToe - min heelToe >heelRiseShinRatio; heelRiseEnabled=false",
+      "defaultThresholds": {
+        "heelRiseEnabled": false,
+        "heelRiseShinRatio": 0.05,
+        "footMinConfidence": 0.3
+      },
+      "thresholdRefs": [
+        {
+          "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+          "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+          "line": 126
+        },
+        {
+          "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+          "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+          "line": 124
+        },
+        {
+          "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+          "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+          "line": 128
+        }
+      ],
+      "requiredH36MJoints": [],
+      "additional2DDependencies": [
+        "Halpe26 heel/toe, shin; min foot confidence0.30; no 3D heelToe assigned"
+      ],
+      "liveOverlayPhase": "none",
+      "liveOverlayFullPredicate": false,
+      "liveOverlayNote": "quiet keys are not removed from overlay measurements",
+      "defaultConditionEnabled": false,
+      "defaultDeliveryKeyEnabled": true,
+      "effectiveDefaultPostureDelivery": false,
+      "current3DMetricAvailable": false,
+      "deliveryMode": "condition_feature_OFF",
+      "actualDartMessageKo": "뒤꿈치 바닥에 붙여!",
+      "judgeRef": {
+        "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+        "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+        "line": 1154
+      },
+      "aggregationRef": {
+        "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+        "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+        "line": 970
+      },
+      "geometryRef": {
+        "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+        "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+        "line": 655
+      },
+      "existingDeepCounterpart": null,
+      "comparison": "no_existing_equivalent_deep_rule",
+      "expertValidated": false,
+      "catalogProposal": {
+        "metric_definition": "영상 y 아래 양수; D=(heel_y-toe_y)/shin의 시작값-반복 최소값; 고정 웨지·역도화 제외",
+        "threshold_standard": "P:D>0.05",
+        "measurable_now": "partial",
+        "needs": "Halpe26 발점; 바닥·신발 확인; 현재 규칙 비활성",
+        "phase": "하강·하단"
+      },
+      "catalogProposalRef": {
+        "commit": "20d897c279a693117706750cddac37454e5b663d",
+        "path": "docs/coaching/fault_catalog.csv",
+        "line": 16
+      }
+    },
+    {
+      "exercise": "squat",
+      "key": "squat_no_lockout",
+      "grade": "reference",
+      "metric": "knee_max OR hip_angle_max",
+      "repPredicate": "running set max - current max >10deg for knee OR hip; includes current in set max",
+      "defaultThresholds": {
+        "noLockoutBelowSetMaxDegrees": 10.0
+      },
+      "thresholdRefs": [
+        {
+          "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+          "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+          "line": 116
+        }
+      ],
+      "requiredH36MJoints": "selected shoulder/hip/knee/ankle",
+      "additional2DDependencies": [],
+      "liveOverlayPhase": "top",
+      "liveOverlayFullPredicate": true,
+      "liveOverlayNote": "quiet keys are not removed from overlay measurements",
+      "defaultConditionEnabled": true,
+      "defaultDeliveryKeyEnabled": false,
+      "effectiveDefaultPostureDelivery": false,
+      "current3DMetricAvailable": true,
+      "deliveryMode": "filtered_delivery_still_judged_logged_and_overlay_if_present",
+      "actualDartMessageKo": "끝까지 일어서!",
+      "judgeRef": {
+        "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+        "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+        "line": 1147
+      },
+      "aggregationRef": {
+        "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+        "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+        "line": 970
+      },
+      "geometryRef": {
+        "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+        "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+        "line": 655
+      },
+      "existingDeepCounterpart": null,
+      "comparison": "no_existing_equivalent_deep_rule",
+      "expertValidated": false,
+      "catalogProposal": {
+        "metric_definition": "D=max(B_k_max-max(k_rep),B_h_max-max(h_rep)); 개인 끝점 비교; 180deg 강제 금지",
+        "threshold_standard": "P:D>10deg",
+        "measurable_now": "yes",
+        "needs": "측면; 승인 기준; 현재 기본 발화 제외",
+        "phase": "상단"
+      },
+      "catalogProposalRef": {
+        "commit": "20d897c279a693117706750cddac37454e5b663d",
+        "path": "docs/coaching/fault_catalog.csv",
+        "line": 18
+      }
+    },
+    {
+      "exercise": "squat",
+      "key": "squat_lean_drift",
+      "grade": "reference",
+      "metric": "torso_at_bottom",
+      "repPredicate": "mean(last3 torso at first minimum-knee frame) - mean(first3) > leanDriftDegrees; >=6 reps",
+      "defaultThresholds": {
+        "leanDriftDegrees": 8.0
+      },
+      "thresholdRefs": [
+        {
+          "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+          "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+          "line": 118
+        }
+      ],
+      "requiredH36MJoints": "selected hip/knee/ankle plus 0/8/1/4",
+      "additional2DDependencies": [],
+      "liveOverlayPhase": "none",
+      "liveOverlayFullPredicate": false,
+      "liveOverlayNote": "quiet keys are not removed from overlay measurements",
+      "defaultConditionEnabled": true,
+      "defaultDeliveryKeyEnabled": true,
+      "effectiveDefaultPostureDelivery": true,
+      "current3DMetricAvailable": true,
+      "deliveryMode": "set_end_recorded_count_only_in_current_Flutter",
+      "actualDartMessageKo": "상체 세워!",
+      "judgeRef": {
+        "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+        "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+        "line": 1149
+      },
+      "aggregationRef": {
+        "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+        "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+        "line": 970
+      },
+      "geometryRef": {
+        "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+        "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+        "line": 655
+      },
+      "existingDeepCounterpart": null,
+      "comparison": "no_existing_equivalent_deep_rule",
+      "expertValidated": false,
+      "catalogProposal": {
+        "metric_definition": "D=mean(최근3회 하단 theta)-mean(처음 승인3회 하단 theta); 최소 6회",
+        "threshold_standard": "P:D>8deg",
+        "measurable_now": "yes",
+        "needs": "같은 시점·하중·변형; 로우바 고유 전경 제외",
+        "phase": "세트 후"
+      },
+      "catalogProposalRef": {
+        "commit": "20d897c279a693117706750cddac37454e5b663d",
+        "path": "docs/coaching/fault_catalog.csv",
+        "line": 19
+      }
+    },
+    {
+      "exercise": "squat",
+      "key": "squat_depth_fade",
+      "grade": "reference",
+      "metric": "knee_min",
+      "repPredicate": "mean(last3 minima incl current) - mean(first3 minima) > depthFadeDegrees; >=6 reps",
+      "defaultThresholds": {
+        "depthFadeDegrees": 10.0
+      },
+      "thresholdRefs": [
+        {
+          "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+          "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+          "line": 120
+        }
+      ],
+      "requiredH36MJoints": "selected hip/knee/ankle",
+      "additional2DDependencies": [],
+      "liveOverlayPhase": "none",
+      "liveOverlayFullPredicate": false,
+      "liveOverlayNote": "quiet keys are not removed from overlay measurements",
+      "defaultConditionEnabled": true,
+      "defaultDeliveryKeyEnabled": true,
+      "effectiveDefaultPostureDelivery": true,
+      "current3DMetricAvailable": true,
+      "deliveryMode": "set_end_recorded_count_only_in_current_Flutter",
+      "actualDartMessageKo": "점점 얕아져! 끝까지 앉아",
+      "judgeRef": {
+        "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+        "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+        "line": 1150
+      },
+      "aggregationRef": {
+        "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+        "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+        "line": 970
+      },
+      "geometryRef": {
+        "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+        "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+        "line": 655
+      },
+      "existingDeepCounterpart": null,
+      "comparison": "no_existing_equivalent_deep_rule",
+      "expertValidated": false,
+      "catalogProposal": {
+        "metric_definition": "D=mean(최근3회 k_min)-mean(처음3회 k_min); 최소 6회; 계획 ROM 변경 제외",
+        "threshold_standard": "P:D>10deg",
+        "measurable_now": "yes",
+        "needs": "측면; 동일 조건; 초기 기준이 정상이라는 뜻은 아님",
+        "phase": "세트 후"
+      },
+      "catalogProposalRef": {
+        "commit": "20d897c279a693117706750cddac37454e5b663d",
+        "path": "docs/coaching/fault_catalog.csv",
+        "line": 20
+      }
+    },
+    {
+      "exercise": "barbell-row",
+      "key": "row_torso_swing",
+      "grade": "priority",
+      "metric": "torso_max - torso_min",
+      "repPredicate": "max-min of per-rep unwrapped signed torso angle >torsoSwingRangeDegrees",
+      "defaultThresholds": {
+        "torsoSwingRangeDegrees": 39.9
+      },
+      "thresholdRefs": [
+        {
+          "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+          "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+          "line": 134
+        }
+      ],
+      "requiredH36MJoints": [
+        0,
+        8,
+        1,
+        4
+      ],
+      "additional2DDependencies": [],
+      "liveOverlayPhase": "inRep",
+      "liveOverlayFullPredicate": true,
+      "liveOverlayNote": "quiet keys are not removed from overlay measurements",
+      "defaultConditionEnabled": true,
+      "defaultDeliveryKeyEnabled": true,
+      "effectiveDefaultPostureDelivery": true,
+      "current3DMetricAvailable": true,
+      "deliveryMode": "rep_bubble_and_text_voice_candidate",
+      "actualDartMessageKo": "반동 쓰지 마! 상체 고정",
+      "judgeRef": {
+        "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+        "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+        "line": 1160
+      },
+      "aggregationRef": {
+        "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+        "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+        "line": 970
+      },
+      "geometryRef": {
+        "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+        "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+        "line": 655
+      },
+      "existingDeepCounterpart": null,
+      "comparison": "no_existing_equivalent_deep_rule",
+      "expertValidated": false,
+      "catalogProposal": {
+        "metric_definition": "R=P95(theta)-P05(theta); 유효 반복 내 부호각 unwrap; 급격한 통제 상실은 공통 안전 처리",
+        "threshold_standard": "P:R>15deg",
+        "measurable_now": "yes",
+        "needs": "측면·고정 카메라; 선택 변형; 시간 필터 검증",
+        "phase": "당기기"
+      },
+      "catalogProposalRef": {
+        "commit": "20d897c279a693117706750cddac37454e5b663d",
+        "path": "docs/coaching/fault_catalog.csv",
+        "line": 4
+      }
+    },
+    {
+      "exercise": "barbell-row",
+      "key": "row_standing_up",
+      "grade": "improve",
+      "metric": "torso_mean",
+      "repPredicate": "wrap(median(first3 earlier torso means)-current torso mean)>standingUpDegrees",
+      "defaultThresholds": {
+        "standingUpDegrees": 10.0
+      },
+      "thresholdRefs": [
+        {
+          "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+          "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+          "line": 136
+        }
+      ],
+      "requiredH36MJoints": [
+        0,
+        8,
+        1,
+        4
+      ],
+      "additional2DDependencies": [],
+      "liveOverlayPhase": "inRep",
+      "liveOverlayFullPredicate": true,
+      "liveOverlayNote": "quiet keys are not removed from overlay measurements",
+      "defaultConditionEnabled": true,
+      "defaultDeliveryKeyEnabled": true,
+      "effectiveDefaultPostureDelivery": true,
+      "current3DMetricAvailable": true,
+      "deliveryMode": "rep_bubble_and_text_voice_candidate",
+      "actualDartMessageKo": "상체 더 숙여!",
+      "judgeRef": {
+        "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+        "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+        "line": 1164
+      },
+      "aggregationRef": {
+        "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+        "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+        "line": 970
+      },
+      "geometryRef": {
+        "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+        "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+        "line": 655
+      },
+      "existingDeepCounterpart": null,
+      "comparison": "no_existing_equivalent_deep_rule",
+      "expertValidated": false,
+      "catalogProposal": {
+        "metric_definition": "D=median(alpha_rep)-B_alpha; B는 승인된 같은 변형 기준",
+        "threshold_standard": "P:D>10deg",
+        "measurable_now": "yes",
+        "needs": "측면; 승인 기준; Yates·랜드마인 별도 프로필",
+        "phase": "당기기"
+      },
+      "catalogProposalRef": {
+        "commit": "20d897c279a693117706750cddac37454e5b663d",
+        "path": "docs/coaching/fault_catalog.csv",
+        "line": 5
+      }
+    },
+    {
+      "exercise": "barbell-row",
+      "key": "row_short_pull",
+      "grade": "improve",
+      "metric": "elbow_behind_max",
+      "repPredicate": "median(first3 earlier maxima)-current max normalized elbow-behind-torso >shortPullBelowBaseline",
+      "defaultThresholds": {
+        "shortPullBelowBaseline": 0.1
+      },
+      "thresholdRefs": [
+        {
+          "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+          "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+          "line": 138
+        }
+      ],
+      "requiredH36MJoints": "selected elbow plus 0/8/1/4",
+      "additional2DDependencies": [],
+      "liveOverlayPhase": "top",
+      "liveOverlayFullPredicate": true,
+      "liveOverlayNote": "quiet keys are not removed from overlay measurements",
+      "defaultConditionEnabled": true,
+      "defaultDeliveryKeyEnabled": true,
+      "effectiveDefaultPostureDelivery": true,
+      "current3DMetricAvailable": true,
+      "deliveryMode": "rep_bubble_and_text_voice_candidate",
+      "actualDartMessageKo": "배꼽까지 당겨!",
+      "judgeRef": {
+        "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+        "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+        "line": 1168
+      },
+      "aggregationRef": {
+        "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+        "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+        "line": 970
+      },
+      "geometryRef": {
+        "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+        "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+        "line": 655
+      },
+      "existingDeepCounterpart": null,
+      "comparison": "no_existing_equivalent_deep_rule",
+      "expertValidated": false,
+      "catalogProposal": {
+        "metric_definition": "D=B_p_elbow-peak(p_elbow); p_elbow=팔꿈치의 몸통선 뒤쪽 거리/L; 실제 바 끝점 아님",
+        "threshold_standard": "P:D>0.10",
+        "measurable_now": "partial",
+        "needs": "측면; 승인 기준; 실제 끝점은 바·손잡이 검출",
+        "phase": "정점"
+      },
+      "catalogProposalRef": {
+        "commit": "20d897c279a693117706750cddac37454e5b663d",
+        "path": "docs/coaching/fault_catalog.csv",
+        "line": 7
+      }
+    },
+    {
+      "exercise": "barbell-row",
+      "key": "row_shrug",
+      "grade": "improve",
+      "metric": "ear_shoulder_drop",
+      "repPredicate": "1 - min eligible earShoulder/start >shrugEarShoulderDrop; head angle change<=15deg; shrugEnabled=false",
+      "defaultThresholds": {
+        "shrugEnabled": false,
+        "shrugEarShoulderDrop": 0.2,
+        "shrugMaxHeadAngleChangeDegrees": 15.0
+      },
+      "thresholdRefs": [
+        {
+          "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+          "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+          "line": 149
+        },
+        {
+          "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+          "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+          "line": 151
+        },
+        {
+          "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+          "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+          "line": 153
+        }
+      ],
+      "requiredH36MJoints": [],
+      "additional2DDependencies": [
+        "2D ear/shoulder/head angle; earShoulder/headAngle NOT assigned in 3D"
+      ],
+      "liveOverlayPhase": "none",
+      "liveOverlayFullPredicate": false,
+      "liveOverlayNote": "quiet keys are not removed from overlay measurements",
+      "defaultConditionEnabled": false,
+      "defaultDeliveryKeyEnabled": true,
+      "effectiveDefaultPostureDelivery": false,
+      "current3DMetricAvailable": false,
+      "deliveryMode": "condition_feature_OFF",
+      "actualDartMessageKo": "어깨 내려!",
+      "judgeRef": {
+        "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+        "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+        "line": 1170
+      },
+      "aggregationRef": {
+        "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+        "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+        "line": 970
+      },
+      "geometryRef": {
+        "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+        "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+        "line": 655
+      },
+      "existingDeepCounterpart": null,
+      "comparison": "no_existing_equivalent_deep_rule",
+      "expertValidated": false,
+      "catalogProposal": {
+        "metric_definition": "D=1-min(귀-어깨 거리/L)/시작값; 머리각 변화<=15deg인 유효 구간만; 견갑 상승 대리량",
+        "threshold_standard": "P:D>0.20",
+        "measurable_now": "partial",
+        "needs": "귀·어깨 가시성; 머리 회전 제외; 현재 규칙 비활성",
+        "phase": "정점"
+      },
+      "catalogProposalRef": {
+        "commit": "20d897c279a693117706750cddac37454e5b663d",
+        "path": "docs/coaching/fault_catalog.csv",
+        "line": 8
+      }
+    },
+    {
+      "exercise": "barbell-row",
+      "key": "row_head_up",
+      "grade": "reference",
+      "metric": "head_dev_change_min",
+      "repPredicate": "min head-centre line deviation-first valid deviation < -headUpDeviation",
+      "defaultThresholds": {
+        "headUpDeviation": 0.15
+      },
+      "thresholdRefs": [
+        {
+          "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+          "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+          "line": 140
+        }
+      ],
+      "requiredH36MJoints": [
+        10,
+        0,
+        8
+      ],
+      "additional2DDependencies": [],
+      "liveOverlayPhase": "none",
+      "liveOverlayFullPredicate": false,
+      "liveOverlayNote": "quiet keys are not removed from overlay measurements",
+      "defaultConditionEnabled": true,
+      "defaultDeliveryKeyEnabled": true,
+      "effectiveDefaultPostureDelivery": true,
+      "current3DMetricAvailable": true,
+      "deliveryMode": "set_end_recorded_count_only_in_current_Flutter",
+      "actualDartMessageKo": "고개 숙여! 바닥 봐",
+      "judgeRef": {
+        "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+        "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+        "line": 1171
+      },
+      "aggregationRef": {
+        "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+        "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+        "line": 970
+      },
+      "geometryRef": {
+        "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+        "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+        "line": 655
+      },
+      "existingDeepCounterpart": null,
+      "comparison": "no_existing_equivalent_deep_rule",
+      "expertValidated": false,
+      "catalogProposal": {
+        "metric_definition": "D=d_head_start-min(d_head); 정지한 시작 자세 오류는 별도 확인",
+        "threshold_standard": "P:D>0.15",
+        "measurable_now": "partial",
+        "needs": "측면; 귀 가시성; 경추 분절각 아님",
+        "phase": "전 단계"
+      },
+      "catalogProposalRef": {
+        "commit": "20d897c279a693117706750cddac37454e5b663d",
+        "path": "docs/coaching/fault_catalog.csv",
+        "line": 9
+      }
+    }
+  ],
+  "globalDefaultDeliveryKeys": [
+    "praise_fixed",
+    "praise_good",
+    "pushup_depth_fade",
+    "pushup_hand_position",
+    "pushup_head_drop",
+    "pushup_hip_sag",
+    "row_head_up",
+    "row_short_pull",
+    "row_shrug",
+    "row_standing_up",
+    "row_torso_swing",
+    "setup_full_body",
+    "setup_side_view",
+    "squat_depth_fade",
+    "squat_heel_rise",
+    "squat_hips_first",
+    "squat_lean_drift",
+    "squat_shallow",
+    "tracking_lost"
+  ],
+  "quietDeliveryKeys": [
+    "pushup_head_up",
+    "pushup_hip_pike",
+    "pushup_no_lockout",
+    "pushup_shallow",
+    "squat_knee_valgus",
+    "squat_no_lockout"
+  ],
+  "explicitDraftDeliveryHeld": [
+    "bench_hips_up",
+    "bench_no_lockout",
+    "bench_shallow",
+    "deadlift_hips_first",
+    "deadlift_lean_back",
+    "deadlift_no_lockout"
+  ],
+  "nativeCommon": {
+    "defaults": {
+      "minJointConfidence": 0.3,
+      "sideSwitchMargin": 0.08,
+      "baselineRepCount": 3,
+      "trendRepCount": 3,
+      "frontViewShoulderRatio": 0.5,
+      "frontViewRepFraction": 0.5,
+      "hingeLimitDegrees": 10.0,
+      "cooldownReps": 3,
+      "setupFullBodyFrames": 45,
+      "trackingLostFrames": 30,
+      "facingFlipFrames": 5,
+      "sideViewHysteresis": 0.03,
+      "sideViewWindowFrames": 150,
+      "sideViewMinFrames": 30,
+      "form3DRequired": false,
+      "min3DRepFraction": 0.5
+    },
+    "sourceRef": {
+      "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+      "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+      "line": 31
+    },
+    "jointMap": {
+      "left": [
+        11,
+        12,
+        13,
+        4,
+        5,
+        6
+      ],
+      "right": [
+        14,
+        15,
+        16,
+        1,
+        2,
+        3
+      ]
+    },
+    "coordinates": "XS H36M17 camera/model space x-right,y-down,z-away; pelvis-relative; defaultup=(0,-1,0); gravity opt-in unverified mapping",
+    "3DFrameEligibility": "MotionAGFormer:>=6 COCO joints confidence>=0.3; 27window,L5,C1; constraints invalid joints ->NaN, ok/partial usable",
+    "3DRepEligibility": "usable3D samples>=0.5 of recorded2Dframes; permetric finite compactMap; no per-rule fullcoverage guarantee",
+    "side": "per-frame mean confidence of 7 body joints(ear/shoulder/elbow/wrist/hip/knee/ankle) per side,hysteresis0.08; report side=majority; may switch within rep",
+    "required2DJointSets": {
+      "pushup": "selected shoulder/elbow/wrist/hip/ankle",
+      "squat": "selected shoulder/hip/knee/ankle",
+      "barbell-row": "selected shoulder/elbow/wrist/hip"
+    },
+    "view": "frame front if 2D shoulderwidth/torsolength>=0.5; nativejudge pushup/squat uses frontfraction<0.5; row verifiedrollinggate<=0.66 else samefraction",
+    "counterView": "pushup rollingcut1.0,row0.66,30minimum/150window/hysteresis0.03; counting is not form eligibility",
+    "missingViewAndReferencePolicy": "legacyjudge may compute positive evidence with missing view/defaultside or partialcompactMapreference; assessed-for-praise and liveoverlay stricter; intentional-policy/coverage difference, not proven defect",
+    "baseline": "first3 earlier reps median, not approved-correct target; running-setmax includescurrent; trend first3 vs last3 requires6 and3values/group",
+    "delivery": "priority immediate; improve only if samekey previouslyfired; cooldown3; one selected nonreference perrep; referenceendSetcounts; enabled filtering afterjudgement",
+    "sourceRefs": [
+      {
+        "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+        "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+        "line": 615
+      },
+      {
+        "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+        "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+        "line": 738
+      },
+      {
+        "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+        "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+        "line": 1066
+      },
+      {
+        "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+        "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+        "line": 822
+      }
+    ]
+  },
+  "commonFeedback": [
+    {
+      "key": "setup_side_view",
+      "ko": "옆에서 찍어 줘!"
+    },
+    {
+      "key": "setup_full_body",
+      "ko": "몸이 다 보여야 해!"
+    },
+    {
+      "key": "tracking_lost",
+      "ko": "잠깐 놓쳤어! 계속해"
+    },
+    {
+      "key": "praise_good",
+      "ko": "좋아, 잘하고 있어!"
+    },
+    {
+      "key": "praise_fixed",
+      "ko": "관찰한 항목이 나아졌어!"
+    }
+  ],
+  "defaultExerciseStatus": {
+    "pushup": "count+3D+4effectiveposturekeys",
+    "squat": "count+3D+4effectiveposturekeys",
+    "barbell-row": "count+3D+4effectiveposturekeys",
+    "benchpress": "count+3D path present;3posture delivery drafts held;no liveposture table",
+    "deadlift": "count+3D path present;3posture delivery drafts held;no liveposture table"
+  },
+  "current3DInputConfidence": "COCO->H36M inferred centres average endpoint confidence; square crop normalization passes raw confidence through; accepted hand wrist XY replacements retain RTMPose confidence",
+  "currentConfigurationOwners": [
+    "CameraPreviewOptions",
+    "FormCommonConfig",
+    "NativePoseWorkoutScreen.supportedExerciseIds"
+  ],
+  "AppSettingsTypeFound": false,
+  "flags": {
+    "BPT_CAMERA_3D": "defaultON unless0; missingmodelfails,no2Dfallback",
+    "BPT_3D_LOOKAHEAD": "5",
+    "BPT_3D_CADENCE": "1",
+    "BPT_3D_ASYNC": "defaultON",
+    "BPT_3D_HAND_WRISTS": "defaultON acceptedMediaPipewrists; RTMPoseconfidence retained",
+    "BPT_3D_GRAVITY": "defaultOFF",
+    "BPT_ADAPTIVE_3D": "defaultOFF",
+    "BPT_PUSHUP_SUPPORT_CORRIDOR": "defaultOFF; contactunknownlive",
+    "BPT_WRIST_ANCHOR": "defaultOFF",
+    "BPT_EXERCISE_SETUP": "defaultOFF",
+    "BPT_TERMINAL_CANDIDATE": "defaultOFF diagnostic only, no counter/coaching edits",
+    "BPT_FEEDBACK_ALL_KEYS": "test-only defaultOFF"
+  },
+  "deepFallback": {
+    "rules": [
+      {
+        "fault_id": "squat_depth_drift",
+        "exercise_id": "squat",
+        "metric": "depthDriftDeg",
+        "threshold": "15",
+        "severity": "warning",
+        "title_ko": "깊이가 조금 달라졌어",
+        "body_ko": "처음 3회보다 덜 내려갔어. 편한 범위에서 깊이를 맞춰 보자.",
+        "device_key": "squat_shallow"
+      },
+      {
+        "fault_id": "pushup_depth_drift",
+        "exercise_id": "pushup",
+        "metric": "depthDriftDeg",
+        "threshold": "15",
+        "severity": "warning",
+        "title_ko": "깊이를 확인해 봐",
+        "body_ko": "처음 3회보다 팔꿈치를 덜 굽혔어. 같은 깊이로 천천히 가 보자.",
+        "device_key": "pushup_shallow"
+      },
+      {
+        "fault_id": "bench_depth_drift",
+        "exercise_id": "benchpress",
+        "metric": "depthDriftDeg",
+        "threshold": "15",
+        "severity": "warning",
+        "title_ko": "내려가는 범위를 확인해 봐",
+        "body_ko": "처음 3회보다 팔꿈치를 덜 굽혔어. 편한 범위에서 리듬을 맞춰 보자.",
+        "device_key": "bench_shallow"
+      },
+      {
+        "fault_id": "rom_drop",
+        "exercise_id": "*",
+        "metric": "romDropDeg",
+        "threshold": "15",
+        "severity": "warning",
+        "title_ko": "가동 범위가 줄었어",
+        "body_ko": "처음 3회보다 움직임이 작아졌어. 잠깐 쉬어도 괜찮아.",
+        "device_key": ""
+      },
+      {
+        "fault_id": "symmetry",
+        "exercise_id": "*",
+        "metric": "symmetryMaxDeg",
+        "threshold": "15",
+        "severity": "warning",
+        "title_ko": "양쪽 움직임을 맞춰 봐",
+        "body_ko": "좌우 관절 각도가 달랐어. 이 구간을 천천히 확인해 보자.",
+        "device_key": ""
+      },
+      {
+        "fault_id": "trunk_sway",
+        "exercise_id": "*",
+        "metric": "trunkStdDeg",
+        "threshold": "8",
+        "severity": "warning",
+        "title_ko": "몸통 움직임을 확인해 봐",
+        "body_ko": "반복 중 몸통 기울기가 많이 바뀌었어. 중심을 편하게 잡아 보자.",
+        "device_key": ""
+      },
+      {
+        "fault_id": "tempo_drift",
+        "exercise_id": "*",
+        "metric": "tempoDriftRatio",
+        "threshold": "0.3",
+        "severity": "info",
+        "title_ko": "리듬이 느려졌어",
+        "body_ko": "처음 3회보다 시간이 길어졌어. 호흡을 고르고 이어 가자.",
+        "device_key": ""
+      }
+    ],
+    "totalRows": 7,
+    "applicableCounts": {
+      "pushup": 5,
+      "squat": 5,
+      "barbell-row": 4
+    },
+    "genericKeys": [
+      "rom_drop",
+      "symmetry",
+      "trunk_sway",
+      "tempo_drift"
+    ],
+    "eligibility": "whole applicable metric span finite+observed tracking+joint support>=0.35; baselinefirst3 all supported; first3drifts withheld",
+    "coordinates": "gravity-aligned GVHMR world y-up; primaryside fixed for whole native video_ms interval; knee/hip/elbow acos-angle",
+    "torso": "unsigned angle(midshoulders11/14 - midhips1/4,+worldY), std; not native signed0->8 max-min; not lumbar curvature",
+    "handPath": "midpoint BOTH wrists relative to pelvis midpoint, metres, trajectory; not physical palm/floor placement",
+    "comparison": "evaluatedKeys only nonempty device_key mappings; generic4 haveblankkeys; not all-rule coverage",
+    "placeholder": true
+  },
+  "sourceLineReferences": {
+    "coordinates": {
+      "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+      "path": "ios/Runner/NativePose/PosePipeline/PoseCoordinateTransforms.swift",
+      "line": 170
+    },
+    "frameMask": {
+      "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+      "path": "ios/Runner/NativePose/PosePipeline/MotionAGFormerLive.swift",
+      "line": 236
+    },
+    "overlay": {
+      "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+      "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+      "line": 1285
+    },
+    "viewAndPositiveEvidence": {
+      "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+      "path": "ios/Runner/NativePose/Evaluators/FormWarnings.swift",
+      "line": 1119
+    },
+    "spokenAndSetRoute": {
+      "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+      "path": "lib/features/workout/screens/native_pose_workout_screen.dart",
+      "line": 313
+    },
+    "activeVoice": {
+      "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+      "path": "lib/services/kori_voice_service.dart",
+      "line": 18
+    },
+    "deepLoader": {
+      "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+      "path": "server/calibration_modal/deep_metrics.py",
+      "line": 19
+    },
+    "optionalCatalogPackaging": {
+      "commit": "2aed537ca3f4e01e6c6943631d03a80d2aecac5b",
+      "path": "server/calibration_modal/modal_app.py",
+      "line": 92
+    }
+  },
+  "conditionalFormulaMappings": [
+    {
+      "native": "pushup_shallow",
+      "deep": "pushup_depth_drift",
+      "thresholdDeg": 15
+    },
+    {
+      "native": "squat_shallow",
+      "deep": "squat_depth_drift",
+      "thresholdDeg": 15
+    }
+  ],
+  "conditionalMappingPrerequisites": [
+    "same native video_ms interval/sample selection",
+    "stable per-frame selected side equals manifest side",
+    "same nondegenerate interior-angle joint triples",
+    "full finite requiredjoint evidence",
+    "all first3 baseline extrema available",
+    "same camera/view/coordinate and source eligibility",
+    "rep>=4",
+    "quiet/default delivery remains separate"
+  ],
+  "catalogProposal": {
+    "commit": "20d897c279a693117706750cddac37454e5b663d",
+    "path": "docs/coaching/fault_catalog.csv",
+    "sha256": "d7e238e1a84c0850462c2c6632f2f303ccb1dd82d8622616cf5ee6da6ca681bb",
+    "rows": 54,
+    "exerciseCounts": {
+      "barbell_row": 12,
+      "squat": 9,
+      "pushup": 10,
+      "deadlift": 7,
+      "bench_press": 8,
+      "lat_pulldown": 8
+    },
+    "ancestorOfAuditedBase": false,
+    "authority": "separate coaching documentation proposal, not approved runtime config or independent expert labels",
+    "autoDiscoveryPathPresentAtBase": false,
+    "frozenPackageCatalogPresent": {
+      "8e00f543a70dd85b93b6ed716c1377a70586dffd": false,
+      "17583f391f6dd028bf0515b2be3e8d2257c95866": false
+    },
+    "copyingWouldChangeDefaultRules": true,
+    "loaderEffect": "TEAMschema returns zero generic rules+unassessed catalog; two exact depthfade observations remain withheld for unconfirmed view/variant/plannedROM"
+  },
+  "nonComparable": {
+    "row_torso_swing": "native signed unwrap max-min>39.9 vsdeep unsigned different-landmark std>8 vsproposalP95-P05>15",
+    "squat_knee_valgus": "projected bilateral knee/ankle GAP ratio vsdeep bilateral primary ANGLE difference, not equivalent",
+    "no_lockout": "running observed setmax deficit vsabsolute full-extension target; deeprom_drop is fullROM change, not lockout",
+    "depth_fade": "native last3-first3 mean vsfallback single-rep-first3median; proposedcatalog observation is distinct/alwayswithheld",
+    "lumbar_flexion": "not directly measured; single torso inclination/head-centroid/spine proxy is not lumbar curvature",
+    "wrist_placement": "root-relative XS cannot establish physical hand-floor contact/anchorage; serverpelvis-relative wristpath is not hand-under-shoulder placement"
+  },
+  "nextSafeIntegration": "shadow-only versioned shallow-extremum scalar comparison with explicit per-rule view/coverage/stable-side/fullbaseline provenance; keep incomparable/unknown separate; no CSVcopy, threshold or default activation",
+  "accuracyClaimed": false,
+  "appChanges": false,
+  "modelCalls": 0,
+  "phoneCalls": 0
+}
