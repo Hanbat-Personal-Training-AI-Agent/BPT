@@ -7,9 +7,9 @@ SCHEMA = 'bpt.coaching-shadow-evidence.v1'
 RESULT_SCHEMA = 'bpt.coaching-shadow-result.v1'
 RULES = {
     'pushup': {'native': 'pushup_shallow', 'deep': 'pushup_depth_drift', 'chain': 'elbow',
-               'joints': {'left': (11, 12, 13), 'right': (14, 15, 16)}, 'threshold_deg': 15.0},
+               'native_quiet_by_default': True, 'joints': {'left': (11, 12, 13), 'right': (14, 15, 16)}, 'threshold_deg': 15.0},
     'squat': {'native': 'squat_shallow', 'deep': 'squat_depth_drift', 'chain': 'knee',
-              'joints': {'left': (4, 5, 6), 'right': (1, 2, 3)}, 'threshold_deg': 15.0},
+              'native_quiet_by_default': False, 'joints': {'left': (4, 5, 6), 'right': (1, 2, 3)}, 'threshold_deg': 15.0},
 }
 STATES = {'warning', 'no_warning', 'withheld', 'missing'}
 
@@ -51,6 +51,7 @@ def validate(stream):
     require(type(sha) is str and len(sha) == 64 and all(c in '0123456789abcdef' for c in sha), 'observation_sha256')
     require(type(stream.get('frames')) is list and type(stream.get('reps')) is list, 'records')
     frame_ids = []
+    frame_map = {}
     previous_time = None
     for f in stream['frames']:
         require(type(f.get('id')) is int and f['id'] >= 0, 'frame_id')
@@ -63,14 +64,16 @@ def validate(stream):
         joints = f.get('joints')
         require(joints is None or (type(joints) is list and len(joints) == 51 and
                                   all(v is None or finite(v) for v in joints)), 'joints')
+        require(type(f.get('invalid_joints', [])) is list and all(type(i) is int and 0 <= i < 17 for i in f.get('invalid_joints', [])), 'invalid_joint_mask')
         require(type(f.get('chain_support', {})) is dict, 'chain_support')
         require(all(v is None or type(v) is bool for v in f.get('chain_support', {}).values()), 'support')
         frame_ids.append(f['id'])
+        frame_map[f['id']] = f
     require(len(set(frame_ids)) == len(frame_ids) and frame_ids == sorted(frame_ids), 'duplicate_or_unordered_frame')
     rep_ids = []
     previous_ordinal = -1
     for rep in stream['reps']:
-        require(type(rep.get('id')) is int and type(rep.get('ordinal')) is int, 'rep_identity')
+        require(type(rep.get('id')) is int and type(rep.get('ordinal')) is int and rep['id'] >= 1 and rep['ordinal'] >= 1, 'rep_identity')
         require(rep['ordinal'] > previous_ordinal, 'rep_order')
         previous_ordinal = rep['ordinal']
         require(type(rep.get('frame_ids')) is list and all(type(x) is int and x in frame_ids for x in rep['frame_ids']), 'rep_frames')
@@ -78,6 +81,19 @@ def validate(stream):
         interval = rep.get('original_interval')
         require(type(interval) is dict and interval.get('closure') in ('closed', 'half_open'), 'original_interval')
         require(finite(interval.get('start')) and finite(interval.get('end')) and interval['end'] >= interval['start'], 'interval_bounds')
+        unit = interval.get('unit')
+        require(unit in ('native_frame_index', 'video_ms'), 'interval_unit')
+        if unit == 'native_frame_index':
+            require(interval['closure'] == 'closed' and type(interval['start']) is int and type(interval['end']) is int, 'native_interval')
+            inside = [i for i in frame_ids if interval['start'] <= i <= interval['end']]
+        else:
+            require(interval['closure'] == 'half_open' and stream['clock'].get('frame_seconds_to_video_ms') == 1000, 'video_ms_mapping_missing')
+            inside = [i for i in frame_ids if interval['start'] <= frame_map[i]['time']['seconds']*1000 < interval['end']]
+        require(all(i in inside for i in rep['frame_ids']), 'frame_outside_original_interval')
+        if rep.get('span_complete') is True:
+            require(rep['frame_ids'] == inside and bool(inside), 'incomplete_selection_marked_complete')
+            if unit == 'native_frame_index':
+                require(inside == list(range(interval['start'], interval['end']+1)), 'missing_interval_frames')
         require(rep.get('runtime', {}).get('state') in STATES, 'runtime_state')
         require(rep.get('delivery', {}).get('state') in ('delivered', 'not_delivered', 'missing'), 'delivery_state')
         rep_ids.append(rep['id'])
