@@ -7,6 +7,10 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		C77F0000000000000000000B /* CoachingCandidateSelfTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = C77F0000000000000000000C /* CoachingCandidateSelfTest.swift */; };
+		C77F00000000000000000009 /* CoachingCandidateProposal.swift in Sources */ = {isa = PBXBuildFile; fileRef = C77F0000000000000000000A /* CoachingCandidateProposal.swift */; };
+		C77F00000000000000000007 /* CoachingCandidateRuntime.swift in Sources */ = {isa = PBXBuildFile; fileRef = C77F00000000000000000008 /* CoachingCandidateRuntime.swift */; };
+		C77F00000000000000000005 /* CoachingCandidateEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = C77F00000000000000000006 /* CoachingCandidateEngine.swift */; };
 		C77F00000000000000000003 /* CoachingCriteriaBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = C77F00000000000000000004 /* CoachingCriteriaBridge.swift */; };
 		C77F00000000000000000001 /* CoachingCriteria.swift in Sources */ = {isa = PBXBuildFile; fileRef = C77F00000000000000000002 /* CoachingCriteria.swift */; };
 		C77E00000000000000000001 /* TerminalObservationCandidate.swift in Sources */ = {isa = PBXBuildFile; fileRef = C77E00000000000000000002 /* TerminalObservationCandidate.swift */; };
@@ -105,6 +109,10 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		C77F0000000000000000000C /* CoachingCandidateSelfTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoachingCandidateSelfTest.swift; sourceTree = "<group>"; };
+		C77F0000000000000000000A /* CoachingCandidateProposal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoachingCandidateProposal.swift; sourceTree = "<group>"; };
+		C77F00000000000000000008 /* CoachingCandidateRuntime.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoachingCandidateRuntime.swift; sourceTree = "<group>"; };
+		C77F00000000000000000006 /* CoachingCandidateEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoachingCandidateEngine.swift; sourceTree = "<group>"; };
 		C77F00000000000000000004 /* CoachingCriteriaBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoachingCriteriaBridge.swift; sourceTree = "<group>"; };
 		C77F00000000000000000002 /* CoachingCriteria.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoachingCriteria.swift; sourceTree = "<group>"; };
 		C77E00000000000000000002 /* TerminalObservationCandidate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalObservationCandidate.swift; sourceTree = "<group>"; };
@@ -413,6 +421,10 @@
 				C77E00000000000000000002 /* TerminalObservationCandidate.swift */,
 				C77F00000000000000000002 /* CoachingCriteria.swift */,
 				C77F00000000000000000004 /* CoachingCriteriaBridge.swift */,
+				C77F0000000000000000000C /* CoachingCandidateSelfTest.swift */,
+				C77F0000000000000000000A /* CoachingCandidateProposal.swift */,
+				C77F00000000000000000008 /* CoachingCandidateRuntime.swift */,
+				C77F00000000000000000006 /* CoachingCandidateEngine.swift */,
 				5C9A1E3B7D2F4A6C8E0B1D04 /* ExerciseSetup.swift */,
 			);
 			path = Evaluators;
@@ -704,6 +716,10 @@
 				C77E00000000000000000001 /* TerminalObservationCandidate.swift in Sources */,
 				C77F00000000000000000001 /* CoachingCriteria.swift in Sources */,
 				C77F00000000000000000003 /* CoachingCriteriaBridge.swift in Sources */,
+				C77F0000000000000000000B /* CoachingCandidateSelfTest.swift in Sources */,
+				C77F00000000000000000009 /* CoachingCandidateProposal.swift in Sources */,
+				C77F00000000000000000007 /* CoachingCandidateRuntime.swift in Sources */,
+				C77F00000000000000000005 /* CoachingCandidateEngine.swift in Sources */,
 				B77E00000000000000000001 /* TerminalEvidence.swift in Sources */,
 				5C9A1E3B7D2F4A6C8E0B1D03 /* ExerciseSetup.swift in Sources */,
 				B7BF1D830B9649D4FFEE946D /* NativePoseExercise.swift in Sources */,

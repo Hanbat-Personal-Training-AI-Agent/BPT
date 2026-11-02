@@ -488,6 +488,11 @@ final class CameraPoseViewModel: ObservableObject {
     }
 
     private var experimentalCoaching = ExperimentalCoaching()
+    private var coachingCandidateEngine=CoachingCandidateEngine()
+    private var coachingCandidateProposal=CoachingCandidateProposal()
+    private var coachingCandidateSelfTest=CoachingCandidateSelfTest()
+    private let coachingCandidateCaptureID="native-session:"+UUID().uuidString
+    private lazy var coachingCandidateConfiguration:Result<CoachingCandidateEngine.Configuration?,Error> = Result { try CoachingCandidateRuntime.configuration(environment:DemoConfig.environment) }
     private var experimentalSourceKey: String?
     private var experimentalSourceIndex: Int?
     private let experimentalCoachingEnabled = DemoConfig.environment["BPT_EXPERIMENTAL_COACHING"] == "1"
@@ -571,9 +576,17 @@ final class CameraPoseViewModel: ObservableObject {
             terminalDrainTimer?.invalidate(); terminalDrainTimer = nil; terminalEndRequest = nil
             let epoch = terminalCapture.begin()
             terminalSetIndex = index
-            VideoRunLog.shared?.write("terminal_start", ["epoch": epoch, "exercise": exercise.rawValue,
+            var terminalStart:[String:Any] = ["epoch": epoch, "exercise": exercise.rawValue,
                 "set": index, "time_basis": "sample_pts_seconds", "lookahead": CameraPreviewOptions.motion3DLookahead,
-                "cadence": CameraPreviewOptions.motion3DCadence, "raw_source": "xs_output_before_constraints"])
+                "cadence": CameraPreviewOptions.motion3DCadence, "raw_source": "xs_output_before_constraints"]
+            if experimentalCoachingEnabled, DemoConfig.environment["BPT_EXPERIMENTAL_CRITERIA_CANDIDATE"]=="1" {
+                do {
+                    if let config=try coachingCandidateConfiguration.get() {
+                        terminalStart["coaching_candidate_config"]=["schema":"bpt.core3-candidate-config.v1","experimentID":config.experimentID,"experimentDeclaredAt":config.experimentDeclaredAt,"evaluationMode":config.evaluationMode,"source":config.source,"variant":config.variant,"captureId":coachingCandidateCaptureID,"parameters":config.parameters,"parameterProvenance":config.provenance,"registryVersion":CoachingCandidateEngine.registry["revision"]!]
+                    }
+                } catch { terminalStart["coaching_candidate_configuration_error"]=true }
+            }
+            VideoRunLog.shared?.write("terminal_start",terminalStart)
             if VideoRunLog.terminalCandidate {
                 candidateLog("terminal_candidate_config", terminalCandidate.config)
                 terminalCandidate.start(epoch: epoch)
@@ -773,6 +786,11 @@ final class CameraPoseViewModel: ObservableObject {
             )
         }
 
+        bridge?.onCandidateSelfTest = { [weak self] stage in
+            guard let self,DemoConfig.environment["BPT_COACHING_CANDIDATE_TEST_FIXTURE"]=="1",let declaredAt=DemoConfig.environment["BPT_COACHING_CANDIDATE_DECLARED_AT"],let packet=try? self.coachingCandidateSelfTest.run(stage:stage,declaredAt:declaredAt) else {return nil}
+            if stage=="positive" {self.bridge?.sendCoachingCandidateProposal(packet)} else {self.bridge?.sendCoachingCandidateClear(packet)}
+            return ["schema":"bpt.coaching-candidate-synthetic-witness.v1","synthetic":true,"stage":stage,"captureId":packet["captureId"] ?? NSNull(),"source":packet["source"] ?? [:]]
+        }
         bridge?.onStartSet = { [weak self] in self?.startSet($0) }
         bridge?.onEndSet = { [weak self] in self?.endSet($0) }
         rotationMotion?.start()
@@ -1118,6 +1136,23 @@ final class CameraPoseViewModel: ObservableObject {
                     catch { terminalLine["coaching_criteria"] = CoachingCriteriaBridge.failure(source: source, context: context, reason: "criteria_evaluation_failed") }
                 } else {
                     terminalLine["coaching_criteria"] = CoachingCriteriaBridge.failure(source: source, context: context, reason: "observation_encoding_failed")
+                }
+            }
+            if experimentalCoachingEnabled, DemoConfig.environment["BPT_EXPERIMENTAL_CRITERIA_CANDIDATE"]=="1" {
+                do {
+                    if let configuration=try coachingCandidateConfiguration.get() {
+                        let frame=CoachingCandidateEngine.Frame.terminal(terminalLine,exercise:formTracker?.exercise.rawValue ?? exercise.rawValue,captureID:coachingCandidateCaptureID)
+                        let candidate=try coachingCandidateEngine.update(frame,configuration:configuration)
+                        terminalLine["coaching_candidate"]=try CoachingCandidateRuntime.compact(candidate)
+                        if let clear=coachingCandidateProposal.expireIfNeeded(candidate) {bridge?.sendCoachingCandidateClear(clear)}
+                        if let proposal=coachingCandidateProposal.next(candidate) {
+                            terminalLine["coaching_candidate_proposal"]=proposal
+                            bridge?.sendCoachingCandidateProposal(proposal)
+                        }
+                    }
+                } catch {
+                    if let clear=coachingCandidateProposal.expireIfNeeded(["captureId":coachingCandidateCaptureID,"source":Dictionary(uniqueKeysWithValues:["epoch","frame","source_index","source_pts","source_time_value","source_time_scale","time_basis"].map {($0,terminalLine[$0] ?? NSNull())}),"rules":[],"context":[:]],force:true) {bridge?.sendCoachingCandidateClear(clear)}
+                    terminalLine["coaching_candidate_error"]=["schema":"bpt.core3-candidate-error.v1","reason":"invalid_configuration_or_candidate_evaluation","source":Dictionary(uniqueKeysWithValues:["epoch","frame","source_index","source_pts","source_time_value","source_time_scale","time_basis"].map {($0,terminalLine[$0] ?? NSNull())}),"delivered":false]
                 }
             }
             VideoRunLog.shared?.write("terminal_frame", terminalLine)

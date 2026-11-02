@@ -485,6 +485,7 @@ final class WorkoutChannel {
     var onStartSet: ((Int) -> Void)?
     var onEndSet: ((Int) -> Void)?
     var onResetSetup: (() -> Void)?
+    var onCandidateSelfTest:((String)->[String:Any]?)?
     var onSetSetupVariant: ((String?, [String: Double]?) -> Void)?
 
     init(channel: FlutterMethodChannel) {
@@ -500,6 +501,9 @@ final class WorkoutChannel {
                 if let index = (args?["setIndex"] as? NSNumber)?.intValue { self.onStartSet?(index) }
             case "endSet":
                 if let index = (args?["setIndex"] as? NSNumber)?.intValue { self.onEndSet?(index) }
+            case "runExperimentalCoachingCandidateSelfTest":
+                guard DemoConfig.environment["BPT_EXPERIMENTAL_COACHING"]=="1",DemoConfig.environment["BPT_EXPERIMENTAL_CRITERIA_CANDIDATE"]=="1",DemoConfig.environment["BPT_COACHING_CANDIDATE_TEST_FIXTURE"]=="1",let stage=args?["stage"] as? String,["positive","occluded"].contains(stage) else {return result(FlutterMethodNotImplemented)}
+                return result(self.onCandidateSelfTest?(stage))
             case "resetSetup":
                 self.onResetSetup?()
             case "setSetupVariant":
@@ -534,6 +538,14 @@ final class WorkoutChannel {
             guard let reply = reply as? [String: Any], let text = reply["text"] as? String else { return }
             self?.voice.say(key: event.key, n: event.n, text: text, language: reply["lang"] as? String ?? "ko-KR")
         }
+    }
+
+    /// Separate visual-only opt-in proposal channel. It never calls the normal feedback/voice path.
+    func sendCoachingCandidateClear(_ clear:[String:Any]) {
+        channel.invokeMethod("onExperimentalCoachingCandidateClear",arguments:clear)
+    }
+    func sendCoachingCandidateProposal(_ proposal:[String:Any],onReply:((Any?)->Void)?=nil) {
+        channel.invokeMethod("onExperimentalCoachingCandidate",arguments:proposal) {reply in onReply?(reply)}
     }
 
     func sendSetEnd(setIndex: Int, videoLocalPath: String?, worstJoint: String?, deepAnalysis: [String: Any]? = nil) {

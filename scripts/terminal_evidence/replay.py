@@ -82,6 +82,66 @@ def validate_coaching_summary(row, exercise=None):
     require(names(payload.get('unmappedMetrics')) and names(payload.get('unsuppliedCatalogMetrics')),'coaching_summary_coverage')
 
 
+def validate_candidate_summary(row,start):
+    """Experimental candidates may be positive/negative, but never approved form or default delivery."""
+    summary=row.get('coaching_candidate');error=row.get('coaching_candidate_error')
+    require(not ('coaching_candidate' in row and 'coaching_candidate_error' in row),'candidate_summary_conflicting_error')
+    if summary is None and error is None:return
+    payload=summary if summary is not None else error
+    require(type(payload) is dict,'candidate_summary_schema')
+    try:encoded=json.dumps(payload,allow_nan=False,separators=(',',':')).encode()
+    except (ValueError,TypeError,RecursionError) as exception:raise InvalidCapture('candidate_summary_json') from exception
+    require(len(encoded)<=24576,'candidate_summary_budget')
+    source=payload.get('source')
+    require(type(source) is dict,'candidate_summary_source')
+    for key in ('epoch','frame','source_index','source_pts','source_time_value','source_time_scale','time_basis'):
+        require(key in source and type(source[key]) is type(row.get(key)) and source[key]==row.get(key),'candidate_summary_source_mismatch')
+    require(payload.get('delivered') is False,'candidate_summary_delivery_claim')
+    config=start.get('coaching_candidate_config')
+    require(type(config) is dict or start.get('coaching_candidate_configuration_error') is True,'candidate_summary_configuration_missing')
+    if error is not None:
+        require(set(error)=={'schema','source','reason','delivered'} and error.get('schema')=='bpt.core3-candidate-error.v1' and error.get('reason')=='invalid_configuration_or_candidate_evaluation','candidate_summary_error')
+        return
+    require(type(config) is dict,'candidate_summary_configuration_missing')
+    require(summary.get('schema')=='bpt.core3-candidate-frame.v1' and summary.get('authority')=='engineering_candidate_not_validated_form','candidate_summary_schema')
+    require(set(summary)=={'schema','registryVersion','authority','experimentID','experimentDeclaredAt','variant','captureId','evaluationMode','source','context','rules','windowResetReasons','delivered','parameters'},'candidate_summary_fields')
+    for key in ('registryVersion','experimentID','experimentDeclaredAt','variant','captureId','evaluationMode','parameters'):
+        require(type(summary.get(key)) is type(config.get(key)) and summary.get(key)==config.get(key),'candidate_summary_config_mismatch')
+    require(type(summary['parameters']) is dict and all(type(k) is str and len(k)<=128 and finite(v) for k,v in summary['parameters'].items()),'candidate_summary_parameters')
+    context=summary.get('context');require(type(context) is dict,'candidate_summary_context')
+    for key in ('phase','side','side_view','source_kind','flush_tail','rotation','size','source_mirrored'):
+        require(key in context and type(context[key]) is type(row.get(key)) and context[key]==row.get(key),'candidate_summary_context_mismatch')
+    aliases={'pushUp':'pushup','barbellRow':'barbell-row','barbell_row':'barbell-row'}
+    require(aliases.get(context.get('exercise'),context.get('exercise'))==aliases.get(start.get('exercise'),start.get('exercise')),'candidate_summary_exercise_mismatch')
+    def strings(value):return type(value) is list and len(value)<=64 and all(type(x) is str and len(x.encode())<=256 for x in value)
+    require(strings(summary.get('windowResetReasons')),'candidate_summary_reset_reasons')
+    rules=summary.get('rules');require(type(rules) is list and 0<len(rules)<=9,'candidate_summary_rules')
+    known={'pushup':{'pushup.camera_body_line_transfer','pushup.projected_arm_range','pushup.bottom_target','pushup.top_extension_target'},'squat':{'squat.early_ascent_coordination','squat.bottom_target','squat.top_extension_target'},'barbell-row':{'row.camera_torso_window_transfer','row.phase_prefix_leg_arm_cooccurrence'}}
+    require({x.get('id') for x in rules if type(x) is dict}==known.get(aliases.get(start.get('exercise'),start.get('exercise'))),'candidate_summary_rule_binding')
+    states=('positive_evidence','negative_evidence','unknown','not_applicable')
+    for rule in rules:
+        require(type(rule) is dict and rule.get('state') in states and type(rule.get('configured')) is bool and rule.get('meaning') in ('deviation','desired_match') and strings(rule.get('reasons')),'candidate_summary_rule')
+        require(type(rule.get('target')) is str and len(rule['target'].encode())<=2048,'candidate_summary_target')
+        if not rule['configured']:require(rule['state'] not in ('positive_evidence','negative_evidence'),'candidate_summary_unconfigured_claim')
+        components=rule.get('components');require(type(components) is list and 0<len(components)<=4,'candidate_summary_components')
+        for component in components:
+            require(type(component) is dict and type(component.get('metric')) is str and component.get('state') in states and strings(component.get('reasons')),'candidate_summary_component')
+            require(all(k in component and (component[k] is None or finite(component[k])) for k in ('rawValue','value','evaluatedValue')),'candidate_summary_component_number')
+            proof=component.get('proof');require(type(proof) is dict and integer(proof.get('count')) and proof['count']<=512 and proof.get('causal') is True,'candidate_summary_window')
+            if row['flush_tail']:require(component['state'] not in ('positive_evidence','negative_evidence'),'candidate_summary_flush_claim')
+    proposal=row.get('coaching_candidate_proposal')
+    if proposal is not None:
+        require(type(proposal) is dict and proposal.get('schema')=='bpt.coaching-candidate-proposal.v1' and proposal.get('authority')=='engineering_candidate_not_validated_form' and proposal.get('presentation')=='visual_only_no_tts' and proposal.get('delivery')=='proposed','candidate_proposal_schema')
+        require(not row['flush_tail'] and proposal.get('captureId')==summary['captureId'] and proposal.get('source')==summary['source'] and proposal.get('context')==summary['context'],'candidate_proposal_source')
+        require(type(proposal.get('proposalId')) is str and len(proposal['proposalId'])==64 and all(x in '0123456789abcdef' for x in proposal['proposalId']),'candidate_proposal_id')
+        matching=[rule for rule in rules if rule['id']==proposal.get('ruleId')]
+        require(len(matching)==1 and matching[0]['configured'],'candidate_proposal_rule')
+        rule=matching[0]
+        require(proposal.get('predicateMeaning')==rule['meaning'] and proposal.get('predicateState')==rule['state'],'candidate_proposal_predicate')
+        require((rule['meaning']=='deviation' and rule['state']=='positive_evidence' and proposal.get('assessment')=='deviation_candidate') or (rule['meaning']=='desired_match' and rule['state']=='negative_evidence' and proposal.get('assessment')=='target_not_met_candidate'),'candidate_proposal_direction')
+
+
+
 def unique_object(pairs):
     result = {}
     for key, value in pairs:
@@ -180,6 +240,7 @@ def load(path):
             data['reps'].append(row)
         elif kind == 'terminal_frame':
             validate_coaching_summary(row, data['start'].get('exercise'))
+            validate_candidate_summary(row,data['start'])
             require(integer(row.get('frame')) and integer(row.get('source_index')) and finite(row.get('source_pts')) and row['source_pts'] >= 0, 'source_time')
             require(type(row.get('source_time_value')) is int and abs(row['source_time_value']) <= 2**63-1 and integer(row.get('source_time_scale')) and 0 < row['source_time_scale'] <= 2**31-1, 'source_rational_time')
             require(math.isclose(row['source_time_value']/row['source_time_scale'],row['source_pts'],rel_tol=1e-12,abs_tol=1e-9), 'source_clock_mismatch')

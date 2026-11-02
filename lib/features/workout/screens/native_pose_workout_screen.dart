@@ -20,6 +20,8 @@ import '../../auth/providers/auth_provider.dart';
 import '../../onboarding/services/calibration_result_store.dart';
 import '../data/kori_feedback_lines.dart';
 import '../data/native_pose_channel.dart';
+import '../data/experimental_coaching_candidate.dart';
+import '../widgets/experimental_coaching_candidate_banner.dart';
 import '../data/workout_evidence.dart';
 import '../widgets/exercise_setup_panel.dart';
 import '../data/deep_analysis_queue.dart';
@@ -100,6 +102,9 @@ class _NativePoseWorkoutScreenState
   // 코리 피드백: 네이티브 판정이 `onFeedback` 으로 보낸 대사 키만 보여준다
   // (kori_feedback_lines.dart). 첫 피드백 전에는 운동별 기본 팁을 보여준다.
   String? _feedbackKey;
+  ExperimentalCoachingCandidate? _experimentalCandidate;
+  final _experimentalInbox = ExperimentalCoachingCandidateInbox();
+  int _candidateChannelGeneration = 0;
   // 실시간 3D 상태 (onPoseUpdate.pose3d). null = 3D 경로 없음.
   NativePose3DStatus? _pose3d;
 
@@ -176,14 +181,16 @@ class _NativePoseWorkoutScreenState
   Future<void> _loadSetup() async {
     final store = ref.read(calibrationResultStoreProvider);
     final profile = await store.bodyProfile();
-    final reference = await store.loadReference(widget.exerciseId, _setupVariant);
+    final reference =
+        await store.loadReference(widget.exerciseId, _setupVariant);
     if (!mounted || !store.isCurrent) return;
     setState(() {
       _bodyProfile = profile;
       _setupReference = reference;
     });
     // 카메라 뷰가 먼저 만들어졌으면 기준을 네이티브에 다시 알려 준다.
-    _channel?.invokeMethod<void>(NativePoseChannel.setSetupVariant, {'variant': _setupVariant, 'reference': reference});
+    _channel?.invokeMethod<void>(NativePoseChannel.setSetupVariant,
+        {'variant': _setupVariant, 'reference': reference});
   }
 
   Map<String, Object> get _setupCreationParams => {
@@ -202,10 +209,12 @@ class _NativePoseWorkoutScreenState
     final snapshot = _setupStatus?.snapshot;
     if (snapshot == null) return;
     final store = ref.read(calibrationResultStoreProvider);
-    final saved = await store.saveReference(widget.exerciseId, _setupVariant, snapshot);
+    final saved =
+        await store.saveReference(widget.exerciseId, _setupVariant, snapshot);
     if (!mounted || !store.isCurrent || !saved) return;
     setState(() => _setupReference = snapshot);
-    _channel?.invokeMethod<void>(NativePoseChannel.setSetupVariant, {'variant': _setupVariant, 'reference': snapshot});
+    _channel?.invokeMethod<void>(NativePoseChannel.setSetupVariant,
+        {'variant': _setupVariant, 'reference': snapshot});
   }
 
   Future<void> _changeSetupVariant(String variant) async {
@@ -216,7 +225,8 @@ class _NativePoseWorkoutScreenState
       _setupVariant = variant;
       _setupReference = reference;
     });
-    _channel?.invokeMethod<void>(NativePoseChannel.setSetupVariant, {'variant': variant, 'reference': reference});
+    _channel?.invokeMethod<void>(NativePoseChannel.setSetupVariant,
+        {'variant': variant, 'reference': reference});
   }
 
   void _startCountdown() {
@@ -248,11 +258,13 @@ class _NativePoseWorkoutScreenState
 
   void _onPlatformViewCreated(int id) {
     _channel = MethodChannel('${NativePoseWorkoutScreen.viewType}/$id');
-    _channel!.setMethodCallHandler(_handleNativeCall);
+    final generation = ++_candidateChannelGeneration;
+    _channel!.setMethodCallHandler(
+        (call) => _handleNativeCall(call, generation: generation));
     if (_voiceMuted) _notifyVoiceMuted();
   }
 
-  Future<dynamic> _handleNativeCall(MethodCall call) async {
+  Future<dynamic> _handleNativeCall(MethodCall call, {int? generation}) async {
     if (call.method == 'onPoseUpdate') {
       final args = (call.arguments as Map).cast<String, dynamic>();
       final rep = (args['rep'] as num?)?.toInt() ?? _latestNativeRep;
@@ -269,11 +281,45 @@ class _NativePoseWorkoutScreenState
         if (setup != null && mounted) setState(() => _setupStatus = setup);
       }
       _onNativeUpdate(rep);
+    } else if (call.method ==
+        NativePoseChannel.onExperimentalCoachingCandidate) {
+      if (generation != null && generation != _candidateChannelGeneration) {
+        return {'presented': false};
+      }
+      if (!_experimentalInbox.accept(call.arguments,
+          active:
+              mounted && !_isPaused && !_setComplete && !_workoutComplete)) {
+        return {'presented': false};
+      }
+      final candidate = _experimentalInbox.current!;
+      setState(() => _experimentalCandidate = candidate);
+      Future<void>.delayed(const Duration(seconds: 3), () {
+        if (mounted &&
+            _experimentalCandidate?.proposalId == candidate.proposalId) {
+          _experimentalInbox.clear();
+          setState(() => _experimentalCandidate = null);
+        }
+      });
+      return {
+        'presented': true,
+        'proposalId': candidate.proposalId,
+        'tts': false
+      };
+    } else if (call.method == 'onExperimentalCoachingCandidateClear') {
+      if (generation != null && generation != _candidateChannelGeneration) {
+        return {'cleared': false};
+      }
+      final cleared = _experimentalInbox.expire(call.arguments);
+      if (cleared && mounted) setState(() => _experimentalCandidate = null);
+      return {'cleared': cleared, 'tts': false};
     } else if (call.method == NativePoseChannel.onSetEnd) {
+      _experimentalInbox.clear();
+      if (mounted) setState(() => _experimentalCandidate = null);
       final args = (call.arguments as Map).cast<String, dynamic>();
       final index = (args['setIndex'] as num).toInt();
       if (mounted) setState(() => _setMedia[index] = args);
-      unawaited(ref.read(deepAnalysisQueueProvider.notifier)
+      unawaited(ref
+          .read(deepAnalysisQueueProvider.notifier)
           .enqueueSet(args, widget.exerciseId, recordId: _recordId));
       final pending = _setClosures[index];
       if (pending != null && !pending.isCompleted) pending.complete();
@@ -311,7 +357,9 @@ class _NativePoseWorkoutScreenState
   /// 세트 끝 요약 경고(scope "set", n = 세트 안 렙 수). 세트 요약 음성과 겹치지 않게
   /// 말풍선·음성 없이 운동 기록의 경고 횟수에만 더한다.
   void _onNativeSetSummary(String key, int? count) {
-    if (!mounted || koriFeedbackLines[key]?.kind != KoriFeedbackKind.warning) return;
+    if (!mounted || koriFeedbackLines[key]?.kind != KoriFeedbackKind.warning) {
+      return;
+    }
     _nativeFeedbackCounts.update(key, (c) => c + (count ?? 1),
         ifAbsent: () => count ?? 1);
   }
@@ -332,8 +380,8 @@ class _NativePoseWorkoutScreenState
 
   /// 네이티브 운동 음성에도 음소거 상태를 알린다.
   void _notifyVoiceMuted() {
-    _channel?.invokeMethod(
-        NativePoseChannel.setVoiceMuted, {'muted': _voiceMuted});
+    _channel
+        ?.invokeMethod(NativePoseChannel.setVoiceMuted, {'muted': _voiceMuted});
   }
 
   bool get _isKo => ref.read(appStringsProvider).locale == 'ko';
@@ -401,7 +449,11 @@ class _NativePoseWorkoutScreenState
   }
 
   void _togglePause() {
-    setState(() => _isPaused = !_isPaused);
+    _experimentalInbox.clear();
+    setState(() {
+      _isPaused = !_isPaused;
+      _experimentalCandidate = null;
+    });
   }
 
   void _startRestTimer() {
@@ -474,7 +526,9 @@ class _NativePoseWorkoutScreenState
   Future<void> _finishWorkout() async {
     if (!mounted || _finishing) return;
     _finishing = true;
-    if (!_setComplete && !_workoutComplete) _notifySet(NativePoseChannel.endSet);
+    if (!_setComplete && !_workoutComplete) {
+      _notifySet(NativePoseChannel.endSet);
+    }
     // AVAssetWriter가 파일을 닫은 뒤 결과 화면으로 이동한다.
     try {
       await Future.wait(_setClosures.values.map((c) => c.future))
@@ -533,9 +587,13 @@ class _NativePoseWorkoutScreenState
         'poseMetricsSummary': WorkoutEvidence.nativeSummary(
           completedReps: totalReps,
           recordedWarningEvents: totalBad,
-          sets: performedSets.map((r) => <String, dynamic>{
-            'reps': r.reps, 'weightKg': r.weightKg, 'badCount': r.badCount,
-          }).toList(),
+          sets: performedSets
+              .map((r) => <String, dynamic>{
+                    'reps': r.reps,
+                    'weightKg': r.weightKg,
+                    'badCount': r.badCount,
+                  })
+              .toList(),
         ),
         'elapsedSeconds': elapsedSeconds,
         'postureScore': null,
@@ -545,8 +603,8 @@ class _NativePoseWorkoutScreenState
         // Keep the planned goal separate; actual performed sets live in workoutEvidence/totalSets.
         'targetSets': widget.targetSets,
         'clientRecordId': _recordId,
-        'setResults': performedSets
-            .indexed.map((entry) => {
+        'setResults': performedSets.indexed
+            .map((entry) => {
                   ...?_setMedia[entry.$1 + 1],
                   'reps': entry.$2.reps,
                   'weightKg': entry.$2.weightKg,
@@ -597,6 +655,16 @@ class _NativePoseWorkoutScreenState
         body: Stack(
           children: [
             Positioned.fill(child: _buildBody(context, exName, isKo)),
+            if (!_isPaused &&
+                !_setComplete &&
+                !_workoutComplete &&
+                _experimentalCandidate != null)
+              Positioned(
+                  top: 80,
+                  left: 16,
+                  right: 16,
+                  child: ExperimentalCoachingCandidateBanner(
+                      candidate: _experimentalCandidate!, isKo: isKo)),
             if (!isLiveTracking && !_setComplete && !_workoutComplete)
               Positioned.fill(
                 child: SafeArea(
@@ -660,7 +728,8 @@ class _NativePoseWorkoutScreenState
               'exerciseId': widget.exerciseId,
               if (_setupEnabled) ..._setupCreationParams,
               // 실험용 푸시업 손목 바닥 고정 (--dart-define=BPT_WRIST_ANCHOR=true 일 때만, 기본 꺼짐)
-              if (const bool.fromEnvironment('BPT_WRIST_ANCHOR')) 'wristAnchor': true,
+              if (const bool.fromEnvironment('BPT_WRIST_ANCHOR'))
+                'wristAnchor': true,
             },
             creationParamsCodec: const StandardMessageCodec(),
             onPlatformViewCreated: _onPlatformViewCreated,
@@ -689,7 +758,12 @@ class _NativePoseWorkoutScreenState
               ),
             ),
           ),
-        if (_setupEnabled && !_setupDismissed && _currentSet == 1 && _latestNativeRep == 0 && !_setComplete && !_workoutComplete)
+        if (_setupEnabled &&
+            !_setupDismissed &&
+            _currentSet == 1 &&
+            _latestNativeRep == 0 &&
+            !_setComplete &&
+            !_workoutComplete)
           Positioned(
             left: 12,
             right: 12,
@@ -710,7 +784,9 @@ class _NativePoseWorkoutScreenState
               ),
             ),
           ),
-        if (!_setComplete && !_workoutComplete && _pose3d?.message(isKo: isKo) != null)
+        if (!_setComplete &&
+            !_workoutComplete &&
+            _pose3d?.message(isKo: isKo) != null)
           Positioned(
             left: 16,
             right: 16,
@@ -763,10 +839,14 @@ class _NativePoseWorkoutScreenState
             isKo: isKo,
             onFinish: _finishWorkout,
           ),
-        if ((_setComplete || _workoutComplete) && _setMedia[_currentSet] != null)
-          Positioned(top: MediaQuery.paddingOf(context).top + 8, right: 20,
-            child: DeepAnalysisStatus(sessionId:
-                (_setMedia[_currentSet]!['deepAnalysis'] as Map?)?['sessionId'] as String?),
+        if ((_setComplete || _workoutComplete) &&
+            _setMedia[_currentSet] != null)
+          Positioned(
+            top: MediaQuery.paddingOf(context).top + 8,
+            right: 20,
+            child: DeepAnalysisStatus(
+                sessionId: (_setMedia[_currentSet]!['deepAnalysis']
+                    as Map?)?['sessionId'] as String?),
           ),
       ],
     );
@@ -924,6 +1004,7 @@ class _LiveHud extends StatelessWidget {
   final int targetReps;
   final int currentSet;
   final int totalSets;
+
   /// null이면 첫 피드백 전 기본 팁.
   final String? feedbackKey;
   final int? feedbackCount;
@@ -1347,8 +1428,7 @@ class _KoriFeedbackRow extends StatelessWidget {
           bubbleColor = AppColors.purple;
           textColor = AppColors.black;
       }
-      final parts =
-          splitKoriLine(line.render(isKo: isKo, n: feedbackCount));
+      final parts = splitKoriLine(line.render(isKo: isKo, n: feedbackCount));
       title = parts.title;
       subtitle = parts.subtitle;
     }
@@ -1640,9 +1720,8 @@ class _DialogButton extends StatelessWidget {
         height: 52,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: primary
-              ? AppColors.green
-              : Colors.white.withValues(alpha: 0.08),
+          color:
+              primary ? AppColors.green : Colors.white.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(16),
           border: primary
               ? null
@@ -2314,16 +2393,16 @@ class _SetRow extends StatelessWidget {
             height: 24,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color:
-                  done ? Colors.white.withValues(alpha: 0.16) : Colors.white.withValues(alpha: 0.1),
+              color: done
+                  ? Colors.white.withValues(alpha: 0.16)
+                  : Colors.white.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(
               '$setNumber',
               style: TextStyle(
-                color: done
-                    ? Colors.white
-                    : Colors.white.withValues(alpha: 0.4),
+                color:
+                    done ? Colors.white : Colors.white.withValues(alpha: 0.4),
                 fontWeight: FontWeight.w800,
                 fontSize: 12,
               ),
@@ -2658,7 +2737,8 @@ class _Pose3DBanner extends StatelessWidget {
         ),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          child: Text(text, style: const TextStyle(color: Colors.white, fontSize: 13)),
+          child: Text(text,
+              style: const TextStyle(color: Colors.white, fontSize: 13)),
         ),
       ),
     );

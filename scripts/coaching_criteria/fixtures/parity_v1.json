@@ -19,6 +19,4961 @@
             "aggregation": "max",
             "scope": {
               "sourceIdentity": {
+                "captureId": "synthetic-capture",
+                "epoch": "1",
+                "clockId": "source-pts"
+              },
+              "selectedSide": "left",
+              "timeBasis": "source_pts_seconds",
+              "startPts": 0,
+              "endPts": 0.2,
+              "phase": "top",
+              "side": "left",
+              "view": "unknown",
+              "coverageComplete": true,
+              "coverageEvidence": {
+                "phaseStartObserved": true,
+                "phaseEndObserved": true,
+                "membershipSource": "synthetic-membership"
+              },
+              "expectedSourceIndices": [
+                0,
+                1,
+                2
+              ]
+            },
+            "samples": [
+              {
+                "sourceIndex": 0,
+                "pts": 0.0,
+                "side": "left",
+                "phase": "descending",
+                "view": "unknown",
+                "available": true,
+                "value": 80,
+                "rawValue": 80
+              },
+              {
+                "sourceIndex": 1,
+                "pts": 0.1,
+                "side": "left",
+                "phase": "descending",
+                "view": "unknown",
+                "available": true,
+                "value": 90,
+                "rawValue": 90
+              },
+              {
+                "sourceIndex": 2,
+                "pts": 0.2,
+                "side": "left",
+                "phase": "descending",
+                "view": "unknown",
+                "available": true,
+                "value": 100,
+                "rawValue": 100
+              }
+            ],
+            "available": true,
+            "blockingReasons": [],
+            "rawValue": 100,
+            "correctedValue": 100,
+            "confidence": 1.3,
+            "support": {
+              "requiredJointsSupported": true,
+              "trackingObserved": true,
+              "rawCorrectionChecked": true,
+              "maximumCorrectionDifference": 10
+            }
+          }
+        },
+        "profiles": {
+          "p": {
+            "metricId": "leftUpperArmDeg",
+            "metricVersion": "1",
+            "definitionHash": "bd6e0ce9848cf9a2feeb800ce6bccd377298a6b2090f400a6500e3d7ebf9fea6",
+            "unit": "degrees",
+            "coordinate": "XS_H36M17_model_space_body_relative",
+            "aggregation": "max",
+            "ruleId": "a",
+            "exercise": "pushup",
+            "variant": "floor",
+            "comparator": "gt",
+            "upper": 95,
+            "referenceKind": "engineering_candidate",
+            "predicateMeaning": "deviation",
+            "revision": "r1",
+            "source": "synthetic reviewed engineering fixture",
+            "availableAtPts": 0,
+            "applicability": {
+              "phase": [
+                "descending"
+              ],
+              "side": [
+                "left"
+              ],
+              "view": [
+                "unknown"
+              ]
+            },
+            "confirmation": {
+              "kind": "engineering_review",
+              "at": "2026-11-02",
+              "reference": "synthetic test only",
+              "scope": {
+                "metricId": "leftUpperArmDeg",
+                "metricVersion": "1",
+                "definitionHash": "bd6e0ce9848cf9a2feeb800ce6bccd377298a6b2090f400a6500e3d7ebf9fea6",
+                "unit": "degrees",
+                "coordinate": "XS_H36M17_model_space_body_relative",
+                "aggregation": "max",
+                "ruleId": "a",
+                "exercise": "pushup",
+                "variant": "floor"
+              }
+            },
+            "evidencePolicy": {
+              "version": "bpt.candidate-evidence-policy.v1",
+              "sourceIdentity": "capture_epoch",
+              "view": "not_required"
+            }
+          }
+        },
+        "criterion": {
+          "type": "group",
+          "id": "outside",
+          "op": "AND",
+          "pairing": {
+            "sidePolicy": "bilateral",
+            "temporal": "same_window_summary"
+          },
+          "children": [
+            {
+              "type": "atom",
+              "id": "a",
+              "observation": "o",
+              "profile": "p"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "schema": "bpt.coaching-criteria.v1",
+        "catalogVersion": "bpt.coaching-metrics.v1",
+        "exercise": "pushup",
+        "variant": "floor",
+        "criterion": {
+          "id": "outside",
+          "type": "group",
+          "op": "AND",
+          "state": "not_applicable",
+          "scope": null,
+          "reasons": [],
+          "partialCoverage": true,
+          "sampleMembership": null,
+          "interpretation": "compound_supplied_predicates_only",
+          "predicateMeanings": [
+            "compound"
+          ],
+          "pairing": {
+            "sidePolicy": "bilateral",
+            "temporal": "same_window_summary"
+          },
+          "sharedPositiveSamples": [],
+          "supportedPositiveSamples": [],
+          "children": [
+            {
+              "id": "a",
+              "type": "atom",
+              "state": "not_applicable",
+              "reasons": [
+                "outside_profile_phase_scope"
+              ],
+              "observationId": "o",
+              "observed": {
+                "metricId": "leftUpperArmDeg",
+                "metricVersion": "1",
+                "definitionHash": "bd6e0ce9848cf9a2feeb800ce6bccd377298a6b2090f400a6500e3d7ebf9fea6",
+                "unit": "degrees",
+                "coordinate": "XS_H36M17_model_space_body_relative",
+                "aggregation": "max",
+                "scope": {
+                  "sourceIdentity": {
+                    "captureId": "synthetic-capture",
+                    "epoch": "1",
+                    "clockId": "source-pts"
+                  },
+                  "selectedSide": "left",
+                  "timeBasis": "source_pts_seconds",
+                  "startPts": 0,
+                  "endPts": 0.2,
+                  "phase": "top",
+                  "side": "left",
+                  "view": "unknown",
+                  "coverageComplete": true,
+                  "coverageEvidence": {
+                    "phaseStartObserved": true,
+                    "phaseEndObserved": true,
+                    "membershipSource": "synthetic-membership"
+                  },
+                  "expectedSourceIndices": [
+                    0,
+                    1,
+                    2
+                  ]
+                },
+                "samples": [
+                  {
+                    "sourceIndex": 0,
+                    "pts": 0.0,
+                    "side": "left",
+                    "phase": "descending",
+                    "view": "unknown",
+                    "available": true,
+                    "value": 80,
+                    "rawValue": 80
+                  },
+                  {
+                    "sourceIndex": 1,
+                    "pts": 0.1,
+                    "side": "left",
+                    "phase": "descending",
+                    "view": "unknown",
+                    "available": true,
+                    "value": 90,
+                    "rawValue": 90
+                  },
+                  {
+                    "sourceIndex": 2,
+                    "pts": 0.2,
+                    "side": "left",
+                    "phase": "descending",
+                    "view": "unknown",
+                    "available": true,
+                    "value": 100,
+                    "rawValue": 100
+                  }
+                ],
+                "available": true,
+                "blockingReasons": [],
+                "rawValue": 100,
+                "correctedValue": 100,
+                "confidence": 1.3,
+                "support": {
+                  "requiredJointsSupported": true,
+                  "trackingObserved": true,
+                  "rawCorrectionChecked": true,
+                  "maximumCorrectionDifference": 10
+                }
+              },
+              "profileId": "p",
+              "profile": {
+                "metricId": "leftUpperArmDeg",
+                "metricVersion": "1",
+                "definitionHash": "bd6e0ce9848cf9a2feeb800ce6bccd377298a6b2090f400a6500e3d7ebf9fea6",
+                "unit": "degrees",
+                "coordinate": "XS_H36M17_model_space_body_relative",
+                "aggregation": "max",
+                "ruleId": "a",
+                "exercise": "pushup",
+                "variant": "floor",
+                "comparator": "gt",
+                "upper": 95,
+                "referenceKind": "engineering_candidate",
+                "predicateMeaning": "deviation",
+                "revision": "r1",
+                "source": "synthetic reviewed engineering fixture",
+                "availableAtPts": 0,
+                "applicability": {
+                  "phase": [
+                    "descending"
+                  ],
+                  "side": [
+                    "left"
+                  ],
+                  "view": [
+                    "unknown"
+                  ]
+                },
+                "confirmation": {
+                  "kind": "engineering_review",
+                  "at": "2026-11-02",
+                  "reference": "synthetic test only",
+                  "scope": {
+                    "metricId": "leftUpperArmDeg",
+                    "metricVersion": "1",
+                    "definitionHash": "bd6e0ce9848cf9a2feeb800ce6bccd377298a6b2090f400a6500e3d7ebf9fea6",
+                    "unit": "degrees",
+                    "coordinate": "XS_H36M17_model_space_body_relative",
+                    "aggregation": "max",
+                    "ruleId": "a",
+                    "exercise": "pushup",
+                    "variant": "floor"
+                  }
+                },
+                "evidencePolicy": {
+                  "version": "bpt.candidate-evidence-policy.v1",
+                  "sourceIdentity": "capture_epoch",
+                  "view": "not_required"
+                }
+              },
+              "partialCoverage": false,
+              "interpretation": "unresolved",
+              "scope": {
+                "sourceIdentity": {
+                  "captureId": "synthetic-capture",
+                  "epoch": "1",
+                  "clockId": "source-pts"
+                },
+                "timeBasis": "source_pts_seconds",
+                "startPts": 0,
+                "endPts": 0.2,
+                "phase": "top",
+                "side": "left",
+                "selectedSide": "left",
+                "view": "unknown"
+              },
+              "knownComponents": []
+            }
+          ],
+          "knownComponents": []
+        },
+        "providedObservations": {
+          "o": {
+            "metricId": "leftUpperArmDeg",
+            "metricVersion": "1",
+            "definitionHash": "bd6e0ce9848cf9a2feeb800ce6bccd377298a6b2090f400a6500e3d7ebf9fea6",
+            "unit": "degrees",
+            "coordinate": "XS_H36M17_model_space_body_relative",
+            "aggregation": "max",
+            "scope": {
+              "sourceIdentity": {
+                "captureId": "synthetic-capture",
+                "epoch": "1",
+                "clockId": "source-pts"
+              },
+              "selectedSide": "left",
+              "timeBasis": "source_pts_seconds",
+              "startPts": 0,
+              "endPts": 0.2,
+              "phase": "top",
+              "side": "left",
+              "view": "unknown",
+              "coverageComplete": true,
+              "coverageEvidence": {
+                "phaseStartObserved": true,
+                "phaseEndObserved": true,
+                "membershipSource": "synthetic-membership"
+              },
+              "expectedSourceIndices": [
+                0,
+                1,
+                2
+              ]
+            },
+            "samples": [
+              {
+                "sourceIndex": 0,
+                "pts": 0.0,
+                "side": "left",
+                "phase": "descending",
+                "view": "unknown",
+                "available": true,
+                "value": 80,
+                "rawValue": 80
+              },
+              {
+                "sourceIndex": 1,
+                "pts": 0.1,
+                "side": "left",
+                "phase": "descending",
+                "view": "unknown",
+                "available": true,
+                "value": 90,
+                "rawValue": 90
+              },
+              {
+                "sourceIndex": 2,
+                "pts": 0.2,
+                "side": "left",
+                "phase": "descending",
+                "view": "unknown",
+                "available": true,
+                "value": 100,
+                "rawValue": 100
+              }
+            ],
+            "available": true,
+            "blockingReasons": [],
+            "rawValue": 100,
+            "correctedValue": 100,
+            "confidence": 1.3,
+            "support": {
+              "requiredJointsSupported": true,
+              "trackingObserved": true,
+              "rawCorrectionChecked": true,
+              "maximumCorrectionDifference": 10
+            }
+          }
+        },
+        "profileAuthority": "scoped_reference_only_not_whole_form_or_clinical_validation"
+      }
+    },
+    {
+      "request": {
+        "evaluation": {
+          "mode": "causal",
+          "asOfPts": 0.2
+        },
+        "exercise": "pushup",
+        "variant": "floor",
+        "observations": {
+          "o": {
+            "metricId": "leftUpperArmDeg",
+            "metricVersion": "1",
+            "definitionHash": "bd6e0ce9848cf9a2feeb800ce6bccd377298a6b2090f400a6500e3d7ebf9fea6",
+            "unit": "degrees",
+            "coordinate": "XS_H36M17_model_space_body_relative",
+            "aggregation": "max",
+            "scope": {
+              "sourceIdentity": {
+                "captureId": "synthetic-capture",
+                "epoch": "1",
+                "clockId": "source-pts"
+              },
+              "selectedSide": "left",
+              "timeBasis": "source_pts_seconds",
+              "startPts": 0,
+              "endPts": 0.2,
+              "phase": "top",
+              "side": "left",
+              "view": "unknown",
+              "coverageComplete": true,
+              "coverageEvidence": {
+                "phaseStartObserved": true,
+                "phaseEndObserved": true,
+                "membershipSource": "synthetic-membership"
+              },
+              "expectedSourceIndices": [
+                0,
+                1,
+                2
+              ]
+            },
+            "samples": [
+              {
+                "sourceIndex": 0,
+                "pts": 0.0,
+                "side": "left",
+                "phase": "descending",
+                "view": "unknown",
+                "available": true,
+                "value": 80,
+                "rawValue": 80
+              },
+              {
+                "sourceIndex": 1,
+                "pts": 0.1,
+                "side": "left",
+                "phase": "descending",
+                "view": "unknown",
+                "available": true,
+                "value": 90,
+                "rawValue": 90
+              },
+              {
+                "sourceIndex": 2,
+                "pts": 0.2,
+                "side": "left",
+                "phase": "descending",
+                "view": "unknown",
+                "available": true,
+                "value": 100,
+                "rawValue": 100
+              }
+            ],
+            "available": false,
+            "blockingReasons": [],
+            "rawValue": 100,
+            "correctedValue": 100,
+            "confidence": 1.3,
+            "support": {
+              "requiredJointsSupported": true,
+              "trackingObserved": true,
+              "rawCorrectionChecked": true,
+              "maximumCorrectionDifference": 10
+            }
+          }
+        },
+        "profiles": {
+          "p": {
+            "metricId": "leftUpperArmDeg",
+            "metricVersion": "1",
+            "definitionHash": "bd6e0ce9848cf9a2feeb800ce6bccd377298a6b2090f400a6500e3d7ebf9fea6",
+            "unit": "degrees",
+            "coordinate": "XS_H36M17_model_space_body_relative",
+            "aggregation": "max",
+            "ruleId": "a",
+            "exercise": "pushup",
+            "variant": "floor",
+            "comparator": "gt",
+            "upper": 95,
+            "referenceKind": "engineering_candidate",
+            "predicateMeaning": "deviation",
+            "revision": "r1",
+            "source": "synthetic reviewed engineering fixture",
+            "availableAtPts": 0,
+            "applicability": {
+              "phase": [
+                "descending"
+              ],
+              "side": [
+                "left"
+              ],
+              "view": [
+                "unknown"
+              ]
+            },
+            "confirmation": {
+              "kind": "engineering_review",
+              "at": "2026-11-02",
+              "reference": "synthetic test only",
+              "scope": {
+                "metricId": "leftUpperArmDeg",
+                "metricVersion": "1",
+                "definitionHash": "bd6e0ce9848cf9a2feeb800ce6bccd377298a6b2090f400a6500e3d7ebf9fea6",
+                "unit": "degrees",
+                "coordinate": "XS_H36M17_model_space_body_relative",
+                "aggregation": "max",
+                "ruleId": "a",
+                "exercise": "pushup",
+                "variant": "floor"
+              }
+            },
+            "evidencePolicy": {
+              "version": "bpt.candidate-evidence-policy.v1",
+              "sourceIdentity": "capture_epoch",
+              "view": "not_required"
+            }
+          }
+        },
+        "criterion": {
+          "type": "atom",
+          "id": "a",
+          "observation": "o",
+          "profile": "p"
+        }
+      },
+      "expected": {
+        "schema": "bpt.coaching-criteria.v1",
+        "catalogVersion": "bpt.coaching-metrics.v1",
+        "exercise": "pushup",
+        "variant": "floor",
+        "criterion": {
+          "id": "a",
+          "type": "atom",
+          "state": "not_applicable",
+          "reasons": [
+            "outside_profile_phase_scope"
+          ],
+          "observationId": "o",
+          "observed": {
+            "metricId": "leftUpperArmDeg",
+            "metricVersion": "1",
+            "definitionHash": "bd6e0ce9848cf9a2feeb800ce6bccd377298a6b2090f400a6500e3d7ebf9fea6",
+            "unit": "degrees",
+            "coordinate": "XS_H36M17_model_space_body_relative",
+            "aggregation": "max",
+            "scope": {
+              "sourceIdentity": {
+                "captureId": "synthetic-capture",
+                "epoch": "1",
+                "clockId": "source-pts"
+              },
+              "selectedSide": "left",
+              "timeBasis": "source_pts_seconds",
+              "startPts": 0,
+              "endPts": 0.2,
+              "phase": "top",
+              "side": "left",
+              "view": "unknown",
+              "coverageComplete": true,
+              "coverageEvidence": {
+                "phaseStartObserved": true,
+                "phaseEndObserved": true,
+                "membershipSource": "synthetic-membership"
+              },
+              "expectedSourceIndices": [
+                0,
+                1,
+                2
+              ]
+            },
+            "samples": [
+              {
+                "sourceIndex": 0,
+                "pts": 0.0,
+                "side": "left",
+                "phase": "descending",
+                "view": "unknown",
+                "available": true,
+                "value": 80,
+                "rawValue": 80
+              },
+              {
+                "sourceIndex": 1,
+                "pts": 0.1,
+                "side": "left",
+                "phase": "descending",
+                "view": "unknown",
+                "available": true,
+                "value": 90,
+                "rawValue": 90
+              },
+              {
+                "sourceIndex": 2,
+                "pts": 0.2,
+                "side": "left",
+                "phase": "descending",
+                "view": "unknown",
+                "available": true,
+                "value": 100,
+                "rawValue": 100
+              }
+            ],
+            "available": false,
+            "blockingReasons": [],
+            "rawValue": 100,
+            "correctedValue": 100,
+            "confidence": 1.3,
+            "support": {
+              "requiredJointsSupported": true,
+              "trackingObserved": true,
+              "rawCorrectionChecked": true,
+              "maximumCorrectionDifference": 10
+            }
+          },
+          "profileId": "p",
+          "profile": {
+            "metricId": "leftUpperArmDeg",
+            "metricVersion": "1",
+            "definitionHash": "bd6e0ce9848cf9a2feeb800ce6bccd377298a6b2090f400a6500e3d7ebf9fea6",
+            "unit": "degrees",
+            "coordinate": "XS_H36M17_model_space_body_relative",
+            "aggregation": "max",
+            "ruleId": "a",
+            "exercise": "pushup",
+            "variant": "floor",
+            "comparator": "gt",
+            "upper": 95,
+            "referenceKind": "engineering_candidate",
+            "predicateMeaning": "deviation",
+            "revision": "r1",
+            "source": "synthetic reviewed engineering fixture",
+            "availableAtPts": 0,
+            "applicability": {
+              "phase": [
+                "descending"
+              ],
+              "side": [
+                "left"
+              ],
+              "view": [
+                "unknown"
+              ]
+            },
+            "confirmation": {
+              "kind": "engineering_review",
+              "at": "2026-11-02",
+              "reference": "synthetic test only",
+              "scope": {
+                "metricId": "leftUpperArmDeg",
+                "metricVersion": "1",
+                "definitionHash": "bd6e0ce9848cf9a2feeb800ce6bccd377298a6b2090f400a6500e3d7ebf9fea6",
+                "unit": "degrees",
+                "coordinate": "XS_H36M17_model_space_body_relative",
+                "aggregation": "max",
+                "ruleId": "a",
+                "exercise": "pushup",
+                "variant": "floor"
+              }
+            },
+            "evidencePolicy": {
+              "version": "bpt.candidate-evidence-policy.v1",
+              "sourceIdentity": "capture_epoch",
+              "view": "not_required"
+            }
+          },
+          "partialCoverage": false,
+          "interpretation": "unresolved",
+          "scope": {
+            "sourceIdentity": {
+              "captureId": "synthetic-capture",
+              "epoch": "1",
+              "clockId": "source-pts"
+            },
+            "timeBasis": "source_pts_seconds",
+            "startPts": 0,
+            "endPts": 0.2,
+            "phase": "top",
+            "side": "left",
+            "selectedSide": "left",
+            "view": "unknown"
+          },
+          "knownComponents": []
+        },
+        "providedObservations": {
+          "o": {
+            "metricId": "leftUpperArmDeg",
+            "metricVersion": "1",
+            "definitionHash": "bd6e0ce9848cf9a2feeb800ce6bccd377298a6b2090f400a6500e3d7ebf9fea6",
+            "unit": "degrees",
+            "coordinate": "XS_H36M17_model_space_body_relative",
+            "aggregation": "max",
+            "scope": {
+              "sourceIdentity": {
+                "captureId": "synthetic-capture",
+                "epoch": "1",
+                "clockId": "source-pts"
+              },
+              "selectedSide": "left",
+              "timeBasis": "source_pts_seconds",
+              "startPts": 0,
+              "endPts": 0.2,
+              "phase": "top",
+              "side": "left",
+              "view": "unknown",
+              "coverageComplete": true,
+              "coverageEvidence": {
+                "phaseStartObserved": true,
+                "phaseEndObserved": true,
+                "membershipSource": "synthetic-membership"
+              },
+              "expectedSourceIndices": [
+                0,
+                1,
+                2
+              ]
+            },
+            "samples": [
+              {
+                "sourceIndex": 0,
+                "pts": 0.0,
+                "side": "left",
+                "phase": "descending",
+                "view": "unknown",
+                "available": true,
+                "value": 80,
+                "rawValue": 80
+              },
+              {
+                "sourceIndex": 1,
+                "pts": 0.1,
+                "side": "left",
+                "phase": "descending",
+                "view": "unknown",
+                "available": true,
+                "value": 90,
+                "rawValue": 90
+              },
+              {
+                "sourceIndex": 2,
+                "pts": 0.2,
+                "side": "left",
+                "phase": "descending",
+                "view": "unknown",
+                "available": true,
+                "value": 100,
+                "rawValue": 100
+              }
+            ],
+            "available": false,
+            "blockingReasons": [],
+            "rawValue": 100,
+            "correctedValue": 100,
+            "confidence": 1.3,
+            "support": {
+              "requiredJointsSupported": true,
+              "trackingObserved": true,
+              "rawCorrectionChecked": true,
+              "maximumCorrectionDifference": 10
+            }
+          }
+        },
+        "profileAuthority": "scoped_reference_only_not_whole_form_or_clinical_validation"
+      }
+    },
+    {
+      "request": {
+        "evaluation": {
+          "mode": "causal",
+          "asOfPts": 0.2
+        },
+        "exercise": "pushup",
+        "variant": "floor",
+        "observations": {
+          "o": {
+            "metricId": "leftUpperArmDeg",
+            "metricVersion": "1",
+            "definitionHash": "bd6e0ce9848cf9a2feeb800ce6bccd377298a6b2090f400a6500e3d7ebf9fea6",
+            "unit": "degrees",
+            "coordinate": "XS_H36M17_model_space_body_relative",
+            "aggregation": "max",
+            "scope": {
+              "sourceIdentity": {
+                "captureId": "synthetic-capture",
+                "epoch": "1",
+                "clockId": "source-pts"
+              },
+              "selectedSide": "left",
+              "timeBasis": "source_pts_seconds",
+              "startPts": 0,
+              "endPts": 0.2,
+              "phase": "descending",
+              "side": "left",
+              "view": "unknown",
+              "coverageComplete": true,
+              "coverageEvidence": {
+                "phaseStartObserved": true,
+                "phaseEndObserved": true,
+                "membershipSource": "synthetic-membership"
+              },
+              "expectedSourceIndices": [
+                0,
+                1,
+                2
+              ]
+            },
+            "samples": [
+              {
+                "sourceIndex": 0,
+                "pts": 0.0,
+                "side": "left",
+                "phase": "descending",
+                "view": "unknown",
+                "available": true,
+                "value": 80,
+                "rawValue": 80
+              },
+              {
+                "sourceIndex": 1,
+                "pts": 0.1,
+                "side": "left",
+                "phase": "descending",
+                "view": "unknown",
+                "available": true,
+                "value": 90,
+                "rawValue": 90
+              },
+              {
+                "sourceIndex": 2,
+                "pts": 0.2,
+                "side": "left",
+                "phase": "descending",
+                "view": "unknown",
+                "available": true,
+                "value": 100,
+                "rawValue": 100
+              }
+            ],
+            "available": true,
+            "blockingReasons": [],
+            "rawValue": 100,
+            "correctedValue": 100,
+            "confidence": 1.3,
+            "support": {
+              "requiredJointsSupported": true,
+              "trackingObserved": true,
+              "rawCorrectionChecked": true,
+              "maximumCorrectionDifference": 10
+            }
+          },
+          "other": {
+            "metricId": "leftUpperArmDeg",
+            "metricVersion": "1",
+            "definitionHash": "bd6e0ce9848cf9a2feeb800ce6bccd377298a6b2090f400a6500e3d7ebf9fea6",
+            "unit": "degrees",
+            "coordinate": "XS_H36M17_model_space_body_relative",
+            "aggregation": "max",
+            "scope": {
+              "sourceIdentity": {
+                "captureId": "other",
+                "epoch": "1",
+                "clockId": "source-pts"
+              },
+              "selectedSide": "left",
+              "timeBasis": "source_pts_seconds",
+              "startPts": 0,
+              "endPts": 0.2,
+              "phase": "descending",
+              "side": "left",
+              "view": "unknown",
+              "coverageComplete": true,
+              "coverageEvidence": {
+                "phaseStartObserved": true,
+                "phaseEndObserved": true,
+                "membershipSource": "synthetic-membership"
+              },
+              "expectedSourceIndices": [
+                0,
+                1,
+                2
+              ]
+            },
+            "samples": [
+              {
+                "sourceIndex": 0,
+                "pts": 0.0,
+                "side": "left",
+                "phase": "descending",
+                "view": "unknown",
+                "available": true,
+                "value": 80,
+                "rawValue": 80
+              },
+              {
+                "sourceIndex": 1,
+                "pts": 0.1,
+                "side": "left",
+                "phase": "descending",
+                "view": "unknown",
+                "available": true,
+                "value": 90,
+                "rawValue": 90
+              },
+              {
+                "sourceIndex": 2,
+                "pts": 0.2,
+                "side": "left",
+                "phase": "descending",
+                "view": "unknown",
+                "available": true,
+                "value": 100,
+                "rawValue": 100
+              }
+            ],
+            "available": true,
+            "blockingReasons": [],
+            "rawValue": 100,
+            "correctedValue": 100,
+            "confidence": 1.3,
+            "support": {
+              "requiredJointsSupported": true,
+              "trackingObserved": true,
+              "rawCorrectionChecked": true,
+              "maximumCorrectionDifference": 10
+            }
+          }
+        },
+        "profiles": {
+          "p": {
+            "metricId": "leftUpperArmDeg",
+            "metricVersion": "1",
+            "definitionHash": "bd6e0ce9848cf9a2feeb800ce6bccd377298a6b2090f400a6500e3d7ebf9fea6",
+            "unit": "degrees",
+            "coordinate": "XS_H36M17_model_space_body_relative",
+            "aggregation": "max",
+            "ruleId": "a",
+            "exercise": "pushup",
+            "variant": "floor",
+            "comparator": "gt",
+            "upper": 95,
+            "referenceKind": "engineering_candidate",
+            "predicateMeaning": "deviation",
+            "revision": "r1",
+            "source": "synthetic reviewed engineering fixture",
+            "availableAtPts": 0,
+            "applicability": {
+              "phase": [
+                "descending"
+              ],
+              "side": [
+                "left"
+              ],
+              "view": [
+                "unknown"
+              ]
+            },
+            "confirmation": {
+              "kind": "engineering_review",
+              "at": "2026-11-02",
+              "reference": "synthetic test only",
+              "scope": {
+                "metricId": "leftUpperArmDeg",
+                "metricVersion": "1",
+                "definitionHash": "bd6e0ce9848cf9a2feeb800ce6bccd377298a6b2090f400a6500e3d7ebf9fea6",
+                "unit": "degrees",
+                "coordinate": "XS_H36M17_model_space_body_relative",
+                "aggregation": "max",
+                "ruleId": "a",
+                "exercise": "pushup",
+                "variant": "floor"
+              }
+            },
+            "evidencePolicy": {
+              "version": "bpt.candidate-evidence-policy.v1",
+              "sourceIdentity": "capture_epoch",
+              "view": "not_required"
+            }
+          }
+        },
+        "criterion": {
+          "type": "group",
+          "id": "g",
+          "op": "OR",
+          "pairing": {
+            "sidePolicy": "same_selected_side",
+            "temporal": "simultaneous"
+          },
+          "children": [
+            {
+              "type": "atom",
+              "id": "a",
+              "observation": "o",
+              "profile": "p"
+            },
+            {
+              "type": "atom",
+              "id": "b",
+              "observation": "other"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "schema": "bpt.coaching-criteria.v1",
+        "catalogVersion": "bpt.coaching-metrics.v1",
+        "exercise": "pushup",
+        "variant": "floor",
+        "criterion": {
+          "id": "g",
+          "type": "group",
+          "op": "OR",
+          "state": "unknown",
+          "scope": null,
+          "reasons": [
+            "conflicting_known_component_contexts"
+          ],
+          "partialCoverage": true,
+          "sampleMembership": null,
+          "interpretation": "compound_supplied_predicates_only",
+          "predicateMeanings": [
+            "deviation",
+            "compound"
+          ],
+          "pairing": {
+            "sidePolicy": "same_selected_side",
+            "temporal": "simultaneous"
+          },
+          "sharedPositiveSamples": [],
+          "supportedPositiveSamples": [],
+          "children": [
+            {
+              "id": "a",
+              "type": "atom",
+              "state": "positive_evidence",
+              "reasons": [],
+              "observationId": "o",
+              "observed": {
+                "metricId": "leftUpperArmDeg",
+                "metricVersion": "1",
+                "definitionHash": "bd6e0ce9848cf9a2feeb800ce6bccd377298a6b2090f400a6500e3d7ebf9fea6",
+                "unit": "degrees",
+                "coordinate": "XS_H36M17_model_space_body_relative",
+                "aggregation": "max",
+                "scope": {
+                  "sourceIdentity": {
+                    "captureId": "synthetic-capture",
+                    "epoch": "1",
+                    "clockId": "source-pts"
+                  },
+                  "selectedSide": "left",
+                  "timeBasis": "source_pts_seconds",
+                  "startPts": 0,
+                  "endPts": 0.2,
+                  "phase": "descending",
+                  "side": "left",
+                  "view": "unknown",
+                  "coverageComplete": true,
+                  "coverageEvidence": {
+                    "phaseStartObserved": true,
+                    "phaseEndObserved": true,
+                    "membershipSource": "synthetic-membership"
+                  },
+                  "expectedSourceIndices": [
+                    0,
+                    1,
+                    2
+                  ]
+                },
+                "samples": [
+                  {
+                    "sourceIndex": 0,
+                    "pts": 0.0,
+                    "side": "left",
+                    "phase": "descending",
+                    "view": "unknown",
+                    "available": true,
+                    "value": 80,
+                    "rawValue": 80
+                  },
+                  {
+                    "sourceIndex": 1,
+                    "pts": 0.1,
+                    "side": "left",
+                    "phase": "descending",
+                    "view": "unknown",
+                    "available": true,
+                    "value": 90,
+                    "rawValue": 90
+                  },
+                  {
+                    "sourceIndex": 2,
+                    "pts": 0.2,
+                    "side": "left",
+                    "phase": "descending",
+                    "view": "unknown",
+                    "available": true,
+                    "value": 100,
+                    "rawValue": 100
+                  }
+                ],
+                "available": true,
+                "blockingReasons": [],
+                "rawValue": 100,
+                "correctedValue": 100,
+                "confidence": 1.3,
+                "support": {
+                  "requiredJointsSupported": true,
+                  "trackingObserved": true,
+                  "rawCorrectionChecked": true,
+                  "maximumCorrectionDifference": 10
+                }
+              },
+              "profileId": "p",
+              "profile": {
+                "metricId": "leftUpperArmDeg",
+                "metricVersion": "1",
+                "definitionHash": "bd6e0ce9848cf9a2feeb800ce6bccd377298a6b2090f400a6500e3d7ebf9fea6",
+                "unit": "degrees",
+                "coordinate": "XS_H36M17_model_space_body_relative",
+                "aggregation": "max",
+                "ruleId": "a",
+                "exercise": "pushup",
+                "variant": "floor",
+                "comparator": "gt",
+                "upper": 95,
+                "referenceKind": "engineering_candidate",
+                "predicateMeaning": "deviation",
+                "revision": "r1",
+                "source": "synthetic reviewed engineering fixture",
+                "availableAtPts": 0,
+                "applicability": {
+                  "phase": [
+                    "descending"
+                  ],
+                  "side": [
+                    "left"
+                  ],
+                  "view": [
+                    "unknown"
+                  ]
+                },
+                "confirmation": {
+                  "kind": "engineering_review",
+                  "at": "2026-11-02",
+                  "reference": "synthetic test only",
+                  "scope": {
+                    "metricId": "leftUpperArmDeg",
+                    "metricVersion": "1",
+                    "definitionHash": "bd6e0ce9848cf9a2feeb800ce6bccd377298a6b2090f400a6500e3d7ebf9fea6",
+                    "unit": "degrees",
+                    "coordinate": "XS_H36M17_model_space_body_relative",
+                    "aggregation": "max",
+                    "ruleId": "a",
+                    "exercise": "pushup",
+                    "variant": "floor"
+                  }
+                },
+                "evidencePolicy": {
+                  "version": "bpt.candidate-evidence-policy.v1",
+                  "sourceIdentity": "capture_epoch",
+                  "view": "not_required"
+                }
+              },
+              "partialCoverage": false,
+              "interpretation": "candidate_predicate",
+              "scope": {
+                "sourceIdentity": {
+                  "captureId": "synthetic-capture",
+                  "epoch": "1",
+                  "clockId": "source-pts"
+                },
+                "timeBasis": "source_pts_seconds",
+                "startPts": 0,
+                "endPts": 0.2,
+                "phase": "descending",
+                "side": "left",
+                "selectedSide": "left",
+                "view": "unknown"
+              },
+              "knownComponents": [],
+              "sampleEvidence": [
+                {
+                  "sourceIndex": 0,
+                  "pts": 0.0,
+                  "supported": true,
+                  "reasons": []
+                },
+                {
+                  "sourceIndex": 1,
+                  "pts": 0.1,
+                  "supported": true,
+                  "reasons": []
+                },
+                {
+                  "sourceIndex": 2,
+                  "pts": 0.2,
+                  "supported": true,
+                  "reasons": []
+                }
+              ],
+              "profileIntegrityHash": "694339bf694375a80684a44f22365593f30e7a53c41370793417066c2145fcac",
+              "predicateMeaning": "deviation",
+              "evaluatedValue": 100,
+              "aggregation": "max",
+              "sampleMembership": [
+                {
+                  "sourceIndex": 0,
+                  "pts": 0.0
+                },
+                {
+                  "sourceIndex": 1,
+                  "pts": 0.1
+                },
+                {
+                  "sourceIndex": 2,
+                  "pts": 0.2
+                }
+              ],
+              "supportedPositiveSamples": [
+                {
+                  "sourceIndex": 2,
+                  "pts": 0.2
+                }
+              ]
+            },
+            {
+              "id": "b",
+              "type": "atom",
+              "state": "unknown",
+              "reasons": [
+                "complete_source_identity_required",
+                "unknown_observation_context",
+                "profile_required"
+              ],
+              "observationId": "other",
+              "observed": {
+                "metricId": "leftUpperArmDeg",
+                "metricVersion": "1",
+                "definitionHash": "bd6e0ce9848cf9a2feeb800ce6bccd377298a6b2090f400a6500e3d7ebf9fea6",
+                "unit": "degrees",
+                "coordinate": "XS_H36M17_model_space_body_relative",
+                "aggregation": "max",
+                "scope": {
+                  "sourceIdentity": {
+                    "captureId": "other",
+                    "epoch": "1",
+                    "clockId": "source-pts"
+                  },
+                  "selectedSide": "left",
+                  "timeBasis": "source_pts_seconds",
+                  "startPts": 0,
+                  "endPts": 0.2,
+                  "phase": "descending",
+                  "side": "left",
+                  "view": "unknown",
+                  "coverageComplete": true,
+                  "coverageEvidence": {
+                    "phaseStartObserved": true,
+                    "phaseEndObserved": true,
+                    "membershipSource": "synthetic-membership"
+                  },
+                  "expectedSourceIndices": [
+                    0,
+                    1,
+                    2
+                  ]
+                },
+                "samples": [
+                  {
+                    "sourceIndex": 0,
+                    "pts": 0.0,
+                    "side": "left",
+                    "phase": "descending",
+                    "view": "unknown",
+                    "available": true,
+                    "value": 80,
+                    "rawValue": 80
+                  },
+                  {
+                    "sourceIndex": 1,
+                    "pts": 0.1,
+                    "side": "left",
+                    "phase": "descending",
+                    "view": "unknown",
+                    "available": true,
+                    "value": 90,
+                    "rawValue": 90
+                  },
+                  {
+                    "sourceIndex": 2,
+                    "pts": 0.2,
+                    "side": "left",
+                    "phase": "descending",
+                    "view": "unknown",
+                    "available": true,
+                    "value": 100,
+                    "rawValue": 100
+                  }
+                ],
+                "available": true,
+                "blockingReasons": [],
+                "rawValue": 100,
+                "correctedValue": 100,
+                "confidence": 1.3,
+                "support": {
+                  "requiredJointsSupported": true,
+                  "trackingObserved": true,
+                  "rawCorrectionChecked": true,
+                  "maximumCorrectionDifference": 10
+                }
+              },
+              "profileId": null,
+              "profile": null,
+              "partialCoverage": false,
+              "interpretation": "unresolved",
+              "scope": {
+                "sourceIdentity": {
+                  "captureId": "other",
+                  "epoch": "1",
+                  "clockId": "source-pts"
+                },
+                "timeBasis": "source_pts_seconds",
+                "startPts": 0,
+                "endPts": 0.2,
+                "phase": "descending",
+                "side": "left",
+                "selectedSide": "left",
+                "view": "unknown"
+              },
+              "knownComponents": [],
+              "sampleEvidence": [
+                {
+                  "sourceIndex": 0,
+                  "pts": 0.0,
+                  "supported": true,
+                  "reasons": []
+                },
+                {
+                  "sourceIndex": 1,
+                  "pts": 0.1,
+                  "supported": true,
+                  "reasons": []
+                },
+                {
+                  "sourceIndex": 2,
+                  "pts": 0.2,
+                  "supported": true,
+                  "reasons": []
+                }
+              ]
+            }
+          ],
+          "knownComponents": [
+            "a"
+          ]
+        },
+        "providedObservations": {
+          "o": {
+            "metricId": "leftUpperArmDeg",
+            "metricVersion": "1",
+            "definitionHash": "bd6e0ce9848cf9a2feeb800ce6bccd377298a6b2090f400a6500e3d7ebf9fea6",
+            "unit": "degrees",
+            "coordinate": "XS_H36M17_model_space_body_relative",
+            "aggregation": "max",
+            "scope": {
+              "sourceIdentity": {
+                "captureId": "synthetic-capture",
+                "epoch": "1",
+                "clockId": "source-pts"
+              },
+              "selectedSide": "left",
+              "timeBasis": "source_pts_seconds",
+              "startPts": 0,
+              "endPts": 0.2,
+              "phase": "descending",
+              "side": "left",
+              "view": "unknown",
+              "coverageComplete": true,
+              "coverageEvidence": {
+                "phaseStartObserved": true,
+                "phaseEndObserved": true,
+                "membershipSource": "synthetic-membership"
+              },
+              "expectedSourceIndices": [
+                0,
+                1,
+                2
+              ]
+            },
+            "samples": [
+              {
+                "sourceIndex": 0,
+                "pts": 0.0,
+                "side": "left",
+                "phase": "descending",
+                "view": "unknown",
+                "available": true,
+                "value": 80,
+                "rawValue": 80
+              },
+              {
+                "sourceIndex": 1,
+                "pts": 0.1,
+                "side": "left",
+                "phase": "descending",
+                "view": "unknown",
+                "available": true,
+                "value": 90,
+                "rawValue": 90
+              },
+              {
+                "sourceIndex": 2,
+                "pts": 0.2,
+                "side": "left",
+                "phase": "descending",
+                "view": "unknown",
+                "available": true,
+                "value": 100,
+                "rawValue": 100
+              }
+            ],
+            "available": true,
+            "blockingReasons": [],
+            "rawValue": 100,
+            "correctedValue": 100,
+            "confidence": 1.3,
+            "support": {
+              "requiredJointsSupported": true,
+              "trackingObserved": true,
+              "rawCorrectionChecked": true,
+              "maximumCorrectionDifference": 10
+            }
+          },
+          "other": {
+            "metricId": "leftUpperArmDeg",
+            "metricVersion": "1",
+            "definitionHash": "bd6e0ce9848cf9a2feeb800ce6bccd377298a6b2090f400a6500e3d7ebf9fea6",
+            "unit": "degrees",
+            "coordinate": "XS_H36M17_model_space_body_relative",
+            "aggregation": "max",
+            "scope": {
+              "sourceIdentity": {
+                "captureId": "other",
+                "epoch": "1",
+                "clockId": "source-pts"
+              },
+              "selectedSide": "left",
+              "timeBasis": "source_pts_seconds",
+              "startPts": 0,
+              "endPts": 0.2,
+              "phase": "descending",
+              "side": "left",
+              "view": "unknown",
+              "coverageComplete": true,
+              "coverageEvidence": {
+                "phaseStartObserved": true,
+                "phaseEndObserved": true,
+                "membershipSource": "synthetic-membership"
+              },
+              "expectedSourceIndices": [
+                0,
+                1,
+                2
+              ]
+            },
+            "samples": [
+              {
+                "sourceIndex": 0,
+                "pts": 0.0,
+                "side": "left",
+                "phase": "descending",
+                "view": "unknown",
+                "available": true,
+                "value": 80,
+                "rawValue": 80
+              },
+              {
+                "sourceIndex": 1,
+                "pts": 0.1,
+                "side": "left",
+                "phase": "descending",
+                "view": "unknown",
+                "available": true,
+                "value": 90,
+                "rawValue": 90
+              },
+              {
+                "sourceIndex": 2,
+                "pts": 0.2,
+                "side": "left",
+                "phase": "descending",
+                "view": "unknown",
+                "available": true,
+                "value": 100,
+                "rawValue": 100
+              }
+            ],
+            "available": true,
+            "blockingReasons": [],
+            "rawValue": 100,
+            "correctedValue": 100,
+            "confidence": 1.3,
+            "support": {
+              "requiredJointsSupported": true,
+              "trackingObserved": true,
+              "rawCorrectionChecked": true,
+              "maximumCorrectionDifference": 10
+            }
+          }
+        },
+        "profileAuthority": "scoped_reference_only_not_whole_form_or_clinical_validation"
+      }
+    },
+    {
+      "request": {
+        "evaluation": {
+          "mode": "causal",
+          "asOfPts": 0.2
+        },
+        "exercise": "pushup",
+        "variant": "floor",
+        "observations": {
+          "o": {
+            "metricId": "cameraTorsoSignedDeg",
+            "metricVersion": "1",
+            "definitionHash": "7771c04dc4512346c1d913a33ec5ca971241d443f10dc05b2044a3376cfe7f93",
+            "unit": "degrees",
+            "coordinate": "XS_H36M17_camera_reference_no_verified_ground",
+            "aggregation": "sample",
+            "scope": {
+              "sourceIdentity": {
+                "captureId": "synthetic-capture",
+                "epoch": "1",
+                "clockId": "source-pts"
+              },
+              "selectedSide": "left",
+              "timeBasis": "source_pts_seconds",
+              "startPts": 0,
+              "endPts": 0.2,
+              "phase": "descending",
+              "side": "left",
+              "view": "unknown",
+              "coverageComplete": true,
+              "coverageEvidence": {
+                "phaseStartObserved": true,
+                "phaseEndObserved": true,
+                "membershipSource": "synthetic-membership"
+              },
+              "expectedSourceIndices": [
+                2
+              ]
+            },
+            "samples": [
+              {
+                "sourceIndex": 2,
+                "pts": 0.2,
+                "side": "left",
+                "phase": "descending",
+                "view": "unknown",
+                "available": true,
+                "value": -179,
+                "rawValue": 179
+              }
+            ],
+            "available": true,
+            "blockingReasons": [],
+            "rawValue": 100,
+            "correctedValue": 100,
+            "confidence": 1.3,
+            "support": {
+              "requiredJointsSupported": true,
+              "trackingObserved": true,
+              "rawCorrectionChecked": true,
+              "maximumCorrectionDifference": 10
+            },
+            "rawCorrectionDomain": "circular_degrees"
+          }
+        },
+        "profiles": {
+          "p": {
+            "metricId": "cameraTorsoSignedDeg",
+            "metricVersion": "1",
+            "definitionHash": "7771c04dc4512346c1d913a33ec5ca971241d443f10dc05b2044a3376cfe7f93",
+            "unit": "degrees",
+            "coordinate": "XS_H36M17_camera_reference_no_verified_ground",
+            "aggregation": "sample",
+            "ruleId": "a",
+            "exercise": "pushup",
+            "variant": "floor",
+            "comparator": "gt",
+            "upper": 95,
+            "referenceKind": "engineering_candidate",
+            "predicateMeaning": "deviation",
+            "revision": "r1",
+            "source": "synthetic reviewed engineering fixture",
+            "availableAtPts": 0,
+            "applicability": {
+              "phase": [
+                "descending"
+              ],
+              "side": [
+                "left"
+              ],
+              "view": [
+                "unknown"
+              ]
+            },
+            "confirmation": {
+              "kind": "engineering_review",
+              "at": "2026-11-02",
+              "reference": "synthetic test only",
+              "scope": {
+                "metricId": "cameraTorsoSignedDeg",
+                "metricVersion": "1",
+                "definitionHash": "7771c04dc4512346c1d913a33ec5ca971241d443f10dc05b2044a3376cfe7f93",
+                "unit": "degrees",
+                "coordinate": "XS_H36M17_camera_reference_no_verified_ground",
+                "aggregation": "sample",
+                "ruleId": "a",
+                "exercise": "pushup",
+                "variant": "floor"
+              }
+            },
+            "evidencePolicy": {
+              "version": "bpt.candidate-evidence-policy.v1",
+              "sourceIdentity": "capture_epoch",
+              "view": "not_required"
+            }
+          }
+        },
+        "criterion": {
+          "type": "atom",
+          "id": "a",
+          "observation": "o",
+          "profile": "p"
+        }
+      },
+      "expected": {
+        "schema": "bpt.coaching-criteria.v1",
+        "catalogVersion": "bpt.coaching-metrics.v1",
+        "exercise": "pushup",
+        "variant": "floor",
+        "criterion": {
+          "id": "a",
+          "type": "atom",
+          "state": "negative_evidence",
+          "reasons": [],
+          "observationId": "o",
+          "observed": {
+            "metricId": "cameraTorsoSignedDeg",
+            "metricVersion": "1",
+            "definitionHash": "7771c04dc4512346c1d913a33ec5ca971241d443f10dc05b2044a3376cfe7f93",
+            "unit": "degrees",
+            "coordinate": "XS_H36M17_camera_reference_no_verified_ground",
+            "aggregation": "sample",
+            "scope": {
+              "sourceIdentity": {
+                "captureId": "synthetic-capture",
+                "epoch": "1",
+                "clockId": "source-pts"
+              },
+              "selectedSide": "left",
+              "timeBasis": "source_pts_seconds",
+              "startPts": 0,
+              "endPts": 0.2,
+              "phase": "descending",
+              "side": "left",
+              "view": "unknown",
+              "coverageComplete": true,
+              "coverageEvidence": {
+                "phaseStartObserved": true,
+                "phaseEndObserved": true,
+                "membershipSource": "synthetic-membership"
+              },
+              "expectedSourceIndices": [
+                2
+              ]
+            },
+            "samples": [
+              {
+                "sourceIndex": 2,
+                "pts": 0.2,
+                "side": "left",
+                "phase": "descending",
+                "view": "unknown",
+                "available": true,
+                "value": -179,
+                "rawValue": 179
+              }
+            ],
+            "available": true,
+            "blockingReasons": [],
+            "rawValue": 100,
+            "correctedValue": 100,
+            "confidence": 1.3,
+            "support": {
+              "requiredJointsSupported": true,
+              "trackingObserved": true,
+              "rawCorrectionChecked": true,
+              "maximumCorrectionDifference": 10
+            },
+            "rawCorrectionDomain": "circular_degrees"
+          },
+          "profileId": "p",
+          "profile": {
+            "metricId": "cameraTorsoSignedDeg",
+            "metricVersion": "1",
+            "definitionHash": "7771c04dc4512346c1d913a33ec5ca971241d443f10dc05b2044a3376cfe7f93",
+            "unit": "degrees",
+            "coordinate": "XS_H36M17_camera_reference_no_verified_ground",
+            "aggregation": "sample",
+            "ruleId": "a",
+            "exercise": "pushup",
+            "variant": "floor",
+            "comparator": "gt",
+            "upper": 95,
+            "referenceKind": "engineering_candidate",
+            "predicateMeaning": "deviation",
+            "revision": "r1",
+            "source": "synthetic reviewed engineering fixture",
+            "availableAtPts": 0,
+            "applicability": {
+              "phase": [
+                "descending"
+              ],
+              "side": [
+                "left"
+              ],
+              "view": [
+                "unknown"
+              ]
+            },
+            "confirmation": {
+              "kind": "engineering_review",
+              "at": "2026-11-02",
+              "reference": "synthetic test only",
+              "scope": {
+                "metricId": "cameraTorsoSignedDeg",
+                "metricVersion": "1",
+                "definitionHash": "7771c04dc4512346c1d913a33ec5ca971241d443f10dc05b2044a3376cfe7f93",
+                "unit": "degrees",
+                "coordinate": "XS_H36M17_camera_reference_no_verified_ground",
+                "aggregation": "sample",
+                "ruleId": "a",
+                "exercise": "pushup",
+                "variant": "floor"
+              }
+            },
+            "evidencePolicy": {
+              "version": "bpt.candidate-evidence-policy.v1",
+              "sourceIdentity": "capture_epoch",
+              "view": "not_required"
+            }
+          },
+          "partialCoverage": false,
+          "interpretation": "candidate_predicate",
+          "scope": {
+            "sourceIdentity": {
+              "captureId": "synthetic-capture",
+              "epoch": "1",
+              "clockId": "source-pts"
+            },
+            "timeBasis": "source_pts_seconds",
+            "startPts": 0,
+            "endPts": 0.2,
+            "phase": "descending",
+            "side": "left",
+            "selectedSide": "left",
+            "view": "unknown"
+          },
+          "knownComponents": [],
+          "sampleEvidence": [
+            {
+              "sourceIndex": 2,
+              "pts": 0.2,
+              "supported": true,
+              "reasons": []
+            }
+          ],
+          "profileIntegrityHash": "c633e8b112c9009654bf537d525df68f5f5a79d8af7f4ec6596c3420db5fb955",
+          "predicateMeaning": "deviation",
+          "evaluatedValue": -179,
+          "aggregation": "sample",
+          "sampleMembership": [
+            {
+              "sourceIndex": 2,
+              "pts": 0.2
+            }
+          ],
+          "supportedPositiveSamples": []
+        },
+        "providedObservations": {
+          "o": {
+            "metricId": "cameraTorsoSignedDeg",
+            "metricVersion": "1",
+            "definitionHash": "7771c04dc4512346c1d913a33ec5ca971241d443f10dc05b2044a3376cfe7f93",
+            "unit": "degrees",
+            "coordinate": "XS_H36M17_camera_reference_no_verified_ground",
+            "aggregation": "sample",
+            "scope": {
+              "sourceIdentity": {
+                "captureId": "synthetic-capture",
+                "epoch": "1",
+                "clockId": "source-pts"
+              },
+              "selectedSide": "left",
+              "timeBasis": "source_pts_seconds",
+              "startPts": 0,
+              "endPts": 0.2,
+              "phase": "descending",
+              "side": "left",
+              "view": "unknown",
+              "coverageComplete": true,
+              "coverageEvidence": {
+                "phaseStartObserved": true,
+                "phaseEndObserved": true,
+                "membershipSource": "synthetic-membership"
+              },
+              "expectedSourceIndices": [
+                2
+              ]
+            },
+            "samples": [
+              {
+                "sourceIndex": 2,
+                "pts": 0.2,
+                "side": "left",
+                "phase": "descending",
+                "view": "unknown",
+                "available": true,
+                "value": -179,
+                "rawValue": 179
+              }
+            ],
+            "available": true,
+            "blockingReasons": [],
+            "rawValue": 100,
+            "correctedValue": 100,
+            "confidence": 1.3,
+            "support": {
+              "requiredJointsSupported": true,
+              "trackingObserved": true,
+              "rawCorrectionChecked": true,
+              "maximumCorrectionDifference": 10
+            },
+            "rawCorrectionDomain": "circular_degrees"
+          }
+        },
+        "profileAuthority": "scoped_reference_only_not_whole_form_or_clinical_validation"
+      }
+    },
+    {
+      "request": {
+        "evaluation": {
+          "mode": "causal",
+          "asOfPts": 0.2
+        },
+        "exercise": "pushup",
+        "variant": "floor",
+        "observations": {
+          "o": {
+            "metricId": "cameraTorsoSignedDeg",
+            "metricVersion": "1",
+            "definitionHash": "7771c04dc4512346c1d913a33ec5ca971241d443f10dc05b2044a3376cfe7f93",
+            "unit": "degrees",
+            "coordinate": "XS_H36M17_camera_reference_no_verified_ground",
+            "aggregation": "sample",
+            "scope": {
+              "sourceIdentity": {
+                "captureId": "synthetic-capture",
+                "epoch": "1",
+                "clockId": "source-pts"
+              },
+              "selectedSide": "left",
+              "timeBasis": "source_pts_seconds",
+              "startPts": 0,
+              "endPts": 0.2,
+              "phase": "descending",
+              "side": "left",
+              "view": "unknown",
+              "coverageComplete": true,
+              "coverageEvidence": {
+                "phaseStartObserved": true,
+                "phaseEndObserved": true,
+                "membershipSource": "synthetic-membership"
+              },
+              "expectedSourceIndices": [
+                2
+              ]
+            },
+            "samples": [
+              {
+                "sourceIndex": 2,
+                "pts": 0.2,
+                "side": "left",
+                "phase": "descending",
+                "view": "unknown",
+                "available": true,
+                "value": -179,
+                "rawValue": 179
+              }
+            ],
+            "available": true,
+            "blockingReasons": [],
+            "rawValue": 100,
+            "correctedValue": 100,
+            "confidence": 1.3,
+            "support": {
+              "requiredJointsSupported": true,
+              "trackingObserved": true,
+              "rawCorrectionChecked": true,
+              "maximumCorrectionDifference": 10
+            }
+          }
+        },
+        "profiles": {
+          "p": {
+            "metricId": "cameraTorsoSignedDeg",
+            "metricVersion": "1",
+            "definitionHash": "7771c04dc4512346c1d913a33ec5ca971241d443f10dc05b2044a3376cfe7f93",
+            "unit": "degrees",
+            "coordinate": "XS_H36M17_camera_reference_no_verified_ground",
+            "aggregation": "sample",
+            "ruleId": "a",
+            "exercise": "pushup",
+            "variant": "floor",
+            "comparator": "gt",
+            "upper": 95,
+            "referenceKind": "engineering_candidate",
+            "predicateMeaning": "deviation",
+            "revision": "r1",
+            "source": "synthetic reviewed engineering fixture",
+            "availableAtPts": 0,
+            "applicability": {
+              "phase": [
+                "descending"
+              ],
+              "side": [
+                "left"
+              ],
+              "view": [
+                "unknown"
+              ]
+            },
+            "confirmation": {
+              "kind": "engineering_review",
+              "at": "2026-11-02",
+              "reference": "synthetic test only",
+              "scope": {
+                "metricId": "cameraTorsoSignedDeg",
+                "metricVersion": "1",
+                "definitionHash": "7771c04dc4512346c1d913a33ec5ca971241d443f10dc05b2044a3376cfe7f93",
+                "unit": "degrees",
+                "coordinate": "XS_H36M17_camera_reference_no_verified_ground",
+                "aggregation": "sample",
+                "ruleId": "a",
+                "exercise": "pushup",
+                "variant": "floor"
+              }
+            },
+            "evidencePolicy": {
+              "version": "bpt.candidate-evidence-policy.v1",
+              "sourceIdentity": "capture_epoch",
+              "view": "not_required"
+            }
+          }
+        },
+        "criterion": {
+          "type": "atom",
+          "id": "a",
+          "observation": "o",
+          "profile": "p"
+        }
+      },
+      "expected": {
+        "schema": "bpt.coaching-criteria.v1",
+        "catalogVersion": "bpt.coaching-metrics.v1",
+        "exercise": "pushup",
+        "variant": "floor",
+        "criterion": {
+          "id": "a",
+          "type": "atom",
+          "state": "unknown",
+          "reasons": [
+            "no_supported_actual_sample"
+          ],
+          "observationId": "o",
+          "observed": {
+            "metricId": "cameraTorsoSignedDeg",
+            "metricVersion": "1",
+            "definitionHash": "7771c04dc4512346c1d913a33ec5ca971241d443f10dc05b2044a3376cfe7f93",
+            "unit": "degrees",
+            "coordinate": "XS_H36M17_camera_reference_no_verified_ground",
+            "aggregation": "sample",
+            "scope": {
+              "sourceIdentity": {
+                "captureId": "synthetic-capture",
+                "epoch": "1",
+                "clockId": "source-pts"
+              },
+              "selectedSide": "left",
+              "timeBasis": "source_pts_seconds",
+              "startPts": 0,
+              "endPts": 0.2,
+              "phase": "descending",
+              "side": "left",
+              "view": "unknown",
+              "coverageComplete": true,
+              "coverageEvidence": {
+                "phaseStartObserved": true,
+                "phaseEndObserved": true,
+                "membershipSource": "synthetic-membership"
+              },
+              "expectedSourceIndices": [
+                2
+              ]
+            },
+            "samples": [
+              {
+                "sourceIndex": 2,
+                "pts": 0.2,
+                "side": "left",
+                "phase": "descending",
+                "view": "unknown",
+                "available": true,
+                "value": -179,
+                "rawValue": 179
+              }
+            ],
+            "available": true,
+            "blockingReasons": [],
+            "rawValue": 100,
+            "correctedValue": 100,
+            "confidence": 1.3,
+            "support": {
+              "requiredJointsSupported": true,
+              "trackingObserved": true,
+              "rawCorrectionChecked": true,
+              "maximumCorrectionDifference": 10
+            }
+          },
+          "profileId": "p",
+          "profile": {
+            "metricId": "cameraTorsoSignedDeg",
+            "metricVersion": "1",
+            "definitionHash": "7771c04dc4512346c1d913a33ec5ca971241d443f10dc05b2044a3376cfe7f93",
+            "unit": "degrees",
+            "coordinate": "XS_H36M17_camera_reference_no_verified_ground",
+            "aggregation": "sample",
+            "ruleId": "a",
+            "exercise": "pushup",
+            "variant": "floor",
+            "comparator": "gt",
+            "upper": 95,
+            "referenceKind": "engineering_candidate",
+            "predicateMeaning": "deviation",
+            "revision": "r1",
+            "source": "synthetic reviewed engineering fixture",
+            "availableAtPts": 0,
+            "applicability": {
+              "phase": [
+                "descending"
+              ],
+              "side": [
+                "left"
+              ],
+              "view": [
+                "unknown"
+              ]
+            },
+            "confirmation": {
+              "kind": "engineering_review",
+              "at": "2026-11-02",
+              "reference": "synthetic test only",
+              "scope": {
+                "metricId": "cameraTorsoSignedDeg",
+                "metricVersion": "1",
+                "definitionHash": "7771c04dc4512346c1d913a33ec5ca971241d443f10dc05b2044a3376cfe7f93",
+                "unit": "degrees",
+                "coordinate": "XS_H36M17_camera_reference_no_verified_ground",
+                "aggregation": "sample",
+                "ruleId": "a",
+                "exercise": "pushup",
+                "variant": "floor"
+              }
+            },
+            "evidencePolicy": {
+              "version": "bpt.candidate-evidence-policy.v1",
+              "sourceIdentity": "capture_epoch",
+              "view": "not_required"
+            }
+          },
+          "partialCoverage": true,
+          "interpretation": "candidate_predicate",
+          "scope": {
+            "sourceIdentity": {
+              "captureId": "synthetic-capture",
+              "epoch": "1",
+              "clockId": "source-pts"
+            },
+            "timeBasis": "source_pts_seconds",
+            "startPts": 0,
+            "endPts": 0.2,
+            "phase": "descending",
+            "side": "left",
+            "selectedSide": "left",
+            "view": "unknown"
+          },
+          "knownComponents": [],
+          "sampleEvidence": [
+            {
+              "sourceIndex": 2,
+              "pts": 0.2,
+              "supported": false,
+              "reasons": [
+                "raw_correction_disagreement"
+              ]
+            }
+          ],
+          "profileIntegrityHash": "c633e8b112c9009654bf537d525df68f5f5a79d8af7f4ec6596c3420db5fb955",
+          "predicateMeaning": "deviation"
+        },
+        "providedObservations": {
+          "o": {
+            "metricId": "cameraTorsoSignedDeg",
+            "metricVersion": "1",
+            "definitionHash": "7771c04dc4512346c1d913a33ec5ca971241d443f10dc05b2044a3376cfe7f93",
+            "unit": "degrees",
+            "coordinate": "XS_H36M17_camera_reference_no_verified_ground",
+            "aggregation": "sample",
+            "scope": {
+              "sourceIdentity": {
+                "captureId": "synthetic-capture",
+                "epoch": "1",
+                "clockId": "source-pts"
+              },
+              "selectedSide": "left",
+              "timeBasis": "source_pts_seconds",
+              "startPts": 0,
+              "endPts": 0.2,
+              "phase": "descending",
+              "side": "left",
+              "view": "unknown",
+              "coverageComplete": true,
+              "coverageEvidence": {
+                "phaseStartObserved": true,
+                "phaseEndObserved": true,
+                "membershipSource": "synthetic-membership"
+              },
+              "expectedSourceIndices": [
+                2
+              ]
+            },
+            "samples": [
+              {
+                "sourceIndex": 2,
+                "pts": 0.2,
+                "side": "left",
+                "phase": "descending",
+                "view": "unknown",
+                "available": true,
+                "value": -179,
+                "rawValue": 179
+              }
+            ],
+            "available": true,
+            "blockingReasons": [],
+            "rawValue": 100,
+            "correctedValue": 100,
+            "confidence": 1.3,
+            "support": {
+              "requiredJointsSupported": true,
+              "trackingObserved": true,
+              "rawCorrectionChecked": true,
+              "maximumCorrectionDifference": 10
+            }
+          }
+        },
+        "profileAuthority": "scoped_reference_only_not_whole_form_or_clinical_validation"
+      }
+    },
+    {
+      "request": {
+        "evaluation": {
+          "mode": "causal",
+          "asOfPts": 0.2
+        },
+        "exercise": "pushup",
+        "variant": "floor",
+        "observations": {
+          "o": {
+            "metricId": "leftUpperArmDeg",
+            "metricVersion": "1",
+            "definitionHash": "bd6e0ce9848cf9a2feeb800ce6bccd377298a6b2090f400a6500e3d7ebf9fea6",
+            "unit": "degrees",
+            "coordinate": "XS_H36M17_model_space_body_relative",
+            "aggregation": "max",
+            "scope": {
+              "sourceIdentity": {
+                "captureId": "synthetic-capture",
+                "epoch": "1",
+                "clockId": "source-pts"
+              },
+              "selectedSide": "left",
+              "timeBasis": "source_pts_seconds",
+              "startPts": 0,
+              "endPts": 0.2,
+              "phase": "descending",
+              "side": "left",
+              "view": "unknown",
+              "coverageComplete": true,
+              "coverageEvidence": {
+                "phaseStartObserved": true,
+                "phaseEndObserved": true,
+                "membershipSource": "synthetic-membership"
+              },
+              "expectedSourceIndices": [
+                0,
+                1,
+                2
+              ]
+            },
+            "samples": [
+              {
+                "sourceIndex": 0,
+                "pts": 0.0,
+                "side": "left",
+                "phase": "descending",
+                "view": "unknown",
+                "available": true,
+                "value": 80,
+                "rawValue": 80
+              },
+              {
+                "sourceIndex": 1,
+                "pts": 0.1,
+                "side": "left",
+                "phase": "descending",
+                "view": "unknown",
+                "available": true,
+                "value": 90,
+                "rawValue": 90
+              },
+              {
+                "sourceIndex": 2,
+                "pts": 0.2,
+                "side": "left",
+                "phase": "descending",
+                "view": "unknown",
+                "available": true,
+                "value": 100,
+                "rawValue": 100
+              }
+            ],
+            "available": true,
+            "blockingReasons": [],
+            "rawValue": 100,
+            "correctedValue": 100,
+            "confidence": 1.3,
+            "support": {
+              "requiredJointsSupported": true,
+              "trackingObserved": true,
+              "rawCorrectionChecked": true,
+              "maximumCorrectionDifference": 10
+            }
+          }
+        },
+        "profiles": {
+          "p": {
+            "metricId": "leftUpperArmDeg",
+            "metricVersion": "1",
+            "definitionHash": "bd6e0ce9848cf9a2feeb800ce6bccd377298a6b2090f400a6500e3d7ebf9fea6",
+            "unit": "degrees",
+            "coordinate": "XS_H36M17_model_space_body_relative",
+            "aggregation": "max",
+            "ruleId": "a",
+            "exercise": "pushup",
+            "variant": "floor",
+            "comparator": "gt",
+            "upper": 95,
+            "referenceKind": "engineering_candidate",
+            "predicateMeaning": "deviation",
+            "revision": "r1",
+            "source": "synthetic reviewed engineering fixture",
+            "availableAtPts": 0,
+            "applicability": {
+              "phase": [
+                "descending"
+              ],
+              "side": [
+                "left"
+              ],
+              "view": [
+                "unknown"
+              ]
+            },
+            "confirmation": {
+              "kind": "engineering_review",
+              "at": "2026-11-02",
+              "reference": "synthetic test only",
+              "scope": {
+                "metricId": "leftUpperArmDeg",
+                "metricVersion": "1",
+                "definitionHash": "bd6e0ce9848cf9a2feeb800ce6bccd377298a6b2090f400a6500e3d7ebf9fea6",
+                "unit": "degrees",
+                "coordinate": "XS_H36M17_model_space_body_relative",
+                "aggregation": "max",
+                "ruleId": "a",
+                "exercise": "pushup",
+                "variant": "floor"
+              }
+            },
+            "evidencePolicy": {
+              "version": "bpt.candidate-evidence-policy.v1",
+              "sourceIdentity": "capture_epoch",
+              "view": "not_required"
+            }
+          }
+        },
+        "criterion": {
+          "type": "atom",
+          "id": "a",
+          "observation": "o",
+          "profile": "p"
+        }
+      },
+      "expected": {
+        "schema": "bpt.coaching-criteria.v1",
+        "catalogVersion": "bpt.coaching-metrics.v1",
+        "exercise": "pushup",
+        "variant": "floor",
+        "criterion": {
+          "id": "a",
+          "type": "atom",
+          "state": "positive_evidence",
+          "reasons": [],
+          "observationId": "o",
+          "observed": {
+            "metricId": "leftUpperArmDeg",
+            "metricVersion": "1",
+            "definitionHash": "bd6e0ce9848cf9a2feeb800ce6bccd377298a6b2090f400a6500e3d7ebf9fea6",
+            "unit": "degrees",
+            "coordinate": "XS_H36M17_model_space_body_relative",
+            "aggregation": "max",
+            "scope": {
+              "sourceIdentity": {
+                "captureId": "synthetic-capture",
+                "epoch": "1",
+                "clockId": "source-pts"
+              },
+              "selectedSide": "left",
+              "timeBasis": "source_pts_seconds",
+              "startPts": 0,
+              "endPts": 0.2,
+              "phase": "descending",
+              "side": "left",
+              "view": "unknown",
+              "coverageComplete": true,
+              "coverageEvidence": {
+                "phaseStartObserved": true,
+                "phaseEndObserved": true,
+                "membershipSource": "synthetic-membership"
+              },
+              "expectedSourceIndices": [
+                0,
+                1,
+                2
+              ]
+            },
+            "samples": [
+              {
+                "sourceIndex": 0,
+                "pts": 0.0,
+                "side": "left",
+                "phase": "descending",
+                "view": "unknown",
+                "available": true,
+                "value": 80,
+                "rawValue": 80
+              },
+              {
+                "sourceIndex": 1,
+                "pts": 0.1,
+                "side": "left",
+                "phase": "descending",
+                "view": "unknown",
+                "available": true,
+                "value": 90,
+                "rawValue": 90
+              },
+              {
+                "sourceIndex": 2,
+                "pts": 0.2,
+                "side": "left",
+                "phase": "descending",
+                "view": "unknown",
+                "available": true,
+                "value": 100,
+                "rawValue": 100
+              }
+            ],
+            "available": true,
+            "blockingReasons": [],
+            "rawValue": 100,
+            "correctedValue": 100,
+            "confidence": 1.3,
+            "support": {
+              "requiredJointsSupported": true,
+              "trackingObserved": true,
+              "rawCorrectionChecked": true,
+              "maximumCorrectionDifference": 10
+            }
+          },
+          "profileId": "p",
+          "profile": {
+            "metricId": "leftUpperArmDeg",
+            "metricVersion": "1",
+            "definitionHash": "bd6e0ce9848cf9a2feeb800ce6bccd377298a6b2090f400a6500e3d7ebf9fea6",
+            "unit": "degrees",
+            "coordinate": "XS_H36M17_model_space_body_relative",
+            "aggregation": "max",
+            "ruleId": "a",
+            "exercise": "pushup",
+            "variant": "floor",
+            "comparator": "gt",
+            "upper": 95,
+            "referenceKind": "engineering_candidate",
+            "predicateMeaning": "deviation",
+            "revision": "r1",
+            "source": "synthetic reviewed engineering fixture",
+            "availableAtPts": 0,
+            "applicability": {
+              "phase": [
+                "descending"
+              ],
+              "side": [
+                "left"
+              ],
+              "view": [
+                "unknown"
+              ]
+            },
+            "confirmation": {
+              "kind": "engineering_review",
+              "at": "2026-11-02",
+              "reference": "synthetic test only",
+              "scope": {
+                "metricId": "leftUpperArmDeg",
+                "metricVersion": "1",
+                "definitionHash": "bd6e0ce9848cf9a2feeb800ce6bccd377298a6b2090f400a6500e3d7ebf9fea6",
+                "unit": "degrees",
+                "coordinate": "XS_H36M17_model_space_body_relative",
+                "aggregation": "max",
+                "ruleId": "a",
+                "exercise": "pushup",
+                "variant": "floor"
+              }
+            },
+            "evidencePolicy": {
+              "version": "bpt.candidate-evidence-policy.v1",
+              "sourceIdentity": "capture_epoch",
+              "view": "not_required"
+            }
+          },
+          "partialCoverage": false,
+          "interpretation": "candidate_predicate",
+          "scope": {
+            "sourceIdentity": {
+              "captureId": "synthetic-capture",
+              "epoch": "1",
+              "clockId": "source-pts"
+            },
+            "timeBasis": "source_pts_seconds",
+            "startPts": 0,
+            "endPts": 0.2,
+            "phase": "descending",
+            "side": "left",
+            "selectedSide": "left",
+            "view": "unknown"
+          },
+          "knownComponents": [],
+          "sampleEvidence": [
+            {
+              "sourceIndex": 0,
+              "pts": 0.0,
+              "supported": true,
+              "reasons": []
+            },
+            {
+              "sourceIndex": 1,
+              "pts": 0.1,
+              "supported": true,
+              "reasons": []
+            },
+            {
+              "sourceIndex": 2,
+              "pts": 0.2,
+              "supported": true,
+              "reasons": []
+            }
+          ],
+          "profileIntegrityHash": "694339bf694375a80684a44f22365593f30e7a53c41370793417066c2145fcac",
+          "predicateMeaning": "deviation",
+          "evaluatedValue": 100,
+          "aggregation": "max",
+          "sampleMembership": [
+            {
+              "sourceIndex": 0,
+              "pts": 0.0
+            },
+            {
+              "sourceIndex": 1,
+              "pts": 0.1
+            },
+            {
+              "sourceIndex": 2,
+              "pts": 0.2
+            }
+          ],
+          "supportedPositiveSamples": [
+            {
+              "sourceIndex": 2,
+              "pts": 0.2
+            }
+          ]
+        },
+        "providedObservations": {
+          "o": {
+            "metricId": "leftUpperArmDeg",
+            "metricVersion": "1",
+            "definitionHash": "bd6e0ce9848cf9a2feeb800ce6bccd377298a6b2090f400a6500e3d7ebf9fea6",
+            "unit": "degrees",
+            "coordinate": "XS_H36M17_model_space_body_relative",
+            "aggregation": "max",
+            "scope": {
+              "sourceIdentity": {
+                "captureId": "synthetic-capture",
+                "epoch": "1",
+                "clockId": "source-pts"
+              },
+              "selectedSide": "left",
+              "timeBasis": "source_pts_seconds",
+              "startPts": 0,
+              "endPts": 0.2,
+              "phase": "descending",
+              "side": "left",
+              "view": "unknown",
+              "coverageComplete": true,
+              "coverageEvidence": {
+                "phaseStartObserved": true,
+                "phaseEndObserved": true,
+                "membershipSource": "synthetic-membership"
+              },
+              "expectedSourceIndices": [
+                0,
+                1,
+                2
+              ]
+            },
+            "samples": [
+              {
+                "sourceIndex": 0,
+                "pts": 0.0,
+                "side": "left",
+                "phase": "descending",
+                "view": "unknown",
+                "available": true,
+                "value": 80,
+                "rawValue": 80
+              },
+              {
+                "sourceIndex": 1,
+                "pts": 0.1,
+                "side": "left",
+                "phase": "descending",
+                "view": "unknown",
+                "available": true,
+                "value": 90,
+                "rawValue": 90
+              },
+              {
+                "sourceIndex": 2,
+                "pts": 0.2,
+                "side": "left",
+                "phase": "descending",
+                "view": "unknown",
+                "available": true,
+                "value": 100,
+                "rawValue": 100
+              }
+            ],
+            "available": true,
+            "blockingReasons": [],
+            "rawValue": 100,
+            "correctedValue": 100,
+            "confidence": 1.3,
+            "support": {
+              "requiredJointsSupported": true,
+              "trackingObserved": true,
+              "rawCorrectionChecked": true,
+              "maximumCorrectionDifference": 10
+            }
+          }
+        },
+        "profileAuthority": "scoped_reference_only_not_whole_form_or_clinical_validation"
+      }
+    },
+    {
+      "request": {
+        "evaluation": {
+          "mode": "causal",
+          "asOfPts": 0.2
+        },
+        "exercise": "pushup",
+        "variant": "floor",
+        "observations": {
+          "o": {
+            "metricId": "leftUpperArmDeg",
+            "metricVersion": "1",
+            "definitionHash": "bd6e0ce9848cf9a2feeb800ce6bccd377298a6b2090f400a6500e3d7ebf9fea6",
+            "unit": "degrees",
+            "coordinate": "XS_H36M17_model_space_body_relative",
+            "aggregation": "max",
+            "scope": {
+              "sourceIdentity": {
+                "captureId": "synthetic-capture",
+                "epoch": "1",
+                "clockId": "source-pts"
+              },
+              "selectedSide": "left",
+              "timeBasis": "source_pts_seconds",
+              "startPts": 0,
+              "endPts": 0.2,
+              "phase": "descending",
+              "side": "left",
+              "view": "unknown",
+              "coverageComplete": true,
+              "coverageEvidence": {
+                "phaseStartObserved": true,
+                "phaseEndObserved": true,
+                "membershipSource": "synthetic-membership"
+              },
+              "expectedSourceIndices": [
+                0,
+                1,
+                2
+              ]
+            },
+            "samples": [
+              {
+                "sourceIndex": 0,
+                "pts": 0.0,
+                "side": "left",
+                "phase": "descending",
+                "view": "unknown",
+                "available": true,
+                "value": 80,
+                "rawValue": 80
+              },
+              {
+                "sourceIndex": 1,
+                "pts": 0.1,
+                "side": "left",
+                "phase": "descending",
+                "view": "unknown",
+                "available": true,
+                "value": 90,
+                "rawValue": 90
+              },
+              {
+                "sourceIndex": 2,
+                "pts": 0.2,
+                "side": "left",
+                "phase": "descending",
+                "view": "unknown",
+                "available": true,
+                "value": 100,
+                "rawValue": 100
+              }
+            ],
+            "available": true,
+            "blockingReasons": [],
+            "rawValue": 100,
+            "correctedValue": 100,
+            "confidence": 1.3,
+            "support": {
+              "requiredJointsSupported": true,
+              "trackingObserved": true,
+              "rawCorrectionChecked": true,
+              "maximumCorrectionDifference": 10
+            }
+          }
+        },
+        "profiles": {
+          "p": {
+            "metricId": "leftUpperArmDeg",
+            "metricVersion": "1",
+            "definitionHash": "bd6e0ce9848cf9a2feeb800ce6bccd377298a6b2090f400a6500e3d7ebf9fea6",
+            "unit": "degrees",
+            "coordinate": "XS_H36M17_model_space_body_relative",
+            "aggregation": "max",
+            "ruleId": "a",
+            "exercise": "pushup",
+            "variant": "floor",
+            "comparator": "gt",
+            "upper": 95,
+            "referenceKind": "explicit_target",
+            "predicateMeaning": "deviation",
+            "revision": "r1",
+            "source": "synthetic reviewed engineering fixture",
+            "availableAtPts": 0,
+            "applicability": {
+              "phase": [
+                "descending"
+              ],
+              "side": [
+                "left"
+              ],
+              "view": [
+                "unknown"
+              ]
+            },
+            "confirmation": {
+              "kind": "engineering_review",
+              "at": "2026-11-02",
+              "reference": "synthetic test only",
+              "scope": {
+                "metricId": "leftUpperArmDeg",
+                "metricVersion": "1",
+                "definitionHash": "bd6e0ce9848cf9a2feeb800ce6bccd377298a6b2090f400a6500e3d7ebf9fea6",
+                "unit": "degrees",
+                "coordinate": "XS_H36M17_model_space_body_relative",
+                "aggregation": "max",
+                "ruleId": "a",
+                "exercise": "pushup",
+                "variant": "floor"
+              }
+            },
+            "evidencePolicy": {
+              "version": "bpt.candidate-evidence-policy.v1",
+              "sourceIdentity": "capture_epoch",
+              "view": "not_required"
+            }
+          }
+        },
+        "criterion": {
+          "type": "atom",
+          "id": "a",
+          "observation": "o",
+          "profile": "p"
+        }
+      },
+      "expected": {
+        "schema": "bpt.coaching-criteria.v1",
+        "catalogVersion": "bpt.coaching-metrics.v1",
+        "exercise": "pushup",
+        "variant": "floor",
+        "criterion": {
+          "id": "a",
+          "type": "atom",
+          "state": "unknown",
+          "reasons": [
+            "complete_source_identity_required",
+            "unknown_observation_context",
+            "profile_view_scope_required"
+          ],
+          "observationId": "o",
+          "observed": {
+            "metricId": "leftUpperArmDeg",
+            "metricVersion": "1",
+            "definitionHash": "bd6e0ce9848cf9a2feeb800ce6bccd377298a6b2090f400a6500e3d7ebf9fea6",
+            "unit": "degrees",
+            "coordinate": "XS_H36M17_model_space_body_relative",
+            "aggregation": "max",
+            "scope": {
+              "sourceIdentity": {
+                "captureId": "synthetic-capture",
+                "epoch": "1",
+                "clockId": "source-pts"
+              },
+              "selectedSide": "left",
+              "timeBasis": "source_pts_seconds",
+              "startPts": 0,
+              "endPts": 0.2,
+              "phase": "descending",
+              "side": "left",
+              "view": "unknown",
+              "coverageComplete": true,
+              "coverageEvidence": {
+                "phaseStartObserved": true,
+                "phaseEndObserved": true,
+                "membershipSource": "synthetic-membership"
+              },
+              "expectedSourceIndices": [
+                0,
+                1,
+                2
+              ]
+            },
+            "samples": [
+              {
+                "sourceIndex": 0,
+                "pts": 0.0,
+                "side": "left",
+                "phase": "descending",
+                "view": "unknown",
+                "available": true,
+                "value": 80,
+                "rawValue": 80
+              },
+              {
+                "sourceIndex": 1,
+                "pts": 0.1,
+                "side": "left",
+                "phase": "descending",
+                "view": "unknown",
+                "available": true,
+                "value": 90,
+                "rawValue": 90
+              },
+              {
+                "sourceIndex": 2,
+                "pts": 0.2,
+                "side": "left",
+                "phase": "descending",
+                "view": "unknown",
+                "available": true,
+                "value": 100,
+                "rawValue": 100
+              }
+            ],
+            "available": true,
+            "blockingReasons": [],
+            "rawValue": 100,
+            "correctedValue": 100,
+            "confidence": 1.3,
+            "support": {
+              "requiredJointsSupported": true,
+              "trackingObserved": true,
+              "rawCorrectionChecked": true,
+              "maximumCorrectionDifference": 10
+            }
+          },
+          "profileId": "p",
+          "profile": {
+            "metricId": "leftUpperArmDeg",
+            "metricVersion": "1",
+            "definitionHash": "bd6e0ce9848cf9a2feeb800ce6bccd377298a6b2090f400a6500e3d7ebf9fea6",
+            "unit": "degrees",
+            "coordinate": "XS_H36M17_model_space_body_relative",
+            "aggregation": "max",
+            "ruleId": "a",
+            "exercise": "pushup",
+            "variant": "floor",
+            "comparator": "gt",
+            "upper": 95,
+            "referenceKind": "explicit_target",
+            "predicateMeaning": "deviation",
+            "revision": "r1",
+            "source": "synthetic reviewed engineering fixture",
+            "availableAtPts": 0,
+            "applicability": {
+              "phase": [
+                "descending"
+              ],
+              "side": [
+                "left"
+              ],
+              "view": [
+                "unknown"
+              ]
+            },
+            "confirmation": {
+              "kind": "engineering_review",
+              "at": "2026-11-02",
+              "reference": "synthetic test only",
+              "scope": {
+                "metricId": "leftUpperArmDeg",
+                "metricVersion": "1",
+                "definitionHash": "bd6e0ce9848cf9a2feeb800ce6bccd377298a6b2090f400a6500e3d7ebf9fea6",
+                "unit": "degrees",
+                "coordinate": "XS_H36M17_model_space_body_relative",
+                "aggregation": "max",
+                "ruleId": "a",
+                "exercise": "pushup",
+                "variant": "floor"
+              }
+            },
+            "evidencePolicy": {
+              "version": "bpt.candidate-evidence-policy.v1",
+              "sourceIdentity": "capture_epoch",
+              "view": "not_required"
+            }
+          },
+          "partialCoverage": false,
+          "interpretation": "scoped_target_predicate",
+          "scope": {
+            "sourceIdentity": {
+              "captureId": "synthetic-capture",
+              "epoch": "1",
+              "clockId": "source-pts"
+            },
+            "timeBasis": "source_pts_seconds",
+            "startPts": 0,
+            "endPts": 0.2,
+            "phase": "descending",
+            "side": "left",
+            "selectedSide": "left",
+            "view": "unknown"
+          },
+          "knownComponents": [],
+          "sampleEvidence": [
+            {
+              "sourceIndex": 0,
+              "pts": 0.0,
+              "supported": true,
+              "reasons": []
+            },
+            {
+              "sourceIndex": 1,
+              "pts": 0.1,
+              "supported": true,
+              "reasons": []
+            },
+            {
+              "sourceIndex": 2,
+              "pts": 0.2,
+              "supported": true,
+              "reasons": []
+            }
+          ],
+          "profileIntegrityHash": "9afcdc396fdf720127b04349fa22a174a80a8781c97a0e79c10418658c05b524",
+          "predicateMeaning": "deviation"
+        },
+        "providedObservations": {
+          "o": {
+            "metricId": "leftUpperArmDeg",
+            "metricVersion": "1",
+            "definitionHash": "bd6e0ce9848cf9a2feeb800ce6bccd377298a6b2090f400a6500e3d7ebf9fea6",
+            "unit": "degrees",
+            "coordinate": "XS_H36M17_model_space_body_relative",
+            "aggregation": "max",
+            "scope": {
+              "sourceIdentity": {
+                "captureId": "synthetic-capture",
+                "epoch": "1",
+                "clockId": "source-pts"
+              },
+              "selectedSide": "left",
+              "timeBasis": "source_pts_seconds",
+              "startPts": 0,
+              "endPts": 0.2,
+              "phase": "descending",
+              "side": "left",
+              "view": "unknown",
+              "coverageComplete": true,
+              "coverageEvidence": {
+                "phaseStartObserved": true,
+                "phaseEndObserved": true,
+                "membershipSource": "synthetic-membership"
+              },
+              "expectedSourceIndices": [
+                0,
+                1,
+                2
+              ]
+            },
+            "samples": [
+              {
+                "sourceIndex": 0,
+                "pts": 0.0,
+                "side": "left",
+                "phase": "descending",
+                "view": "unknown",
+                "available": true,
+                "value": 80,
+                "rawValue": 80
+              },
+              {
+                "sourceIndex": 1,
+                "pts": 0.1,
+                "side": "left",
+                "phase": "descending",
+                "view": "unknown",
+                "available": true,
+                "value": 90,
+                "rawValue": 90
+              },
+              {
+                "sourceIndex": 2,
+                "pts": 0.2,
+                "side": "left",
+                "phase": "descending",
+                "view": "unknown",
+                "available": true,
+                "value": 100,
+                "rawValue": 100
+              }
+            ],
+            "available": true,
+            "blockingReasons": [],
+            "rawValue": 100,
+            "correctedValue": 100,
+            "confidence": 1.3,
+            "support": {
+              "requiredJointsSupported": true,
+              "trackingObserved": true,
+              "rawCorrectionChecked": true,
+              "maximumCorrectionDifference": 10
+            }
+          }
+        },
+        "profileAuthority": "scoped_reference_only_not_whole_form_or_clinical_validation"
+      }
+    },
+    {
+      "request": {
+        "evaluation": {
+          "mode": "causal",
+          "asOfPts": 0.2
+        },
+        "exercise": "barbell-row",
+        "variant": "floor",
+        "observations": {
+          "o": {
+            "metricId": "cameraTorsoCausalRangeDeg",
+            "metricVersion": "1",
+            "definitionHash": "a7de66917bc4eb81d64daf43ffb3d7e8ca1adc97cdae4c534ea7437ff61e0d81",
+            "unit": "degrees",
+            "coordinate": "XS_H36M17_camera_reference_no_verified_ground",
+            "aggregation": "sample",
+            "scope": {
+              "sourceIdentity": {
+                "captureId": "synthetic-capture",
+                "epoch": "1",
+                "clockId": "source-pts"
+              },
+              "selectedSide": "left",
+              "timeBasis": "source_pts_seconds",
+              "startPts": 0,
+              "endPts": 0.2,
+              "phase": "descending",
+              "side": "left",
+              "view": "unknown",
+              "coverageComplete": true,
+              "coverageEvidence": {
+                "phaseStartObserved": true,
+                "phaseEndObserved": true,
+                "membershipSource": "synthetic-membership"
+              },
+              "expectedSourceIndices": [
+                2
+              ]
+            },
+            "samples": [
+              {
+                "sourceIndex": 2,
+                "pts": 0.2,
+                "side": "left",
+                "phase": "descending",
+                "view": "unknown",
+                "available": true,
+                "value": 100,
+                "rawValue": 100
+              }
+            ],
+            "available": true,
+            "blockingReasons": [],
+            "rawValue": 100,
+            "correctedValue": 100,
+            "confidence": 1.3,
+            "support": {
+              "requiredJointsSupported": true,
+              "trackingObserved": true,
+              "rawCorrectionChecked": true,
+              "maximumCorrectionDifference": 10
+            },
+            "measurementWindow": {
+              "complete": true,
+              "samples": [
+                {
+                  "sourceIndex": 0,
+                  "pts": 0.0
+                },
+                {
+                  "sourceIndex": 1,
+                  "pts": 0.1
+                },
+                {
+                  "sourceIndex": 2,
+                  "pts": 0.2
+                }
+              ]
+            }
+          }
+        },
+        "profiles": {
+          "p": {
+            "metricId": "cameraTorsoCausalRangeDeg",
+            "metricVersion": "1",
+            "definitionHash": "a7de66917bc4eb81d64daf43ffb3d7e8ca1adc97cdae4c534ea7437ff61e0d81",
+            "unit": "degrees",
+            "coordinate": "XS_H36M17_camera_reference_no_verified_ground",
+            "aggregation": "sample",
+            "ruleId": "a",
+            "exercise": "barbell-row",
+            "variant": "floor",
+            "comparator": "gt",
+            "upper": 95,
+            "referenceKind": "engineering_candidate",
+            "predicateMeaning": "deviation",
+            "revision": "r1",
+            "source": "synthetic reviewed engineering fixture",
+            "availableAtPts": 0,
+            "applicability": {
+              "phase": [
+                "descending"
+              ],
+              "side": [
+                "left"
+              ],
+              "view": [
+                "unknown"
+              ]
+            },
+            "confirmation": {
+              "kind": "engineering_review",
+              "at": "2026-11-02",
+              "reference": "synthetic test only",
+              "scope": {
+                "metricId": "cameraTorsoCausalRangeDeg",
+                "metricVersion": "1",
+                "definitionHash": "a7de66917bc4eb81d64daf43ffb3d7e8ca1adc97cdae4c534ea7437ff61e0d81",
+                "unit": "degrees",
+                "coordinate": "XS_H36M17_camera_reference_no_verified_ground",
+                "aggregation": "sample",
+                "ruleId": "a",
+                "exercise": "barbell-row",
+                "variant": "floor"
+              }
+            },
+            "evidencePolicy": {
+              "version": "bpt.candidate-evidence-policy.v1",
+              "sourceIdentity": "capture_epoch",
+              "view": "not_required"
+            }
+          }
+        },
+        "criterion": {
+          "type": "atom",
+          "id": "a",
+          "observation": "o",
+          "profile": "p"
+        }
+      },
+      "expected": {
+        "schema": "bpt.coaching-criteria.v1",
+        "catalogVersion": "bpt.coaching-metrics.v1",
+        "exercise": "barbell-row",
+        "variant": "floor",
+        "criterion": {
+          "id": "a",
+          "type": "atom",
+          "state": "positive_evidence",
+          "reasons": [],
+          "observationId": "o",
+          "observed": {
+            "metricId": "cameraTorsoCausalRangeDeg",
+            "metricVersion": "1",
+            "definitionHash": "a7de66917bc4eb81d64daf43ffb3d7e8ca1adc97cdae4c534ea7437ff61e0d81",
+            "unit": "degrees",
+            "coordinate": "XS_H36M17_camera_reference_no_verified_ground",
+            "aggregation": "sample",
+            "scope": {
+              "sourceIdentity": {
+                "captureId": "synthetic-capture",
+                "epoch": "1",
+                "clockId": "source-pts"
+              },
+              "selectedSide": "left",
+              "timeBasis": "source_pts_seconds",
+              "startPts": 0,
+              "endPts": 0.2,
+              "phase": "descending",
+              "side": "left",
+              "view": "unknown",
+              "coverageComplete": true,
+              "coverageEvidence": {
+                "phaseStartObserved": true,
+                "phaseEndObserved": true,
+                "membershipSource": "synthetic-membership"
+              },
+              "expectedSourceIndices": [
+                2
+              ]
+            },
+            "samples": [
+              {
+                "sourceIndex": 2,
+                "pts": 0.2,
+                "side": "left",
+                "phase": "descending",
+                "view": "unknown",
+                "available": true,
+                "value": 100,
+                "rawValue": 100
+              }
+            ],
+            "available": true,
+            "blockingReasons": [],
+            "rawValue": 100,
+            "correctedValue": 100,
+            "confidence": 1.3,
+            "support": {
+              "requiredJointsSupported": true,
+              "trackingObserved": true,
+              "rawCorrectionChecked": true,
+              "maximumCorrectionDifference": 10
+            },
+            "measurementWindow": {
+              "complete": true,
+              "samples": [
+                {
+                  "sourceIndex": 0,
+                  "pts": 0.0
+                },
+                {
+                  "sourceIndex": 1,
+                  "pts": 0.1
+                },
+                {
+                  "sourceIndex": 2,
+                  "pts": 0.2
+                }
+              ]
+            }
+          },
+          "profileId": "p",
+          "profile": {
+            "metricId": "cameraTorsoCausalRangeDeg",
+            "metricVersion": "1",
+            "definitionHash": "a7de66917bc4eb81d64daf43ffb3d7e8ca1adc97cdae4c534ea7437ff61e0d81",
+            "unit": "degrees",
+            "coordinate": "XS_H36M17_camera_reference_no_verified_ground",
+            "aggregation": "sample",
+            "ruleId": "a",
+            "exercise": "barbell-row",
+            "variant": "floor",
+            "comparator": "gt",
+            "upper": 95,
+            "referenceKind": "engineering_candidate",
+            "predicateMeaning": "deviation",
+            "revision": "r1",
+            "source": "synthetic reviewed engineering fixture",
+            "availableAtPts": 0,
+            "applicability": {
+              "phase": [
+                "descending"
+              ],
+              "side": [
+                "left"
+              ],
+              "view": [
+                "unknown"
+              ]
+            },
+            "confirmation": {
+              "kind": "engineering_review",
+              "at": "2026-11-02",
+              "reference": "synthetic test only",
+              "scope": {
+                "metricId": "cameraTorsoCausalRangeDeg",
+                "metricVersion": "1",
+                "definitionHash": "a7de66917bc4eb81d64daf43ffb3d7e8ca1adc97cdae4c534ea7437ff61e0d81",
+                "unit": "degrees",
+                "coordinate": "XS_H36M17_camera_reference_no_verified_ground",
+                "aggregation": "sample",
+                "ruleId": "a",
+                "exercise": "barbell-row",
+                "variant": "floor"
+              }
+            },
+            "evidencePolicy": {
+              "version": "bpt.candidate-evidence-policy.v1",
+              "sourceIdentity": "capture_epoch",
+              "view": "not_required"
+            }
+          },
+          "partialCoverage": false,
+          "interpretation": "candidate_predicate",
+          "scope": {
+            "sourceIdentity": {
+              "captureId": "synthetic-capture",
+              "epoch": "1",
+              "clockId": "source-pts"
+            },
+            "timeBasis": "source_pts_seconds",
+            "startPts": 0,
+            "endPts": 0.2,
+            "phase": "descending",
+            "side": "left",
+            "selectedSide": "left",
+            "view": "unknown"
+          },
+          "knownComponents": [],
+          "sampleEvidence": [
+            {
+              "sourceIndex": 2,
+              "pts": 0.2,
+              "supported": true,
+              "reasons": []
+            }
+          ],
+          "profileIntegrityHash": "30c75cff26ce997fbd9859d3d4fc488654f2359ca5723b53b65462c1b057969d",
+          "predicateMeaning": "deviation",
+          "evaluatedValue": 100,
+          "aggregation": "sample",
+          "sampleMembership": [
+            {
+              "sourceIndex": 0,
+              "pts": 0.0
+            },
+            {
+              "sourceIndex": 1,
+              "pts": 0.1
+            },
+            {
+              "sourceIndex": 2,
+              "pts": 0.2
+            }
+          ],
+          "measurementTemporalKind": "window_summary",
+          "supportedPositiveSamples": [
+            {
+              "sourceIndex": 2,
+              "pts": 0.2
+            }
+          ]
+        },
+        "providedObservations": {
+          "o": {
+            "metricId": "cameraTorsoCausalRangeDeg",
+            "metricVersion": "1",
+            "definitionHash": "a7de66917bc4eb81d64daf43ffb3d7e8ca1adc97cdae4c534ea7437ff61e0d81",
+            "unit": "degrees",
+            "coordinate": "XS_H36M17_camera_reference_no_verified_ground",
+            "aggregation": "sample",
+            "scope": {
+              "sourceIdentity": {
+                "captureId": "synthetic-capture",
+                "epoch": "1",
+                "clockId": "source-pts"
+              },
+              "selectedSide": "left",
+              "timeBasis": "source_pts_seconds",
+              "startPts": 0,
+              "endPts": 0.2,
+              "phase": "descending",
+              "side": "left",
+              "view": "unknown",
+              "coverageComplete": true,
+              "coverageEvidence": {
+                "phaseStartObserved": true,
+                "phaseEndObserved": true,
+                "membershipSource": "synthetic-membership"
+              },
+              "expectedSourceIndices": [
+                2
+              ]
+            },
+            "samples": [
+              {
+                "sourceIndex": 2,
+                "pts": 0.2,
+                "side": "left",
+                "phase": "descending",
+                "view": "unknown",
+                "available": true,
+                "value": 100,
+                "rawValue": 100
+              }
+            ],
+            "available": true,
+            "blockingReasons": [],
+            "rawValue": 100,
+            "correctedValue": 100,
+            "confidence": 1.3,
+            "support": {
+              "requiredJointsSupported": true,
+              "trackingObserved": true,
+              "rawCorrectionChecked": true,
+              "maximumCorrectionDifference": 10
+            },
+            "measurementWindow": {
+              "complete": true,
+              "samples": [
+                {
+                  "sourceIndex": 0,
+                  "pts": 0.0
+                },
+                {
+                  "sourceIndex": 1,
+                  "pts": 0.1
+                },
+                {
+                  "sourceIndex": 2,
+                  "pts": 0.2
+                }
+              ]
+            }
+          }
+        },
+        "profileAuthority": "scoped_reference_only_not_whole_form_or_clinical_validation"
+      }
+    },
+    {
+      "request": {
+        "evaluation": {
+          "mode": "causal",
+          "asOfPts": 0.2
+        },
+        "exercise": "barbell-row",
+        "variant": "floor",
+        "observations": {
+          "o": {
+            "metricId": "cameraTorsoCausalRangeDeg",
+            "metricVersion": "1",
+            "definitionHash": "a7de66917bc4eb81d64daf43ffb3d7e8ca1adc97cdae4c534ea7437ff61e0d81",
+            "unit": "degrees",
+            "coordinate": "XS_H36M17_camera_reference_no_verified_ground",
+            "aggregation": "sample",
+            "scope": {
+              "sourceIdentity": {
+                "captureId": "synthetic-capture",
+                "epoch": "1",
+                "clockId": "source-pts"
+              },
+              "selectedSide": "left",
+              "timeBasis": "source_pts_seconds",
+              "startPts": 0,
+              "endPts": 0.2,
+              "phase": "descending",
+              "side": "left",
+              "view": "unknown",
+              "coverageComplete": true,
+              "coverageEvidence": {
+                "phaseStartObserved": true,
+                "phaseEndObserved": true,
+                "membershipSource": "synthetic-membership"
+              },
+              "expectedSourceIndices": [
+                2
+              ]
+            },
+            "samples": [
+              {
+                "sourceIndex": 2,
+                "pts": 0.2,
+                "side": "left",
+                "phase": "descending",
+                "view": "unknown",
+                "available": true,
+                "value": 100,
+                "rawValue": 100
+              }
+            ],
+            "available": true,
+            "blockingReasons": [],
+            "rawValue": 100,
+            "correctedValue": 100,
+            "confidence": 1.3,
+            "support": {
+              "requiredJointsSupported": true,
+              "trackingObserved": true,
+              "rawCorrectionChecked": true,
+              "maximumCorrectionDifference": 10
+            },
+            "measurementWindow": {
+              "complete": true,
+              "samples": [
+                {
+                  "sourceIndex": 0,
+                  "pts": 0.0
+                },
+                {
+                  "sourceIndex": 1,
+                  "pts": 0.1
+                },
+                {
+                  "sourceIndex": 2,
+                  "pts": 0.2
+                }
+              ]
+            }
+          }
+        },
+        "profiles": {
+          "p": {
+            "metricId": "cameraTorsoCausalRangeDeg",
+            "metricVersion": "1",
+            "definitionHash": "a7de66917bc4eb81d64daf43ffb3d7e8ca1adc97cdae4c534ea7437ff61e0d81",
+            "unit": "degrees",
+            "coordinate": "XS_H36M17_camera_reference_no_verified_ground",
+            "aggregation": "sample",
+            "ruleId": "a",
+            "exercise": "barbell-row",
+            "variant": "floor",
+            "comparator": "gt",
+            "upper": 95,
+            "referenceKind": "engineering_candidate",
+            "predicateMeaning": "deviation",
+            "revision": "r1",
+            "source": "synthetic reviewed engineering fixture",
+            "availableAtPts": 0,
+            "applicability": {
+              "phase": [
+                "descending"
+              ],
+              "side": [
+                "left"
+              ],
+              "view": [
+                "unknown"
+              ]
+            },
+            "confirmation": {
+              "kind": "engineering_review",
+              "at": "2026-11-02",
+              "reference": "synthetic test only",
+              "scope": {
+                "metricId": "cameraTorsoCausalRangeDeg",
+                "metricVersion": "1",
+                "definitionHash": "a7de66917bc4eb81d64daf43ffb3d7e8ca1adc97cdae4c534ea7437ff61e0d81",
+                "unit": "degrees",
+                "coordinate": "XS_H36M17_camera_reference_no_verified_ground",
+                "aggregation": "sample",
+                "ruleId": "a",
+                "exercise": "barbell-row",
+                "variant": "floor"
+              }
+            },
+            "evidencePolicy": {
+              "version": "bpt.candidate-evidence-policy.v1",
+              "sourceIdentity": "capture_epoch",
+              "view": "not_required"
+            }
+          }
+        },
+        "criterion": {
+          "type": "group",
+          "id": "g",
+          "op": "AND",
+          "pairing": {
+            "sidePolicy": "bilateral",
+            "temporal": "simultaneous"
+          },
+          "children": [
+            {
+              "type": "group",
+              "id": "inner",
+              "op": "OR",
+              "children": [
+                {
+                  "type": "atom",
+                  "id": "a",
+                  "observation": "o",
+                  "profile": "p"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "expected": {
+        "schema": "bpt.coaching-criteria.v1",
+        "catalogVersion": "bpt.coaching-metrics.v1",
+        "exercise": "barbell-row",
+        "variant": "floor",
+        "criterion": {
+          "id": "g",
+          "type": "group",
+          "op": "AND",
+          "state": "unknown",
+          "scope": null,
+          "reasons": [
+            "summary_metric_requires_same_window_contract",
+            "noncoincident_component_scopes"
+          ],
+          "partialCoverage": true,
+          "sampleMembership": [
+            {
+              "sourceIndex": 0,
+              "pts": 0.0
+            },
+            {
+              "sourceIndex": 1,
+              "pts": 0.1
+            },
+            {
+              "sourceIndex": 2,
+              "pts": 0.2
+            }
+          ],
+          "interpretation": "compound_supplied_predicates_only",
+          "predicateMeanings": [
+            "compound"
+          ],
+          "pairing": {
+            "sidePolicy": "bilateral",
+            "temporal": "simultaneous"
+          },
+          "sharedPositiveSamples": [
+            {
+              "sourceIndex": 2,
+              "pts": 0.2
+            }
+          ],
+          "supportedPositiveSamples": [],
+          "children": [
+            {
+              "id": "inner",
+              "type": "group",
+              "op": "OR",
+              "state": "positive_evidence",
+              "scope": {
+                "sourceIdentity": {
+                  "captureId": "synthetic-capture",
+                  "epoch": "1",
+                  "clockId": "source-pts"
+                },
+                "timeBasis": "source_pts_seconds",
+                "startPts": 0,
+                "endPts": 0.2,
+                "phase": "descending",
+                "side": "left",
+                "selectedSide": "left",
+                "view": "unknown"
+              },
+              "reasons": [],
+              "partialCoverage": true,
+              "sampleMembership": [
+                {
+                  "sourceIndex": 0,
+                  "pts": 0.0
+                },
+                {
+                  "sourceIndex": 1,
+                  "pts": 0.1
+                },
+                {
+                  "sourceIndex": 2,
+                  "pts": 0.2
+                }
+              ],
+              "interpretation": "compound_supplied_predicates_only",
+              "predicateMeanings": [
+                "deviation"
+              ],
+              "pairing": {},
+              "sharedPositiveSamples": [],
+              "supportedPositiveSamples": [
+                {
+                  "sourceIndex": 2,
+                  "pts": 0.2
+                }
+              ],
+              "children": [
+                {
+                  "id": "a",
+                  "type": "atom",
+                  "state": "positive_evidence",
+                  "reasons": [],
+                  "observationId": "o",
+                  "observed": {
+                    "metricId": "cameraTorsoCausalRangeDeg",
+                    "metricVersion": "1",
+                    "definitionHash": "a7de66917bc4eb81d64daf43ffb3d7e8ca1adc97cdae4c534ea7437ff61e0d81",
+                    "unit": "degrees",
+                    "coordinate": "XS_H36M17_camera_reference_no_verified_ground",
+                    "aggregation": "sample",
+                    "scope": {
+                      "sourceIdentity": {
+                        "captureId": "synthetic-capture",
+                        "epoch": "1",
+                        "clockId": "source-pts"
+                      },
+                      "selectedSide": "left",
+                      "timeBasis": "source_pts_seconds",
+                      "startPts": 0,
+                      "endPts": 0.2,
+                      "phase": "descending",
+                      "side": "left",
+                      "view": "unknown",
+                      "coverageComplete": true,
+                      "coverageEvidence": {
+                        "phaseStartObserved": true,
+                        "phaseEndObserved": true,
+                        "membershipSource": "synthetic-membership"
+                      },
+                      "expectedSourceIndices": [
+                        2
+                      ]
+                    },
+                    "samples": [
+                      {
+                        "sourceIndex": 2,
+                        "pts": 0.2,
+                        "side": "left",
+                        "phase": "descending",
+                        "view": "unknown",
+                        "available": true,
+                        "value": 100,
+                        "rawValue": 100
+                      }
+                    ],
+                    "available": true,
+                    "blockingReasons": [],
+                    "rawValue": 100,
+                    "correctedValue": 100,
+                    "confidence": 1.3,
+                    "support": {
+                      "requiredJointsSupported": true,
+                      "trackingObserved": true,
+                      "rawCorrectionChecked": true,
+                      "maximumCorrectionDifference": 10
+                    },
+                    "measurementWindow": {
+                      "complete": true,
+                      "samples": [
+                        {
+                          "sourceIndex": 0,
+                          "pts": 0.0
+                        },
+                        {
+                          "sourceIndex": 1,
+                          "pts": 0.1
+                        },
+                        {
+                          "sourceIndex": 2,
+                          "pts": 0.2
+                        }
+                      ]
+                    }
+                  },
+                  "profileId": "p",
+                  "profile": {
+                    "metricId": "cameraTorsoCausalRangeDeg",
+                    "metricVersion": "1",
+                    "definitionHash": "a7de66917bc4eb81d64daf43ffb3d7e8ca1adc97cdae4c534ea7437ff61e0d81",
+                    "unit": "degrees",
+                    "coordinate": "XS_H36M17_camera_reference_no_verified_ground",
+                    "aggregation": "sample",
+                    "ruleId": "a",
+                    "exercise": "barbell-row",
+                    "variant": "floor",
+                    "comparator": "gt",
+                    "upper": 95,
+                    "referenceKind": "engineering_candidate",
+                    "predicateMeaning": "deviation",
+                    "revision": "r1",
+                    "source": "synthetic reviewed engineering fixture",
+                    "availableAtPts": 0,
+                    "applicability": {
+                      "phase": [
+                        "descending"
+                      ],
+                      "side": [
+                        "left"
+                      ],
+                      "view": [
+                        "unknown"
+                      ]
+                    },
+                    "confirmation": {
+                      "kind": "engineering_review",
+                      "at": "2026-11-02",
+                      "reference": "synthetic test only",
+                      "scope": {
+                        "metricId": "cameraTorsoCausalRangeDeg",
+                        "metricVersion": "1",
+                        "definitionHash": "a7de66917bc4eb81d64daf43ffb3d7e8ca1adc97cdae4c534ea7437ff61e0d81",
+                        "unit": "degrees",
+                        "coordinate": "XS_H36M17_camera_reference_no_verified_ground",
+                        "aggregation": "sample",
+                        "ruleId": "a",
+                        "exercise": "barbell-row",
+                        "variant": "floor"
+                      }
+                    },
+                    "evidencePolicy": {
+                      "version": "bpt.candidate-evidence-policy.v1",
+                      "sourceIdentity": "capture_epoch",
+                      "view": "not_required"
+                    }
+                  },
+                  "partialCoverage": false,
+                  "interpretation": "candidate_predicate",
+                  "scope": {
+                    "sourceIdentity": {
+                      "captureId": "synthetic-capture",
+                      "epoch": "1",
+                      "clockId": "source-pts"
+                    },
+                    "timeBasis": "source_pts_seconds",
+                    "startPts": 0,
+                    "endPts": 0.2,
+                    "phase": "descending",
+                    "side": "left",
+                    "selectedSide": "left",
+                    "view": "unknown"
+                  },
+                  "knownComponents": [],
+                  "sampleEvidence": [
+                    {
+                      "sourceIndex": 2,
+                      "pts": 0.2,
+                      "supported": true,
+                      "reasons": []
+                    }
+                  ],
+                  "profileIntegrityHash": "30c75cff26ce997fbd9859d3d4fc488654f2359ca5723b53b65462c1b057969d",
+                  "predicateMeaning": "deviation",
+                  "evaluatedValue": 100,
+                  "aggregation": "sample",
+                  "sampleMembership": [
+                    {
+                      "sourceIndex": 0,
+                      "pts": 0.0
+                    },
+                    {
+                      "sourceIndex": 1,
+                      "pts": 0.1
+                    },
+                    {
+                      "sourceIndex": 2,
+                      "pts": 0.2
+                    }
+                  ],
+                  "measurementTemporalKind": "window_summary",
+                  "supportedPositiveSamples": [
+                    {
+                      "sourceIndex": 2,
+                      "pts": 0.2
+                    }
+                  ]
+                }
+              ],
+              "knownComponents": [
+                "a"
+              ]
+            }
+          ],
+          "knownComponents": [
+            "inner"
+          ]
+        },
+        "providedObservations": {
+          "o": {
+            "metricId": "cameraTorsoCausalRangeDeg",
+            "metricVersion": "1",
+            "definitionHash": "a7de66917bc4eb81d64daf43ffb3d7e8ca1adc97cdae4c534ea7437ff61e0d81",
+            "unit": "degrees",
+            "coordinate": "XS_H36M17_camera_reference_no_verified_ground",
+            "aggregation": "sample",
+            "scope": {
+              "sourceIdentity": {
+                "captureId": "synthetic-capture",
+                "epoch": "1",
+                "clockId": "source-pts"
+              },
+              "selectedSide": "left",
+              "timeBasis": "source_pts_seconds",
+              "startPts": 0,
+              "endPts": 0.2,
+              "phase": "descending",
+              "side": "left",
+              "view": "unknown",
+              "coverageComplete": true,
+              "coverageEvidence": {
+                "phaseStartObserved": true,
+                "phaseEndObserved": true,
+                "membershipSource": "synthetic-membership"
+              },
+              "expectedSourceIndices": [
+                2
+              ]
+            },
+            "samples": [
+              {
+                "sourceIndex": 2,
+                "pts": 0.2,
+                "side": "left",
+                "phase": "descending",
+                "view": "unknown",
+                "available": true,
+                "value": 100,
+                "rawValue": 100
+              }
+            ],
+            "available": true,
+            "blockingReasons": [],
+            "rawValue": 100,
+            "correctedValue": 100,
+            "confidence": 1.3,
+            "support": {
+              "requiredJointsSupported": true,
+              "trackingObserved": true,
+              "rawCorrectionChecked": true,
+              "maximumCorrectionDifference": 10
+            },
+            "measurementWindow": {
+              "complete": true,
+              "samples": [
+                {
+                  "sourceIndex": 0,
+                  "pts": 0.0
+                },
+                {
+                  "sourceIndex": 1,
+                  "pts": 0.1
+                },
+                {
+                  "sourceIndex": 2,
+                  "pts": 0.2
+                }
+              ]
+            }
+          }
+        },
+        "profileAuthority": "scoped_reference_only_not_whole_form_or_clinical_validation"
+      }
+    },
+    {
+      "request": {
+        "evaluation": {
+          "mode": "causal",
+          "asOfPts": 0.2
+        },
+        "exercise": "barbell-row",
+        "variant": "floor",
+        "observations": {
+          "o": {
+            "metricId": "cameraTorsoCausalRangeDeg",
+            "metricVersion": "1",
+            "definitionHash": "a7de66917bc4eb81d64daf43ffb3d7e8ca1adc97cdae4c534ea7437ff61e0d81",
+            "unit": "degrees",
+            "coordinate": "XS_H36M17_camera_reference_no_verified_ground",
+            "aggregation": "sample",
+            "scope": {
+              "sourceIdentity": {
+                "captureId": "synthetic-capture",
+                "epoch": "1",
+                "clockId": "source-pts"
+              },
+              "selectedSide": "left",
+              "timeBasis": "source_pts_seconds",
+              "startPts": 0,
+              "endPts": 0.2,
+              "phase": "descending",
+              "side": "left",
+              "view": "unknown",
+              "coverageComplete": true,
+              "coverageEvidence": {
+                "phaseStartObserved": true,
+                "phaseEndObserved": true,
+                "membershipSource": "synthetic-membership"
+              },
+              "expectedSourceIndices": [
+                2
+              ]
+            },
+            "samples": [
+              {
+                "sourceIndex": 2,
+                "pts": 0.2,
+                "side": "left",
+                "phase": "descending",
+                "view": "unknown",
+                "available": true,
+                "value": 100,
+                "rawValue": 100
+              }
+            ],
+            "available": true,
+            "blockingReasons": [],
+            "rawValue": 100,
+            "correctedValue": 100,
+            "confidence": 1.3,
+            "support": {
+              "requiredJointsSupported": true,
+              "trackingObserved": true,
+              "rawCorrectionChecked": true,
+              "maximumCorrectionDifference": 10
+            },
+            "measurementWindow": {
+              "complete": true,
+              "samples": [
+                {
+                  "sourceIndex": 0,
+                  "pts": 0.0
+                },
+                {
+                  "sourceIndex": 1,
+                  "pts": 0.1
+                },
+                {
+                  "sourceIndex": 2,
+                  "pts": 0.2
+                }
+              ]
+            }
+          }
+        },
+        "profiles": {
+          "p": {
+            "metricId": "cameraTorsoCausalRangeDeg",
+            "metricVersion": "1",
+            "definitionHash": "a7de66917bc4eb81d64daf43ffb3d7e8ca1adc97cdae4c534ea7437ff61e0d81",
+            "unit": "degrees",
+            "coordinate": "XS_H36M17_camera_reference_no_verified_ground",
+            "aggregation": "sample",
+            "ruleId": "a",
+            "exercise": "barbell-row",
+            "variant": "floor",
+            "comparator": "gt",
+            "upper": 95,
+            "referenceKind": "engineering_candidate",
+            "predicateMeaning": "deviation",
+            "revision": "r1",
+            "source": "synthetic reviewed engineering fixture",
+            "availableAtPts": 0,
+            "applicability": {
+              "phase": [
+                "descending"
+              ],
+              "side": [
+                "left"
+              ],
+              "view": [
+                "unknown"
+              ]
+            },
+            "confirmation": {
+              "kind": "engineering_review",
+              "at": "2026-11-02",
+              "reference": "synthetic test only",
+              "scope": {
+                "metricId": "cameraTorsoCausalRangeDeg",
+                "metricVersion": "1",
+                "definitionHash": "a7de66917bc4eb81d64daf43ffb3d7e8ca1adc97cdae4c534ea7437ff61e0d81",
+                "unit": "degrees",
+                "coordinate": "XS_H36M17_camera_reference_no_verified_ground",
+                "aggregation": "sample",
+                "ruleId": "a",
+                "exercise": "barbell-row",
+                "variant": "floor"
+              }
+            },
+            "evidencePolicy": {
+              "version": "bpt.candidate-evidence-policy.v1",
+              "sourceIdentity": "capture_epoch",
+              "view": "not_required"
+            }
+          }
+        },
+        "criterion": {
+          "type": "group",
+          "id": "g",
+          "op": "AND",
+          "pairing": {
+            "sidePolicy": "bilateral",
+            "temporal": "same_window_summary"
+          },
+          "children": [
+            {
+              "type": "group",
+              "id": "inner",
+              "op": "OR",
+              "children": [
+                {
+                  "type": "atom",
+                  "id": "a",
+                  "observation": "o",
+                  "profile": "p"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "expected": {
+        "schema": "bpt.coaching-criteria.v1",
+        "catalogVersion": "bpt.coaching-metrics.v1",
+        "exercise": "barbell-row",
+        "variant": "floor",
+        "criterion": {
+          "id": "g",
+          "type": "group",
+          "op": "AND",
+          "state": "positive_evidence",
+          "scope": {
+            "sourceIdentity": {
+              "captureId": "synthetic-capture",
+              "epoch": "1",
+              "clockId": "source-pts"
+            },
+            "timeBasis": "source_pts_seconds",
+            "startPts": 0,
+            "endPts": 0.2,
+            "phase": "descending",
+            "side": "left",
+            "selectedSide": "left",
+            "view": "unknown"
+          },
+          "reasons": [],
+          "partialCoverage": true,
+          "sampleMembership": [
+            {
+              "sourceIndex": 0,
+              "pts": 0.0
+            },
+            {
+              "sourceIndex": 1,
+              "pts": 0.1
+            },
+            {
+              "sourceIndex": 2,
+              "pts": 0.2
+            }
+          ],
+          "interpretation": "compound_supplied_predicates_only",
+          "predicateMeanings": [
+            "compound"
+          ],
+          "pairing": {
+            "sidePolicy": "bilateral",
+            "temporal": "same_window_summary"
+          },
+          "sharedPositiveSamples": [],
+          "supportedPositiveSamples": [],
+          "children": [
+            {
+              "id": "inner",
+              "type": "group",
+              "op": "OR",
+              "state": "positive_evidence",
+              "scope": {
+                "sourceIdentity": {
+                  "captureId": "synthetic-capture",
+                  "epoch": "1",
+                  "clockId": "source-pts"
+                },
+                "timeBasis": "source_pts_seconds",
+                "startPts": 0,
+                "endPts": 0.2,
+                "phase": "descending",
+                "side": "left",
+                "selectedSide": "left",
+                "view": "unknown"
+              },
+              "reasons": [],
+              "partialCoverage": true,
+              "sampleMembership": [
+                {
+                  "sourceIndex": 0,
+                  "pts": 0.0
+                },
+                {
+                  "sourceIndex": 1,
+                  "pts": 0.1
+                },
+                {
+                  "sourceIndex": 2,
+                  "pts": 0.2
+                }
+              ],
+              "interpretation": "compound_supplied_predicates_only",
+              "predicateMeanings": [
+                "deviation"
+              ],
+              "pairing": {},
+              "sharedPositiveSamples": [],
+              "supportedPositiveSamples": [
+                {
+                  "sourceIndex": 2,
+                  "pts": 0.2
+                }
+              ],
+              "children": [
+                {
+                  "id": "a",
+                  "type": "atom",
+                  "state": "positive_evidence",
+                  "reasons": [],
+                  "observationId": "o",
+                  "observed": {
+                    "metricId": "cameraTorsoCausalRangeDeg",
+                    "metricVersion": "1",
+                    "definitionHash": "a7de66917bc4eb81d64daf43ffb3d7e8ca1adc97cdae4c534ea7437ff61e0d81",
+                    "unit": "degrees",
+                    "coordinate": "XS_H36M17_camera_reference_no_verified_ground",
+                    "aggregation": "sample",
+                    "scope": {
+                      "sourceIdentity": {
+                        "captureId": "synthetic-capture",
+                        "epoch": "1",
+                        "clockId": "source-pts"
+                      },
+                      "selectedSide": "left",
+                      "timeBasis": "source_pts_seconds",
+                      "startPts": 0,
+                      "endPts": 0.2,
+                      "phase": "descending",
+                      "side": "left",
+                      "view": "unknown",
+                      "coverageComplete": true,
+                      "coverageEvidence": {
+                        "phaseStartObserved": true,
+                        "phaseEndObserved": true,
+                        "membershipSource": "synthetic-membership"
+                      },
+                      "expectedSourceIndices": [
+                        2
+                      ]
+                    },
+                    "samples": [
+                      {
+                        "sourceIndex": 2,
+                        "pts": 0.2,
+                        "side": "left",
+                        "phase": "descending",
+                        "view": "unknown",
+                        "available": true,
+                        "value": 100,
+                        "rawValue": 100
+                      }
+                    ],
+                    "available": true,
+                    "blockingReasons": [],
+                    "rawValue": 100,
+                    "correctedValue": 100,
+                    "confidence": 1.3,
+                    "support": {
+                      "requiredJointsSupported": true,
+                      "trackingObserved": true,
+                      "rawCorrectionChecked": true,
+                      "maximumCorrectionDifference": 10
+                    },
+                    "measurementWindow": {
+                      "complete": true,
+                      "samples": [
+                        {
+                          "sourceIndex": 0,
+                          "pts": 0.0
+                        },
+                        {
+                          "sourceIndex": 1,
+                          "pts": 0.1
+                        },
+                        {
+                          "sourceIndex": 2,
+                          "pts": 0.2
+                        }
+                      ]
+                    }
+                  },
+                  "profileId": "p",
+                  "profile": {
+                    "metricId": "cameraTorsoCausalRangeDeg",
+                    "metricVersion": "1",
+                    "definitionHash": "a7de66917bc4eb81d64daf43ffb3d7e8ca1adc97cdae4c534ea7437ff61e0d81",
+                    "unit": "degrees",
+                    "coordinate": "XS_H36M17_camera_reference_no_verified_ground",
+                    "aggregation": "sample",
+                    "ruleId": "a",
+                    "exercise": "barbell-row",
+                    "variant": "floor",
+                    "comparator": "gt",
+                    "upper": 95,
+                    "referenceKind": "engineering_candidate",
+                    "predicateMeaning": "deviation",
+                    "revision": "r1",
+                    "source": "synthetic reviewed engineering fixture",
+                    "availableAtPts": 0,
+                    "applicability": {
+                      "phase": [
+                        "descending"
+                      ],
+                      "side": [
+                        "left"
+                      ],
+                      "view": [
+                        "unknown"
+                      ]
+                    },
+                    "confirmation": {
+                      "kind": "engineering_review",
+                      "at": "2026-11-02",
+                      "reference": "synthetic test only",
+                      "scope": {
+                        "metricId": "cameraTorsoCausalRangeDeg",
+                        "metricVersion": "1",
+                        "definitionHash": "a7de66917bc4eb81d64daf43ffb3d7e8ca1adc97cdae4c534ea7437ff61e0d81",
+                        "unit": "degrees",
+                        "coordinate": "XS_H36M17_camera_reference_no_verified_ground",
+                        "aggregation": "sample",
+                        "ruleId": "a",
+                        "exercise": "barbell-row",
+                        "variant": "floor"
+                      }
+                    },
+                    "evidencePolicy": {
+                      "version": "bpt.candidate-evidence-policy.v1",
+                      "sourceIdentity": "capture_epoch",
+                      "view": "not_required"
+                    }
+                  },
+                  "partialCoverage": false,
+                  "interpretation": "candidate_predicate",
+                  "scope": {
+                    "sourceIdentity": {
+                      "captureId": "synthetic-capture",
+                      "epoch": "1",
+                      "clockId": "source-pts"
+                    },
+                    "timeBasis": "source_pts_seconds",
+                    "startPts": 0,
+                    "endPts": 0.2,
+                    "phase": "descending",
+                    "side": "left",
+                    "selectedSide": "left",
+                    "view": "unknown"
+                  },
+                  "knownComponents": [],
+                  "sampleEvidence": [
+                    {
+                      "sourceIndex": 2,
+                      "pts": 0.2,
+                      "supported": true,
+                      "reasons": []
+                    }
+                  ],
+                  "profileIntegrityHash": "30c75cff26ce997fbd9859d3d4fc488654f2359ca5723b53b65462c1b057969d",
+                  "predicateMeaning": "deviation",
+                  "evaluatedValue": 100,
+                  "aggregation": "sample",
+                  "sampleMembership": [
+                    {
+                      "sourceIndex": 0,
+                      "pts": 0.0
+                    },
+                    {
+                      "sourceIndex": 1,
+                      "pts": 0.1
+                    },
+                    {
+                      "sourceIndex": 2,
+                      "pts": 0.2
+                    }
+                  ],
+                  "measurementTemporalKind": "window_summary",
+                  "supportedPositiveSamples": [
+                    {
+                      "sourceIndex": 2,
+                      "pts": 0.2
+                    }
+                  ]
+                }
+              ],
+              "knownComponents": [
+                "a"
+              ]
+            }
+          ],
+          "knownComponents": [
+            "inner"
+          ]
+        },
+        "providedObservations": {
+          "o": {
+            "metricId": "cameraTorsoCausalRangeDeg",
+            "metricVersion": "1",
+            "definitionHash": "a7de66917bc4eb81d64daf43ffb3d7e8ca1adc97cdae4c534ea7437ff61e0d81",
+            "unit": "degrees",
+            "coordinate": "XS_H36M17_camera_reference_no_verified_ground",
+            "aggregation": "sample",
+            "scope": {
+              "sourceIdentity": {
+                "captureId": "synthetic-capture",
+                "epoch": "1",
+                "clockId": "source-pts"
+              },
+              "selectedSide": "left",
+              "timeBasis": "source_pts_seconds",
+              "startPts": 0,
+              "endPts": 0.2,
+              "phase": "descending",
+              "side": "left",
+              "view": "unknown",
+              "coverageComplete": true,
+              "coverageEvidence": {
+                "phaseStartObserved": true,
+                "phaseEndObserved": true,
+                "membershipSource": "synthetic-membership"
+              },
+              "expectedSourceIndices": [
+                2
+              ]
+            },
+            "samples": [
+              {
+                "sourceIndex": 2,
+                "pts": 0.2,
+                "side": "left",
+                "phase": "descending",
+                "view": "unknown",
+                "available": true,
+                "value": 100,
+                "rawValue": 100
+              }
+            ],
+            "available": true,
+            "blockingReasons": [],
+            "rawValue": 100,
+            "correctedValue": 100,
+            "confidence": 1.3,
+            "support": {
+              "requiredJointsSupported": true,
+              "trackingObserved": true,
+              "rawCorrectionChecked": true,
+              "maximumCorrectionDifference": 10
+            },
+            "measurementWindow": {
+              "complete": true,
+              "samples": [
+                {
+                  "sourceIndex": 0,
+                  "pts": 0.0
+                },
+                {
+                  "sourceIndex": 1,
+                  "pts": 0.1
+                },
+                {
+                  "sourceIndex": 2,
+                  "pts": 0.2
+                }
+              ]
+            }
+          }
+        },
+        "profileAuthority": "scoped_reference_only_not_whole_form_or_clinical_validation"
+      }
+    },
+    {
+      "request": {
+        "evaluation": {
+          "mode": "causal",
+          "asOfPts": 0.2
+        },
+        "exercise": "barbell-row",
+        "variant": "floor",
+        "observations": {
+          "o": {
+            "metricId": "cameraTorsoCausalRangeDeg",
+            "metricVersion": "1",
+            "definitionHash": "a7de66917bc4eb81d64daf43ffb3d7e8ca1adc97cdae4c534ea7437ff61e0d81",
+            "unit": "degrees",
+            "coordinate": "XS_H36M17_camera_reference_no_verified_ground",
+            "aggregation": "sample",
+            "scope": {
+              "sourceIdentity": {
+                "captureId": "synthetic-capture",
+                "epoch": "1",
+                "clockId": "source-pts"
+              },
+              "selectedSide": "left",
+              "timeBasis": "source_pts_seconds",
+              "startPts": 0,
+              "endPts": 0.2,
+              "phase": "descending",
+              "side": "left",
+              "view": "unknown",
+              "coverageComplete": true,
+              "coverageEvidence": {
+                "phaseStartObserved": true,
+                "phaseEndObserved": true,
+                "membershipSource": "synthetic-membership"
+              },
+              "expectedSourceIndices": [
+                2
+              ]
+            },
+            "samples": [
+              {
+                "sourceIndex": 2,
+                "pts": 0.2,
+                "side": "left",
+                "phase": "descending",
+                "view": "unknown",
+                "available": true,
+                "value": 100,
+                "rawValue": 100
+              }
+            ],
+            "available": true,
+            "blockingReasons": [],
+            "rawValue": 100,
+            "correctedValue": 100,
+            "confidence": 1.3,
+            "support": {
+              "requiredJointsSupported": true,
+              "trackingObserved": true,
+              "rawCorrectionChecked": true,
+              "maximumCorrectionDifference": 10
+            },
+            "measurementWindow": {
+              "complete": true,
+              "samples": [
+                {
+                  "sourceIndex": 0,
+                  "pts": 0.0
+                },
+                {
+                  "sourceIndex": 9,
+                  "pts": 0.1
+                },
+                {
+                  "sourceIndex": 2,
+                  "pts": 0.2
+                }
+              ]
+            }
+          }
+        },
+        "profiles": {
+          "p": {
+            "metricId": "cameraTorsoCausalRangeDeg",
+            "metricVersion": "1",
+            "definitionHash": "a7de66917bc4eb81d64daf43ffb3d7e8ca1adc97cdae4c534ea7437ff61e0d81",
+            "unit": "degrees",
+            "coordinate": "XS_H36M17_camera_reference_no_verified_ground",
+            "aggregation": "sample",
+            "ruleId": "a",
+            "exercise": "barbell-row",
+            "variant": "floor",
+            "comparator": "gt",
+            "upper": 95,
+            "referenceKind": "engineering_candidate",
+            "predicateMeaning": "deviation",
+            "revision": "r1",
+            "source": "synthetic reviewed engineering fixture",
+            "availableAtPts": 0,
+            "applicability": {
+              "phase": [
+                "descending"
+              ],
+              "side": [
+                "left"
+              ],
+              "view": [
+                "unknown"
+              ]
+            },
+            "confirmation": {
+              "kind": "engineering_review",
+              "at": "2026-11-02",
+              "reference": "synthetic test only",
+              "scope": {
+                "metricId": "cameraTorsoCausalRangeDeg",
+                "metricVersion": "1",
+                "definitionHash": "a7de66917bc4eb81d64daf43ffb3d7e8ca1adc97cdae4c534ea7437ff61e0d81",
+                "unit": "degrees",
+                "coordinate": "XS_H36M17_camera_reference_no_verified_ground",
+                "aggregation": "sample",
+                "ruleId": "a",
+                "exercise": "barbell-row",
+                "variant": "floor"
+              }
+            },
+            "evidencePolicy": {
+              "version": "bpt.candidate-evidence-policy.v1",
+              "sourceIdentity": "capture_epoch",
+              "view": "not_required"
+            }
+          }
+        },
+        "criterion": {
+          "type": "group",
+          "id": "g",
+          "op": "AND",
+          "pairing": {
+            "sidePolicy": "bilateral",
+            "temporal": "same_window_summary"
+          },
+          "children": [
+            {
+              "type": "group",
+              "id": "inner",
+              "op": "OR",
+              "children": [
+                {
+                  "type": "atom",
+                  "id": "a",
+                  "observation": "o",
+                  "profile": "p"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "expected": {
+        "schema": "bpt.coaching-criteria.v1",
+        "catalogVersion": "bpt.coaching-metrics.v1",
+        "exercise": "barbell-row",
+        "variant": "floor",
+        "criterion": {
+          "id": "g",
+          "type": "group",
+          "op": "AND",
+          "state": "unknown",
+          "scope": null,
+          "reasons": [
+            "noncoincident_component_scopes"
+          ],
+          "partialCoverage": true,
+          "sampleMembership": null,
+          "interpretation": "compound_supplied_predicates_only",
+          "predicateMeanings": [
+            "compound"
+          ],
+          "pairing": {
+            "sidePolicy": "bilateral",
+            "temporal": "same_window_summary"
+          },
+          "sharedPositiveSamples": [],
+          "supportedPositiveSamples": [],
+          "children": [
+            {
+              "id": "inner",
+              "type": "group",
+              "op": "OR",
+              "state": "unknown",
+              "scope": {
+                "sourceIdentity": {
+                  "captureId": "synthetic-capture",
+                  "epoch": "1",
+                  "clockId": "source-pts"
+                },
+                "timeBasis": "source_pts_seconds",
+                "startPts": 0,
+                "endPts": 0.2,
+                "phase": "descending",
+                "side": "left",
+                "selectedSide": "left",
+                "view": "unknown"
+              },
+              "reasons": [],
+              "partialCoverage": true,
+              "sampleMembership": null,
+              "interpretation": "compound_supplied_predicates_only",
+              "predicateMeanings": [
+                "deviation"
+              ],
+              "pairing": {},
+              "sharedPositiveSamples": [],
+              "supportedPositiveSamples": [],
+              "children": [
+                {
+                  "id": "a",
+                  "type": "atom",
+                  "state": "unknown",
+                  "reasons": [
+                    "invalid_derived_window_membership"
+                  ],
+                  "observationId": "o",
+                  "observed": {
+                    "metricId": "cameraTorsoCausalRangeDeg",
+                    "metricVersion": "1",
+                    "definitionHash": "a7de66917bc4eb81d64daf43ffb3d7e8ca1adc97cdae4c534ea7437ff61e0d81",
+                    "unit": "degrees",
+                    "coordinate": "XS_H36M17_camera_reference_no_verified_ground",
+                    "aggregation": "sample",
+                    "scope": {
+                      "sourceIdentity": {
+                        "captureId": "synthetic-capture",
+                        "epoch": "1",
+                        "clockId": "source-pts"
+                      },
+                      "selectedSide": "left",
+                      "timeBasis": "source_pts_seconds",
+                      "startPts": 0,
+                      "endPts": 0.2,
+                      "phase": "descending",
+                      "side": "left",
+                      "view": "unknown",
+                      "coverageComplete": true,
+                      "coverageEvidence": {
+                        "phaseStartObserved": true,
+                        "phaseEndObserved": true,
+                        "membershipSource": "synthetic-membership"
+                      },
+                      "expectedSourceIndices": [
+                        2
+                      ]
+                    },
+                    "samples": [
+                      {
+                        "sourceIndex": 2,
+                        "pts": 0.2,
+                        "side": "left",
+                        "phase": "descending",
+                        "view": "unknown",
+                        "available": true,
+                        "value": 100,
+                        "rawValue": 100
+                      }
+                    ],
+                    "available": true,
+                    "blockingReasons": [],
+                    "rawValue": 100,
+                    "correctedValue": 100,
+                    "confidence": 1.3,
+                    "support": {
+                      "requiredJointsSupported": true,
+                      "trackingObserved": true,
+                      "rawCorrectionChecked": true,
+                      "maximumCorrectionDifference": 10
+                    },
+                    "measurementWindow": {
+                      "complete": true,
+                      "samples": [
+                        {
+                          "sourceIndex": 0,
+                          "pts": 0.0
+                        },
+                        {
+                          "sourceIndex": 9,
+                          "pts": 0.1
+                        },
+                        {
+                          "sourceIndex": 2,
+                          "pts": 0.2
+                        }
+                      ]
+                    }
+                  },
+                  "profileId": "p",
+                  "profile": {
+                    "metricId": "cameraTorsoCausalRangeDeg",
+                    "metricVersion": "1",
+                    "definitionHash": "a7de66917bc4eb81d64daf43ffb3d7e8ca1adc97cdae4c534ea7437ff61e0d81",
+                    "unit": "degrees",
+                    "coordinate": "XS_H36M17_camera_reference_no_verified_ground",
+                    "aggregation": "sample",
+                    "ruleId": "a",
+                    "exercise": "barbell-row",
+                    "variant": "floor",
+                    "comparator": "gt",
+                    "upper": 95,
+                    "referenceKind": "engineering_candidate",
+                    "predicateMeaning": "deviation",
+                    "revision": "r1",
+                    "source": "synthetic reviewed engineering fixture",
+                    "availableAtPts": 0,
+                    "applicability": {
+                      "phase": [
+                        "descending"
+                      ],
+                      "side": [
+                        "left"
+                      ],
+                      "view": [
+                        "unknown"
+                      ]
+                    },
+                    "confirmation": {
+                      "kind": "engineering_review",
+                      "at": "2026-11-02",
+                      "reference": "synthetic test only",
+                      "scope": {
+                        "metricId": "cameraTorsoCausalRangeDeg",
+                        "metricVersion": "1",
+                        "definitionHash": "a7de66917bc4eb81d64daf43ffb3d7e8ca1adc97cdae4c534ea7437ff61e0d81",
+                        "unit": "degrees",
+                        "coordinate": "XS_H36M17_camera_reference_no_verified_ground",
+                        "aggregation": "sample",
+                        "ruleId": "a",
+                        "exercise": "barbell-row",
+                        "variant": "floor"
+                      }
+                    },
+                    "evidencePolicy": {
+                      "version": "bpt.candidate-evidence-policy.v1",
+                      "sourceIdentity": "capture_epoch",
+                      "view": "not_required"
+                    }
+                  },
+                  "partialCoverage": false,
+                  "interpretation": "candidate_predicate",
+                  "scope": {
+                    "sourceIdentity": {
+                      "captureId": "synthetic-capture",
+                      "epoch": "1",
+                      "clockId": "source-pts"
+                    },
+                    "timeBasis": "source_pts_seconds",
+                    "startPts": 0,
+                    "endPts": 0.2,
+                    "phase": "descending",
+                    "side": "left",
+                    "selectedSide": "left",
+                    "view": "unknown"
+                  },
+                  "knownComponents": [],
+                  "sampleEvidence": [
+                    {
+                      "sourceIndex": 2,
+                      "pts": 0.2,
+                      "supported": true,
+                      "reasons": []
+                    }
+                  ],
+                  "profileIntegrityHash": "30c75cff26ce997fbd9859d3d4fc488654f2359ca5723b53b65462c1b057969d",
+                  "predicateMeaning": "deviation",
+                  "evaluatedValue": 100,
+                  "aggregation": "sample",
+                  "sampleMembership": [
+                    {
+                      "sourceIndex": 2,
+                      "pts": 0.2
+                    }
+                  ],
+                  "measurementTemporalKind": "window_summary"
+                }
+              ],
+              "knownComponents": []
+            }
+          ],
+          "knownComponents": []
+        },
+        "providedObservations": {
+          "o": {
+            "metricId": "cameraTorsoCausalRangeDeg",
+            "metricVersion": "1",
+            "definitionHash": "a7de66917bc4eb81d64daf43ffb3d7e8ca1adc97cdae4c534ea7437ff61e0d81",
+            "unit": "degrees",
+            "coordinate": "XS_H36M17_camera_reference_no_verified_ground",
+            "aggregation": "sample",
+            "scope": {
+              "sourceIdentity": {
+                "captureId": "synthetic-capture",
+                "epoch": "1",
+                "clockId": "source-pts"
+              },
+              "selectedSide": "left",
+              "timeBasis": "source_pts_seconds",
+              "startPts": 0,
+              "endPts": 0.2,
+              "phase": "descending",
+              "side": "left",
+              "view": "unknown",
+              "coverageComplete": true,
+              "coverageEvidence": {
+                "phaseStartObserved": true,
+                "phaseEndObserved": true,
+                "membershipSource": "synthetic-membership"
+              },
+              "expectedSourceIndices": [
+                2
+              ]
+            },
+            "samples": [
+              {
+                "sourceIndex": 2,
+                "pts": 0.2,
+                "side": "left",
+                "phase": "descending",
+                "view": "unknown",
+                "available": true,
+                "value": 100,
+                "rawValue": 100
+              }
+            ],
+            "available": true,
+            "blockingReasons": [],
+            "rawValue": 100,
+            "correctedValue": 100,
+            "confidence": 1.3,
+            "support": {
+              "requiredJointsSupported": true,
+              "trackingObserved": true,
+              "rawCorrectionChecked": true,
+              "maximumCorrectionDifference": 10
+            },
+            "measurementWindow": {
+              "complete": true,
+              "samples": [
+                {
+                  "sourceIndex": 0,
+                  "pts": 0.0
+                },
+                {
+                  "sourceIndex": 9,
+                  "pts": 0.1
+                },
+                {
+                  "sourceIndex": 2,
+                  "pts": 0.2
+                }
+              ]
+            }
+          }
+        },
+        "profileAuthority": "scoped_reference_only_not_whole_form_or_clinical_validation"
+      }
+    },
+    {
+      "request": {
+        "evaluation": {
+          "mode": "causal",
+          "asOfPts": 0.2
+        },
+        "exercise": "pushup",
+        "variant": "floor",
+        "observations": {
+          "o": {
+            "metricId": "leftUpperArmDeg",
+            "metricVersion": "1",
+            "definitionHash": "bd6e0ce9848cf9a2feeb800ce6bccd377298a6b2090f400a6500e3d7ebf9fea6",
+            "unit": "degrees",
+            "coordinate": "XS_H36M17_model_space_body_relative",
+            "aggregation": "max",
+            "scope": {
+              "sourceIdentity": {
                 "inputSha256": "synthetic-input",
                 "sourceCommit": "synthetic-source",
                 "modelSha256": "synthetic-model",

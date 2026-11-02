@@ -21,6 +21,7 @@ class NativePoseChannel {
 
   static const String onPoseUpdate = 'onPoseUpdate';
   static const String onFeedback = 'onFeedback';
+  static const String onExperimentalCoachingCandidate = 'onExperimentalCoachingCandidate';
   static const String onSetEnd = 'onSetEnd';
   static const String setVoiceMuted = 'setVoiceMuted';
   static const String startSet = 'startSet';

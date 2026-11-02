@@ -339,7 +339,12 @@ final class VideoRunLog: @unchecked Sendable {
 
     private init?() {
         let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-        let directory = documents.appendingPathComponent("video_runs", isDirectory: true)
+        var directory = documents.appendingPathComponent("video_runs", isDirectory: true)
+        do {
+            if Self.terminalEvidence, let namespace=try CoachingCandidateRuntime.namespace(environment:DemoConfig.environment) {
+                directory=directory.appendingPathComponent(namespace,isDirectory:true)
+            }
+        } catch { print("[TerminalEvidence] capture_refused:invalid_candidate_namespace");return nil }
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.dateFormat = "yyyyMMdd_HHmmss"
@@ -347,11 +352,13 @@ final class VideoRunLog: @unchecked Sendable {
         let name = Self.terminalEvidence ? "terminal_\(UUID().uuidString)" : VideoCameraOptions.environment["BPT_RUN_TAG"].map { "run_\($0)" } ?? "run_\(formatter.string(from: Date()))"
         url = directory.appendingPathComponent("\(name).jsonl")
         if Self.terminalEvidence {
-            // Preserve every existing evidence file; refuse a fourth capture.
+            if let values=try? directory.resourceValues(forKeys:[.isSymbolicLinkKey]),values.isSymbolicLink==true { return nil }
+            // Preserve every existing evidence file; refuse a fourth capture in this namespace.
             let prior = ((try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: [.contentModificationDateKey])) ?? [])
                 .filter { $0.lastPathComponent.hasPrefix("terminal_") && $0.pathExtension == "jsonl" }
                 .sorted { ((try? $0.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast) > ((try? $1.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast) }
-            guard prior.count < 3 else {
+            let priorBytes=prior.reduce(Int64(0)) { total,url in total+((try? url.resourceValues(forKeys:[.fileSizeKey]).fileSize).map(Int64.init) ?? 0) }
+            guard prior.count < 3, priorBytes <= 128*1024*1024 else {
                 print("[TerminalEvidence] capture_refused:file_limit; incomplete")
                 return nil
             }

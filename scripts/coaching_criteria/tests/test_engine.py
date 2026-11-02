@@ -230,4 +230,46 @@ class PairingTests(unittest.TestCase):
             r=request();r['observations']['o']['scope']=bad;self.assertEqual(decision(r)['state'],'unknown')
         r=request();r['observations']['o']['samples']=['bad'];self.assertEqual(decision(r)['state'],'unknown')
 
+class CandidatePolicyTests(unittest.TestCase):
+    def candidate(self):
+        r=request();o=r['observations']['o'];p=r['profiles']['p']
+        o['scope']['sourceIdentity']={'captureId':'synthetic-capture','epoch':'1','clockId':'source-pts'}
+        o['scope']['view']='unknown'
+        for sample in o['samples']:sample['view']='unknown'
+        p['evidencePolicy']={'version':'bpt.candidate-evidence-policy.v1','sourceIdentity':'capture_epoch','view':'not_required'}
+        p['applicability']['view']=['unknown']
+        return r
+    def test_all_not_applicable_summary_group_never_indexes_missing_active_child(self):
+        r=self.candidate();r['observations']['o']['scope']['phase']='top'
+        r['criterion']={'type':'group','id':'outside','op':'AND','pairing':{'sidePolicy':'bilateral','temporal':'same_window_summary'},'children':[r['criterion']]}
+        self.assertEqual(decision(r)['state'],'not_applicable')
+    def test_declared_intrinsic_candidate_does_not_require_guessed_model_or_view(self):
+        r=self.candidate();self.assertEqual(decision(r)['state'],'positive_evidence')
+        r['profiles']['p']['referenceKind']='explicit_target';self.assertEqual(decision(r)['state'],'unknown')
+    def test_capture_epoch_conflict_and_known_outside_phase(self):
+        r=self.candidate();r['observations']['o']['available']=False;r['observations']['o']['scope']['phase']='top'
+        self.assertEqual(decision(r)['state'],'not_applicable')
+        r=self.candidate();r=combined(r,'OR');r['observations']['other']=copy.deepcopy(r['observations']['o']);r['observations']['other']['scope']['sourceIdentity']['captureId']='other'
+        r['criterion']['children'][1]['observation']='other';self.assertEqual(decision(r)['state'],'unknown')
+    def summary(self):
+        r=self.candidate();o=r['observations']['o'];p=r['profiles']['p'];c=CATALOG['cameraTorsoCausalRangeDeg'].contract()
+        for obj in [o,p,p['confirmation']['scope']]:obj.update(metricId=c['metricId'],metricVersion=c['version'],definitionHash=c['definitionHash'],unit=c['unit'],coordinate=c['coordinate'],aggregation='sample')
+        r['exercise']='barbell-row';p['exercise']='barbell-row';p['confirmation']['scope']['exercise']='barbell-row'
+        o['samples']=o['samples'][-1:];o['samples'][0].update(value=100,rawValue=100);o['scope']['expectedSourceIndices']=[2]
+        o['measurementWindow']={'complete':True,'samples':[{'sourceIndex':i,'pts':i*.1} for i in range(3)]}
+        return r
+    def test_derived_summary_identity_cannot_bypass_simultaneous_gate(self):
+        r=self.summary();self.assertEqual(decision(r)['state'],'positive_evidence')
+        atom=r['criterion'];r['criterion']={'type':'group','id':'g','op':'AND','pairing':{'sidePolicy':'bilateral','temporal':'simultaneous'},'children':[{'type':'group','id':'inner','op':'OR','children':[atom]}]}
+        d=decision(r);self.assertEqual(d['state'],'unknown');self.assertIn('summary_metric_requires_same_window_contract',d['reasons'])
+        r['criterion']['pairing']['temporal']='same_window_summary';self.assertEqual(decision(r)['state'],'positive_evidence')
+        r['observations']['o']['measurementWindow']['samples'][1]['sourceIndex']=9
+        self.assertEqual(decision(r)['state'],'unknown')
+    def test_circular_raw_agreement_uses_declared_metric_domain(self):
+        r=self.candidate();o=r['observations']['o'];p=r['profiles']['p'];c=CATALOG['cameraTorsoSignedDeg'].contract()
+        for obj in [o,p,p['confirmation']['scope']]:obj.update(metricId=c['metricId'],metricVersion=c['version'],definitionHash=c['definitionHash'],unit=c['unit'],coordinate=c['coordinate'],aggregation='sample')
+        o['samples']=o['samples'][-1:];o['samples'][0].update(rawValue=179,value=-179);o['scope']['expectedSourceIndices']=[2];o['rawCorrectionDomain']='circular_degrees'
+        self.assertEqual(decision(r)['state'],'negative_evidence')
+        del o['rawCorrectionDomain'];self.assertEqual(decision(r)['state'],'unknown')
+
 if __name__=='__main__':unittest.main()

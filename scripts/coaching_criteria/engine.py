@@ -73,14 +73,24 @@ def coverage(o, samples):
             and all(indices[i]+1==indices[i+1] for i in range(len(indices)-1)))
 
 
-def sample_reasons(o, samples):
+def candidate_policy(profile):
+    policy=profile.get('evidencePolicy',{}) if isinstance(profile,dict) else {}
+    return isinstance(policy,dict) and policy=={'version':'bpt.candidate-evidence-policy.v1','sourceIdentity':'capture_epoch','view':'not_required'} and profile.get('referenceKind')=='engineering_candidate'
+
+
+def complete_source(source, relaxed=False):
+    keys=('captureId','epoch','clockId') if relaxed else SOURCE_IDENTITY
+    return isinstance(source,dict) and all(isinstance(source.get(k),str) and source[k] for k in keys)
+
+
+def sample_reasons(o, samples, relaxed=False):
     scope=o.get('scope',{});reasons=[]
     source=scope.get('sourceIdentity',{})
-    if not isinstance(source,dict) or any(not isinstance(source.get(k),str) or not source.get(k) for k in SOURCE_IDENTITY):reasons.append('complete_source_identity_required')
+    if not complete_source(source,relaxed):reasons.append('complete_source_identity_required')
     if scope.get('selectedSide') not in SIDES:reasons.append('selected_side_required')
     if scope.get('timeBasis')!='source_pts_seconds': reasons.append('source_pts_time_basis_required')
     if not finite(scope.get('startPts')) or not finite(scope.get('endPts')) or scope.get('startPts',0)>scope.get('endPts',0): reasons.append('invalid_window_boundaries')
-    if scope.get('phase') not in PHASES or scope.get('side') not in SIDES or scope.get('view') not in VIEWS: reasons.append('unknown_observation_context')
+    if scope.get('phase') not in PHASES or scope.get('side') not in SIDES or scope.get('view') not in (VIEWS+('unknown',) if relaxed else VIEWS): reasons.append('unknown_observation_context')
     indices=[s.get('sourceIndex') for s in samples]
     if any(type(i) is not int or i<0 for i in indices) or len(set(indices))!=len(indices) or any(indices[i]>=indices[i+1] for i in range(len(indices)-1)): reasons.append('invalid_or_duplicate_source_indices')
     previous=None
@@ -103,6 +113,10 @@ def assess(atom, request, observations, profiles):
     if o is None:r.append('missing_observation');return out
     if not isinstance(o,dict):r.append('malformed_observation');return out
     if not isinstance(o.get('scope'),dict):r.append('malformed_observation_scope');return out
+    candidate_profile=p if isinstance(p,dict) else {}
+    allowed_phases=candidate_profile.get('applicability',{}).get('phase',[]) if isinstance(candidate_profile.get('applicability'),dict) else []
+    if candidate_policy(candidate_profile) and o['scope'].get('phase') in PHASES and isinstance(allowed_phases,list) and allowed_phases and all(x in PHASES for x in allowed_phases) and o['scope']['phase'] not in allowed_phases and identity(candidate_profile)==identity(o) and candidate_profile.get('exercise')==request.get('exercise') and candidate_profile.get('variant')==request.get('variant') and candidate_profile.get('ruleId')==atom.id:
+        out['state']='not_applicable';r.append('outside_profile_phase_scope');return out
     spec=CATALOG.get(o.get('metricId')) if isinstance(o.get('metricId'),str) else None
     if spec is None:r.append('unknown_metric_definition')
     elif request.get('exercise') not in spec.exercises:
@@ -119,7 +133,7 @@ def assess(atom, request, observations, profiles):
     else:r.extend(blocking)
     samples=o.get('samples',[])
     if not isinstance(samples,list) or any(not isinstance(x,dict) for x in samples):samples=[];r.append('invalid_samples')
-    r.extend(sample_reasons(o,samples))
+    r.extend(sample_reasons(o,samples,candidate_policy(p)))
     evaluation=request.get('evaluation',{})
     if not isinstance(evaluation,dict) or evaluation.get('mode') not in ('causal','offline_declared') or not finite(evaluation.get('asOfPts')):r.append('explicit_evaluation_clock_required')
     elif not finite(o.get('scope',{}).get('endPts')) or o['scope']['endPts']>evaluation['asOfPts']:r.append('future_observation_window')
@@ -140,7 +154,10 @@ def assess(atom, request, observations, profiles):
         raw,corrected=sample.get('rawValue'),sample.get('value')
         if type(raw) is bool or type(corrected) is bool:r.append('boolean_numeric_sample_rejected')
         if not finite(raw) or not finite(corrected):why.append('invalid_supported_raw_or_corrected_sample')
-        elif finite(max_correction) and abs(raw-corrected)>max_correction:why.append('raw_correction_disagreement')
+        elif finite(max_correction):
+            difference=raw-corrected
+            if o.get('rawCorrectionDomain')=='circular_degrees' and o.get('metricId') in ('cameraTorsoSignedDeg','cameraTorsoRiseFromBottomDeg') and finite(difference):difference=math.remainder(difference,360)
+            if not finite(difference) or abs(difference)>max_correction:why.append('raw_correction_disagreement')
         sample_evidence.append({'sourceIndex':sample.get('sourceIndex'),'pts':sample.get('pts'),'supported':not why,'reasons':why})
     out['sampleEvidence']=sample_evidence
     if p is None:r.append('profile_required');return out
@@ -164,7 +181,7 @@ def assess(atom, request, observations, profiles):
     for key in ('phase','side','view'):
         applicability=p.get('applicability',{})
         allowed=applicability.get(key) if isinstance(applicability,dict) else None
-        enum={'phase':PHASES,'side':SIDES,'view':VIEWS}[key]
+        enum={'phase':PHASES,'side':SIDES,'view':VIEWS+('unknown',) if candidate_policy(p) else VIEWS}[key]
         if not isinstance(allowed,list) or not allowed or any(x not in enum for x in allowed):r.append('profile_'+key+'_scope_required')
         elif o.get('scope',{}).get(key) not in allowed:
             r.append('outside_profile_'+key+'_scope')
@@ -198,6 +215,15 @@ def assess(atom, request, observations, profiles):
     out['evaluatedValue']=value
     out['aggregation']=aggregation
     out['sampleMembership']=[{'sourceIndex':x['sourceIndex'],'pts':x['pts']} for x in samples]
+    if spec and spec.contract().get('temporalKind')=='window_summary':
+        out['measurementTemporalKind']='window_summary'
+        window=o.get('measurementWindow',{})
+        membership=window.get('samples') if isinstance(window,dict) else None
+        valid=isinstance(membership,list) and 0<len(membership)<=512 and window.get('complete') is True and all(isinstance(x,dict) and type(x.get('sourceIndex')) is int and finite(x.get('pts')) for x in membership)
+        if valid:
+            valid=(all(membership[i+1]['sourceIndex']==membership[i]['sourceIndex']+1 and membership[i+1]['pts']>membership[i]['pts'] for i in range(len(membership)-1)) and membership[0]['pts']==o['scope']['startPts'] and membership[-1]['pts']==o['scope']['endPts'] and membership[-1]['sourceIndex']==samples[-1]['sourceIndex'] and membership[-1]['pts']==samples[-1]['pts'])
+        if not valid:out['reasons'].append('invalid_derived_window_membership');return out
+        out['sampleMembership']=[{'sourceIndex':x['sourceIndex'],'pts':x['pts']} for x in membership]
     out['supportedPositiveSamples']=[{'sourceIndex':x['sourceIndex'],'pts':x['pts']} for x in good if predicate(x['value']-offset,p)]
     result=predicate(value,p)
     # Partial max supports an existential threshold exceedance, never a bounded/negative claim.
@@ -269,21 +295,21 @@ def evaluate(request:dict[str,Any])->dict[str,Any]:
             if scope is None or not isinstance(other,dict):return False
             keys=CONTEXT if pairing.get('sidePolicy')!='bilateral' else tuple(k for k in CONTEXT if k!='side')
             return all(other.get(k)==scope.get(k) for k in keys)
-        compatible=valid_pairing and all(compatible_scope(x['scope']) for x in active)
+        compatible=valid_pairing and bool(active) and all(compatible_scope(x['scope']) for x in active)
         if compatible and pairing.get('temporal')=='same_window_summary':
             compatible=bool(active[0].get('sampleMembership')) and all(x.get('sampleMembership')==active[0].get('sampleMembership') for x in active)
         if node.op=='AND' and not valid_pairing:reasons.append('explicit_component_pairing_required')
         common=None
         if compatible and pairing.get('temporal')=='simultaneous':
             def summary_evidence(x):
-                if x.get('type')=='atom':return x.get('aggregation') not in ('sample','max')
+                if x.get('type')=='atom':return x.get('aggregation') not in ('sample','max') or x.get('measurementTemporalKind')=='window_summary'
                 return any(summary_evidence(child) for child in x.get('children',[]) if child['state']=='positive_evidence')
             if any(summary_evidence(x) for x in active):
                 compatible=False;reasons.append('summary_metric_requires_same_window_contract')
             for child in active:
                 samples={(x['sourceIndex'],x['pts']) for x in child.get('supportedPositiveSamples',[])}
                 common=samples if common is None else common & samples
-        known_scopes=[x['scope'] for x in active if isinstance(x.get('scope'),dict) and isinstance(x['scope'].get('sourceIdentity'),dict) and all(isinstance(x['scope']['sourceIdentity'].get(k),str) and x['scope']['sourceIdentity'].get(k) for k in SOURCE_IDENTITY)]
+        known_scopes=[x['scope'] for x in active if isinstance(x.get('scope'),dict) and isinstance(x['scope'].get('sourceIdentity'),dict) and (complete_source(x['scope']['sourceIdentity']) or complete_source(x['scope']['sourceIdentity'],True))]
         compare_keys=tuple(k for k in CONTEXT if not (isinstance(pairing,dict) and pairing.get('sidePolicy')=='bilateral' and k=='side'))
         known_conflict=bool(known_scopes) and any(any(other.get(k)!=known_scopes[0].get(k) for k in compare_keys) for other in known_scopes[1:])
         if known_conflict:reasons.append('conflicting_known_component_contexts')
