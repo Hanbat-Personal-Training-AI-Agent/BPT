@@ -179,16 +179,18 @@ Future<void> main() async {
         await Future<void>.delayed(const Duration(milliseconds: 700));
         expect(find.byType(DeepAnalysisReport), findsOneWidget);
         expect(find.byType(VideoPlayer), findsOneWidget);
+        final firstRepIndex = (reps.first as Map)['repIndex'];
+        final firstRepTitle = find.descendant(
+          of: find.byType(ExpansionTile),
+          matching: find.byWidgetPredicate((widget) =>
+              widget is Text &&
+              (widget.data?.startsWith('$firstRepIndex회 ·') ?? false)),
+        );
         await tester
-            .scrollUntilVisible(
-              find.byType(ExpansionTile).first,
-              200,
-              maxScrolls: 60,
-            )
+            .scrollUntilVisible(firstRepTitle, 200, maxScrolls: 60)
             .timeout(const Duration(seconds: 20));
-        await tester
-            .tap(find.byType(ExpansionTile).first)
-            .timeout(const Duration(seconds: 10));
+        expect(firstRepTitle, findsOneWidget);
+        await tester.tap(firstRepTitle).timeout(const Duration(seconds: 10));
         await Future<void>.delayed(const Duration(milliseconds: 400));
         final text = tester
             .widgetList<Text>(find.byType(Text))
