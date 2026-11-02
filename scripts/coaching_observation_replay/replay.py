@@ -19,6 +19,11 @@ def stats(v):
     if not v:return {'count':0}
     q=lambda p: v[int((len(v)-1)*p)]*(1-((len(v)-1)*p%1))+v[min(int((len(v)-1)*p)+1,len(v)-1)]*((len(v)-1)*p%1)
     return dict(count=len(v),min=v[0],median=statistics.median(v),mean=sum(v)/len(v),p95=q(.95),max=v[-1])
+def require_native_output_hash(folder,receipt):
+    expected=receipt.get('native_output_sha256')
+    if not expected:raise ValueError('missing_native_output_hash')
+    if digest(folder/'native_outputs.json')!=expected:raise ValueError('native_output_hash_mismatch')
+
 def available(m):return m.get('value') is not None and not m.get('reasons',[])
 def wrap(d):
     r=math.remainder(d,360);return 180 if r==-180 else r
@@ -85,7 +90,7 @@ def run(paths,scratch,reuse_native=None):
             subprocess.run([str(scratch/'observe'),'--self-test'],check=True,stdout=(scratch/'self-test.txt').open('w'))
             subprocess.run([str(scratch/'observe'),str(scratch/'input.json'),str(scratch/'native_outputs.json')],check=True)
     else:
-        prior=json.loads((reuse_native/'receipt.json').read_text())
+        prior=json.loads((reuse_native/'receipt.json').read_text());require_native_output_hash(reuse_native,prior)
         assert digest(engine)==prior['ExperimentalCoaching_sha256'] and digest(form)==prior['FormWarnings_sha256']
         assert digest(scratch/'SourceGeometry.swift')==prior['compiled_extraction_sha256']
         assert digest(Path(__file__).with_name('observation.swift'))==prior['adapter_sha256']

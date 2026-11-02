@@ -39,3 +39,10 @@ def test_current_geometry_extraction_is_verbatim_not_profile_threshold():
     body=m.extract(src,'signedHipDeviation3D');assert body in src and 'signedLineDeviation3D' in body
     c=m.build_catalog('a','b');assert c['leftHipDeg']['requiredJoints']==[4,5,8]
     assert c['leftUpperArmDeg']['scope']=='projected_body_frontal_abduction_from_caudal_axis'
+
+def test_reused_native_output_requires_manifest_and_unchanged_bytes(tmp_path):
+    p=tmp_path/'native_outputs.json';p.write_text('[]')
+    with pytest.raises(ValueError,match='missing_native_output_hash'):m.require_native_output_hash(tmp_path,{})
+    proof={'native_output_sha256':m.digest(p)};m.require_native_output_hash(tmp_path,proof)
+    p.write_text('[0]')
+    with pytest.raises(ValueError,match='native_output_hash_mismatch'):m.require_native_output_hash(tmp_path,proof)
