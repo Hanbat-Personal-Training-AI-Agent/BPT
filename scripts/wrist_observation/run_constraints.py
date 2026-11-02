@@ -14,7 +14,7 @@ ROOT=Path(__file__).resolve().parents[2]
 spec=importlib.util.spec_from_file_location('wrist_audit',Path(__file__).with_name('analyze.py'))
 a=importlib.util.module_from_spec(spec);spec.loader.exec_module(a)
 
-def run(paths,scratch):
+def run(paths,scratch,continuity=False):
     if scratch.resolve().is_relative_to(ROOT):raise ValueError('private scratch must be outside repository')
     scratch.mkdir(parents=True,exist_ok=True)
     groups=[]
@@ -22,7 +22,7 @@ def run(paths,scratch):
         epochs,capped,_=a.strict.load(path);a.strict.require(not capped,'capped_capture')
         for data in epochs.values():
             a.strict.require(data['end'] is not None and not data['end']['incomplete'],'incomplete_capture')
-            frames=[{'frame':f['frame'],'raw':f['raw_3d']} for f in data['frames'] if f['raw_state'] in ('ok','partial_3d') and f['raw_3d'] is not None]
+            frames=[{'frame':f['frame'],'raw':f['raw_3d'],'source_time':f['source_pts'],'tracking_valid':f['raw_state']!='tracking_lost','apply':f['raw_state'] in ('ok','partial_3d') and f['raw_3d'] is not None} for f in data['frames'] if continuity or (f['raw_state'] in ('ok','partial_3d') and f['raw_3d'] is not None)]
             groups.append({'exercise':data['start']['exercise'],'frames':frames})
     (scratch/'input.json').write_text(json.dumps(groups,allow_nan=False))
     source=ROOT/'ios/Runner/NativePose/PosePipeline'
@@ -30,14 +30,16 @@ def run(paths,scratch):
     tracker=ROOT/'ios/Runner/NativePose/Evaluators/FormWarnings.swift'
     median=re.search(r'    static func median\(_ values: \[Double\]\) -> Double\? \{.*?\n    \}',tracker.read_text(),re.S).group()
     (scratch/'median.swift').write_text('import Foundation\nenum FormWarningTracker {\n'+median+'\n}\n')
-    (scratch/'main.swift').write_bytes(Path(__file__).with_name('constraints_replay.swift').read_bytes())
+    helper=Path(__file__).with_name('continuity_replay.swift' if continuity else 'constraints_replay.swift')
+    (scratch/'main.swift').write_bytes(helper.read_bytes())
+    if continuity:files.append(Path(__file__).with_name('BoneTargetContinuity.swift'))
     with open('/tmp/bpt-heavy.lock','a') as lock:
         fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
         subprocess.run(['swiftc','-O',*map(str,files),str(scratch/'median.swift'),str(scratch/'main.swift'),'-o',str(scratch/'replay')],check=True)
         subprocess.run([str(scratch/'replay'),str(scratch/'input.json'),str(scratch/'output.json')],check=True)
-    proof={'production_source_sha256':{str(p.relative_to(ROOT)):hashlib.sha256(p.read_bytes()).hexdigest() for p in files},'median_source_sha256':hashlib.sha256(median.encode()).hexdigest(),'replay_helper_sha256':hashlib.sha256(Path(__file__).with_name('constraints_replay.swift').read_bytes()).hexdigest(),'rows':{g['exercise']:len(g['frames']) for g in groups},'scope':'raw3D postprocessing only; no model, confidence unused by production Pose3DConstraints, native frame order including explicit flush preserved'}
+    proof={'production_source_sha256':{str(p.relative_to(ROOT)):hashlib.sha256(p.read_bytes()).hexdigest() for p in files},'median_source_sha256':hashlib.sha256(median.encode()).hexdigest(),'replay_helper_sha256':hashlib.sha256(helper.read_bytes()).hexdigest(),'rows':{g['exercise']:len(g['frames']) for g in groups},'scope':'raw3D postprocessing only; no model, confidence unused by production Pose3DConstraints, native frame order including explicit flush preserved'}
     (scratch/'receipt.json').write_text(json.dumps(proof,indent=2))
     return proof
 
 if __name__=='__main__':
-    p=argparse.ArgumentParser(description=__doc__);p.add_argument('captures',nargs='+',type=Path);p.add_argument('--scratch',type=Path,required=True);args=p.parse_args();print(json.dumps(run(args.captures,args.scratch),indent=2))
+    p=argparse.ArgumentParser(description=__doc__);p.add_argument('captures',nargs='+',type=Path);p.add_argument('--scratch',type=Path,required=True);p.add_argument('--continuity',action='store_true');args=p.parse_args();print(json.dumps(run(args.captures,args.scratch,args.continuity),indent=2))
