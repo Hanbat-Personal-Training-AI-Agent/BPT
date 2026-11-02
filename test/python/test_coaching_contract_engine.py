@@ -2,7 +2,7 @@
 import copy
 import math
 import unittest
-from scripts.coaching_contract.contract import SCHEMA, digest, loads
+from scripts.coaching_contract.contract import SCHEMA, CONFIDENCE_POLICY, digest, loads
 from scripts.coaching_contract.engine import evaluate, compare
 
 
@@ -15,7 +15,7 @@ def sample(angles=(60, 60, 60, 90), exercise='pushup'):
         for joint, point in zip(chain, points):
             joints[joint*3:joint*3+3] = point
         frames.append({'id': i, 'time': {'seconds': i+0.5}, 'side': 'right', 'phase': 'bottom',
-                       'view_eligible': True, 'joints': joints, 'uncertainty_known': True,
+                       'view_eligible': True, 'confidence_h36m':[0.9]*17, 'joints': joints, 'uncertainty_known': True,
                        'chain_support': {'elbow': True, 'knee': True}})
         reps.append({'id': i+1, 'ordinal': i+1, 'frame_ids': [i], 'span_complete': True,
                      'original_interval': {'start': i, 'end': i, 'closure': 'closed', 'unit':'native_frame_index'},
@@ -25,7 +25,7 @@ def sample(angles=(60, 60, 60, 90), exercise='pushup'):
             'first3_reference_identity':{'origin':'observed_set_start','set_id':'fixture','observation_sha256':'a'*64,'first3_rep_ids':[1,2,3]},
             'clip':{'observation_sha256':'a'*64,'media_sha256':None},
             'source':{'joint_definition':'BPT_H36M17','coordinate_frame':'camera_x_right_y_down_z_away_pelvis_relative','pose_units':'h36m17_xs_model_space_no_metric_guarantee',
-                      'layer_role':'assessment','side_policy':'actual_per_frame'},
+                      'confidence_policy':copy.deepcopy(CONFIDENCE_POLICY),'layer_role':'assessment','side_policy':'actual_per_frame'},
             'clock':{'id':'synthetic_fixture'}, 'frames':frames,'reps':reps}
 
 
@@ -188,3 +188,34 @@ class EngineTests(unittest.TestCase):
         self.assertEqual(r['id'],5);self.assertIsNone(r['left'])
         self.assertEqual(r['right']['qualified_shadow']['state'],'warning')
         self.assertIn('counterpart_missing',r['reasons'])
+
+    def test_profile_is_typed_and_cannot_smuggle_approval_flags(self):
+        for profile in ('reviewed', {'approved_profile':True},
+                        {'id':'x','revision':True,'source_provenance':'fixture','review_status':'reviewed'},
+                        {'id':'x','revision':'1','source_provenance':'fixture','review_status':'validated'}):
+            s=sample();s['target_profile']=profile
+            with self.assertRaisesRegex(ValueError,'target_profile'):evaluate(s)
+        s=sample();s['target_profile']={'id':'x','revision':'1','source_provenance':'fixture','review_status':'reviewed'}
+        self.assertFalse(evaluate(s)['target_used'])
+
+    def test_boolean_reference_identity_not_integer_one(self):
+        s=sample();s['first3_reference_identity']['first3_rep_ids']=[True,2,3]
+        self.assertIn('first3_reference_identity_unverified',evaluate(s)['reps'][-1]['qualified_shadow']['reasons'])
+
+    def test_confidence_zero_missing_and_nonfinite_never_qualify(self):
+        for score,reason in ((0,'required_chain_confidence_below_source_threshold'),
+                             (0.299,'required_chain_confidence_below_source_threshold'),
+                             (None,'required_chain_confidence_missing')):
+            s=sample();s['frames'][-1]['confidence_h36m'][15]=score
+            r=evaluate(s)['reps'][-1]
+            self.assertIn(reason,r['qualified_shadow']['reasons'])
+            self.assertTrue(r['common_scalar']['observed_subset_predicate'])
+        s=sample();s['frames'][-1]['confidence_h36m'][15]=float('nan')
+        with self.assertRaisesRegex(ValueError,'confidence_h36m'):evaluate(s)
+
+    def test_confidence_threshold_and_unrelated_confidence(self):
+        s=sample();s['frames'][-1]['confidence_h36m']=[0]*17
+        for i in (14,15,16):s['frames'][-1]['confidence_h36m'][i]=0.30
+        self.assertEqual(evaluate(s)['reps'][-1]['qualified_shadow']['state'],'warning')
+        s['source'].pop('confidence_policy')
+        self.assertIn('required_chain_confidence_policy_unverified',evaluate(s)['reps'][-1]['qualified_shadow']['reasons'])

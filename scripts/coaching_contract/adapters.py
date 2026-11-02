@@ -1,7 +1,7 @@
 """Read-only existing capture/report adapters. Never infer missing runtime decisions."""
 import hashlib
 from pathlib import Path
-from .contract import SCHEMA, RULES, digest, loads, require
+from .contract import SCHEMA, RULES, CONFIDENCE_POLICY, digest, loads, require
 from scripts.terminal_evidence.replay import load as load_terminal
 
 NATIVE_SOURCE = '1a35d3fef5cd4b5b5bc49ac003a4584306cce344'
@@ -75,7 +75,7 @@ def native(path, expected_sha256, source_revision=NATIVE_SOURCE):
                                   'revision_provenance':'caller_bound_published_capture_receipt_not_embedded_header',
                                   'epoch':epoch_id,'model_hashes':header['model_hashes'],
                                   'joint_definition':'BPT_H36M17','coordinate_frame':'camera_x_right_y_down_z_away_pelvis_relative',
-                                  'pose_units':header['units_3d'],'layer_role':'assessment','side_policy':'actual_per_frame',
+                                  'pose_units':header['units_3d'],'confidence_policy':CONFIDENCE_POLICY,'layer_role':'assessment','side_policy':'actual_per_frame',
                                   'provenance':header['provenance'], 'original_header_sha256':digest(header)},
                         'clock':{'kind':'original_sample_pts','epoch':epoch_id,'unit':'seconds','time_basis':epoch['start']['time_basis']},
                         'capture_end':epoch.get('end'),'frames':frames,'reps':reps})

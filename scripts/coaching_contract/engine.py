@@ -2,7 +2,7 @@
 from collections import Counter
 import math
 import statistics
-from .contract import RULES, RESULT_SCHEMA, digest, finite, validate
+from .contract import RULES, RESULT_SCHEMA, CONFIDENCE_POLICY, digest, finite, validate
 
 
 def angle(points, chain):
@@ -44,6 +44,8 @@ def _observe(stream, rep, rule):
         reasons.add('assessment_layer_unverified')
     if stream['source'].get('side_policy') != 'actual_per_frame':
         reasons.add('actual_side_history_missing')
+    if stream['source'].get('confidence_policy') != CONFIDENCE_POLICY:
+        reasons.add('required_chain_confidence_policy_unverified')
     if rep.get('span_complete') is not True:
         reasons.add('span_coverage_unverified')
     if rep.get('source_gaps', 0):
@@ -64,6 +66,12 @@ def _observe(stream, rep, rule):
             reasons.add('required_chain_nonfinite_or_degenerate')
         else:
             values.append(value)
+        scores = f.get('confidence_h36m')
+        chain = rule['joints'][side]
+        if scores is None or any(scores[j] is None for j in chain):
+            reasons.add('required_chain_confidence_missing')
+        elif any(scores[j] < CONFIDENCE_POLICY['minimum'] for j in chain):
+            reasons.add('required_chain_confidence_below_source_threshold')
         support = f.get('chain_support', {}).get(rule['chain'])
         if support is not True:
             reasons.add('required_chain_support_missing' if support is None else 'required_chain_unsupported')
@@ -110,7 +118,11 @@ def evaluate(stream):
                 if [r['ordinal'] for r in stream['reps'][:3]] != [1,2,3]:
                     reasons.add('first3_reference_identity_unverified')
                 identity = stream.get('first3_reference_identity', {})
-                if (identity.get('observation_sha256') != stream['clip']['observation_sha256'] or
+                if (type(identity) is not dict or type(identity.get('set_id')) is not str or
+                        not identity.get('set_id', '').strip() or
+                        type(identity.get('first3_rep_ids')) is not list or
+                        not all(type(i) is int for i in identity.get('first3_rep_ids', [])) or
+                        identity.get('observation_sha256') != stream['clip']['observation_sha256'] or
                         identity.get('first3_rep_ids') != [r['id'] for r in stream['reps'][:3]] or
                         identity.get('origin') != 'observed_set_start' or not identity.get('set_id')):
                     reasons.add('first3_reference_identity_unverified')
