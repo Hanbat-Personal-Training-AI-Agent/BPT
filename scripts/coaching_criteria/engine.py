@@ -42,7 +42,9 @@ def context(o):
 
 def parse(node):
     if not isinstance(node,dict) or not isinstance(node.get('id'),str): raise ValueError('criterion id required')
-    if node.get('type')=='atom' and isinstance(node.get('observation'),str): return Atom(node['id'],node['observation'],node.get('profile'))
+    if node.get('type')=='atom' and isinstance(node.get('observation'),str):
+        if node.get('profile') is not None and not isinstance(node['profile'],str):raise ValueError('profile id must be string or null')
+        return Atom(node['id'],node['observation'],node.get('profile'))
     if node.get('type')=='group' and node.get('op') in ('AND','OR') and isinstance(node.get('children'),list) and node['children']:
         return Group(node['id'],node['op'],tuple(parse(x) for x in node['children']),node.get('pairing',{}))
     raise ValueError('invalid typed criterion')
@@ -230,6 +232,7 @@ def assess(atom, request, observations, profiles):
 
 def evaluate(request:dict[str,Any])->dict[str,Any]:
     """Pure JSON-compatible evaluation. Provided observations are always retained."""
+    if not isinstance(request,dict):raise ValueError('request must be an object')
     observations=request.get('observations',{});profiles=request.get('profiles',{})
     if not isinstance(observations,dict) or not isinstance(profiles,dict):raise ValueError('observations/profiles must be objects')
     def reject_nonfinite(value):

@@ -488,6 +488,8 @@ final class CameraPoseViewModel: ObservableObject {
     }
 
     private var experimentalCoaching = ExperimentalCoaching()
+    private var experimentalSourceKey: String?
+    private var experimentalSourceIndex: Int?
     private let experimentalCoachingEnabled = DemoConfig.environment["BPT_EXPERIMENTAL_COACHING"] == "1"
 
     private var formTracker: FormWarningTracker? {
@@ -1016,6 +1018,36 @@ final class CameraPoseViewModel: ObservableObject {
         judgingFrame = (result.frameIndex, result.arrivedAt)
         let (statusText, rep, done) = runEvaluator(frameIndex: result.frameIndex, rawCoco17: result.supportCorridor?.assessment2D(result.rawCoco17) ?? result.rawCoco17,
                                                    feet: result.feet, pose3D: result.supportCorridor?.assessment3D(frame3D.masked3D) ?? frame3D.masked3D, pose3DState: result.supportCorridor?.assessmentState(frame3D.state) ?? frame3D.state)
+        // Compute once under the existing opt-in flag, then reuse for both log paths.
+        var experimentalLine: [String: Any]?
+        if experimentalCoachingEnabled {
+            let sourceIndex = VideoCameraOptions.isActive ? VideoRunLog.shared?.clipFrame(result.frameIndex) : result.frameIndex
+            let sourceKey = "\(VideoCameraOptions.isActive)/\(result.terminalEpoch.map(String.init) ?? "unknown")/\(result.imageWidth)/\(result.imageHeight)/\(result.rotation.rawValue)/\(isFrontCamera)"
+            if sourceKey != experimentalSourceKey || sourceIndex.flatMap({ current in experimentalSourceIndex.map { current <= $0 } }) == true {
+                experimentalCoaching = ExperimentalCoaching()
+            }
+            experimentalSourceKey = sourceKey
+            experimentalSourceIndex = sourceIndex
+            // Device gravity is not synchronized to this delayed source frame.
+            let observation = ExperimentalCoaching.Frame(time: result.sourcePTS ?? .nan, exercise: formTracker?.exercise.rawValue ?? exercise.rawValue,
+                phase: formTracker?.observationPhase,
+                state: (result.supportCorridor?.assessmentState(frame3D.state) ?? frame3D.state).rawValue, raw: frame3D.raw,
+                corrected: result.supportCorridor?.assessment3D(frame3D.masked3D) ?? frame3D.masked3D,
+                confidence: result.supportCorridor?.assessmentConfidence(frame3D.confidence) ?? frame3D.confidence,
+                invalid: frame3D.invalidJoints.union(result.supportCorridor?.invalid3DJoints ?? []), up: nil)
+            let output = experimentalCoaching.update(observation)
+            if let data = try? JSONEncoder().encode(output),
+               var line = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] {
+                line["frame"] = result.frameIndex
+                line["time_basis"] = "sample_pts"
+                line["arrival_host"] = result.arrivedAt
+                line["exercise"] = exercise.rawValue
+                line["phase"] = formTracker?.observationPhase ?? NSNull()
+                line["state"] = observation.state
+                line["raw_model_state"] = frame3D.state.rawValue
+                experimentalLine = line
+            }
+        }
         if VideoRunLog.terminalEvidence, terminalCapture.accepts(result.terminalEpoch), let epoch = result.terminalEpoch {
             if VideoRunLog.terminalCandidate {
                 let snapshot = formTracker?.terminalCandidateSnapshot
@@ -1050,7 +1082,7 @@ final class CameraPoseViewModel: ObservableObject {
             let assessment = result.supportCorridor?.assessment3D(frame3D.masked3D) ?? frame3D.masked3D
             let confidence = result.supportCorridor?.assessmentConfidence(frame3D.confidence) ?? frame3D.confidence
             let up = formTracker?.up3D
-            VideoRunLog.shared?.write("terminal_frame", ["epoch": epoch, "frame": result.frameIndex,
+            var terminalLine: [String: Any] = ["epoch": epoch, "frame": result.frameIndex,
                 "source_index": VideoCameraOptions.isActive ? (VideoRunLog.shared?.clipFrame(result.frameIndex) as Any? ?? NSNull()) : result.frameIndex,
                 "source_kind": VideoCameraOptions.isActive ? "video_frame" : "camera_capture_index",
                 "source_pts": TerminalEvidence.number(result.sourcePTS),
@@ -1071,34 +1103,29 @@ final class CameraPoseViewModel: ObservableObject {
                 "filled": frame3D.filled, "row": frame3D.row as Any? ?? NSNull(), "flush_tail": terminalFlushing || frame3D.diagnosticFlushed,
                 "unit_px": TerminalEvidence.number(frame3D.unit),
                 "judgement_up": TerminalEvidence.vector(up.map { [$0.x, $0.y, $0.z] }),
-                "up_time_basis": "judgement_time_not_source_sensor", "source_gravity_available": false])
+                "up_time_basis": "judgement_time_not_source_sensor", "source_gravity_available": false]
+            if experimentalCoachingEnabled {
+                let source: [String: Any] = ["frame": result.frameIndex, "source_index": terminalLine["source_index"]!,
+                    "source_pts": TerminalEvidence.number(result.sourcePTS), "source_time_value": result.sourceTimeValue as Any? ?? NSNull(),
+                    "source_time_scale": result.sourceTimeScale as Any? ?? NSNull(), "time_basis": "sample_pts_seconds", "epoch": epoch]
+                let context: [String: Any] = ["exercise": formTracker?.exercise.rawValue ?? exercise.rawValue,
+                    "phase": formTracker?.observationPhase as Any? ?? NSNull(), "side": formTracker?.side?.rawValue as Any? ?? NSNull(),
+                    "side_view": formTracker?.sideView as Any? ?? NSNull(), "source_kind": terminalLine["source_kind"]!,
+                    "flush_tail": terminalFlushing || frame3D.diagnosticFlushed, "gravitySynchronized": false]
+                // No profiles or targets are loaded. Observations cannot deliver posture feedback.
+                if let metrics = experimentalLine?["metrics"] as? [String: Any] {
+                    do { terminalLine["coaching_criteria"] = try CoachingCriteriaBridge.summary(metrics: metrics, source: source, context: context) }
+                    catch { terminalLine["coaching_criteria"] = CoachingCriteriaBridge.failure(source: source, context: context, reason: "criteria_evaluation_failed") }
+                } else {
+                    terminalLine["coaching_criteria"] = CoachingCriteriaBridge.failure(source: source, context: context, reason: "observation_encoding_failed")
+                }
+            }
+            VideoRunLog.shared?.write("terminal_frame", terminalLine)
         }
         let now = CACurrentMediaTime()
-        if experimentalCoachingEnabled {
-            // Latest device gravity is not synchronized to this delayed XS source frame. It is also not
-            // the camera gravity of a replayed clip. Keep the experimental metric withheld until a source
-            // snapshot + sensor age or explicit clip calibration is carried in this same payload.
-            let observation = ExperimentalCoaching.Frame(time: result.sourcePTS ?? .nan, exercise: formTracker?.exercise.rawValue ?? exercise.rawValue,
-                phase: formTracker?.observationPhase,
-                state: (result.supportCorridor?.assessmentState(frame3D.state) ?? frame3D.state).rawValue, raw: frame3D.raw,
-                corrected: result.supportCorridor?.assessment3D(frame3D.masked3D) ?? frame3D.masked3D,
-                confidence: result.supportCorridor?.assessmentConfidence(frame3D.confidence) ?? frame3D.confidence,
-                invalid: frame3D.invalidJoints.union(result.supportCorridor?.invalid3DJoints ?? []), up: nil)
-            // There is no approved variant/ROM profile in the current UI. Measurements are logged, candidates
-            // explicitly withheld. These diagnostics cannot emit a warning, speech, or modify the existing pose.
-            let output = experimentalCoaching.update(observation)
-            if let data = try? JSONEncoder().encode(output),
-               var line = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] {
-                line["frame"] = result.frameIndex
-                line["time_basis"] = "sample_pts"
-                line["arrival_host"] = result.arrivedAt
-                line["exercise"] = exercise.rawValue
-                line["phase"] = formTracker?.observationPhase ?? NSNull()
-                line["state"] = observation.state
-                line["raw_model_state"] = frame3D.state.rawValue
-                DemoPoseLog.shared?.write("experimental_coaching", line)
-                VideoRunLog.shared?.write("experimental_coaching", line)
-            }
+        if let line = experimentalLine {
+            DemoPoseLog.shared?.write("experimental_coaching", line)
+            VideoRunLog.shared?.write("experimental_coaching", line)
         }
         if let demo = DemoPoseLog.shared {
             let round = { (v: Double, k: Double) -> Double in (v * k).rounded() / k }

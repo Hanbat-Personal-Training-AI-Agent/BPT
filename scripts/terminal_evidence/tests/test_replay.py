@@ -166,3 +166,49 @@ def test_mixed_candidate_events_and_real_eof_flush_preserve_raw_geometry(tmp_pat
     assert r.replay(write(tmp_path,rows))['groups']==original
     rows[0].pop('candidate_protocol')
     with pytest.raises(r.InvalidCapture,match='candidate_protocol'):r.replay(write(tmp_path,rows))
+
+
+def coaching_summary(row, error=False):
+    payload=dict(schema='bpt.coaching-criteria-terminal.v1',status='observed',catalogVersion='bpt.coaching-metrics.v1',state='unknown',profilesUsed=0,scope='profile_free_observations_only',profileAuthority='scoped_reference_only_not_whole_form_or_clinical_validation',
+        source={key:row[key] for key in ('epoch','frame','source_index','source_pts','source_time_value','source_time_scale','time_basis')},
+        context={**{key:row[key] for key in ('phase','side','side_view','source_kind','flush_tail')},'exercise':'pushup','gravitySynchronized':False},
+        metrics={'leftElbowDeg':dict(rawValue=90,value=90,available=True,reasons=[],state='unknown',criterionReasons=['profile_required'],interpretation='unresolved')},unmappedMetrics=[],unsuppliedCatalogMetrics=['cameraTorsoSignedDeg','cameraHipLineDeviationRatio'])
+    if error:payload.update(status='withheld_error',errorReason='observation_encoding_failed',metrics={},unsuppliedCatalogMetrics=[f'unsupplied{i}' for i in range(11)])
+    return payload
+
+
+def test_optional_coaching_summary_backward_compatible_and_error_explicit(tmp_path):
+    rows=capture();original=r.replay(write(tmp_path,rows))
+    for row in rows:
+        if row['type']=='terminal_frame':row['coaching_criteria']=coaching_summary(row,error=row['frame']==1)
+    result=r.replay(write(tmp_path,rows))
+    assert result['groups']==original['groups']
+
+
+@pytest.mark.parametrize('mutation,reason',[
+    (lambda p:p['source'].update(epoch=9),'source_mismatch'),
+    (lambda p:p['source'].update(source_pts=.5),'source_mismatch'),
+    (lambda p:p['source'].update(source_time_value=9),'source_mismatch'),
+    (lambda p:p['source'].update(source_time_scale=9),'source_mismatch'),
+    (lambda p:p['source'].update(source_index=9),'source_mismatch'),
+    (lambda p:p['source'].update(frame=True),'source_mismatch'),
+    (lambda p:p['context'].update(source_kind='video_frame'),'context_mismatch'),
+    (lambda p:p['context'].update(exercise='squat'),'exercise_mismatch'),
+    (lambda p:p.update(schema='other'),'summary_schema'),
+    (lambda p:p.update(profilesUsed=1),'profile_scope'),
+    (lambda p:p.update(status='missing'),'summary_status'),
+    (lambda p:p['metrics']['leftElbowDeg'].update(state='positive_evidence'),'summary_decision'),
+    (lambda p:p.update(extra='x'*32768),'summary_budget'),
+])
+def test_optional_coaching_summary_rejects_misbound_or_invalid_payload(tmp_path,mutation,reason):
+    rows=capture();payload=coaching_summary(rows[2]);mutation(payload);rows[2]['coaching_criteria']=payload
+    with pytest.raises(r.InvalidCapture,match=reason):r.replay(write(tmp_path,rows))
+
+
+def test_duplicate_flush_reasons_retained_and_profile_free_error_guard(tmp_path):
+    rows=capture();row=rows[2];row['flush_tail']=True;p=coaching_summary(row)
+    p['metrics']['leftElbowDeg']['criterionReasons']+=['flush_sample_not_observation']*2
+    row['coaching_criteria']=p;r.replay(write(tmp_path,rows))
+    row['coaching_criteria']=coaching_summary(row,error=True)
+    row['coaching_criteria']['errorReason']='arbitrary error';
+    with pytest.raises(r.InvalidCapture,match='summary_error'):r.replay(write(tmp_path,rows))

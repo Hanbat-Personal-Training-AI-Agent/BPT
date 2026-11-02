@@ -19,4 +19,15 @@ class ReplayAdapterTests(unittest.TestCase):
         frame=self.frame();frame['metrics']['unknownProxy']=frame['metrics'].pop('leftUpperArmDeg');r=evaluate(frame_request(frame,'input'))
         self.assertIn('unknownProxy',r['providedObservations']);self.assertIn('unknown_metric_definition',r['criterion']['children'][0]['reasons'])
 
+
+class SourceContextTests(unittest.TestCase):
+    def test_not_side_view_is_unknown_and_anatomical_side_separate(self):
+        from scripts.coaching_criteria.replay_adapter import frame_request
+        frame={'source':{'source_index':1,'source_pts':.1,'epoch':1,'time_basis':'sample_pts_seconds'},'context':{'exercise':'pushup','phase':'descending','side':'left','side_view':False},'metrics':{'rightElbowDeg':{'rawValue':90,'value':90,'available':True,'reasons':[]}}}
+        observation=frame_request(frame,'synthetic')['observations']['rightElbowDeg']
+        self.assertEqual(observation['scope']['view'],'unknown')
+        self.assertEqual(observation['scope']['side'],'right')
+        self.assertEqual(observation['scope']['selectedSide'],'left')
+        self.assertEqual(observation['samples'][0]['side'],'right')
+
 if __name__=='__main__':unittest.main()

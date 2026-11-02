@@ -140,6 +140,13 @@ class CriteriaTests(unittest.TestCase):
         for sample in o['samples']:sample['pts']+=10
         p['references']=[{**{k:o[k] for k in ['metricId','metricVersion','definitionHash','unit','coordinate','aggregation']},'id':f'r{i}','repIndex':i,'endPts':i,'value':-1e308,'available':True,'coverageComplete':True,'context':copy.deepcopy(o['scope'])} for i in [1,2,3]]
         d=decision(r);self.assertEqual(d['state'],'unknown');self.assertIn('arithmetic_overflow',d['reasons'])
+    def test_malformed_profile_id_and_request_root_rejected(self):
+        from scripts.coaching_criteria.json_contract import evaluate_json
+        for bad in [[],{},1,True]:
+            r=request();r['criterion']['profile']=bad
+            with self.assertRaises(ValueError):evaluate(r)
+        for text in ['[]','null','true','1']:
+            with self.assertRaises(ValueError):evaluate_json(text)
     def test_tree_budgets(self):
         r=request();node=r['criterion']
         for i in range(18):node={'type':'group','id':str(i),'op':'OR','children':[node]}

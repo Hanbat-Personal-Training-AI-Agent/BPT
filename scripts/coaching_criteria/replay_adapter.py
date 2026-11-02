@@ -20,7 +20,8 @@ def frame_request(frame, input_sha256, source_commit=None, model_sha256=None):
         matched=expected is not None and all(metric.get(k)==v for k,v in expected.items())
         contract=spec.contract() if spec else {}
         t=source.get('source_pts');index=source.get('source_index')
-        phase=context.get('phase');side=context.get('side');view='side' if context.get('side_view') is True else 'front' if context.get('side_view') is False else 'unknown'
+        phase=context.get('phase');side=context.get('side');view='side' if context.get('side_view') is True else 'unknown'
+        anatomical_side='left' if name.startswith('left') else 'right' if name.startswith('right') else 'bilateral'
         reasons=list(metric.get('reasons',[]))
         if not matched:reasons.append('replay_definition_mismatch')
         # profile-free mapping preserves values without asserting support checks or model identity absent from this export.
@@ -30,9 +31,9 @@ def frame_request(frame, input_sha256, source_commit=None, model_sha256=None):
             'originalReplayMetric':original,'sourceBindingExact':matched,
             'scope':{'sourceIdentity':{'inputSha256':input_sha256,'sourceCommit':source_commit,'modelSha256':model_sha256,'epoch':str(source.get('epoch'))+':'+str(exercise),'clockId':'original-source-PTS'},
                 'timeBasis':'source_pts_seconds' if source.get('time_basis')=='sample_pts_seconds' else source.get('time_basis'),
-                'startPts':t,'endPts':t,'phase':phase,'side':side,'selectedSide':side,'view':view,'coverageComplete':True,'expectedSourceIndices':[index]},
+                'startPts':t,'endPts':t,'phase':phase,'side':anatomical_side,'selectedSide':side,'view':view,'coverageComplete':True,'expectedSourceIndices':[index]},
             'samples':[{'sourceIndex':index,'pts':t,'value':metric.get('value'),'rawValue':metric.get('rawValue'),'available':metric.get('available'),
-                'blockingReasons':reasons,'side':side,'phase':phase,'view':view,'flush':context.get('flush_tail',False)}],
+                'blockingReasons':reasons,'side':anatomical_side,'phase':phase,'view':view,'flush':context.get('flush_tail',False)}],
             'support':{'gravitySynchronized':context.get('gravitySynchronized')}}
         children.append({'type':'atom','id':name,'observation':name})
     return {'evaluation':{'mode':'causal','asOfPts':source.get('source_pts')},'exercise':exercise,'variant':'unconfirmed','observations':observations,'profiles':{},

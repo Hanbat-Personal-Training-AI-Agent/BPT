@@ -1,0 +1,168 @@
+{
+  "appShapedReplay": {
+    "cases": {
+      "barbell_row": {
+        "flushFrames": 5,
+        "frames": 587,
+        "genuineFrames": 582
+      },
+      "pushup": {
+        "flushFrames": 5,
+        "frames": 548,
+        "genuineFrames": 543
+      },
+      "squat": {
+        "flushFrames": 5,
+        "frames": 1263,
+        "genuineFrames": 1258
+      }
+    },
+    "counts": {
+      "flushFrames": 15,
+      "frames": 2398,
+      "genuineFrames": 2383,
+      "metricOpportunities": 21582
+    },
+    "criterionReasons": {
+      "complete_source_identity_required": 15356,
+      "explicit_correction_limit_required": 15356,
+      "flush_sample_not_observation": 210,
+      "low_joint_support": 1789,
+      "metric_not_applicable_to_exercise": 6226,
+      "missing_geometry": 378,
+      "missing_gravity": 2398,
+      "missing_joint_support": 378,
+      "missing_raw_geometry": 378,
+      "observation_unavailable": 4565,
+      "profile_required": 15356,
+      "support_rawCorrectionChecked_required": 15356,
+      "support_requiredJointsSupported_required": 15356,
+      "support_trackingObserved_required": 15356,
+      "synchronized_gravity_required": 2398,
+      "synchronized_source_gravity_required": 2398,
+      "unknown_observation_context": 6788,
+      "unusable_3d": 378
+    },
+    "criterionStates": {
+      "not_applicable": 6226,
+      "unknown": 15356
+    },
+    "inputMode": "app_codable_nine",
+    "inputSHA256": "12dbb6cfa87c4980a49fc473892b6ad8ac2009b6d733e426756d243a87f4d636",
+    "numericTolerance": 1e-10,
+    "originalUnchanged": true,
+    "profilesUsed": 0,
+    "schema": "bpt.coaching-criteria-native-replay.v1",
+    "scope": "existing actual numeric observations only; no form accuracy or posture delivery validation"
+  },
+  "checks": {
+    "nativeTestMethods": 7,
+    "pythonCriteriaTests": 54,
+    "pythonOptimizedCriteriaTests": 54,
+    "sharedSyntheticFullOutputCases": 93,
+    "terminalStrictReplayTests": 44
+  },
+  "fullExportProxyNegativeControl": {
+    "cases": {
+      "barbell_row": {
+        "flushFrames": 5,
+        "frames": 587,
+        "genuineFrames": 582
+      },
+      "pushup": {
+        "flushFrames": 5,
+        "frames": 548,
+        "genuineFrames": 543
+      },
+      "squat": {
+        "flushFrames": 5,
+        "frames": 1263,
+        "genuineFrames": 1258
+      }
+    },
+    "counts": {
+      "flushFrames": 15,
+      "frames": 2398,
+      "genuineFrames": 2383,
+      "metricOpportunities": 26378
+    },
+    "criterionReasons": {
+      "complete_source_identity_required": 18302,
+      "explicit_correction_limit_required": 18302,
+      "flush_sample_not_observation": 250,
+      "low_joint_support": 2504,
+      "metric_not_applicable_to_exercise": 8076,
+      "metric_not_mapped_by_native_bridge": 2946,
+      "missing_geometry": 462,
+      "missing_gravity": 2398,
+      "missing_joint_support": 462,
+      "missing_raw_geometry": 462,
+      "observation_coordinate_mismatch": 2946,
+      "observation_definitionHash_mismatch": 2946,
+      "observation_metricVersion_mismatch": 2946,
+      "observation_unavailable": 5364,
+      "observation_unit_mismatch": 2946,
+      "profile_required": 18302,
+      "support_rawCorrectionChecked_required": 18302,
+      "support_requiredJointsSupported_required": 18302,
+      "support_trackingObserved_required": 18302,
+      "synchronized_gravity_required": 2398,
+      "synchronized_source_gravity_required": 2398,
+      "unknown_observation_context": 8140,
+      "unusable_3d": 462
+    },
+    "criterionStates": {
+      "not_applicable": 8076,
+      "unknown": 18302
+    },
+    "inputMode": "full_export_with_unmapped_proxy_controls",
+    "inputSHA256": "12dbb6cfa87c4980a49fc473892b6ad8ac2009b6d733e426756d243a87f4d636",
+    "numericTolerance": 1e-10,
+    "originalUnchanged": true,
+    "profilesUsed": 0,
+    "schema": "bpt.coaching-criteria-native-replay.v1",
+    "scope": "existing actual numeric observations only; no form accuracy or posture delivery validation"
+  },
+  "iOSTypecheck": {
+    "commandSHA256": "06bc1f35b3948784846378994202ce11a3d6789b926ef61d1858966c0d273ee2",
+    "elapsedSeconds": 65.35998582839966,
+    "generatedHeader": "read-only earlier terminal-evidence GeneratedPluginRegistrant.h include",
+    "installed": false,
+    "linked": false,
+    "modelInference": false,
+    "newCacheDirectory": "coaching-criteria-native-typecheck-20261103",
+    "returncode": 0,
+    "scope": "full current Runner Swift source iOS16 arm64 typecheck with read-only existing framework cache; no link/install/runtime",
+    "sdk": "iPhoneOS27.1",
+    "signed": false,
+    "sourceFileCount": 57,
+    "sourceManifestSHA256": "875831985f6c759c16da23b3572b9df0819dadf0d3e084b5275fa0623e172fd0",
+    "sourceUnchanged": true,
+    "target": "arm64-apple-ios16.0"
+  },
+  "limitations": [
+    "No target profiles or posture labels supplied",
+    "No device runtime or feedback delivery validation",
+    "No whole-form correctness or accuracy claim",
+    "No new inference/training/GPU/upload/default activation/integration merge/deployment"
+  ],
+  "notSideMappingCountChange": 0,
+  "schema": "bpt.coaching-criteria-native-bridge-validation.v1",
+  "sideViewSourceCounts": {
+    "barbell_row": {
+      "notSide": 0,
+      "side": 558,
+      "unknown": 29
+    },
+    "pushup": {
+      "notSide": 0,
+      "side": 518,
+      "unknown": 30
+    },
+    "squat": {
+      "notSide": 0,
+      "side": 0,
+      "unknown": 1263
+    }
+  }
+}

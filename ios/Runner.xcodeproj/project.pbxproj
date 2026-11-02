@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		C77F00000000000000000003 /* CoachingCriteriaBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = C77F00000000000000000004 /* CoachingCriteriaBridge.swift */; };
 		C77F00000000000000000001 /* CoachingCriteria.swift in Sources */ = {isa = PBXBuildFile; fileRef = C77F00000000000000000002 /* CoachingCriteria.swift */; };
 		C77E00000000000000000001 /* TerminalObservationCandidate.swift in Sources */ = {isa = PBXBuildFile; fileRef = C77E00000000000000000002 /* TerminalObservationCandidate.swift */; };
 		B77E00000000000000000001 /* TerminalEvidence.swift in Sources */ = {isa = PBXBuildFile; fileRef = B77E00000000000000000002 /* TerminalEvidence.swift */; };
@@ -104,6 +105,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		C77F00000000000000000004 /* CoachingCriteriaBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoachingCriteriaBridge.swift; sourceTree = "<group>"; };
 		C77F00000000000000000002 /* CoachingCriteria.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoachingCriteria.swift; sourceTree = "<group>"; };
 		C77E00000000000000000002 /* TerminalObservationCandidate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalObservationCandidate.swift; sourceTree = "<group>"; };
 		B77E00000000000000000002 /* TerminalEvidence.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalEvidence.swift; sourceTree = "<group>"; };
@@ -410,6 +412,7 @@
 				A16F0C1E9B2D4E5F6A7B8C02 /* ExperimentalCoaching.swift */,
 				C77E00000000000000000002 /* TerminalObservationCandidate.swift */,
 				C77F00000000000000000002 /* CoachingCriteria.swift */,
+				C77F00000000000000000004 /* CoachingCriteriaBridge.swift */,
 				5C9A1E3B7D2F4A6C8E0B1D04 /* ExerciseSetup.swift */,
 			);
 			path = Evaluators;
@@ -700,6 +703,7 @@
 				A16F0C1E9B2D4E5F6A7B8C01 /* ExperimentalCoaching.swift in Sources */,
 				C77E00000000000000000001 /* TerminalObservationCandidate.swift in Sources */,
 				C77F00000000000000000001 /* CoachingCriteria.swift in Sources */,
+				C77F00000000000000000003 /* CoachingCriteriaBridge.swift in Sources */,
 				B77E00000000000000000001 /* TerminalEvidence.swift in Sources */,
 				5C9A1E3B7D2F4A6C8E0B1D03 /* ExerciseSetup.swift in Sources */,
 				B7BF1D830B9649D4FFEE946D /* NativePoseExercise.swift in Sources */,

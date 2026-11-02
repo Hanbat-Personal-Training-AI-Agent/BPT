@@ -41,6 +41,11 @@ final class CoachingCriteriaTests: XCTestCase {
             var r = request; r["extra"] = ["nested": value]
             XCTAssertThrowsError(try CoachingCriteria.evaluate(r))
         }
+        let badValues: [Any] = [[1], ["bad": 1], true, 1]
+        for bad in badValues {
+            var r = request; r["criterion"] = ["type": "atom", "id": "a", "observation": "o", "profile": bad]
+            XCTAssertThrowsError(try CoachingCriteria.evaluate(r))
+        }
         request["observations"] = [1, 2]
         XCTAssertThrowsError(try CoachingCriteria.evaluate(request))
         request["observations"] = [:]

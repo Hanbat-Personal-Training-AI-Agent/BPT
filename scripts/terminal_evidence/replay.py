@@ -39,6 +39,49 @@ def vector(value, length, nullable=False, missing=False):
     require(all(finite(x) or (nullable and x is None) for x in value), 'array_nonfinite_or_type')
 
 
+def validate_coaching_summary(row, exercise=None):
+    """Optional profile-free v1 payload must bind to this exact terminal opportunity."""
+    if 'coaching_criteria' not in row:return
+    payload=row['coaching_criteria']
+    require(type(payload) is dict, 'coaching_summary_schema')
+    try: encoded=json.dumps(payload,allow_nan=False,separators=(',',':')).encode()
+    except (ValueError,TypeError,RecursionError) as error:raise InvalidCapture('coaching_summary_json') from error
+    require(len(encoded)<=32768,'coaching_summary_budget')
+    require(payload.get('schema')=='bpt.coaching-criteria-terminal.v1' and payload.get('catalogVersion')=='bpt.coaching-metrics.v1', 'coaching_summary_schema')
+    require(type(payload.get('profilesUsed')) is int and payload['profilesUsed']==0 and payload.get('scope')=='profile_free_observations_only' and payload.get('state') in ('unknown','not_applicable'), 'coaching_summary_profile_scope')
+    require(payload.get('profileAuthority')=='scoped_reference_only_not_whole_form_or_clinical_validation', 'coaching_summary_authority')
+    allowed={'schema','status','catalogVersion','state','profilesUsed','scope','profileAuthority','source','context','metrics','unmappedMetrics','unsuppliedCatalogMetrics'}
+    if payload.get('status')=='withheld_error':allowed.add('errorReason')
+    require(set(payload)==allowed,'coaching_summary_fields')
+    source=payload.get('source');context=payload.get('context')
+    require(type(source) is dict and type(context) is dict,'coaching_summary_binding')
+    for key in ('epoch','frame','source_index','source_pts','source_time_value','source_time_scale','time_basis'):
+        require(key in source and type(source[key]) is type(row.get(key)) and source[key]==row.get(key),'coaching_summary_source_mismatch')
+    for key in ('phase','side','side_view','source_kind','flush_tail'):
+        require(key in context and type(context[key]) is type(row.get(key)) and context[key]==row.get(key),'coaching_summary_context_mismatch')
+    require(context.get('gravitySynchronized') is False,'coaching_summary_gravity_unproven')
+    aliases={'pushUp':'pushup','push-up':'pushup','barbellRow':'barbell-row','barbell_row':'barbell-row','row':'barbell-row'}
+    if exercise is not None:require(aliases.get(context.get('exercise'),context.get('exercise'))==aliases.get(exercise,exercise),'coaching_summary_exercise_mismatch')
+    metrics=payload.get('metrics')
+    require(payload.get('status') in ('observed','withheld_error'),'coaching_summary_status')
+    if payload['status']=='withheld_error':
+        require(payload.get('errorReason') in ('observation_encoding_failed','criteria_evaluation_failed') and payload['state']=='unknown' and metrics=={} and payload.get('unmappedMetrics')==[], 'coaching_summary_error')
+        require(type(payload.get('unsuppliedCatalogMetrics')) is list and len(payload['unsuppliedCatalogMetrics'])==11 and all(type(x) is str and len(x.encode())<=128 for x in payload['unsuppliedCatalogMetrics']), 'coaching_summary_error_coverage')
+        return
+    require('errorReason' not in payload,'coaching_summary_status')
+    require(type(metrics) is dict and 0<len(metrics)<=32,'coaching_summary_metrics')
+    def names(value):return type(value) is list and len(value)<=32 and all(type(x) is str and len(x.encode())<=128 for x in value)
+    for name,metric in metrics.items():
+        require(type(name) is str and len(name.encode())<=128 and type(metric) is dict,'coaching_summary_metric')
+        require(all(k in metric for k in ('rawValue','value','available','reasons','state','criterionReasons','interpretation')),'coaching_summary_metric_fields')
+        require(all(metric.get(k) is None or finite(metric.get(k)) for k in ('rawValue','value')) and type(metric.get('available')) is bool,'coaching_summary_value')
+        require(metric.get('state') in ('unknown','not_applicable') and metric.get('interpretation')=='unresolved','coaching_summary_decision')
+        require(names(metric.get('reasons')) and names(metric.get('criterionReasons')),'coaching_summary_reasons')
+        if metric['state']=='unknown':require('profile_required' in metric['criterionReasons'],'coaching_summary_profile_reason')
+        if context['flush_tail'] and metric['state']=='unknown':require('flush_sample_not_observation' in metric['criterionReasons'],'coaching_summary_flush')
+    require(names(payload.get('unmappedMetrics')) and names(payload.get('unsuppliedCatalogMetrics')),'coaching_summary_coverage')
+
+
 def unique_object(pairs):
     result = {}
     for key, value in pairs:
@@ -136,6 +179,7 @@ def load(path):
             require(not data['reps'] or row['rep'] > data['reps'][-1]['rep'], 'duplicate_rep')
             data['reps'].append(row)
         elif kind == 'terminal_frame':
+            validate_coaching_summary(row, data['start'].get('exercise'))
             require(integer(row.get('frame')) and integer(row.get('source_index')) and finite(row.get('source_pts')) and row['source_pts'] >= 0, 'source_time')
             require(type(row.get('source_time_value')) is int and abs(row['source_time_value']) <= 2**63-1 and integer(row.get('source_time_scale')) and 0 < row['source_time_scale'] <= 2**31-1, 'source_rational_time')
             require(math.isclose(row['source_time_value']/row['source_time_scale'],row['source_pts'],rel_tol=1e-12,abs_tol=1e-9), 'source_clock_mismatch')
