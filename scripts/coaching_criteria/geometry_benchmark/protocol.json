@@ -1,0 +1,61 @@
+{
+  "schema": "bpt.core3-exact-geometry-benchmark.v1",
+  "sourcePopulation": "60 existing streams historically tagged heldout for A-H; reused benchmark/development for this new analysis, not fresh independent holdout",
+  "modes": [
+    "raw",
+    "full",
+    "original_continuity_candidate"
+  ],
+  "supportScores": [
+    0.3,
+    0.5,
+    0.7
+  ],
+  "partitions": {
+    "primary": "[90,n)",
+    "prior": "[21,firstSession)",
+    "early": "[firstSession,90)",
+    "late": "[90,n)",
+    "primary_no_tail5": "[90,n-5)"
+  },
+  "cameraUp": [
+    0,
+    -1,
+    0
+  ],
+  "predictedMetricInputs": "only existing saved predicted coordinates, original image-derived scores, invalid masks and dataset timestamps",
+  "GTAccess": "only after each complete stream predicted metrics/support/rolling summaries are saved and hashed; frozen GT loader, no GT scale/up/rep segments passed to prediction math",
+  "geometricPredicateProbes": {
+    "interiorAnglesDegrees": [
+      90,
+      120,
+      150
+    ],
+    "projectedUpperArmDegrees": [
+      90
+    ],
+    "cameraHipLineDeviationRatio": [
+      0.14,
+      -0.08
+    ],
+    "cameraTorsoCausalRangeDeg": [
+      39.9
+    ]
+  },
+  "probeMeaning": "numeric geometric crossings, NOT expert posture targets, normal-form labels or deployment recommendations; no45/60-literature transfer",
+  "rolling": {
+    "seconds": 2,
+    "maximumGapSeconds": 0.25,
+    "phaseQualification": "unavailable; phase-free geometric comparison only"
+  },
+  "temporalCriteria": "bottom/early-ascent/pulling anchored criteria withheld: no original causal phase/anchor metadata; never use GT rep boundaries",
+  "reporting": [
+    "all opportunities + metric-GT-valid + supported + withheld denominators",
+    "conditional MAE/median/p95/max and signed errors",
+    "strict agreement with withheld counted as not-confirmed",
+    "paired raw-to-full/candidate predicate flips, including withheld",
+    "coverage and error together for .3/.5/.7 without best-setting adoption"
+  ],
+  "scope": "no inference/training/GPU/media transfer; GT and per-frame data stay Home, only aggregate receipts returned",
+  "supportDefinition": "required-joint source score + frozen per-mode invalid mask + finite metric geometry only; no app raw-assessment correction veto, NOT app candidate availability"
+}
