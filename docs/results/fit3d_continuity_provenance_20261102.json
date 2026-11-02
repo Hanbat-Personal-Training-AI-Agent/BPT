@@ -60,5 +60,50 @@
     "scripts/wrist_observation/fit3d_signed_angle_scores.py": "c9961fc221bc3305f8065adb53c6144456c334fcf6627c8a113789dfa27c9161",
     "scripts/wrist_observation/describe_cached_worst.py": "b921db4d28caab2d5b36b7fbbb5a6af2990c986b1f93c04a506f5703add1a5d3"
   },
-  "native_median_shim_sha256": "5157d675beb0ec409702344a57c0aaf6fce2878961e679346515a0447c43ca20"
+  "native_median_shim_sha256": "5157d675beb0ec409702344a57c0aaf6fce2878961e679346515a0447c43ca20",
+  "supplemental_imported_reference_dependencies": {
+    "audit": "read-only SHA256 comparison; no scorer/model/output rerun",
+    "reference_git_commit": "fe0bc62da2892696571b11b0b41ea1268af03181",
+    "original_manifest_scope_note": "Original 18-file source manifest omitted the two imported geometry dependencies and package initializers; this supplement records them explicitly. Standard library/NumPy environment is not newly hashed here.",
+    "files": {
+      "pose_feedback/geometry/bone_lengths.py": {
+        "exists": true,
+        "bytes": 5533,
+        "sha256": "cd09e68b75cb7b1568e9327735c58444ada7d4892533ed981cd71d3806f55fb5",
+        "git_fe0bc62_exists": true,
+        "git_fe0bc62_bytes": 5533,
+        "git_fe0bc62_sha256": "cd09e68b75cb7b1568e9327735c58444ada7d4892533ed981cd71d3806f55fb5",
+        "matches_git_fe0bc62": true
+      },
+      "pose_feedback/geometry/hinge_limit.py": {
+        "exists": true,
+        "bytes": 4299,
+        "sha256": "ec19d683ce65d0b345529ebfadd41b8c8cf169943e942a64e005118017cf7664",
+        "git_fe0bc62_exists": true,
+        "git_fe0bc62_bytes": 4299,
+        "git_fe0bc62_sha256": "ec19d683ce65d0b345529ebfadd41b8c8cf169943e942a64e005118017cf7664",
+        "matches_git_fe0bc62": true
+      },
+      "pose_feedback/__init__.py": {
+        "exists": true,
+        "bytes": 66,
+        "sha256": "72cb55587991669bc14944c036c1f4bb5c18368f65cbc8eecf04f77ceaf58679",
+        "git_fe0bc62_exists": true,
+        "git_fe0bc62_bytes": 66,
+        "git_fe0bc62_sha256": "72cb55587991669bc14944c036c1f4bb5c18368f65cbc8eecf04f77ceaf58679",
+        "matches_git_fe0bc62": true
+      },
+      "pose_feedback/geometry/__init__.py": {
+        "exists": true,
+        "bytes": 1,
+        "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+        "git_fe0bc62_exists": true,
+        "git_fe0bc62_bytes": 1,
+        "git_fe0bc62_sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+        "matches_git_fe0bc62": true
+      }
+    },
+    "package_initializers": "pose_feedback __init__ is docstring only (66bytes); geometry __init__ is newline only (1byte), neither imports additional code.",
+    "all_match_git_fe0bc62": true
+  }
 }
