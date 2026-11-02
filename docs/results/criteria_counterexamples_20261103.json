@@ -1,0 +1,15 @@
+{
+  "base": "654fab2",
+  "scope": "synthetic source-contract counterexamples; not new-engine or form accuracy validation",
+  "python_tests_passed": 10,
+  "swift_targeted_tests_passed": 4,
+  "new_engines_tested": false,
+  "source_sha256": {
+    "ios/Runner/NativePose/Evaluators/FormWarnings.swift": "b4161e2b386f46ab1db2f14075ef11e0ab9c709962ef6f7cfcf4a2ec74758449",
+    "ios/Runner/NativePose/Evaluators/ExperimentalCoaching.swift": "8927fd1262ce9db4e6ebcd9844994ca0b1f5b259e9f05b693e0d407b3a87e9b7",
+    "server/calibration_modal/deep_metrics.py": "441c9de6bfbad46fe63e1da7794b830d9ec8ba8730080ebb7acc1b64b7636775",
+    "server/calibration_modal/deep_rules.csv": "ce95348cf2324cbe7818d894e1c18f8d1a9586bdd7f7012b41be96e32f518a32",
+    "scripts/audit/tests/test_criteria_counterexamples.py": "68f5437ebc89503e7f8e9927994584f53e7fd7f2e748dd32810c989114cbdf5f",
+    "ios/CalibrationEngineKit/Tests/CalibrationEngineKitTests/CriteriaCounterexamplesTests.swift": "ade3770da79ccfcd932a9eea1b71a7901f57cd05b83a60b89a1369fd1624d149"
+  }
+}
