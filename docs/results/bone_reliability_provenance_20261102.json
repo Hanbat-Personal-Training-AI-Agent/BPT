@@ -1,0 +1,86 @@
+{
+  "native_receipt": {
+    "original_raw_full_input_file_unchanged": true,
+    "input_sha256": "0cf94ef04e6efdab0b65e5bc8f21678921bfedeb4a75f4e7455f41d8ec901790",
+    "source_sha256": {
+      "ios/Runner/NativePose/PosePipeline/Pose3DConstraints.swift": "4fc033f249228ab6557b7313c773b5521823c64e65e2097046dfcbde1886257e",
+      "ios/Runner/NativePose/PosePipeline/BoneLengthConstraint.swift": "f556f110f3353c7faa71799d23f74658e4517abd34cb755dee1a427739fecc82",
+      "ios/Runner/NativePose/PosePipeline/KneeHingeLimit.swift": "c4f2d38d46a5ffaaad740ca8655bc13a36a87e845e1c31a7b5bfaa3e1c39a8e9",
+      "scripts/bone_reliability/BoneCorrectionReliability.swift": "ec05b74a94b8a29c97f7f1dd129e8407c099a467b029d7359f4fc6ef38cfe9b0"
+    },
+    "median_shim_sha256": "5157d675beb0ec409702344a57c0aaf6fce2878961e679346515a0447c43ca20",
+    "helper_sha256": "6948039f717091331fde39224e85ce9b891437852e045bc2df5798d1a31af208",
+    "combined_original_capture_manifest_sha256": "a40d01dbf95c4c2098ab249c9954bda943feb8f92b1d40fcab50fb8f0ea42aab"
+  },
+  "native_parity": {
+    "passed": true,
+    "synthetic_cases": 18,
+    "native_actual_rows": 2335,
+    "max_evidence_numerical_error": 0.0,
+    "baseline_gate": {
+      "baseline_coordinate_components": 119085,
+      "baseline_max_coordinate_error": 4.163336342344337e-17,
+      "baseline_nonzero_coordinate_components": 4522,
+      "coordinate_tolerance": 1e-12,
+      "existing_masks_exact": true,
+      "raw_arrays_unchanged": true
+    }
+  },
+  "synthetic_sha256": "2ca387442f8fe44419204abc315bc539200dded5bc479b94442ffea12af43420",
+  "source_sha256": {
+    "scripts/bone_reliability/BoneCorrectionReliability.swift": "ec05b74a94b8a29c97f7f1dd129e8407c099a467b029d7359f4fc6ef38cfe9b0",
+    "scripts/bone_reliability/bone_correction_reliability.py": "29391ba1c6d0cc766274ed55b5974b87810c928bbc7069854180e3f213f57745",
+    "scripts/bone_reliability/check_parity.py": "ae3257de84d3cf9e15309b20cfe8d72fecf078988adbb74e864051c764f83ac1",
+    "scripts/bone_reliability/evaluate_home.py": "fc3bf95038d217c40b0b4bf86d31fd2970ea8ab802b35a8be44afd90d75deacd",
+    "scripts/bone_reliability/reliability_replay.swift": "6948039f717091331fde39224e85ce9b891437852e045bc2df5798d1a31af208",
+    "scripts/bone_reliability/run_native_audit.py": "4619706635df7fe0e0b9d19c3427545f99ab168108508ca5f2959fccbd84a28b",
+    "scripts/bone_reliability/summarize_native.py": "bb47c6a2b1df728ebd2a553942748e3d515311abcf130a19a802c32d2651020d"
+  },
+  "initial_failure": {
+    "actual_invalid": [],
+    "exercise": "squat",
+    "expected_invalid": [],
+    "frame": 21,
+    "gate_failed": true,
+    "maximum_coordinate_error": 8.673617379884035e-19
+  },
+  "verification_criterion_changed_after_initial_failure_before_statistics": true,
+  "numerical_coordinate_tolerance": 1e-12,
+  "candidate_expansion_bound_unchanged": 4.0,
+  "actual_coordinates_changed": false,
+  "all_three_original_capture_file_hashes_match_capture_receipts": true,
+  "home_closure": {
+    "aggregate_sha256": "705bb8f3b5e5d6f16e24f1dde94ea8f97a0baa7e2c00e673eee916a473f036e5",
+    "reference_source_sha256": {
+      "scripts/motion_contact_eval.py": "06e0bab0c63e9a513a53f692e58737c131a98439246f49bf2d81f232587019ad",
+      "scripts/motion_contact/__init__.py": "653ad3461512da18a7c94fcce851951c1226e139208ad9cd899e13cb56ee30bf",
+      "scripts/motion_contact/corruptions.py": "a29625ec502a289936d3c39f42b97a9e7e0073464f4715f9cce3c314c8980b73",
+      "scripts/motion_contact/data.py": "79fdfa4bf49a2c5c656f1e0b8e62dd1d0895a3b57a0a6d6f8306a26a3c3f1711",
+      "scripts/motion_contact/metrics.py": "baf5827535651854918be66ab569ff3113df7d6e126ce5504dac8de16b775f89",
+      "scripts/motion_contact/rescore.py": "8825ab3a62272e658e4ce03927241054717f55f1926ef192e560a5a7cbe8946b",
+      "scripts/motion_contact/rule_proxies.py": "acbaa501753c852a86a821102a9b7b371afc26bc454366fc25434804a0483709",
+      "scripts/motion_contact/runner.py": "c5f8b483b74a713acc7acfec14242ae3d8ab94bc3d9cbcd450a35b128374dfd9",
+      "scripts/motion_contact/summarize.py": "565a9a7d671059a02fd1b3f1ed6893a265c0bb5fa81b0b7f09b429d4c96aebcd",
+      "pose_feedback/geometry/exercise_motion.py": "33b8a9866170e78e7a649c6f9f6f784c57794108a8f8f9fc72754cc3b81a5338",
+      "pose_feedback/geometry/pose3d_constraints.py": "639986a072c44be2616716ec1087e63462f1290db33e86a8911d562663b8106c",
+      "pose_feedback/geometry/anatomical_limits.json": "7183b11e08d5f77a570b5bbe1376f871ac44b6f23a478ff4aeca06aa3e4bb946",
+      "pose_feedback/body/form_metrics_3d.py": "49644c499a189e01a58adafd8c8c339a7ad10afb09ffbdd0e8f3b24e5e97d6d5",
+      "pose_feedback/body/motionagformer_adapter.py": "f970d4eaede9ebd9b0dfae7b1f1a5e1e20187e6b1faa6471a16ad81b2f261355",
+      "scripts/eval_lift_app_fit3d.py": "97a33a21cf6eee274791122735c590e76177535841b7de4bd644145338500e5c",
+      "scripts/finetune_motionagformer_fit3d.py": "1ae0cf7b86411ebae9e676c77d4b43ea12ff89ea36ea2b6773bcdefc7e09ff81",
+      "docs/experiments/motion_contact_contract.md": "ef9cc816427cdf2425ec7a3ba308932ea683b03308539f286d3fd94c54d466e5",
+      "docs/experiments/motion_contact_protocol.md": "55869098f1465aa4de0df2833fe14aabe27b1a58e88994282934603da116e04a",
+      "pose_feedback/geometry/bone_lengths.py": "cd09e68b75cb7b1568e9327735c58444ada7d4892533ed981cd71d3806f55fb5",
+      "pose_feedback/geometry/hinge_limit.py": "ec19d683ce65d0b345529ebfadd41b8c8cf169943e942a64e005118017cf7664",
+      "pose_feedback/__init__.py": "72cb55587991669bc14944c036c1f4bb5c18368f65cbc8eecf04f77ceaf58679",
+      "pose_feedback/geometry/__init__.py": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+    },
+    "frozen_experiment_code_unchanged": true,
+    "original_full_cache_unchanged_after": true,
+    "used_raw_GT_inputs_rehashed_after_run": true,
+    "combined_input_manifest_sha256": "b9abdd12757d68e11611dec4c9ce1251eb9ce96ebbabbc04625d2ca3e38eed02",
+    "existing_full_summary_sha256": "4bd0094735a58e3af38136893b90329ee5c061fb6dd9f7721d1cb175aabb4233",
+    "reference": "frozen gitfe0bc62"
+  },
+  "all_22_reference_files_match_git_fe0bc62": true
+}

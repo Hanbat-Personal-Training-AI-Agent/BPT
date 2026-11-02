@@ -55,3 +55,12 @@ def test_malformed_mask_does_not_raise_or_leak_indices(mask):
 def test_missing_report_fields_not_normal(report):
     p,r=fixture();r['right_shoulder-right_elbow']=report;o=m.evaluate(p,r,1.,[])
     assert {15,16}<=set(o['invalid']);assert next(e for e in o['segments'] if e['child']==15)['status']=='unsupported'
+
+def test_current_direction_flip_preserved_without_coordinate_output():
+    p,r=fixture();p[15]=[13.,0.,0.];p[16]=[12.,0.,0.]
+    for child in (15,16):
+        name=m.NAMES[child-1];r[name]['observed']=m.length(p[child],p[m.PARENTS[child]]);r[name]['output']=r[name]['observed']
+    before=copy.deepcopy(p);direction=p[15][0]-p[14][0]
+    o=m.evaluate(p,r,1.,[])
+    assert p==before and direction<0 and p[15][0]-p[14][0]==direction
+    assert 'raw' not in o and 'full' not in o and 'coordinates' not in o

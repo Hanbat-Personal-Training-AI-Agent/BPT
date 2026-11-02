@@ -1,0 +1,2805 @@
+{
+  "candidate_maximum_expansion": 4.0,
+  "parity_and_baseline_gate": {
+    "passed": true,
+    "synthetic_cases": 18,
+    "native_actual_rows": 2335,
+    "max_evidence_numerical_error": 0.0,
+    "baseline_gate": {
+      "baseline_coordinate_components": 119085,
+      "baseline_max_coordinate_error": 4.163336342344337e-17,
+      "baseline_nonzero_coordinate_components": 4522,
+      "coordinate_tolerance": 1e-12,
+      "existing_masks_exact": true,
+      "raw_arrays_unchanged": true
+    }
+  },
+  "native_receipt": {
+    "original_raw_full_input_file_unchanged": true,
+    "input_sha256": "0cf94ef04e6efdab0b65e5bc8f21678921bfedeb4a75f4e7455f41d8ec901790",
+    "source_sha256": {
+      "ios/Runner/NativePose/PosePipeline/Pose3DConstraints.swift": "4fc033f249228ab6557b7313c773b5521823c64e65e2097046dfcbde1886257e",
+      "ios/Runner/NativePose/PosePipeline/BoneLengthConstraint.swift": "f556f110f3353c7faa71799d23f74658e4517abd34cb755dee1a427739fecc82",
+      "ios/Runner/NativePose/PosePipeline/KneeHingeLimit.swift": "c4f2d38d46a5ffaaad740ca8655bc13a36a87e845e1c31a7b5bfaa3e1c39a8e9",
+      "scripts/bone_reliability/BoneCorrectionReliability.swift": "ec05b74a94b8a29c97f7f1dd129e8407c099a467b029d7359f4fc6ef38cfe9b0"
+    },
+    "median_shim_sha256": "5157d675beb0ec409702344a57c0aaf6fce2878961e679346515a0447c43ca20",
+    "helper_sha256": "6948039f717091331fde39224e85ce9b891437852e045bc2df5798d1a31af208",
+    "combined_original_capture_manifest_sha256": "a40d01dbf95c4c2098ab249c9954bda943feb8f92b1d40fcab50fb8f0ea42aab"
+  },
+  "combined_original_capture_hash_manifest": "a40d01dbf95c4c2098ab249c9954bda943feb8f92b1d40fcab50fb8f0ea42aab",
+  "stored_raw_full_arrays_unchanged": true,
+  "groups": {
+    "squat": {
+      "source_frames": 1263,
+      "genuine_nonflush_frames": 1258,
+      "usable_genuine_frames": 1237,
+      "warmup_or_missing_genuine_frames": 21,
+      "flush_frames": 5,
+      "source_gaps": 4,
+      "original_invalid_joint_frames": 0,
+      "additional_invalid_joint_frames": 32,
+      "additional_invalid_frames": 18,
+      "partial_union_frames": 18,
+      "whole_union_frames": 0,
+      "wholepose_if_any_additional_extra_joint_frames": 306,
+      "per_joint_additional": {
+        "0": 0,
+        "1": 0,
+        "2": 0,
+        "3": 0,
+        "4": 0,
+        "5": 0,
+        "6": 0,
+        "7": 0,
+        "8": 0,
+        "9": 0,
+        "10": 0,
+        "11": 0,
+        "12": 0,
+        "13": 0,
+        "14": 0,
+        "15": 14,
+        "16": 18
+      },
+      "segment_status_counts": {
+        "within_candidate_bound": 9876,
+        "expansion_flagged": 20
+      },
+      "reason_counts": {
+        "expansion_above_4": 20
+      },
+      "all_segment_expansions": {
+        "count": 9896,
+        "min": 0.7253292103298329,
+        "median": 1.000000000861676,
+        "mean": 1.05265769625188,
+        "p95": 1.3613665857504866,
+        "max": 14.795501020969013
+      },
+      "absolute_segment_length_correction_model_units": {
+        "count": 9896,
+        "min": 6.825943443866667e-06,
+        "median": 0.009647012170869884,
+        "mean": 0.013907399411999635,
+        "p95": 0.039390261843721484,
+        "max": 0.15933746030662968
+      },
+      "ranked_original_wrist_events": [
+        {
+          "side": "left",
+          "ranking_layer": "raw_3d",
+          "rank": 1,
+          "source_interval_seconds": [
+            36.63333333333333,
+            36.666666666666664
+          ],
+          "original_wrist_speed_model_units_s": 0.9348477905339033,
+          "RTMPose_score_endpoints": [
+            0.927734375,
+            0.91357421875
+          ],
+          "original_wrist_invalid": [
+            false,
+            false
+          ],
+          "proposed_wrist_invalid": [
+            false,
+            false
+          ],
+          "relevant_segment_evidence": [
+            [
+              {
+                "absolute_length_correction": 0.021329732344955527,
+                "child": 12,
+                "expansion": 1.12454510677688,
+                "name": "left_shoulder-left_elbow",
+                "observed": 0.1712611028803189,
+                "output": 0.19259083522527443,
+                "parent": 11,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              },
+              {
+                "absolute_length_correction": 0.017560260900616492,
+                "child": 13,
+                "expansion": 0.8844169507811568,
+                "name": "left_elbow-left_wrist",
+                "observed": 0.1519276487278697,
+                "output": 0.13436738782725322,
+                "parent": 12,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              }
+            ],
+            [
+              {
+                "absolute_length_correction": 0.029096302492221976,
+                "child": 12,
+                "expansion": 1.1757666921334091,
+                "name": "left_shoulder-left_elbow",
+                "observed": 0.16553934160709774,
+                "output": 0.19463564409931972,
+                "parent": 11,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              },
+              {
+                "absolute_length_correction": 0.01555304861927767,
+                "child": 13,
+                "expansion": 0.8974069487468896,
+                "name": "left_elbow-left_wrist",
+                "observed": 0.15159943514016636,
+                "output": 0.13604638652088868,
+                "parent": 12,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              }
+            ]
+          ]
+        },
+        {
+          "side": "left",
+          "ranking_layer": "raw_3d",
+          "rank": 2,
+          "source_interval_seconds": [
+            36.733333333333334,
+            36.766666666666666
+          ],
+          "original_wrist_speed_model_units_s": 0.9013102824474204,
+          "RTMPose_score_endpoints": [
+            0.9287109375,
+            0.93798828125
+          ],
+          "original_wrist_invalid": [
+            false,
+            false
+          ],
+          "proposed_wrist_invalid": [
+            false,
+            false
+          ],
+          "relevant_segment_evidence": [
+            [
+              {
+                "absolute_length_correction": 0.03195924898606084,
+                "child": 12,
+                "expansion": 1.19586207892496,
+                "name": "left_shoulder-left_elbow",
+                "observed": 0.1631722136386863,
+                "output": 0.19513146262474715,
+                "parent": 11,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              },
+              {
+                "absolute_length_correction": 0.015979873146419077,
+                "child": 13,
+                "expansion": 0.8951821993107387,
+                "name": "left_elbow-left_wrist",
+                "observed": 0.1524538107204938,
+                "output": 0.13647393757407472,
+                "parent": 12,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              }
+            ],
+            [
+              {
+                "absolute_length_correction": 0.02735008998714264,
+                "child": 12,
+                "expansion": 1.1645402841183072,
+                "name": "left_shoulder-left_elbow",
+                "observed": 0.16622123958092513,
+                "output": 0.19357132956806777,
+                "parent": 11,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              },
+              {
+                "absolute_length_correction": 0.01569635102852679,
+                "child": 13,
+                "expansion": 0.8960593513411035,
+                "name": "left_elbow-left_wrist",
+                "observed": 0.15101263298863682,
+                "output": 0.13531628196011003,
+                "parent": 12,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              }
+            ]
+          ]
+        },
+        {
+          "side": "left",
+          "ranking_layer": "raw_3d",
+          "rank": 3,
+          "source_interval_seconds": [
+            11.2,
+            11.233333333333333
+          ],
+          "original_wrist_speed_model_units_s": 0.8580154534530923,
+          "RTMPose_score_endpoints": [
+            0.8984375,
+            0.88330078125
+          ],
+          "original_wrist_invalid": [
+            false,
+            false
+          ],
+          "proposed_wrist_invalid": [
+            false,
+            false
+          ],
+          "relevant_segment_evidence": [
+            [
+              {
+                "absolute_length_correction": 0.02156828745281661,
+                "child": 12,
+                "expansion": 1.1268965101315802,
+                "name": "left_shoulder-left_elbow",
+                "observed": 0.1699675383543034,
+                "output": 0.19153582580712,
+                "parent": 11,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              },
+              {
+                "absolute_length_correction": 0.012422026916443563,
+                "child": 13,
+                "expansion": 0.9191334875999736,
+                "name": "left_elbow-left_wrist",
+                "observed": 0.15361150799968848,
+                "output": 0.14118948108324492,
+                "parent": 12,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              }
+            ],
+            [
+              {
+                "absolute_length_correction": 0.029114748934195966,
+                "child": 12,
+                "expansion": 1.177019771041374,
+                "name": "left_shoulder-left_elbow",
+                "observed": 0.16447173534865278,
+                "output": 0.19358648428284875,
+                "parent": 11,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              },
+              {
+                "absolute_length_correction": 0.011554813632790262,
+                "child": 13,
+                "expansion": 0.9250220563704245,
+                "name": "left_elbow-left_wrist",
+                "observed": 0.15410950305434082,
+                "output": 0.14255468942155056,
+                "parent": 12,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              }
+            ]
+          ]
+        },
+        {
+          "side": "left",
+          "ranking_layer": "constrained_3d",
+          "rank": 1,
+          "source_interval_seconds": [
+            36.63333333333333,
+            36.666666666666664
+          ],
+          "original_wrist_speed_model_units_s": 1.0674182742205283,
+          "RTMPose_score_endpoints": [
+            0.927734375,
+            0.91357421875
+          ],
+          "original_wrist_invalid": [
+            false,
+            false
+          ],
+          "proposed_wrist_invalid": [
+            false,
+            false
+          ],
+          "relevant_segment_evidence": [
+            [
+              {
+                "absolute_length_correction": 0.021329732344955527,
+                "child": 12,
+                "expansion": 1.12454510677688,
+                "name": "left_shoulder-left_elbow",
+                "observed": 0.1712611028803189,
+                "output": 0.19259083522527443,
+                "parent": 11,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              },
+              {
+                "absolute_length_correction": 0.017560260900616492,
+                "child": 13,
+                "expansion": 0.8844169507811568,
+                "name": "left_elbow-left_wrist",
+                "observed": 0.1519276487278697,
+                "output": 0.13436738782725322,
+                "parent": 12,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              }
+            ],
+            [
+              {
+                "absolute_length_correction": 0.029096302492221976,
+                "child": 12,
+                "expansion": 1.1757666921334091,
+                "name": "left_shoulder-left_elbow",
+                "observed": 0.16553934160709774,
+                "output": 0.19463564409931972,
+                "parent": 11,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              },
+              {
+                "absolute_length_correction": 0.01555304861927767,
+                "child": 13,
+                "expansion": 0.8974069487468896,
+                "name": "left_elbow-left_wrist",
+                "observed": 0.15159943514016636,
+                "output": 0.13604638652088868,
+                "parent": 12,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              }
+            ]
+          ]
+        },
+        {
+          "side": "left",
+          "ranking_layer": "constrained_3d",
+          "rank": 2,
+          "source_interval_seconds": [
+            15.133333333333333,
+            15.166666666666666
+          ],
+          "original_wrist_speed_model_units_s": 1.0240082329614149,
+          "RTMPose_score_endpoints": [
+            0.86474609375,
+            0.86865234375
+          ],
+          "original_wrist_invalid": [
+            false,
+            false
+          ],
+          "proposed_wrist_invalid": [
+            false,
+            false
+          ],
+          "relevant_segment_evidence": [
+            [
+              {
+                "absolute_length_correction": 0.03414567940802182,
+                "child": 12,
+                "expansion": 1.2108988762932433,
+                "name": "left_shoulder-left_elbow",
+                "observed": 0.1619054591857764,
+                "output": 0.19605113859379822,
+                "parent": 11,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              },
+              {
+                "absolute_length_correction": 0.010521063702126687,
+                "child": 13,
+                "expansion": 0.930851368966354,
+                "name": "left_elbow-left_wrist",
+                "observed": 0.15215143878997983,
+                "output": 0.14163037508785314,
+                "parent": 12,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              }
+            ],
+            [
+              {
+                "absolute_length_correction": 0.03118553598721971,
+                "child": 12,
+                "expansion": 1.1911093793999619,
+                "name": "left_shoulder-left_elbow",
+                "observed": 0.16318160879981347,
+                "output": 0.19436714478703318,
+                "parent": 11,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              },
+              {
+                "absolute_length_correction": 0.013287223011893834,
+                "child": 13,
+                "expansion": 0.9136313041554627,
+                "name": "left_elbow-left_wrist",
+                "observed": 0.15384304326894885,
+                "output": 0.14055582025705501,
+                "parent": 12,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              }
+            ]
+          ]
+        },
+        {
+          "side": "left",
+          "ranking_layer": "constrained_3d",
+          "rank": 3,
+          "source_interval_seconds": [
+            36.733333333333334,
+            36.766666666666666
+          ],
+          "original_wrist_speed_model_units_s": 1.0108128686529574,
+          "RTMPose_score_endpoints": [
+            0.9287109375,
+            0.93798828125
+          ],
+          "original_wrist_invalid": [
+            false,
+            false
+          ],
+          "proposed_wrist_invalid": [
+            false,
+            false
+          ],
+          "relevant_segment_evidence": [
+            [
+              {
+                "absolute_length_correction": 0.03195924898606084,
+                "child": 12,
+                "expansion": 1.19586207892496,
+                "name": "left_shoulder-left_elbow",
+                "observed": 0.1631722136386863,
+                "output": 0.19513146262474715,
+                "parent": 11,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              },
+              {
+                "absolute_length_correction": 0.015979873146419077,
+                "child": 13,
+                "expansion": 0.8951821993107387,
+                "name": "left_elbow-left_wrist",
+                "observed": 0.1524538107204938,
+                "output": 0.13647393757407472,
+                "parent": 12,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              }
+            ],
+            [
+              {
+                "absolute_length_correction": 0.02735008998714264,
+                "child": 12,
+                "expansion": 1.1645402841183072,
+                "name": "left_shoulder-left_elbow",
+                "observed": 0.16622123958092513,
+                "output": 0.19357132956806777,
+                "parent": 11,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              },
+              {
+                "absolute_length_correction": 0.01569635102852679,
+                "child": 13,
+                "expansion": 0.8960593513411035,
+                "name": "left_elbow-left_wrist",
+                "observed": 0.15101263298863682,
+                "output": 0.13531628196011003,
+                "parent": 12,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              }
+            ]
+          ]
+        },
+        {
+          "side": "right",
+          "ranking_layer": "raw_3d",
+          "rank": 1,
+          "source_interval_seconds": [
+            0.8666666666666667,
+            0.9
+          ],
+          "original_wrist_speed_model_units_s": 7.171714199474725,
+          "RTMPose_score_endpoints": [
+            0.384521484375,
+            0.387939453125
+          ],
+          "original_wrist_invalid": [
+            false,
+            false
+          ],
+          "proposed_wrist_invalid": [
+            false,
+            false
+          ],
+          "relevant_segment_evidence": [
+            [
+              {
+                "absolute_length_correction": 0.0272688593014509,
+                "child": 15,
+                "expansion": 0.8437995959213014,
+                "name": "right_shoulder-right_elbow",
+                "observed": 0.17457611241333276,
+                "output": 0.14730725311188186,
+                "parent": 14,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              },
+              {
+                "absolute_length_correction": 0.01983720815993334,
+                "child": 16,
+                "expansion": 1.1755803370239908,
+                "name": "right_elbow-right_wrist",
+                "observed": 0.11298080694094378,
+                "output": 0.13281801510087712,
+                "parent": 15,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              }
+            ],
+            [
+              {
+                "absolute_length_correction": 0.030442660176571573,
+                "child": 15,
+                "expansion": 0.832261522214496,
+                "name": "right_shoulder-right_elbow",
+                "observed": 0.18148883058006648,
+                "output": 0.1510461704034949,
+                "parent": 14,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              },
+              {
+                "absolute_length_correction": 0.0032530089512144145,
+                "child": 16,
+                "expansion": 0.9766712699497178,
+                "name": "right_elbow-right_wrist",
+                "observed": 0.13944217898715247,
+                "output": 0.13618917003593806,
+                "parent": 15,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              }
+            ]
+          ]
+        },
+        {
+          "side": "right",
+          "ranking_layer": "raw_3d",
+          "rank": 2,
+          "source_interval_seconds": [
+            33,
+            33.03333333333333
+          ],
+          "original_wrist_speed_model_units_s": 4.84896510331108,
+          "RTMPose_score_endpoints": [
+            0.399658203125,
+            0.417724609375
+          ],
+          "original_wrist_invalid": [
+            false,
+            false
+          ],
+          "proposed_wrist_invalid": [
+            false,
+            false
+          ],
+          "relevant_segment_evidence": [
+            [
+              {
+                "absolute_length_correction": 0.022917129950821957,
+                "child": 15,
+                "expansion": 0.8866389440023887,
+                "name": "right_shoulder-right_elbow",
+                "observed": 0.20216051931718831,
+                "output": 0.17924338936636636,
+                "parent": 14,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              },
+              {
+                "absolute_length_correction": 0.08024790833546103,
+                "child": 16,
+                "expansion": 2.825283126245668,
+                "name": "right_elbow-right_wrist",
+                "observed": 0.04396463605102122,
+                "output": 0.12421254438648224,
+                "parent": 15,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              }
+            ],
+            [
+              {
+                "absolute_length_correction": 0.07113794286881266,
+                "child": 15,
+                "expansion": 1.7035586399446492,
+                "name": "right_shoulder-right_elbow",
+                "observed": 0.10111160439222135,
+                "output": 0.172249547261034,
+                "parent": 14,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              },
+              {
+                "absolute_length_correction": 0.08912580224099108,
+                "child": 16,
+                "expansion": 3.943164894002801,
+                "name": "right_elbow-right_wrist",
+                "observed": 0.030282299990258804,
+                "output": 0.11940810223124988,
+                "parent": 15,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              }
+            ]
+          ]
+        },
+        {
+          "side": "right",
+          "ranking_layer": "raw_3d",
+          "rank": 3,
+          "source_interval_seconds": [
+            28.1,
+            28.133333333333333
+          ],
+          "original_wrist_speed_model_units_s": 4.211365997885503,
+          "RTMPose_score_endpoints": [
+            0.302978515625,
+            0.33642578125
+          ],
+          "original_wrist_invalid": [
+            false,
+            false
+          ],
+          "proposed_wrist_invalid": [
+            false,
+            false
+          ],
+          "relevant_segment_evidence": [
+            [
+              {
+                "absolute_length_correction": 0.027128768967007,
+                "child": 15,
+                "expansion": 0.8645836042184095,
+                "name": "right_shoulder-right_elbow",
+                "observed": 0.20033592542783576,
+                "output": 0.17320715646082877,
+                "parent": 14,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              },
+              {
+                "absolute_length_correction": 0.003135558696740884,
+                "child": 16,
+                "expansion": 1.0267180492100456,
+                "name": "right_elbow-right_wrist",
+                "observed": 0.1173573217150134,
+                "output": 0.12049288041175428,
+                "parent": 15,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              }
+            ],
+            [
+              {
+                "absolute_length_correction": 0.02562702206444553,
+                "child": 15,
+                "expansion": 0.8706418368000631,
+                "name": "right_shoulder-right_elbow",
+                "observed": 0.19810904414927583,
+                "output": 0.1724820220848303,
+                "parent": 14,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              },
+              {
+                "absolute_length_correction": 0.02411072203646418,
+                "child": 16,
+                "expansion": 1.251419160523652,
+                "name": "right_elbow-right_wrist",
+                "observed": 0.09589850664621878,
+                "output": 0.12000922868268296,
+                "parent": 15,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              }
+            ]
+          ]
+        },
+        {
+          "side": "right",
+          "ranking_layer": "constrained_3d",
+          "rank": 1,
+          "source_interval_seconds": [
+            38.233333333333334,
+            38.266666666666666
+          ],
+          "original_wrist_speed_model_units_s": 9.728886577655523,
+          "RTMPose_score_endpoints": [
+            0.463134765625,
+            0.40087890625
+          ],
+          "original_wrist_invalid": [
+            false,
+            false
+          ],
+          "proposed_wrist_invalid": [
+            true,
+            true
+          ],
+          "relevant_segment_evidence": [
+            [
+              {
+                "absolute_length_correction": 0.15838061949851612,
+                "child": 15,
+                "expansion": 10.512307861248388,
+                "name": "right_shoulder-right_elbow",
+                "observed": 0.016650072916976677,
+                "output": 0.1750306924154928,
+                "parent": 14,
+                "reasons": [
+                  "expansion_above_4"
+                ],
+                "status": "expansion_flagged"
+              },
+              {
+                "absolute_length_correction": 0.07426441023647329,
+                "child": 16,
+                "expansion": 2.486669693929885,
+                "name": "right_elbow-right_wrist",
+                "observed": 0.049953537453340836,
+                "output": 0.12421794768981412,
+                "parent": 15,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              }
+            ],
+            [
+              {
+                "absolute_length_correction": 0.15933746030662968,
+                "child": 15,
+                "expansion": 11.605126456845065,
+                "name": "right_shoulder-right_elbow",
+                "observed": 0.01502456957538545,
+                "output": 0.17436202988201513,
+                "parent": 14,
+                "reasons": [
+                  "expansion_above_4"
+                ],
+                "status": "expansion_flagged"
+              },
+              {
+                "absolute_length_correction": 0.07602540609119018,
+                "child": 16,
+                "expansion": 2.590575336781053,
+                "name": "right_elbow-right_wrist",
+                "observed": 0.04779742545552578,
+                "output": 0.12382283154671597,
+                "parent": 15,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              }
+            ]
+          ]
+        },
+        {
+          "side": "right",
+          "ranking_layer": "constrained_3d",
+          "rank": 2,
+          "source_interval_seconds": [
+            34.1,
+            34.13333333333333
+          ],
+          "original_wrist_speed_model_units_s": 7.506572049132424,
+          "RTMPose_score_endpoints": [
+            0.35888671875,
+            0.38720703125
+          ],
+          "original_wrist_invalid": [
+            false,
+            false
+          ],
+          "proposed_wrist_invalid": [
+            true,
+            true
+          ],
+          "relevant_segment_evidence": [
+            [
+              {
+                "absolute_length_correction": 0.1461631366358023,
+                "child": 15,
+                "expansion": 7.197039453200245,
+                "name": "right_shoulder-right_elbow",
+                "observed": 0.023585961932245155,
+                "output": 0.16974909856804746,
+                "parent": 14,
+                "reasons": [
+                  "expansion_above_4"
+                ],
+                "status": "expansion_flagged"
+              },
+              {
+                "absolute_length_correction": 0.09309560312071513,
+                "child": 16,
+                "expansion": 4.3225813369691135,
+                "name": "right_elbow-right_wrist",
+                "observed": 0.02801905918295373,
+                "output": 0.12111466230366887,
+                "parent": 15,
+                "reasons": [
+                  "expansion_above_4"
+                ],
+                "status": "expansion_flagged"
+              }
+            ],
+            [
+              {
+                "absolute_length_correction": 0.1383151867527955,
+                "child": 15,
+                "expansion": 5.638037558056781,
+                "name": "right_shoulder-right_elbow",
+                "observed": 0.02982192037503595,
+                "output": 0.16813710712783145,
+                "parent": 14,
+                "reasons": [
+                  "expansion_above_4"
+                ],
+                "status": "expansion_flagged"
+              },
+              {
+                "absolute_length_correction": 0.0747200139768669,
+                "child": 16,
+                "expansion": 2.6517374498978197,
+                "name": "right_elbow-right_wrist",
+                "observed": 0.045237222163540126,
+                "output": 0.11995723614040701,
+                "parent": 15,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              }
+            ]
+          ]
+        },
+        {
+          "side": "right",
+          "ranking_layer": "constrained_3d",
+          "rank": 3,
+          "source_interval_seconds": [
+            0.8666666666666667,
+            0.9
+          ],
+          "original_wrist_speed_model_units_s": 7.4666275071653025,
+          "RTMPose_score_endpoints": [
+            0.384521484375,
+            0.387939453125
+          ],
+          "original_wrist_invalid": [
+            false,
+            false
+          ],
+          "proposed_wrist_invalid": [
+            false,
+            false
+          ],
+          "relevant_segment_evidence": [
+            [
+              {
+                "absolute_length_correction": 0.0272688593014509,
+                "child": 15,
+                "expansion": 0.8437995959213014,
+                "name": "right_shoulder-right_elbow",
+                "observed": 0.17457611241333276,
+                "output": 0.14730725311188186,
+                "parent": 14,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              },
+              {
+                "absolute_length_correction": 0.01983720815993334,
+                "child": 16,
+                "expansion": 1.1755803370239908,
+                "name": "right_elbow-right_wrist",
+                "observed": 0.11298080694094378,
+                "output": 0.13281801510087712,
+                "parent": 15,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              }
+            ],
+            [
+              {
+                "absolute_length_correction": 0.030442660176571573,
+                "child": 15,
+                "expansion": 0.832261522214496,
+                "name": "right_shoulder-right_elbow",
+                "observed": 0.18148883058006648,
+                "output": 0.1510461704034949,
+                "parent": 14,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              },
+              {
+                "absolute_length_correction": 0.0032530089512144145,
+                "child": 16,
+                "expansion": 0.9766712699497178,
+                "name": "right_elbow-right_wrist",
+                "observed": 0.13944217898715247,
+                "output": 0.13618917003593806,
+                "parent": 15,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              }
+            ]
+          ]
+        }
+      ]
+    },
+    "pushUp": {
+      "source_frames": 548,
+      "genuine_nonflush_frames": 543,
+      "usable_genuine_frames": 522,
+      "warmup_or_missing_genuine_frames": 21,
+      "flush_frames": 5,
+      "source_gaps": 3,
+      "original_invalid_joint_frames": 0,
+      "additional_invalid_joint_frames": 0,
+      "additional_invalid_frames": 0,
+      "partial_union_frames": 0,
+      "whole_union_frames": 0,
+      "wholepose_if_any_additional_extra_joint_frames": 0,
+      "per_joint_additional": {
+        "0": 0,
+        "1": 0,
+        "2": 0,
+        "3": 0,
+        "4": 0,
+        "5": 0,
+        "6": 0,
+        "7": 0,
+        "8": 0,
+        "9": 0,
+        "10": 0,
+        "11": 0,
+        "12": 0,
+        "13": 0,
+        "14": 0,
+        "15": 0,
+        "16": 0
+      },
+      "segment_status_counts": {
+        "within_candidate_bound": 4176
+      },
+      "reason_counts": {},
+      "all_segment_expansions": {
+        "count": 4176,
+        "min": 0.6699427037783321,
+        "median": 1.0000000079836435,
+        "mean": 1.0245627715848136,
+        "p95": 1.2982098626398897,
+        "max": 2.063061411031806
+      },
+      "absolute_segment_length_correction_model_units": {
+        "count": 4176,
+        "min": 2.0488034445265146e-05,
+        "median": 0.02932631308469777,
+        "mean": 0.02869027503544184,
+        "p95": 0.050997267357425546,
+        "max": 0.16739532211005995
+      },
+      "ranked_original_wrist_events": [
+        {
+          "side": "left",
+          "ranking_layer": "raw_3d",
+          "rank": 1,
+          "source_interval_seconds": [
+            16.666666666666668,
+            16.7
+          ],
+          "original_wrist_speed_model_units_s": 0.829898899027546,
+          "RTMPose_score_endpoints": [
+            0.2305908203125,
+            0.1834716796875
+          ],
+          "original_wrist_invalid": [
+            false,
+            false
+          ],
+          "proposed_wrist_invalid": [
+            false,
+            false
+          ],
+          "relevant_segment_evidence": [
+            [
+              {
+                "absolute_length_correction": 0.053980736609970714,
+                "child": 12,
+                "expansion": 1.297550105159401,
+                "name": "left_shoulder-left_elbow",
+                "observed": 0.18141729972184895,
+                "output": 0.23539803633181966,
+                "parent": 11,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              },
+              {
+                "absolute_length_correction": 0.037799215030551614,
+                "child": 13,
+                "expansion": 1.2095725086839015,
+                "name": "left_elbow-left_wrist",
+                "observed": 0.18036342298867167,
+                "output": 0.21816263801922328,
+                "parent": 12,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              }
+            ],
+            [
+              {
+                "absolute_length_correction": 0.061433601269363924,
+                "child": 12,
+                "expansion": 1.3501375130340778,
+                "name": "left_shoulder-left_elbow",
+                "observed": 0.17545563952007845,
+                "output": 0.23688924078944237,
+                "parent": 11,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              },
+              {
+                "absolute_length_correction": 0.03037486355173588,
+                "child": 13,
+                "expansion": 1.160502818120143,
+                "name": "left_elbow-left_wrist",
+                "observed": 0.18924816341230222,
+                "output": 0.2196230269640381,
+                "parent": 12,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              }
+            ]
+          ]
+        },
+        {
+          "side": "left",
+          "ranking_layer": "raw_3d",
+          "rank": 2,
+          "source_interval_seconds": [
+            16.633333333333333,
+            16.666666666666668
+          ],
+          "original_wrist_speed_model_units_s": 0.5864161681975952,
+          "RTMPose_score_endpoints": [
+            0.299560546875,
+            0.2305908203125
+          ],
+          "original_wrist_invalid": [
+            false,
+            false
+          ],
+          "proposed_wrist_invalid": [
+            false,
+            false
+          ],
+          "relevant_segment_evidence": [
+            [
+              {
+                "absolute_length_correction": 0.04801060793954093,
+                "child": 12,
+                "expansion": 1.2572199298434772,
+                "name": "left_shoulder-left_elbow",
+                "observed": 0.18665197509678286,
+                "output": 0.23466258303632379,
+                "parent": 11,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              },
+              {
+                "absolute_length_correction": 0.04135042891865523,
+                "child": 13,
+                "expansion": 1.234745249421376,
+                "name": "left_elbow-left_wrist",
+                "observed": 0.1761502267695724,
+                "output": 0.21750065568822763,
+                "parent": 12,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              }
+            ],
+            [
+              {
+                "absolute_length_correction": 0.053980736609970714,
+                "child": 12,
+                "expansion": 1.297550105159401,
+                "name": "left_shoulder-left_elbow",
+                "observed": 0.18141729972184895,
+                "output": 0.23539803633181966,
+                "parent": 11,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              },
+              {
+                "absolute_length_correction": 0.037799215030551614,
+                "child": 13,
+                "expansion": 1.2095725086839015,
+                "name": "left_elbow-left_wrist",
+                "observed": 0.18036342298867167,
+                "output": 0.21816263801922328,
+                "parent": 12,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              }
+            ]
+          ]
+        },
+        {
+          "side": "left",
+          "ranking_layer": "raw_3d",
+          "rank": 3,
+          "source_interval_seconds": [
+            16.966666666666665,
+            17
+          ],
+          "original_wrist_speed_model_units_s": 0.5827942821388262,
+          "RTMPose_score_endpoints": [
+            0.41845703125,
+            0.52490234375
+          ],
+          "original_wrist_invalid": [
+            false,
+            false
+          ],
+          "proposed_wrist_invalid": [
+            false,
+            false
+          ],
+          "relevant_segment_evidence": [
+            [
+              {
+                "absolute_length_correction": 0.030215420549564553,
+                "child": 12,
+                "expansion": 1.152588891667508,
+                "name": "left_shoulder-left_elbow",
+                "observed": 0.19801848102681105,
+                "output": 0.2282339015763756,
+                "parent": 11,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              },
+              {
+                "absolute_length_correction": 0.04270338606230653,
+                "child": 13,
+                "expansion": 1.2519101164501087,
+                "name": "left_elbow-left_wrist",
+                "observed": 0.16951834513070865,
+                "output": 0.21222173119301518,
+                "parent": 12,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              }
+            ],
+            [
+              {
+                "absolute_length_correction": 0.022032713842311313,
+                "child": 12,
+                "expansion": 1.1072171915269695,
+                "name": "left_shoulder-left_elbow",
+                "observed": 0.20549609189090884,
+                "output": 0.22752880573322015,
+                "parent": 11,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              },
+              {
+                "absolute_length_correction": 0.0410159870893716,
+                "child": 13,
+                "expansion": 1.240535778212167,
+                "name": "left_elbow-left_wrist",
+                "observed": 0.1705192773991111,
+                "output": 0.2115352644884827,
+                "parent": 12,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              }
+            ]
+          ]
+        },
+        {
+          "side": "left",
+          "ranking_layer": "constrained_3d",
+          "rank": 1,
+          "source_interval_seconds": [
+            1.7,
+            1.7333333333333334
+          ],
+          "original_wrist_speed_model_units_s": 1.93028461756155,
+          "RTMPose_score_endpoints": [
+            0.269287109375,
+            0.267822265625
+          ],
+          "original_wrist_invalid": [
+            false,
+            false
+          ],
+          "proposed_wrist_invalid": [
+            false,
+            false
+          ],
+          "relevant_segment_evidence": [
+            [
+              {
+                "absolute_length_correction": 0.005925064258011731,
+                "child": 12,
+                "expansion": 0.9709683847652403,
+                "name": "left_shoulder-left_elbow",
+                "observed": 0.20409006560949486,
+                "output": 0.19816500135148313,
+                "parent": 11,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              },
+              {
+                "absolute_length_correction": 0.011382845309126727,
+                "child": 13,
+                "expansion": 0.9401080055325862,
+                "name": "left_elbow-left_wrist",
+                "observed": 0.19005620718341482,
+                "output": 0.1786733618742881,
+                "parent": 12,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              }
+            ],
+            [
+              {
+                "absolute_length_correction": 0.046890069540708346,
+                "child": 12,
+                "expansion": 1.2298979683625668,
+                "name": "left_shoulder-left_elbow",
+                "observed": 0.20396034760411225,
+                "output": 0.2508504171448206,
+                "parent": 11,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              },
+              {
+                "absolute_length_correction": 0.039699186406085246,
+                "child": 13,
+                "expansion": 1.2112415519450965,
+                "name": "left_elbow-left_wrist",
+                "observed": 0.18793265832663167,
+                "output": 0.22763184473271691,
+                "parent": 12,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              }
+            ]
+          ]
+        },
+        {
+          "side": "left",
+          "ranking_layer": "constrained_3d",
+          "rank": 2,
+          "source_interval_seconds": [
+            16.666666666666668,
+            16.7
+          ],
+          "original_wrist_speed_model_units_s": 0.9811984382657006,
+          "RTMPose_score_endpoints": [
+            0.2305908203125,
+            0.1834716796875
+          ],
+          "original_wrist_invalid": [
+            false,
+            false
+          ],
+          "proposed_wrist_invalid": [
+            false,
+            false
+          ],
+          "relevant_segment_evidence": [
+            [
+              {
+                "absolute_length_correction": 0.053980736609970714,
+                "child": 12,
+                "expansion": 1.297550105159401,
+                "name": "left_shoulder-left_elbow",
+                "observed": 0.18141729972184895,
+                "output": 0.23539803633181966,
+                "parent": 11,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              },
+              {
+                "absolute_length_correction": 0.037799215030551614,
+                "child": 13,
+                "expansion": 1.2095725086839015,
+                "name": "left_elbow-left_wrist",
+                "observed": 0.18036342298867167,
+                "output": 0.21816263801922328,
+                "parent": 12,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              }
+            ],
+            [
+              {
+                "absolute_length_correction": 0.061433601269363924,
+                "child": 12,
+                "expansion": 1.3501375130340778,
+                "name": "left_shoulder-left_elbow",
+                "observed": 0.17545563952007845,
+                "output": 0.23688924078944237,
+                "parent": 11,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              },
+              {
+                "absolute_length_correction": 0.03037486355173588,
+                "child": 13,
+                "expansion": 1.160502818120143,
+                "name": "left_elbow-left_wrist",
+                "observed": 0.18924816341230222,
+                "output": 0.2196230269640381,
+                "parent": 12,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              }
+            ]
+          ]
+        },
+        {
+          "side": "left",
+          "ranking_layer": "constrained_3d",
+          "rank": 3,
+          "source_interval_seconds": [
+            13.1,
+            13.133333333333333
+          ],
+          "original_wrist_speed_model_units_s": 0.7189692267733623,
+          "RTMPose_score_endpoints": [
+            0.69677734375,
+            0.66357421875
+          ],
+          "original_wrist_invalid": [
+            false,
+            false
+          ],
+          "proposed_wrist_invalid": [
+            false,
+            false
+          ],
+          "relevant_segment_evidence": [
+            [
+              {
+                "absolute_length_correction": 0.02270628396319624,
+                "child": 12,
+                "expansion": 1.1080132038062154,
+                "name": "left_shoulder-left_elbow",
+                "observed": 0.21021766935025102,
+                "output": 0.23292395331344726,
+                "parent": 11,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              },
+              {
+                "absolute_length_correction": 0.046306902138327444,
+                "child": 13,
+                "expansion": 1.2725169081102996,
+                "name": "left_elbow-left_wrist",
+                "observed": 0.16992304242489426,
+                "output": 0.2162299445632217,
+                "parent": 12,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              }
+            ],
+            [
+              {
+                "absolute_length_correction": 0.032205205561955635,
+                "child": 12,
+                "expansion": 1.1604456118938151,
+                "name": "left_shoulder-left_elbow",
+                "observed": 0.2007235048800802,
+                "output": 0.23292871044203584,
+                "parent": 11,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              },
+              {
+                "absolute_length_correction": 0.05502373539334596,
+                "child": 13,
+                "expansion": 1.341486944997929,
+                "name": "left_elbow-left_wrist",
+                "observed": 0.16112983585266977,
+                "output": 0.21615357124601572,
+                "parent": 12,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              }
+            ]
+          ]
+        },
+        {
+          "side": "right",
+          "ranking_layer": "raw_3d",
+          "rank": 1,
+          "source_interval_seconds": [
+            18.133333333333333,
+            18.166666666666668
+          ],
+          "original_wrist_speed_model_units_s": 0.45880367394632426,
+          "RTMPose_score_endpoints": [
+            0.87451171875,
+            0.8837890625
+          ],
+          "original_wrist_invalid": [
+            false,
+            false
+          ],
+          "proposed_wrist_invalid": [
+            false,
+            false
+          ],
+          "relevant_segment_evidence": [
+            [
+              {
+                "absolute_length_correction": 0.04524714926808507,
+                "child": 15,
+                "expansion": 0.8437214578895686,
+                "name": "right_shoulder-right_elbow",
+                "observed": 0.2895288672203763,
+                "output": 0.24428171795229123,
+                "parent": 14,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              },
+              {
+                "absolute_length_correction": 0.015504286110477355,
+                "child": 16,
+                "expansion": 0.9355741681016004,
+                "name": "right_elbow-right_wrist",
+                "observed": 0.24065325434878096,
+                "output": 0.2251489682383036,
+                "parent": 15,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              }
+            ],
+            [
+              {
+                "absolute_length_correction": 0.04367327564428164,
+                "child": 15,
+                "expansion": 0.8484974336116812,
+                "name": "right_shoulder-right_elbow",
+                "observed": 0.2882675632856404,
+                "output": 0.24459428764135877,
+                "parent": 14,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              },
+              {
+                "absolute_length_correction": 0.014082324327327617,
+                "child": 16,
+                "expansion": 0.9412141821621406,
+                "name": "right_elbow-right_wrist",
+                "observed": 0.23955309027372698,
+                "output": 0.22547076594639937,
+                "parent": 15,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              }
+            ]
+          ]
+        },
+        {
+          "side": "right",
+          "ranking_layer": "raw_3d",
+          "rank": 2,
+          "source_interval_seconds": [
+            18.1,
+            18.133333333333333
+          ],
+          "original_wrist_speed_model_units_s": 0.45684401638331923,
+          "RTMPose_score_endpoints": [
+            0.87841796875,
+            0.87451171875
+          ],
+          "original_wrist_invalid": [
+            false,
+            false
+          ],
+          "proposed_wrist_invalid": [
+            false,
+            false
+          ],
+          "relevant_segment_evidence": [
+            [
+              {
+                "absolute_length_correction": 0.04504741703258072,
+                "child": 15,
+                "expansion": 0.8438339388660976,
+                "name": "right_shoulder-right_elbow",
+                "observed": 0.2884584313998638,
+                "output": 0.2434110143672831,
+                "parent": 14,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              },
+              {
+                "absolute_length_correction": 0.01843320622767433,
+                "child": 16,
+                "expansion": 0.9241190021174085,
+                "name": "right_elbow-right_wrist",
+                "observed": 0.24292255956089953,
+                "output": 0.2244893533332252,
+                "parent": 15,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              }
+            ],
+            [
+              {
+                "absolute_length_correction": 0.04524714926808507,
+                "child": 15,
+                "expansion": 0.8437214578895686,
+                "name": "right_shoulder-right_elbow",
+                "observed": 0.2895288672203763,
+                "output": 0.24428171795229123,
+                "parent": 14,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              },
+              {
+                "absolute_length_correction": 0.015504286110477355,
+                "child": 16,
+                "expansion": 0.9355741681016004,
+                "name": "right_elbow-right_wrist",
+                "observed": 0.24065325434878096,
+                "output": 0.2251489682383036,
+                "parent": 15,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              }
+            ]
+          ]
+        },
+        {
+          "side": "right",
+          "ranking_layer": "raw_3d",
+          "rank": 3,
+          "source_interval_seconds": [
+            18.066666666666666,
+            18.1
+          ],
+          "original_wrist_speed_model_units_s": 0.39661702276689553,
+          "RTMPose_score_endpoints": [
+            0.86669921875,
+            0.87841796875
+          ],
+          "original_wrist_invalid": [
+            false,
+            false
+          ],
+          "proposed_wrist_invalid": [
+            false,
+            false
+          ],
+          "relevant_segment_evidence": [
+            [
+              {
+                "absolute_length_correction": 0.04472944634820536,
+                "child": 15,
+                "expansion": 0.8446211482987143,
+                "name": "right_shoulder-right_elbow",
+                "observed": 0.28787345162131367,
+                "output": 0.2431440052731083,
+                "parent": 14,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              },
+              {
+                "absolute_length_correction": 0.021603509235038454,
+                "child": 16,
+                "expansion": 0.9121604471180732,
+                "name": "right_elbow-right_wrist",
+                "observed": 0.24594284153606413,
+                "output": 0.22433933230102568,
+                "parent": 15,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              }
+            ],
+            [
+              {
+                "absolute_length_correction": 0.04504741703258072,
+                "child": 15,
+                "expansion": 0.8438339388660976,
+                "name": "right_shoulder-right_elbow",
+                "observed": 0.2884584313998638,
+                "output": 0.2434110143672831,
+                "parent": 14,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              },
+              {
+                "absolute_length_correction": 0.01843320622767433,
+                "child": 16,
+                "expansion": 0.9241190021174085,
+                "name": "right_elbow-right_wrist",
+                "observed": 0.24292255956089953,
+                "output": 0.2244893533332252,
+                "parent": 15,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              }
+            ]
+          ]
+        },
+        {
+          "side": "right",
+          "ranking_layer": "constrained_3d",
+          "rank": 1,
+          "source_interval_seconds": [
+            1.7,
+            1.7333333333333334
+          ],
+          "original_wrist_speed_model_units_s": 2.0600514402003993,
+          "RTMPose_score_endpoints": [
+            0.8203125,
+            0.81689453125
+          ],
+          "original_wrist_invalid": [
+            false,
+            false
+          ],
+          "proposed_wrist_invalid": [
+            false,
+            false
+          ],
+          "relevant_segment_evidence": [
+            [
+              {
+                "absolute_length_correction": 0.0686067708659217,
+                "child": 15,
+                "expansion": 0.7428259733192055,
+                "name": "right_shoulder-right_elbow",
+                "observed": 0.26677177221740483,
+                "output": 0.19816500135148313,
+                "parent": 14,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              },
+              {
+                "absolute_length_correction": 0.07126646744637044,
+                "child": 16,
+                "expansion": 0.7148655032690303,
+                "name": "right_elbow-right_wrist",
+                "observed": 0.24993982932065853,
+                "output": 0.1786733618742881,
+                "parent": 15,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              }
+            ],
+            [
+              {
+                "absolute_length_correction": 0.015001215229743126,
+                "child": 15,
+                "expansion": 0.9435729805540272,
+                "name": "right_shoulder-right_elbow",
+                "observed": 0.2658516323745637,
+                "output": 0.2508504171448206,
+                "parent": 14,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              },
+              {
+                "absolute_length_correction": 0.02195848470935602,
+                "child": 16,
+                "expansion": 0.9120218930018588,
+                "name": "right_elbow-right_wrist",
+                "observed": 0.24959032944207293,
+                "output": 0.22763184473271691,
+                "parent": 15,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              }
+            ]
+          ]
+        },
+        {
+          "side": "right",
+          "ranking_layer": "constrained_3d",
+          "rank": 2,
+          "source_interval_seconds": [
+            18.133333333333333,
+            18.166666666666668
+          ],
+          "original_wrist_speed_model_units_s": 0.5226937125466132,
+          "RTMPose_score_endpoints": [
+            0.87451171875,
+            0.8837890625
+          ],
+          "original_wrist_invalid": [
+            false,
+            false
+          ],
+          "proposed_wrist_invalid": [
+            false,
+            false
+          ],
+          "relevant_segment_evidence": [
+            [
+              {
+                "absolute_length_correction": 0.04524714926808507,
+                "child": 15,
+                "expansion": 0.8437214578895686,
+                "name": "right_shoulder-right_elbow",
+                "observed": 0.2895288672203763,
+                "output": 0.24428171795229123,
+                "parent": 14,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              },
+              {
+                "absolute_length_correction": 0.015504286110477355,
+                "child": 16,
+                "expansion": 0.9355741681016004,
+                "name": "right_elbow-right_wrist",
+                "observed": 0.24065325434878096,
+                "output": 0.2251489682383036,
+                "parent": 15,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              }
+            ],
+            [
+              {
+                "absolute_length_correction": 0.04367327564428164,
+                "child": 15,
+                "expansion": 0.8484974336116812,
+                "name": "right_shoulder-right_elbow",
+                "observed": 0.2882675632856404,
+                "output": 0.24459428764135877,
+                "parent": 14,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              },
+              {
+                "absolute_length_correction": 0.014082324327327617,
+                "child": 16,
+                "expansion": 0.9412141821621406,
+                "name": "right_elbow-right_wrist",
+                "observed": 0.23955309027372698,
+                "output": 0.22547076594639937,
+                "parent": 15,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              }
+            ]
+          ]
+        },
+        {
+          "side": "right",
+          "ranking_layer": "constrained_3d",
+          "rank": 3,
+          "source_interval_seconds": [
+            18.1,
+            18.133333333333333
+          ],
+          "original_wrist_speed_model_units_s": 0.5120166086813797,
+          "RTMPose_score_endpoints": [
+            0.87841796875,
+            0.87451171875
+          ],
+          "original_wrist_invalid": [
+            false,
+            false
+          ],
+          "proposed_wrist_invalid": [
+            false,
+            false
+          ],
+          "relevant_segment_evidence": [
+            [
+              {
+                "absolute_length_correction": 0.04504741703258072,
+                "child": 15,
+                "expansion": 0.8438339388660976,
+                "name": "right_shoulder-right_elbow",
+                "observed": 0.2884584313998638,
+                "output": 0.2434110143672831,
+                "parent": 14,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              },
+              {
+                "absolute_length_correction": 0.01843320622767433,
+                "child": 16,
+                "expansion": 0.9241190021174085,
+                "name": "right_elbow-right_wrist",
+                "observed": 0.24292255956089953,
+                "output": 0.2244893533332252,
+                "parent": 15,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              }
+            ],
+            [
+              {
+                "absolute_length_correction": 0.04524714926808507,
+                "child": 15,
+                "expansion": 0.8437214578895686,
+                "name": "right_shoulder-right_elbow",
+                "observed": 0.2895288672203763,
+                "output": 0.24428171795229123,
+                "parent": 14,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              },
+              {
+                "absolute_length_correction": 0.015504286110477355,
+                "child": 16,
+                "expansion": 0.9355741681016004,
+                "name": "right_elbow-right_wrist",
+                "observed": 0.24065325434878096,
+                "output": 0.2251489682383036,
+                "parent": 15,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              }
+            ]
+          ]
+        }
+      ]
+    },
+    "barbellRow": {
+      "source_frames": 587,
+      "genuine_nonflush_frames": 582,
+      "usable_genuine_frames": 561,
+      "warmup_or_missing_genuine_frames": 21,
+      "flush_frames": 5,
+      "source_gaps": 3,
+      "original_invalid_joint_frames": 0,
+      "additional_invalid_joint_frames": 0,
+      "additional_invalid_frames": 0,
+      "partial_union_frames": 0,
+      "whole_union_frames": 0,
+      "wholepose_if_any_additional_extra_joint_frames": 0,
+      "per_joint_additional": {
+        "0": 0,
+        "1": 0,
+        "2": 0,
+        "3": 0,
+        "4": 0,
+        "5": 0,
+        "6": 0,
+        "7": 0,
+        "8": 0,
+        "9": 0,
+        "10": 0,
+        "11": 0,
+        "12": 0,
+        "13": 0,
+        "14": 0,
+        "15": 0,
+        "16": 0
+      },
+      "segment_status_counts": {
+        "within_candidate_bound": 4488
+      },
+      "reason_counts": {},
+      "all_segment_expansions": {
+        "count": 4488,
+        "min": 0.7240322784048587,
+        "median": 1.0000000000131546,
+        "mean": 1.0002221240371227,
+        "p95": 1.134827643947674,
+        "max": 1.3942390624902965
+      },
+      "absolute_segment_length_correction_model_units": {
+        "count": 4488,
+        "min": 9.008442378444226e-07,
+        "median": 0.011599237502510046,
+        "mean": 0.014691334719992694,
+        "p95": 0.03758872623563988,
+        "max": 0.08023107921666009
+      },
+      "ranked_original_wrist_events": [
+        {
+          "side": "left",
+          "ranking_layer": "raw_3d",
+          "rank": 1,
+          "source_interval_seconds": [
+            0.9,
+            0.9333333333333333
+          ],
+          "original_wrist_speed_model_units_s": 2.309570609893135,
+          "RTMPose_score_endpoints": [
+            0.88671875,
+            0.859375
+          ],
+          "original_wrist_invalid": [
+            false,
+            false
+          ],
+          "proposed_wrist_invalid": [
+            false,
+            false
+          ],
+          "relevant_segment_evidence": [
+            [
+              {
+                "absolute_length_correction": 0.04309831864620153,
+                "child": 12,
+                "expansion": 0.8312183998167211,
+                "name": "left_shoulder-left_elbow",
+                "observed": 0.25534962697000935,
+                "output": 0.2122513083238078,
+                "parent": 11,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              },
+              {
+                "absolute_length_correction": 0.032705812313264526,
+                "child": 13,
+                "expansion": 0.8540439991679333,
+                "name": "left_elbow-left_wrist",
+                "observed": 0.22407994276915683,
+                "output": 0.1913741304558923,
+                "parent": 12,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              }
+            ],
+            [
+              {
+                "absolute_length_correction": 0.04484854947205075,
+                "child": 12,
+                "expansion": 0.8254597454002398,
+                "name": "left_shoulder-left_elbow",
+                "observed": 0.2569524696460043,
+                "output": 0.21210392017395358,
+                "parent": 11,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              },
+              {
+                "absolute_length_correction": 0.03302132738623398,
+                "child": 13,
+                "expansion": 0.8527559554652625,
+                "name": "left_elbow-left_wrist",
+                "observed": 0.22426256688733967,
+                "output": 0.1912412395011057,
+                "parent": 12,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              }
+            ]
+          ]
+        },
+        {
+          "side": "left",
+          "ranking_layer": "raw_3d",
+          "rank": 2,
+          "source_interval_seconds": [
+            0.9333333333333333,
+            0.9666666666666667
+          ],
+          "original_wrist_speed_model_units_s": 1.0191240237306913,
+          "RTMPose_score_endpoints": [
+            0.859375,
+            0.8359375
+          ],
+          "original_wrist_invalid": [
+            false,
+            false
+          ],
+          "proposed_wrist_invalid": [
+            false,
+            false
+          ],
+          "relevant_segment_evidence": [
+            [
+              {
+                "absolute_length_correction": 0.04484854947205075,
+                "child": 12,
+                "expansion": 0.8254597454002398,
+                "name": "left_shoulder-left_elbow",
+                "observed": 0.2569524696460043,
+                "output": 0.21210392017395358,
+                "parent": 11,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              },
+              {
+                "absolute_length_correction": 0.03302132738623398,
+                "child": 13,
+                "expansion": 0.8527559554652625,
+                "name": "left_elbow-left_wrist",
+                "observed": 0.22426256688733967,
+                "output": 0.1912412395011057,
+                "parent": 12,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              }
+            ],
+            [
+              {
+                "absolute_length_correction": 0.05462787466050412,
+                "child": 12,
+                "expansion": 0.7896678001369096,
+                "name": "left_shoulder-left_elbow",
+                "observed": 0.2597218813670115,
+                "output": 0.2050940067065074,
+                "parent": 11,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              },
+              {
+                "absolute_length_correction": 0.03888374045478282,
+                "child": 13,
+                "expansion": 0.8262602898611419,
+                "name": "left_elbow-left_wrist",
+                "observed": 0.22380456617376493,
+                "output": 0.1849208257189821,
+                "parent": 12,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              }
+            ]
+          ]
+        },
+        {
+          "side": "left",
+          "ranking_layer": "raw_3d",
+          "rank": 3,
+          "source_interval_seconds": [
+            10.2,
+            10.233333333333333
+          ],
+          "original_wrist_speed_model_units_s": 0.7756156702906051,
+          "RTMPose_score_endpoints": [
+            0.8828125,
+            0.93701171875
+          ],
+          "original_wrist_invalid": [
+            false,
+            false
+          ],
+          "proposed_wrist_invalid": [
+            false,
+            false
+          ],
+          "relevant_segment_evidence": [
+            [
+              {
+                "absolute_length_correction": 0.0013850141750250677,
+                "child": 12,
+                "expansion": 1.0056292586412585,
+                "name": "left_shoulder-left_elbow",
+                "observed": 0.24603846852476716,
+                "output": 0.24742348269979222,
+                "parent": 11,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              },
+              {
+                "absolute_length_correction": 0.02487233205424244,
+                "child": 13,
+                "expansion": 0.8876630419189877,
+                "name": "left_elbow-left_wrist",
+                "observed": 0.22140827452623063,
+                "output": 0.1965359424719882,
+                "parent": 12,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              }
+            ],
+            [
+              {
+                "absolute_length_correction": 0.002755475504474386,
+                "child": 12,
+                "expansion": 1.0112053681347881,
+                "name": "left_shoulder-left_elbow",
+                "observed": 0.24590673606873967,
+                "output": 0.24866221157321405,
+                "parent": 11,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              },
+              {
+                "absolute_length_correction": 0.02397135817414414,
+                "child": 13,
+                "expansion": 0.8917882785024144,
+                "name": "left_elbow-left_wrist",
+                "observed": 0.2215227504229195,
+                "output": 0.19755139224877535,
+                "parent": 12,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              }
+            ]
+          ]
+        },
+        {
+          "side": "left",
+          "ranking_layer": "constrained_3d",
+          "rank": 1,
+          "source_interval_seconds": [
+            0.9,
+            0.9333333333333333
+          ],
+          "original_wrist_speed_model_units_s": 1.981456378086535,
+          "RTMPose_score_endpoints": [
+            0.88671875,
+            0.859375
+          ],
+          "original_wrist_invalid": [
+            false,
+            false
+          ],
+          "proposed_wrist_invalid": [
+            false,
+            false
+          ],
+          "relevant_segment_evidence": [
+            [
+              {
+                "absolute_length_correction": 0.04309831864620153,
+                "child": 12,
+                "expansion": 0.8312183998167211,
+                "name": "left_shoulder-left_elbow",
+                "observed": 0.25534962697000935,
+                "output": 0.2122513083238078,
+                "parent": 11,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              },
+              {
+                "absolute_length_correction": 0.032705812313264526,
+                "child": 13,
+                "expansion": 0.8540439991679333,
+                "name": "left_elbow-left_wrist",
+                "observed": 0.22407994276915683,
+                "output": 0.1913741304558923,
+                "parent": 12,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              }
+            ],
+            [
+              {
+                "absolute_length_correction": 0.04484854947205075,
+                "child": 12,
+                "expansion": 0.8254597454002398,
+                "name": "left_shoulder-left_elbow",
+                "observed": 0.2569524696460043,
+                "output": 0.21210392017395358,
+                "parent": 11,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              },
+              {
+                "absolute_length_correction": 0.03302132738623398,
+                "child": 13,
+                "expansion": 0.8527559554652625,
+                "name": "left_elbow-left_wrist",
+                "observed": 0.22426256688733967,
+                "output": 0.1912412395011057,
+                "parent": 12,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              }
+            ]
+          ]
+        },
+        {
+          "side": "left",
+          "ranking_layer": "constrained_3d",
+          "rank": 2,
+          "source_interval_seconds": [
+            1.7,
+            1.7333333333333334
+          ],
+          "original_wrist_speed_model_units_s": 1.7666328739364974,
+          "RTMPose_score_endpoints": [
+            0.89501953125,
+            0.88720703125
+          ],
+          "original_wrist_invalid": [
+            false,
+            false
+          ],
+          "proposed_wrist_invalid": [
+            false,
+            false
+          ],
+          "relevant_segment_evidence": [
+            [
+              {
+                "absolute_length_correction": 0.050359663856305636,
+                "child": 12,
+                "expansion": 0.7969913531477687,
+                "name": "left_shoulder-left_elbow",
+                "observed": 0.24806659537493547,
+                "output": 0.19770693151862984,
+                "parent": 11,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              },
+              {
+                "absolute_length_correction": 0.0426342768716205,
+                "child": 13,
+                "expansion": 0.8069926921991949,
+                "name": "left_elbow-left_wrist",
+                "observed": 0.2208946249621884,
+                "output": 0.1782603480905679,
+                "parent": 12,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              }
+            ],
+            [
+              {
+                "absolute_length_correction": 0.007206505112970302,
+                "child": 12,
+                "expansion": 1.0291640428962627,
+                "name": "left_shoulder-left_elbow",
+                "observed": 0.24710240410096954,
+                "output": 0.25430890921393984,
+                "parent": 11,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              },
+              {
+                "absolute_length_correction": 0.02111372919206428,
+                "child": 13,
+                "expansion": 0.9040333582568503,
+                "name": "left_elbow-left_wrist",
+                "observed": 0.22001112895639516,
+                "output": 0.19889739976433088,
+                "parent": 12,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              }
+            ]
+          ]
+        },
+        {
+          "side": "left",
+          "ranking_layer": "constrained_3d",
+          "rank": 3,
+          "source_interval_seconds": [
+            0.9333333333333333,
+            0.9666666666666667
+          ],
+          "original_wrist_speed_model_units_s": 0.9563376268898773,
+          "RTMPose_score_endpoints": [
+            0.859375,
+            0.8359375
+          ],
+          "original_wrist_invalid": [
+            false,
+            false
+          ],
+          "proposed_wrist_invalid": [
+            false,
+            false
+          ],
+          "relevant_segment_evidence": [
+            [
+              {
+                "absolute_length_correction": 0.04484854947205075,
+                "child": 12,
+                "expansion": 0.8254597454002398,
+                "name": "left_shoulder-left_elbow",
+                "observed": 0.2569524696460043,
+                "output": 0.21210392017395358,
+                "parent": 11,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              },
+              {
+                "absolute_length_correction": 0.03302132738623398,
+                "child": 13,
+                "expansion": 0.8527559554652625,
+                "name": "left_elbow-left_wrist",
+                "observed": 0.22426256688733967,
+                "output": 0.1912412395011057,
+                "parent": 12,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              }
+            ],
+            [
+              {
+                "absolute_length_correction": 0.05462787466050412,
+                "child": 12,
+                "expansion": 0.7896678001369096,
+                "name": "left_shoulder-left_elbow",
+                "observed": 0.2597218813670115,
+                "output": 0.2050940067065074,
+                "parent": 11,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              },
+              {
+                "absolute_length_correction": 0.03888374045478282,
+                "child": 13,
+                "expansion": 0.8262602898611419,
+                "name": "left_elbow-left_wrist",
+                "observed": 0.22380456617376493,
+                "output": 0.1849208257189821,
+                "parent": 12,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              }
+            ]
+          ]
+        },
+        {
+          "side": "right",
+          "ranking_layer": "raw_3d",
+          "rank": 1,
+          "source_interval_seconds": [
+            3.7333333333333334,
+            3.7666666666666666
+          ],
+          "original_wrist_speed_model_units_s": 1.0362144787681504,
+          "RTMPose_score_endpoints": [
+            0.414794921875,
+            0.4140625
+          ],
+          "original_wrist_invalid": [
+            false,
+            false
+          ],
+          "proposed_wrist_invalid": [
+            false,
+            false
+          ],
+          "relevant_segment_evidence": [
+            [
+              {
+                "absolute_length_correction": 0.009887741420062601,
+                "child": 15,
+                "expansion": 0.9623201907556695,
+                "name": "right_shoulder-right_elbow",
+                "observed": 0.2624148481205586,
+                "output": 0.252527106700496,
+                "parent": 14,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              },
+              {
+                "absolute_length_correction": 0.04710044673110017,
+                "child": 16,
+                "expansion": 1.3075034177640392,
+                "name": "right_elbow-right_wrist",
+                "observed": 0.1531704820505195,
+                "output": 0.20027092878161967,
+                "parent": 15,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              }
+            ],
+            [
+              {
+                "absolute_length_correction": 0.010123468316929396,
+                "child": 15,
+                "expansion": 0.9614936004287922,
+                "name": "right_shoulder-right_elbow",
+                "observed": 0.2629035284955324,
+                "output": 0.252780060178603,
+                "parent": 14,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              },
+              {
+                "absolute_length_correction": 0.04303739512317928,
+                "child": 16,
+                "expansion": 1.2732713387936025,
+                "name": "right_elbow-right_wrist",
+                "observed": 0.15748960470268972,
+                "output": 0.200526999825869,
+                "parent": 15,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              }
+            ]
+          ]
+        },
+        {
+          "side": "right",
+          "ranking_layer": "raw_3d",
+          "rank": 2,
+          "source_interval_seconds": [
+            3.2,
+            3.2333333333333334
+          ],
+          "original_wrist_speed_model_units_s": 0.8937481373737539,
+          "RTMPose_score_endpoints": [
+            0.8369140625,
+            0.82958984375
+          ],
+          "original_wrist_invalid": [
+            false,
+            false
+          ],
+          "proposed_wrist_invalid": [
+            false,
+            false
+          ],
+          "relevant_segment_evidence": [
+            [
+              {
+                "absolute_length_correction": 0.0008123558392301722,
+                "child": 15,
+                "expansion": 0.9967274586631513,
+                "name": "right_shoulder-right_elbow",
+                "observed": 0.24823394286363062,
+                "output": 0.24742158702440045,
+                "parent": 14,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              },
+              {
+                "absolute_length_correction": 0.02910858872624028,
+                "child": 16,
+                "expansion": 1.1739003537804993,
+                "name": "right_elbow-right_wrist",
+                "observed": 0.16738659866662356,
+                "output": 0.19649518739286384,
+                "parent": 15,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              }
+            ],
+            [
+              {
+                "absolute_length_correction": 0.002216366850612911,
+                "child": 15,
+                "expansion": 0.9911550942431868,
+                "name": "right_shoulder-right_elbow",
+                "observed": 0.2505811719820359,
+                "output": 0.24836480513142298,
+                "parent": 14,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              },
+              {
+                "absolute_length_correction": 0.036001977566857746,
+                "child": 16,
+                "expansion": 1.2232445900240279,
+                "name": "right_elbow-right_wrist",
+                "observed": 0.16126696536289117,
+                "output": 0.19726894292974892,
+                "parent": 15,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              }
+            ]
+          ]
+        },
+        {
+          "side": "right",
+          "ranking_layer": "raw_3d",
+          "rank": 3,
+          "source_interval_seconds": [
+            12.366666666666667,
+            12.4
+          ],
+          "original_wrist_speed_model_units_s": 0.8101507879429929,
+          "RTMPose_score_endpoints": [
+            0.4052734375,
+            0.40478515625
+          ],
+          "original_wrist_invalid": [
+            false,
+            false
+          ],
+          "proposed_wrist_invalid": [
+            false,
+            false
+          ],
+          "relevant_segment_evidence": [
+            [
+              {
+                "absolute_length_correction": 0.006032896829529788,
+                "child": 15,
+                "expansion": 0.9766662940933631,
+                "name": "right_shoulder-right_elbow",
+                "observed": 0.25854859290970345,
+                "output": 0.25251569608017366,
+                "parent": 14,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              },
+              {
+                "absolute_length_correction": 0.0493896728066964,
+                "child": 16,
+                "expansion": 1.3264612258204742,
+                "name": "right_elbow-right_wrist",
+                "observed": 0.15128802105845335,
+                "output": 0.20067769386514975,
+                "parent": 15,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              }
+            ],
+            [
+              {
+                "absolute_length_correction": 0.007328266455267685,
+                "child": 15,
+                "expansion": 0.971767768357678,
+                "name": "right_shoulder-right_elbow",
+                "observed": 0.25957092404562593,
+                "output": 0.25224265759035824,
+                "parent": 14,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              },
+              {
+                "absolute_length_correction": 0.05459510924658076,
+                "child": 16,
+                "expansion": 1.3743138672341053,
+                "name": "right_elbow-right_wrist",
+                "observed": 0.14585382489298904,
+                "output": 0.2004489341395698,
+                "parent": 15,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              }
+            ]
+          ]
+        },
+        {
+          "side": "right",
+          "ranking_layer": "constrained_3d",
+          "rank": 1,
+          "source_interval_seconds": [
+            1.7,
+            1.7333333333333334
+          ],
+          "original_wrist_speed_model_units_s": 1.855523898484809,
+          "RTMPose_score_endpoints": [
+            0.80712890625,
+            0.79638671875
+          ],
+          "original_wrist_invalid": [
+            false,
+            false
+          ],
+          "proposed_wrist_invalid": [
+            false,
+            false
+          ],
+          "relevant_segment_evidence": [
+            [
+              {
+                "absolute_length_correction": 0.058594076276165696,
+                "child": 15,
+                "expansion": 0.7713856969182175,
+                "name": "right_shoulder-right_elbow",
+                "observed": 0.25630100779479553,
+                "output": 0.19770693151862984,
+                "parent": 14,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              },
+              {
+                "absolute_length_correction": 0.0026691038285642787,
+                "child": 16,
+                "expansion": 1.0152006658406136,
+                "name": "right_elbow-right_wrist",
+                "observed": 0.17559124426200362,
+                "output": 0.1782603480905679,
+                "parent": 15,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              }
+            ],
+            [
+              {
+                "absolute_length_correction": 0.000683742626152839,
+                "child": 15,
+                "expansion": 0.9973185790993632,
+                "name": "right_shoulder-right_elbow",
+                "observed": 0.2549926518400927,
+                "output": 0.25430890921393984,
+                "parent": 14,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              },
+              {
+                "absolute_length_correction": 0.02369864163144489,
+                "child": 16,
+                "expansion": 1.1352671781695494,
+                "name": "right_elbow-right_wrist",
+                "observed": 0.175198758132886,
+                "output": 0.19889739976433088,
+                "parent": 15,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              }
+            ]
+          ]
+        },
+        {
+          "side": "right",
+          "ranking_layer": "constrained_3d",
+          "rank": 2,
+          "source_interval_seconds": [
+            3.7333333333333334,
+            3.7666666666666666
+          ],
+          "original_wrist_speed_model_units_s": 1.2536064393613437,
+          "RTMPose_score_endpoints": [
+            0.414794921875,
+            0.4140625
+          ],
+          "original_wrist_invalid": [
+            false,
+            false
+          ],
+          "proposed_wrist_invalid": [
+            false,
+            false
+          ],
+          "relevant_segment_evidence": [
+            [
+              {
+                "absolute_length_correction": 0.009887741420062601,
+                "child": 15,
+                "expansion": 0.9623201907556695,
+                "name": "right_shoulder-right_elbow",
+                "observed": 0.2624148481205586,
+                "output": 0.252527106700496,
+                "parent": 14,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              },
+              {
+                "absolute_length_correction": 0.04710044673110017,
+                "child": 16,
+                "expansion": 1.3075034177640392,
+                "name": "right_elbow-right_wrist",
+                "observed": 0.1531704820505195,
+                "output": 0.20027092878161967,
+                "parent": 15,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              }
+            ],
+            [
+              {
+                "absolute_length_correction": 0.010123468316929396,
+                "child": 15,
+                "expansion": 0.9614936004287922,
+                "name": "right_shoulder-right_elbow",
+                "observed": 0.2629035284955324,
+                "output": 0.252780060178603,
+                "parent": 14,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              },
+              {
+                "absolute_length_correction": 0.04303739512317928,
+                "child": 16,
+                "expansion": 1.2732713387936025,
+                "name": "right_elbow-right_wrist",
+                "observed": 0.15748960470268972,
+                "output": 0.200526999825869,
+                "parent": 15,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              }
+            ]
+          ]
+        },
+        {
+          "side": "right",
+          "ranking_layer": "constrained_3d",
+          "rank": 3,
+          "source_interval_seconds": [
+            12.366666666666667,
+            12.4
+          ],
+          "original_wrist_speed_model_units_s": 1.1468547299293377,
+          "RTMPose_score_endpoints": [
+            0.4052734375,
+            0.40478515625
+          ],
+          "original_wrist_invalid": [
+            false,
+            false
+          ],
+          "proposed_wrist_invalid": [
+            false,
+            false
+          ],
+          "relevant_segment_evidence": [
+            [
+              {
+                "absolute_length_correction": 0.006032896829529788,
+                "child": 15,
+                "expansion": 0.9766662940933631,
+                "name": "right_shoulder-right_elbow",
+                "observed": 0.25854859290970345,
+                "output": 0.25251569608017366,
+                "parent": 14,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              },
+              {
+                "absolute_length_correction": 0.0493896728066964,
+                "child": 16,
+                "expansion": 1.3264612258204742,
+                "name": "right_elbow-right_wrist",
+                "observed": 0.15128802105845335,
+                "output": 0.20067769386514975,
+                "parent": 15,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              }
+            ],
+            [
+              {
+                "absolute_length_correction": 0.007328266455267685,
+                "child": 15,
+                "expansion": 0.971767768357678,
+                "name": "right_shoulder-right_elbow",
+                "observed": 0.25957092404562593,
+                "output": 0.25224265759035824,
+                "parent": 14,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              },
+              {
+                "absolute_length_correction": 0.05459510924658076,
+                "child": 16,
+                "expansion": 1.3743138672341053,
+                "name": "right_elbow-right_wrist",
+                "observed": 0.14585382489298904,
+                "output": 0.2004489341395698,
+                "parent": 15,
+                "reasons": [],
+                "status": "within_candidate_bound"
+              }
+            ]
+          ]
+        }
+      ]
+    }
+  },
+  "interpretation": "Diagnostic counterfactual extra masks only. Original native outputs/counts/reports not changed. No GT, MPJPE, posture/FN or accurate-error-detector claim; RTMPose scores retained after hybrid input are descriptive, not probability/MP localization accuracy."
+}
