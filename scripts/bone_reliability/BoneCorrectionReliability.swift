@@ -24,7 +24,7 @@ enum BoneCorrectionReliability {
                          scale:Double?, existingInvalid:Set<Int>) -> Result {
         var proposed:Set<Int>=[],global=[String](),evidence=[SegmentEvidence]()
         guard raw.count==17,existingInvalid.allSatisfy({(0..<17).contains($0)}) else {
-            return Result(segments:[],existingInvalid:existingInvalid,additionalInvalid:Set(0..<17).subtracting(existingInvalid),invalid:existingInvalid.union(0..<17),globalReasons:["unsupported_pose_or_mask_shape"])
+            return Result(segments:[],existingInvalid:existingInvalid,additionalInvalid:Set(0..<17).subtracting(existingInvalid),invalid:Set(0..<17),globalReasons:["unsupported_pose_or_mask_shape"])
         }
         for j in 0..<17 where !raw[j].x.isFinite || !raw[j].y.isFinite || !raw[j].z.isFinite {
             proposed.formUnion(subtree(j));global.append("unsupported_nonfinite_raw_joint_\(j)")
