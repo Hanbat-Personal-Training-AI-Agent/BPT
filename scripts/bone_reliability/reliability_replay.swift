@@ -42,7 +42,7 @@ if CommandLine.arguments[1]=="--synthetic" {
  try write(cases,CommandLine.arguments[2])
 } else {
  let groups=try JSONSerialization.jsonObject(with:Data(contentsOf:URL(fileURLWithPath:CommandLine.arguments[1]))) as! [[String:Any]]
- var output=[[String:Any]](),maxError=0.0,coordinateCount=0
+ var output=[[String:Any]](),maxError=0.0,coordinateCount=0,nonzeroComponents=0
  for g in groups {
   let exercise=g["exercise"] as! String;var full=Pose3DConstraints();full.reflectFlippedKnee=exercise=="squat"
   var rows=[[String:Any]]()
@@ -50,13 +50,18 @@ if CommandLine.arguments[1]=="--synthetic" {
    let a=input["raw"] as! [Double],raw=stride(from:0,to:51,by:3).map{SIMD3(a[$0],a[$0+1],a[$0+2])}
    let targets=full.sessionTargets() ?? full.priorLengths,bone=BoneLengthConstraint.apply(raw,targetsCm:targets)
    let (fixed,report)=full.apply(raw),expected=input["full"] as! [Double],existing=Set(input["invalid"] as! [Int])
-   let flat=fixed.flatMap{[$0.x,$0.y,$0.z]};let error=zip(flat,expected).map{abs($0-$1)}.max()!
-   precondition(error==0 && report.invalidJoints==existing,"original full coordinate/mask mismatch")
+   let flat=fixed.flatMap{[$0.x,$0.y,$0.z]};let differences=zip(flat,expected).map{abs($0-$1)};let error=differences.max()!
+   nonzeroComponents+=differences.filter{$0 != 0}.count
+   if !error.isFinite || error > 1e-12 || report.invalidJoints != existing {
+    try write(["gate_failed":true,"exercise":exercise,"frame":input["frame"]!,"maximum_coordinate_error":error,"expected_invalid":existing.sorted(),"actual_invalid":report.invalidJoints.sorted()],CommandLine.arguments[2]+".failure.json")
+    exit(3)
+   }
    maxError=max(maxError,error);coordinateCount+=51
    let evidence=BoneCorrectionReliability.evaluate(raw:raw,segments:bone.segments,scale:bone.scale,existingInvalid:existing)
+   precondition(raw.flatMap{[$0.x,$0.y,$0.z]}==a,"raw input mutated")
    rows.append(["frame":input["frame"]!,"segments_input":segmentJSON(bone.segments),"scale":safe(bone.scale),"result":encode(evidence)])
   }
   output.append(["exercise":exercise,"frames":rows])
  }
- try write(["baseline_max_coordinate_error":maxError,"baseline_coordinate_components":coordinateCount,"groups":output],CommandLine.arguments[2])
+ try write(["baseline_max_coordinate_error":maxError,"baseline_coordinate_components":coordinateCount,"baseline_nonzero_coordinate_components":nonzeroComponents,"coordinate_tolerance":1e-12,"existing_masks_exact":true,"raw_arrays_unchanged":true,"groups":output],CommandLine.arguments[2])
 }

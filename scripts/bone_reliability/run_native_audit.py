@@ -21,12 +21,14 @@ def run(paths,scratch):
     (scratch/'median.swift').write_text('import Foundation\nenum FormWarningTracker {\n'+median+'\n}\n')
     (scratch/'main.swift').write_bytes(Path(__file__).with_name('reliability_replay.swift').read_bytes())
     base=ROOT/'ios/Runner/NativePose/PosePipeline';files=[base/(x+'.swift') for x in ('Pose3DConstraints','BoneLengthConstraint','KneeHingeLimit')]+[Path(__file__).with_name('BoneCorrectionReliability.swift')]
+    input_hash=hashlib.sha256((scratch/'input.json').read_bytes()).hexdigest()
     with open('/tmp/bpt-heavy.lock','a') as lock:
         fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
         subprocess.run(['swiftc','-O',*map(str,files),str(scratch/'median.swift'),str(scratch/'main.swift'),'-o',str(scratch/'replay')],check=True)
         subprocess.run([str(scratch/'replay'),'--synthetic',str(scratch/'synthetic.json')],check=True)
         subprocess.run([str(scratch/'replay'),str(scratch/'input.json'),str(scratch/'native_result.json')],check=True)
-    proof={'source_sha256':{str(p.relative_to(ROOT)):hashlib.sha256(p.read_bytes()).hexdigest() for p in files},'median_shim_sha256':hashlib.sha256((scratch/'median.swift').read_bytes()).hexdigest(),'helper_sha256':hashlib.sha256((scratch/'main.swift').read_bytes()).hexdigest(),'combined_original_capture_manifest_sha256':hashlib.sha256('\n'.join(sorted(digests)).encode()).hexdigest()}
+    assert input_hash==hashlib.sha256((scratch/'input.json').read_bytes()).hexdigest()
+    proof={'original_raw_full_input_file_unchanged':True,'input_sha256':input_hash,'source_sha256':{str(p.relative_to(ROOT)):hashlib.sha256(p.read_bytes()).hexdigest() for p in files},'median_shim_sha256':hashlib.sha256((scratch/'median.swift').read_bytes()).hexdigest(),'helper_sha256':hashlib.sha256((scratch/'main.swift').read_bytes()).hexdigest(),'combined_original_capture_manifest_sha256':hashlib.sha256('\n'.join(sorted(digests)).encode()).hexdigest()}
     (scratch/'receipt.json').write_text(json.dumps(proof,indent=2))
     return proof
 
