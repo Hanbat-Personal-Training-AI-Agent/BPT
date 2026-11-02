@@ -1,0 +1,64 @@
+{
+  "original_source_hashes": {
+    "scripts/motion_contact_eval.py": "06e0bab0c63e9a513a53f692e58737c131a98439246f49bf2d81f232587019ad",
+    "scripts/motion_contact/__init__.py": "653ad3461512da18a7c94fcce851951c1226e139208ad9cd899e13cb56ee30bf",
+    "scripts/motion_contact/corruptions.py": "a29625ec502a289936d3c39f42b97a9e7e0073464f4715f9cce3c314c8980b73",
+    "scripts/motion_contact/data.py": "79fdfa4bf49a2c5c656f1e0b8e62dd1d0895a3b57a0a6d6f8306a26a3c3f1711",
+    "scripts/motion_contact/metrics.py": "baf5827535651854918be66ab569ff3113df7d6e126ce5504dac8de16b775f89",
+    "scripts/motion_contact/rescore.py": "8825ab3a62272e658e4ce03927241054717f55f1926ef192e560a5a7cbe8946b",
+    "scripts/motion_contact/rule_proxies.py": "acbaa501753c852a86a821102a9b7b371afc26bc454366fc25434804a0483709",
+    "scripts/motion_contact/runner.py": "c5f8b483b74a713acc7acfec14242ae3d8ab94bc3d9cbcd450a35b128374dfd9",
+    "scripts/motion_contact/summarize.py": "565a9a7d671059a02fd1b3f1ed6893a265c0bb5fa81b0b7f09b429d4c96aebcd",
+    "pose_feedback/geometry/exercise_motion.py": "33b8a9866170e78e7a649c6f9f6f784c57794108a8f8f9fc72754cc3b81a5338",
+    "pose_feedback/geometry/pose3d_constraints.py": "639986a072c44be2616716ec1087e63462f1290db33e86a8911d562663b8106c",
+    "pose_feedback/geometry/anatomical_limits.json": "7183b11e08d5f77a570b5bbe1376f871ac44b6f23a478ff4aeca06aa3e4bb946",
+    "pose_feedback/body/form_metrics_3d.py": "49644c499a189e01a58adafd8c8c339a7ad10afb09ffbdd0e8f3b24e5e97d6d5",
+    "pose_feedback/body/motionagformer_adapter.py": "f970d4eaede9ebd9b0dfae7b1f1a5e1e20187e6b1faa6471a16ad81b2f261355",
+    "scripts/eval_lift_app_fit3d.py": "97a33a21cf6eee274791122735c590e76177535841b7de4bd644145338500e5c",
+    "scripts/finetune_motionagformer_fit3d.py": "1ae0cf7b86411ebae9e676c77d4b43ea12ff89ea36ea2b6773bcdefc7e09ff81",
+    "docs/experiments/motion_contact_contract.md": "ef9cc816427cdf2425ec7a3ba308932ea683b03308539f286d3fd94c54d466e5",
+    "docs/experiments/motion_contact_protocol.md": "55869098f1465aa4de0df2833fe14aabe27b1a58e88994282934603da116e04a"
+  },
+  "experiment_code_hashes": {
+    "bone_target_continuity.py": "e5bb37564fa8c868ddb70462e4ff6a36db8613ab343f4b238661d0104f047095",
+    "fit3d_continuity_cpu.py": "b91d40aaee24c2d802d005a2fad1d14bf427a1ee6b6bf38dcf9bcef167495d17",
+    "check_continuity_parity.py": "be469816e6d344f40d153d38c6012dc9741d3c8fbe2bd1429e060ac6132d3513"
+  },
+  "completed_aggregate_sha256": "4bd0094735a58e3af38136893b90329ee5c061fb6dd9f7721d1cb175aabb4233",
+  "source_manifest_unchanged": true,
+  "source_results_unchanged": true,
+  "experiment_code_unchanged": true,
+  "original_source_unchanged": true,
+  "native_fixture_gate_local": {
+    "passed": true,
+    "synthetic_only": true,
+    "coordinate_components": 213894,
+    "rows": 2097,
+    "filter_cases": 14,
+    "invalid_full_rows": 24,
+    "max_coordinate_error": 4.440892098500626e-16,
+    "max_target_or_shape_error": 5.551115123125783e-17,
+    "tolerance": 1e-10,
+    "fixture_sha256": "a6119dd470766856041f4c10ed7dbbe82894eabcc458202917d86f581a28cf05"
+  },
+  "initial_gate_failure": {
+    "passed": false,
+    "reason": "synthetic invalid-mask branch not covered; comparison numerical gates passed",
+    "max_coordinate_error": 4.440892098500626e-16,
+    "max_target_or_shape_error": 5.551115123125783e-17,
+    "invalid_rows": 0,
+    "real_stream_processing_started": false,
+    "action": "preserve original synthetic.json and add explicit spine rotation over 20 degrees to separate synthetic-complete.json; frozen filter parameters unchanged"
+  },
+  "initial_fixture_sha256": "eb4f837794721876613f81d81ff9c625276d779711b404de649f3ea0497ddd1b",
+  "local_native_and_scoring_source_sha256": {
+    "ios/Runner/NativePose/PosePipeline/Pose3DConstraints.swift": "4fc033f249228ab6557b7313c773b5521823c64e65e2097046dfcbde1886257e",
+    "ios/Runner/NativePose/PosePipeline/BoneLengthConstraint.swift": "f556f110f3353c7faa71799d23f74658e4517abd34cb755dee1a427739fecc82",
+    "ios/Runner/NativePose/PosePipeline/KneeHingeLimit.swift": "c4f2d38d46a5ffaaad740ca8655bc13a36a87e845e1c31a7b5bfaa3e1c39a8e9",
+    "scripts/wrist_observation/BoneTargetContinuity.swift": "42c45a1d5ae4c51b5c592dafcb06da1fae07c2ddf58a7c0bb5a5d9196e0739d8",
+    "scripts/wrist_observation/continuity_parity_fixture.swift": "85f5736356e888426961d4ed1cb02f4e3313200839dbcf08fa7822aff87ba2ab",
+    "scripts/wrist_observation/fit3d_signed_angle_scores.py": "c9961fc221bc3305f8065adb53c6144456c334fcf6627c8a113789dfa27c9161",
+    "scripts/wrist_observation/describe_cached_worst.py": "b921db4d28caab2d5b36b7fbbb5a6af2990c986b1f93c04a506f5703add1a5d3"
+  },
+  "native_median_shim_sha256": "5157d675beb0ec409702344a57c0aaf6fce2878961e679346515a0447c43ca20"
+}
