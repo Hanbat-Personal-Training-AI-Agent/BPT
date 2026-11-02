@@ -1,0 +1,141 @@
+{
+  "evaluation": {
+    "mode": "causal",
+    "asOfPts": 0.2
+  },
+  "exercise": "pushup",
+  "variant": "floor",
+  "observations": {
+    "o": {
+      "metricId": "leftUpperArmDeg",
+      "metricVersion": "1",
+      "definitionHash": "bd6e0ce9848cf9a2feeb800ce6bccd377298a6b2090f400a6500e3d7ebf9fea6",
+      "unit": "degrees",
+      "coordinate": "XS_H36M17_model_space_body_relative",
+      "aggregation": "max",
+      "scope": {
+        "sourceIdentity": {
+          "inputSha256": "synthetic-input",
+          "sourceCommit": "synthetic-source",
+          "modelSha256": "synthetic-model",
+          "epoch": "set1",
+          "clockId": "clip-pts"
+        },
+        "selectedSide": "left",
+        "timeBasis": "source_pts_seconds",
+        "startPts": 0,
+        "endPts": 0.2,
+        "phase": "descending",
+        "side": "left",
+        "view": "side",
+        "coverageComplete": true,
+        "coverageEvidence": {
+          "phaseStartObserved": true,
+          "phaseEndObserved": true,
+          "membershipSource": "synthetic-membership"
+        },
+        "expectedSourceIndices": [
+          0,
+          1,
+          2
+        ]
+      },
+      "samples": [
+        {
+          "sourceIndex": 0,
+          "pts": 0.0,
+          "side": "left",
+          "phase": "descending",
+          "view": "side",
+          "available": true,
+          "value": 80,
+          "rawValue": 80
+        },
+        {
+          "sourceIndex": 1,
+          "pts": 0.1,
+          "side": "left",
+          "phase": "descending",
+          "view": "side",
+          "available": true,
+          "value": 90,
+          "rawValue": 90
+        },
+        {
+          "sourceIndex": 2,
+          "pts": 0.2,
+          "side": "left",
+          "phase": "descending",
+          "view": "side",
+          "available": true,
+          "value": 100,
+          "rawValue": 100
+        }
+      ],
+      "available": true,
+      "blockingReasons": [],
+      "rawValue": 100,
+      "correctedValue": 100,
+      "confidence": 1.3,
+      "support": {
+        "requiredJointsSupported": true,
+        "trackingObserved": true,
+        "rawCorrectionChecked": true,
+        "maximumCorrectionDifference": 10
+      }
+    }
+  },
+  "profiles": {
+    "p": {
+      "metricId": "leftUpperArmDeg",
+      "metricVersion": "1",
+      "definitionHash": "bd6e0ce9848cf9a2feeb800ce6bccd377298a6b2090f400a6500e3d7ebf9fea6",
+      "unit": "degrees",
+      "coordinate": "XS_H36M17_model_space_body_relative",
+      "aggregation": "max",
+      "ruleId": "a",
+      "exercise": "pushup",
+      "variant": "floor",
+      "comparator": "gt",
+      "upper": 95,
+      "referenceKind": "engineering_candidate",
+      "predicateMeaning": "deviation",
+      "revision": "r1",
+      "source": "synthetic reviewed engineering fixture",
+      "availableAtPts": 0,
+      "applicability": {
+        "phase": [
+          "descending"
+        ],
+        "side": [
+          "left"
+        ],
+        "view": [
+          "side"
+        ]
+      },
+      "confirmation": {
+        "kind": "engineering_review",
+        "at": "2026-11-02",
+        "reference": "synthetic test only",
+        "scope": {
+          "metricId": "leftUpperArmDeg",
+          "metricVersion": "1",
+          "definitionHash": "bd6e0ce9848cf9a2feeb800ce6bccd377298a6b2090f400a6500e3d7ebf9fea6",
+          "unit": "degrees",
+          "coordinate": "XS_H36M17_model_space_body_relative",
+          "aggregation": "max",
+          "ruleId": "a",
+          "exercise": "pushup",
+          "variant": "floor"
+        }
+      }
+    }
+  },
+  "criterion": {
+    "type": "atom",
+    "id": "a",
+    "observation": "o",
+    "profile": "p"
+  }
+}

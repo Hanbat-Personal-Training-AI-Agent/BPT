@@ -1,0 +1,141 @@
+{
+  "leftKneeDeg": {
+    "definitionId": "ExperimentalCoaching.KneeDeg",
+    "unit": "degrees",
+    "coordinateSpace": "XS_H36M17_model_space_body_relative",
+    "scope": "frame_geometry_not_approved_form",
+    "requiredJoints": [
+      4,
+      5,
+      6
+    ],
+    "sourceDefinitionSha256": "8927fd1262ce9db4e6ebcd9844994ca0b1f5b259e9f05b693e0d407b3a87e9b7"
+  },
+  "leftElbowDeg": {
+    "definitionId": "ExperimentalCoaching.ElbowDeg",
+    "unit": "degrees",
+    "coordinateSpace": "XS_H36M17_model_space_body_relative",
+    "scope": "frame_geometry_not_approved_form",
+    "requiredJoints": [
+      11,
+      12,
+      13
+    ],
+    "sourceDefinitionSha256": "8927fd1262ce9db4e6ebcd9844994ca0b1f5b259e9f05b693e0d407b3a87e9b7"
+  },
+  "leftHipDeg": {
+    "definitionId": "ExperimentalCoaching.HipDeg",
+    "unit": "degrees",
+    "coordinateSpace": "XS_H36M17_model_space_body_relative",
+    "scope": "frame_geometry_not_approved_form",
+    "requiredJoints": [
+      4,
+      5,
+      8
+    ],
+    "sourceDefinitionSha256": "8927fd1262ce9db4e6ebcd9844994ca0b1f5b259e9f05b693e0d407b3a87e9b7"
+  },
+  "leftUpperArmDeg": {
+    "definitionId": "ExperimentalCoaching.UpperArmDeg",
+    "unit": "degrees",
+    "coordinateSpace": "XS_H36M17_model_space_body_relative",
+    "scope": "projected_body_frontal_abduction_from_caudal_axis",
+    "requiredJoints": [
+      0,
+      8,
+      11,
+      14,
+      11,
+      12
+    ],
+    "sourceDefinitionSha256": "8927fd1262ce9db4e6ebcd9844994ca0b1f5b259e9f05b693e0d407b3a87e9b7"
+  },
+  "rightKneeDeg": {
+    "definitionId": "ExperimentalCoaching.KneeDeg",
+    "unit": "degrees",
+    "coordinateSpace": "XS_H36M17_model_space_body_relative",
+    "scope": "frame_geometry_not_approved_form",
+    "requiredJoints": [
+      1,
+      2,
+      3
+    ],
+    "sourceDefinitionSha256": "8927fd1262ce9db4e6ebcd9844994ca0b1f5b259e9f05b693e0d407b3a87e9b7"
+  },
+  "rightElbowDeg": {
+    "definitionId": "ExperimentalCoaching.ElbowDeg",
+    "unit": "degrees",
+    "coordinateSpace": "XS_H36M17_model_space_body_relative",
+    "scope": "frame_geometry_not_approved_form",
+    "requiredJoints": [
+      14,
+      15,
+      16
+    ],
+    "sourceDefinitionSha256": "8927fd1262ce9db4e6ebcd9844994ca0b1f5b259e9f05b693e0d407b3a87e9b7"
+  },
+  "rightHipDeg": {
+    "definitionId": "ExperimentalCoaching.HipDeg",
+    "unit": "degrees",
+    "coordinateSpace": "XS_H36M17_model_space_body_relative",
+    "scope": "frame_geometry_not_approved_form",
+    "requiredJoints": [
+      1,
+      2,
+      8
+    ],
+    "sourceDefinitionSha256": "8927fd1262ce9db4e6ebcd9844994ca0b1f5b259e9f05b693e0d407b3a87e9b7"
+  },
+  "rightUpperArmDeg": {
+    "definitionId": "ExperimentalCoaching.UpperArmDeg",
+    "unit": "degrees",
+    "coordinateSpace": "XS_H36M17_model_space_body_relative",
+    "scope": "projected_body_frontal_abduction_from_caudal_axis",
+    "requiredJoints": [
+      0,
+      8,
+      11,
+      14,
+      14,
+      15
+    ],
+    "sourceDefinitionSha256": "8927fd1262ce9db4e6ebcd9844994ca0b1f5b259e9f05b693e0d407b3a87e9b7"
+  },
+  "trunkInclineDeg": {
+    "definitionId": "ExperimentalCoaching.trunkInclineDeg",
+    "unit": "degrees",
+    "coordinateSpace": "source_synchronized_up_required",
+    "scope": "gravity_referenced_geometry",
+    "requiredJoints": [
+      0,
+      8
+    ],
+    "sourceDefinitionSha256": "8927fd1262ce9db4e6ebcd9844994ca0b1f5b259e9f05b693e0d407b3a87e9b7"
+  },
+  "cameraTorsoSignedDeg": {
+    "definitionId": "FormGeometry.signedTorsoAngle3D(up=(0,-1,0))",
+    "unit": "degrees",
+    "coordinateSpace": "XS_H36M17_camera_reference_no_verified_ground",
+    "scope": "camera_reference_proxy",
+    "requiredJoints": [
+      0,
+      1,
+      4,
+      8
+    ],
+    "sourceDefinitionSha256": "b4161e2b386f46ab1db2f14075ef11e0ab9c709962ef6f7cfcf4a2ec74758449"
+  },
+  "cameraHipLineDeviationRatio": {
+    "definitionId": "FormGeometry.signedHipDeviation3D(up=(0,-1,0))",
+    "unit": "dimensionless_ratio",
+    "coordinateSpace": "XS_H36M17_camera_reference_no_verified_ground",
+    "scope": "camera_reference_proxy",
+    "requiredJoints": [
+      0,
+      8,
+      3,
+      6
+    ],
+    "sourceDefinitionSha256": "b4161e2b386f46ab1db2f14075ef11e0ab9c709962ef6f7cfcf4a2ec74758449"
+  }
+}
