@@ -34,3 +34,5 @@ Headless validation and source hashes are recorded at `/Users/6_month/bpt-runs/m
 - Focused Swift suite: **28 passed**, including the archived 720-checkpoint parity and current-pose/constraint preservation plus strict native profile validation and source-bound application tests.
 - Flutter analyzer: no issues. Whole current Runner iOS arm64 typecheck: passed against cached iPhoneOS 27.1 frameworks; existing sendability and deprecation warnings remain. This is not a link/install/device result.
 - All final checks have matching before/after source hashes; the three actual legacy metadata files are byte-unchanged. Commands, source hashes and log hashes are in the private receipt above.
+
+The subsequent [final v5 iPhone build and six tests](current_phone_validation_20261103.md) include this code with account-profile gates OFF. They verify integration and the unchanged default path, not application of an actual current-account calibration. The original phone app and data were restored afterward.
