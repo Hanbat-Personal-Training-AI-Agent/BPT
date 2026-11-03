@@ -61,6 +61,7 @@ Map<String, dynamic>? calibrationMeasurements(Map<String, dynamic> result) {
     }
   }
   return {
+    if (result['stub'] == false) 'stub': false,
     if (result['schemaVersion'] == 1) 'schemaVersion': 1,
     if (result['bodyModel'] is String &&
         RegExp(r'^[a-zA-Z0-9_.-]{1,80}$')

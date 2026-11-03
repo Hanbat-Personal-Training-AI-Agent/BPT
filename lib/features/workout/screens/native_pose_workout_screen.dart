@@ -21,6 +21,7 @@ import '../../onboarding/services/calibration_result_store.dart';
 import '../data/kori_feedback_lines.dart';
 import '../data/native_pose_channel.dart';
 import '../data/experimental_coaching_candidate.dart';
+import '../data/motion_observer_profile.dart';
 import '../widgets/experimental_coaching_candidate_banner.dart';
 import '../data/workout_evidence.dart';
 import '../widgets/exercise_setup_panel.dart';
@@ -71,7 +72,7 @@ class NativePoseWorkoutScreen extends ConsumerStatefulWidget {
 }
 
 class _NativePoseWorkoutScreenState
-    extends ConsumerState<NativePoseWorkoutScreen> {
+    extends ConsumerState<NativePoseWorkoutScreen> with WidgetsBindingObserver {
   // "카메라를 몸 전체가 보이도록 맞춰주세요" guidance duration before the countdown.
   static const Duration _alignHintDuration = Duration(milliseconds: 1800);
 
@@ -105,6 +106,10 @@ class _NativePoseWorkoutScreenState
   ExperimentalCoachingCandidate? _experimentalCandidate;
   final _experimentalInbox = ExperimentalCoachingCandidateInbox();
   int _candidateChannelGeneration = 0;
+  MotionObserverProfileBridge? _motionProfileBridge;
+  bool _motionProfileReadyRequested = false;
+  int _motionProfileBoundary = 0;
+  ProviderSubscription<CalibrationResultStore>? _motionProfileSubscription;
   // 실시간 3D 상태 (onPoseUpdate.pose3d). null = 3D 경로 없음.
   NativePose3DStatus? _pose3d;
 
@@ -175,6 +180,16 @@ class _NativePoseWorkoutScreenState
     super.initState();
     _alignTimer = Timer(_alignHintDuration, _startCountdown);
     if (_setupEnabled) _loadSetup();
+    if (MotionObserverProfileBridge.enabled) {
+      WidgetsBinding.instance.addObserver(this);
+      _motionProfileSubscription = ref.listenManual(
+        calibrationResultStoreProvider,
+        (_, next) {
+          final bridge = _motionProfileBridge;
+          if (bridge != null) unawaited(bridge.bind(next));
+        },
+      );
+    }
   }
 
   // ── 실험용 준비 자세 (BPT_EXERCISE_SETUP) ─────────────────────────────────
@@ -259,13 +274,33 @@ class _NativePoseWorkoutScreenState
   void _onPlatformViewCreated(int id) {
     _channel = MethodChannel('${NativePoseWorkoutScreen.viewType}/$id');
     final generation = ++_candidateChannelGeneration;
+    if (MotionObserverProfileBridge.enabled) {
+      _motionProfileBridge?.dispose();
+      final channel = _channel!;
+      _motionProfileBridge = MotionObserverProfileBridge(
+        invoke: (method, args) => channel.invokeMethod(method, args),
+        declaration: MotionProfileDeclaration.fromEnvironment(),
+      );
+      _motionProfileReadyRequested = false;
+    }
     _channel!.setMethodCallHandler(
-        (call) => _handleNativeCall(call, generation: generation));
+      (call) => _handleNativeCall(call, generation: generation),
+    );
     if (_voiceMuted) _notifyVoiceMuted();
   }
 
   Future<dynamic> _handleNativeCall(MethodCall call, {int? generation}) async {
     if (call.method == 'onPoseUpdate') {
+      if (mounted &&
+          (generation == null || generation == _candidateChannelGeneration) &&
+          MotionObserverProfileBridge.enabled &&
+          !_motionProfileReadyRequested) {
+        _motionProfileReadyRequested = true;
+        final bridge = _motionProfileBridge;
+        if (bridge != null) {
+          unawaited(bridge.bind(ref.read(calibrationResultStoreProvider)));
+        }
+      }
       final args = (call.arguments as Map).cast<String, dynamic>();
       final rep = (args['rep'] as num?)?.toInt() ?? _latestNativeRep;
       final pose3d = NativePose3DStatus.parse(args);
@@ -369,7 +404,19 @@ class _NativePoseWorkoutScreenState
     if (method == NativePoseChannel.endSet && _channel != null) {
       _setClosures.putIfAbsent(_currentSet, Completer<void>.new);
     }
-    _channel?.invokeMethod(method, {'setIndex': _currentSet});
+    final bridge = _motionProfileBridge;
+    final store = MotionObserverProfileBridge.enabled ? ref.read(calibrationResultStoreProvider) : null;
+    final channelGeneration = _candidateChannelGeneration;
+    final set = _currentSet;
+    final boundary = ++_motionProfileBoundary;
+    if (method == NativePoseChannel.endSet) bridge?.cancelPendingStart();
+    final sent = _channel?.invokeMethod(method, {'setIndex': set});
+    if (method == NativePoseChannel.startSet && bridge != null && store != null) {
+      unawaited(bridge.bindAfterStart(sent, store, stillCurrent: () =>
+          mounted && identical(bridge, _motionProfileBridge) &&
+          channelGeneration == _candidateChannelGeneration && boundary == _motionProfileBoundary &&
+          set == _currentSet && !_setComplete && !_workoutComplete));
+    }
   }
 
   void _toggleVoiceMuted() {
@@ -616,7 +663,19 @@ class _NativePoseWorkoutScreenState
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && MotionObserverProfileBridge.enabled && mounted) {
+      // Wait for a genuine new native update after foreground before rebinding.
+      // Tracker/person switches intentionally stay cleared until a new set or owner bind.
+      _motionProfileReadyRequested = false;
+    }
+  }
+
+  @override
   void dispose() {
+    if (MotionObserverProfileBridge.enabled) { WidgetsBinding.instance.removeObserver(this); }
+    _motionProfileSubscription?.close();
+    _motionProfileBridge?.dispose();
     _alignTimer?.cancel();
     _countdownTimer?.cancel();
     _elapsedTimer?.cancel();

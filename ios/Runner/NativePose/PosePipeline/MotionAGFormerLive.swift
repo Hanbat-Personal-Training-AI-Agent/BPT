@@ -94,6 +94,7 @@ struct MotionAGFormerLive<Payload> {
         /// px per normalized unit (crop side / 2).
         let unit: Double
         let observerSource: ExerciseMotionObserver.Source?
+        let observerProfile: MotionObserverAccountProfile?
         let observerScreen: [SIMD3<Double>]
         let observerScale: Double
     }
@@ -123,7 +124,7 @@ struct MotionAGFormerLive<Payload> {
     /// Push one frame (COCO17 in frame pixels; Halpe26 callers pass its first 17 joints, which are COCO17
     /// in the same order). Returns the frames that became ready, oldest first.
     mutating func push(frameIndex: Int, coco17: [PoseKeypoint], imageWidth: Int, imageHeight: Int,
-                       captureRotation: CaptureRotation = .up, observerSource: ExerciseMotionObserver.Source? = nil, payload: Payload) throws -> [(Payload, Lifted3DFrame)] {
+                       captureRotation: CaptureRotation = .up, observerSource: ExerciseMotionObserver.Source? = nil, observerProfile: MotionObserverAccountProfile? = nil, payload: Payload) throws -> [(Payload, Lifted3DFrame)] {
         let valid = coco17.count == 17 && coco17.filter { $0.confidence >= minConfidence }.count >= minJoints
         var out: [(Payload, Lifted3DFrame)] = []
         if let previous = self.captureRotation, previous != captureRotation {
@@ -155,7 +156,7 @@ struct MotionAGFormerLive<Payload> {
         let h36m = try PoseCoordinateTransforms.coco17ToH36M17(coco17)
         let input = normalizer.normalize(h36m, imageWidth: imageWidth, imageHeight: imageHeight)
         entries.append(Entry(frameIndex: frameIndex, payload: payload, input: input, valid: valid,
-                             unit: (normalizer.lastCrop?.side ?? 2) / 2, observerSource: boundSource,
+                             unit: (normalizer.lastCrop?.side ?? 2) / 2, observerSource: boundSource, observerProfile: observerProfile,
                              observerScreen: motionObserver == nil ? [] : h36m.map { SIMD3($0.x / Double(imageHeight), $0.y / Double(imageHeight), $0.confidence) },
                              observerScale: (normalizer.lastCrop?.side ?? 2) / (2 * Double(imageHeight))))
         pending += 1
@@ -249,7 +250,7 @@ struct MotionAGFormerLive<Payload> {
             }
             let observation: ExerciseMotionObserver.Output?
             if let source = e.observerSource {
-                observation = motionObserver?.update(raw: raw, screen2D: e.observerScreen, modelToImageScale: e.observerScale, source: source, flush: observerFlush)
+                observation = motionObserver?.update(raw: raw, screen2D: e.observerScreen, modelToImageScale: e.observerScale, source: source, flush: observerFlush, accountProfile: e.observerProfile)
             } else {
                 // Reset at this output's place in source order, not at enqueue
                 // time while older L5 outputs still await emission.

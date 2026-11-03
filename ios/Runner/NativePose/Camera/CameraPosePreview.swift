@@ -106,6 +106,7 @@ struct CameraProcessingResult {
     var terminalEpoch: Int?
     var coachingCandidateEpoch: Int?
     var motionObserverEpoch: Int?
+    var motionObserverAccountProfile: MotionObserverAccountProfile?
     var terminalDetector2D: [PoseKeypoint]?
     /// XS input wrists replaced by MediaPipe (left, right); raw wrists stay in rawCoco17.
     var wristsReplaced = (left: false, right: false)
@@ -375,6 +376,7 @@ final class CameraPoseViewModel: ObservableObject {
     nonisolated(unsafe) private var cropTracker = RTMPoseCropTracker()
     /// Live 3D. Only touched on `liftQueue` (serial, frame order kept).
     nonisolated(unsafe) private var lifter: MotionAGFormerLive<CameraProcessingResult>?
+    nonisolated private let motionProfileGate = MotionObserverAccountProfileGate()
     nonisolated private let motionObserverSession = ExerciseMotionObserver.SourceSession()
     private var motionObserverLog: ExerciseMotionObserverLog?
     /// Push-up support experiment; capture queue only. Immutable result accompanies each source frame.
@@ -437,7 +439,7 @@ final class CameraPoseViewModel: ObservableObject {
     }
 
     func stopCamera() {
-        if CameraPreviewOptions.motionObserverEnabled { motionObserverSession.end() }
+        if CameraPreviewOptions.motionObserverEnabled { motionObserverSession.end(); motionProfileGate.clear() }
         if coachingCandidateEnabled { resetCoachingCandidate(end: true) }
         if VideoRunLog.terminalEvidence, let epoch = terminalCapture.beginFlush() {
             candidateEnd(epoch: epoch, reason: "camera_stop")
@@ -487,7 +489,7 @@ final class CameraPoseViewModel: ObservableObject {
                 Task { @MainActor in
                     guard let self else { return }
                     if self.coachingCandidateEnabled { self.resetCoachingCandidate(end: true) }
-                    if CameraPreviewOptions.motionObserverEnabled { self.motionObserverSession.end() }
+                    if CameraPreviewOptions.motionObserverEnabled { self.motionObserverSession.end(); self.motionProfileGate.clear() }
                     self.keepScreenAwake(false, reason: "background")
                 }
             },
@@ -495,7 +497,7 @@ final class CameraPoseViewModel: ObservableObject {
                 Task { @MainActor in
                     guard let self, self.cameraRunning else { return }
                     if self.coachingCandidateEnabled, !self.betweenSets { self.resetCoachingCandidate() }
-                    if CameraPreviewOptions.motionObserverEnabled, !self.betweenSets { self.motionObserverSession.begin() }
+                    if CameraPreviewOptions.motionObserverEnabled, !self.betweenSets { self.motionProfileGate.clear(); self.motionObserverSession.begin() }
                     self.keepScreenAwake(true, reason: "foreground")
                 }
             },
@@ -593,7 +595,7 @@ final class CameraPoseViewModel: ObservableObject {
     // MARK: Sets (Flutter startSet / endSet)
 
     private func startSet(_ index: Int) {
-        if CameraPreviewOptions.motionObserverEnabled { motionObserverSession.begin() }
+        if CameraPreviewOptions.motionObserverEnabled { motionProfileGate.clear(); motionObserverSession.begin() }
         if coachingCandidateEnabled { resetCoachingCandidate() }
         if VideoRunLog.terminalEvidence {
             if let old = terminalCapture.beginFlush() {
@@ -634,7 +636,7 @@ final class CameraPoseViewModel: ObservableObject {
         VideoRunLog.shared?.write("end_set_received", ["set": index, "between_sets": betweenSets])
         guard !betweenSets else { return }
         betweenSets = true
-        if CameraPreviewOptions.motionObserverEnabled { motionObserverSession.end() }
+        if CameraPreviewOptions.motionObserverEnabled { motionObserverSession.end(); motionProfileGate.clear() }
         if coachingCandidateEnabled { resetCoachingCandidate(end: true) }
         let evidenceEpoch = VideoRunLog.terminalEvidence ? terminalCapture.beginFlush() : nil
         let evidenceEndHost = CACurrentMediaTime()
@@ -827,6 +829,23 @@ final class CameraPoseViewModel: ObservableObject {
             )
         }
 
+        bridge?.onObserverProfile = { [weak self] method, args in
+            guard let self, CameraPreviewOptions.motionObserverEnabled else { return ["accepted": false, "reason": "observer_disabled"] }
+            let enabled = DemoConfig.environment["BPT_MOTION_OBSERVER_ACCOUNT_PROFILE"] == "1"
+            if method == "beginMotionObserverProfileBinding" {
+                guard !VideoCameraOptions.isActive else { self.motionProfileGate.clear(); return ["accepted": false, "reason": "recorded_video_profile_forbidden"] }
+                _ = self.motionObserverSession.rotateIfCurrent(self.motionObserverSession.snapshot())
+                guard enabled, let binding = args["binding"] as? String else { self.motionProfileGate.clear(); return ["accepted": false, "reason": "disabled_or_invalid_binding"] }
+                let accepted = self.motionProfileGate.begin(binding)
+                return ["accepted": accepted, "profileCleared": true]
+            }
+            let result = self.motionProfileGate.accept(args, sourceSession: self.motionObserverSession.snapshot(), enabled: enabled, isVideo: VideoCameraOptions.isActive)
+            if result["accepted"] as? Bool != true, result["reason"] as? String != "stale_binding" {
+                _ = self.motionObserverSession.rotateIfCurrent(self.motionObserverSession.snapshot())
+            }
+            self.motionObserverLog?.write(["type": "account_profile_binding", "outcome": result, "scope": "same_account_live_camera_assumption"])
+            return result
+        }
         bridge?.onCandidateDiagnostics = { [weak self] in
             guard let self else { return [:] }
             var value = self.coachingCandidateSession.diagnostics()
@@ -893,6 +912,7 @@ final class CameraPoseViewModel: ObservableObject {
         let terminalEpoch = VideoRunLog.terminalEvidence ? terminalCapture.capture(frame: frameIdx) : nil
         let candidateEpoch = coachingCandidateEnabled ? coachingCandidateSession.snapshot() : nil
         var observerEpoch = CameraPreviewOptions.motionObserverEnabled ? motionObserverSession.snapshot() : nil
+        var accountProfile = motionProfileGate.snapshot(session: observerEpoch)
         var terminalHandedOff = false
         defer {
             if !terminalHandedOff { terminalCapture.delivered(epoch: terminalEpoch, frame: frameIdx, failed: true) }
@@ -979,7 +999,7 @@ final class CameraPoseViewModel: ObservableObject {
                             ? .controlledReplayAssertion : .unknown, sameHandRejected: sameHand))
                 }
 
-                if CameraPreviewOptions.motionObserverEnabled, estimate.recheckSwitched == true { observerEpoch = motionObserverSession.rotateIfCurrent(observerEpoch) }
+                if CameraPreviewOptions.motionObserverEnabled, estimate.recheckSwitched == true { motionProfileGate.clear(); accountProfile = nil; observerEpoch = motionObserverSession.rotateIfCurrent(observerEpoch) }
                 var result = CameraProcessingResult(
                     frameIndex: frameIdx,
                     rotation: rotation,
@@ -1001,6 +1021,7 @@ final class CameraPoseViewModel: ObservableObject {
                 result.terminalEpoch = terminalEpoch
                 result.coachingCandidateEpoch = candidateEpoch
                 result.motionObserverEpoch = observerEpoch
+                result.motionObserverAccountProfile = accountProfile
                 if terminalEpoch != nil || candidateEpoch != nil { result.terminalDetector2D = rawCoco17 }
                 result.wristAnchor = anchorStates
 
@@ -1032,12 +1053,12 @@ final class CameraPoseViewModel: ObservableObject {
                         observerSource = ExerciseMotionObserver.Source(session: epoch, frame: frameIdx,
                             sourceIndex: VideoCameraOptions.isActive ? VideoRunLog.shared?.clipFrame(frameIdx) : frameIdx,
                             pts: shown.sourcePTS, timeValue: shown.sourceTimeValue, timeScale: shown.sourceTimeScale,
-                            rotation: shown.rotation.rawValue, width: cgImage.width, height: cgImage.height, isVideo: VideoCameraOptions.isActive)
+                            rotation: shown.rotation.rawValue, width: cgImage.width, height: cgImage.height, isVideo: VideoCameraOptions.isActive, profileBinding: shown.motionObserverAccountProfile?.binding)
                     } else { observerSource = nil }
                     do {
                         let before = self.lifter?.inferences ?? 0
                         let ready = try self.lifter?.push(frameIndex: frameIdx, coco17: input2D, imageWidth: cgImage.width,
-                                                          imageHeight: cgImage.height, captureRotation: shown.rotation, observerSource: observerSource,
+                                                          imageHeight: cgImage.height, captureRotation: shown.rotation, observerSource: observerSource, observerProfile: shown.motionObserverAccountProfile,
                                                           payload: shown) ?? []
                         let liftMs = (CACurrentMediaTime() - t0) * 1000
                         self.perfLog?.sample("lift3d", ms: liftMs)
@@ -1390,7 +1411,7 @@ final class CameraPoseViewModel: ObservableObject {
 
     /// Flutter "다시 설정": measure the setup again and drop the relations it seeded.
     private func resetSetup() {
-        if CameraPreviewOptions.motionObserverEnabled { _ = motionObserverSession.rotateIfCurrent(motionObserverSession.snapshot()) }
+        if CameraPreviewOptions.motionObserverEnabled { motionProfileGate.clear(); _ = motionObserverSession.rotateIfCurrent(motionObserverSession.snapshot()) }
         supportControl.reset()
         wristAnchorResetPending = true
         wristAnchorActive = false
@@ -1479,7 +1500,7 @@ final class CameraPoseViewModel: ObservableObject {
     /// Video-as-camera: the clip list ended. Like the real app with main's workout screen, no endSet arrives, so the
     /// frames still in the 3D window are not flushed and no set-scope keys / onSetEnd are produced.
     private func videoFinished() {
-        if CameraPreviewOptions.motionObserverEnabled { motionObserverSession.end() }
+        if CameraPreviewOptions.motionObserverEnabled { motionObserverSession.end(); motionProfileGate.clear() }
         // Explicit capture-harness hook only: close through the real production flush lifecycle.
         if VideoRunLog.terminalEvidence, DemoConfig.environment["BPT_TERMINAL_EOF_FLUSH"] == "1", !betweenSets,
            let index = terminalSetIndex, let epoch = terminalCapture.snapshot() {

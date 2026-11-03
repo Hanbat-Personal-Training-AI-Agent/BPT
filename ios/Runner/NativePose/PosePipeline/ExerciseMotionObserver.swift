@@ -54,6 +54,7 @@ struct ExerciseMotionObserver {
         let width: Int
         let height: Int
         let isVideo: Bool
+        var profileBinding: String? = nil
         var dictionary: [String: Any] {
             ["session": session, "frame": frame, "source_index": sourceIndex as Any? ?? NSNull(),
              "source_pts": pts.flatMap { $0.isFinite ? $0 : nil } as Any? ?? NSNull(),
@@ -95,6 +96,7 @@ struct ExerciseMotionObserver {
     private var lastIndex: Int?
     private var online = ExerciseMotionOnlineCalibration()
     private var onlineApplied = false
+    private var appliedAccountProfile: MotionObserverAccountProfile?
     init(configuration: Configuration) {
         self.configuration = configuration
         estimator = ExerciseMotionEstimator(exercise: configuration.exercise, variant: configuration.variant,
@@ -103,11 +105,11 @@ struct ExerciseMotionObserver {
     mutating func reset() {
         estimator.reset(reason: "observer_source_reset")
         estimator.setBoneProfile([:], confidence: 0)
-        online = ExerciseMotionOnlineCalibration(); onlineApplied = false
+        online = ExerciseMotionOnlineCalibration(); onlineApplied = false; appliedAccountProfile = nil
         coordinateKey = nil; lastPTS = nil; lastIndex = nil
     }
     mutating func update(raw: [SIMD3<Double>], screen2D: [SIMD3<Double>], modelToImageScale: Double,
-                         source: Source, flush: Bool) -> Output {
+                         source: Source, flush: Bool, accountProfile: MotionObserverAccountProfile? = nil) -> Output {
         func unavailable(_ reason: String) -> Output {
             Output(source: source, raw: raw, candidate: nil, correction: nil, uncertainty: nil,
                    invalid: Set(0..<17), variant: configuration.variant, reasons: [reason], details: [:])
@@ -128,9 +130,22 @@ struct ExerciseMotionObserver {
         }
         if coordinateKey != key || (lastPTS.map { pts - $0 > 0.5 } ?? false) { reset() }
         coordinateKey = key; lastPTS = pts; lastIndex = index
+        if let profile = accountProfile, !source.isVideo, profile.sourceSession == source.session,
+           profile.binding == source.profileBinding {
+            if appliedAccountProfile?.binding != profile.binding {
+                estimator.reset(reason: "account_profile_binding")
+                estimator.setBoneProfile(profile.ratios, confidence: profile.weight)
+                appliedAccountProfile = profile
+                online = ExerciseMotionOnlineCalibration(); onlineApplied = false
+            }
+        } else if appliedAccountProfile != nil {
+            estimator.reset(reason: "account_profile_cleared"); estimator.setBoneProfile([:], confidence: 0)
+            appliedAccountProfile = nil
+            online = ExerciseMotionOnlineCalibration(); onlineApplied = false
+        }
         let root = raw[0]
         let normalized = raw.map { ($0 - root) * modelToImageScale }
-        if configuration.onlineCalibration {
+        if configuration.onlineCalibration && appliedAccountProfile == nil {
             online.observe(normalized, screen: screen2D)
             if !onlineApplied, !online.boneRatios.isEmpty {
                 estimator.setBoneProfile(online.boneRatios, confidence: 0.4)
@@ -152,7 +167,13 @@ struct ExerciseMotionObserver {
             variant: configuration.variant, reasons: [], details: ["phase": result.phase as Any? ?? NSNull(),
                 "phase_source": "internal_heuristic_not_observed", "person_identity": "unknown",
                 "contact_evidence": configuration.fixedCameraAssertion ? "fixed_camera_operator_assertion_only" : "unknown",
-                "grip_confirmed": false, "personal_profile_applied": false,
+                "grip_confirmed": false, "personal_profile_bound": appliedAccountProfile != nil,
+                "personal_profile_applied": appliedAccountProfile != nil && result.diagnostics["calibration_used"] as? Bool == true,
+                "personal_profile_scope": appliedAccountProfile == nil ? "withheld" : "same_account_live_camera_assumption",
+                "personal_profile_weight": appliedAccountProfile?.weight as Any? ?? NSNull(),
+                "personal_profile_weight_source": appliedAccountProfile?.weightSource as Any? ?? NSNull(),
+                "personal_profile_job_id": appliedAccountProfile?.jobId as Any? ?? NSNull(),
+                "personal_profile_quality_evidence": appliedAccountProfile?.qualityEvidence as Any? ?? NSNull(),
                 "roles": result.roles,
                 "contacts": Dictionary(uniqueKeysWithValues: result.contacts.map { (String($0.key), $0.value) }),
                 "used_prediction": result.usedPrediction,
@@ -161,8 +182,9 @@ struct ExerciseMotionObserver {
                 "model_to_image_scale": modelToImageScale,
                 "confidence_semantics": "retained_detector_scores_not_accuracy_probabilities",
                 "online_profile_applied": onlineApplied, "online_profile_samples": online.samples,
+                "online_profile_used_by_variant": onlineApplied && result.diagnostics["calibration_used"] as? Bool == true,
                 "online_profile_authority": "observed_proportions_not_correct_posture",
-                "profile_status": configuration.profileRequested ? "withheld_identity_unverified" : "not_supplied",
+                "profile_status": appliedAccountProfile != nil ? "account_session_bound_assumption" : (configuration.profileRequested ? "withheld_identity_unverified" : "not_supplied"),
                 "estimator": result.diagnostics])
     }
 }
