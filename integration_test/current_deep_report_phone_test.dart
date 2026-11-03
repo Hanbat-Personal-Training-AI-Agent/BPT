@@ -166,12 +166,39 @@ void registerCurrentDeepReportTest() {
           ),
         );
         await tester.scrollUntilVisible(title, 200, maxScrolls: 60);
+        // Device fullyLive uses the real frame clock. A duration passed to one
+        // pump is not evidence that scrolling or expansion has completed.
+        await Scrollable.ensureVisible(tester.element(title),
+            alignment: .5, duration: const Duration(milliseconds: 250));
+        await Future<void>.delayed(const Duration(milliseconds: 400));
+        await tester.pump();
+        final tapRect = tester.getRect(title);
         await tester.tap(title);
-        await tester.pump(const Duration(milliseconds: 400));
-        final text = tester
+        String visibleText() => tester
             .widgetList<Text>(find.byType(Text))
             .map((t) => t.data ?? '')
             .join('\n');
+        final expansionDeadline =
+            DateTime.now().add(const Duration(seconds: 10));
+        while (!visibleText().contains('3차원 영상 추정값') &&
+            DateTime.now().isBefore(expansionDeadline)) {
+          await Future<void>.delayed(const Duration(milliseconds: 100));
+        }
+        final text = visibleText();
+        File('${output.path}/expansion-attempt.json').writeAsStringSync(
+            jsonEncode({
+              'repIndex': index,
+              'tapRect': {
+                'left': tapRect.left,
+                'top': tapRect.top,
+                'width': tapRect.width,
+                'height': tapRect.height
+              },
+              'tapCount': 1,
+              'expandedEvidenceVisible': text.contains('3차원 영상 추정값'),
+              'visibleText': text,
+            }),
+            flush: true);
         expect(text, contains('3차원 영상 추정값'));
         expect(text, contains('변화량 기준:'));
         expect(text, isNot(contains('NaN')));
