@@ -11,6 +11,7 @@ import 'package:video_player/video_player.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../data/deep_analysis_queue.dart';
+import '../data/deep_assessment_evidence.dart';
 import '../data/deep_analysis_service.dart';
 import '../data/kori_feedback_lines.dart';
 
@@ -324,6 +325,8 @@ class DeepAnalysisReport extends StatelessWidget {
   }
 
   Widget _metrics(Map rep) {
+    final evidence =
+        DeepAssessmentEvidence.parseReport(report)?.reps[rep['repIndex']];
     final validity = rep['validity'] as Map?;
     final confidence = _finiteNumber(rep['confidence']);
     final held = confidence == null ||
@@ -331,10 +334,18 @@ class DeepAnalysisReport extends StatelessWidget {
         validity?['confidenceSource'] == 'missing' ||
         validity?['detectionSupport'] == 'insufficient';
     final metricValidity = rep['metricValidity'] as Map? ?? const {};
-    String metricNote(String key, [Object? value]) =>
-        (metricValidity[key] as Map?)?['assessment'] == 'withheld'
+    String metricNote(String key, [Object? value]) {
+      final metric = evidence?.metrics[key];
+      if (metric == null) {
+        return (metricValidity[key] as Map?)?['assessment'] == 'withheld'
             ? (_finiteNumber(value) == null ? ' (판정 보류)' : ' (추정값 · 판정 보류)')
-            : '';
+            : ' (측정 근거 미확인)';
+      }
+      return metric.measurement.available
+          ? ' (영상 추정값)'
+          : (_finiteNumber(value) == null ? ' (측정 보류)' : ' (추정값 · 측정 근거 부족)');
+    }
+
     final angles = _reportMap(rep['anglesDeg']);
     final tempo = _reportMap(rep['tempoSeconds']);
     final path = _reportMap(rep['handPath']);
@@ -357,17 +368,16 @@ class DeepAnalysisReport extends StatelessWidget {
         .map((key) =>
             koriFeedbackLines[key]?.render(isKo: true) ?? '다른 자세 메모가 있어.')
         .join(' · ');
-    final comparison = held
-        ? '자세 판정을 보류했어'
-        : switch (rep['comparison']) {
-            'agree' => '비교한 항목은 기기와 같아',
-            'different' => '기기와 다른 소견이 있어',
-            _ => '직접 비교할 항목은 없어',
-          };
+    final comparison = evidence?.nativeComparison == null
+        ? '기기와 같은 기준으로 비교했는지 확인할 수 없어'
+        : evidence!.nativeComparison!.unassessedKeys.isEmpty
+            ? '기기와 직접 비교할 공통 측정 기준이 없어'
+            : '기기 메모와 같은 측정 방식·기준인지 확인하지 못해 일치 여부를 판정하지 않았어';
     return ExpansionTile(
         title: Text('${rep['repIndex']}회 · ${held ? '추정값 · 판정 보류' : '자세히 보기'}'),
         childrenPadding: const EdgeInsets.all(12),
         children: [
+          ..._assessmentDetails(evidence),
           if (held)
             const Text('영상에서 자세를 확인할 근거가 부족해. 아래 수치는 추정값이고 자세 판정은 보류했어.',
                 style: TextStyle(color: Colors.amber)),
@@ -404,24 +414,47 @@ class DeepAnalysisReport extends StatelessWidget {
                   (item) => item is Map && item['assessment'] == 'withheld'))
             const Text('일부 자세 항목은 판정에 필요한 조건을 확인하지 못했어.'),
           Text(
-              'ROM ${_measurement(rep['romDeg'], '°')}${metricNote('romDeg', rep['romDeg'])} · 깊이 최소각 ${_measurement(rep['depthAngleDeg'], '°')}${metricNote('depthAngleDeg', rep['depthAngleDeg'])} · 골반 높이 변화 ${_measurement(rep['depthMeters'], 'm')}${metricNote('depthMeters', rep['depthMeters'])}'),
+              '주요 관절 각도 범위 ROM ${_measurement(rep['romDeg'], '°')}${metricNote('romDeg', rep['romDeg'])} · 깊이 최소각 ${_measurement(rep['depthAngleDeg'], '°')}${metricNote('depthAngleDeg', rep['depthAngleDeg'])} · 골반 높이 변화 ${_measurement(rep['depthMeters'], 'm')}${metricNote('depthMeters', rep['depthMeters'])}'),
+          if (evidence?.metrics['romDeg'] != null)
+            const Text('ROM은 이 반복 전체의 주요 관절 최대각−최소각, 깊이 최소각은 같은 구간의 최소각이야.'),
+          if (evidence?.metrics['depthMeters'] != null)
+            const Text(
+                '골반 높이 변화는 추정된 공간의 수직 이동 범위야. 실제 신체 치수를 기준으로 검증한 거리는 아니야.'),
           for (final entry in const {
             'knee': '무릎',
             'hip': '고관절',
             'elbow': '팔꿈치',
-            'shoulder': '어깨',
+            'shoulder': '위팔·몸통 사이 각도(어깨 대리지표)',
             'torso': '몸통(중력 기준)'
           }.entries)
             Text(angleText(entry.key, entry.value)),
+          if (evidence != null)
+            const Text(
+                '세 점의 가운데 관절 각도: 무릎은 고관절–무릎–발목, 고관절은 어깨–고관절–무릎, 팔꿈치는 어깨–팔꿈치–손목, 어깨 대리지표는 고관절–어깨–팔꿈치야.'),
           Text(
               '늘림 ${_measurement(tempo['eccentric'], '초')} · 멈춤 ${_measurement(tempo['pause'], '초')} · 수축 ${_measurement(tempo['concentric'], '초')}${metricNote('tempoSeconds', tempo['total'])}'),
+          if (evidence?.metrics['tempoSeconds'] != null)
+            const Text(
+                '멈춤은 전환 각도에서 3° 이내인 연속 구간으로 추정해. 늘림·수축 시간은 주요 관절의 전환 시점을 기준으로 나눠.'),
           Text(
-              '손목 경로 ${_measurement(path['length'], 'm')} · 수평 이동 ${_measurement(path['horizontalExcursion'], 'm')}${metricNote('handPath', path['length'])}'),
+              '손목 경로(골반 기준 양 손목 중점) ${_measurement(path['length'], 'm')} · 수평 이동 ${_measurement(path['horizontalExcursion'], 'm')}${metricNote('handPath', path['length'])}'),
           Text(
-              '몸통 흔들림 ${_measurement(trunk['stdDeg'], '°')}${metricNote('trunkStdDeg', trunk['stdDeg'])} · 좌우 최대 차이 ${_measurement(symmetry['max'], '°')}${metricNote('symmetryMaxDeg', symmetry['max'])}'),
-          if (fatigue['comparable'] == true)
+              '몸통 기울기 변동(표준편차) ${_measurement(trunk['stdDeg'], '°')}${metricNote('trunkStdDeg', trunk['stdDeg'])} · 좌우 최대 차이 ${_measurement(symmetry['max'], '°')}${metricNote('symmetryMaxDeg', symmetry['max'])}'),
+          if (evidence?.metrics['symmetryMaxDeg'] != null)
+            const Text(
+                '좌우 차이는 같은 시점의 주요 관절 각도 차이 중 최대값이야. 무릎 간격이나 좌우 힘의 차이를 뜻하지 않아.'),
+          if (evidence != null || fatigue['comparable'] == true) ...[
             Text(
-                '첫 3회 대비 ROM 감소 ${_measurement(fatigue['romDropDeg'], '°')}${metricNote('romDropDeg', fatigue['romDropDeg'])}'),
+                '기준 반복 대비 ROM 감소 ${_measurement(fatigue['romDropDeg'], '°')}${metricNote('romDropDeg', fatigue['romDropDeg'])}'),
+            if (evidence != null) ...[
+              Text(
+                  '기준 반복 대비 최소각 변화 ${_measurement(fatigue['depthDriftDeg'], '°')}${metricNote('depthDriftDeg', fatigue['depthDriftDeg'])}'),
+              Text(
+                  '기준 반복 대비 시간 변화 비율 ${_measurement(fatigue['tempoDriftRatio'], '')}${metricNote('tempoDriftRatio', fatigue['tempoDriftRatio'])}'),
+              const Text(
+                  'ROM 감소는 기준 범위−현재 범위, 최소각 변화는 현재−기준, 시간 변화 비율은 현재 시간÷기준 시간−1이야.'),
+            ],
+          ],
           Text('기기 메모: ${deviceNotes.isEmpty ? '별도 경고는 없었어.' : deviceNotes}'),
           Text(
               '$comparison · ${confidence == null || validity?['confidenceSource'] == 'missing' ? '검출 지지도 확인 불가' : '검출 지지도 ${(confidence * 100).round()}%'}'),
@@ -430,6 +463,48 @@ class DeepAnalysisReport extends StatelessWidget {
           for (final fault in rep['faults'] as List? ?? [])
             _faultButton(fault as Map),
         ]);
+  }
+
+  List<Widget> _assessmentDetails(DeepRepEvidence? evidence) {
+    if (evidence == null) {
+      return [
+        const Text('이 기록은 측정 정의와 비교 기준을 확인할 수 없어. 수치는 참고용 추정값이야.',
+            style: TextStyle(color: Colors.amber))
+      ];
+    }
+    final reasons = evidence.metrics.values
+        .where((m) => !m.measurement.available)
+        .expand((m) => m.measurement.reasons)
+        .toSet();
+    final baselines =
+        evidence.metrics.values.where((m) => m.referenceReps.isNotEmpty);
+    return [
+      const Text('3차원 영상 추정값이야. 수치가 확인되어도 올바른 자세인지 판정할 검증된 기준은 없어.',
+          style: TextStyle(color: Colors.amber)),
+      const Text(
+          '각 관절의 위·아래 값은 주요 관절 각도가 가장 크거나 작은 시점의 값이야. 관절 각도는 세 점 사이의 각도야. 몸통은 중력 방향과의 기울기, 손목 경로는 골반에 대한 양 손목 중점의 이동이야. 어깨 대리지표는 임상적 어깨 가동범위나 견갑 움직임을 뜻하지 않아.'),
+      if (reasons.any({
+        'joint_support_missing',
+        'low_joint_support',
+        'tracking_mask_missing',
+        'tracking_interpolated',
+        'low_detection_support'
+      }.contains))
+        const Text('일부 관절·추적 근거가 부족해 해당 측정만 보류했어. 확인 가능한 다른 관절 수치는 함께 볼 수 있어.'),
+      if (reasons
+          .any({'invalid_geometry', 'invalid_baseline_geometry'}.contains))
+        const Text('계산할 수 없는 관절값이 있어 해당 측정은 확인 불가야.'),
+      if (reasons.contains('requires_baseline_reps'))
+        const Text('기준 반복을 모으는 구간이라 변화량 수치는 참고로만 표시하고 비교 판정은 보류했어.'),
+      if (reasons.contains('low_baseline_support'))
+        const Text('기준 반복의 관절·추적 근거가 부족해 변화량 비교를 보류했어.'),
+      if (baselines.isNotEmpty)
+        Text(
+            '변화량 기준: ${baselines.first.referenceReps.map((i) => '$i회').join(', ')}의 중앙값. 같은 세트 안의 변화이며 권장 자세 기준은 아니야.'),
+      if (evidence.metrics.length < 15)
+        const Text(
+            '일부 측정의 정의나 기준 반복이 이 기록과 맞는지 확인할 수 없어. 해당 수치는 측정 근거 미확인으로 표시했어.'),
+    ];
   }
 
   Widget _faultButton(Map fault) {
