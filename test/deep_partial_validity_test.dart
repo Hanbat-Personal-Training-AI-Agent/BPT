@@ -86,12 +86,18 @@ void main() {
     await tester.ensureVisible(find.text('1회 · 자세히 보기'));
     await tester.tap(find.text('1회 · 자세히 보기'));
     await tester.pumpAndSettle();
-    final missing = find.textContaining('시간 없는 근거');
+    final missing = find.ancestor(
+        of: find.textContaining('측정 시간 확인 불가'),
+        matching: find.byType(TextButton));
+    expect(tester.widget<TextButton>(missing).onPressed, isNull);
     await tester.ensureVisible(missing);
     await tester.pumpAndSettle();
     await tester.tap(missing);
     expect(seeks.length, 1);
-    final valid = find.textContaining('유효 근거');
+    final valid = find.ancestor(
+        of: find.textContaining('측정 근거 보기'),
+        matching: find.byType(TextButton));
+    expect(tester.widget<TextButton>(valid).onPressed, isNotNull);
     await tester.ensureVisible(valid);
     await tester.pumpAndSettle();
     await tester.tap(valid);
