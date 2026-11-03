@@ -30,6 +30,15 @@ class Rejected(Exception):
         self.status, self.code, self.detail = status, code, detail
 
 
+def _unique_token_claims(pairs):
+    claims = {}
+    for key, value in pairs:
+        if key in claims:
+            raise ValueError("duplicate token claim")
+        claims[key] = value
+    return claims
+
+
 def user_id_from_token(authorization, secret_b64):
     """Bearer token from the Spring backend (jjwt, HMAC key = base64-decoded jwt.secret, sub = userId)."""
     if not authorization or not authorization.startswith("Bearer "):
@@ -42,7 +51,15 @@ def user_id_from_token(authorization, secret_b64):
             algorithms=["HS256", "HS384", "HS512"],  # jjwt picks the HS size from the key length
             options={"require": ["sub", "exp"]},
         )
-    except jwt.PyJWTError:
+    except (jwt.PyJWTError, TypeError, ValueError, RecursionError):
+        raise Rejected(401, "unauthorized") from None
+    try:
+        # Signature/expiry were checked above. Reject ambiguous raw claims rather
+        # than relying on a JSON decoder's last-key-wins behavior.
+        payload = authorization[len("Bearer "):].split(".")[1]
+        json.loads(base64.urlsafe_b64decode(payload + "=" * (-len(payload) % 4)),
+                   object_pairs_hook=_unique_token_claims)
+    except (ValueError, IndexError, TypeError, RecursionError):
         raise Rejected(401, "unauthorized") from None
     # Spring access tokens carry both identity claims; refresh tokens carry neither.
     # Legacy access remains accepted during rollout, but an explicit type cannot
@@ -53,7 +70,7 @@ def user_id_from_token(authorization, secret_b64):
         raise Rejected(401, "unauthorized")
     user_id = claims["sub"]
     # The backend issues Long user IDs; anything else must not reach an object key.
-    if not isinstance(user_id, str) or not user_id.isdigit() or len(user_id) > 19:
+    if not isinstance(user_id, str) or not re.fullmatch(r"[0-9]{1,19}", user_id) or int(user_id) > 9223372036854775807:
         raise Rejected(401, "unauthorized")
     return user_id
 
