@@ -12,7 +12,7 @@ Compatibility is deliberate: existing signed access tokens contain string `usern
 - Full Modal server suite on the final source: 185 passed, 1 pre-existing optional skip. The added route test proves refresh bearer rejection before storage access or GPU warmup/spawn.
 - Production local HTTP/Bucket/BucketState replay: all 21 assertions passed using explicit synthetic access claims. No inference, deployment or external storage writes.
 - Existing JDK17 and cached Gradle8.14 built the backend boot JAR offline. Candidate artifact is `~/bpt-data/deployment-readiness-20261103-private/token-use-backend-strict.jar`, SHA256 `80c22504934ddf18c80f5fc582033e8324ba9a0032ba1ec5fc9d777a48ddb15f`. ZIP inventory contains no secret configuration resource.
-- Source/artifact hashes and unchanged original phone-prefs hash are in `~/bpt-data/deployment-readiness-20261103-private/token-use-final-proof.json`; test/build logs are adjacent. No source implementation changes followed the JAR build.
+- Source/artifact hashes and unchanged original phone-prefs hash are in `~/bpt-data/deployment-readiness-20261103-private/token-use-final-proof.json`; test/build logs are adjacent. No Java implementation changes followed the JAR build.
 
 ## Current deployed state, independently checked November 3
 
