@@ -280,7 +280,7 @@ class DeepAnalysisReport extends StatelessWidget {
                       onPressed: onDownload,
                       icon: const Icon(Icons.download_rounded),
                       label: Text(downloading ? '영상 준비 중…' : '영상 저장 · 공유'))),
-              if ((report['rules'] as Map?)?['placeholder'] == true)
+              if (_reportMap(report['rules'])['placeholder'] == true)
                 const Padding(
                     padding: EdgeInsets.only(bottom: 12),
                     child: Text('코칭 기준은 아직 검증 중이야. 영상에서 추정한 수치와 소견은 참고해서 봐 줘.',
@@ -301,7 +301,7 @@ class DeepAnalysisReport extends StatelessWidget {
       ]);
 
   Widget _timelineItem(Map item) {
-    final color = switch (item['severity']) {
+    var color = switch (item['severity']) {
       'critical' || 'error' => Colors.redAccent,
       'warning' => Colors.amber,
       _ => Colors.lightBlueAccent,
@@ -309,15 +309,50 @@ class DeepAnalysisReport extends StatelessWidget {
     final candidateTime = _finiteNumber(item['t']);
     final seconds =
         candidateTime != null && candidateTime >= 0 ? candidateTime : null;
+    final faults =
+        (report['faults'] is List ? report['faults'] as List : const [])
+            .whereType<Map>()
+            .toList();
+    Map? recordedFault;
+    for (final fault in faults) {
+      final evidence = fault['evidence'];
+      if (fault['rep'] == item['rep'] &&
+          fault['title'] == item['title'] &&
+          evidence is List &&
+          evidence.isNotEmpty &&
+          evidence.first is Map &&
+          evidence.first['t'] == item['t']) {
+        recordedFault = fault;
+        break;
+      }
+    }
+    // Legacy fault names/thresholds remain in the stored report for traceability.
+    // No current server contract validates them as posture-correctness judgments.
+    final summary = item['rep'] == null && faults.isNotEmpty;
+    final placeholderFinding =
+        _reportMap(report['rules'])['placeholder'] == true &&
+            {'warning', 'critical', 'error'}.contains(item['severity']);
+    if (summary || recordedFault != null || placeholderFinding) {
+      color = Colors.lightBlueAccent;
+    }
+    final title = summary
+        ? '측정 기록 · 잠정 소견 ${faults.length}개'
+        : recordedFault != null
+            ? _recordedObservation(recordedFault)
+            : placeholderFinding
+                ? '잠정 측정 소견'
+                : '${item['title']}';
+    final body = summary || recordedFault != null || placeholderFinding
+        ? '추정값 차이가 기록된 구간이야. 자세의 정상·이상 판정은 보류했어.'
+        : '${item['body']}';
     return Card(
         child: ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       leading: Text(seconds == null ? '시간 확인 불가' : _timestamp(seconds),
           style: TextStyle(color: color, fontWeight: FontWeight.bold)),
-      title: Text('${item['title']}',
+      title: Text(title,
           style: TextStyle(color: color, fontWeight: FontWeight.w700)),
-      subtitle:
-          Text('${item['body']}', maxLines: 2, overflow: TextOverflow.ellipsis),
+      subtitle: Text(body, maxLines: 2, overflow: TextOverflow.ellipsis),
       onTap: seconds == null
           ? null
           : () => onSeek(Duration(milliseconds: (seconds * 1000).round())),
@@ -507,6 +542,19 @@ class DeepAnalysisReport extends StatelessWidget {
     ];
   }
 
+  String _recordedObservation(Map fault) {
+    const labels = {
+      'symmetryMaxDeg': '좌우 관절각 최대 차이',
+      'trunkStdDeg': '몸통 기울기 표준편차',
+      'depthDriftDeg': '기준 반복 대비 최소각 변화',
+      'romDropDeg': '기준 반복 대비 ROM 감소',
+      'tempoDriftRatio': '기준 반복 대비 시간 변화 비율',
+    };
+    final label = labels[fault['metric']];
+    if (label == null) return '잠정 측정 소견';
+    return '$label ${_measurement(fault['value'], fault['metric'] == 'tempoDriftRatio' ? '' : '°')}';
+  }
+
   Widget _faultButton(Map fault) {
     final evidence = fault['evidence'];
     final rawTime =
@@ -522,7 +570,7 @@ class DeepAnalysisReport extends StatelessWidget {
             ? null
             : () => onSeek(Duration(milliseconds: (time * 1000).round())),
         child: Text(
-            '${fault['title']} · ${time == null ? '근거 시간 확인 불가' : '근거 보기'} ($support)'));
+            '${_recordedObservation(fault)} · ${time == null ? '측정 시간 확인 불가' : '측정 근거 보기'} (자세 판정 보류 · 검출 지지도 $support)'));
   }
 }
 
