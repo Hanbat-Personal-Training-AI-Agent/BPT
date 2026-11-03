@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		B03110300000000000000012 /* ExerciseMotionObserver.swift in Sources */ = {isa = PBXBuildFile; fileRef = B03110300000000000000011 /* ExerciseMotionObserver.swift */; };
+		B03110300000000000000002 /* ExerciseMotionEstimator.swift in Sources */ = {isa = PBXBuildFile; fileRef = B03110300000000000000001 /* ExerciseMotionEstimator.swift */; };
 		C77F0000000000000000000B /* CoachingCandidateSelfTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = C77F0000000000000000000C /* CoachingCandidateSelfTest.swift */; };
 		C77F00000000000000000009 /* CoachingCandidateProposal.swift in Sources */ = {isa = PBXBuildFile; fileRef = C77F0000000000000000000A /* CoachingCandidateProposal.swift */; };
 		C77F00000000000000000007 /* CoachingCandidateRuntime.swift in Sources */ = {isa = PBXBuildFile; fileRef = C77F00000000000000000008 /* CoachingCandidateRuntime.swift */; };
@@ -109,6 +111,8 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		B03110300000000000000011 /* ExerciseMotionObserver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExerciseMotionObserver.swift; sourceTree = "<group>"; };
+		B03110300000000000000001 /* ExerciseMotionEstimator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExerciseMotionEstimator.swift; sourceTree = "<group>"; };
 		C77F0000000000000000000C /* CoachingCandidateSelfTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoachingCandidateSelfTest.swift; sourceTree = "<group>"; };
 		C77F0000000000000000000A /* CoachingCandidateProposal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoachingCandidateProposal.swift; sourceTree = "<group>"; };
 		C77F00000000000000000008 /* CoachingCandidateRuntime.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoachingCandidateRuntime.swift; sourceTree = "<group>"; };
@@ -327,6 +331,8 @@
 				7B3D2C9E4F5A6B7C8D9E0F02 /* MotionAGFormerLive.swift */,
 				B77E00000000000000000002 /* TerminalEvidence.swift */,
 				7B3D2C9E4F5A6B7C8D9E0F04 /* Pose3DConstraints.swift */,
+				B03110300000000000000001 /* ExerciseMotionEstimator.swift */,
+				B03110300000000000000011 /* ExerciseMotionObserver.swift */,
 				5C9A1E3B7D2F4A6C8E0B1D02 /* AdaptiveRelationConstraint.swift */,
 				5C9A1E3B7D2F4A6C8E0B1E02 /* WristFloorAnchor.swift */,
 				AC1026ABCDEF000000000022 /* OverlaySmoother.swift */,
@@ -691,6 +697,8 @@
 				6A2C1B8D3E4F5A6B7C8D9E01 /* BoneLengthConstraint.swift in Sources */,
 				7B3D2C9E4F5A6B7C8D9E0F01 /* MotionAGFormerLive.swift in Sources */,
 				7B3D2C9E4F5A6B7C8D9E0F03 /* Pose3DConstraints.swift in Sources */,
+				B03110300000000000000002 /* ExerciseMotionEstimator.swift in Sources */,
+				B03110300000000000000012 /* ExerciseMotionObserver.swift in Sources */,
 				5C9A1E3B7D2F4A6C8E0B1D01 /* AdaptiveRelationConstraint.swift in Sources */,
 				5C9A1E3B7D2F4A6C8E0B1E01 /* WristFloorAnchor.swift in Sources */,
 				AC1026ABCDEF000000000021 /* OverlaySmoother.swift in Sources */,

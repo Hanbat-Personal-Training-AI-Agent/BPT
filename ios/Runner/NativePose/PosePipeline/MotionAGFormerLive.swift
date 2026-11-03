@@ -53,6 +53,8 @@ struct Lifted3DFrame {
     /// stay as they were, so the unconstrained / constrained / adapted 3D can always be compared.
     var adapted: [SIMD3<Double>]? = nil
     var adaptive: AdaptiveRelationConstraint.Report? = nil
+    /// Side-by-side diagnostics only; never merged into state, pose or validity.
+    var motionObservation: ExerciseMotionObserver.Output? = nil
 
     /// 3D the evaluators may judge with: ok, or partial with the untrusted joints NaN.
     var usable3D: [SIMD3<Double>]? { state == .ok || state == .partial3D ? masked3D : nil }
@@ -80,6 +82,7 @@ struct MotionAGFormerLive<Payload> {
     var constraints = Pose3DConstraints()
     /// Experimental confidence-aware relation constraint after `constraints` (nil = off, the default).
     var adaptive: AdaptiveRelationConstraint?
+    var motionObserver: ExerciseMotionObserver?
     /// [27 × 17 × 3] input (x, y, confidence) → [27 × 17 × 3] output, row-major. Core ML in the app.
     let predict: ([Float]) throws -> [Float]
 
@@ -90,6 +93,9 @@ struct MotionAGFormerLive<Payload> {
         let valid: Bool
         /// px per normalized unit (crop side / 2).
         let unit: Double
+        let observerSource: ExerciseMotionObserver.Source?
+        let observerScreen: [SIMD3<Double>]
+        let observerScale: Double
     }
 
     private var normalizer = MotionAGFormerInputNormalizer()
@@ -117,7 +123,7 @@ struct MotionAGFormerLive<Payload> {
     /// Push one frame (COCO17 in frame pixels; Halpe26 callers pass its first 17 joints, which are COCO17
     /// in the same order). Returns the frames that became ready, oldest first.
     mutating func push(frameIndex: Int, coco17: [PoseKeypoint], imageWidth: Int, imageHeight: Int,
-                       captureRotation: CaptureRotation = .up, payload: Payload) throws -> [(Payload, Lifted3DFrame)] {
+                       captureRotation: CaptureRotation = .up, observerSource: ExerciseMotionObserver.Source? = nil, payload: Payload) throws -> [(Payload, Lifted3DFrame)] {
         let valid = coco17.count == 17 && coco17.filter { $0.confidence >= minConfidence }.count >= minJoints
         var out: [(Payload, Lifted3DFrame)] = []
         if let previous = self.captureRotation, previous != captureRotation {
@@ -139,10 +145,19 @@ struct MotionAGFormerLive<Payload> {
                 return out
             }
         }
+        let boundSource: ExerciseMotionObserver.Source?
+        if let source = observerSource, source.frame == frameIndex, source.width == imageWidth,
+           source.height == imageHeight, source.rotation == captureRotation.rawValue {
+            boundSource = source
+        } else {
+            boundSource = nil
+        }
         let h36m = try PoseCoordinateTransforms.coco17ToH36M17(coco17)
         let input = normalizer.normalize(h36m, imageWidth: imageWidth, imageHeight: imageHeight)
         entries.append(Entry(frameIndex: frameIndex, payload: payload, input: input, valid: valid,
-                             unit: (normalizer.lastCrop?.side ?? 2) / 2))
+                             unit: (normalizer.lastCrop?.side ?? 2) / 2, observerSource: boundSource,
+                             observerScreen: motionObserver == nil ? [] : h36m.map { SIMD3($0.x / Double(imageHeight), $0.y / Double(imageHeight), $0.confidence) },
+                             observerScale: (normalizer.lastCrop?.side ?? 2) / (2 * Double(imageHeight))))
         pending += 1
         realFrames += 1
         if entries.count > Self.window { entries.removeFirst() }
@@ -170,9 +185,9 @@ struct MotionAGFormerLive<Payload> {
                 let p = entries.count - pending
                 let shortfall = p + lookahead - (entries.count - 1)
                 if shortfall <= 0 {
-                    out += try emitWindow(endingAt: p + lookahead, count: 1, extraLookahead: 0)
+                    out += try emitWindow(endingAt: p + lookahead, count: 1, extraLookahead: 0, observerFlush: true)
                 } else {
-                    out += try emitWindow(endingAt: entries.count - 1, count: 1, extraLookahead: shortfall)
+                    out += try emitWindow(endingAt: entries.count - 1, count: 1, extraLookahead: shortfall, observerFlush: true)
                 }
             }
         }
@@ -191,6 +206,7 @@ struct MotionAGFormerLive<Payload> {
         lostRun = 0
         captureRotation = nil
         adaptive?.reset()
+        motionObserver?.reset()
     }
 
     private mutating func emitWithout3D(count: Int) -> [(Payload, Lifted3DFrame)] {
@@ -205,7 +221,7 @@ struct MotionAGFormerLive<Payload> {
 
     /// Runs the model on the 27 entries ending at `end` (the newest entry repeated `extraLookahead`
     /// more times on the right), emits the `count` oldest pending frames.
-    private mutating func emitWindow(endingAt end: Int, count: Int, extraLookahead: Int) throws -> [(Payload, Lifted3DFrame)] {
+    private mutating func emitWindow(endingAt end: Int, count: Int, extraLookahead: Int, observerFlush: Bool = false) throws -> [(Payload, Lifted3DFrame)] {
         let w = Self.window
         var input = [Float](repeating: 0, count: w * 17 * 3)
         for t in 0..<w {
@@ -225,10 +241,20 @@ struct MotionAGFormerLive<Payload> {
             }
             let confidence = e.input.map { Double($0[2]) }
             guard e.valid else {
+                motionObserver?.reset()
                 emitted.append((e.payload, Lifted3DFrame(frameIndex: e.frameIndex, state: .trackingLost, filled: realFrames,
                                                          raw: raw, pose3D: nil, constraints: nil, row: row,
                                                          confidence: confidence, unit: e.unit)))
                 continue
+            }
+            let observation: ExerciseMotionObserver.Output?
+            if let source = e.observerSource {
+                observation = motionObserver?.update(raw: raw, screen2D: e.observerScreen, modelToImageScale: e.observerScale, source: source, flush: observerFlush)
+            } else {
+                // Reset at this output's place in source order, not at enqueue
+                // time while older L5 outputs still await emission.
+                motionObserver?.reset()
+                observation = nil
             }
             let (fixed, report) = constraints.apply(raw)
             // The one hook of the experimental adaptive constraint: after the anatomical constraints, same frame order.
@@ -238,7 +264,7 @@ struct MotionAGFormerLive<Payload> {
             emitted.append((e.payload, Lifted3DFrame(frameIndex: e.frameIndex, state: state,
                                                      filled: min(realFrames, w), raw: raw, pose3D: fixed,
                                                      constraints: report, row: row, confidence: confidence, unit: e.unit,
-                                                     adapted: adapted?.0, adaptive: adapted?.1)))
+                                                     adapted: adapted?.0, adaptive: adapted?.1, motionObservation: observation)))
         }
         pending -= count
         return emitted
