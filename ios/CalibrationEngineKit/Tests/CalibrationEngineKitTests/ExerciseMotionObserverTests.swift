@@ -192,4 +192,34 @@ final class ExerciseMotionObserverTests: XCTestCase {
         XCTAssertEqual(reset.details["personal_profile_applied"] as? Bool,false)
     }
 
+    func testStandaloneDiagnosticsRetainRolesContactsPredictionAndUncalibratedScores() throws {
+        let f=try MotionAGFormerLiveTests().fixture()
+        let kp=f.coco17[0].map { PoseKeypoint(x:$0[0],y:$0[1],confidence:$0[2]) }
+        var screen=try PoseCoordinateTransforms.coco17ToH36M17(kp).map { SIMD3($0.x/480,$0.y/480,$0.confidence) }
+        screen[3].z=1.2;screen[4].z = .nan
+        let raw=screen.map { SIMD3($0.x,$0.y,0) }
+        var observer=ExerciseMotionObserver(configuration:config(.G))
+        let output=observer.update(raw:raw,screen2D:screen,modelToImageScale:1,source:source(0),flush:false)
+        let directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at:directory) }
+        let log=try ExerciseMotionObserverLog(directory:directory)
+        log.write(output.dictionary);log.close()
+        let lines=try String(contentsOf:log.url).split(separator:"\n")
+        let decoded=try JSONSerialization.jsonObject(with:Data(lines[1].utf8)) as! [String:Any]
+        let details=decoded["details"] as! [String:Any]
+        XCTAssertEqual((details["roles"] as? [String])?.count,17)
+        XCTAssertEqual((details["used_prediction"] as? [Bool])?.count,17)
+        XCTAssertFalse((details["contacts"] as! [String:String]).isEmpty)
+        let scores=details["observation_confidence_h36m"] as! [Any]
+        XCTAssertEqual(scores.count,17);XCTAssertEqual(scores[3] as? Double,1.2)
+        let input=details["source_2d_height_normalized"] as! [[Any]]
+        XCTAssertEqual(input.count,17);XCTAssertEqual(input[3][0] as? Double,screen[3].x)
+        XCTAssertEqual(input[3][2] as? Double,1.2)
+        XCTAssertTrue(input[4][2] is NSNull)
+        XCTAssertEqual(details["model_to_image_scale"] as? Double,1)
+        XCTAssertTrue(scores[4] is NSNull)
+        XCTAssertEqual(details["confidence_semantics"] as? String,"retained_detector_scores_not_accuracy_probabilities")
+        XCTAssertEqual(decoded["adopted_for_feedback"] as? Bool,false)
+    }
+
 }
