@@ -1,0 +1,157 @@
+{
+  "aggregateSHA256": "4a1fe80c67b19142b9f4a02e2333d297699c05c7983c9a0990b80b8890fb5c10",
+  "baselineArtifactsUnchanged": true,
+  "comparisonSHA256": "c86b6ef03b74083158296edda5346980bf657d0f54ef29b5db2363103a7338f7",
+  "comparisonWithUnknownCameraBaseline": {
+    "barbell_row": {
+      "candidateChangedFrames": 0,
+      "evaluated": 561,
+      "maskChangedFrames": 0,
+      "maximumCandidateDeltaModelUnits": 0.0,
+      "phaseChangedFrames": 0,
+      "predictionChangedFrames": 0,
+      "rows": 587
+    },
+    "pushup": {
+      "candidateChangedFrames": 17,
+      "evaluated": 522,
+      "maskChangedFrames": 0,
+      "maximumCandidateDeltaModelUnits": 0.049978645516995136,
+      "phaseChangedFrames": 0,
+      "predictionChangedFrames": 0,
+      "rows": 548
+    },
+    "squat": {
+      "candidateChangedFrames": 0,
+      "evaluated": 1237,
+      "maskChangedFrames": 0,
+      "maximumCandidateDeltaModelUnits": 0.0,
+      "phaseChangedFrames": 0,
+      "predictionChangedFrames": 0,
+      "rows": 1263
+    }
+  },
+  "configuration": {
+    "fixedCameraAssertion": true,
+    "nativePhaseSupplied": false,
+    "onlineProfile": true,
+    "personIdentitySupplied": false,
+    "personalProfile": null,
+    "variants": [
+      "H"
+    ]
+  },
+  "contactAccuracyClaim": false,
+  "inputSHA256": {
+    "barbell_row": "20f8daf37800599513bdafba20e0e4b312a66cbf593fca68aad031143bf8921a",
+    "pushup": "508cf87e31740b20e17b6b44775b3ab28cdc9fc94fbbcd5af69acfa031dbe3fa",
+    "squat": "c783990a63bb3aa05afd30bd122b3c9b2e513a53a3e7430a86dddc4e83db5039"
+  },
+  "nativeSourcesUnchanged": true,
+  "newInference": false,
+  "observationsSHA256": "ca7a57d4017d0a1acba007316e9a4834bb8ccebcbdfac200d9fb61bacc5b406e",
+  "policy": "declared_fixed_camera_online_prior_H_not_contact_truth",
+  "results": [
+    {
+      "contactCorrectedJointOpportunities": 0,
+      "contacts": {
+        "CONTACT": 1108,
+        "UNINITIALIZED": 14
+      },
+      "correctionModelUnits": {
+        "max": 0.05172105260665628,
+        "median": 0
+      },
+      "evaluatedFrames": 561,
+      "exactPassthroughJointOpportunities": 9371,
+      "exercise": "barbell_row",
+      "expiredFallbackJointOpportunities": 0,
+      "frames": 587,
+      "invalidJointOpportunities": 2,
+      "onlineProfileAppliedFrames": 502,
+      "roles": {
+        "contact_anchor": 1108,
+        "dynamic_joint": 8429
+      },
+      "usedPredictionJointOpportunities": 0,
+      "variant": "H",
+      "withheld": {
+        "flush_tail_not_fresh_observation": 5,
+        "saved_raw_3d_unavailable": 21
+      }
+    },
+    {
+      "contactCorrectedJointOpportunities": 17,
+      "contacts": {
+        "CONTACT": 1929,
+        "MOVING": 15,
+        "OCCLUDED": 46,
+        "REACQUIRE": 70,
+        "UNINITIALIZED": 28
+      },
+      "correctionModelUnits": {
+        "max": 0.10426639766346799,
+        "median": 0.0
+      },
+      "evaluatedFrames": 522,
+      "exactPassthroughJointOpportunities": 8410,
+      "exercise": "pushup",
+      "expiredFallbackJointOpportunities": 0,
+      "frames": 548,
+      "invalidJointOpportunities": 21,
+      "onlineProfileAppliedFrames": 463,
+      "roles": {
+        "contact_anchor": 1957,
+        "dynamic_joint": 6899,
+        "temporarily_occluded_joint": 18
+      },
+      "usedPredictionJointOpportunities": 18,
+      "variant": "H",
+      "withheld": {
+        "flush_tail_not_fresh_observation": 5,
+        "saved_raw_3d_unavailable": 21
+      }
+    },
+    {
+      "contactCorrectedJointOpportunities": 0,
+      "contacts": {
+        "CONTACT": 2459,
+        "UNINITIALIZED": 15
+      },
+      "correctionModelUnits": {
+        "max": 0.4155273157779474,
+        "median": 0
+      },
+      "evaluatedFrames": 1237,
+      "exactPassthroughJointOpportunities": 19955,
+      "exercise": "squat",
+      "expiredFallbackJointOpportunities": 377,
+      "frames": 1263,
+      "invalidJointOpportunities": 722,
+      "onlineProfileAppliedFrames": 1178,
+      "roles": {
+        "contact_anchor": 2459,
+        "dynamic_joint": 17897,
+        "temporarily_occluded_joint": 241,
+        "uncertain_joint": 432
+      },
+      "usedPredictionJointOpportunities": 673,
+      "variant": "H",
+      "withheld": {
+        "flush_tail_not_fresh_observation": 5,
+        "saved_raw_3d_unavailable": 21
+      }
+    }
+  ],
+  "schema": "bpt.motion-observer-fixed-online-sensitivity.v1",
+  "sourceSHA256": {
+    "ios/Runner/NativePose/PosePipeline/BoneLengthConstraint.swift": "f556f110f3353c7faa71799d23f74658e4517abd34cb755dee1a427739fecc82",
+    "ios/Runner/NativePose/PosePipeline/ExerciseMotionEstimator.swift": "c33c43cc565e210c026062731488ca7f779ffaf5685de39bc7902947310ef764",
+    "ios/Runner/NativePose/PosePipeline/ExerciseMotionObserver.swift": "f022cde8818bdc52d240fd8c81b69ee72e2fe223b2f0099e1edc7e178cbce3da",
+    "ios/Runner/NativePose/PosePipeline/PoseCoordinateTransforms.swift": "5963a4c7bf75fe41f1461b7de48d480481c1978dfa7ee33ec3f5e94f752e8579",
+    "ios/Runner/NativePose/PosePipeline/SimCCDecoder.swift": "dd32771fa78628438b13f6f49aa337ca6945f633290edf48365107dcaf3df20f",
+    "scripts/motion_observer_replay/main.swift": "bb04c796ddc9c044e078d1204d75d1e2e76b98b643f591c1b74732c22b4c1542",
+    "scripts/motion_observer_replay/replay.py": "6dacebf2355be6172bd30a03866c259efe364b72317210ba27c51fcc99c03b0c",
+    "scripts/terminal_evidence/replay.py": "d70575c4fa33db5e904fd9b40f7678936f5b0c00e8983882d3176a90a98d6a2a"
+  }
+}

@@ -9,6 +9,8 @@ func write(_ row:[String:Any],to handle:FileHandle) throws {
     let bytes=try JSONSerialization.data(withJSONObject:row,options:.sortedKeys)
     try handle.write(contentsOf:bytes+Data([10]))
 }
+let sensitivity = CommandLine.arguments.count > 3 && CommandLine.arguments[3] == "fixed-camera-online-H"
+let variants: [ExerciseMotionVariant] = sensitivity ? [.H] : ExerciseMotionVariant.allCases
 let groups=try JSONSerialization.jsonObject(with:Data(contentsOf:URL(fileURLWithPath:CommandLine.arguments[1]))) as! [[String:Any]]
 let destination=URL(fileURLWithPath:CommandLine.arguments[2])
 try Data().write(to:destination,options:.withoutOverwriting)
@@ -16,10 +18,11 @@ let handle=try FileHandle(forWritingTo:destination)
 defer { try? handle.close() }
 for group in groups {
     let exercise=group["exercise"] as! String
-    for variant in ExerciseMotionVariant.allCases {
-        var observer=ExerciseMotionObserver(configuration:.init(exercise:exercise,variant:variant,profile:nil,fixedCameraAssertion:false))
+    for variant in variants {
+        var observer=ExerciseMotionObserver(configuration:.init(exercise:exercise,variant:variant,profile:nil,fixedCameraAssertion:sensitivity,onlineCalibration:sensitivity))
         for row in group["frames"] as! [[String:Any]] {
-            let base:[String:Any]=["exercise":exercise,"variant":variant.rawValue,"sequence":row["sequence"]!,"frame":row["frame"]!,"flush":row["flush_tail"]!]
+            var base:[String:Any]=["exercise":exercise,"variant":variant.rawValue,"sequence":row["sequence"]!,"frame":row["frame"]!,"flush":row["flush_tail"]!]
+            if sensitivity { base["policy"] = "declared_fixed_camera_online_prior_H_not_contact_truth" }
             guard let raw=pose(row["raw_3d"]) else {
                 observer.reset();try write(base.merging(["withheldReason":"saved_raw_3d_unavailable"]){_,new in new},to:handle);continue
             }
