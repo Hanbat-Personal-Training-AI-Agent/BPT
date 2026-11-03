@@ -14,6 +14,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:video_player/video_player.dart';
+import 'phone_lifecycle_guard.dart';
 
 class _DenyTransport extends HttpOverrides {
   int attempts = 0;
@@ -24,7 +25,9 @@ class _DenyTransport extends HttpOverrides {
   }
 }
 
-void registerCurrentDeepReportTest({void Function(String)? onOutputCreated}) {
+void registerCurrentDeepReportTest(
+    {void Function(String)? onOutputCreated,
+    required PhoneLifecycleGuard lifecycle}) {
   testWidgets(
     'saved re-score HTTP bytes and original local video, no user writes',
     (tester) async {
@@ -125,6 +128,9 @@ void registerCurrentDeepReportTest({void Function(String)? onOutputCreated}) {
           isFalse,
         );
         expect(inbox.expire(clear), isFalse);
+        File('${output.path}/lifecycle-wait.json')
+            .writeAsStringSync(jsonEncode(lifecycle.snapshot), flush: true);
+        await lifecycle.beginWhenResumed();
         video = VideoPlayerController.file(videoFile);
         await video.initialize().timeout(const Duration(seconds: 30));
         await video.setVolume(0);
@@ -174,6 +180,8 @@ void registerCurrentDeepReportTest({void Function(String)? onOutputCreated}) {
         await Future<void>.delayed(const Duration(milliseconds: 400));
         await tester.pump();
         final tapRect = tester.getRect(title);
+        await lifecycle.waitForResumed();
+        lifecycle.assertUninterrupted();
         await tester.tap(title);
         String visibleText() => tester
             .widgetList<Text>(find.byType(Text))
@@ -208,17 +216,22 @@ void registerCurrentDeepReportTest({void Function(String)? onOutputCreated}) {
         await Future<void>.delayed(const Duration(seconds: 2));
         await video.pause();
         expect(video.value.position.inMilliseconds, greaterThan(0));
-        final timeline =
-            (report['timeline'] as List).whereType<Map>().firstWhere(
-                  (r) =>
-                      r['t'] is num &&
-                      (r['t'] as num).isFinite &&
-                      (r['t'] as num) >= 0,
-                );
-        final timelineFinder = find
-            .byWidgetPredicate((w) => w is ListTile && w.onTap != null)
-            .first;
-        await tester.ensureVisible(timelineFinder);
+        final timeline = (report['timeline'] as List).first as Map;
+        expect(timeline['t'], isA<num>());
+        expect((timeline['t'] as num).isFinite && (timeline['t'] as num) >= 0,
+            isTrue);
+        const timelineKey = ValueKey('deep-analysis-timeline-0');
+        final timelineCard = find.byKey(timelineKey);
+        await tester.scrollUntilVisible(timelineCard, -200, maxScrolls: 60);
+        await Scrollable.ensureVisible(tester.element(timelineCard),
+            alignment: .5, duration: const Duration(milliseconds: 250));
+        await Future<void>.delayed(const Duration(milliseconds: 400));
+        await tester.pump();
+        final timelineFinder =
+            find.descendant(of: timelineCard, matching: find.byType(ListTile));
+        expect(timelineFinder, findsOneWidget);
+        await lifecycle.waitForResumed();
+        lifecycle.assertUninterrupted();
         await tester.tap(timelineFinder);
         await Future<void>.delayed(const Duration(milliseconds: 400));
         expect(seeks.last, ((timeline['t'] as num) * 1000).round());
@@ -247,6 +260,7 @@ void registerCurrentDeepReportTest({void Function(String)? onOutputCreated}) {
         expect((video.value.position.inMilliseconds - targetMs).abs(),
             lessThanOrEqualTo(500));
         final achievedMs = video.value.position.inMilliseconds;
+        lifecycle.assertUninterrupted();
         expect(deny.attempts, 0);
         File('${output.path}/success.json').writeAsStringSync(
           jsonEncode({
@@ -294,6 +308,7 @@ void registerCurrentDeepReportTest({void Function(String)? onOutputCreated}) {
           } finally {
             await video?.dispose().timeout(const Duration(seconds: 10));
           }
+          lifecycle.assertUninterrupted();
           File('${output.path}/cleanup-complete.json').writeAsStringSync(
               jsonEncode({
                 'widgetDisposed': true,
@@ -308,6 +323,9 @@ void registerCurrentDeepReportTest({void Function(String)? onOutputCreated}) {
           rethrow;
         } finally {
           HttpOverrides.global = oldHttp;
+          File('${output.path}/lifecycle.json')
+              .writeAsStringSync(jsonEncode(lifecycle.snapshot), flush: true);
+          lifecycle.dispose();
         }
       }
     },

@@ -79,7 +79,9 @@ void main() {
       await tester.tap(find.text(title));
     }
     expect(seeks, isEmpty);
-    await tester.tap(find.text('유효 시각'));
+    await tester.tap(find.descendant(
+        of: find.byKey(const ValueKey('deep-analysis-timeline-2')),
+        matching: find.byType(ListTile)));
     expect(seeks, [const Duration(milliseconds: 2500)]);
     await tester.ensureVisible(find.text('1회 · 자세히 보기'));
     await tester.tap(find.text('1회 · 자세히 보기'));

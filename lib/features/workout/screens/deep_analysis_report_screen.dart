@@ -287,8 +287,9 @@ class DeepAnalysisReport extends StatelessWidget {
                         style: TextStyle(color: Colors.amber))),
               if ((report['unassessedCatalog'] as List? ?? []).isNotEmpty)
                 const Text('일부 자세 항목은 이 영상으로 확인하지 못했어.'),
-              for (final item in report['timeline'] as List? ?? [])
-                _timelineItem(item as Map),
+              for (final entry
+                  in (report['timeline'] as List? ?? []).asMap().entries)
+                _timelineItem(entry.value as Map, entry.key),
               for (final rep in report['reps'] as List? ?? [])
                 _metrics(rep as Map),
               for (final note in report['notes'] as List? ?? [])
@@ -300,7 +301,7 @@ class DeepAnalysisReport extends StatelessWidget {
             ])),
       ]);
 
-  Widget _timelineItem(Map item) {
+  Widget _timelineItem(Map item, int index) {
     var color = switch (item['severity']) {
       'critical' || 'error' => Colors.redAccent,
       'warning' => Colors.amber,
@@ -346,6 +347,7 @@ class DeepAnalysisReport extends StatelessWidget {
         ? '추정값 차이가 기록된 구간이야. 자세의 정상·이상 판정은 보류했어.'
         : '${item['body']}';
     return Card(
+        key: ValueKey('deep-analysis-timeline-$index'),
         child: ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       leading: Text(seconds == null ? '시간 확인 불가' : _timestamp(seconds),

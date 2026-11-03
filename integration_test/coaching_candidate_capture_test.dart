@@ -12,6 +12,7 @@ import 'package:video_player/video_player.dart';
 // ignore: depend_on_referenced_packages
 import 'package:crypto/crypto.dart';
 import 'current_deep_report_phone_test.dart' as report_mode;
+import 'phone_lifecycle_guard.dart';
 import 'package:bpt/features/workout/data/experimental_coaching_candidate.dart';
 import 'package:bpt/features/workout/widgets/experimental_coaching_candidate_banner.dart';
 
@@ -27,6 +28,7 @@ class _NoHttp extends HttpOverrides {
 Future<void> main() async {
   final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
   binding.framePolicy = LiveTestWidgetsFlutterBindingFramePolicy.fullyLive;
+  final lifecycle = PhoneLifecycleGuard();
   final modeDocs = await getApplicationDocumentsDirectory();
   final modeConfigBytes =
       File('${modeDocs.path}/bpt_demo.json').readAsBytesSync();
@@ -65,7 +67,8 @@ Future<void> main() async {
         flush: true);
   }));
   if (mode == 'report') {
-    report_mode.registerCurrentDeepReportTest(onOutputCreated: outputCreated);
+    report_mode.registerCurrentDeepReportTest(
+        onOutputCreated: outputCreated, lifecycle: lifecycle);
     return;
   }
   testWidgets(
@@ -269,6 +272,8 @@ Future<void> main() async {
           '${config['BPT_TERMINAL_TEST_PRIOR_INVENTORY_SHA256']}',
           matches(RegExp(r'^[0-9a-f]{64}$')),
         );
+        stage('waiting_for_real_resumed');
+        await lifecycle.beginWhenResumed();
         stage('preflight_pass', {
           'terminalFilesBefore': before.length,
           'hostAttemptId': attemptId,
@@ -450,6 +455,7 @@ Future<void> main() async {
               : <String>{};
           expect(terminalNamesAfter, before);
           expect(originalRootFiles(), originalFilesBefore);
+          lifecycle.assertUninterrupted();
           expect(noHttp.attempts, 0);
           expect(flutterErrors, 0);
           expect(tester.takeException(), isNull);
@@ -753,6 +759,7 @@ Future<void> main() async {
           jsonEncode({'proposals': proposals, 'clears': clears}),
           flush: true,
         );
+        lifecycle.assertUninterrupted();
         expect(noHttp.attempts, 0);
         expect(
           flutterErrors,
@@ -834,6 +841,10 @@ Future<void> main() async {
           channel?.setMethodCallHandler(null);
           HttpOverrides.global = oldHttp;
           FlutterError.onError = oldError;
+          File('${output.path}/lifecycle.json')
+              .writeAsStringSync(jsonEncode(lifecycle.snapshot), flush: true);
+          lifecycle.dispose();
+          lifecycle.assertUninterrupted();
           stage('test_finally');
         }
       }
