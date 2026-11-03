@@ -147,4 +147,87 @@ final class CoachingCandidateTests: XCTestCase {
         XCTAssertEqual(components[1]["state"] as? String,"unknown")
     }
 
+    func testLiveProcessorPreservesSourceRawAndOfflineResultsWithoutLogger() throws {
+        var live = CoachingCandidateRuntime.Processor(), offline = CoachingCandidateEngine()
+        let configuration = try config("floor")
+        for i in 0..<6 {
+            let original = frame(i, "descending", "pushup", sag: i == 3 ? 0.1 : 0.5)
+            let input = CoachingCandidateEngine.Frame.live(source: original.source, context: original.context,
+                raw3D: original.raw3D, assessment3D: original.assessment3D, raw2D: original.raw2D,
+                confidence: original.confidence, invalid: original.invalid, state: original.state, captureID: original.captureID)
+            let expected = try offline.update(original, configuration: configuration, includeRequests: true)
+            let result = live.process(input, configuration: .success(configuration), includeRequests: true)
+            XCTAssertNil(result.error)
+            XCTAssertEqual(try JSONSerialization.data(withJSONObject: XCTUnwrap(result.candidate), options: [.sortedKeys]),
+                           try JSONSerialization.data(withJSONObject: expected, options: [.sortedKeys]))
+            XCTAssertEqual(input.raw3D, original.raw3D)
+            XCTAssertEqual((result.candidate?["source"] as? NSDictionary), original.source as NSDictionary)
+        }
+    }
+
+    func testLiveProcessorUnknownPhaseSideMalformedAndSourceChangesClearOldIdentity() throws {
+        let configuration = try config("floor")
+        for change in ["capture", "epoch", "rotation", "side", "phase", "source_kind", "malformed", "nil"] {
+            var runtime = CoachingCandidateRuntime.Processor()
+            let first = frame(0, "descending", "pushup", sag: 0.5)
+            let proposal = try XCTUnwrap(runtime.process(first, configuration: .success(configuration)).proposal)
+            var source = first.source, context = first.context
+            source["source_index"] = 1; source["source_pts"] = 0.1
+            if change == "epoch" { source["epoch"] = 2 }
+            if change == "rotation" { context["rotation"] = 90 }
+            if change == "source_kind" { context["source_kind"] = "camera_capture_index" }
+            if change == "side" || change == "phase" { context[change] = NSNull() }
+            let input = CoachingCandidateEngine.Frame.live(source: source, context: context,
+                raw3D: change == "nil" ? nil : change == "malformed" ? [] : first.raw3D,
+                assessment3D: first.assessment3D, raw2D: first.raw2D, confidence: first.confidence,
+                invalid: first.invalid, state: first.state, captureID: change == "capture" ? "new-capture" : first.captureID)
+            let next = runtime.process(input, configuration: .success(configuration))
+            let clear = try XCTUnwrap(next.clear, change)
+            XCTAssertEqual(clear["captureId"] as? String, proposal["captureId"] as? String, change)
+            XCTAssertEqual(clear["previousProposalId"] as? String, proposal["proposalId"] as? String, change)
+            XCTAssertEqual(clear["source"] as? NSDictionary, proposal["source"] as? NSDictionary, change)
+            if ["side", "phase", "malformed", "nil"].contains(change) { XCTAssertNil(next.proposal, change) }
+            else { XCTAssertNotNil(next.proposal, change) }
+        }
+    }
+
+    func testLiveProcessorOffInvalidConfigurationAndSourceGeneration() throws {
+        var runtime = CoachingCandidateRuntime.Processor()
+        let input = frame(0, "descending", "pushup", sag: 0.5)
+        XCTAssertNil(runtime.process(input, configuration: .success(nil)).candidate)
+        XCTAssertNotNil(runtime.process(input, configuration: .success(try config("floor"))).proposal)
+        let failed = runtime.process(input, configuration: .failure(CoachingCriteria.ValidationError.invalid("test")))
+        XCTAssertNotNil(failed.clear); XCTAssertNotNil(failed.error); XCTAssertNil(failed.proposal)
+        let session = CoachingCandidateRuntime.SourceSession()
+        XCTAssertNil(session.snapshot())
+        session.begin(); let old = session.snapshot(); XCTAssertTrue(session.accepts(old))
+        session.end(); XCTAssertFalse(session.accepts(old)); XCTAssertFalse(session.accepts(nil))
+        session.begin(); XCTAssertFalse(session.accepts(old)); XCTAssertTrue(session.accepts(session.snapshot()))
+    }
+
+    func testExportSyntheticLiveSourceTransitionPackets() throws {
+        var runtime = CoachingCandidateRuntime.Processor()
+        let configuration = try config("floor")
+        let initial = runtime.process(frame(0, "descending", "pushup", sag: 0.5, capture: "synthetic-old-source"), configuration: .success(configuration))
+        let next = runtime.process(frame(0, "descending", "pushup", sag: 0.5, capture: "synthetic-new-source"), configuration: .success(configuration))
+        let proposal = try XCTUnwrap(initial.proposal), clear = try XCTUnwrap(next.clear), newProposal = try XCTUnwrap(next.proposal)
+        XCTAssertEqual(clear["captureId"] as? String, "synthetic-old-source")
+        XCTAssertEqual(clear["previousProposalId"] as? String, proposal["proposalId"] as? String)
+        XCTAssertEqual(newProposal["captureId"] as? String, "synthetic-new-source")
+        if let path = ProcessInfo.processInfo.environment["BPT_CANDIDATE_PACKET_OUTPUT"] {
+            let fixture: [String: Any] = ["schema": "bpt.synthetic-native-live-source-transition.v1", "synthetic": true,
+                "events": [["type": "proposal", "payload": proposal], ["type": "clear", "payload": clear], ["type": "proposal", "payload": newProposal]]]
+            try JSONSerialization.data(withJSONObject: fixture, options: [.sortedKeys, .prettyPrinted]).write(to: URL(fileURLWithPath: path))
+        }
+    }
+
+    func testForcedResetAfterUnknownClearsPresentationCadence() throws {
+        var runtime = CoachingCandidateRuntime.Processor()
+        let configuration = try config("floor")
+        XCTAssertNotNil(runtime.process(frame(0, "descending", "pushup", sag: 0.5), configuration: .success(configuration)).proposal)
+        XCTAssertNotNil(runtime.process(frame(1, "descending", "pushup", sag: 0.5, invalid: [3]), configuration: .success(configuration)).clear)
+        XCTAssertNil(runtime.reset())
+        XCTAssertNotNil(runtime.process(frame(2, "descending", "pushup", sag: 0.5), configuration: .success(configuration)).proposal)
+    }
+
 }

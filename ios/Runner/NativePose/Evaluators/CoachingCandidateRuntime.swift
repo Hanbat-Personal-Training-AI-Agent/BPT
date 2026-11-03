@@ -24,6 +24,50 @@ enum CoachingCandidateRuntime {
         for (key,name) in keys { if let supplied=environment[key] { guard let number=Double(supplied),number.isFinite else { throw CoachingCriteria.ValidationError.invalid("candidate parameter must be finite") };overrides[name]=number;provenance[name]="explicit caller environment "+key+"; "+source } }
         return try .init(experimentID:id,source:source,experimentDeclaredAt:at,variant:variant,overrides:overrides,provenance:provenance)
     }
+    /// A source generation is captured before asynchronous XS work, independently of terminal capture.
+    final class SourceSession: @unchecked Sendable {
+        private let lock = NSLock()
+        private var generation = 0
+        private var active = false
+        func begin() { lock.lock(); defer { lock.unlock() }; generation += 1; active = true }
+        func end() { lock.lock(); defer { lock.unlock() }; active = false }
+        func snapshot() -> Int? { lock.lock(); defer { lock.unlock() }; return active ? generation : nil }
+        func accepts(_ value: Int?) -> Bool { guard let value else { return false }; return snapshot() == value }
+    }
+    struct Output {
+        var candidate: JSON?
+        var terminal: JSON?
+        var proposal: JSON?
+        var clear: JSON?
+        var error: JSON?
+    }
+    /// One invocation per lifted frame. The terminal logger consumes this same result.
+    struct Processor {
+        private var engine = CoachingCandidateEngine()
+        private var presenter = CoachingCandidateProposal()
+        private var lastFrame: JSON = [:]
+        mutating func reset() -> JSON? {
+            engine = CoachingCandidateEngine()
+            return presenter.expireIfNeeded(lastFrame, force: true)
+        }
+        mutating func process(_ frame: CoachingCandidateEngine.Frame,
+                              configuration: Result<CoachingCandidateEngine.Configuration?, Error>,
+                              includeRequests: Bool = false) -> Output {
+            do {
+                guard let config = try configuration.get() else { return Output(clear: reset()) }
+                let candidate = try engine.update(frame, configuration: config, includeRequests: includeRequests)
+                let terminal = try CoachingCandidateRuntime.compact(candidate)
+                lastFrame = candidate
+                let clear = presenter.expireIfNeeded(candidate)
+                let proposal = presenter.next(candidate)
+                return Output(candidate: candidate, terminal: terminal, proposal: proposal, clear: clear, error: nil)
+            } catch {
+                let clear = reset()
+                return Output(clear: clear, error: ["schema": "bpt.core3-candidate-error.v1",
+                    "reason": "invalid_configuration_or_candidate_evaluation", "source": frame.source, "delivered": false])
+            }
+        }
+    }
     /// A child of video_runs owned only by this opt-in test. Never permits arbitrary paths or old-file removal.
     static func namespace(environment:[String:String]) throws -> String? {
         guard environment["BPT_EXPERIMENTAL_CRITERIA_CANDIDATE"]=="1",let namespace=environment["BPT_TERMINAL_NAMESPACE"] else { return nil }

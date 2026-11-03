@@ -35,7 +35,7 @@ def main():
     root=Path(__file__).resolve().parents[3];out=args.output_root
     if out.exists():raise SystemExit('Output directory must be new to preserve frozen receipts')
     out.mkdir(parents=True)
-    source_paths=[root/'ios/Runner/NativePose/Evaluators'/name for name in ['CoachingCriteria.swift','ExperimentalCoaching.swift','CoachingCandidateEngine.swift','CoachingCandidateRuntime.swift','FormWarnings.swift']]
+    source_paths=[root/'ios/Runner/NativePose/Evaluators'/name for name in ['CoachingCriteria.swift','ExperimentalCoaching.swift','CoachingCandidateEngine.swift','CoachingCandidateRuntime.swift','FormWarnings.swift','CoachingCandidateProposal.swift']]
     source_paths += [Path(__file__),Path(__file__).with_name('native_replay.swift'),Path(__file__).with_name('registry_v1.json'),Path(__file__).with_name('experiment_v1.json'),root/'scripts/coaching_criteria/engine.py',root/'scripts/coaching_criteria/catalog.py',root/'scripts/terminal_evidence/replay.py',root/'docs/evaluation/core3_candidate_execution_protocol_v1.md']
     before={str(p.relative_to(root)):sha(p) for p in source_paths}
     for path in source_paths:
@@ -57,7 +57,7 @@ def main():
     aggregates={};raw_matrices={};opportunities=Counter();parity_requests=0;maximum_payload=0
     with tempfile.TemporaryDirectory(prefix='bpt-candidate-native-') as temporary:
         temporary=Path(temporary);geometry_path=temporary/'geometry.swift';geometry_path.write_text(geometry);binary=temporary/'candidate-replay'
-        sources=[source_paths[i] for i in [0,1,2,3]]+[geometry_path,Path(__file__).with_name('native_replay.swift')]
+        sources=[source_paths[i] for i in [0,1,2,3,5]]+[geometry_path,Path(__file__).with_name('native_replay.swift')]
         command=['swiftc','-O','-whole-module-optimization',*map(str,sources),'-o',str(binary)]
         with open('/tmp/bpt-heavy.lock','a') as lock:
             fcntl.flock(lock,fcntl.LOCK_EX)

@@ -103,6 +103,7 @@ struct CameraProcessingResult {
     var sourceTimeValue: Int64?
     var sourceTimeScale: Int32?
     var terminalEpoch: Int?
+    var coachingCandidateEpoch: Int?
     var terminalDetector2D: [PoseKeypoint]?
     /// XS input wrists replaced by MediaPipe (left, right); raw wrists stay in rawCoco17.
     var wristsReplaced = (left: false, right: false)
@@ -432,6 +433,7 @@ final class CameraPoseViewModel: ObservableObject {
     }
 
     func stopCamera() {
+        if coachingCandidateEnabled { resetCoachingCandidate(end: true) }
         if VideoRunLog.terminalEvidence, let epoch = terminalCapture.beginFlush() {
             candidateEnd(epoch: epoch, reason: "camera_stop")
             VideoRunLog.shared?.write("terminal_end", ["epoch": epoch, "reason": "camera_stop", "flush_complete": false, "incomplete": true])
@@ -476,11 +478,16 @@ final class CameraPoseViewModel: ObservableObject {
         let center = NotificationCenter.default
         lifecycleObservers = [
             center.addObserver(forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: .main) { [weak self] _ in
-                Task { @MainActor in self?.keepScreenAwake(false, reason: "background") }
+                Task { @MainActor in
+                    guard let self else { return }
+                    if self.coachingCandidateEnabled { self.resetCoachingCandidate(end: true) }
+                    self.keepScreenAwake(false, reason: "background")
+                }
             },
             center.addObserver(forName: UIApplication.willEnterForegroundNotification, object: nil, queue: .main) { [weak self] _ in
                 Task { @MainActor in
                     guard let self, self.cameraRunning else { return }
+                    if self.coachingCandidateEnabled, !self.betweenSets { self.resetCoachingCandidate() }
                     self.keepScreenAwake(true, reason: "foreground")
                 }
             },
@@ -488,8 +495,13 @@ final class CameraPoseViewModel: ObservableObject {
     }
 
     private var experimentalCoaching = ExperimentalCoaching()
-    private var coachingCandidateEngine=CoachingCandidateEngine()
-    private var coachingCandidateProposal=CoachingCandidateProposal()
+    private var coachingCandidateProcessor = CoachingCandidateRuntime.Processor()
+    nonisolated private let coachingCandidateSession = CoachingCandidateRuntime.SourceSession()
+    private let coachingCandidateEnabled = DemoConfig.environment["BPT_EXPERIMENTAL_COACHING"] == "1" && DemoConfig.environment["BPT_EXPERIMENTAL_CRITERIA_CANDIDATE"] == "1"
+    private func resetCoachingCandidate(end: Bool = false) {
+        if let clear = coachingCandidateProcessor.reset() { bridge?.sendCoachingCandidateClear(clear) }
+        if end { coachingCandidateSession.end() } else { coachingCandidateSession.begin() }
+    }
     private var coachingCandidateSelfTest=CoachingCandidateSelfTest()
     private let coachingCandidateCaptureID="native-session:"+UUID().uuidString
     private lazy var coachingCandidateConfiguration:Result<CoachingCandidateEngine.Configuration?,Error> = Result { try CoachingCandidateRuntime.configuration(environment:DemoConfig.environment) }
@@ -568,6 +580,7 @@ final class CameraPoseViewModel: ObservableObject {
     // MARK: Sets (Flutter startSet / endSet)
 
     private func startSet(_ index: Int) {
+        if coachingCandidateEnabled { resetCoachingCandidate() }
         if VideoRunLog.terminalEvidence {
             if let old = terminalCapture.beginFlush() {
                 candidateEnd(epoch: old, reason: "superseded_set")
@@ -607,6 +620,7 @@ final class CameraPoseViewModel: ObservableObject {
         VideoRunLog.shared?.write("end_set_received", ["set": index, "between_sets": betweenSets])
         guard !betweenSets else { return }
         betweenSets = true
+        if coachingCandidateEnabled { resetCoachingCandidate(end: true) }
         let evidenceEpoch = VideoRunLog.terminalEvidence ? terminalCapture.beginFlush() : nil
         let evidenceEndHost = CACurrentMediaTime()
         recording = false
@@ -698,6 +712,7 @@ final class CameraPoseViewModel: ObservableObject {
     }
 
     private func setup() {
+        if coachingCandidateEnabled { resetCoachingCandidate() }
         let workspace: RTMPoseInputWorkspace
         do {
             rtmpose = try loadModel(named: RTMPoseModel.workout.rawValue)
@@ -839,6 +854,7 @@ final class CameraPoseViewModel: ObservableObject {
         ciContext: CIContext
     ) {
         let terminalEpoch = VideoRunLog.terminalEvidence ? terminalCapture.capture(frame: frameIdx) : nil
+        let candidateEpoch = coachingCandidateEnabled ? coachingCandidateSession.snapshot() : nil
         var terminalHandedOff = false
         defer {
             if !terminalHandedOff { terminalCapture.delivered(epoch: terminalEpoch, frame: frameIdx, failed: true) }
@@ -944,7 +960,8 @@ final class CameraPoseViewModel: ObservableObject {
                 result.sourceTimeValue = sourceTime.isValid ? sourceTime.value : nil
                 result.sourceTimeScale = sourceTime.isValid ? sourceTime.timescale : nil
                 result.terminalEpoch = terminalEpoch
-                if terminalEpoch != nil { result.terminalDetector2D = rawCoco17 }
+                result.coachingCandidateEpoch = candidateEpoch
+                if terminalEpoch != nil || candidateEpoch != nil { result.terminalDetector2D = rawCoco17 }
                 result.wristAnchor = anchorStates
 
                 guard lifter != nil else {
@@ -1066,6 +1083,33 @@ final class CameraPoseViewModel: ObservableObject {
                 experimentalLine = line
             }
         }
+        // Explicit experiment only: consume the same raw XS and assessment arrays in memory.
+        // A generation captured before lookahead rejects callbacks from a stopped/superseded source.
+        var liveCandidate: CoachingCandidateRuntime.Output?
+        if coachingCandidateEnabled, coachingCandidateSession.accepts(result.coachingCandidateEpoch) {
+            let source: [String: Any] = ["epoch": (result.terminalEpoch ?? result.coachingCandidateEpoch) as Any? ?? NSNull(),
+                "frame": result.frameIndex,
+                "source_index": VideoCameraOptions.isActive ? (VideoRunLog.shared?.clipFrame(result.frameIndex) as Any? ?? NSNull()) : result.frameIndex,
+                "source_pts": TerminalEvidence.number(result.sourcePTS),
+                "source_time_value": result.sourceTimeValue as Any? ?? NSNull(),
+                "source_time_scale": result.sourceTimeScale as Any? ?? NSNull(), "time_basis": "sample_pts_seconds"]
+            let context: [String: Any] = ["exercise": formTracker?.exercise.rawValue ?? exercise.rawValue,
+                "phase": formTracker?.observationPhase as Any? ?? NSNull(), "side": formTracker?.side?.rawValue as Any? ?? NSNull(),
+                "side_view": formTracker?.sideView as Any? ?? NSNull(),
+                "source_kind": VideoCameraOptions.isActive ? "video_frame" : "camera_capture_index",
+                "flush_tail": terminalFlushing || frame3D.diagnosticFlushed, "rotation": result.rotation.rawValue,
+                "size": [result.imageWidth, result.imageHeight], "source_mirrored": VideoCameraOptions.isActive ? VideoCameraOptions.mirror : isFrontCamera]
+            let frame = CoachingCandidateEngine.Frame.live(source: source, context: context,
+                raw3D: frame3D.raw, assessment3D: result.supportCorridor?.assessment3D(frame3D.masked3D) ?? frame3D.masked3D,
+                raw2D: result.terminalDetector2D?.map { SIMD3($0.x, $0.y, $0.confidence) },
+                confidence: result.supportCorridor?.assessmentConfidence(frame3D.confidence) ?? frame3D.confidence,
+                invalid: frame3D.invalidJoints.union(result.supportCorridor?.invalid3DJoints ?? []),
+                state: (result.supportCorridor?.assessmentState(frame3D.state) ?? frame3D.state).rawValue,
+                captureID: coachingCandidateCaptureID)
+            liveCandidate = coachingCandidateProcessor.process(frame, configuration: coachingCandidateConfiguration)
+            if let clear = liveCandidate?.clear { bridge?.sendCoachingCandidateClear(clear) }
+            if let proposal = liveCandidate?.proposal { bridge?.sendCoachingCandidateProposal(proposal) }
+        }
         if VideoRunLog.terminalEvidence, terminalCapture.accepts(result.terminalEpoch), let epoch = result.terminalEpoch {
             if VideoRunLog.terminalCandidate {
                 let snapshot = formTracker?.terminalCandidateSnapshot
@@ -1138,23 +1182,12 @@ final class CameraPoseViewModel: ObservableObject {
                     terminalLine["coaching_criteria"] = CoachingCriteriaBridge.failure(source: source, context: context, reason: "observation_encoding_failed")
                 }
             }
-            if experimentalCoachingEnabled, DemoConfig.environment["BPT_EXPERIMENTAL_CRITERIA_CANDIDATE"]=="1" {
-                do {
-                    if let configuration=try coachingCandidateConfiguration.get() {
-                        let frame=CoachingCandidateEngine.Frame.terminal(terminalLine,exercise:formTracker?.exercise.rawValue ?? exercise.rawValue,captureID:coachingCandidateCaptureID)
-                        let candidate=try coachingCandidateEngine.update(frame,configuration:configuration)
-                        terminalLine["coaching_candidate"]=try CoachingCandidateRuntime.compact(candidate)
-                        if let clear=coachingCandidateProposal.expireIfNeeded(candidate) {bridge?.sendCoachingCandidateClear(clear)}
-                        if let proposal=coachingCandidateProposal.next(candidate) {
-                            terminalLine["coaching_candidate_proposal"]=proposal
-                            bridge?.sendCoachingCandidateProposal(proposal)
-                        }
-                    }
-                } catch {
-                    if let clear=coachingCandidateProposal.expireIfNeeded(["captureId":coachingCandidateCaptureID,"source":Dictionary(uniqueKeysWithValues:["epoch","frame","source_index","source_pts","source_time_value","source_time_scale","time_basis"].map {($0,terminalLine[$0] ?? NSNull())}),"rules":[],"context":[:]],force:true) {bridge?.sendCoachingCandidateClear(clear)}
-                    terminalLine["coaching_candidate_error"]=["schema":"bpt.core3-candidate-error.v1","reason":"invalid_configuration_or_candidate_evaluation","source":Dictionary(uniqueKeysWithValues:["epoch","frame","source_index","source_pts","source_time_value","source_time_scale","time_basis"].map {($0,terminalLine[$0] ?? NSNull())}),"delivered":false]
-                }
+            // Reuse the one in-memory evaluation; logging never advances candidate windows.
+            if let candidate = liveCandidate?.terminal {
+                terminalLine["coaching_candidate"] = candidate
             }
+            if let proposal = liveCandidate?.proposal { terminalLine["coaching_candidate_proposal"] = proposal }
+            if let error = liveCandidate?.error { terminalLine["coaching_candidate_error"] = error }
             VideoRunLog.shared?.write("terminal_frame", terminalLine)
         }
         let now = CACurrentMediaTime()
@@ -1393,6 +1426,7 @@ final class CameraPoseViewModel: ObservableObject {
             }
             return
         }
+        if coachingCandidateEnabled { resetCoachingCandidate(end: true) }
         if VideoRunLog.terminalEvidence, let epoch = terminalCapture.beginFlush() {
             candidateEnd(epoch: epoch, reason: "video_end_without_set_flush")
             VideoRunLog.shared?.write("terminal_end", ["epoch": epoch, "reason": "video_end_without_set_flush", "flush_complete": false, "incomplete": true])

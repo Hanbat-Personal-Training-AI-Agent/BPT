@@ -8,15 +8,17 @@ struct CoachingCandidateProposal {
     private var activeRule:String?
     private var activeCapture:String?
     private var activeBinding:String?
+    private var activeSource:JSON?
     private var lastCapture:String?
     private var lastSourcePTS:Double?
     private var presentedAt:[String:Double]=[:]
     private func binding(_ frame:JSON)->String {
         let source=frame["source"] as? JSON ?? [:],context=frame["context"] as? JSON ?? [:]
-        let keys:[Any]=[frame["captureId"] ?? NSNull(),frame["experimentID"] ?? NSNull(),frame["variant"] ?? NSNull(),source["epoch"] ?? NSNull(),context["source_kind"] ?? NSNull(),context["exercise"] ?? NSNull(),context["side"] ?? NSNull(),context["rotation"] ?? NSNull(),context["size"] ?? NSNull(),context["source_mirrored"] ?? NSNull()]
+        let keys:[Any]=[frame["captureId"] ?? NSNull(),frame["experimentID"] ?? NSNull(),frame["variant"] ?? NSNull(),source["epoch"] ?? NSNull(),context["source_kind"] ?? NSNull(),context["exercise"] ?? NSNull(),context["side"] ?? NSNull(),context["phase"] ?? NSNull(),context["rotation"] ?? NSNull(),context["size"] ?? NSNull(),context["source_mirrored"] ?? NSNull()]
         return String(describing:keys)
     }
     mutating func expireIfNeeded(_ frame:JSON,force:Bool=false)->JSON? {
+        if force { lastCapture=nil;lastSourcePTS=nil;presentedAt=[:] }
         guard let proposal=activeProposal else {return nil}
         let context=frame["context"] as? JSON ?? [:]
         let rule=(frame["rules"] as? [JSON] ?? []).first {$0["id"] as? String == activeRule}
@@ -24,8 +26,12 @@ struct CoachingCandidateProposal {
             CoachingCandidateEngine.yes(value["configured"]) && ((value["meaning"] as? String == "deviation" && value["state"] as? String == "positive_evidence") || (value["meaning"] as? String == "desired_match" && value["state"] as? String == "negative_evidence"))
         } ?? false
         guard force || binding(frame) != activeBinding || frame["captureId"] as? String != activeCapture || CoachingCandidateEngine.yes(context["flush_tail"]) || !meaningful else {return nil}
-        activeProposal=nil;activeRule=nil;activeCapture=nil;activeBinding=nil
-        return ["schema":"bpt.coaching-candidate-clear.v1","captureId":frame["captureId"] ?? NSNull(),"previousProposalId":proposal,"source":frame["source"] ?? [:],"reason":force ? "lifecycle_or_source_reset":"candidate_no_longer_supported","presentation":"visual_only_no_tts"]
+        // Clear the identity the receiver actually displayed, before accepting a new source.
+        let oldCapture = activeCapture, oldSource = activeSource
+        let sourceChanged = force || binding(frame) != activeBinding
+        activeProposal=nil;activeRule=nil;activeCapture=nil;activeBinding=nil;activeSource=nil
+        if sourceChanged { lastCapture=nil;lastSourcePTS=nil;presentedAt=[:] }
+        return ["schema":"bpt.coaching-candidate-clear.v1","captureId":oldCapture as Any? ?? NSNull(),"previousProposalId":proposal,"source":oldSource ?? [:],"reason":force ? "lifecycle_or_source_reset":"candidate_no_longer_supported","presentation":"visual_only_no_tts"]
     }
     mutating func next(_ frame:JSON)->JSON? {
         guard frame["authority"] as? String == "engineering_candidate_not_validated_form",
@@ -49,7 +55,7 @@ struct CoachingCandidateProposal {
             presentedAt[id]=pts
             let binding="\(capture)/\(index)/\(id)"
             let proposalID=SHA256.hash(data:Data(binding.utf8)).map {String(format:"%02x",$0)}.joined()
-            activeProposal=proposalID;activeRule=id;activeCapture=captureID;activeBinding=capture
+            activeProposal=proposalID;activeRule=id;activeCapture=captureID;activeBinding=capture;activeSource=source
             let components=rule["components"] as? [JSON] ?? []
             return ["schema":"bpt.coaching-candidate-proposal.v1","captureId":captureID,"proposalId":proposalID,"ruleId":id,"experimentID":experiment,"variant":variant,
                     "authority":"engineering_candidate_not_validated_form","assessment":assessment,"predicateMeaning":meaning!,"predicateState":state!,

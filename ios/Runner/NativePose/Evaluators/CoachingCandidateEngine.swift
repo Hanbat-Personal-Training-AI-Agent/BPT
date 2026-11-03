@@ -50,6 +50,13 @@ struct CoachingCandidateEngine {
         var side: String? { context["side"] as? String }
         var flush: Bool { CoachingCandidateEngine.yes(context["flush_tail"]) }
         var exercise: String { CoachingCandidateEngine.exercise(context["exercise"] as? String ?? "") }
+        /// In-memory production adapter; no logging, serialization, pose mutation or wall clock.
+        static func live(source: JSON, context: JSON, raw3D: [SIMD3<Double>]?,
+                         assessment3D: [SIMD3<Double>]?, raw2D: [SIMD3<Double>]?,
+                         confidence: [Double]?, invalid: Set<Int>?, state: String, captureID: String) -> Frame {
+            Frame(source: source, context: context, raw3D: raw3D, assessment3D: assessment3D,
+                  raw2D: raw2D, confidence: confidence, invalid: invalid, state: state, captureID: captureID)
+        }
         static func terminal(_ row: JSON, exercise: String, captureID: String) -> Frame {
             func vectors(_ value: Any?) -> [SIMD3<Double>]? {
                 guard let values = value as? [Any], values.count == 51 else { return nil }
