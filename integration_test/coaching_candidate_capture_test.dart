@@ -28,11 +28,44 @@ Future<void> main() async {
   final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
   binding.framePolicy = LiveTestWidgetsFlutterBindingFramePolicy.fullyLive;
   final modeDocs = await getApplicationDocumentsDirectory();
-  final modeConfig =
-      jsonDecode(File('${modeDocs.path}/bpt_demo.json').readAsStringSync())
-          as Map;
-  if (modeConfig['BPT_PHONE_TEST_MODE'] == 'report') {
-    report_mode.registerCurrentDeepReportTest();
+  final modeConfigBytes =
+      File('${modeDocs.path}/bpt_demo.json').readAsBytesSync();
+  final modeConfig = jsonDecode(utf8.decode(modeConfigBytes)) as Map;
+  final mode = '${modeConfig['BPT_PHONE_TEST_MODE'] ?? 'capture'}';
+  final attempt = '${modeConfig['BPT_TERMINAL_TEST_ATTEMPT'] ?? ''}';
+  if (!RegExp(r'^terminal_[A-Za-z0-9_-]+$').hasMatch(attempt)) {
+    throw StateError('Runner receipt requires a unique host-bound attempt');
+  }
+  String? outputRelativePath;
+  void outputCreated(String path) {
+    outputRelativePath = path;
+  }
+
+  // The SDK completes this future in tearDownAll, after per-test teardown.
+  // Observe it; never complete it ourselves or infer success from inner files.
+  unawaited(binding.allTestsPassed.future.then((passed) {
+    final directory = Directory('${modeDocs.path}/current_phone_runner')
+      ..createSync(recursive: true);
+    final receipt = File('${directory.path}/$attempt.json');
+    if (receipt.existsSync()) throw StateError('Runner receipt already exists');
+    receipt.writeAsStringSync(
+        jsonEncode({
+          'schema': 'bpt.phone-integration-runner-completion.v1',
+          'hostAttemptId': attempt,
+          'mode': mode,
+          'configurationSHA256': sha256.convert(modeConfigBytes).toString(),
+          'outputRelativePath': outputRelativePath,
+          'sdkAllTestsPassed': passed,
+          'testCount': binding.results.length,
+          'testNames': binding.results.keys.toList(),
+          'completedAt': DateTime.now().toUtc().toIso8601String(),
+          'source':
+              'IntegrationTestWidgetsFlutterBinding.allTestsPassed.future',
+        }),
+        flush: true);
+  }));
+  if (mode == 'report') {
+    report_mode.registerCurrentDeepReportTest(onOutputCreated: outputCreated);
     return;
   }
   testWidgets(
@@ -42,6 +75,7 @@ Future<void> main() async {
       final output = Directory(
         '${docs.path}/coaching_candidate_validation/${DateTime.now().microsecondsSinceEpoch}',
       )..createSync(recursive: true);
+      outputCreated(output.path.substring(modeDocs.path.length + 1));
       final stages = <Map<String, dynamic>>[];
       void stage(String name, [Map<String, dynamic> fields = const {}]) {
         stages.add({

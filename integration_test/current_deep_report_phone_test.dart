@@ -24,7 +24,7 @@ class _DenyTransport extends HttpOverrides {
   }
 }
 
-void registerCurrentDeepReportTest() {
+void registerCurrentDeepReportTest({void Function(String)? onOutputCreated}) {
   testWidgets(
     'saved re-score HTTP bytes and original local video, no user writes',
     (tester) async {
@@ -32,6 +32,7 @@ void registerCurrentDeepReportTest() {
       final output = Directory(
         '${docs.path}/current_phone_validation/output_${DateTime.now().microsecondsSinceEpoch}',
       )..createSync(recursive: true);
+      onOutputCreated?.call(output.path.substring(docs.path.length + 1));
       File local(Object? raw) {
         if (raw is! String ||
             raw.isEmpty ||
