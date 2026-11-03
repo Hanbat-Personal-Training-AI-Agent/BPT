@@ -485,6 +485,7 @@ final class WorkoutChannel {
     var onStartSet: ((Int) -> Void)?
     var onEndSet: ((Int) -> Void)?
     var onResetSetup: (() -> Void)?
+    var onCandidateDiagnostics: (() -> [String: Any])?
     var onCandidateSelfTest:((String)->[String:Any]?)?
     var onSetSetupVariant: ((String?, [String: Double]?) -> Void)?
 
@@ -501,6 +502,9 @@ final class WorkoutChannel {
                 if let index = (args?["setIndex"] as? NSNumber)?.intValue { self.onStartSet?(index) }
             case "endSet":
                 if let index = (args?["setIndex"] as? NSNumber)?.intValue { self.onEndSet?(index) }
+            case "getExperimentalCoachingCandidateDiagnostics":
+                guard DemoConfig.environment["BPT_COACHING_CANDIDATE_TEST_FIXTURE"] == "1" else { return result(FlutterMethodNotImplemented) }
+                return result(self.onCandidateDiagnostics?())
             case "runExperimentalCoachingCandidateSelfTest":
                 guard DemoConfig.environment["BPT_EXPERIMENTAL_COACHING"]=="1",DemoConfig.environment["BPT_EXPERIMENTAL_CRITERIA_CANDIDATE"]=="1",DemoConfig.environment["BPT_COACHING_CANDIDATE_TEST_FIXTURE"]=="1",let stage=args?["stage"] as? String,["positive","occluded"].contains(stage) else {return result(FlutterMethodNotImplemented)}
                 return result(self.onCandidateSelfTest?(stage))

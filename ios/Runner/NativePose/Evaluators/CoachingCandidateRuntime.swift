@@ -32,6 +32,10 @@ enum CoachingCandidateRuntime {
         func begin() { lock.lock(); defer { lock.unlock() }; generation += 1; active = true }
         func end() { lock.lock(); defer { lock.unlock() }; active = false }
         func snapshot() -> Int? { lock.lock(); defer { lock.unlock() }; return active ? generation : nil }
+        func diagnostics() -> JSON {
+            lock.lock(); defer { lock.unlock() }
+            return ["sourceSessionGeneration": generation, "sourceSessionActive": active]
+        }
         func accepts(_ value: Int?) -> Bool { guard let value else { return false }; return snapshot() == value }
     }
     struct Output {

@@ -502,6 +502,11 @@ final class CameraPoseViewModel: ObservableObject {
         if let clear = coachingCandidateProcessor.reset() { bridge?.sendCoachingCandidateClear(clear) }
         if end { coachingCandidateSession.end() } else { coachingCandidateSession.begin() }
     }
+    private var coachingCandidateProcessedFrames = 0
+    private var coachingCandidateMappedFrames = 0
+    private var coachingCandidateStoppedFrames = 0
+    private var coachingCandidateKnownDecisions = 0
+    private var coachingCandidateLastSource: [String: Any] = [:]
     private var coachingCandidateSelfTest=CoachingCandidateSelfTest()
     private let coachingCandidateCaptureID="native-session:"+UUID().uuidString
     private lazy var coachingCandidateConfiguration:Result<CoachingCandidateEngine.Configuration?,Error> = Result { try CoachingCandidateRuntime.configuration(environment:DemoConfig.environment) }
@@ -801,6 +806,17 @@ final class CameraPoseViewModel: ObservableObject {
             )
         }
 
+        bridge?.onCandidateDiagnostics = { [weak self] in
+            guard let self else { return [:] }
+            var value = self.coachingCandidateSession.diagnostics()
+            value.merge(["schema": "bpt.coaching-candidate-live-diagnostics.v1", "testFixture": true,
+                "enabled": self.coachingCandidateEnabled, "terminalEvidenceEnabled": VideoRunLog.terminalEvidence,
+                "processedFrames": self.coachingCandidateProcessedFrames, "mappedFrames": self.coachingCandidateMappedFrames,
+                "stoppedGenerationFrames": self.coachingCandidateStoppedFrames,
+                "knownCandidateDecisions": self.coachingCandidateKnownDecisions,
+                "lastSource": self.coachingCandidateLastSource], uniquingKeysWith: { _, new in new })
+            return value
+        }
         bridge?.onCandidateSelfTest = { [weak self] stage in
             guard let self,DemoConfig.environment["BPT_COACHING_CANDIDATE_TEST_FIXTURE"]=="1",let declaredAt=DemoConfig.environment["BPT_COACHING_CANDIDATE_DECLARED_AT"],let packet=try? self.coachingCandidateSelfTest.run(stage:stage,declaredAt:declaredAt) else {return nil}
             if stage=="positive" {self.bridge?.sendCoachingCandidateProposal(packet)} else {self.bridge?.sendCoachingCandidateClear(packet)}
@@ -1107,8 +1123,18 @@ final class CameraPoseViewModel: ObservableObject {
                 state: (result.supportCorridor?.assessmentState(frame3D.state) ?? frame3D.state).rawValue,
                 captureID: coachingCandidateCaptureID)
             liveCandidate = coachingCandidateProcessor.process(frame, configuration: coachingCandidateConfiguration)
+            if DemoConfig.environment["BPT_COACHING_CANDIDATE_TEST_FIXTURE"] == "1" {
+                coachingCandidateProcessedFrames += 1
+                if frame.index != nil { coachingCandidateMappedFrames += 1 }
+                coachingCandidateLastSource = frame.source
+                coachingCandidateKnownDecisions += (liveCandidate?.candidate?["rules"] as? [[String: Any]] ?? []).filter {
+                    ["positive_evidence", "negative_evidence"].contains($0["state"] as? String ?? "")
+                }.count
+            }
             if let clear = liveCandidate?.clear { bridge?.sendCoachingCandidateClear(clear) }
             if let proposal = liveCandidate?.proposal { bridge?.sendCoachingCandidateProposal(proposal) }
+        } else if coachingCandidateEnabled, DemoConfig.environment["BPT_COACHING_CANDIDATE_TEST_FIXTURE"] == "1" {
+            coachingCandidateStoppedFrames += 1
         }
         if VideoRunLog.terminalEvidence, terminalCapture.accepts(result.terminalEpoch), let epoch = result.terminalEpoch {
             if VideoRunLog.terminalCandidate {
@@ -1181,6 +1207,10 @@ final class CameraPoseViewModel: ObservableObject {
                 } else {
                     terminalLine["coaching_criteria"] = CoachingCriteriaBridge.failure(source: source, context: context, reason: "observation_encoding_failed")
                 }
+            }
+            // Test-only explanation for queued frames rejected by an ended source generation.
+            if coachingCandidateEnabled, liveCandidate == nil, DemoConfig.environment["BPT_COACHING_CANDIDATE_TEST_FIXTURE"] == "1" {
+                terminalLine["coaching_candidate_status"] = "stopped_generation"
             }
             // Reuse the one in-memory evaluation; logging never advances candidate windows.
             if let candidate = liveCandidate?.terminal {
