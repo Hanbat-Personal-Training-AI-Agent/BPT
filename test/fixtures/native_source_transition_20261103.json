@@ -1,0 +1,109 @@
+{
+  "events" : [
+    {
+      "payload" : {
+        "assessment" : "deviation_candidate",
+        "authority" : "engineering_candidate_not_validated_form",
+        "captureId" : "synthetic-old-source",
+        "context" : {
+          "exercise" : "pushup",
+          "flush_tail" : false,
+          "phase" : "descending",
+          "rotation" : 0,
+          "side" : "left",
+          "side_view" : null,
+          "size" : [
+            640,
+            480
+          ],
+          "source_kind" : "video_frame",
+          "source_mirrored" : false
+        },
+        "delivery" : "proposed",
+        "experimentID" : "synthetic-engineering-only",
+        "partialCoverage" : false,
+        "predicateMeaning" : "deviation",
+        "predicateState" : "positive_evidence",
+        "presentation" : "visual_only_no_tts",
+        "proposalId" : "42afa0a812dcc98fa58e3d44c8685ead9068047d54e51a9ba2bc9522ba7f8013",
+        "ruleId" : "pushup.camera_body_line_transfer",
+        "schema" : "bpt.coaching-candidate-proposal.v1",
+        "source" : {
+          "epoch" : 1,
+          "frame" : 0,
+          "source_index" : 0,
+          "source_pts" : 0,
+          "source_time_scale" : 10,
+          "source_time_value" : 0,
+          "time_basis" : "sample_pts_seconds"
+        },
+        "unresolvedComponents" : 0,
+        "variant" : "floor"
+      },
+      "type" : "proposal"
+    },
+    {
+      "payload" : {
+        "captureId" : "synthetic-old-source",
+        "presentation" : "visual_only_no_tts",
+        "previousProposalId" : "42afa0a812dcc98fa58e3d44c8685ead9068047d54e51a9ba2bc9522ba7f8013",
+        "reason" : "candidate_no_longer_supported",
+        "schema" : "bpt.coaching-candidate-clear.v1",
+        "source" : {
+          "epoch" : 1,
+          "frame" : 0,
+          "source_index" : 0,
+          "source_pts" : 0,
+          "source_time_scale" : 10,
+          "source_time_value" : 0,
+          "time_basis" : "sample_pts_seconds"
+        }
+      },
+      "type" : "clear"
+    },
+    {
+      "payload" : {
+        "assessment" : "deviation_candidate",
+        "authority" : "engineering_candidate_not_validated_form",
+        "captureId" : "synthetic-new-source",
+        "context" : {
+          "exercise" : "pushup",
+          "flush_tail" : false,
+          "phase" : "descending",
+          "rotation" : 0,
+          "side" : "left",
+          "side_view" : null,
+          "size" : [
+            640,
+            480
+          ],
+          "source_kind" : "video_frame",
+          "source_mirrored" : false
+        },
+        "delivery" : "proposed",
+        "experimentID" : "synthetic-engineering-only",
+        "partialCoverage" : false,
+        "predicateMeaning" : "deviation",
+        "predicateState" : "positive_evidence",
+        "presentation" : "visual_only_no_tts",
+        "proposalId" : "0d132ced8a696e0afd31237d1d67e5b58cbdda4c498089cfe74d05ec410a8681",
+        "ruleId" : "pushup.camera_body_line_transfer",
+        "schema" : "bpt.coaching-candidate-proposal.v1",
+        "source" : {
+          "epoch" : 1,
+          "frame" : 0,
+          "source_index" : 0,
+          "source_pts" : 0,
+          "source_time_scale" : 10,
+          "source_time_value" : 0,
+          "time_basis" : "sample_pts_seconds"
+        },
+        "unresolvedComponents" : 0,
+        "variant" : "floor"
+      },
+      "type" : "proposal"
+    }
+  ],
+  "schema" : "bpt.synthetic-native-live-source-transition.v1",
+  "synthetic" : true
+}

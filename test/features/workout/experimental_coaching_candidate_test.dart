@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'dart:io';
 import 'package:bpt/features/workout/data/experimental_coaching_candidate.dart';
 import 'package:bpt/features/workout/widgets/experimental_coaching_candidate_banner.dart';
 import 'package:flutter/material.dart';
@@ -74,6 +76,35 @@ void main() {
     inbox.clear();
     expect(inbox.current, isNull);
     expect(inbox.accept(proposal(frame: 6), active: true), isFalse);
+  });
+  test(
+      'actual native Processor source-switch packets clear old proposal before new source',
+      () {
+    // Exported headlessly by XCTest testExportSyntheticLiveSourceTransitionPackets.
+    // This is synthetic pose input passed through the actual native Processor.
+    final sequence = jsonDecode(
+        File('test/fixtures/native_source_transition_20261103.json')
+            .readAsStringSync()) as Map;
+    expect(
+        sequence['schema'], 'bpt.synthetic-native-live-source-transition.v1');
+    expect(sequence['synthetic'], isTrue);
+    final events = sequence['events'] as List;
+    expect(events.map((e) => e['type']), ['proposal', 'clear', 'proposal']);
+    final old = events[0]['payload'] as Map;
+    final clear = events[1]['payload'] as Map;
+    final next = events[2]['payload'] as Map;
+    final inbox = ExperimentalCoachingCandidateInbox();
+    expect(inbox.accept(old, active: true), isTrue);
+    expect(inbox.current?.proposalId, old['proposalId']);
+    expect(clear['captureId'], old['captureId']);
+    expect(clear['previousProposalId'], old['proposalId']);
+    expect(inbox.expire(clear), isTrue);
+    expect(inbox.current, isNull);
+    expect(inbox.accept(old, active: true), isFalse);
+    expect(inbox.accept(next, active: true), isTrue);
+    expect(inbox.current?.proposalId, next['proposalId']);
+    expect(inbox.expire(clear), isFalse);
+    expect(inbox.current?.proposalId, next['proposalId']);
   });
   testWidgets(
       'same product banner clearly marks synthetic scoped proposal and disappears on clear',
