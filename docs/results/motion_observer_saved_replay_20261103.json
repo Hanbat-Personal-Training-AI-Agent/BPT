@@ -1,0 +1,121 @@
+{
+  "aggregateSHA256": "20c4c215cddeaa9cb72c14ad67071231ced95de1517b94b0f4b1d6ac36d8581a",
+  "binarySHA256": "c20e541afd7d1dbba7401b31c4db9bd66705b5a084788f8f8e9691ab18cff03d",
+  "counts": {
+    "barbell_row": {
+      "flush": 5,
+      "frames": 587,
+      "rawAvailable": 566
+    },
+    "pushup": {
+      "flush": 5,
+      "frames": 548,
+      "rawAvailable": 527
+    },
+    "squat": {
+      "flush": 5,
+      "frames": 1263,
+      "rawAvailable": 1242
+    }
+  },
+  "evaluatedVariantFrames": 20880,
+  "inputAndSourcesUnchanged": true,
+  "inputSHA256": {
+    "barbell_row": "20f8daf37800599513bdafba20e0e4b312a66cbf593fca68aad031143bf8921a",
+    "pushup": "508cf87e31740b20e17b6b44775b3ab28cdc9fc94fbbcd5af69acfa031dbe3fa",
+    "squat": "c783990a63bb3aa05afd30bd122b3c9b2e513a53a3e7430a86dddc4e83db5039"
+  },
+  "maximumRetainedConfidenceDifference": 0.0,
+  "observationsSHA256": "82f31d1922708b3afa4fdc81a32f04113e151e267c2272d3016f46845492054a",
+  "rawExactVariantFrames": 21015,
+  "schema": "bpt.motion-observer-saved-replay.v1",
+  "scope": "reused developmental native captures; no new inference, GT, labels or adoption",
+  "sourceSHA256": {
+    "ios/Runner/NativePose/PosePipeline/BoneLengthConstraint.swift": "f556f110f3353c7faa71799d23f74658e4517abd34cb755dee1a427739fecc82",
+    "ios/Runner/NativePose/PosePipeline/ExerciseMotionEstimator.swift": "c33c43cc565e210c026062731488ca7f779ffaf5685de39bc7902947310ef764",
+    "ios/Runner/NativePose/PosePipeline/ExerciseMotionObserver.swift": "f022cde8818bdc52d240fd8c81b69ee72e2fe223b2f0099e1edc7e178cbce3da",
+    "ios/Runner/NativePose/PosePipeline/PoseCoordinateTransforms.swift": "5963a4c7bf75fe41f1461b7de48d480481c1978dfa7ee33ec3f5e94f752e8579",
+    "ios/Runner/NativePose/PosePipeline/SimCCDecoder.swift": "dd32771fa78628438b13f6f49aa337ca6945f633290edf48365107dcaf3df20f",
+    "scripts/motion_observer_replay/main.swift": "bd233d52b28cd62708d703f2c331d5fd5d64309eb13ad17e310a7570dbaf4c80",
+    "scripts/motion_observer_replay/replay.py": "1d77e9cba27a6fff4c7c0f2c76ba08eab48e60b2a87905e6d25b9a4e0f90e23a",
+    "scripts/terminal_evidence/replay.py": "d70575c4fa33db5e904fd9b40f7678936f5b0c00e8983882d3176a90a98d6a2a"
+  },
+  "totalsByVariant": {
+    "A": {
+      "evaluatedFrames": 2320,
+      "exactPassthroughJointOpportunities": 0,
+      "expiredFallbackJointOpportunities": 0,
+      "invalidJointOpportunities": 161,
+      "maxCorrection": 7.850462293418876e-17,
+      "usedPredictionJointOpportunities": 0
+    },
+    "B": {
+      "evaluatedFrames": 2320,
+      "exactPassthroughJointOpportunities": 0,
+      "expiredFallbackJointOpportunities": 0,
+      "invalidJointOpportunities": 807,
+      "maxCorrection": 0.15945446022274842,
+      "usedPredictionJointOpportunities": 0
+    },
+    "C": {
+      "evaluatedFrames": 2320,
+      "exactPassthroughJointOpportunities": 0,
+      "expiredFallbackJointOpportunities": 0,
+      "invalidJointOpportunities": 421,
+      "maxCorrection": 0.2389549275966895,
+      "usedPredictionJointOpportunities": 408
+    },
+    "D": {
+      "evaluatedFrames": 2320,
+      "exactPassthroughJointOpportunities": 0,
+      "expiredFallbackJointOpportunities": 0,
+      "invalidJointOpportunities": 841,
+      "maxCorrection": 0.5987522614665589,
+      "usedPredictionJointOpportunities": 408
+    },
+    "E": {
+      "evaluatedFrames": 2320,
+      "exactPassthroughJointOpportunities": 0,
+      "expiredFallbackJointOpportunities": 0,
+      "invalidJointOpportunities": 841,
+      "maxCorrection": 0.5987522614665589,
+      "usedPredictionJointOpportunities": 408
+    },
+    "F": {
+      "evaluatedFrames": 2320,
+      "exactPassthroughJointOpportunities": 0,
+      "expiredFallbackJointOpportunities": 0,
+      "invalidJointOpportunities": 161,
+      "maxCorrection": 7.850462293418876e-17,
+      "usedPredictionJointOpportunities": 0
+    },
+    "G": {
+      "evaluatedFrames": 2320,
+      "exactPassthroughJointOpportunities": 37736,
+      "expiredFallbackJointOpportunities": 377,
+      "invalidJointOpportunities": 747,
+      "maxCorrection": 0.4155273157779474,
+      "usedPredictionJointOpportunities": 691
+    },
+    "H": {
+      "evaluatedFrames": 2320,
+      "exactPassthroughJointOpportunities": 37736,
+      "expiredFallbackJointOpportunities": 377,
+      "invalidJointOpportunities": 745,
+      "maxCorrection": 0.4155273157779474,
+      "usedPredictionJointOpportunities": 691
+    },
+    "HOLD": {
+      "evaluatedFrames": 2320,
+      "exactPassthroughJointOpportunities": 0,
+      "expiredFallbackJointOpportunities": 0,
+      "invalidJointOpportunities": 421,
+      "maxCorrection": 0.155367725163165,
+      "usedPredictionJointOpportunities": 408
+    }
+  },
+  "withheldVariantFrames": {
+    "flush_tail_not_fresh_observation": 135,
+    "saved_raw_3d_unavailable": 567
+  }
+}
