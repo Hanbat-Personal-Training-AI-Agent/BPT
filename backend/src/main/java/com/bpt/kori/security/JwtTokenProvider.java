@@ -37,6 +37,7 @@ public class JwtTokenProvider {
 
         return Jwts.builder()
                 .subject(String.valueOf(userId))
+                .claim("token_use", "access")
                 .claim("username", username)
                 .claim("email", email)
                 .issuedAt(now)
@@ -51,6 +52,7 @@ public class JwtTokenProvider {
 
         return Jwts.builder()
                 .subject(String.valueOf(userId))
+                .claim("token_use", "refresh")
                 .issuedAt(now)
                 .expiration(expiryDate)
                 .signWith(secretKey)
@@ -87,12 +89,37 @@ public class JwtTokenProvider {
         return claims.get("email", String.class);
     }
 
+    /** Kept for callers migrating from generic validation; bearer means access only. */
     public boolean validateToken(String token) {
+        return validateAccessToken(token);
+    }
+
+    public boolean validateAccessToken(String token) {
+        return validateForUse(token, "access");
+    }
+
+    public boolean validateRefreshToken(String token) {
+        return validateForUse(token, "refresh");
+    }
+
+    private boolean validateForUse(String token, String expectedUse) {
         try {
-            Jwts.parser().verifyWith(secretKey).build().parseSignedClaims(token);
-            return true;
+            Claims claims = Jwts.parser().verifyWith(secretKey).build()
+                    .parseSignedClaims(token).getPayload();
+            String subject = claims.getSubject();
+            if (claims.getExpiration() == null || subject == null || !subject.matches("[0-9]{1,19}")) return false;
+            Long.parseLong(subject);
+            boolean accessIdentity = claims.get("username") instanceof String
+                    && claims.get("email") instanceof String;
+            boolean refreshIdentity = !claims.containsKey("username") && !claims.containsKey("email");
+            if (claims.containsKey("token_use")) {
+                if (!expectedUse.equals(claims.get("token_use"))) return false;
+            }
+            // Existing Spring tokens have no type claim. Their signed payloads
+            // distinguish access (username + email) from refresh (neither).
+            // Never fall back when an explicit, unknown type is present.
+            return expectedUse.equals("access") ? accessIdentity : refreshIdentity;
         } catch (JwtException | IllegalArgumentException e) {
-            log.warn("Invalid JWT token: {}", e.getMessage());
             return false;
         }
     }

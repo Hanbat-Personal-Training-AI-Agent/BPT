@@ -14,7 +14,8 @@ SECRET = base64.b64encode(b"k" * 64).decode()  # a jjwt-style base64 key, HS512-
 
 
 def token(sub="42", secret=SECRET, exp_in=600, algorithm="HS512", **claims):
-    payload = {"sub": sub, "exp": int(time.time()) + exp_in} | claims
+    payload = {"sub": sub, "exp": int(time.time()) + exp_in,
+               "username": "test-owner", "email": "test-owner@example.invalid"} | claims
     return jwt.encode(payload, base64.b64decode(secret), algorithm=algorithm)
 
 

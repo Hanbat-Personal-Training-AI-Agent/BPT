@@ -130,7 +130,7 @@ def run(args):
     def no_model(*_,**__):raise AssertionError('Model/normalize/render subprocess is forbidden')
     deep_worker.normalize=no_model;deep_worker.render=no_model;deep_worker.command=no_model
     secret=base64.b64encode(SYNTHETIC_KEY).decode()
-    def auth(user):return {'Authorization':'Bearer '+jwt.encode({'sub':str(user),'exp':int(time.time())+600},SYNTHETIC_KEY,algorithm='HS512')}
+    def auth(user):return {'Authorization':'Bearer '+jwt.encode({'sub':str(user),'exp':int(time.time())+600,'token_use':'access','username':'local-owner','email':'local-owner@example.invalid'},SYNTHETIC_KEY,algorithm='HS512')}
     spawned=[];callbacks=[];requests=[];buckets=[];servers=[];moto=None;client=None;cleanup={};error=None
     def spawn(job):spawned.append(copy.deepcopy(job));return SimpleNamespace(object_id='local-captured-spawn-1')
     def deny_calibration(_):raise AssertionError('Calibration inference not in this test')

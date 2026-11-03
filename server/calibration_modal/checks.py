@@ -44,6 +44,13 @@ def user_id_from_token(authorization, secret_b64):
         )
     except jwt.PyJWTError:
         raise Rejected(401, "unauthorized") from None
+    # Spring access tokens carry both identity claims; refresh tokens carry neither.
+    # Legacy access remains accepted during rollout, but an explicit type cannot
+    # fall back to legacy classification. Never accept a refresh token as bearer.
+    if (("token_use" in claims and claims["token_use"] != "access")
+            or not isinstance(claims.get("username"), str)
+            or not isinstance(claims.get("email"), str)):
+        raise Rejected(401, "unauthorized")
     user_id = claims["sub"]
     # The backend issues Long user IDs; anything else must not reach an object key.
     if not isinstance(user_id, str) or not user_id.isdigit() or len(user_id) > 19:

@@ -131,7 +131,7 @@ public class AuthService {
     @Transactional
     public TokenResponse refresh(RefreshTokenRequest request) {
         String refreshToken = request.getRefreshToken();
-        if (refreshToken == null || refreshToken.isBlank() || !tokenProvider.validateToken(refreshToken.trim())) {
+        if (refreshToken == null || refreshToken.isBlank() || !tokenProvider.validateRefreshToken(refreshToken.trim())) {
             throw new CustomException(ErrorCode.TOKEN_EXPIRED);
         }
 

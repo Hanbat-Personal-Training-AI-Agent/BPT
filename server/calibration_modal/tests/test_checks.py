@@ -155,3 +155,37 @@ def test_broken_or_non_jpeg_photos_are_rejected():
     Image.new("RGB", (4, 4)).save(png, "PNG")
     for data in (b"", b"not a jpeg", jpeg_bytes()[:200], png.getvalue()):
         rejected("invalid_jpeg", checks.jpeg, data, "view_front.jpg")
+
+
+def test_access_token_use_and_legacy_identity_are_distinct_from_refresh():
+    assert checks.user_id_from_token(f"Bearer {token(token_use='access')}", SECRET) == '42'
+    assert checks.user_id_from_token(f"Bearer {token()}", SECRET) == '42'
+    for claims in [dict(token_use='refresh'), dict(token_use='future'), dict(token_use=None),
+                   dict(username=None), dict(email=None)]:
+        rejected('unauthorized', checks.user_id_from_token, f"Bearer {token(**claims)}", SECRET)
+    # Actual legacy Spring refresh structure: sub/iat/exp, neither identity claim.
+    import time
+    import jwt
+    refresh = jwt.encode({'sub':'42','iat':int(time.time()),'exp':int(time.time())+3600},
+                         __import__('base64').b64decode(SECRET), algorithm='HS512')
+    rejected('unauthorized', checks.user_id_from_token, f'Bearer {refresh}', SECRET)
+
+
+def test_refresh_bearer_is_rejected_before_storage_or_gpu_boundary():
+    from fastapi.testclient import TestClient
+    import service
+    class Forbidden:
+        def __getattr__(self, name):
+            raise AssertionError('Refresh token reached storage: ' + name)
+    def no_spawn(*args):
+        raise AssertionError('Refresh token reached GPU spawn')
+    app = service.create_app(Forbidden(), Forbidden(), no_spawn, SECRET,
+                             warm=no_spawn, deep_spawn=no_spawn)
+    with TestClient(app) as client:
+        for method, path in [('GET', '/v1/calibrations/jobs/job-known'),
+                             ('GET', '/v1/deep-analysis/jobs/job-known'),
+                             ('POST', '/v1/calibrations/warmup')]:
+            response = client.request(method, path, headers={
+                'Authorization': f"Bearer {token(token_use='refresh')}"})
+            assert response.status_code == 401
+            assert response.json() == {'error': 'unauthorized'}

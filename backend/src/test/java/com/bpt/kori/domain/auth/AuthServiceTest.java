@@ -180,7 +180,7 @@ class AuthServiceTest {
                 .email("jihoon@bpt.app")
                 .build();
 
-        given(tokenProvider.validateToken("valid.refresh.token")).willReturn(true);
+        given(tokenProvider.validateRefreshToken("valid.refresh.token")).willReturn(true);
         given(tokenProvider.getUserIdFromToken("valid.refresh.token")).willReturn(1L);
         given(userRepository.findById(1L)).willReturn(java.util.Optional.of(user));
         given(tokenProvider.generateAccessToken(1L, "jihoon_kim", "jihoon@bpt.app")).willReturn("new.access.token");

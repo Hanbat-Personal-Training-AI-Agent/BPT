@@ -1,0 +1,33 @@
+# Token-use enforcement: prepared release candidate, not deployed
+
+A local code audit found that both the Spring bearer filter and Modal verifier accepted any correctly signed, unexpired JWT with a user subject. Spring issues access and refresh tokens with the same key but did not label their purpose. A refresh token could therefore cross the bearer boundary; an access token could also reach the refresh service. This was verified with synthetic tokens only. No live refresh token was sent as bearer, no real token refresh/login was performed, and no phone preferences were changed.
+
+The prepared source now mints `token_use=access` / `token_use=refresh`. Spring's bearer filter calls `validateAccessToken`, and its refresh service calls `validateRefreshToken`. Modal only accepts access tokens. Unknown or wrongly typed claims never fall back to compatibility mode. Signature, expiry and subject checks remain. Spring additionally requires an expiry and numeric Long subject before accepting a token.
+
+Compatibility is deliberate: existing signed access tokens contain string `username` **and** `email`; existing refresh tokens contain **neither**. During migration the exact existing classes remain accepted only at their intended boundary. Tokens with just one identity field are rejected. Both identity columns are non-null in the current user model. Newly issued tokens always have an explicit purpose. Existing login sessions do not need logout/re-login or preference edits, and no signing key changes. The refresh implementation remains stateless and does not revoke its predecessor; this patch does not claim to implement rotation/revocation storage. Old tokens naturally expire at their original expiry; compatibility removal would be a separate change after the maximum old refresh lifetime.
+
+## Tested candidate
+
+- 13 focused Java tests passed: existing auth-service tests plus purpose separation, legacy migration, malformed/unknown types, and real bearer-filter rejection of refresh tokens.
+- Full Modal server suite: 174 passed, 1 pre-existing optional skip before the final boundary test; focused verifier suite after that addition: 52 passed. The added route test proves refresh bearer rejection before storage access or GPU warmup/spawn.
+- Production local HTTP/Bucket/BucketState replay: all 21 assertions passed using explicit synthetic access claims. No inference, deployment or external storage writes.
+- Existing JDK17 and cached Gradle8.14 built the backend boot JAR offline. Candidate artifact is `~/bpt-data/deployment-readiness-20261103-private/token-use-backend.jar`, SHA256 `b7b3748bd16f1bbd7d2eaded649da755b3189238b3702e72092638580e17e0ef`. ZIP inventory contains no secret configuration resource.
+- Source/artifact hashes and unchanged original phone-prefs hash are in `~/bpt-data/deployment-readiness-20261103-private/token-use-proof.json`; test/build logs are adjacent. No source implementation changes followed the JAR build.
+
+## Current deployed state, independently checked November 3
+
+The existing Modal app is `bpt-calibration`, app `ap-7lKqnrEO4XnzWzSmPdzc6O`. Read-only app info/history still reports deployment **v18, October26 18:42:49 KST**, tag `panel-0b18bf1-20261026`, commit metadata `0b18bf1*` (dirty source marker; not an exact clean source proof). Its API is `https://hqbfgym--bpt-calibration-api.modal.run/v1`. A current unauthenticated GET to a deliberately nonexistent deep-job ID returned JSON401 over verified TLS; no state lookup or worker was invoked. `/health` returns404: there is no health contract to interpret as dependency readiness.
+
+The independently documented storage host is `1de0e5ab10d7233b02491befb246f0ff.r2.cloudflarestorage.com`. Prior October26 evidence records real login200 and completed calibration-job200, but that is historical evidence. No current credential-bearing storage GET was made.
+
+Spring's configured endpoint remains `http://151.145.79.106:8080/api/v1`. The current public `/exercises` GET returned JSON200. `/health` outside the context path returned HTML200 and is **not** a health proof. Verified TLS on port8080 failed and standard443 timed out. No usable Spring TLS endpoint was established by this audit. No credentials were sent over plaintext or with TLS verification disabled.
+
+Fresh current-phone backup metadata shows an expired access token and an unexpired refresh token. Its owner differs from the historical October26 job owner. Neither token is included in this document or output; no refresh request was sent, and no old owner's report was substituted. Current authenticated job/storage acceptance therefore remains untested, not failed and not silently satisfied by the historical receipt.
+
+## Concrete release order and acceptance
+
+This is source/artifact preparation only; deploying either component still needs release authorization. Review the source hashes and candidate JAR above. Deploy the Modal verifier from this same source first using the existing `server/calibration_modal/modal_app.py` deployment entry point, then deploy the candidate Spring JAR through the established server procedure. Modal's existing image/worker definitions are retained; the ordinary Modal deployment may rebuild source layers and must not be mistaken for a zero-change health probe. This audit does not invoke it or invent an unverified API-only partial deployment.
+
+A mixed rollout remains operational because both verifiers accept the intended legacy token classes. The old component remains vulnerable until its corresponding verifier is upgraded. Legacy access works with old and new verifiers; new access works with old and new verifiers. Refresh is only for `/auth/refresh`. There is no JWT-key or database migration. Reverting either verifier restores the old cross-use weakness, so rollback is an emergency operational decision, not a security-safe normal step.
+
+Before credential-bearing release acceptance, establish and approve a real TLS Spring endpoint (the repository has no known reverse-proxy/certificate deployment definition for it), preserving the existing account. Then a legitimate refresh/login through the normal client may obtain access without exporting secrets. Use a known **completed, same-owner** calibration/deep job for GET-only acceptance; a queued/running GET can trigger the existing timeout watchdog state update, so it is not a strictly read-only substitute. Check the returned report and presigned storage URL via the existing allow-list. Do not create an upload, job, GPU warmup or inference merely to prove auth. Current declared endpoint settings must remain unchanged until approved TLS values exist.
