@@ -116,11 +116,15 @@ class ExperimentalCoachingCandidate {
 class ExperimentalCoachingCandidateInbox {
   ExperimentalCoachingCandidate? current;
   String? _captureId;
+  final Set<String> _retiredCaptureIds = {};
   int? _epoch, _index;
   bool accept(dynamic value, {required bool active}) {
     final candidate = ExperimentalCoachingCandidate.parse(value);
     if (!active || candidate == null) return false;
     final capture = (value as Map)['captureId'] as String;
+    // A source change retires its capture ID for this inbox lifetime. Counters
+    // cannot order packets across captures; delayed old sources must not win.
+    if (_retiredCaptureIds.contains(capture)) return false;
     final epoch = candidate.source['epoch'] as int,
         index = candidate.source['source_index'] as int;
     if (capture == _captureId &&
@@ -128,6 +132,9 @@ class ExperimentalCoachingCandidateInbox {
             (epoch < _epoch! ||
                 (epoch == _epoch && _index != null && index <= _index!)))) {
       return false;
+    }
+    if (_captureId != null && capture != _captureId) {
+      _retiredCaptureIds.add(_captureId!);
     }
     _captureId = capture;
     _epoch = epoch;

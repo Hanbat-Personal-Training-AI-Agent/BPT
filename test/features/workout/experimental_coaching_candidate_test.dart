@@ -105,6 +105,32 @@ void main() {
     expect(inbox.current?.proposalId, next['proposalId']);
     expect(inbox.expire(clear), isFalse);
     expect(inbox.current?.proposalId, next['proposalId']);
+    // An old capture is retired even if its delayed source counters are newer.
+    expect(inbox.accept(old, active: true), isFalse);
+    expect(
+        inbox.accept({
+          ...old,
+          'source': {
+            ...old['source'] as Map,
+            'epoch': 99,
+            'source_index': 999,
+            'frame': 999
+          },
+        }, active: true),
+        isFalse);
+    expect(inbox.current?.proposalId, next['proposalId']);
+    final following = {
+      ...next,
+      'proposalId': 'a' * 64,
+      'source': {...next['source'] as Map, 'source_index': 1, 'frame': 1},
+    };
+    expect(inbox.accept(following, active: true), isTrue);
+    expect(
+        inbox.accept({...following, 'captureId': 'synthetic-third-source'},
+            active: true),
+        isTrue);
+    expect(inbox.accept(following, active: true), isFalse);
+    expect(inbox.current?.proposalId, following['proposalId']);
   });
   testWidgets(
       'same product banner clearly marks synthetic scoped proposal and disappears on clear',
