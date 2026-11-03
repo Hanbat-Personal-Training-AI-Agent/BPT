@@ -166,6 +166,56 @@ def difference(a, b):
     return rounded(a - b) if finite_number(a) and finite_number(b) else None
 
 
+
+def assessment_evidence(reps, exercise, fps):
+    """Describe estimands and support separately from unvalidated form judgments.
+
+    These definitions describe this scorer, not a native warning contract. A
+    shared warning name cannot establish matching geometry, thresholds, windows,
+    baseline policy, or synchronized samples.
+    """
+    output = []
+    for rep in reps:
+        primary = rep["primaryJoint"]
+        angle_coordinate = "joint_interior_angle"
+        torso_coordinate = "unsigned_gravity_aligned_torso_inclination"
+        definitions = {
+            "knee": ("H36M hip-knee-ankle interior angle; min/max/range over every declared-span frame; top/bottom at primary-angle extrema", "deg", angle_coordinate),
+            "hip": ("H36M shoulder-hip-knee interior angle; min/max/range over every declared-span frame; top/bottom at primary-angle extrema", "deg", angle_coordinate),
+            "elbow": ("H36M shoulder-elbow-wrist interior angle; min/max/range over every declared-span frame; top/bottom at primary-angle extrema", "deg", angle_coordinate),
+            "shoulder": ("H36M hip-shoulder-elbow interior angle; min/max/range over every declared-span frame; top/bottom at primary-angle extrema", "deg", angle_coordinate),
+            "torso": ("Unsigned angle between midpoint hips to midpoint shoulders and world +Y; min/max/range over every declared-span frame", "deg", torso_coordinate),
+            "depthAngleDeg": (f"Minimum {primary} interior angle over every declared-span frame; not displacement or validated depth target", "deg", angle_coordinate),
+            "romDeg": (f"Maximum minus minimum {primary} interior angle over every declared-span frame", "deg", angle_coordinate),
+            "depthMeters": ("Maximum minus minimum midpoint-hip world Y over every declared-span frame; model-estimated metric scale", "m", "world_pelvis_vertical"),
+            "tempoSeconds": ("Declared interval duration; turn is primary minimum except deadlift maximum; pause is contiguous samples within 3 degrees of turn, (last-first)/fps; remaining durations allocated by tempoOrder", "s", "time_from_primary_angle"),
+            "handPath": ("Bilateral wrist midpoint minus midpoint hips: sum of frame-to-frame distances, max XZ distance from first frame, and Y range; samples retain each pelvis-relative wrist; not barbell tracking", "m", "pelvis_relative_wrist_midpoint"),
+            "trunkStdDeg": ("Population standard deviation of unsigned midpoint-hips to midpoint-shoulders angle to world +Y over every declared-span frame; not torso range", "deg", torso_coordinate),
+            "symmetryMaxDeg": (f"Maximum simultaneous absolute left-minus-right {primary} interior angle over every declared-span frame; not knee-gap ratio", "deg", angle_coordinate),
+            "depthDriftDeg": (f"Current minimum {primary} angle minus median minimum angle of first up to three declared reps", "deg", angle_coordinate),
+            "romDropDeg": (f"Median {primary} angle range of first up to three declared reps minus current range", "deg", angle_coordinate),
+            "tempoDriftRatio": ("Current declared duration divided by median duration of first up to three declared reps minus one", "ratio", "time_from_primary_angle"),
+        }
+        metrics = []
+        for key, (definition, unit, coordinate) in definitions.items():
+            baseline = key in ("depthDriftDeg", "romDropDeg", "tempoDriftRatio")
+            metrics.append({"key": key, "definition": definition, "unit": unit,
+                            "coordinateType": coordinate,
+                            "referenceType": "first_up_to_three_reps_median" if baseline else "within_declared_rep",
+                            "referenceReps": [r["repIndex"] for r in reps[:3]] if baseline else [],
+                            "measurement": dict(rep["metricValidity"][key]),
+                            "postureAssessment": {"assessment": "withheld", "reasons": ["validated_posture_target_missing"]}})
+        aliases = sorted(set(rep["onDeviceWarnings"]) | set(rep["serverWarnings"]))
+        output.append({"repIndex": rep["repIndex"], "startMs": rep["startMs"],
+                       "endMs": rep["endMs"], "side": rep["side"], "metrics": metrics,
+                       "nativeComparison": {"assessment": "withheld",
+                                            "reasons": ["native_metric_contract_missing" if aliases else "no_shared_metric_contract"],
+                                            "comparableKeys": [], "unassessedKeys": aliases}})
+    return {"schema": "bpt.deep-assessment-evidence.v1",
+            "exerciseId": exercise, "fps": fps, "sourceTimeBasis": "video_ms",
+            "coordinateSystem": "h36m17_gravity_aligned_world_m",
+            "referenceType": "estimated_geometry_not_ground_truth", "reps": output}
+
 def metrics(joints, fps, manifest, confidence=None, joint_confidence=None, tracked_mask=None):
     """world(y 위), 미터. confidence는 프레임별 2D 검출 지지도로 정확도 확률이 아니다."""
     joints = np.asarray(joints, dtype=float)
@@ -327,8 +377,8 @@ def metrics(joints, fps, manifest, confidence=None, joint_confidence=None, track
                     or not finite_number(values[metric]) or evidence[metric] is None):
                 continue
             device_key = rule["device_key"]
-            if device_key:
-                evaluated.add(device_key)
+            # No native metric contract (definition/window/baseline/threshold)
+            # is present in the input. Alias equality alone is not comparison.
             threshold = float(rule["threshold"])
             if values[metric] <= threshold:
                 continue
@@ -371,6 +421,7 @@ def metrics(joints, fps, manifest, confidence=None, joint_confidence=None, track
     timeline[1:] = sorted(timeline[1:], key=lambda item: item["t"])
     return {"schemaVersion": 1, "exerciseId": exercise, "fps": fps, "summary": summary, "reps": reps,
             "timeline": timeline, "faults": faults, "unassessedCatalog": unassessed_catalog,
+            "assessmentEvidence": assessment_evidence(reps, exercise, fps),
             "catalogMeasurements": catalog_measurements(reps, exercise, source),
             "consistency": {"baselineReps": min(3, len(reps)), "romStdDeg": rounded(whole_value([r["romDeg"] for r in reps], np.std)),
                             "tempoCv": rounded(whole_value([r["tempoSeconds"]["total"] for r in reps], np.std) / base_tempo)

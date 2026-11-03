@@ -12,5 +12,17 @@
     "deadlift/right": "e91ec455ed5a1b45f751ccfb384bf6b5b0f05524db0132fdfa121e36f9bb9825",
     "benchpress/left": "02905f3cfc416636ff856ffd5ba43cc6487adbe035c66a1368e68869d9c7f248",
     "benchpress/right": "990f349af80b999861c7d863d7bba26ad07b832dfe8659cc0129dd0f113f5210"
+  },
+  "nonComparisonCanonicalJsonSha256": {
+    "squat/left": "fb7fc85e22d837e101ea9d1a1e3c25cb2fadc3c52d693e602a080c35bb5f23fa",
+    "squat/right": "ae2de313867720c904905f195d6d80aa07ec24e50eb0ea66cae15250f42fc9a7",
+    "pushup/left": "eed0823da737dcf17d97df5daf3eeb353df9aa10e4d40548ad5afc50a840b534",
+    "pushup/right": "2c507a1dcb3e308c38d5e8ee1e06d596d4458c8e38b81c6087093c63ea1ddb1a",
+    "barbell-row/left": "5dcfe5767d4e54fde0c81399c5a77bab84768edd4e3b5b7bf0b51ca7b385daf0",
+    "barbell-row/right": "65256741ffffebafbea0b7db5860254654d4cfbf09d71d38040663719198e8b8",
+    "deadlift/left": "b4ed43b766eba269bb9cac6f750516dda61e8ea8a8f80e51e6cb8a5de9875cd0",
+    "deadlift/right": "50a107d12bbe9d277bed5170fed05b51750e1016848128105b0a339ba442a561",
+    "benchpress/left": "dbf9606517e166e1b970f05d5a9dafa9f335a6c5a81bd66a6569fe3fe12199a1",
+    "benchpress/right": "630630937da5e8b5cb143dff5fc14ab22013427ea18bd0a088d4c01db7f8ae06"
   }
 }

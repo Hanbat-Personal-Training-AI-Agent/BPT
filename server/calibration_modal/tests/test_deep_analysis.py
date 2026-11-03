@@ -108,12 +108,12 @@ def test_metrics_known_angles_boundaries_and_comparison():
     assert first["anglesDeg"]["shoulder"]["bottom"] >= 0
     assert first["tempoSeconds"] == {"eccentric": .5, "pause": 0, "concentric": .5, "total": 1}
     assert first["comparison"] == "not_comparable"
-    assert last["serverWarnings"] == ["squat_shallow"] and last["comparison"] == "different"
+    assert last["serverWarnings"] == ["squat_shallow"] and last["comparison"] == "not_comparable"
     m = manifest()
     m["reps"][-1]["onDeviceWarnings"] = ["squat_shallow", "squat_knee_valgus"]
     last = supported_metrics(skeleton(), 30, m, confidence=np.full(120, .8))["reps"][-1]
-    assert last["comparison"] == "agree"
-    assert last["unassessedDeviceWarnings"] == ["squat_knee_valgus"]
+    assert last["comparison"] == "not_comparable"
+    assert last["unassessedDeviceWarnings"] == ["squat_knee_valgus", "squat_shallow"]
     json.dumps(report, allow_nan=False)
 
 
@@ -621,3 +621,48 @@ def test_panel_withholds_only_unsupported_metrics():
         assert '반복 시간 판정 보류' in lines
     rep.pop('metricValidity')
     assert '무릎 판정 보류' in deep_worker.panel_lines(rep, 0, angles, support, np.array([True]))
+
+
+def test_assessment_evidence_binds_estimands_support_and_baseline_without_form_claim():
+    m = manifest()
+    m["reps"] = [{**r, "repIndex": r["repIndex"] + 10} for r in m["reps"]]
+    report = supported_metrics(skeleton(), 30, m)
+    evidence = report["assessmentEvidence"]
+    assert evidence["schema"] == "bpt.deep-assessment-evidence.v1"
+    assert evidence["exerciseId"] == report["exerciseId"]
+    assert evidence["fps"] == report["fps"] and evidence["sourceTimeBasis"] == "video_ms"
+    for row, rep in zip(evidence["reps"], report["reps"]):
+        assert {k: row[k] for k in ("repIndex", "startMs", "endMs", "side")} == {k: rep[k] for k in ("repIndex", "startMs", "endMs", "side")}
+        assert len(row["metrics"]) == 15
+        for metric in row["metrics"]:
+            assert metric["measurement"] == rep["metricValidity"][metric["key"]]
+            assert metric["postureAssessment"] == {"assessment": "withheld", "reasons": ["validated_posture_target_missing"]}
+            assert metric["referenceReps"] == ([11, 12, 13] if metric["key"] in ("depthDriftDeg", "romDropDeg", "tempoDriftRatio") else [])
+        by_key = {x["key"]: x for x in row["metrics"]}
+        assert by_key["handPath"]["coordinateType"] == "pelvis_relative_wrist_midpoint"
+        assert by_key["torso"]["coordinateType"] == "unsigned_gravity_aligned_torso_inclination"
+        assert "not knee-gap" in by_key["symmetryMaxDeg"]["definition"]
+        assert "not torso range" in by_key["trunkStdDeg"]["definition"]
+        assert row["nativeComparison"]["assessment"] == "withheld"
+        assert row["nativeComparison"]["comparableKeys"] == []
+
+
+def test_assessment_evidence_retains_partial_geometry_and_missing_support():
+    joints = skeleton()
+    joints[:30, 13] = joints[:30, 12]  # collapsed left elbow only
+    report = supported_metrics(joints, 30, manifest())
+    metric = {x["key"]: x for x in report["assessmentEvidence"]["reps"][0]["metrics"]}
+    assert metric["elbow"]["measurement"]["assessment"] == "withheld"
+    assert "invalid_geometry" in metric["elbow"]["measurement"]["reasons"]
+    assert metric["romDeg"]["measurement"]["assessment"] == "available"
+    report = deep.metrics(skeleton(), 30, manifest())
+    assert all(x["measurement"]["assessment"] == "withheld" for x in report["assessmentEvidence"]["reps"][0]["metrics"])
+
+
+def test_matching_warning_alias_does_not_establish_native_metric_equivalence():
+    m = manifest()
+    m["reps"][-1]["onDeviceWarnings"] = ["squat_shallow"]
+    rep = supported_metrics(skeleton(), 30, m)["reps"][-1]
+    assert rep["faults"] and rep["serverWarnings"] == ["squat_shallow"]
+    assert rep["comparison"] == "not_comparable" and rep["evaluatedKeys"] == []
+    assert rep["unassessedDeviceWarnings"] == ["squat_shallow"]

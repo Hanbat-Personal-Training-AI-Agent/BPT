@@ -13,14 +13,20 @@ from checks import Rejected
 from test_deep_analysis import manifest, skeleton, supported_metrics
 
 
-def test_fully_valid_reports_keep_prechange_canonical_bytes():
+def test_fully_valid_reports_keep_prechange_noncomparison_canonical_bytes():
     frozen = json.loads((Path(__file__).parent / 'fixtures/deep_metrics_valid_sha256.json').read_text())
-    for key, expected in frozen['canonicalJsonSha256'].items():
+    for key, expected in frozen['nonComparisonCanonicalJsonSha256'].items():
         exercise, side = key.split('/')
         m = manifest(); m['exerciseId'] = exercise
         for r in m['reps']:
             r['side'] = side
         report = supported_metrics(skeleton(), 30, m, confidence=np.full(120, .8))
+        # Only the additive evidence and corrected unproven alias comparison change.
+        report.pop('assessmentEvidence')
+        for rep in report['reps']:
+            assert rep['comparison'] == 'not_comparable' and rep['evaluatedKeys'] == []
+            for field in ['comparison', 'evaluatedKeys', 'unassessedDeviceWarnings']:
+                rep.pop(field)
         canonical = json.dumps(report, sort_keys=True, separators=(',', ':'), ensure_ascii=False, allow_nan=False)
         assert hashlib.sha256(canonical.encode()).hexdigest() == expected, key
 
@@ -136,5 +142,7 @@ def test_flutter_phone_fixture_is_the_actual_strict_json_scorer_output():
     joints = skeleton(); joints[10, 6] = joints[10, 5]
     actual = supported_metrics(joints, 30, manifest(), confidence=np.full(120, .8))
     fixture = Path(__file__).resolve().parents[3] / 'test/fixtures/deep_partial_primary.json'
+    # Retain the historical legacy fixture; new evidence has its own strict tests.
+    actual.pop('assessmentEvidence')
     assert json.loads(fixture.read_text()) == actual
     json.dumps(actual, allow_nan=False)

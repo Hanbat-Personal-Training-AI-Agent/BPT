@@ -92,6 +92,26 @@ def run(args):
     assert inputs['video'].stat().st_size==6534978
     manifest=json.loads(inputs['manifest'].read_bytes());original=json.loads(inputs['report'].read_bytes())
     assert digest(canonical(manifest))==MANIFEST_CANONICAL_SHA and len(manifest['reps'])==10
+    selected=original
+    selected_path=getattr(args,'replay_report',None)
+    selected_sha=getattr(args,'replay_report_sha256',None)
+    assert bool(selected_path)==bool(selected_sha),'Replay report path and explicit SHA256 required together'
+    if selected_path:
+        selected_path=Path(selected_path).expanduser().resolve()
+        assert selected_path.is_relative_to(private_root),'Replay report must stay in private bpt-data'
+        assert len(selected_sha)==64 and digest(selected_path.read_bytes())==selected_sha,'Replay report SHA256 gate failed'
+        selected=json.loads(selected_path.read_bytes())
+        assert set(selected)==set(original)|{'assessmentEvidence'},'Only additive assessment evidence accepted'
+        assert {k:v for k,v in selected.items() if k!='assessmentEvidence'}==original,'Original report fields must remain exact'
+        evidence=selected['assessmentEvidence']
+        assert evidence['schema']=='bpt.deep-assessment-evidence.v1'
+        assert evidence['exerciseId']==original['exerciseId'] and evidence['fps']==original['fps']
+        assert evidence['sourceTimeBasis']=='video_ms' and len(evidence['reps'])==len(original['reps'])
+        for er,rep in zip(evidence['reps'],original['reps']):
+            assert all(er[k]==rep[k] for k in ['repIndex','startMs','endMs','side'])
+        save('selected-report-receipt.json',{'path':str(selected_path),'sha256':selected_sha,
+             'originalReportSHA256':REPORT_SHA,'originalFieldsUnchanged':True,
+             'source':'local_saved_array_rescore_not_new_inference'})
     source_start={str(p.relative_to(ROOT)):digest(p.read_bytes()) for p in [ROOT/'server/calibration_modal'/name for name in ['service.py','storage.py','deep_analysis.py','deep_worker.py','checks.py']]}
     harness_start=digest(Path(__file__).read_bytes())
     save('input-receipt.json',{'paths':{k:str(p) for k,p in inputs.items()},'sha256':hashes,'manifestCanonicalSHA256':MANIFEST_CANONICAL_SHA,'originals_read_only':True})
@@ -119,7 +139,7 @@ def run(args):
         callbacks.append({'video_sha256':VIDEO_SHA,'manifest_canonical_sha256':digest(canonical(m)),'beta_is_none':beta is None})
         progress(75);target=directory/'existing-actual-overlay.mp4';shutil.copyfile(inputs['overlay'],target)
         assert digest(target.read_bytes())==OVERLAY_SHA
-        return copy.deepcopy(original),target
+        return copy.deepcopy(selected),target
     tmp=out/'worker-tmp';tmp.mkdir(mode=0o700);old_tmp=tempfile.tempdir;tempfile.tempdir=str(tmp)
     with LoopbackFence() as fence:
       try:
@@ -162,7 +182,7 @@ def run(args):
         outcome=deep_worker.run(spawned[0],bucket,state,analyze_video=analyze_replay);assert outcome=={'status':'done'} and len(callbacks)==1
         assert not list(tmp.iterdir()),'Production TemporaryDirectory did not clean up'
         persisted=state.get('deep-job:'+job_id);assert persisted['status']=='done'
-        assert core(persisted['report'])==core(original)
+        assert core(persisted['report'])==core(selected)
         assert persisted['report']['bodyShape']=={'source':'gvhmr_fallback'} and persisted['report']['runtime']['scope']=='worker_process_reuse_not_proof_of_modal_cold_or_warm_start'
         response=request('GET',path,200,headers=auth(42));envelope=response.json();(out/'actual-local-api-job-response.json').write_bytes(response.content);(out/'actual-local-api-job-response.json').chmod(0o600);save('actual-local-api-response-metadata.json',{'status':response.status_code,'contentType':response.headers['content-type'],'ownedAPIPort':api.port,'bodySHA256':digest(response.content),'manuallyConstructedEnvelope':False})
         for key,expected_key,expected_sha in [('reportUrl','reportKey',None),('videoUrl','videoKey',OVERLAY_SHA)]:
@@ -184,7 +204,7 @@ def run(args):
         try:fence.url('https://not-owned.invalid/object')
         except AssertionError:blocked=True
         assert blocked
-        save('contract-observations.json',{'http_requests':requests,'captured_spawn_count':len(spawned),'inference_callback_replays':callbacks,'bucket_state_conditional_write':True,'fresh_bucket_state_api_restart':True,'response_report_core_sha256':digest(canonical(core(envelope['result']['report']))),'source_report_core_sha256':digest(canonical(core(original))),'all_core_fields_unchanged_except_runtime_bodyShape':True,'production_added_metadata':{'runtime':persisted['report']['runtime'],'bodyShape':persisted['report']['bodyShape']},'loopback_ports':sorted(fence.ports),'socket_connect_count':len(fence.connections),'socket_destinations_all_owned_loopback':all(x['host']=='127.0.0.1' and x['port'] in fence.ports for x in fence.connections),'all_presigned_hosts_owned':True,'external_URL_guard_rejected_without_request':True,'actual_local_API_response_not_manual_wrapper':True})
+        save('contract-observations.json',{'http_requests':requests,'captured_spawn_count':len(spawned),'inference_callback_replays':callbacks,'bucket_state_conditional_write':True,'fresh_bucket_state_api_restart':True,'response_report_core_sha256':digest(canonical(core(envelope['result']['report']))),'source_report_core_sha256':digest(canonical(core(selected))),'original_report_core_sha256':digest(canonical(core(original))),'selected_replay_report_sha256':selected_sha,'all_core_fields_unchanged_except_runtime_bodyShape':True,'production_added_metadata':{'runtime':persisted['report']['runtime'],'bodyShape':persisted['report']['bodyShape']},'loopback_ports':sorted(fence.ports),'socket_connect_count':len(fence.connections),'socket_destinations_all_owned_loopback':all(x['host']=='127.0.0.1' and x['port'] in fence.ports for x in fence.connections),'all_presigned_hosts_owned':True,'external_URL_guard_rejected_without_request':True,'actual_local_API_response_not_manual_wrapper':True})
       except BaseException as exc:
         error={'type':type(exc).__name__,'message':str(exc)};save('failure.json',error);raise
       finally:
@@ -217,10 +237,12 @@ def run(args):
         assert all(cleanup['original_input_hashes_unchanged'].values()) and not cleanup_errors
         assert cleanup['API_threads_stopped'] and cleanup['Moto_stopped'] and cleanup['worker_temp_empty']
 
+    if selected_path:
+        assert digest(selected_path.read_bytes())==selected_sha,'Selected replay report changed during run'
     sources={str(p.relative_to(ROOT)):digest(p.read_bytes()) for p in [ROOT/'server/calibration_modal'/name for name in ['service.py','storage.py','deep_analysis.py','deep_worker.py','checks.py']]}
     assert sources==source_start and digest(Path(__file__).read_bytes())==harness_start
     save('source-hashes.json',{'production':sources,'harness_sha256':harness_start,'source_unchanged_during_run':True})
-    summary={'status':'PASS_LOCAL_HTTP_PRODUCTION_BUCKET_BUCKETSTATE_EMULATED_S3_REPLAYED_INFERENCE_BOUNDARY','scope_not_production':True,'Moto_S3_emulator_not_R2':True,'synthetic_JWT_not_Spring_login':True,'actual_model_inference_new_runs':0,'external_uploads_requests_GPU_deployments':0,'actual_payload_video_bytes':6534978,'input_hashes':hashes,'captured_spawn_count':len(spawned),'analyze_callback_replay_count':len(callbacks),'HTTP_contract_assertions':len(requests),'genuine_LOCAL_API_response':str(out/'actual-local-api-job-response.json'),'local_api_response_sha256':digest((out/'actual-local-api-job-response.json').read_bytes()),'source_report_core_sha256':digest(canonical(core(original))),'runtime_bodyShape_only_report_exclusions':True,'cleanup':cleanup,'production_source_hashes':sources}
+    summary={'status':'PASS_LOCAL_HTTP_PRODUCTION_BUCKET_BUCKETSTATE_EMULATED_S3_REPLAYED_INFERENCE_BOUNDARY','scope_not_production':True,'Moto_S3_emulator_not_R2':True,'synthetic_JWT_not_Spring_login':True,'actual_model_inference_new_runs':0,'external_uploads_requests_GPU_deployments':0,'actual_payload_video_bytes':6534978,'input_hashes':hashes,'captured_spawn_count':len(spawned),'analyze_callback_replay_count':len(callbacks),'HTTP_contract_assertions':len(requests),'genuine_LOCAL_API_response':str(out/'actual-local-api-job-response.json'),'local_api_response_sha256':digest((out/'actual-local-api-job-response.json').read_bytes()),'source_report_core_sha256':digest(canonical(core(selected))),'original_report_core_sha256':digest(canonical(core(original))),'selected_replay_report_sha256':selected_sha,'runtime_bodyShape_only_report_exclusions':True,'cleanup':cleanup,'production_source_hashes':sources}
     save('summary.json',summary);print(json.dumps({'status':summary['status'],'private_output':str(out),'HTTP_assertions':len(requests),'cleanup_pass':True}))
 
 if __name__=='__main__':
@@ -228,5 +250,7 @@ if __name__=='__main__':
     parser.add_argument('--video',default=str(Path.home()/'bpt-data/terminal-device-capture-20261102/barbellrow/native-full-row-original.mp4'))
     parser.add_argument('--manifest',default=str(Path.home()/'bpt-data/native-deep-current-row-20261103-final-private/reps.json'))
     parser.add_argument('--report',default=str(Path.home()/'bpt-data/native-deep-inline-l4-20261103-verified-private/worker_report.json'))
+    parser.add_argument('--replay-report',help='Optional private additive saved-array re-score; original remains hash-gated')
+    parser.add_argument('--replay-report-sha256',help='Explicit expected SHA256 for --replay-report')
     parser.add_argument('--overlay',default=str(Path.home()/'bpt-data/native-deep-inline-l4-20261103-verified-private/overlay.mp4'))
     run(parser.parse_args())
