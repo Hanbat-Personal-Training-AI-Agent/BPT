@@ -6,7 +6,9 @@ resized to 320 px, JPEG) + COCO17 keypoints in crop pixels. Body joints 5-16 com
 current app model (RTMPose-s COCO17) on the standard 1.25 crop, with confidence: face joints 0-4 have
 no Fit3D counterpart, and hips/shoulders are Fit3D joint centres (a different definition from COCO's).
 
-usage: build_fit3d_pose2d_crops.py --subjects s03,s04 --out DIR [--stride 5]
+--no-pseudo skips the pseudo labels (rtmpose-ft trains only the verified Fit3D joints, D-C-08).
+
+usage: build_fit3d_pose2d_crops.py --subjects s03,s04 --out DIR [--stride 5] [--no-pseudo]
 """
 
 import argparse
@@ -33,8 +35,9 @@ def main():
     ap.add_argument('--subjects', required=True)
     ap.add_argument('--out', required=True)
     ap.add_argument('--stride', type=int, default=5)
+    ap.add_argument('--no-pseudo', action='store_true')
     a = ap.parse_args()
-    model = load_model('coco17')
+    model = None if a.no_pseudo else load_model('coco17')
     for subj in a.subjects.split(','):
         out = f'{a.out}/{subj}'
         if os.path.exists(f'{out}/labels.npz'):
@@ -43,10 +46,12 @@ def main():
         names, kps, pseudo, pseudo_conf = [], [], [], []
         for video in sorted(glob.glob(f'{a.root}/{subj}/videos/*/*.mp4')):
             cam, ex = video.split('/')[-2], os.path.basename(video)[:-4]
-            jf, cf = f'{a.root}/{subj}/joints3d_25/{ex}.npy', f'{a.root}/{subj}/camera_parameters/{cam}/{ex}.json'
-            if ex not in EXERCISES or not (os.path.exists(jf) and os.path.exists(cf)):
+            jf, cf = f'{a.root}/{subj}/joints3d_25/{ex}', f'{a.root}/{subj}/camera_parameters/{cam}/{ex}.json'
+            jf = next((f for f in (jf + '.npy', jf + '.json') if os.path.exists(f)), None)
+            if ex not in EXERCISES or not (jf and os.path.exists(cf)):
                 continue
-            J, camera = np.load(jf), json.load(open(cf))
+            J = np.load(jf) if jf.endswith('.npy') else np.array(json.load(open(jf))['joints3d_25'])
+            camera = json.load(open(cf))
             cap = cv2.VideoCapture(video)
             std_crops, std_back, loose = [], [], []
             for t in range(len(J)):
@@ -73,9 +78,12 @@ def main():
             cap.release()
             if not std_crops:
                 continue
-            pk, pc = predict(model, std_crops)
-            for b, q, cf_, lm in zip(std_back, pk, pc, loose):
-                pseudo.append(apply_affine(lm, apply_affine(b, q))); pseudo_conf.append(cf_)
+            if model is None:
+                pseudo += [np.zeros((17, 2))] * len(std_crops); pseudo_conf += [np.zeros(17)] * len(std_crops)
+            else:
+                pk, pc = predict(model, std_crops)
+                for b, q, cf_, lm in zip(std_back, pk, pc, loose):
+                    pseudo.append(apply_affine(lm, apply_affine(b, q))); pseudo_conf.append(cf_)
             print(subj, ex, cam, len(std_crops), flush=True)
         np.savez(f'{out}/labels.npz', names=np.array(names), keypoints=np.array(kps, np.float32),
                  pseudo=np.array(pseudo, np.float32), pseudo_conf=np.array(pseudo_conf, np.float32))

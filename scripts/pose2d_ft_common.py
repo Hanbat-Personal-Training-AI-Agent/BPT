@@ -16,7 +16,7 @@ from pose_feedback.body.pose2d_data import INPUT_H, INPUT_W, crop_affine, decode
 
 MEAN = np.array([123.675, 116.28, 103.53], np.float32)
 STD = np.array([58.395, 57.12, 57.375], np.float32)
-DEVICE = 'mps' if torch.backends.mps.is_available() else 'cpu'
+DEVICE = 'cuda' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is_available() else 'cpu'
 
 
 def load_model(variant='coco17', checkpoint=None, device=DEVICE):

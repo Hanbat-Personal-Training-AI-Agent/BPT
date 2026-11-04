@@ -28,13 +28,19 @@ from pose_feedback.body.pose2d_data import (
 
 SCRATCH = os.environ.get('BPT_C2D', '/private/tmp/bpt-c2d')
 MAIN = ROOT if (ROOT / 'outputs/exercise3d_labels').exists() else ROOT.parents[2]  # worktree -> main checkout
-EX3D_LABELS = MAIN / 'outputs/exercise3d_labels'
-EX3D_VIDEOS = MAIN / 'outputs/exercise3d_synced'
-GT_JSON = MAIN / 'outputs/rep_validation/gt.json'
+EX3D_LABELS = os.environ.get('BPT_EX3D_LABELS', MAIN / 'outputs/exercise3d_labels')  # finetune3: Home paths via env
+EX3D_VIDEOS = os.environ.get('BPT_EX3D_VIDEOS', MAIN / 'outputs/exercise3d_synced')
+GT_JSON = os.environ.get('BPT_EX3D_GT', MAIN / 'outputs/rep_validation/gt.json')
+EX3D_MODES = tuple(os.environ.get('BPT_EX3D_MODES', 'stretch,crop').split(','))
+EX3D_HELD = {'squat_0002', 'barbellrow_0003', 'barbellrow_0001'}  # P2 / P3 (D-B-01); the rest is P1
+LR_PAIRS = {'elbow': (7, 8), 'wrist': (9, 10), 'knee': (13, 14), 'ankle': (15, 16),
+            'big_toe': (20, 21), 'small_toe': (22, 23), 'heel': (24, 25)}
 SAPIENS_COCO17 = [0, 1, 2, 3, 4, 5, 6, 7, 8, 62, 41, 9, 10, 11, 12, 13, 14]
 SAPIENS_HALPE_FEET = [15, 18, 16, 19, 17, 20]  # l/r big toe, l/r small toe, l/r heel (Halpe 20..25 order)
 GROUPS = {'face': [0, 1, 2, 3, 4], 'shoulder': [5, 6], 'elbow': [7, 8], 'wrist': [9, 10], 'hip': [11, 12],
-          'knee': [13, 14], 'ankle': [15, 16], 'body12': list(range(5, 17)), 'limbs8': [7, 8, 9, 10, 13, 14, 15, 16]}
+          'knee': [13, 14], 'ankle': [15, 16], 'body12': list(range(5, 17)), 'limbs8': [7, 8, 9, 10, 13, 14, 15, 16],
+          'big_toe': [20, 21], 'small_toe': [22, 23], 'heel': [24, 25], 'feet6': [20, 21, 22, 23, 24, 25]}  # Halpe26 feet
+FIT3D_EXERCISES = ('squat', 'pushup', 'diamond_pushup', 'barbell_row', 'barbell_dead_row')  # the app's exercises + close variants
 FIT3D_COCO = {5: 11, 6: 14, 7: 12, 8: 15, 9: 13, 10: 16, 11: 1, 12: 4, 13: 2, 14: 5, 15: 3, 16: 6}  # coco <- fit3d
 
 
@@ -42,11 +48,34 @@ def summarize(pred, gt, valid, box, extra=None):
     out = {'n_instances': int(len(pred))}
     for alpha in (0.05, 0.1):
         for g, idx in GROUPS.items():
+            if max(idx) >= valid.shape[1]:
+                continue
             v = valid[:, idx]
             if v.any():
                 out[f'pck{int(alpha * 100):02d}_{g}'] = round(pck(pred[:, idx], gt[:, idx], v, box, alpha), 4)
     d = np.linalg.norm(pred - gt, axis=-1) / box[:, None]
     out['mean_err_body12_pct_box'] = round(float(d[:, 5:][valid[:, 5:]].mean() * 100), 3)
+    for g in ('elbow', 'wrist', 'hip', 'knee', 'ankle', 'shoulder', 'limbs8', 'big_toe', 'small_toe', 'heel', 'feet6'):  # mean error per group (% box)
+        if max(GROUPS[g]) >= valid.shape[1]:
+            continue
+        v = valid[:, GROUPS[g]]
+        if v.any():
+            out[f'err_{g}_pct_box'] = round(float(d[:, GROUPS[g]][v].mean() * 100), 3)
+    # left/right swap: both joints of a pair closer to the other side's reference than to their own
+    sw = []
+    for g, (l, r) in LR_PAIRS.items():
+        if r >= valid.shape[1]:
+            continue
+        ok = valid[:, l] & valid[:, r]
+        cross = (np.linalg.norm(pred[:, l] - gt[:, r], axis=-1) < np.linalg.norm(pred[:, l] - gt[:, l], axis=-1)) & \
+                (np.linalg.norm(pred[:, r] - gt[:, l], axis=-1) < np.linalg.norm(pred[:, r] - gt[:, r], axis=-1))
+        anyc = (np.linalg.norm(pred[:, l] - gt[:, r], axis=-1) < np.linalg.norm(pred[:, l] - gt[:, l], axis=-1)) | \
+               (np.linalg.norm(pred[:, r] - gt[:, l], axis=-1) < np.linalg.norm(pred[:, r] - gt[:, r], axis=-1))
+        if ok.any():  # swap = both joints crossed; cross = at least one (collapse onto one side included)
+            out[f'swap_{g}'] = round(float(cross[ok].mean()), 5); sw.append(cross[ok])
+            out[f'cross_{g}'] = round(float(anyc[ok].mean()), 5)
+    if sw:
+        out['swap_limbs8'] = round(float(np.concatenate(sw[:4]).mean()), 5)
     if extra:
         out.update(extra)
     return out
@@ -104,7 +133,7 @@ def ex3d(model, stride=15):
             video = EX3D_VIDEOS / g['exercise'] / seq / f'{cam}.mp4'
             idx = [int(t) for t in range(0, len(lab['frame_index']), stride) if lab['target_present'][t]]
             frames = read_frames(video, [int(lab['frame_index'][t]) for t in idx])
-            for mode in ('stretch', 'crop'):
+            for mode in EX3D_MODES:
                 crops, back, gts, valid, boxes, feet = [], [], [], [], [], []
                 for t in idx:
                     fr = frames.get(int(lab['frame_index'][t]))
@@ -134,20 +163,22 @@ def ex3d(model, stride=15):
                     extra['pck05_heel'] = round(float((d[:, 4:] < 0.05).mean()), 4)
                     extra['pck05_toes'] = round(float((d[:, :4] < 0.05).mean()), 4)
                 rows[f'{seq}/{cam}/{mode}'] = dict(summarize(full[:, :17], np.array(gts), np.array(valid), np.array(boxes), extra),
-                                                   exercise=g['exercise'], angle=view['angle_deg'], mode=mode)
+                                                   exercise=g['exercise'], angle=view['angle_deg'], mode=mode,
+                                                   split='heldout' if seq in EX3D_HELD else 'P1')
     agg = {}
-    for mode in ('stretch', 'crop'):
+    for mode in EX3D_MODES:
         for side in ('side40', 'other'):
             sel = [r for r in rows.values() if r['mode'] == mode and (round(r['angle']) <= 40) == (side == 'side40')]
             for ex in ('all', 'squat', 'pushup', 'barbellrow'):
-                s = [r for r in sel if ex == 'all' or r['exercise'] == ex]
-                if s:
-                    agg[f'{mode}/{side}/{ex}'] = weighted(s)
+                for split in ('all', 'heldout', 'P1'):
+                    s = [r for r in sel if (ex == 'all' or r['exercise'] == ex) and (split == 'all' or r['split'] == split)]
+                    if s:
+                        agg[f'{mode}/{side}/{ex}' + ('' if split == 'all' else f'/{split}')] = weighted(s)
     return {'aggregate': agg, 'per_video': rows}
 
 
 def weighted(rows):
-    keys = [k for k in rows[0] if k.startswith(('pck', 'mean_err', 'conf'))]
+    keys = sorted({k for r in rows for k in r if k.startswith(('pck', 'mean_err', 'conf', 'err_', 'swap_'))})
     n = np.array([r['n_instances'] for r in rows], float)
     return {'n_instances': int(n.sum()), **{k: round(float(np.average([r.get(k, np.nan) for r in rows], weights=n)), 4) for k in keys}}
 
@@ -155,28 +186,49 @@ def weighted(rows):
 def fit3d(model, subjects, stride=10):
     root = os.environ.get('BPT_FIT3D', '/private/tmp/claude-501/-Users-6-month-github-06-month-hanbat-repositories-BPT/'
                           'd083b446-4e06-45ed-8204-8c6e9f22bd1c/scratchpad/d3/fit3d/train')
+    feet = None
+    if os.environ.get('BPT_SMPLX'):  # finetune3: Halpe26 feet from the official SMPL-X fits (scripts/finetune3/foot_labels.py)
+        import sys
+        sys.path.insert(0, str(ROOT / 'scripts' / 'finetune3'))
+        from foot_labels import FootMesh
+        feet = FootMesh(os.environ['BPT_SMPLX'])
     rows = {}
     for subj in subjects:
         for video in sorted(glob.glob(f'{root}/{subj}/videos/*/*.mp4')):
             cam, ex = video.split('/')[-2], os.path.basename(video)[:-4]
-            jf, cf = f'{root}/{subj}/joints3d_25/{ex}.npy', f'{root}/{subj}/camera_parameters/{cam}/{ex}.json'
-            if not (os.path.exists(jf) and os.path.exists(cf)):
+            if ex not in FIT3D_EXERCISES:
                 continue
-            J, camera = np.load(jf), json.load(open(cf))
+            jf, cf = f'{root}/{subj}/joints3d_25/{ex}', f'{root}/{subj}/camera_parameters/{cam}/{ex}.json'
+            jf = next((f for f in (jf + '.npy', jf + '.json') if os.path.exists(f)), None)  # Mac copy .npy, original .json
+            if not (jf and os.path.exists(cf)):
+                continue
+            J = np.load(jf) if jf.endswith('.npy') else np.array(json.load(open(jf))['joints3d_25'])
+            camera = json.load(open(cf))
             idx = list(range(0, len(J), stride))
             frames = read_frames(video, idx)
             crops, back, gts, boxes = [], [], [], []
+            sj = f'{root}/{subj}/smplx/{ex}.json'
+            FV = None
+            if feet is not None and os.path.exists(sj):
+                nf = len(json.load(open(sj))['transl'])
+                FV = dict(zip(idx, feet(sj, np.minimum(np.array(idx), nf - 1))))
             for t in idx:
                 if t not in frames:
                     continue
                 p = project_fit3d(J[t], camera)
-                k = np.zeros((17, 2)); k[list(FIT3D_COCO)] = p[list(FIT3D_COCO.values())]
+                k = np.zeros((26 if FV is not None else 17, 2)); k[list(FIT3D_COCO)] = p[list(FIT3D_COCO.values())]
+                if FV is not None:
+                    k[20:26] = project_fit3d(FV[t], camera)
                 box = bbox_from_points(p)
                 cr, m = crop_box(frames[t], *box_to_center_scale(box))
                 crops.append(cr); back.append(invert_affine(m)); gts.append(k); boxes.append(max(box[2] - box[0], box[3] - box[1]))
             kp, conf = predict(model, crops)
-            full = np.array([apply_affine(b, q) for b, q in zip(back, kp[:, :17])])
-            valid = np.zeros((len(gts), 17), bool); valid[:, 5:] = True
+            nk = 26 if (FV is not None and kp.shape[1] >= 26) else 17
+            full = np.array([apply_affine(b, q) for b, q in zip(back, kp[:, :nk])])
+            gts = [g[:nk] for g in gts]
+            valid = np.zeros((len(gts), nk), bool); valid[:, 5:17] = True
+            if nk == 26:
+                valid[:, 20:26] = True
             rows[f'{subj}/{ex}/{cam}'] = dict(summarize(full, np.array(gts), valid, np.array(boxes), conf_stats(conf[:, 5:17])), exercise=ex)
     return {'aggregate': {'all': weighted(list(rows.values()))}, 'per_video': rows}
 

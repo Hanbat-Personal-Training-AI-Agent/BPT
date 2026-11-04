@@ -1,0 +1,199 @@
+diff --git a/ios/CalibrationEngineKit/Sources/PoseReplay/main.swift b/ios/CalibrationEngineKit/Sources/PoseReplay/main.swift
+index e2c2c00..636e87c 100644
+--- a/ios/CalibrationEngineKit/Sources/PoseReplay/main.swift
++++ b/ios/CalibrationEngineKit/Sources/PoseReplay/main.swift
+@@ -251,7 +251,9 @@ for video in videos {
+             let v = cells.map { Double($0) ?? 0 }
+             times.append(v[1])
+             coco17Frames.append((0..<17).map { PoseKeypoint(x: v[4 + $0 * 3], y: v[5 + $0 * 3], confidence: v[6 + $0 * 3]) })
+-            extraFrames.append([])
++            // Halpe26 CSVs (written by this tool) carry joints 17...25 too: keep them for the Halpe-own XS mapping.
++            extraFrames.append(cells.count >= 4 + 26 * 3
++                ? (17..<26).map { PoseKeypoint(x: v[4 + $0 * 3], y: v[5 + $0 * 3], confidence: v[6 + $0 * 3]) } : [])
+             feetFrames.append(nil)
+         }
+     }
+@@ -309,6 +311,7 @@ for video in videos {
+     var lifter = predict3D.map { p -> MotionAGFormerLive<Int> in
+         var l = MotionAGFormerLive<Int>(lookahead: lookahead, cadence: cadence, predict: p)
+         l.constraints.enabled = constraintsOn
++        l.inputMapping = motion3D.map(MotionAGFormerCoreML.inputMapping) ?? .app
+         l.constraints.reflectFlippedKnee = exercise == .squat  // as the camera (Fit3D S6: squat only)
+         return l
+     }
+@@ -403,7 +406,7 @@ for video in videos {
+     for i in coco17Frames.indices {
+         guard lifter != nil else { evaluateFrame(i, nil); continue }
+         let start = Date()
+-        let ready = try lifter!.push(frameIndex: i, coco17: coco17Frames[i], imageWidth: imageWidth,
++        let ready = try lifter!.push(frameIndex: i, coco17: coco17Frames[i], extra: extraFrames[i], imageWidth: imageWidth,
+                                      imageHeight: imageHeight, payload: i)
+         seconds3D += Date().timeIntervalSince(start)
+         for (j, frame3D) in ready { evaluateFrame(j, frame3D) }
+diff --git a/ios/CalibrationEngineKit/Tests/CalibrationEngineKitTests/MotionAGFormerNormalizationTests.swift b/ios/CalibrationEngineKit/Tests/CalibrationEngineKitTests/MotionAGFormerNormalizationTests.swift
+index 9744c39..e62c474 100644
+--- a/ios/CalibrationEngineKit/Tests/CalibrationEngineKitTests/MotionAGFormerNormalizationTests.swift
++++ b/ios/CalibrationEngineKit/Tests/CalibrationEngineKitTests/MotionAGFormerNormalizationTests.swift
+@@ -69,6 +69,22 @@ final class MotionAGFormerNormalizationTests: XCTestCase {
+         }
+     }
+ 
++    func testHalpeOwnMappingReplacesPelvisThoraxHead() throws {
++        let coco = (0..<17).map { PoseKeypoint(x: 300 + Double($0) * 5, y: 200 + Double($0) * 50, confidence: 0.9) }
++        var extra = (17..<26).map { PoseKeypoint(x: Double($0), y: Double($0) * 2, confidence: 0.5) }
++        extra[Halpe26.hip - 17] = PoseKeypoint(x: 330, y: 760, confidence: 0.8)
++        extra[Halpe26.neck - 17] = PoseKeypoint(x: 320, y: 420, confidence: 0.6)
++        extra[Halpe26.head - 17] = PoseKeypoint(x: 302, y: 150, confidence: 0.7)
++        let app = try PoseCoordinateTransforms.coco17ToH36M17(coco)
++        let own = try PoseCoordinateTransforms.halpe26ToH36M17(coco17: coco, extra: extra)
++        XCTAssertEqual(own[0].y, 760); XCTAssertEqual(own[8].y, 420); XCTAssertEqual(own[10].x, 302)
++        XCTAssertEqual(own[7].y, 590, accuracy: 1e-9)  // mid(pelvis, thorax)
++        XCTAssertEqual(own[9].y, (200 + 420) / 2, accuracy: 1e-9)  // mid(nose, thorax)
++        XCTAssertEqual(own[7].confidence, 0.7, accuracy: 1e-9)
++        for j in [1, 2, 3, 4, 5, 6, 11, 12, 13, 14, 15, 16] { XCTAssertEqual(own[j].x, app[j].x) }
++        XCTAssertThrowsError(try PoseCoordinateTransforms.halpe26ToH36M17(coco17: coco, extra: []))
++    }
++
+     func testConfidencePassesThroughAndCOCOEntryPoint() throws {
+         var coco = (0..<17).map { PoseKeypoint(x: 300 + Double($0) * 5, y: 200 + Double($0) * 50, confidence: 0.9) }
+         coco[0].confidence = 0.4
+diff --git a/ios/Runner/NativePose/Camera/CameraPosePreview.swift b/ios/Runner/NativePose/Camera/CameraPosePreview.swift
+index 10e709c..780f996 100644
+--- a/ios/Runner/NativePose/Camera/CameraPosePreview.swift
++++ b/ios/Runner/NativePose/Camera/CameraPosePreview.swift
+@@ -506,6 +506,7 @@ final class CameraPoseViewModel: ObservableObject {
+                 lifter = MotionAGFormerLive(lookahead: CameraPreviewOptions.motion3DLookahead,
+                                             cadence: CameraPreviewOptions.motion3DCadence,
+                                             predict: MotionAGFormerCoreML.predictor(xs))
++                lifter?.inputMapping = MotionAGFormerCoreML.inputMapping(xs)
+                 lifter?.constraints.reflectFlippedKnee = exercise == .squat  // Fit3D S6: squat only
+                 // Test-only (video mode driver): the clip subject's calibration bone lengths, as a calibration result would give.
+                 lifter?.constraints.calibrationTargetsCm = VideoCameraOptions.boneTargetsCm
+@@ -680,12 +681,13 @@ final class CameraPoseViewModel: ObservableObject {
+                 perfLog?.sample("pose2d_hands", ms: (CACurrentMediaTime() - arrivedAt) * 1000)
+                 let shown = result
+                 Task { @MainActor [weak self] in self?.showFrame(shown) }
++                let liftExtra = PoseCoordinateTransforms.applyInverseAffineToExtra(decoded: decoded, inverseAffine: inverseAffine)
+                 let lift = { [weak self] in
+                     guard let self else { return }
+                     let t0 = CACurrentMediaTime()
+                     do {
+                         let before = self.lifter?.inferences ?? 0
+-                        let ready = try self.lifter?.push(frameIndex: frameIdx, coco17: wrists.input, imageWidth: cgImage.width,
++                        let ready = try self.lifter?.push(frameIndex: frameIdx, coco17: wrists.input, extra: liftExtra, imageWidth: cgImage.width,
+                                                           imageHeight: cgImage.height, captureRotation: shown.rotation,
+                                                           payload: shown) ?? []
+                         let liftMs = (CACurrentMediaTime() - t0) * 1000
+diff --git a/ios/Runner/NativePose/PosePipeline/MotionAGFormerLive.swift b/ios/Runner/NativePose/PosePipeline/MotionAGFormerLive.swift
+index f39541e..b740c97 100644
+--- a/ios/Runner/NativePose/PosePipeline/MotionAGFormerLive.swift
++++ b/ios/Runner/NativePose/PosePipeline/MotionAGFormerLive.swift
+@@ -62,6 +62,9 @@ struct MotionAGFormerLive<Payload> {
+     /// 0.5 s at 30 fps.
+     var resetAfterLostFrames = 15
+     var constraints = Pose3DConstraints()
++    /// H36M input mapping the XS checkpoint was trained on (MotionAGFormerCoreML.inputMapping(model)). `.halpeOwn` needs
++    /// the Halpe26 extra joints in every push; a COCO17 2D model with a `.halpeOwn` package throws.
++    var inputMapping: XSInputMapping = .app
+     /// [27 × 17 × 3] input (x, y, confidence) → [27 × 17 × 3] output, row-major. Core ML in the app.
+     let predict: ([Float]) throws -> [Float]
+ 
+@@ -96,7 +99,8 @@ struct MotionAGFormerLive<Payload> {
+ 
+     /// Push one frame (COCO17 in frame pixels; Halpe26 callers pass its first 17 joints, which are COCO17
+     /// in the same order). Returns the frames that became ready, oldest first.
+-    mutating func push(frameIndex: Int, coco17: [PoseKeypoint], imageWidth: Int, imageHeight: Int,
++    /// `extra` = Halpe26 joints 17...25 in frame pixels (used only when `inputMapping == .halpeOwn`).
++    mutating func push(frameIndex: Int, coco17: [PoseKeypoint], extra: [PoseKeypoint] = [], imageWidth: Int, imageHeight: Int,
+                        captureRotation: CaptureRotation = .up, payload: Payload) throws -> [(Payload, Lifted3DFrame)] {
+         let valid = coco17.count == 17 && coco17.filter { $0.confidence >= minConfidence }.count >= minJoints
+         var out: [(Payload, Lifted3DFrame)] = []
+@@ -119,7 +123,9 @@ struct MotionAGFormerLive<Payload> {
+                 return out
+             }
+         }
+-        let h36m = try PoseCoordinateTransforms.coco17ToH36M17(coco17)
++        let h36m = inputMapping == .halpeOwn
++            ? try PoseCoordinateTransforms.halpe26ToH36M17(coco17: coco17, extra: extra)
++            : try PoseCoordinateTransforms.coco17ToH36M17(coco17)
+         let input = normalizer.normalize(h36m, imageWidth: imageWidth, imageHeight: imageHeight)
+         entries.append(Entry(frameIndex: frameIndex, payload: payload, input: input, valid: valid))
+         pending += 1
+@@ -216,7 +222,21 @@ struct MotionAGFormerLive<Payload> {
+ #if canImport(CoreML)
+ import CoreML
+ 
++/// H36M input mapping of an XS package: `.app` = coco17ToH36M17 (original / B1 / C1 / C2), `.halpeOwn` = Halpe 19 / 18 / 17
++/// for pelvis / thorax / head (finetune3 C3 / C4).
++enum XSInputMapping: String {
++    case app
++    case halpeOwn = "halpe_own"
++}
++
+ enum MotionAGFormerCoreML {
++    /// Creator-defined metadata `bpt.xs_input_mapping` written at export ("halpe_own" for C3 / C4); missing = `.app`.
++    static func inputMapping(_ model: MLModel) -> XSInputMapping {
++        let meta = model.modelDescription.metadata[.creatorDefinedKey] as? [String: String]
++        return meta?["bpt.xs_input_mapping"].flatMap(XSInputMapping.init(rawValue:)) ?? .app
++    }
++
++
+     static let inputName = "input_2d_sequence"
+     static let outputName = "pred_3d_sequence"
+ 
+diff --git a/ios/Runner/NativePose/PosePipeline/PoseCoordinateTransforms.swift b/ios/Runner/NativePose/PosePipeline/PoseCoordinateTransforms.swift
+index 7a6b4e3..c487871 100644
+--- a/ios/Runner/NativePose/PosePipeline/PoseCoordinateTransforms.swift
++++ b/ios/Runner/NativePose/PosePipeline/PoseCoordinateTransforms.swift
+@@ -193,6 +193,31 @@ enum PoseCoordinateTransforms {
+         return output
+     }
+ 
++    /// Halpe26-only XS input (finetune3 C3/C4, test build only): the app mapping, then pelvis <- Halpe 19 hip,
++    /// thorax <- 18 neck, head <- 17 head, spine = mid(pelvis, thorax), neck/nose = mid(nose, thorax).
++    /// `extra` = Halpe26 joints 17...25 in frame pixels (same order as SimCCDecodeResult.extraInputCoordinates).
++    /// Same as scripts/finetune3/xs_data.py to_h36m(mapping='halpe'), the mapping the C3/C4 checkpoints were trained on.
++    static func halpe26ToH36M17(coco17: [PoseKeypoint], extra: [PoseKeypoint]) throws -> [PoseKeypoint] {
++        guard extra.count == Halpe26.jointCount - 17 else {
++            throw PoseCoordinateTransformError.invalidKeypointCount(17 + extra.count)
++        }
++        var output = try coco17ToH36M17(coco17)
++        output[0] = extra[Halpe26.hip - 17]
++        output[8] = extra[Halpe26.neck - 17]
++        output[10] = extra[Halpe26.head - 17]
++        output[7] = average(output[0], output[8])
++        output[9] = average(coco17[0], output[8])
++        return output
++    }
++
++    /// Halpe26 joints 17...25 through the inverse affine (frame pixels); empty for the COCO17 model.
++    static func applyInverseAffineToExtra(decoded: SimCCDecodeResult, inverseAffine: Affine2x3) -> [PoseKeypoint] {
++        zip(decoded.extraInputCoordinates, decoded.extraConfidences).map { point, confidence in
++            let p = inverseAffine.apply(point)
++            return PoseKeypoint(x: p.x, y: p.y, confidence: confidence)
++        }
++    }
++
+     /// p -> (p - centre) / side * 2 for every joint; confidence passes through.
+     static func squareCropNormalize(_ h36m17: [PoseKeypoint], crop: SquareCrop) -> [[Float]] {
+         h36m17.map { keypoint in
+diff --git a/ios/Runner/NativePose/PosePipeline/SimCCDecoder.swift b/ios/Runner/NativePose/PosePipeline/SimCCDecoder.swift
+index 46ec409..c95dc94 100644
+--- a/ios/Runner/NativePose/PosePipeline/SimCCDecoder.swift
++++ b/ios/Runner/NativePose/PosePipeline/SimCCDecoder.swift
+@@ -108,10 +108,13 @@ enum RTMPoseModel: String, CaseIterable {
+ }
+ 
+ /// Halpe26 indices, from MMPose configs/_base_/datasets/halpe26.py. 0–16 are COCO17 in the
+-/// same order; 17 head, 18 neck, 19 hip are deliberately unused (MotionAGFormer keeps its
+-/// own synthetic pelvis/neck/head).
++/// same order; 17 head, 18 neck, 19 hip are unused by the original XS (it keeps its own synthetic
++/// pelvis/neck/head) and used only by Halpe-own XS packages (XSInputMapping.halpeOwn).
+ enum Halpe26 {
+     static let jointCount = 26
++    static let head = 17
++    static let neck = 18
++    static let hip = 19
+     static let leftBigToe = 20
+     static let rightBigToe = 21
+     static let leftSmallToe = 22

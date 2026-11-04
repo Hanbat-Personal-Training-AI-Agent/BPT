@@ -2,8 +2,8 @@
 so the model keeps COCO's keypoint definitions (Fit3D-only fine-tuning moved hips/ankles to joint
 centres and dropped COCO val PCK).
 
-usage: build_coco_pose2d_crops.py --ann person_keypoints_train2017.json --out DIR/coco [--n 6000]
-Images are fetched one by one from images.cocodataset.org and only the 320 px crop is kept.
+usage: build_coco_pose2d_crops.py --ann person_keypoints_train2017.json --out DIR/coco [--n 6000] [--images DIR]
+Images are read from --images (extracted train2017) or fetched one by one from images.cocodataset.org; only the 320 px crop is kept.
 """
 
 import argparse
@@ -22,6 +22,7 @@ def main():
     ap.add_argument('--ann', required=True)
     ap.add_argument('--out', required=True)
     ap.add_argument('--n', type=int, default=6000)
+    ap.add_argument('--images')
     a = ap.parse_args()
     import json
     ann = json.load(open(a.ann))
@@ -33,12 +34,15 @@ def main():
     names, kps, vis = [], [], []
     for p in people:
         info = imgs[p['image_id']]
-        try:
-            data = urllib.request.urlopen(info['coco_url'], timeout=30).read()
-        except Exception as e:  # skip unreachable images, keep going
-            print('skip', info['file_name'], e)
-            continue
-        im = cv2.imdecode(np.frombuffer(data, np.uint8), cv2.IMREAD_COLOR)
+        if a.images:
+            im = cv2.imread(f"{a.images}/{info['file_name']}")
+        else:
+            try:
+                data = urllib.request.urlopen(info['coco_url'], timeout=30).read()
+            except Exception as e:  # skip unreachable images, keep going
+                print('skip', info['file_name'], e)
+                continue
+            im = cv2.imdecode(np.frombuffer(data, np.uint8), cv2.IMREAD_COLOR)
         x, y, w, h = p['bbox']
         c, _ = box_to_center_scale([x, y, x + w, y + h])
         k = SIDE / (max(w, h) * 1.6)
