@@ -157,6 +157,22 @@ class NativePayloadTests(unittest.TestCase):
         self.assertTrue({'pushup_hip_sag','pushup_shallow','pushup_no_lockout','squat_hips_first',
                          'squat_no_lockout','row_torso_swing','row_shrug'}<=positive)
 
+    def test_all_twenty_native_default_threshold_positive_paths_are_supported(self):
+        positive=set()
+        for case,exercise in (('pushup_side','pushup'),('squat_side','squat'),
+                              ('squat_front','squat'),('row_side','barbell_row')):
+            records=[json.loads(line) for line in (FIXTURE.parent/('coverage_v2_'+case+'.jsonl')).read_text().splitlines()]
+            trace=direct_trace(records);trace.exercise=exercise
+            for index,rep in enumerate(trace.reps.values()):
+                for rule in ex.CORE[exercise]:
+                    row,audit=decision(trace,rule,index)
+                    native=next(r for r in rep['judgements']['2d']['rules'] if r['rule']==rule)
+                    if native['condition'] is True:
+                        with self.subTest(case=case,rep=index,rule=rule):
+                            self.assertEqual(row['state'],'warning',audit['disposition'])
+                        positive.add(rule)
+        self.assertEqual(positive,set().union(*map(set,ex.CORE.values())))
+
     def test_pointwise_positive_survives_unrelated_missing_quantity_but_negative_does_not(self):
         trace=core_trace('pushup')
         del trace.frames[2]['sample2D']['measurements']['hipDeviation']
