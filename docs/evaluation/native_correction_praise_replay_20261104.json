@@ -1,0 +1,185 @@
+{
+  "baselineCandidateId": "94a72a5ffae86011a87af93eb246eb8a7a58f4fe",
+  "candidateId": "03aa9d0fe7f0175f79cc314bd7aaf5542badf0fe",
+  "checks": {
+    "all2408FrameStatusRows": true,
+    "all60MetricDictionariesExact": true,
+    "allEventsAndTransitions": true,
+    "allSixCSVFilesByteIdentical": true,
+    "deliveryEvidence": true,
+    "genericPraiseEventsExact": true,
+    "inputsModelsBaselineFilesStable": true,
+    "modelsAndInputsMatchFrozenBaseline": true,
+    "repCountsAndBoundaries": true,
+    "runtimeSourcesStableAfterBuild": true,
+    "warningListsAndGrades": true
+  },
+  "clips": {
+    "pushup": {
+      "correctionPraiseEvents": 0,
+      "csvs": [
+        {
+          "exact_rows_match": true,
+          "file": "pushup_0003_cam2_pushup_mhalpe26.csv",
+          "mismatched_rows_first20": [],
+          "new_sha256": "d1386204e7526fe4f369a30b0052057c68aa4277df7c800afd2b6fe09fa65579",
+          "old_sha256": "d1386204e7526fe4f369a30b0052057c68aa4277df7c800afd2b6fe09fa65579",
+          "rows_new": 551,
+          "rows_old": 551
+        },
+        {
+          "exact_rows_match": true,
+          "file": "pushup_0003_cam2_pushup_mhalpe26_3d.csv",
+          "mismatched_rows_first20": [],
+          "new_sha256": "0c0d397f1de848ea2b0d8144c52f25fdbdbe37a077cfe3a3740c19be47ddfcb6",
+          "old_sha256": "0c0d397f1de848ea2b0d8144c52f25fdbdbe37a077cfe3a3740c19be47ddfcb6",
+          "rows_new": 551,
+          "rows_old": 551
+        }
+      ],
+      "differences": [],
+      "events": [
+        {
+          "frame": 108,
+          "key": "praise_good",
+          "scope": "rep",
+          "time": 3.6
+        },
+        {
+          "frame": 302,
+          "key": "praise_good",
+          "scope": "rep",
+          "time": 10.066666666666666
+        },
+        {
+          "frame": 550,
+          "key": "pushup_no_lockout",
+          "n": 1,
+          "scope": "set",
+          "time": 18.333333333333332
+        }
+      ],
+      "frames": 551,
+      "reps": 10,
+      "wallSeconds": 16.856694833999995,
+      "warningRepCounts": {
+        "pushup_no_lockout": 1
+      }
+    },
+    "row": {
+      "correctionPraiseEvents": 0,
+      "csvs": [
+        {
+          "exact_rows_match": true,
+          "file": "barbellrow_0000_cam2_barbell_row_mhalpe26.csv",
+          "mismatched_rows_first20": [],
+          "new_sha256": "e233f4e6d22e3858958cf9676c20a2317d5aab6601b24ecec4656c2cb13ebd2c",
+          "old_sha256": "e233f4e6d22e3858958cf9676c20a2317d5aab6601b24ecec4656c2cb13ebd2c",
+          "rows_new": 590,
+          "rows_old": 590
+        },
+        {
+          "exact_rows_match": true,
+          "file": "barbellrow_0000_cam2_barbell_row_mhalpe26_3d.csv",
+          "mismatched_rows_first20": [],
+          "new_sha256": "6831693b354617f508646fe86066acb1c779d2a26d682a7b63dc9daf7984b4a6",
+          "old_sha256": "6831693b354617f508646fe86066acb1c779d2a26d682a7b63dc9daf7984b4a6",
+          "rows_new": 590,
+          "rows_old": 590
+        }
+      ],
+      "differences": [],
+      "events": [
+        {
+          "frame": 80,
+          "key": "praise_good",
+          "scope": "rep",
+          "time": 2.6666666666666665
+        },
+        {
+          "frame": 285,
+          "key": "praise_good",
+          "scope": "rep",
+          "time": 9.5
+        },
+        {
+          "frame": 500,
+          "key": "praise_good",
+          "scope": "rep",
+          "time": 16.666666666666668
+        }
+      ],
+      "frames": 590,
+      "reps": 10,
+      "wallSeconds": 14.558140667000004,
+      "warningRepCounts": {}
+    },
+    "squat": {
+      "correctionPraiseEvents": 0,
+      "csvs": [
+        {
+          "exact_rows_match": true,
+          "file": "squat_0001_cam2_squat_mhalpe26.csv",
+          "mismatched_rows_first20": [],
+          "new_sha256": "2590590ac62420c293ec616f2a1fe7d3631362692a5828429f90f240bac35616",
+          "old_sha256": "2590590ac62420c293ec616f2a1fe7d3631362692a5828429f90f240bac35616",
+          "rows_new": 1267,
+          "rows_old": 1267
+        },
+        {
+          "exact_rows_match": true,
+          "file": "squat_0001_cam2_squat_mhalpe26_3d.csv",
+          "mismatched_rows_first20": [],
+          "new_sha256": "7751b53b2e8175c7545e74ea18c7eadf0191d8b6b754a49f39eef9f98b11bc66",
+          "old_sha256": "7751b53b2e8175c7545e74ea18c7eadf0191d8b6b754a49f39eef9f98b11bc66",
+          "rows_new": 1267,
+          "rows_old": 1267
+        }
+      ],
+      "differences": [],
+      "events": [
+        {
+          "frame": 121,
+          "key": "squat_hips_first",
+          "scope": "rep",
+          "time": 4.033333333333333
+        },
+        {
+          "frame": 708,
+          "key": "squat_knee_valgus",
+          "scope": "rep",
+          "time": 23.6
+        },
+        {
+          "frame": 1230,
+          "key": "squat_knee_valgus",
+          "scope": "rep",
+          "time": 41
+        },
+        {
+          "frame": 1266,
+          "key": "squat_no_lockout",
+          "n": 3,
+          "scope": "set",
+          "time": 42.2
+        }
+      ],
+      "frames": 1267,
+      "reps": 10,
+      "wallSeconds": 32.696094541,
+      "warningRepCounts": {
+        "squat_hips_first": 2,
+        "squat_knee_valgus": 5,
+        "squat_no_lockout": 3
+      }
+    }
+  },
+  "comparisonSHA256": "230ed988c16da4ed5e3fad8ef32d194865f3e72022907a4adede90c3aa2a29af",
+  "executableSHA256": "ad41becf25a5ba1253a4483bcc2a12c8375832b338e38a69cf9ddb5499f5eb93",
+  "independentGroundTruth": false,
+  "mode": "ordinary original-video CLI replay; no new fault trace",
+  "pass": true,
+  "privateArtifactDirectory": "/Users/6_month/bpt-data/native-fault-evidence-20261104-private/run-03aa9d0-praise-regression",
+  "tolerance": 0,
+  "verificationReceiptSHA256": "336e551829552ba36732e3aa6a7ac0dd52636d23932a5e3b5d2751d580000f8a"
+}
