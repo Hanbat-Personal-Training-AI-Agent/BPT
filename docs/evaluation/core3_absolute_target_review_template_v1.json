@@ -1,0 +1,439 @@
+{
+  "schema": "bpt.core3-absolute-target-review-template.v1",
+  "status": "blank_review_only_not_runtime_configuration",
+  "candidateCommit": "9eb7e28f574cbf2766bb6c57ca910637eff3e706",
+  "registryRevision": "20261103-r1",
+  "registrySHA256": "71ec82352d5c749ef98e072210c95428598117f76023893745bf4b8bbd990518",
+  "protocol": "independent_form_protocol_v1.md",
+  "rubricVersion": null,
+  "frozenAt": null,
+  "reviewerId": null,
+  "adjudicatorId": null,
+  "rules": [
+    {
+      "id": "pushup.projected_arm_range",
+      "exercise": "pushup",
+      "op": "OR",
+      "phases": [
+        "descending",
+        "bottom",
+        "ascending"
+      ],
+      "atoms": [
+        {
+          "metric": "leftUpperArmDeg",
+          "comparator": "gt",
+          "parameter": "pushup.projectedUpperArmUpper"
+        },
+        {
+          "metric": "rightUpperArmDeg",
+          "comparator": "gt",
+          "parameter": "pushup.projectedUpperArmUpper"
+        }
+      ],
+      "meaning": "deviation_predicate",
+      "supportedVariants": [
+        "floor"
+      ],
+      "selectedSideAtoms": false,
+      "metricContracts": {
+        "leftUpperArmDeg": {
+          "metricId": "leftUpperArmDeg",
+          "version": "1",
+          "unit": "degrees",
+          "coordinate": "XS_H36M17_model_space_body_relative",
+          "definition": "angle_of_left_upper_arm_projected_into_body_frontal_plane_from_caudal_trunk_axis; not anatomical shoulder elevation",
+          "exercises": [
+            "pushup"
+          ],
+          "definitionHash": "bd6e0ce9848cf9a2feeb800ce6bccd377298a6b2090f400a6500e3d7ebf9fea6"
+        },
+        "rightUpperArmDeg": {
+          "metricId": "rightUpperArmDeg",
+          "version": "1",
+          "unit": "degrees",
+          "coordinate": "XS_H36M17_model_space_body_relative",
+          "definition": "angle_of_right_upper_arm_projected_into_body_frontal_plane_from_caudal_trunk_axis; not anatomical shoulder elevation",
+          "exercises": [
+            "pushup"
+          ],
+          "definitionHash": "11aa69ccd7d1be579434bb65ad8672cf52cf200c8dfb626ffffa46b0d7958879"
+        }
+      },
+      "targetReview": {
+        "pushup.projectedUpperArmUpper": {
+          "proposedValueDegrees": null,
+          "source": null,
+          "sameGeometryJustification": null,
+          "selectedVariant": null,
+          "reviewerRationale": null
+        }
+      },
+      "rubricReview": {
+        "visiblePositiveDefinition": null,
+        "visibleNegativeDefinition": null,
+        "acceptableViews": null,
+        "visibilityRequirements": null,
+        "phaseBoundaryConvention": null,
+        "sidePolicy": null,
+        "temporalAggregation": null,
+        "minimumDurationSeconds": null,
+        "boundaryToleranceDegrees": null,
+        "measurementUncertaintyPolicy": null,
+        "unknownReasons": null,
+        "ruleMappingToIndependentFormCatalog": null
+      }
+    },
+    {
+      "id": "pushup.bottom_target",
+      "exercise": "pushup",
+      "op": "OR",
+      "phases": [
+        "bottom"
+      ],
+      "atoms": [
+        {
+          "metric": "leftElbowCompletedBottomMinimumDeg",
+          "comparator": "gt",
+          "parameter": "pushup.bottomElbowUpper"
+        },
+        {
+          "metric": "rightElbowCompletedBottomMinimumDeg",
+          "comparator": "gt",
+          "parameter": "pushup.bottomElbowUpper"
+        }
+      ],
+      "meaning": "deviation_predicate",
+      "supportedVariants": [
+        "floor"
+      ],
+      "selectedSideAtoms": false,
+      "metricContracts": {
+        "leftElbowCompletedBottomMinimumDeg": {
+          "metricId": "leftElbowCompletedBottomMinimumDeg",
+          "version": "1",
+          "unit": "degrees",
+          "coordinate": "XS_H36M17_model_space_body_relative",
+          "definition": "left minimum elbow interior angle in complete observed bottom-phase membership after observed transition to ascending; no later source samples",
+          "exercises": [
+            "pushup"
+          ],
+          "temporalKind": "window_summary",
+          "definitionHash": "740dff71d17516d36cfb9394f449a6bf3b1a85b19b6105cabf3dff4caa89d727"
+        },
+        "rightElbowCompletedBottomMinimumDeg": {
+          "metricId": "rightElbowCompletedBottomMinimumDeg",
+          "version": "1",
+          "unit": "degrees",
+          "coordinate": "XS_H36M17_model_space_body_relative",
+          "definition": "right minimum elbow interior angle in complete observed bottom-phase membership after observed transition to ascending; no later source samples",
+          "exercises": [
+            "pushup"
+          ],
+          "temporalKind": "window_summary",
+          "definitionHash": "2c56d3cb1c60f9dcea60f8d467df28940f516e176c2e861e406c7d7c6cf90eaa"
+        }
+      },
+      "targetReview": {
+        "pushup.bottomElbowUpper": {
+          "proposedValueDegrees": null,
+          "source": null,
+          "sameGeometryJustification": null,
+          "selectedVariant": null,
+          "reviewerRationale": null
+        }
+      },
+      "rubricReview": {
+        "visiblePositiveDefinition": null,
+        "visibleNegativeDefinition": null,
+        "acceptableViews": null,
+        "visibilityRequirements": null,
+        "phaseBoundaryConvention": null,
+        "sidePolicy": null,
+        "temporalAggregation": null,
+        "minimumDurationSeconds": null,
+        "boundaryToleranceDegrees": null,
+        "measurementUncertaintyPolicy": null,
+        "unknownReasons": null,
+        "ruleMappingToIndependentFormCatalog": null
+      }
+    },
+    {
+      "id": "pushup.top_extension_target",
+      "exercise": "pushup",
+      "op": "AND",
+      "phases": [
+        "top"
+      ],
+      "atoms": [
+        {
+          "metric": "leftElbowDeg",
+          "comparator": "gte",
+          "parameter": "pushup.topElbowLower"
+        },
+        {
+          "metric": "rightElbowDeg",
+          "comparator": "gte",
+          "parameter": "pushup.topElbowLower"
+        }
+      ],
+      "meaning": "desired_match",
+      "supportedVariants": [
+        "floor"
+      ],
+      "selectedSideAtoms": false,
+      "metricContracts": {
+        "leftElbowDeg": {
+          "metricId": "leftElbowDeg",
+          "version": "1",
+          "unit": "degrees",
+          "coordinate": "XS_H36M17_model_space_body_relative",
+          "definition": "interior_angle_deg_h36m17_(11, 12, 13)",
+          "exercises": [
+            "pushup",
+            "barbell-row"
+          ],
+          "definitionHash": "01a12e9bc854c2d7f8011b6aeeae9052915c5b417ef451b820b6d28791fd7391"
+        },
+        "rightElbowDeg": {
+          "metricId": "rightElbowDeg",
+          "version": "1",
+          "unit": "degrees",
+          "coordinate": "XS_H36M17_model_space_body_relative",
+          "definition": "interior_angle_deg_h36m17_(14, 15, 16)",
+          "exercises": [
+            "pushup",
+            "barbell-row"
+          ],
+          "definitionHash": "ec8f0ce805130187818ceae25c3819708bc5bd2f38c8e05b073863c26f66a5a3"
+        }
+      },
+      "targetReview": {
+        "pushup.topElbowLower": {
+          "proposedValueDegrees": null,
+          "source": null,
+          "sameGeometryJustification": null,
+          "selectedVariant": null,
+          "reviewerRationale": null
+        }
+      },
+      "rubricReview": {
+        "visiblePositiveDefinition": null,
+        "visibleNegativeDefinition": null,
+        "acceptableViews": null,
+        "visibilityRequirements": null,
+        "phaseBoundaryConvention": null,
+        "sidePolicy": null,
+        "temporalAggregation": null,
+        "minimumDurationSeconds": null,
+        "boundaryToleranceDegrees": null,
+        "measurementUncertaintyPolicy": null,
+        "unknownReasons": null,
+        "ruleMappingToIndependentFormCatalog": null
+      }
+    },
+    {
+      "id": "squat.bottom_target",
+      "exercise": "squat",
+      "op": "OR",
+      "phases": [
+        "bottom"
+      ],
+      "atoms": [
+        {
+          "metric": "leftKneeCompletedBottomMinimumDeg",
+          "comparator": "gt",
+          "parameter": "squat.bottomKneeUpper"
+        },
+        {
+          "metric": "rightKneeCompletedBottomMinimumDeg",
+          "comparator": "gt",
+          "parameter": "squat.bottomKneeUpper"
+        }
+      ],
+      "meaning": "deviation_predicate",
+      "supportedVariants": [
+        "bodyweight",
+        "barbell_back_squat"
+      ],
+      "selectedSideAtoms": false,
+      "metricContracts": {
+        "leftKneeCompletedBottomMinimumDeg": {
+          "metricId": "leftKneeCompletedBottomMinimumDeg",
+          "version": "1",
+          "unit": "degrees",
+          "coordinate": "XS_H36M17_model_space_body_relative",
+          "definition": "left minimum knee interior angle in complete observed bottom-phase membership after observed transition to ascending; no later source samples",
+          "exercises": [
+            "squat"
+          ],
+          "temporalKind": "window_summary",
+          "definitionHash": "2c180c344698454d2640821cab4cb78ddd31d598efb66c08620d2f0ee3e02618"
+        },
+        "rightKneeCompletedBottomMinimumDeg": {
+          "metricId": "rightKneeCompletedBottomMinimumDeg",
+          "version": "1",
+          "unit": "degrees",
+          "coordinate": "XS_H36M17_model_space_body_relative",
+          "definition": "right minimum knee interior angle in complete observed bottom-phase membership after observed transition to ascending; no later source samples",
+          "exercises": [
+            "squat"
+          ],
+          "temporalKind": "window_summary",
+          "definitionHash": "abadee39b4e9241afc695f6c66d27cea48fec339c2bdcda79ee280717b580e4a"
+        }
+      },
+      "targetReview": {
+        "squat.bottomKneeUpper": {
+          "proposedValueDegrees": null,
+          "source": null,
+          "sameGeometryJustification": null,
+          "selectedVariant": null,
+          "reviewerRationale": null
+        }
+      },
+      "rubricReview": {
+        "visiblePositiveDefinition": null,
+        "visibleNegativeDefinition": null,
+        "acceptableViews": null,
+        "visibilityRequirements": null,
+        "phaseBoundaryConvention": null,
+        "sidePolicy": null,
+        "temporalAggregation": null,
+        "minimumDurationSeconds": null,
+        "boundaryToleranceDegrees": null,
+        "measurementUncertaintyPolicy": null,
+        "unknownReasons": null,
+        "ruleMappingToIndependentFormCatalog": null
+      }
+    },
+    {
+      "id": "squat.top_extension_target",
+      "exercise": "squat",
+      "op": "AND",
+      "phases": [
+        "top"
+      ],
+      "atoms": [
+        {
+          "metric": "{side}KneeDeg",
+          "comparator": "gte",
+          "parameter": "squat.topKneeLower"
+        },
+        {
+          "metric": "{side}HipDeg",
+          "comparator": "gte",
+          "parameter": "squat.topHipLower"
+        }
+      ],
+      "meaning": "desired_match",
+      "supportedVariants": [
+        "bodyweight",
+        "barbell_back_squat"
+      ],
+      "selectedSideAtoms": true,
+      "metricContracts": {
+        "leftKneeDeg": {
+          "metricId": "leftKneeDeg",
+          "version": "1",
+          "unit": "degrees",
+          "coordinate": "XS_H36M17_model_space_body_relative",
+          "definition": "interior_angle_deg_h36m17_(4, 5, 6)",
+          "exercises": [
+            "pushup",
+            "squat",
+            "barbell-row"
+          ],
+          "definitionHash": "8eb25b4048b0155ef38102d5573d00593778bd58e3158b986ce09e7660a39cae"
+        },
+        "rightKneeDeg": {
+          "metricId": "rightKneeDeg",
+          "version": "1",
+          "unit": "degrees",
+          "coordinate": "XS_H36M17_model_space_body_relative",
+          "definition": "interior_angle_deg_h36m17_(1, 2, 3)",
+          "exercises": [
+            "pushup",
+            "squat",
+            "barbell-row"
+          ],
+          "definitionHash": "fe8540b0fe46e9ea042887fa01ce0022abcd93cd0c83edb5320061c2a73a52f9"
+        },
+        "leftHipDeg": {
+          "metricId": "leftHipDeg",
+          "version": "1",
+          "unit": "degrees",
+          "coordinate": "XS_H36M17_model_space_body_relative",
+          "definition": "interior_angle_deg_h36m17_(8, 4, 5)",
+          "exercises": [
+            "pushup",
+            "squat",
+            "barbell-row"
+          ],
+          "definitionHash": "db68307ad358833c5324c58e083a71ffd990923ef1db52df8e079423cb6a0352"
+        },
+        "rightHipDeg": {
+          "metricId": "rightHipDeg",
+          "version": "1",
+          "unit": "degrees",
+          "coordinate": "XS_H36M17_model_space_body_relative",
+          "definition": "interior_angle_deg_h36m17_(8, 1, 2)",
+          "exercises": [
+            "pushup",
+            "squat",
+            "barbell-row"
+          ],
+          "definitionHash": "800992f8ba2e1093a724d1a79851d29145e1f4554efe836568303c9c2f5eb41e"
+        }
+      },
+      "targetReview": {
+        "squat.topKneeLower": {
+          "proposedValueDegrees": null,
+          "source": null,
+          "sameGeometryJustification": null,
+          "selectedVariant": null,
+          "reviewerRationale": null
+        },
+        "squat.topHipLower": {
+          "proposedValueDegrees": null,
+          "source": null,
+          "sameGeometryJustification": null,
+          "selectedVariant": null,
+          "reviewerRationale": null
+        }
+      },
+      "rubricReview": {
+        "visiblePositiveDefinition": null,
+        "visibleNegativeDefinition": null,
+        "acceptableViews": null,
+        "visibilityRequirements": null,
+        "phaseBoundaryConvention": null,
+        "sidePolicy": null,
+        "temporalAggregation": null,
+        "minimumDurationSeconds": null,
+        "boundaryToleranceDegrees": null,
+        "measurementUncertaintyPolicy": null,
+        "unknownReasons": null,
+        "ruleMappingToIndependentFormCatalog": null
+      }
+    }
+  ],
+  "annotationExample": {
+    "sampleId": null,
+    "clipSha256": null,
+    "boundaryManifestSha256": null,
+    "startSeconds": null,
+    "endSeconds": null,
+    "physicalRep": null,
+    "ruleId": null,
+    "anatomicalSide": null,
+    "windowCoverage": "unknown",
+    "visibility": "unknown",
+    "contactChange": "unknown",
+    "label": "unknown",
+    "reviewerId": null,
+    "adjudicatorId": null,
+    "evidenceNotes": null
+  },
+  "annotationExampleIsImportable": false
+}
