@@ -1,0 +1,28 @@
+{
+  "candidate_output_count" : 216,
+  "candidate_source_sha256" : {
+    "accepted_phase" : "549e8ff86fe2fc130cf5e5a4421887b13aea778797062fc595e931be6d019a0a",
+    "legacy" : "c58740a36791962c9196f2c0443c9d5ae9ad71b343d6688f55614abaea57c40d"
+  },
+  "default_policy" : "legacy_raw",
+  "defaultPhasePolicy" : "legacy_raw",
+  "failures" : 0,
+  "legacy_checkpoint_count" : 720,
+  "legacyParityCheckpoints" : 720,
+  "maximumAbsoluteError" : 2.7755575615628914e-17,
+  "outputs" : 864,
+  "protocol_sha256" : "0c7f7c18138287827f66e61f7914c767da79f6ac3e644d1e4927fbade65b85c9",
+  "source_sha256" : {
+    "fixture" : "e59f3d863b4c43073d91e20653013e8f3c795f008ddce15c06c4dd63cc528b1f",
+    "generator" : "25f77aa7532f0aaf0d0444454097d7b1691e87e7ee418468c0033479b620ed21",
+    "legacy_fixture" : "47c5f9276582cdc72ad7f72826423a670655d70425561c1d1922f7c428d37f2b",
+    "legacy_verifier" : "2ea2fe573adeb18bf5987abcea39ef497247334f97c4f50022297b0de9a7e5f5",
+    "protocol" : "0c7f7c18138287827f66e61f7914c767da79f6ac3e644d1e4927fbade65b85c9",
+    "python_policy" : "42b77a7ea0a7e8fb081d7817a631a41fcaf397511654182daf7841823320089f",
+    "swift" : "4094be59453ccfd3e0a16b16d8631544d9d45019c8113fc69c358c321c5711f0",
+    "swift_test" : "647126a46f96566f27900b5327f2ebe4c3b3ccb1edd8cac93863c78a1e199212",
+    "swift_witness_test" : "38e2fa841a4474de56758206e1a06fbbb52467ca4bcc16b0975406774e6fecac"
+  },
+  "status" : "PASS",
+  "totalcases" : 36
+}
