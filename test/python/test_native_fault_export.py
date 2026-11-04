@@ -63,6 +63,17 @@ def rewrite(path,records):
 
 
 class NativePayloadTests(unittest.TestCase):
+    def test_native_fixture_bytes_match_producer_provenance(self):
+        original=json.loads((FIXTURE.parent/'provenance.json').read_text())
+        for filename,expected in original['fixtureSHA256'].items():
+            self.assertEqual(ex.file_sha(FIXTURE.parent/filename),expected)
+        for filename in ('coverage_v2_provenance.json','negative_v1_provenance.json'):
+            provenance=json.loads((FIXTURE.parent/filename).read_text())
+            for entry in provenance['fixtures']:
+                path=FIXTURE.parent/provenance['localFileMapping'][entry['filename']]
+                self.assertEqual(path.stat().st_size,entry['bytes'])
+                self.assertEqual(ex.file_sha(path),entry['sha256'])
+
     def test_actual_native_fixture_has_honest_missing_phases_and_baselines(self):
         trace=direct_trace(rows());states=[]
         for ordinal in range(4):
@@ -172,6 +183,45 @@ class NativePayloadTests(unittest.TestCase):
                             self.assertEqual(row['state'],'warning',audit['disposition'])
                         positive.add(rule)
         self.assertEqual(positive,set().union(*map(set,ex.CORE.values())))
+
+    def test_all_twenty_native_default_threshold_negative_paths_are_supported(self):
+        negative=set()
+        for case,exercise in (('pushup_side','pushup'),('squat_side','squat'),
+                              ('squat_front','squat'),('row_side','barbell_row')):
+            records=[json.loads(line) for line in (FIXTURE.parent/('negative_v1_'+case+'.jsonl')).read_text().splitlines()]
+            trace=direct_trace(records);trace.exercise=exercise
+            for index,rep in enumerate(trace.reps.values()):
+                for rule in ex.CORE[exercise]:
+                    row,audit=decision(trace,rule,index)
+                    native=next(r for r in rep['judgements']['2d']['rules'] if r['rule']==rule)
+                    if native['condition'] is False:
+                        with self.subTest(case=case,rep=index,rule=rule):
+                            self.assertEqual(row['state'],'no_warning',audit['disposition'])
+                            self.assertTrue(all(row['checks'].values()))
+                            self.assertEqual(row['exposureStartSeconds'],trace.rep_sources(rep)[0]['seconds'])
+                            self.assertEqual(row['exposureEndSeconds'],trace.rep_sources(rep)[-1]['seconds'])
+                        negative.add(rule)
+        self.assertEqual(negative,set().union(*map(set,ex.CORE.values())))
+
+    def test_all_twenty_negatives_withhold_when_current_observation_is_missing(self):
+        tested=set()
+        for case,exercise in (('pushup_side','pushup'),('squat_side','squat'),
+                              ('squat_front','squat'),('row_side','barbell_row')):
+            records=[json.loads(line) for line in (FIXTURE.parent/('negative_v1_'+case+'.jsonl')).read_text().splitlines()]
+            for index,rep in enumerate(direct_trace(records).reps.values()):
+                for rule in ex.CORE[exercise]:
+                    if rule in tested:continue
+                    trace=direct_trace(copy.deepcopy(records));trace.exercise=exercise
+                    original,_=decision(trace,rule,index)
+                    if original['state']!='no_warning':continue
+                    current=list(trace.reps.values())[index]
+                    trace.frames[current['frames2D'][1]]['sample2D']=None
+                    changed,audit=decision(trace,rule,index)
+                    with self.subTest(case=case,rep=index,rule=rule):
+                        self.assertEqual(changed['state'],'withheld',audit['disposition'])
+                        self.assertEqual(audit['disposition'],'selected_source_unavailable')
+                    tested.add(rule)
+        self.assertEqual(tested,set().union(*map(set,ex.CORE.values())))
 
     def test_pointwise_positive_survives_unrelated_missing_quantity_but_negative_does_not(self):
         trace=core_trace('pushup')

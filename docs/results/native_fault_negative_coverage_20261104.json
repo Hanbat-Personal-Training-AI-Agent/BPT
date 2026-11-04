@@ -1,0 +1,245 @@
+{
+  "all20PositiveAndNegativeCovered": true,
+  "fixtureProvenance": "test/python/fixtures/native_fault_trace/negative_v1_provenance.json",
+  "newFixtures": {
+    "pushup_side": {
+      "frames": 20,
+      "reps": 4,
+      "sha256": "057fdd3187f425b281404c384f21184a1622d9a8af17f9eab7c72994dabb1d9f",
+      "states": {
+        "no_warning": 27,
+        "withheld": 5
+      }
+    },
+    "row_side": {
+      "frames": 20,
+      "reps": 4,
+      "sha256": "0f7f2fae3426713b038be85eeb1ca779c254cfbcd0f6d78dcb860ca8b4af3113",
+      "states": {
+        "no_warning": 18,
+        "withheld": 2
+      }
+    },
+    "squat_front": {
+      "frames": 20,
+      "reps": 4,
+      "sha256": "67bf0f187cd5e89f9a201d3260671a46cf6280f45b8b0e060480c635efb04031",
+      "states": {
+        "no_warning": 8,
+        "withheld": 20
+      }
+    },
+    "squat_side": {
+      "frames": 20,
+      "reps": 4,
+      "sha256": "5695a450e08960419600625b0bbfbe1664cffe71e7c90dadeca973958810f62b",
+      "states": {
+        "no_warning": 21,
+        "withheld": 7
+      }
+    }
+  },
+  "perRule": {
+    "pushup_depth_fade": {
+      "addedSupportedNegative": 3,
+      "addedWithheld": 1,
+      "nativeFalseMatchesAddedNegative": true,
+      "priorSupportedNegative": 3,
+      "supportedPositive": 3,
+      "totalSupportedNegative": 6
+    },
+    "pushup_hand_position": {
+      "addedSupportedNegative": 1,
+      "addedWithheld": 3,
+      "nativeFalseMatchesAddedNegative": true,
+      "priorSupportedNegative": 0,
+      "supportedPositive": 1,
+      "totalSupportedNegative": 1
+    },
+    "pushup_head_drop": {
+      "addedSupportedNegative": 4,
+      "addedWithheld": 0,
+      "nativeFalseMatchesAddedNegative": true,
+      "priorSupportedNegative": 7,
+      "supportedPositive": 4,
+      "totalSupportedNegative": 11
+    },
+    "pushup_head_up": {
+      "addedSupportedNegative": 4,
+      "addedWithheld": 0,
+      "nativeFalseMatchesAddedNegative": true,
+      "priorSupportedNegative": 7,
+      "supportedPositive": 4,
+      "totalSupportedNegative": 11
+    },
+    "pushup_hip_pike": {
+      "addedSupportedNegative": 4,
+      "addedWithheld": 0,
+      "nativeFalseMatchesAddedNegative": true,
+      "priorSupportedNegative": 8,
+      "supportedPositive": 4,
+      "totalSupportedNegative": 12
+    },
+    "pushup_hip_sag": {
+      "addedSupportedNegative": 4,
+      "addedWithheld": 0,
+      "nativeFalseMatchesAddedNegative": true,
+      "priorSupportedNegative": 4,
+      "supportedPositive": 8,
+      "totalSupportedNegative": 8
+    },
+    "pushup_no_lockout": {
+      "addedSupportedNegative": 4,
+      "addedWithheld": 0,
+      "nativeFalseMatchesAddedNegative": true,
+      "priorSupportedNegative": 2,
+      "supportedPositive": 6,
+      "totalSupportedNegative": 6
+    },
+    "pushup_shallow": {
+      "addedSupportedNegative": 3,
+      "addedWithheld": 1,
+      "nativeFalseMatchesAddedNegative": true,
+      "priorSupportedNegative": 1,
+      "supportedPositive": 6,
+      "totalSupportedNegative": 4
+    },
+    "row_head_up": {
+      "addedSupportedNegative": 4,
+      "addedWithheld": 0,
+      "nativeFalseMatchesAddedNegative": true,
+      "priorSupportedNegative": 3,
+      "supportedPositive": 1,
+      "totalSupportedNegative": 7
+    },
+    "row_short_pull": {
+      "addedSupportedNegative": 3,
+      "addedWithheld": 1,
+      "nativeFalseMatchesAddedNegative": true,
+      "priorSupportedNegative": 0,
+      "supportedPositive": 3,
+      "totalSupportedNegative": 3
+    },
+    "row_shrug": {
+      "addedSupportedNegative": 4,
+      "addedWithheld": 0,
+      "nativeFalseMatchesAddedNegative": true,
+      "priorSupportedNegative": 0,
+      "supportedPositive": 8,
+      "totalSupportedNegative": 4
+    },
+    "row_standing_up": {
+      "addedSupportedNegative": 3,
+      "addedWithheld": 1,
+      "nativeFalseMatchesAddedNegative": true,
+      "priorSupportedNegative": 0,
+      "supportedPositive": 3,
+      "totalSupportedNegative": 3
+    },
+    "row_torso_swing": {
+      "addedSupportedNegative": 4,
+      "addedWithheld": 0,
+      "nativeFalseMatchesAddedNegative": true,
+      "priorSupportedNegative": 1,
+      "supportedPositive": 6,
+      "totalSupportedNegative": 5
+    },
+    "squat_depth_fade": {
+      "addedSupportedNegative": 3,
+      "addedWithheld": 5,
+      "nativeFalseMatchesAddedNegative": true,
+      "priorSupportedNegative": 3,
+      "supportedPositive": 3,
+      "totalSupportedNegative": 6
+    },
+    "squat_heel_rise": {
+      "addedSupportedNegative": 8,
+      "addedWithheld": 0,
+      "nativeFalseMatchesAddedNegative": true,
+      "priorSupportedNegative": 0,
+      "supportedPositive": 8,
+      "totalSupportedNegative": 8
+    },
+    "squat_hips_first": {
+      "addedSupportedNegative": 4,
+      "addedWithheld": 4,
+      "nativeFalseMatchesAddedNegative": true,
+      "priorSupportedNegative": 0,
+      "supportedPositive": 7,
+      "totalSupportedNegative": 4
+    },
+    "squat_knee_valgus": {
+      "addedSupportedNegative": 4,
+      "addedWithheld": 4,
+      "nativeFalseMatchesAddedNegative": true,
+      "priorSupportedNegative": 0,
+      "supportedPositive": 4,
+      "totalSupportedNegative": 4
+    },
+    "squat_lean_drift": {
+      "addedSupportedNegative": 3,
+      "addedWithheld": 5,
+      "nativeFalseMatchesAddedNegative": true,
+      "priorSupportedNegative": 0,
+      "supportedPositive": 3,
+      "totalSupportedNegative": 3
+    },
+    "squat_no_lockout": {
+      "addedSupportedNegative": 4,
+      "addedWithheld": 4,
+      "nativeFalseMatchesAddedNegative": true,
+      "priorSupportedNegative": 1,
+      "supportedPositive": 7,
+      "totalSupportedNegative": 5
+    },
+    "squat_shallow": {
+      "addedSupportedNegative": 3,
+      "addedWithheld": 5,
+      "nativeFalseMatchesAddedNegative": true,
+      "priorSupportedNegative": 3,
+      "supportedPositive": 3,
+      "totalSupportedNegative": 6
+    }
+  },
+  "policyOrExporterChanged": false,
+  "previousEightNegativeGapsClosed": [
+    "pushup_hand_position",
+    "row_short_pull",
+    "row_shrug",
+    "row_standing_up",
+    "squat_heel_rise",
+    "squat_hips_first",
+    "squat_knee_valgus",
+    "squat_lean_drift"
+  ],
+  "producerRuntimeBase": "260fbd3ade9d0cbfc611f7f77888a0f37664dc01",
+  "producerTestCommit": "82136eb9c4443147f05ed19f169c3a3ec6dae856",
+  "realInferenceRerun": false,
+  "realRunLabelsStillUnknown": 200,
+  "realRunStatesPreserved": {
+    "no_warning": 66,
+    "warning": 3,
+    "withheld": 131
+  },
+  "schema": "bpt-native-fault-negative-coverage-v1",
+  "scope": "synthetic_actual_tracker_execution_test_only_not_accuracy",
+  "tests": {
+    "all20NegativesWithholdOnMissingCurrentObservation": true,
+    "combinedExporterImporterEvaluatorTests": 56,
+    "failures": 0,
+    "newTotalExporterTests": 31
+  },
+  "totalAddedStates": {
+    "no_warning": 74,
+    "withheld": 34
+  },
+  "unchangedFrozenSHA256": {
+    "boundaries": "783b91070ac12e1ef18b8a87ea602c828874f290697183944978cc1d6ee125d4",
+    "evidence": "4348a50b28b4a1aa4593ab82513da49c1e036bf4018eac8354c2bedaf1d81f02",
+    "exporter": "d9857160c93f7330ea743a3612c1b9e6f5af71a5ea4b6d7031ac5e59b5406712",
+    "manifest": "8e3f38ebd9bff883a32d697c233301562edd1a4ae30ea799354007535ee41ce2",
+    "originalResultJSON": "07c4b3ba1d87a228002f28999eeb2189c4d0076df8fa99c8bc0e6ae49671dfd6",
+    "originalResultMarkdown": "705ca7f2928fa5e1c0b17efda68f66ddf6635a549f47c1f6147fd16a5aeb083c",
+    "supportPolicy": "14515e585175c7e1a396dc9a6b5a73dc1a14639976ee0cc203c028f20fcbcccc"
+  }
+}
