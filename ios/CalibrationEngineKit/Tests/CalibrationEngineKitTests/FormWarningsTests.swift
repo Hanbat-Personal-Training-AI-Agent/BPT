@@ -818,3 +818,115 @@ extension FormWarningsTests {
         XCTAssertTrue(assessed.isEmpty)
     }
 }
+
+
+/// Diagnostic snapshots only: these assertions do not establish complete rule exposure or form labels.
+extension FormWarningsTests {
+    func testDeliveryEvidencePreservesQuietConditionAndImmutableEnabledSnapshot() throws {
+        let tracker = FormWarningTracker(exercise: .pushUp)
+        let enabled = tracker.common.enabledFeedbackKeys
+        let report = pushUpRep(tracker, hipDrop: -50, frame: 0)
+        let evidence = try XCTUnwrap(report.deliveryDecisionEvidence)
+        XCTAssertEqual(report.warnings, ["pushup_hip_pike"])
+        XCTAssertNil(report.spoken)
+        XCTAssertTrue(tracker.drainEvents().isEmpty)
+        XCTAssertEqual(evidence.conditionFiredKeys2D, report.warnings2D)
+        XCTAssertEqual(evidence.selectedConditionFiredKeys, report.warnings)
+        XCTAssertTrue(evidence.deliveryAssessedKeys2D.contains("pushup_hip_pike"))
+        XCTAssertFalse(evidence.enabledFeedbackKeys.contains("pushup_hip_pike"))
+        XCTAssertEqual(evidence.enabledFeedbackKeys, enabled)
+        XCTAssertEqual(evidence.dictionary["selected_condition_fired_enabled_keys"] as? [String], [])
+        tracker.common.enabledFeedbackKeys = ["pushup_hip_pike"]
+        XCTAssertEqual(evidence.enabledFeedbackKeys, enabled, "report cannot follow later delivery configuration")
+        XCTAssertEqual(report.deliveryDecisionEvidence?.enabledFeedbackKeys, enabled)
+    }
+
+    func testDeliveryEvidenceUnknownViewKeepsFiredSeparateFromDeliveryAssessed() throws {
+        let tracker = FormWarningTracker(exercise: .pushUp)
+        var frame = sidePushUp(hipDrop: 70)
+        frame[6].confidence = 0 // selected near side is measurable; opposing shoulder/view is missing.
+        tracker.observe(frameIndex: 0, coco17: frame, phase: "top")
+        tracker.beginRep()
+        tracker.observe(frameIndex: 1, coco17: frame, phase: "bottom")
+        let report = tracker.finishRep(repIndex: 1)
+        let evidence = try XCTUnwrap(report.deliveryDecisionEvidence)
+        XCTAssertNil(report.metrics2D["front_view_fraction"])
+        XCTAssertEqual(report.warnings, ["pushup_hip_sag"], "historical condition is preserved")
+        XCTAssertEqual(report.spoken, "pushup_hip_sag", "diagnostics do not add a new delivery gate")
+        XCTAssertTrue(evidence.deliveryAssessedKeys2D.isEmpty)
+        XCTAssertEqual(evidence.conditionFiredKeys2D, ["pushup_hip_sag"])
+        XCTAssertEqual(evidence.selectedSource, "2d")
+        XCTAssertNil(evidence.deliveryAssessedKeys3D)
+    }
+
+    func testDeliveryEvidencePartialPositiveKeepsExistingJudgeSetsExactly() throws {
+        let tracker = FormWarningTracker(exercise: .squat)
+        tracker.common.form3DRequired = true
+        tracker.observe(frameIndex: 0, coco17: sidePushUp(hipDrop: 0),
+                        pose3D: standing3D(kneeTheta: 5), pose3DState: .ok, phase: "top")
+        tracker.beginRep()
+        let first = tracker.finishRep(repIndex: 1)
+        var partial = standing3D(kneeTheta: 40)
+        partial[11] = SIMD3(repeating: .nan) // selected hip angle missing, known knee flexion survives.
+        tracker.observe(frameIndex: 1, coco17: sidePushUp(hipDrop: 0),
+                        pose3D: partial, pose3DState: .partial3D, phase: "top")
+        tracker.beginRep()
+        let report = tracker.finishRep(repIndex: 2)
+        XCTAssertNil(report.metrics3D["hip_angle_max"])
+        XCTAssertTrue(report.warnings.contains("squat_no_lockout"))
+        let evidence = try XCTUnwrap(report.deliveryDecisionEvidence)
+        XCTAssertFalse(try XCTUnwrap(evidence.deliveryAssessedKeys3D).contains("squat_no_lockout"))
+        XCTAssertTrue(try XCTUnwrap(evidence.conditionFiredKeys3D).contains("squat_no_lockout"))
+        var assessed: Set<String> = []
+        let fired = tracker.judge(report.metrics3D, history: [first.metrics3D], repIndex: 2,
+                                  assessed: { assessed = $0 })
+        XCTAssertEqual(evidence.conditionFiredKeys3D, fired)
+        XCTAssertEqual(evidence.deliveryAssessedKeys3D, assessed, "retain EXACT existing delivery qualification")
+        XCTAssertEqual(evidence.selectedDeliveryAssessedKeys, assessed)
+    }
+
+    func testDeliveryEvidenceUnavailable3DDoesNotTurnComparisonIntoSelectedDecision() throws {
+        let tracker = FormWarningTracker(exercise: .pushUp)
+        tracker.common.form3DRequired = true
+        tracker.observe(frameIndex: 0, coco17: sidePushUp(hipDrop: 70), pose3DState: .warmingUp, phase: "top")
+        tracker.beginRep()
+        let report = tracker.finishRep(repIndex: 1)
+        let evidence = try XCTUnwrap(report.deliveryDecisionEvidence)
+        XCTAssertEqual(report.formSource, "3d_unavailable")
+        XCTAssertEqual(report.warnings, [])
+        XCTAssertNil(report.spoken)
+        XCTAssertEqual(report.warnings2D, ["pushup_hip_sag"])
+        XCTAssertEqual(evidence.conditionFiredKeys2D, report.warnings2D)
+        XCTAssertNil(evidence.conditionFiredKeys3D)
+        XCTAssertNil(evidence.deliveryAssessedKeys3D)
+        XCTAssertNil(evidence.selectedConditionFiredKeys)
+        XCTAssertNil(evidence.selectedDeliveryAssessedKeys)
+        XCTAssertTrue(evidence.dictionary["selected_condition_fired_keys"] is NSNull)
+        XCTAssertTrue(tracker.drainEvents().isEmpty)
+    }
+
+    func testDeliveryEvidenceIsAdditiveJSONAndLegacyManualReportsRemainUnknown() throws {
+        let tracker = FormWarningTracker(exercise: .pushUp)
+        let report = pushUpRep(tracker, hipDrop: 70, frame: 0)
+        let manual = FormRepReport(exercise: report.exercise, repIndex: report.repIndex,
+            startFrame: report.startFrame, endFrame: report.endFrame, side: report.side,
+            metrics2D: report.metrics2D, metrics3D: report.metrics3D, frames3D: report.frames3D,
+            bad3DFrames: report.bad3DFrames, warnings: report.warnings, spoken: report.spoken,
+            warnings2D: report.warnings2D, warnings3D: report.warnings3D,
+            formSource: report.formSource, states3D: report.states3D)
+        XCTAssertNil(manual.deliveryDecisionEvidence)
+        XCTAssertTrue(manual.dictionary["delivery_decision_evidence"] is NSNull)
+        var before = manual.dictionary, after = report.dictionary
+        before.removeValue(forKey: "delivery_decision_evidence")
+        after.removeValue(forKey: "delivery_decision_evidence")
+        XCTAssertEqual(try JSONSerialization.data(withJSONObject: before, options: [.sortedKeys]),
+                       try JSONSerialization.data(withJSONObject: after, options: [.sortedKeys]),
+                       "every legacy report field is unchanged")
+        let parsed = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONSerialization.data(withJSONObject: report.dictionary)) as? [String: Any])
+        let evidence = try XCTUnwrap(parsed["delivery_decision_evidence"] as? [String: Any])
+        XCTAssertEqual(evidence["scope"] as? String, "delivery_qualification_not_complete_rule_coverage")
+        XCTAssertEqual(evidence["spoken_key"] as? String, report.spoken)
+        XCTAssertEqual(tracker.warningRepCounts, ["pushup_hip_sag": 1])
+        XCTAssertEqual(tracker.drainEvents().map(\.key), ["pushup_hip_sag"])
+    }
+}

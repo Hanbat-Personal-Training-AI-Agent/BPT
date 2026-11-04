@@ -373,6 +373,55 @@ struct FormFrameSample {
     var state3D: Pose3DState?
 }
 
+/// Snapshot of the existing judge/delivery bookkeeping, not complete per-rule exposure.
+/// An assessed key qualified for delivery/praise checks; its absence is not a negative decision.
+/// A condition can fire with partial support while not qualifying for the assessed set.
+struct FormDeliveryDecisionEvidence {
+    let deliveryAssessedKeys2D: Set<String>
+    /// nil = no 3D judge call; an empty set = judge ran but qualified no keys.
+    let deliveryAssessedKeys3D: Set<String>?
+    let conditionFiredKeys2D: [String]
+    let conditionFiredKeys3D: [String]?
+    let selectedSource: String
+    let enabledFeedbackKeys: Set<String>
+    let spokenKey: String?
+
+    var selectedDeliveryAssessedKeys: Set<String>? {
+        switch selectedSource {
+        case "2d": return deliveryAssessedKeys2D
+        case "3d": return deliveryAssessedKeys3D
+        default: return nil
+        }
+    }
+
+    var selectedConditionFiredKeys: [String]? {
+        switch selectedSource {
+        case "2d": return conditionFiredKeys2D
+        case "3d": return conditionFiredKeys3D
+        default: return nil
+        }
+    }
+
+    var dictionary: [String: Any] {
+        [
+            "contract": "bpt-form-delivery-evidence-v1",
+            "scope": "delivery_qualification_not_complete_rule_coverage",
+            "delivery_assessed_keys_2d": deliveryAssessedKeys2D.sorted(),
+            "delivery_assessed_keys_3d": deliveryAssessedKeys3D.map { $0.sorted() as Any } ?? NSNull(),
+            "condition_fired_keys_2d": conditionFiredKeys2D,
+            "condition_fired_keys_3d": conditionFiredKeys3D.map { $0 as Any } ?? NSNull(),
+            "selected_source": selectedSource,
+            "selected_delivery_assessed_keys": selectedDeliveryAssessedKeys.map { $0.sorted() as Any } ?? NSNull(),
+            "selected_condition_fired_keys": selectedConditionFiredKeys.map { $0 as Any } ?? NSNull(),
+            "enabled_feedback_keys": enabledFeedbackKeys.sorted(),
+            "selected_condition_fired_enabled_keys": selectedConditionFiredKeys.map {
+                $0.filter(enabledFeedbackKeys.contains) as Any
+            } ?? NSNull(),
+            "spoken_key": spokenKey.map { $0 as Any } ?? NSNull(),
+        ]
+    }
+}
+
 struct FormRepReport {
     let exercise: FormExercise
     let repIndex: Int
@@ -395,6 +444,8 @@ struct FormRepReport {
     var formSource = "2d"
     /// Rep frames per MotionAGFormerLive state.
     var states3D: [String: Int] = [:]
+    /// nil for manually constructed/legacy reports: unknown, never empty-as-evaluated.
+    var deliveryDecisionEvidence: FormDeliveryDecisionEvidence? = nil
 
     var dictionary: [String: Any] {
         [
@@ -412,6 +463,7 @@ struct FormRepReport {
             "warnings_3d": warnings3D.map { $0 as Any } ?? NSNull(),
             "form_source": formSource,
             "states_3d": states3D,
+            "delivery_decision_evidence": deliveryDecisionEvidence.map { $0.dictionary as Any } ?? NSNull(),
             "grades": warnings.map { FormWarningTracker.grade(of: $0).name },
             "spoken": spoken.map { $0 as Any } ?? NSNull(),
         ]
@@ -767,6 +819,7 @@ final class FormWarningTracker {
             warningRepCounts[key, default: 0] += 1
             setWarningRepCounts[key, default: 0] += 1
         }
+        let enabledFeedbackKeys = common.enabledFeedbackKeys
         let spoken = deliver(fired, repIndex: repIndex, assessed: common.form3DRequired ? assessed3D : assessed2D,
                              source3D: common.form3DRequired,
                              judged: judgedForPraise(frames: frames, metrics: common.form3DRequired ? metrics3D : metrics,
@@ -787,7 +840,15 @@ final class FormWarningTracker {
             warnings2D: fired2D,
             warnings3D: fired3D,
             formSource: formSource,
-            states3D: states
+            states3D: states,
+            deliveryDecisionEvidence: FormDeliveryDecisionEvidence(
+                deliveryAssessedKeys2D: assessed2D,
+                deliveryAssessedKeys3D: fired3D == nil ? nil : assessed3D,
+                conditionFiredKeys2D: fired2D,
+                conditionFiredKeys3D: fired3D,
+                selectedSource: formSource,
+                enabledFeedbackKeys: enabledFeedbackKeys,
+                spokenKey: spoken)
         )
         reports.append(report)
         if reports.count > 100 { reports.removeFirst() }
