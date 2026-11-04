@@ -24,7 +24,7 @@ public class ReportController {
 
     @Operation(
             summary = "리포트 분석 집계 조회",
-            description = "지정된 기간(from~to) 동안 수행한 총 운동 세션 수, 종목별 세션 수(세션 많은 순), 자세 실수별 발생 횟수(횟수 많은 순)를 집계하여 반환합니다. 기간 파라미터가 없으면 전체 기록을 집계합니다."
+            description = "지정된 기간(from~to) 동안 수행한 총 운동 세션 수, 종목별 세션 수(세션 많은 순), 자세 실수별 발생 횟수(횟수 많은 순)를 집계하여 반환합니다. 모든 집계에는 totalReps가 0보다 큰 기록만 포함하며, 기간 파라미터가 없으면 전체 기간을 집계합니다."
     )
     @GetMapping("/analysis")
     public ResponseEntity<ReportAnalysisResponseDto> getReportAnalysis(

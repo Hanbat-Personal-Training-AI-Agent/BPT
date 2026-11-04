@@ -19,10 +19,10 @@ public class DashboardSummaryResponseDto {
     @Schema(description = "사용자 이름", example = "지훈")
     private String userName;
 
-    @Schema(description = "기준 날짜 (YYYY-MM-DD)", example = "2026-09-30")
+    @Schema(description = "한국 시간(Asia/Seoul) 기준 오늘 날짜 (YYYY-MM-DD)", example = "2026-09-30")
     private String date;
 
-    @Schema(description = "주간 목표 달성률 (%)", example = "75.0")
+    @Schema(description = "주간 목표 달성률 (%)", example = "100.0")
     private Double achievementRate;
 
     @Schema(description = "오늘 순수 운동 시간 (분)", example = "42")
@@ -34,7 +34,7 @@ public class DashboardSummaryResponseDto {
     @Schema(description = "오늘 수행한 총 반복 횟수", example = "45")
     private Integer todayTotalReps;
 
-    @Schema(description = "주간 목표 운동 일수", example = "4")
+    @Schema(description = "주간 목표 운동 일수 (미설정 시 기본값 3일)", example = "3")
     private Integer weeklyGoalCount;
 
     @Schema(description = "이번 주 운동 완료 일수", example = "3")

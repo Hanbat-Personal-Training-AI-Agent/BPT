@@ -165,14 +165,18 @@ public class WorkoutService {
             throw new CustomException(ErrorCode.INVALID_CALENDAR_MONTH);
         }
 
-        int targetYear = year != null ? year : LocalDate.now().getYear();
-        int targetMonth = month != null ? month : LocalDate.now().getMonthValue();
+        LocalDate today = LocalDate.now();
+        int targetYear = year != null ? year : today.getYear();
+        int targetMonth = month != null ? month : today.getMonthValue();
 
         LocalDateTime start = LocalDateTime.of(targetYear, targetMonth, 1, 0, 0, 0);
         int lastDay = YearMonth.of(targetYear, targetMonth).lengthOfMonth();
         LocalDateTime end = LocalDateTime.of(targetYear, targetMonth, lastDay, 23, 59, 59);
 
-        List<WorkoutRecord> records = workoutRecordRepository.findAllByUserIdAndDateBetweenOrderByDateAsc(userId, start, end);
+        List<WorkoutRecord> records = workoutRecordRepository
+                .findAllByUserIdAndDateBetweenOrderByDateAsc(userId, start, end).stream()
+                .filter(r -> r.getTotalReps() != null && r.getTotalReps() > 0)
+                .collect(Collectors.toList());
 
         DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
         List<String> workoutDates = records.stream()
@@ -187,6 +191,8 @@ public class WorkoutService {
         for (Map.Entry<String, List<WorkoutRecord>> entry : grouped.entrySet()) {
             List<MonthlyCalendarResponseDto.DailyExerciseSummaryDto> exerciseSummaries = entry.getValue().stream()
                     .map(r -> MonthlyCalendarResponseDto.DailyExerciseSummaryDto.builder()
+                            .id(String.valueOf(r.getId()))
+                            .exerciseId(r.getExerciseId())
                             .exerciseName(r.getExerciseName())
                             .weightKg(r.getWeightKg() != null ? r.getWeightKg() : BigDecimal.ZERO)
                             .sets(r.getTargetSets() != null ? r.getTargetSets() : 1)

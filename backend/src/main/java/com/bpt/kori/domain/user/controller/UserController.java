@@ -59,7 +59,7 @@ public class UserController {
         return ResponseEntity.ok(response);
     }
 
-    @Operation(summary = "메인 홈 대시보드 요약 (API 12)", description = "주간 목표 달성률, 오늘 운동 시간(분), 세트수, 체형 재측정(30일 주기) 필요 여부 및 최근 운동 기록을 제공합니다.")
+    @Operation(summary = "메인 홈 대시보드 요약 (API 12)", description = "주간 목표 달성률, 오늘 운동 시간(분), 세트수, 반복수, 체형 재측정(30일 주기) 필요 여부 및 최근 운동 기록을 제공합니다. 운동 집계와 최근 기록에는 totalReps가 0보다 큰 기록만 포함합니다. 오늘과 이번 주(월요일~일요일)는 한국 시간(Asia/Seoul) 기준이며, 주간 목표가 미설정이면 3일로 계산합니다.")
     @GetMapping("/me/dashboard")
     public ResponseEntity<DashboardSummaryResponseDto> getDashboardSummary(@AuthenticationPrincipal UserPrincipal userPrincipal) {
         DashboardSummaryResponseDto response = userService.getDashboardSummary(userPrincipal.getUserId());
