@@ -125,3 +125,49 @@ def test_deep_entire_target_batch_rejected_before_put():
 def test_deep_rejects_unsafe_spring_base(url):
     with pytest.raises(Exception, match='explicit HTTPS base URL'):
         deep.verified_spring_base(url)
+
+
+@pytest.mark.parametrize('status,progress', [('failed', 45), ('signed-secret-status', 'query-jwt'),
+                                           (['secret'], True), ('done', 101)])
+def test_job_log_whitelist(capsys, status, progress):
+    secret = 'https://storage.example/object?signature=PRIVATE&jwt=TOKEN'
+    job = {'status': status, 'progressRate': progress, 'error': secret,
+           'otherField': secret, 'result': {'modelGlbUrl': secret, 'otherField': secret}}
+    print(e2e.json.dumps(e2e.job_log_summary(job)))
+    logged = capsys.readouterr().out
+    assert secret not in logged
+    assert 'PRIVATE' not in logged and 'TOKEN' not in logged
+    assert 'signed-secret-status' not in logged and 'query-jwt' not in logged
+    summary = e2e.json.loads(logged)
+    assert set(summary) == {'status', 'progressRate', 'resultPresent'}
+    assert summary['status'] in ('queued', 'running', 'done', 'failed', 'unknown')
+    assert summary['progressRate'] is None or type(summary['progressRate']) is int
+
+
+def test_main_failed_job_logs_no_returned_error_result_or_extra_fields(capsys):
+    secret = 'https://storage.example/object?signature=PRIVATE&jwt=TOKEN'
+    accepted = {'status': 'accepted', 'jobId': 'job-safe'}
+    job = {'status': 'failed', 'progressRate': 50, 'error': secret, 'otherField': secret,
+           'result': {'modelGlbUrl': secret, 'otherField': secret}}
+    class Client:
+        def __init__(self):
+            self.responses = iter([Response(401, {}), Response(200, body()), Response(422, {}),
+                                   Response(200, body()), Response(202, accepted),
+                                   Response(202, accepted), Response(200, accepted)])
+        def post(self, *args, **kwargs):
+            return next(self.responses)
+        def put(self, *args, **kwargs):
+            return Response(403 if kwargs['headers']['Content-Type'] == 'text/plain' else 200, {})
+        def get(self, *args, **kwargs):
+            return Response(200, job)
+    with patch.object(sys, 'argv', ['e2e', '--api', 'https://api.example/v1', '--storage-host', HOST]), \
+         patch.dict('os.environ', {'BPT_TOKEN': 'synthetic'}), \
+         patch.object(e2e, 'load_bundle', return_value=('session', FILES)), \
+         patch.object(e2e.httpx, 'Client', return_value=Client()):
+        with pytest.raises(SystemExit):
+            e2e.main()
+    logged = capsys.readouterr().out
+    assert 'FAIL  job finished' in logged
+    assert '"resultPresent": true' in logged
+    for forbidden in [secret, 'PRIVATE', 'TOKEN', 'modelGlbUrl', 'otherField']:
+        assert forbidden not in logged

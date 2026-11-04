@@ -55,6 +55,17 @@ def validate_targets(body, files, hosts):
     return targets
 
 
+def job_log_summary(job):
+    """Only bounded protocol values may enter logs; returned text stays private."""
+    status = job.get("status")
+    progress = job.get("progressRate")
+    return {
+        "status": status if status in ("queued", "running", "done", "failed") else "unknown",
+        "progressRate": progress if type(progress) is int and 0 <= progress <= 100 else None,
+        "resultPresent": isinstance(job.get("result"), dict),
+    }
+
+
 def load_bundle(session_dir):
     if session_dir is None:
         from conftest import bundle  # synthetic photos and manifest
@@ -138,25 +149,24 @@ def main():
     check("duplicate complete -> same job", second.json() == first.json())
     again = client.post(f"{api}/calibrations/uploads", json=prepare_body, headers=auth)
     check("prepare after acceptance -> accepted", again.json() == first.json())
-    print(f"      accepted in {time.time() - started:.1f}s, jobId {first.json()['jobId']}")
+    print(f"      accepted in {time.time() - started:.1f}s")
 
     job_url = f"{api}/calibrations/jobs/{first.json()['jobId']}"
     deadline = time.time() + opts.wait
     rates = []
     while True:
         job = client.get(job_url, headers={"Authorization": f"Bearer {token}"}).json()
-        rates.append((job["status"], job.get("progressRate")))
+        summary = job_log_summary(job)
+        rates.append((summary["status"], summary["progressRate"]))
         if job["status"] in ("done", "failed") or time.time() > deadline:
             break
         time.sleep(3)
-    print(f"      job {job['status']} after {time.time() - started:.1f}s, polls {sorted(set(rates))}")
+    print(f"      job {summary['status']} after {time.time() - started:.1f}s, polls {sorted(set(rates), key=str)}")
     check("progressRate on every poll", all(isinstance(r, int) for _, r in rates))
     result = job.get("result") or {}
     glb_url = result.get("modelGlbUrl")
-    shown = dict(job, result=dict(result, modelGlbUrl=glb_url and glb_url.split("?")[0] + "?<signature>",
-                                  debug="<omitted>", jointsH36m="<omitted>")) if result else job
-    print(json.dumps(shown, indent=2, ensure_ascii=False)[:3000])  # signed URLs never printed
-    check("job finished", job["status"] == "done", job.get("error", ""))
+    print(json.dumps(summary, sort_keys=True))
+    check("job finished", job["status"] == "done")
     check("real fit, not a stub", result.get("stub") is False and len(result.get("smplBeta") or []) == 10)
     check("backend fields", all(k in result for k in ("smplBeta", "boneLengthData", "coachComment", "calibratedAt")))
     if glb_url:
