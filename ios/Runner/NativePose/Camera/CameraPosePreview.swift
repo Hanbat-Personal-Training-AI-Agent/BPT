@@ -379,6 +379,45 @@ final class CameraPoseViewModel: ObservableObject {
     nonisolated private let motionProfileGate = MotionObserverAccountProfileGate()
     nonisolated private let motionObserverSession = ExerciseMotionObserver.SourceSession()
     private var motionObserverLog: ExerciseMotionObserverLog?
+    // Tracks produced batches until their main-actor logging has finished. The
+    // processing and lift queue fences alone do not drain unstructured Tasks.
+    nonisolated private let motionObserverDeliveries = DispatchGroup()
+    private var motionObserverFinishAtSetEnd = false
+
+    private func finishMotionObserverAfterDrain() {
+        guard let log = motionObserverLog else { return }
+        let logID = ObjectIdentifier(log)
+        let revision = motionObserverSession.revision()
+        captureManager.afterPendingExternalFrames { [weak self] in
+            guard let self else { return }
+            self.liftQueue.async { [self] in
+                let pending = self.lifter?.pendingFrameCount ?? 0
+                self.motionObserverDeliveries.notify(queue: .main) { [weak self = self] in
+                    MainActor.assumeIsolated {
+                        guard let self, let log = self.motionObserverLog,
+                              ObjectIdentifier(log) == logID else { return }
+                        guard self.motionObserverSession.revision() == revision else {
+                            log.markIncomplete(.drainSuperseded)
+                            return
+                        }
+                        log.finish(drained: true, pendingFrames: pending)
+                        self.motionObserverLog = nil
+                    }
+                }
+            }
+        }
+    }
+
+    nonisolated private func recordMotionObserverProcessingFailure(revision: Int) {
+        guard CameraPreviewOptions.motionObserverEnabled else { return }
+        let deliveries = motionObserverDeliveries
+        deliveries.enter()
+        Task { @MainActor [weak self] in
+            defer { deliveries.leave() }
+            guard let self, self.motionObserverSession.revision() == revision else { return }
+            self.motionObserverLog?.markIncomplete(.processingFailure)
+        }
+    }
     /// Push-up support experiment; capture queue only. Immutable result accompanies each source frame.
     nonisolated(unsafe) private var supportEvidence = PushUpSupportEvidence2D(enabled: CameraPreviewOptions.supportCorridor)
     nonisolated(unsafe) private var supportEpoch = 0
@@ -457,7 +496,8 @@ final class CameraPoseViewModel: ObservableObject {
         captureManager.finishRecording { _, _, _ in }
         if let tracker = formTracker { formLog?.close(tracker) }
         formLog = nil
-        motionObserverLog?.close(); motionObserverLog = nil
+        motionObserverLog?.close(reason: .cameraStop); motionObserverLog = nil
+        motionObserverFinishAtSetEnd = false
         perfTimer?.invalidate()
         perfTimer = nil
         captureManager.perfLog?.close()
@@ -485,11 +525,15 @@ final class CameraPoseViewModel: ObservableObject {
         guard lifecycleObservers.isEmpty else { return }
         let center = NotificationCenter.default
         lifecycleObservers = [
+            center.addObserver(forName: AVCaptureSession.wasInterruptedNotification, object: captureManager.session, queue: .main) { [weak self] _ in
+                Task { @MainActor in self?.motionObserverLog?.markIncomplete(.captureInterrupted) }
+            },
             center.addObserver(forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: .main) { [weak self] _ in
                 Task { @MainActor in
                     guard let self else { return }
                     if self.coachingCandidateEnabled { self.resetCoachingCandidate(end: true) }
                     if CameraPreviewOptions.motionObserverEnabled { self.motionObserverSession.end(); self.motionProfileGate.clear() }
+                    self.motionObserverLog?.markIncomplete(.background)
                     self.keepScreenAwake(false, reason: "background")
                 }
             },
@@ -652,7 +696,10 @@ final class CameraPoseViewModel: ObservableObject {
             VideoRunLog.shared?.write("end_set_flush", ["set": index, "tail_frames": tail.count,
                                                         "tail_states": tail.map { $0.1.state.rawValue },
                                                         "tail_frame_index": tail.map { $0.1.frameIndex }])
+            let observerDeliveries = self.motionObserverDeliveries
+            if CameraPreviewOptions.motionObserverEnabled { observerDeliveries.enter() }
             Task { @MainActor in
+                defer { if CameraPreviewOptions.motionObserverEnabled { observerDeliveries.leave() } }
                 let currentEvidence = self.terminalCapture.accepts(evidenceEpoch)
                 if currentEvidence { self.terminalFlushing = true }
                 for (result, frame3D) in tail { self.handleLifted(result, frame3D) }
@@ -663,6 +710,11 @@ final class CameraPoseViewModel: ObservableObject {
     }
 
     private func finishEndSet(_ index: Int, evidenceEpoch: Int? = nil, flushSucceeded: Bool = false, evidenceEndHost: Double? = nil) {
+        if !flushSucceeded { motionObserverLog?.markIncomplete(.flushFailure) }
+        if motionObserverFinishAtSetEnd {
+            motionObserverFinishAtSetEnd = false
+            finishMotionObserverAfterDrain()
+        }
         defer {
             if VideoRunLog.terminalEvidence, let epoch = evidenceEpoch, terminalCapture.accepts(epoch) {
                 requestTerminalDrain(epoch: epoch, flushSucceeded: flushSucceeded, hostTime: evidenceEndHost ?? CACurrentMediaTime())
@@ -911,6 +963,7 @@ final class CameraPoseViewModel: ObservableObject {
     ) {
         let terminalEpoch = VideoRunLog.terminalEvidence ? terminalCapture.capture(frame: frameIdx) : nil
         let candidateEpoch = coachingCandidateEnabled ? coachingCandidateSession.snapshot() : nil
+        let observerRevision = CameraPreviewOptions.motionObserverEnabled ? motionObserverSession.revision() : 0
         var observerEpoch = CameraPreviewOptions.motionObserverEnabled ? motionObserverSession.snapshot() : nil
         var accountProfile = motionProfileGate.snapshot(session: observerEpoch)
         var terminalHandedOff = false
@@ -1066,7 +1119,10 @@ final class CameraPoseViewModel: ObservableObject {
                             log.count("xs_inferences", (self.lifter?.inferences ?? 0) - before)
                             log.count("lift_us", Int(liftMs * 1000))
                         }
+                        let observerDeliveries = self.motionObserverDeliveries
+                        if CameraPreviewOptions.motionObserverEnabled { observerDeliveries.enter() }
                         Task { @MainActor [weak self] in
+                            defer { if CameraPreviewOptions.motionObserverEnabled { observerDeliveries.leave() } }
                             for (r, frame3D) in ready {
                                 if let self { self.handleLifted(r, frame3D) }
                                 else { bookkeeping.delivered(epoch: r.terminalEpoch, frame: r.frameIndex, failed: true) }
@@ -1074,11 +1130,13 @@ final class CameraPoseViewModel: ObservableObject {
                         }
                     } catch {
                         self.terminalCapture.delivered(epoch: shown.terminalEpoch, frame: frameIdx, failed: true)
+                        self.recordMotionObserverProcessingFailure(revision: observerRevision)
                         print("CameraPosePreview 3D error frame=\(frameIdx): \(error)")
                     }
                 }
                 if CameraPreviewOptions.motion3DAsync { liftQueue.async(execute: lift) } else { liftQueue.sync(execute: lift) }
             } catch {
+                recordMotionObserverProcessingFailure(revision: observerRevision)
                 if frameIdx % CameraPreviewOptions.debugLogEveryNFrames == 0 {
                     print("CameraPosePreview frame processing error: \(error)")
                 }
@@ -1108,9 +1166,16 @@ final class CameraPoseViewModel: ObservableObject {
     /// 3D path: frame t with its own 2D and 3D (state never hidden: it goes to the evaluators and to Flutter).
     @MainActor
     private func handleLifted(_ result: CameraProcessingResult, _ frame3D: Lifted3DFrame) {
-        if let observation = frame3D.motionObservation,
-           motionObserverSession.accepts(result.motionObserverEpoch), !frame3D.diagnosticFlushed {
-            motionObserverLog?.write(observation.dictionary)
+        if result.motionObserverEpoch != nil {
+            if frame3D.diagnosticFlushed {
+                motionObserverLog?.recordSuppressed(.flushTail)
+            } else if !motionObserverSession.accepts(result.motionObserverEpoch) {
+                motionObserverLog?.recordSuppressed(.stoppedGeneration)
+            } else if let observation = frame3D.motionObservation {
+                motionObserverLog?.write(observation.dictionary)
+            } else {
+                motionObserverLog?.recordSuppressed(frame3D.raw == nil ? .noRawModelOutput : .unavailable)
+            }
         }
         defer {
             terminalCapture.delivered(epoch: result.terminalEpoch, frame: result.frameIndex)
@@ -1509,11 +1574,13 @@ final class CameraPoseViewModel: ObservableObject {
                     guard let self, !self.betweenSets, self.terminalCapture.snapshot() == epoch else { return }
                     VideoRunLog.shared?.write("terminal_eof_flush", ["epoch": epoch, "set": index,
                         "trigger": "video_eof_test_hook", "processing_queue_drained": true])
+                    self.motionObserverFinishAtSetEnd = true
                     self.endSet(index)
                 }
             }
             return
         }
+        finishMotionObserverAfterDrain()
         if coachingCandidateEnabled { resetCoachingCandidate(end: true) }
         if VideoRunLog.terminalEvidence, let epoch = terminalCapture.beginFlush() {
             candidateEnd(epoch: epoch, reason: "video_end_without_set_flush")

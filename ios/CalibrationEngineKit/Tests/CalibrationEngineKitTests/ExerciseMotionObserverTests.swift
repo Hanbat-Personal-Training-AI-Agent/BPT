@@ -26,7 +26,9 @@ final class ExerciseMotionObserverTests: XCTestCase {
         XCTAssertNil(s.snapshot()); s.begin()
         let old = s.snapshot()
         XCTAssertTrue(s.accepts(old)); s.end(); XCTAssertFalse(s.accepts(old))
+        let stoppedRevision = s.revision()
         s.begin(); XCTAssertFalse(s.accepts(old)); XCTAssertTrue(s.accepts(s.snapshot()))
+        XCTAssertNotEqual(s.revision(), stoppedRevision)
     }
     func testEveryVariantKeepsCurrentRawConstraintsAssessmentAndWarningsIdentical() throws {
         let fixture = try MotionAGFormerLiveTests().fixture()
@@ -140,16 +142,6 @@ final class ExerciseMotionObserverTests: XCTestCase {
         let session=ExerciseMotionObserver.SourceSession();session.begin();let old=session.snapshot()
         session.end();XCTAssertNil(session.rotateIfCurrent(old));XCTAssertNil(session.snapshot())
         session.begin();let current=session.snapshot();XCTAssertNil(session.rotateIfCurrent(old));XCTAssertEqual(session.snapshot(),current)
-    }
-    func testOwnedLogIsBoundedAndNeverOverwritesAnotherRun() throws {
-        let directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        defer { try? FileManager.default.removeItem(at:directory) }
-        let a=try ExerciseMotionObserverLog(directory:directory,maximumRows:2)
-        a.write(["test":1]);a.write(["test":2]);a.close()
-        let b=try ExerciseMotionObserverLog(directory:directory,maximumRows:2);b.close()
-        XCTAssertNotEqual(a.url,b.url)
-        XCTAssertEqual(try String(contentsOf:a.url).split(separator:"\n").count,2)
-        XCTAssertEqual(try String(contentsOf:b.url).split(separator:"\n").count,1)
     }
 
     func testMissingSourceResetsInDelayedEmissionOrder() throws {

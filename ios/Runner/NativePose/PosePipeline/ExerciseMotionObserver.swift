@@ -35,6 +35,7 @@ struct ExerciseMotionObserver {
         func begin() { lock.lock(); defer { lock.unlock() }; generation += 1; active = true }
         func end() { lock.lock(); defer { lock.unlock() }; active = false }
         func snapshot() -> Int? { lock.lock(); defer { lock.unlock() }; return active ? generation : nil }
+        func revision() -> Int { lock.lock(); defer { lock.unlock() }; return generation }
         func rotateIfCurrent(_ value: Int?) -> Int? {
             lock.lock(); defer { lock.unlock() }
             guard active, value == generation else { return nil }
@@ -190,32 +191,165 @@ struct ExerciseMotionObserver {
 }
 
 
-/// Owned bounded JSONL output, available in ordinary live-camera mode too.
-/// Never opens a prior log or writes preferences/workout records.
+/// Owned bounded JSONL output. Header/observation schemas stay v1; a footer is required
+/// to establish completion. A missing footer (crash, disk failure) is always incomplete.
+/// Called on the main actor by the camera owner; never read by pose/feedback code.
 final class ExerciseMotionObserverLog {
+    enum Reason: String {
+        case normalDrain = "normal_drain"
+        case explicitClose = "explicit_close"
+        case cameraStop = "camera_stop"
+        case background = "background"
+        case captureInterrupted = "capture_interrupted"
+        case deinitialized = "deinitialized"
+        case rowLimit = "row_limit"
+        case byteLimit = "byte_limit"
+        case serializationFailure = "serialization_failure"
+        case recordTooLarge = "record_too_large"
+        case writeFailure = "write_failure"
+        case flushFailure = "flush_failure"
+        case processingFailure = "processing_failure"
+        case stoppedGeneration = "stopped_generation"
+        case unflushedTail = "unflushed_tail"
+        case drainNotConfirmed = "drain_not_confirmed"
+        case drainSuperseded = "drain_superseded"
+        case missingObservation = "missing_observation"
+        case invalidPendingFrames = "invalid_pending_frames"
+    }
+    enum Suppression: String {
+        case stoppedGeneration = "stopped_generation"
+        case flushTail = "flush_tail_not_fresh_observation"
+        case noRawModelOutput = "no_raw_model_output"
+        case unavailable = "missing_observation"
+    }
+    // Space for one bounded control record, even after a data cap is hit.
+    private static let footerReserve = 2048
     let url: URL
     private var handle: FileHandle?
     private var bytes = 0
     private var rows = 0
+    private var attempted = 0
+    private var written = 0
+    private var observations = 0
+    private var rejected = 0
+    private var suppressed: [String: Int] = [:]
+    private var firstIssue: Reason?
     private let maximumBytes: Int
     private let maximumRows: Int
-    init(directory: URL, maximumBytes: Int = 16 * 1024 * 1024, maximumRows: Int = 10_000) throws {
-        self.maximumBytes = maximumBytes; self.maximumRows = maximumRows
+    private let writeData: (FileHandle, Data) throws -> Void
+
+    init(directory: URL, maximumBytes: Int = 16 * 1024 * 1024, maximumRows: Int = 10_000,
+         writeData: @escaping (FileHandle, Data) throws -> Void = { try $0.write(contentsOf: $1) }) throws {
+        let header: [String: Any] = ["type": "header", "schema": "bpt.motion-observer-log.v1",
+            "adopted_for_pose": false, "adopted_for_feedback": false,
+            "maximum_rows": maximumRows, "maximum_bytes": maximumBytes,
+            "completion_schema": "bpt.motion-observer-completion.v1", "completion_requires_footer": true]
+        let data = try JSONSerialization.data(withJSONObject: header, options: .sortedKeys) + Data([10])
+        guard maximumRows >= 2, maximumBytes >= data.count + Self.footerReserve else {
+            throw NSError(domain: "ExerciseMotionObserverLog", code: 1,
+                          userInfo: [NSLocalizedDescriptionKey: "Limits must fit a header and completion footer"])
+        }
+        self.maximumBytes = maximumBytes; self.maximumRows = maximumRows; self.writeData = writeData
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         url = directory.appendingPathComponent("observer_\(UUID().uuidString).jsonl")
         try Data().write(to: url, options: .withoutOverwriting)
-        handle = try FileHandle(forWritingTo: url)
-        write(["type": "header", "schema": "bpt.motion-observer-log.v1",
-               "adopted_for_pose": false, "adopted_for_feedback": false,
-               "maximum_rows": maximumRows, "maximum_bytes": maximumBytes])
+        let opened = try FileHandle(forWritingTo: url)
+        do { try writeData(opened, data) }
+        catch { try? opened.close(); throw error }
+        handle = opened; bytes = data.count; rows = 1
     }
+
     func write(_ value: [String: Any]) {
-        guard let handle, let encoded = try? JSONSerialization.data(withJSONObject: value, options: .sortedKeys),
-              encoded.count <= 24_576 else { return }
-        guard rows < maximumRows, bytes + encoded.count + 1 <= maximumBytes else { close(); return }
-        do { try handle.write(contentsOf: encoded + Data([10])); bytes += encoded.count + 1; rows += 1 }
-        catch { close() }
+        guard let handle else { return }
+        attempted += 1
+        let encoded: Data
+        do {
+            guard JSONSerialization.isValidJSONObject(value) else { throw CocoaError(.propertyListWriteInvalid) }
+            encoded = try JSONSerialization.data(withJSONObject: value, options: .sortedKeys)
+        } catch { reject(.serializationFailure); return }
+        guard encoded.count <= 24_576 else { reject(.recordTooLarge); return }
+        guard rows < maximumRows - 1 else { reject(.rowLimit); return }
+        guard encoded.count + 1 <= maximumBytes - Self.footerReserve - bytes else { reject(.byteLimit); return }
+        do {
+            try writeData(handle, encoded + Data([10]))
+            bytes += encoded.count + 1; rows += 1; written += 1
+            if value["schema"] as? String == "bpt.motion-observer.v1" { observations += 1 }
+        } catch {
+            // A failed write may have appended a partial line. Recover the last known
+            // boundary before a best-effort incomplete footer; never claim success.
+            try? handle.truncate(atOffset: UInt64(bytes))
+            try? handle.seek(toOffset: UInt64(bytes))
+            reject(.writeFailure)
+        }
     }
-    func close() { try? handle?.close(); handle = nil }
-    deinit { close() }
+
+    func recordSuppressed(_ reason: Suppression) {
+        guard handle != nil else { return }
+        suppressed[reason.rawValue, default: 0] += 1
+        if reason == .stoppedGeneration { markIncomplete(.stoppedGeneration) }
+        if reason == .unavailable { markIncomplete(.missingObservation) }
+    }
+
+    func markIncomplete(_ reason: Reason) {
+        guard handle != nil, reason != .normalDrain else { return }
+        if firstIssue == nil { firstIssue = reason }
+    }
+
+    /// Only the producer owner can confirm all queues have drained. Pending lookahead
+    /// frames are explicit incomplete evidence, even when every emitted row was saved.
+    func finish(drained: Bool, pendingFrames: Int = 0) {
+        if !drained { markIncomplete(.drainNotConfirmed) }
+        if pendingFrames < 0 { markIncomplete(.invalidPendingFrames) }
+        else if pendingFrames > 0 { markIncomplete(.unflushedTail) }
+        finalize(reason: .normalDrain, drained: drained, pendingFrames: max(0, pendingFrames))
+    }
+
+    func close(reason: Reason = .explicitClose) {
+        markIncomplete(reason == .normalDrain ? .explicitClose : reason)
+        finalize(reason: reason, drained: false, pendingFrames: 0)
+    }
+
+    private func reject(_ reason: Reason) {
+        rejected += 1; markIncomplete(reason)
+        finalize(reason: reason, drained: false, pendingFrames: 0)
+    }
+
+    private func finalize(reason: Reason, drained: Bool, pendingFrames: Int) {
+        guard let handle else { return }
+        self.handle = nil
+        do { try handle.synchronize() }
+        catch { if firstIssue == nil { firstIssue = .writeFailure } }
+        let complete = drained && pendingFrames == 0 && firstIssue == nil
+        var footer: [String: Any] = ["type": "footer", "schema": "bpt.motion-observer-completion.v1",
+            "complete": complete, "incomplete": !complete,
+            "reason": (firstIssue ?? reason).rawValue, "close_reason": reason.rawValue,
+            "drained": drained, "pending_frames": pendingFrames,
+            "data_rows_attempted": attempted, "data_rows_written": written,
+            "observation_rows_written": observations, "data_rows_rejected": rejected,
+            "suppressed_outputs": suppressed, "counts_scope": "through_footer",
+            "rows_before_footer": rows, "bytes_before_footer": bytes,
+            "adopted_for_pose": false, "adopted_for_feedback": false]
+        if let data = try? JSONSerialization.data(withJSONObject: footer, options: .sortedKeys),
+           data.count + 1 <= Self.footerReserve {
+            // If the device cannot write this record, the absent/invalid footer is
+            // the evidence of incompletion. Do not replace a prior run or retry forever.
+            do { try writeData(handle, data + Data([10])) }
+            catch {
+                // A write can fail after appending bytes, including a whole success
+                // footer. Remove it before attempting an explicitly failed footer.
+                do {
+                    try handle.truncate(atOffset: UInt64(bytes))
+                    try handle.seek(toOffset: UInt64(bytes))
+                    footer["complete"] = false; footer["incomplete"] = true
+                    footer["reason"] = Reason.writeFailure.rawValue
+                    if let failed = try? JSONSerialization.data(withJSONObject: footer, options: .sortedKeys),
+                       failed.count + 1 <= Self.footerReserve {
+                        try? writeData(handle, failed + Data([10]))
+                    }
+                } catch { /* No reliable footer can be persisted on this device. */ }
+            }
+        }
+        try? handle.close()
+    }
+    deinit { close(reason: .deinitialized) }
 }

@@ -120,6 +120,8 @@ struct MotionAGFormerLive<Payload> {
 
     /// Latency added by the window: lookahead frames (+ up to cadence − 1 waiting for the batch).
     var delayFrames: Int { lookahead + cadence - 1 }
+    /// Diagnostic drain accounting only; does not flush or alter the model window.
+    var pendingFrameCount: Int { pending }
 
     /// Push one frame (COCO17 in frame pixels; Halpe26 callers pass its first 17 joints, which are COCO17
     /// in the same order). Returns the frames that became ready, oldest first.
