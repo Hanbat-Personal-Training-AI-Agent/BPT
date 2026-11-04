@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		7FA017E01DE11CE000000021 /* FormCorrectionEvidence.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FA017E01DE11CE000000022 /* FormCorrectionEvidence.swift */; };
 		7FA017E01DE11CE000000011 /* CameraFrameIngress.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FA017E01DE11CE000000012 /* CameraFrameIngress.swift */; };
 		B03110300000000000000992 /* MotionObserverAccountProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = B03110300000000000000991 /* MotionObserverAccountProfile.swift */; };
 		B03110300000000000000012 /* ExerciseMotionObserver.swift in Sources */ = {isa = PBXBuildFile; fileRef = B03110300000000000000011 /* ExerciseMotionObserver.swift */; };
@@ -114,6 +115,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		7FA017E01DE11CE000000022 /* FormCorrectionEvidence.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = FormCorrectionEvidence.swift; sourceTree = "<group>"; };
 		7FA017E01DE11CE000000012 /* CameraFrameIngress.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CameraFrameIngress.swift; sourceTree = "<group>"; };
 		B03110300000000000000991 /* MotionObserverAccountProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MotionObserverAccountProfile.swift; sourceTree = "<group>"; };
 		B03110300000000000000011 /* ExerciseMotionObserver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExerciseMotionObserver.swift; sourceTree = "<group>"; };
@@ -432,6 +434,7 @@
 				66A9249975D25A56873258E4 /* SquatTypes.swift */,
 				7A3F0C1E9B2D4E5F6A7B8C02 /* FormWarnings.swift */,
 				7FA017E01DE11CE000000002 /* FormFaultEvidence.swift */,
+				7FA017E01DE11CE000000022 /* FormCorrectionEvidence.swift */,
 				A16F0C1E9B2D4E5F6A7B8C02 /* ExperimentalCoaching.swift */,
 				C77E00000000000000000002 /* TerminalObservationCandidate.swift */,
 				C77F00000000000000000002 /* CoachingCriteria.swift */,
@@ -732,6 +735,7 @@
 				511C8B1A5E3231BB606B95BE /* SquatTypes.swift in Sources */,
 				7A3F0C1E9B2D4E5F6A7B8C01 /* FormWarnings.swift in Sources */,
 				7FA017E01DE11CE000000001 /* FormFaultEvidence.swift in Sources */,
+				7FA017E01DE11CE000000021 /* FormCorrectionEvidence.swift in Sources */,
 				A16F0C1E9B2D4E5F6A7B8C01 /* ExperimentalCoaching.swift in Sources */,
 				C77E00000000000000000001 /* TerminalObservationCandidate.swift in Sources */,
 				C77F00000000000000000001 /* CoachingCriteria.swift in Sources */,

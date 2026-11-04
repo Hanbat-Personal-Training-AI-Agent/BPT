@@ -371,6 +371,10 @@ struct FormFrameSample {
     var bad3D = false
     /// MotionAGFormerLive state of this frame (nil = caller gave no 3D pipeline state).
     var state3D: Pose3DState?
+    /// Private support for correction praise; independent of optional diagnostic capture.
+    var correctionFields: Set<String> = []
+    var correctionFacing: Double?
+    var correctionUp: SIMD3<Double>?
     var faultSource: FormFaultSource?
     var faultInputSupport: [String: Any]?
 }
@@ -597,6 +601,7 @@ final class FormWarningTracker {
 
     private var facing: Double?
     private var facingCandidateRun = 0
+    private var correctionFacingTrusted = false
     /// Actual evaluator phase for opt-in observation diagnostics; never inferred from UI text.
     var observationPhase: String? { current?.phase }
     /// Diagnostic-only boundary of the actual open tracker span; no predicted/GT phase inference.
@@ -626,6 +631,10 @@ final class FormWarningTracker {
     private var previousFired: Set<String> = []
     private var previousSpoken3D: Bool?
     private var previousSpoken: String?
+    private var previousCorrection: FormCorrectionEvidence.Signature?
+    private var correctionOrdinal = 0
+    private var correctionHistory2D: [FormCorrectionEvidence] = []
+    private var correctionHistory3D: [FormCorrectionEvidence] = []
     private var events: [FormFeedbackEvent] = []
 
     init(exercise: FormExercise) {
@@ -647,6 +656,7 @@ final class FormWarningTracker {
         sideViewGuided = false
         facing = nil
         facingCandidateRun = 0
+        correctionFacingTrusted = false
         current = nil
         current3D = nil
         repFrames = []
@@ -661,6 +671,8 @@ final class FormWarningTracker {
         previousFired = []
         previousSpoken = nil
         previousSpoken3D = nil
+        previousCorrection = nil
+        correctionOrdinal = 0; correctionHistory2D = []; correctionHistory3D = []
         events = []
     }
 
@@ -696,6 +708,8 @@ final class FormWarningTracker {
         let facingRunBefore = facingCandidateRun
         if faultEvidence != nil { sample.faultInputSupport?["facingObservation"] = NSNull() }
         measure2D(coco17, feet: feet, side: side, into: &sample)
+        sample.correctionFacing = facing
+        sample.correctionFields = FormCorrectionEvidence.finite2D(sample,pose:coco17,feet:feet,common:common,squat:squat,facing:facing,facingTrusted:correctionFacingTrusted)
         if faultEvidence != nil {
             let j = FormGeometry.joints(side)
             sample.faultInputSupport?["measurementJoints"] = [
@@ -755,6 +769,8 @@ final class FormWarningTracker {
                     s3.faultInputSupport?["unavailableFields"] = ["earShoulder","headAngle","heelToe"]
                 }
                 measure3D(pose3D, like: sample, into: &s3)
+                s3.correctionUp = up3D
+                s3.correctionFields = FormCorrectionEvidence.finite3D(s3,pose:pose3D,like:sample,up:up3D)
                 s3.state3D = state
                 current3D = s3
             }
@@ -865,6 +881,10 @@ final class FormWarningTracker {
         let traceID = faultEvidence?.nextRepID() ?? "unbound"
         let aggregation2D = tracing ? FormFaultAggregation(frames: frames) : nil
         let metrics = metrics2D(frames, isFirstRep: reports.isEmpty, evidence: aggregation2D)
+        correctionOrdinal += 1
+        let correction2D = FormCorrectionEvidence(id:correctionOrdinal,source3D:false,frames:frames,
+            common:common,pushUp:pushUp,squat:squat,row:row)
+        let signatures2D = correction2D.signatures(history:correctionHistory2D,baselineCount:common.baselineRepCount)
         let prior2D = (tracing ? repMetrics : []).enumerated().map { index,m in
             faultHistory2D.indices.contains(index) ? faultHistory2D[index] : FormFaultHistory(traceID:nil,repIndex:nil,metrics:m)
         }
@@ -873,6 +893,8 @@ final class FormWarningTracker {
         var assessed2D: Set<String> = []
         let fired2D = judge(metrics, history: repMetrics, repIndex: repIndex, assessed: { assessed2D = $0 }, trace: judgeTrace2D)
         repMetrics.append(metrics)
+        correctionHistory2D.append(correction2D)
+        if correctionHistory2D.count > 100 { correctionHistory2D.removeFirst() }
         if tracing { faultHistory2D = prior2D + [FormFaultHistory(traceID:traceID+"/2d",repIndex:repIndex,metrics:metrics)] }
         else { faultHistory2D = [] }
         if repMetrics.count > 100 { repMetrics.removeFirst(); if !faultHistory2D.isEmpty { faultHistory2D.removeFirst() } }
@@ -885,10 +907,14 @@ final class FormWarningTracker {
         var assessed3D: Set<String> = []
         let aggregation3D = tracing ? FormFaultAggregation(frames: frames3D) : nil
         var judgeTrace3D: FormFaultJudge?
+        var signatures3D: [String:FormCorrectionEvidence.Signature] = [:]
         if !frames3D.isEmpty {
             metrics3D = metrics2D(frames3D, isFirstRep: repMetrics3D.isEmpty, evidence: aggregation3D)
         }
         if enough3D {
+            let correction3D = FormCorrectionEvidence(id:correctionOrdinal,source3D:true,frames:frames3D,
+                common:common,pushUp:pushUp,squat:squat,row:row,expectedFrameIDs:frames.map(\.frame))
+            signatures3D = correction3D.signatures(history:correctionHistory3D,baselineCount:common.baselineRepCount)
             let prior3D = (tracing ? repMetrics3D : []).enumerated().map { index,m in
                 faultHistory3D.indices.contains(index) ? faultHistory3D[index] : FormFaultHistory(traceID:nil,repIndex:nil,metrics:m)
             }
@@ -896,6 +922,8 @@ final class FormWarningTracker {
                 metrics:metrics3D,aggregation:$0,history:prior3D,common:common,squat:squat,row:row) }
             fired3D = judge(metrics3D, history: repMetrics3D, repIndex: repIndex, assessed: { assessed3D = $0 }, trace: judgeTrace3D)
             repMetrics3D.append(metrics3D)
+            correctionHistory3D.append(correction3D)
+            if correctionHistory3D.count > 100 { correctionHistory3D.removeFirst() }
             if tracing { faultHistory3D = prior3D + [FormFaultHistory(traceID:traceID+"/3d",repIndex:repIndex,metrics:metrics3D)] }
             else { faultHistory3D = [] }
             if repMetrics3D.count > 100 { repMetrics3D.removeFirst(); if !faultHistory3D.isEmpty { faultHistory3D.removeFirst() } }
@@ -909,6 +937,7 @@ final class FormWarningTracker {
         let enabledFeedbackKeys = common.enabledFeedbackKeys
         let spoken = deliver(fired, repIndex: repIndex, assessed: common.form3DRequired ? assessed3D : assessed2D,
                              source3D: common.form3DRequired,
+                             corrections:common.form3DRequired ? signatures3D : signatures2D,
                              judged: judgedForPraise(frames: frames, metrics: common.form3DRequired ? metrics3D : metrics,
                                                      judged3D: fired3D != nil))
         let sides = frames.map(\.side)
@@ -970,7 +999,7 @@ final class FormWarningTracker {
 
     /// Enough source data for generic encouragement, never proof of whole-form correctness.
     /// Per-rule gates/references can still be inapplicable; correction praise separately requires the prior rule
-    /// to be evaluated under the same source, current gate and complete finite reference.
+    /// to have complete comparable input/search/reference support under the same source, side and parameters.
     private func judgedForPraise(frames: [FormFrameSample], metrics: [String: Double], judged3D: Bool) -> Bool {
         guard !frames.isEmpty, let needed = Self.praiseMetrics[exercise], needed.allSatisfy({ metrics[$0] != nil }) else { return false }
         if common.form3DRequired { return judged3D && frames.allSatisfy { $0.state3D == .ok } }
@@ -979,7 +1008,8 @@ final class FormWarningTracker {
 
     /// Picks the one key said after this rep and queues it (scope "rep"). A rep judged on usable data with nothing fired
     /// gets praise_good (not on a rep that said a warning or praise_fixed, at most once per `cooldownReps` + 1 reps).
-    private func deliver(_ fired: [String], repIndex: Int, assessed: Set<String>, source3D: Bool, judged: Bool = false) -> String? {
+    private func deliver(_ fired: [String], repIndex: Int, assessed: Set<String>, source3D: Bool,
+                         corrections: [String:FormCorrectionEvidence.Signature], judged: Bool = false) -> String? {
         let eligible = fired.filter { key in
             let grade = Self.grade(of: key)
             guard grade != .reference, common.enabledFeedbackKeys.contains(key) else { return false }
@@ -992,6 +1022,7 @@ final class FormWarningTracker {
             // n only for set scope: rep-scope lines have no {n}, and the app adds `n ?? 1` per event to feedbackCounts.
             emit(FormFeedbackEvent(key: key, n: nil))
         } else if judged, fired.isEmpty, let previousSpoken, assessed.contains(previousSpoken),
+                  let currentCorrection = corrections[previousSpoken], previousCorrection == currentCorrection,
                   previousSpoken3D == source3D, common.enabledFeedbackKeys.contains(previousSpoken),
                   common.enabledFeedbackKeys.contains("praise_fixed") {
             spoken = "praise_fixed"
@@ -1005,6 +1036,7 @@ final class FormWarningTracker {
         previousFired = Set(fired)
         previousSpoken = spoken == "praise_fixed" || spoken == "praise_good" ? nil : spoken
         previousSpoken3D = previousSpoken == nil ? nil : source3D
+        previousCorrection = previousSpoken.flatMap { corrections[$0] }
         return spoken
     }
 
@@ -1083,6 +1115,9 @@ final class FormWarningTracker {
                     facingCandidateRun = 0
                 }
             }
+            correctionFacingTrusted = updateKind != "candidate" &&
+                nose.x.isFinite && nose.y.isFinite && ear.x.isFinite && ear.y.isFinite &&
+                nose.confidence.isFinite && ear.confidence.isFinite
             if faultEvidence != nil {
                 s.faultInputSupport?["facingObservation"] = ["seen":seen,"updateKind":updateKind,
                     "before":FormFaultJSON.number(priorFacing),"after":FormFaultJSON.number(facing),
