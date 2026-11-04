@@ -1,0 +1,26 @@
+{
+  "schema": "bpt.motion-anchor-alignment-parity.v1",
+  "status": "PASS",
+  "createdAt": "2026-11-04T12:10:54.552522+00:00",
+  "source_sha256": {
+    "paired_policy.py": "a70faba57b61d0fbf5df42756169e4887c5def69d345652837b3dfff0b7b00ef",
+    "ExerciseMotionEstimator.swift": "767ca735026af00f952f67bb503c52b2da85f7267a567b984ed5ce1c3d2227cf",
+    "motion_anchor_alignment_cases.json": "c6a6efc43eda3c27e7dd73fae89833ec3f3a99eed74be80b209d7b9dcf16bda7",
+    "generate_fixture.py": "8e6295fb5ef4112ab3b1c5867d997ed4b0952e9feebeef27ab4894d616a7b1e9",
+    "MotionAnchorAlignmentTests.swift": "9a99e5ff73019ca33a94ae62f653cc42a673e302f31a5ca9d2f62e14ff6d8337"
+  },
+  "candidate_source_sha256": "f18e3ffee953489aade340fb0766f0e43915599e5b73d63f9a38aa767db6f684",
+  "legacy_source_sha256": "c58740a36791962c9196f2c0443c9d5ae9ad71b343d6688f55614abaea57c40d",
+  "protocol_sha256": "308c8988d6f40d0bd200a13453e3b591f9146d35f00f5f3d00f56f6d9ef09766",
+  "historical_parity_outputs": 720,
+  "synthetic_cases": 11,
+  "synthetic_policy_variant_frames": 616,
+  "synthetic_tolerance": 1e-08,
+  "focusedTests": 22,
+  "failures": 0,
+  "testLogSHA256": "090bf62859f37d8cffa2e8cc263f5555053e7c83a5e618096914e81c0081f1c2",
+  "runtimeDefault": "legacy",
+  "changedThresholds": false,
+  "newInference": false,
+  "phoneActions": false
+}

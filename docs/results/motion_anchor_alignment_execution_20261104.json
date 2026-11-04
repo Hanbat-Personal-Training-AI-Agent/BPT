@@ -1,0 +1,37 @@
+{
+  "aggregateSha256": "89bb38131ccc96bbd527036c1973579c42679d27b37bd3b49697a55a76cdf3f0",
+  "blasThreads": 1,
+  "completedSequenceFiles": 72,
+  "cpuThreads": 1,
+  "failedAttempt": {
+    "completedSequenceFiles": 0,
+    "freezeHomeOnlySha256": "f799719f97c80728c346287b96336cd4ab14f1f3c789d124a12b1c4add9ac45a",
+    "logSha256": "95da1b0841977e4b43852d00db529dd52424d74a662e6ab8c857f153e0001528",
+    "preserved": true,
+    "reason": "v3 raw A lacks v4 expired_prediction_fallback array"
+  },
+  "freezeHomeOnlySha256": "5f535986bd4da7f3badfddeccf1676f857ef1e3821d887d017e4c4eac9c068f0",
+  "inputFilesRehashed": 465,
+  "legacyGHExactReplayCount": 144,
+  "manifestHomeOnlySha256": "a54eba99291cd547615df408e50d7694c636abe41dceac56b836f52f892b3ff8",
+  "newInference": false,
+  "originalInputsUnchanged": true,
+  "phoneActions": false,
+  "predictionFilesRehashed": 360,
+  "predictionFilesUnchanged": true,
+  "pythonVersion": "3.11.15",
+  "rawAExactSharedReplayCount": 72,
+  "rawASchemaExtension": "expired_prediction_fallback absent in v3; added v4 field asserted all false; all other non-timing arrays exact",
+  "schemaVersion": 1,
+  "sourceCodeSha256": {
+    "ExerciseMotionEstimator.swift": "767ca735026af00f952f67bb503c52b2da85f7267a567b984ed5ce1c3d2227cf",
+    "make_synthetic_fixture.py": "8e6295fb5ef4112ab3b1c5867d997ed4b0952e9feebeef27ab4894d616a7b1e9",
+    "motion_anchor_alignment_cases.json": "c6a6efc43eda3c27e7dd73fae89833ec3f3a99eed74be80b209d7b9dcf16bda7",
+    "motion_anchor_alignment_parity_20261104.json": "a0867064d7642d77013630fa99e0542991d568248a1a4e597d41eaf4c74c9fca",
+    "motion_anchor_alignment_protocol_20261104.md": "308c8988d6f40d0bd200a13453e3b591f9146d35f00f5f3d00f56f6d9ef09766",
+    "paired_policy.py": "a70faba57b61d0fbf5df42756169e4887c5def69d345652837b3dfff0b7b00ef",
+    "replay.py": "b31301d20bc4f1f06355c0afafa3a46ed63b61e319624a759b94a6abd32cbbf2"
+  },
+  "status": "PASS",
+  "successfulLogSha256": "3b25edfe99114d6d870d5c6e25d484bcafaa9cf35694f230f17251752eb4005f"
+}
