@@ -45,6 +45,7 @@
 import AVFoundation
 import CoreImage
 import CoreML
+import CryptoKit
 import Foundation
 
 let repoRoot = URL(fileURLWithPath: #filePath)
@@ -88,11 +89,19 @@ var captureRotation = CaptureRotation.up
 var personCrop = true
 var cropEdgeRefit = true
 var boneTargetsPath: String?
+var faultTraceDirectory: URL?
+var faultBindingPath: String?
 var videos: [URL] = []
 var arguments = CommandLine.arguments.dropFirst().makeIterator()
-let usage = "usage: pose-replay [--bone-targets PATH] [--exercise squat|pushup|row|bench|deadlift] [--model coco17|halpe26|mcoco17|mhalpe26] [--model-path PATH] [--motion3d PATH|none] [--lookahead N] [--cadence K] [--constraints on|off] [--form-source 3d|2d] [--image-size WxH] [--row-shrug] [--side-cutoff R] [--row-offside off] [--pushup-ankle on|off] [--pushup-wrist-conf C] [--pushup-min-frames N] [--pushup-height on|off] [--squat-hold on|off] [--squat-near-leg on|off] [--squat-rebaseline N] [--squat-height on|off] [--squat-height-range R] [--ready-pose off|preset] [--input crop|full] [--crop-edge on|off] [--keypoints-csv PATH] [--keypoints-dir DIR] [--output-dir PATH] <video.mp4>..."
+let usage = "usage: pose-replay [--fault-trace-dir DIR --fault-binding JSON] [--bone-targets PATH] [--exercise squat|pushup|row|bench|deadlift] [--model coco17|halpe26|mcoco17|mhalpe26] [--model-path PATH] [--motion3d PATH|none] [--lookahead N] [--cadence K] [--constraints on|off] [--form-source 3d|2d] [--image-size WxH] [--row-shrug] [--side-cutoff R] [--row-offside off] [--pushup-ankle on|off] [--pushup-wrist-conf C] [--pushup-min-frames N] [--pushup-height on|off] [--squat-hold on|off] [--squat-near-leg on|off] [--squat-rebaseline N] [--squat-height on|off] [--squat-height-range R] [--ready-pose off|preset] [--input crop|full] [--crop-edge on|off] [--keypoints-csv PATH] [--keypoints-dir DIR] [--output-dir PATH] <video.mp4>..."
 while let argument = arguments.next() {
     switch argument {
+    case "--fault-trace-dir":
+        guard let path = arguments.next() else { exit(2) }
+        faultTraceDirectory = URL(fileURLWithPath: path, isDirectory: true)
+    case "--fault-binding":
+        guard let path = arguments.next() else { exit(2) }
+        faultBindingPath = path
     case "--model":
         guard let name = arguments.next(),
               let picked = RTMPoseModel.allCases.first(where: { "\($0)" == name }) else {
@@ -204,6 +213,101 @@ guard !videos.isEmpty else {
     print(usage)
     exit(2)
 }
+// Evidence mode is deliberately stricter than ordinary CSV replay: CSV time is rounded and
+// cannot establish an original media clock. Validate before loading or compiling any model.
+if (faultTraceDirectory == nil) != (faultBindingPath == nil) {
+    fputs("--fault-trace-dir and --fault-binding must be supplied together\n", stderr); exit(2)
+}
+if faultTraceDirectory != nil && (keypointsCSV != nil || keypointsDir != nil) {
+    fputs("fault tracing requires original video; rounded CSV timestamps are not a rational source ledger\n", stderr); exit(2)
+}
+if faultTraceDirectory != nil && ![FormExercise.squat, .pushUp, .barbellRow].contains(exercise) {
+    fputs("fault tracing supports only squat, pushup and row\n", stderr); exit(2)
+}
+
+func sha256File(_ url: URL) throws -> String {
+    let handle = try FileHandle(forReadingFrom: url)
+    defer { try? handle.close() }
+    var hash = SHA256()
+    while let chunk = try handle.read(upToCount: 1024 * 1024), !chunk.isEmpty { hash.update(data: chunk) }
+    return hash.finalize().map { String(format: "%02x", $0) }.joined()
+}
+
+// Bundle digest binds every regular file by relative name and content, including model metadata.
+func sha256Artifact(_ url: URL) throws -> String {
+    var isDirectory: ObjCBool = false
+    guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory) else {
+        throw NSError(domain: "PoseReplayFaultBinding", code: 2,
+                      userInfo: [NSLocalizedDescriptionKey: "missing model artifact: \(url.path)"])
+    }
+    guard isDirectory.boolValue else { return try sha256File(url) }
+    let files = (FileManager.default.enumerator(at: url, includingPropertiesForKeys: [.isRegularFileKey])?
+        .allObjects as? [URL] ?? []).filter { (try? $0.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true }
+        .sorted { $0.path < $1.path }
+    var hash = SHA256()
+    for file in files {
+        let relative = String(file.path.dropFirst(url.path.count + 1))
+        hash.update(data: Data(relative.utf8)); hash.update(data: Data([0]))
+        hash.update(data: Data(try sha256File(file).utf8)); hash.update(data: Data([10]))
+    }
+    return hash.finalize().map { String(format: "%02x", $0) }.joined()
+}
+
+// A binding names this new candidate/task and the full source bytes, not a reused filename.
+// Preserve caller fields for the exporter, but reserve runtime facts for the actual execution.
+var faultBuildManifest: [String: Any]?
+let faultBindings: [[String: Any]] = try {
+    guard let path = faultBindingPath else { return [] }
+    let data = try Data(contentsOf: URL(fileURLWithPath: path))
+    guard let document = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+          let clips = document["clips"] as? [[String: Any]], clips.count == videos.count else {
+        throw NSError(domain: "PoseReplayFaultBinding", code: 2,
+                      userInfo: [NSLocalizedDescriptionKey: "binding requires one ordered clips entry per video"])
+    }
+    guard let build = document["buildManifest"] as? [String: Any],
+          build["contract"] as? String == "bpt-pose-replay-build-v1",
+          let binaryHash = build["executableSHA256"] as? String,
+          binaryHash == (try sha256File(URL(fileURLWithPath: CommandLine.arguments[0]))),
+          let sources = build["sourceSHA256"] as? [String: String], !sources.isEmpty else {
+        throw NSError(domain: "PoseReplayFaultBinding", code: 2,
+                      userInfo: [NSLocalizedDescriptionKey: "binding requires matching frozen buildManifest"])
+    }
+    for (path, expected) in sources {
+        let source = repoRoot.appendingPathComponent(path).standardizedFileURL
+        guard source.path.hasPrefix(repoRoot.standardizedFileURL.path + "/"),
+              expected == (try sha256File(source)) else {
+            throw NSError(domain: "PoseReplayFaultBinding", code: 2,
+                          userInfo: [NSLocalizedDescriptionKey: "build source SHA256 mismatch: \(path)"])
+        }
+    }
+    faultBuildManifest = build
+    for (clip, video) in zip(clips, videos) {
+        for field in ["candidateId", "clipId", "sourceSHA256"] {
+            guard let value = clip[field] as? String, !value.isEmpty else {
+                throw NSError(domain: "PoseReplayFaultBinding", code: 2,
+                              userInfo: [NSLocalizedDescriptionKey: "missing binding field: \(field)"])
+            }
+        }
+        let candidate = clip["candidateId"] as! String
+        guard candidate.count == 40, candidate.allSatisfy({ $0.isHexDigit }),
+              build["candidateId"] as? String == candidate,
+              clip["taskId"] == nil, clip["boundaryId"] == nil else {
+            throw NSError(domain: "PoseReplayFaultBinding", code: 2,
+                          userInfo: [NSLocalizedDescriptionKey: "candidateId requires a frozen 40-hex commit; source capture must remain task/boundary unbound"])
+        }
+        if clip["require3D"] as? Bool == true && (motion3DPath == nil || !formSource3D) {
+            throw NSError(domain: "PoseReplayFaultBinding", code: 2,
+                          userInfo: [NSLocalizedDescriptionKey: "binding requires an active 3D lifter and 3D form source"])
+        }
+        let expected = clip["sourceSHA256"] as! String
+        guard expected.count == 64, expected.allSatisfy({ $0.isHexDigit }),
+              try sha256File(video) == expected.lowercased() else {
+            throw NSError(domain: "PoseReplayFaultBinding", code: 2,
+                          userInfo: [NSLocalizedDescriptionKey: "full source SHA256 mismatch: \(video.lastPathComponent)"])
+        }
+    }
+    return clips
+}()
 try FileManager.default.createDirectory(at: outputDir, withIntermediateDirectories: true)
 
 func loadModel(_ url: URL) throws -> MLModel {
@@ -213,8 +317,14 @@ func loadModel(_ url: URL) throws -> MLModel {
 }
 
 let replayOnly = keypointsCSV != nil || keypointsDir != nil
-let model = replayOnly ? nil : try loadModel(poseModelPath.map { URL(fileURLWithPath: $0) }
-    ?? repoRoot.appendingPathComponent("ios/Runner/NativePose/Models/\(poseModel.rawValue).mlpackage"))
+let resolvedPoseModelURL = poseModelPath.map { URL(fileURLWithPath: $0) }
+    ?? repoRoot.appendingPathComponent("ios/Runner/NativePose/Models/\(poseModel.rawValue).mlpackage")
+var faultModelHashes: [String: String] = [:]
+if faultTraceDirectory != nil {
+    faultModelHashes[resolvedPoseModelURL.path] = try sha256Artifact(resolvedPoseModelURL)
+    if let motion3DPath { faultModelHashes[motion3DPath] = try sha256Artifact(URL(fileURLWithPath: motion3DPath)) }
+}
+let model = replayOnly ? nil : try loadModel(resolvedPoseModelURL)
 let motion3D = try motion3DPath.map { try loadModel(URL(fileURLWithPath: $0)) }
 let context = CIContext(options: [.cacheIntermediates: false])
 let workspace = try RTMPoseInputWorkspace()
@@ -237,7 +347,7 @@ func boneTargets(for name: String) throws -> [String: Double]? {
 }
 
 var readers: [AVAssetReader] = []
-for video in videos {
+for (videoOrdinal, video) in videos.enumerated() {
     let name = video.deletingPathExtension().lastPathComponent
     let keypointsCSV = keypointsCSV ?? keypointsDir.map { "\($0)/\(name)_\(exercise.rawValue)_\(poseModel).csv" }
 
@@ -246,6 +356,13 @@ for video in videos {
     var extraFrames: [[PoseKeypoint]] = []
     var feetFrames: [FootKeypoints?] = []
     var times: [Double] = []
+    let faultSession = UUID().uuidString
+    var sourceStamps: [FormFaultSource] = []
+    var expectedSourceStamps: [FormFaultSource] = []
+    var ingressFailures: [(FormFaultSource, String)] = []
+    var rawSourceIndex = 0
+    var sourceDrained = false
+    var poseFailure: String?
     var imageWidth = 0, imageHeight = 0
     var cropTracker = RTMPoseCropTracker()
     cropTracker.refitAtCropEdge = cropEdgeRefit
@@ -289,20 +406,49 @@ for video in videos {
         readers.append(reader)  // must outlive the loop below
         return output
     }()
-    guard keypointsCSV != nil || output != nil else { continue }
+    if keypointsCSV == nil && output == nil && faultTraceDirectory == nil { continue }
     while let sampleBuffer = output?.copyNextSampleBuffer() {
-        guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { continue }
+        let sourceIndex = rawSourceIndex
+        rawSourceIndex += 1
+        let pts = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
+        func stamp(frame: Int) -> FormFaultSource {
+            FormFaultSource(frame: frame, sourceIndex: sourceIndex,
+                            timeValue: pts.value, timeScale: pts.timescale,
+                            session: faultSession, kind: "original_video", flush: false,
+                            timeEpoch: pts.epoch, timeFlags: pts.flags.rawValue)
+        }
+        func failIngress(_ reason: String) {
+            let source = stamp(frame: -1 - sourceIndex)
+            expectedSourceStamps.append(source)
+            ingressFailures.append((source, reason))
+        }
+        if let poseFailure { failIngress("not_processed_after_\(poseFailure)"); continue }
+        guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else {
+            if faultTraceDirectory != nil { failIngress("missing_pixel_buffer") }; continue
+        }
         // Turning clockwise by N is the analysis turn of 360 − N; both .up = the frame as recorded.
         let held = CaptureRotation(rawValue: (360 - sceneRotation) % 360)!.analysisImage(CIImage(cvPixelBuffer: pixelBuffer))
         let image = captureRotation.analysisImage(held)
-        guard let cgImage = context.createCGImage(image, from: image.extent) else { continue }
+        guard let cgImage = context.createCGImage(image, from: image.extent) else {
+            if faultTraceDirectory != nil { failIngress("image_conversion_failed") }; continue
+        }
         imageWidth = cgImage.width
         imageHeight = cgImage.height
         let poseStart = Date()
         if cropTracker.crop == nil { fullFrameInputs += 1 }
         // The live camera path's pose step (crop, RTMPose, decode, tracker, ~1 s whole-frame recheck).
-        guard let model, let estimate = try cropTracker.estimate(cgImage, model: model, workspace: workspace, personCrop: personCrop) else {
-            fatalError("model has no simcc_x / simcc_y outputs")
+        let estimate: RTMPoseFrameEstimate
+        do {
+            guard let model, let value = try cropTracker.estimate(cgImage, model: model, workspace: workspace, personCrop: personCrop) else {
+                if faultTraceDirectory != nil {
+                    poseFailure = "missing_simcc_outputs"; failIngress(poseFailure!); continue
+                }
+                fatalError("model has no simcc_x / simcc_y outputs")
+            }
+            estimate = value
+        } catch {
+            guard faultTraceDirectory != nil else { throw error }
+            poseFailure = "pose_estimation_error"; failIngress(poseFailure!); continue
         }
         let decoded = estimate.decoded, back = estimate.inverseAffine, coco17 = estimate.coco17
         if let switched = estimate.recheckSwitched {
@@ -310,6 +456,11 @@ for video in videos {
             if switched { switches += 1 }
         }
         poseSeconds += Date().timeIntervalSince(poseStart)
+        if faultTraceDirectory != nil {
+            let source = stamp(frame: coco17Frames.count)
+            sourceStamps.append(source)
+            expectedSourceStamps.append(source)
+        }
         coco17Frames.append(coco17)
         extraFrames.append(zip(decoded.extraInputCoordinates, decoded.extraConfidences).map { point, confidence in
             let p = back.apply(point)
@@ -317,6 +468,55 @@ for video in videos {
         })
         feetFrames.append(PoseCoordinateTransforms.applyInverseAffineToFeet(decoded: decoded, inverseAffine: back))
         times.append(CMTimeGetSeconds(CMSampleBufferGetPresentationTimeStamp(sampleBuffer)))
+    }
+
+    sourceDrained = keypointsCSV == nil && readers.last?.status == .completed
+
+    var evidence: FormFaultEvidence?
+    if let faultTraceDirectory {
+        var binding = faultBindings[videoOrdinal]
+        let sourceHashAfterDecode = try sha256File(video)
+        guard sourceHashAfterDecode == (binding["sourceSHA256"] as? String)?.lowercased() else {
+            throw NSError(domain: "PoseReplayFaultBinding", code: 2,
+                          userInfo: [NSLocalizedDescriptionKey: "source changed during decode"])
+        }
+        binding["sourceSHA256"] = sourceHashAfterDecode
+        binding["executableSHA256"] = try sha256File(URL(fileURLWithPath: CommandLine.arguments[0]))
+        let sourceDirectory = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+        let sourceFiles = try FileManager.default.contentsOfDirectory(at: sourceDirectory,
+            includingPropertiesForKeys: nil).filter { $0.pathExtension == "swift" }.sorted { $0.lastPathComponent < $1.lastPathComponent }
+        var sourceHashes: [String: String] = [:]
+        for file in sourceFiles {
+            let resolved = file.resolvingSymlinksInPath().path
+            let prefix = repoRoot.resolvingSymlinksInPath().path + "/"
+            guard resolved.hasPrefix(prefix) else { fatalError("source outside repository") }
+            sourceHashes[String(resolved.dropFirst(prefix.count))] = try sha256File(file)
+        }
+        guard sourceHashes.allSatisfy({ (faultBuildManifest?["sourceSHA256"] as? [String: String])?[$0.key] == $0.value }) else {
+            throw NSError(domain: "PoseReplayFaultBinding", code: 2,
+                          userInfo: [NSLocalizedDescriptionKey: "build manifest does not cover every compiled replay source"])
+        }
+        binding["buildManifest"] = faultBuildManifest
+        binding["runtimeSourceSHA256"] = sourceHashes
+        binding["executionScope"] = "headless_original_video_native_evaluator"
+        binding["taskBinding"] = "unbound_native_windows"
+        binding["arguments"] = Array(CommandLine.arguments.dropFirst())
+        binding["exercise"] = exercise.rawValue
+        binding["modelArtifactSHA256"] = faultModelHashes
+        binding["runtimeSettings"] = ["poseModel": "\(poseModel)", "lookahead": lookahead, "cadence": cadence,
+            "constraints": constraintsOn, "adaptive": adaptiveOn, "wristAnchor": wristAnchorOn,
+            "formSource3D": formSource3D, "personCrop": personCrop, "cropEdgeRefit": cropEdgeRefit] as [String: Any]
+        binding["sourceSampleCount"] = rawSourceIndex
+        binding["sourceDecoderCompleted"] = sourceDrained
+        evidence = try FormFaultEvidence.file(directory: faultTraceDirectory, runID: faultSession,
+                                              binding: binding, expectedSources: expectedSourceStamps)
+        for (source, reason) in ingressFailures { evidence?.ingressFailure(source: source, reason: reason) }
+    }
+    // Any thrown model/lifter/output error closes the trace as incomplete.
+    defer { evidence?.finish(reason: "replay_interrupted", sourceDrained: false) }
+    if keypointsCSV == nil && output == nil {
+        evidence?.finish(reason: "no_video_track", sourceDrained: false)
+        continue
     }
 
     // Pass 2 (streamed in pass 3): MotionAGFormerLive, past frames only, like the app camera. Keypoint CSVs carry
@@ -333,6 +533,12 @@ for video in videos {
         l.constraints.reflectFlippedKnee = exercise == .squat  // as the camera (Fit3D S6: squat only)
         if adaptiveOn { l.adaptive = AdaptiveRelationConstraint(exercise: exercise) }
         return l
+    }
+    if faultBindings.indices.contains(videoOrdinal), faultBindings[videoOrdinal]["require3D"] as? Bool == true,
+       (lifter == nil || !formSource3D) {
+        evidence?.finish(reason: "required_3d_unavailable", sourceDrained: false)
+        throw NSError(domain: "PoseReplayFaultBinding", code: 2,
+                      userInfo: [NSLocalizedDescriptionKey: "required 3D lifter unavailable"])
     }
     let targets = try boneTargets(for: name)
     lifter?.constraints.calibrationTargetsCm = targets
@@ -384,6 +590,7 @@ for video in videos {
         tracker = evaluator.formTracker
         step = { i, k, p, s, _ in let r = evaluator.evaluate(frameIndex: i, coco17: k, pose3D: p, pose3DState: s); return (r.status.rawValue, r.rep) }
     }
+    tracker.faultEvidence = evidence
     // Every key on (the app sends none by default) so `spoken` and `events` show what would be said.
     tracker.common.enabledFeedbackKeys = FormWarningTracker.allKeys
     var csv = "frame,time,status,rep," + (0..<(17 + (extraFrames.first?.count ?? 0)))
@@ -409,6 +616,13 @@ for video in videos {
                       + (adaptiveOn ? [(frame3D.adaptive?.filled.keys.sorted() ?? []).map(String.init).joined(separator: " "),
                                        (frame3D.adaptive?.invalid ?? []).map(String.init).joined(separator: " ")] + xyz(frame3D.adapted) : []))
                 .joined(separator: ",") + "\n"
+        }
+        if evidence != nil {
+            let source = sourceStamps[i]
+            tracker.faultSource = FormFaultSource(frame: source.frame, sourceIndex: source.sourceIndex,
+                timeValue: source.timeValue, timeScale: source.timeScale, session: source.session,
+                kind: source.kind, flush: frame3D?.diagnosticFlushed ?? false,
+                timeEpoch: source.timeEpoch, timeFlags: source.timeFlags)
         }
         let result = step(i, coco17Frames[i], frame3D?.masked3D, frame3D?.state, feetFrames[i])
         if result.rep > rep { repEndFrames.append(i) }
@@ -452,6 +666,25 @@ for video in videos {
         if let n = event.n { entry["n"] = n }
         events.append(entry)
     }
+    var artifactsStable = true
+    if let evidence, let faultTraceDirectory {
+        let sourceAfter = try sha256File(video)
+        var modelsAfter: [String: String] = [:]
+        for path in faultModelHashes.keys { modelsAfter[path] = try sha256Artifact(URL(fileURLWithPath: path)) }
+        artifactsStable = sourceAfter == (faultBindings[videoOrdinal]["sourceSHA256"] as? String)?.lowercased()
+            && modelsAfter == faultModelHashes
+        let receipt: [String: Any] = ["contract": "bpt-pose-replay-receipt-v1", "runID": faultSession,
+            "tracePath": evidence.url?.path as Any? ?? NSNull(), "candidateId": faultBindings[videoOrdinal]["candidateId"]!,
+            "sourceSHA256Before": faultBindings[videoOrdinal]["sourceSHA256"]!, "sourceSHA256After": sourceAfter,
+            "modelArtifactSHA256Before": faultModelHashes, "modelArtifactSHA256After": modelsAfter,
+            "artifactsStable": artifactsStable, "lifterActive": lifter != nil,
+            "formSource3D": tracker.common.form3DRequired]
+        try JSONSerialization.data(withJSONObject: receipt, options: [.prettyPrinted, .sortedKeys])
+            .write(to: faultTraceDirectory.appendingPathComponent("receipt_\(faultSession).json"), options: .withoutOverwriting)
+    }
+    evidence?.finish(reason: !artifactsStable ? "artifact_changed_during_execution" :
+                        (poseFailure ?? (sourceDrained ? "replay_eof" : "source_decode_incomplete")),
+                     sourceDrained: sourceDrained && poseFailure == nil && artifactsStable)
     let reps: [[String: Any]] = tracker.reports.map { report in
         var entry = report.dictionary
         entry["start_time"] = times.indices.contains(report.startFrame) ? times[report.startFrame] : NSNull()
