@@ -58,14 +58,14 @@ Predeclared IoU sensitivity, total matched intervals (not a new criterion):
 
 ## Post-result phase/dwell diagnosis, without rescoring
 
-After the frozen results, a [separate diagnostic protocol](temporal_phase_diagnostic_protocol_20261104.md) specified angle-phase and dwell measurements. Its [aggregate](temporal_phase_diagnostic_20261104.json) uses mocap joints only; no reference input was fed to a prediction model, and no original interval, threshold or score was altered.
+After the frozen results, a [separate diagnostic protocol](temporal_phase_diagnostic_protocol_20261104.md) specified angle-phase and dwell measurements. Its [original aggregate](temporal_phase_diagnostic_20261104.json), supplemented by [paired endpoint/run counts](temporal_phase_paired_diagnostic_20261104.json) during review, uses mocap joints only; no reference input was fed to a prediction model, and no original interval, threshold or score was altered.
 
-| Exercise | Reference endpoints high/high | Low/low | Middle/middle | One low run / two low runs within interval |
-|---|---:|---:|---:|---:|
-| Squat | 25/25 | 0 | 0 | 25 / 0 |
-| Row | 27/27 | 0 | 0 | 27 / 0 |
-| Pushup | 22/25 | 0 | 3/25 | 25 / 0 |
-| Deadlift | 5/26 | 21/26 | 0 | 5 / 21 |
+| Exercise | Reference endpoints high/high | Low/low | Middle/middle | High→middle / middle→high | One low run / two low runs |
+|---|---:|---:|---:|---:|---:|
+| Squat | 25/25 | 0 | 0 | 0 / 0 | 25 / 0 |
+| Row | 27/27 | 0 | 0 | 0 / 0 | 27 / 0 |
+| Pushup | 20/25 | 0 | 1/25 | 2 / 2 | 25 / 0 |
+| Deadlift | 5/26 | 21/26 | 0 | 0 / 0 | 5 / 21 |
 
 “High” is strictly >.65 and “low” strictly <.35 on the very same smoothed, clip-normalized angle signal. Deadlift uses hip interior angle; squat knee and row/pushup elbow. In deadlift, the 21 low/low intervals also contain two separated low runs. This is direct evidence that most dataset deadlift intervals cross the opposite cycle phase to the newly instrumented high→low→high excursions. The pattern is absent in squat/row, and mixed within deadlift, so assuming one universal annotation phase would be unsound. It explains why low overlap of both model and mocap control cannot be attributed solely to model error.
 
@@ -93,3 +93,18 @@ python eval_temporal_repetitions.py \
 The new evaluator imports the **saved run's** original angle code and counter, not current product code. The standalone phase script takes the same `--run`/`--root`, its separate `--protocol`, and `--out`. Both use exclusive output creation. Local verification: `python3 -m unittest discover -s scripts/deep_analysis/tests -p test_temporal_repetitions.py -v` — **8 passed**, including randomized legacy-count parity, exact cutoff/shared endpoint cases, duplicate prevention, a greedy-failure reassignment, cancellation at equal counts, and 80 independently exhaustively enumerated optimal matching comparisons. The actual private-data run additionally passed all 90 count/score parity checks and before/after hash checks.
 
 These previously inspected recordings and tiny exercise cohorts are not independent validation. Camera selection used mocap; C uses oracle camera intrinsics; A and B/C have different future-context conditions. Count/timing agreement provides no posture-accuracy evidence. The previous [GVHMR rejection/limitations](gvhmr_fit3d_20261026.md) remain unchanged; this work resolves the missing temporal audit without asserting a new detector or a pass.
+
+
+## Review corrections and additional provenance
+
+Review found that the original private output stored the full `events` list while its matching `pairs` indexed the censor-filtered prediction list. The original run had zero censored events, so its pairs and numeric results are unaffected. The corrected evaluator now stores `scored_events`, an explicit `scored_event_original_indices` mapping, and a `pair_index_convention`; its output schema is 2. A regression removes the first of three events and verifies both matching-pair identity and mapping back to the original list. Nine tests now pass. The published primary aggregate remains the actual original schema-1 run and was not regenerated or relabeled.
+
+Review also found that the initial phase table incorrectly inferred paired endpoint states from separate start/end marginals. A bounded rerun saves joint `(start state, end state, low-run count)` counts in `temporal_phase_paired_diagnostic_20261104.json`. It confirms exactly 21 deadlift low/low two-run intervals and five high/high one-run intervals; squat and row conclusions are unchanged. It **corrects pushup** from the initial unsupported 22 high/high and three middle/middle claim to **20 high/high, one middle/middle, two high→middle, two middle→high**, each with one low run. The table above uses these joint counts. All previous numeric diagnostic metrics and all previously saved marginal counts compare exactly equal on the rerun.
+
+New output: Home `~/bpt-runs/temporal-repetition-20261104-sol/review-fix/phase_diagnostic_paired.json`. Existing source data, original scripts and outputs remain untouched. New diagnostic script SHA256: `99d9072d95272b0230330ebba96ac39e8e169c03e11626d6fad04613fc7b8ae4`; corrected evaluator/helper SHA256: `81355c040bd2a7c696ea14870af12370abe6ef749f74d24f1f2aa62bccd92a39`. Both are embedded in the paired aggregate, which uses the unchanged diagnostic protocol and before/after input hashes.
+
+The original Home files' SHA256 values were checked before and after this rerun and were identical:
+
+- Primary aggregate: `bb8c3424bf7291e621e3a40313d87aa4d431decf4cf37a79dd79aa5f83ee3b5a`.
+- Original phase aggregate: `72ab03034666d88a87e3267f75dfc0e195abde37cee446f5ecc8495fc11bbcdf`.
+- Private event output: `8331f077228d097e8a2ade60f66ed4e6082264a3d1b70320ebab8014098f233d`.

@@ -63,6 +63,18 @@ class CounterParity(unittest.TestCase):
 
 
 class OptimalMatching(unittest.TestCase):
+    def test_censored_first_event_preserves_original_pair_identity(self):
+        emitted = [(0, 10), (20, 30), (40, 50)]
+        scored, indices = temporal.scoreable_events(emitted, [(0, 15)])
+        reference = [(20, 30), (40, 50)]
+        pairs = temporal.matching(scored, reference)
+        self.assertEqual(indices, [1, 2])
+        self.assertEqual(pairs, [(0, 0), (1, 1)])
+        for p, r in pairs:
+            self.assertEqual(scored[p], emitted[indices[p]])
+            self.assertEqual(emitted[indices[p]], reference[r])
+        self.assertNotEqual(emitted[pairs[0][0]], reference[pairs[0][1]])
+
     def test_one_reference_cannot_be_reused(self):
         self.assertEqual(len(temporal.matching([(0, 10), (0, 10)], [(0, 10)])), 1)
 

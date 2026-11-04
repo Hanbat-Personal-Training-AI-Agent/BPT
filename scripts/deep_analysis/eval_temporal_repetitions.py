@@ -129,6 +129,13 @@ def matching(pred, ref, threshold=Fraction(1, 2)):
     return [(p, r) for p, r, e in links if not e[2]]
 
 
+def scoreable_events(pred_all, censored):
+    """Return observable intervals and their indices in the full emitted list."""
+    indices = [i for i, p in enumerate(pred_all)
+               if not any(iou(p, r) > 0 for r in censored)]
+    return [pred_all[i] for i in indices], indices
+
+
 def stats(values):
     a = np.asarray(values, float)
     if not len(a):
@@ -231,13 +238,15 @@ def run(args):
             if len(raw) != expected_count or expected_count != old['reps']['GT' if v == 'mocap_control' else v]:
                 raise ValueError('counter or saved score parity failed')
             pred_all = [(int(pick[s]), int(pick[t])) for s, t, _ in raw]
-            pred = [p for p in pred_all if not any(iou(p, r) > 0 for r in censored)]
+            pred, original_indices = scoreable_events(pred_all, censored)
             vr = dict(raw_count=len(raw), all_reference=len(all_ref), terminal_partial=sum(x[2] for x in raw),
                       outside_annotation_span=int(sum(p[1] <= boundaries[0] or p[0] >= boundaries[-1] for p in pred_all)),
                       finite_samples=int(np.isfinite(signal).sum()),
                       interpolated_samples=int((~np.isfinite(signal)).sum()),
                       censored_reference=len(censored), censored_prediction=len(pred_all) - len(pred),
-                      events=pred_all, reference=reference, scores={})
+                      events=pred_all, scored_events=pred, scored_event_original_indices=original_indices,
+                      pair_index_convention='pairs index scored_events and reference',
+                      reference=reference, scores={})
             for label, threshold in [('0.25', Fraction(1, 4)), ('0.50', Fraction(1, 2)), ('0.75', Fraction(3, 4))]:
                 pairs = matching(pred, reference, threshold)
                 start = [(pred[p][0] - reference[r][0]) / 50 for p, r in pairs]
@@ -252,7 +261,7 @@ def run(args):
     if before != after:
         raise ValueError('source/input hash changed during evaluation')
     private = {'rows': rows, 'source_hashes': before}
-    public = dict(schema_version=1, comparison='dataset-reference temporal agreement',
+    public = dict(schema_version=2, comparison='dataset-reference temporal agreement',
                   clock='source frame / 50; half-open intervals', primary_iou=0.5,
                   code_sha256={p.name: before[str(p)] for p in paths if p.suffix == '.py'},
                   protocol_sha256=sha(args.protocol), source_hashes_unchanged=True,

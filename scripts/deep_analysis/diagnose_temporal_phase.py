@@ -63,13 +63,16 @@ def run(args):
             a, b = np.searchsorted(pick, [start, end])
             values = norm[a:b + 1]
             counts[ex]['references'] += 1
+            states = []
             for label, value in [('start', norm[a]), ('end', norm[b])]:
                 state = 'high' if value > .65 else ('low' if value < .35 else 'middle')
+                states.append(state)
                 counts[ex][label + '_' + state] += 1
                 pool[ex][label + '_normalized'].append(float(value))
             low = values < .35
             runs = int(low[0]) + int((low[1:] & ~low[:-1]).sum())
             counts[ex]['low_runs_' + str(runs)] += 1
+            counts[ex]['joint_start_' + states[0] + '_end_' + states[1] + '_low_runs_' + str(runs)] += 1
             pool[ex]['minimum_relative_position'].append(float(np.argmin(values) / max(1, len(values) - 1)))
             pool[ex]['reference_duration_s'].append((end - start) / 50)
             pool[ex]['high_sample_fraction'].append(float((values > .65).mean()))
@@ -82,6 +85,7 @@ def run(args):
         raise ValueError('input changed')
     output = dict(purpose='post-result phase/dwell diagnostic, no rescore',
                   source_sha256=sorted(hashes.values()), protocol_sha256=sha(args.protocol),
+                  code_sha256={Path(p).name: h for p, h in hashes.items() if Path(p).suffix == '.py'},
                   counts=dict(counts), metrics={ex: {k: stats(v) for k, v in metrics.items()} for ex, metrics in pool.items()})
     with args.out.open('x') as f:
         json.dump(output, f, indent=2, allow_nan=False)
