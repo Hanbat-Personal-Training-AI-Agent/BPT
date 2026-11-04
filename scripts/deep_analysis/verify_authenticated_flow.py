@@ -18,7 +18,6 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-SPRING = 'http://151.145.79.106:8080/api/v1'
 API = 'https://hqbfgym--bpt-calibration-api.modal.run/v1'
 STORAGE_HOST = '1de0e5ab10d7233b02491befb246f0ff.r2.cloudflarestorage.com'
 
@@ -32,10 +31,30 @@ def private_json(path, value):
     temporary.replace(path)
 
 
+def verified_spring_base(value):
+    try:
+        u = urllib.parse.urlsplit(value)
+        if (u.scheme != 'https' or not u.hostname or u.port not in (None, 443)
+                or u.username is not None or u.password is not None or u.query or u.fragment
+                or any(c.isspace() for c in value)):
+            raise ValueError()
+    except ValueError:
+        raise argparse.ArgumentTypeError('Spring API must be an explicit HTTPS base URL on port 443') from None
+    return value.rstrip('/')
+
+
+class NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, *args, **kwargs):
+        return None
+
+
+OPENER = urllib.request.build_opener(NoRedirect)
+
+
 def request(url, method='GET', payload=None, headers=None):
     req = urllib.request.Request(url, data=payload, method=method, headers=headers or {})
     try:
-        with urllib.request.urlopen(req, timeout=60) as response:
+        with OPENER.open(req, timeout=60) as response:
             return response.status, response.read()
     except urllib.error.HTTPError as error:
         return error.code, error.read()
@@ -43,13 +62,29 @@ def request(url, method='GET', payload=None, headers=None):
 
 def signed_url(url):
     parsed = urllib.parse.urlsplit(url)
-    if parsed.scheme != 'https' or parsed.hostname != STORAGE_HOST:
+    if (parsed.scheme != 'https' or parsed.hostname != STORAGE_HOST
+            or parsed.port not in (None, 443) or parsed.username is not None
+            or parsed.password is not None or parsed.fragment
+            or any(c.isspace() for c in url)):
         raise ValueError('unexpected_storage_host')
     return url
 
 
+def validate_upload_targets(targets, blobs):
+    if (not isinstance(targets, list) or len(targets) != len(blobs)
+            or not all(isinstance(t, dict) and isinstance(t.get('name'), str) for t in targets)
+            or sorted(t['name'] for t in targets) != sorted(blobs)
+            or any(t.get('method') != 'PUT' for t in targets)):
+        raise ValueError('invalid_upload_targets')
+    for item in targets:
+        signed_url(item['url'])
+    return targets
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument('--spring-api', required=True, type=verified_spring_base,
+                   help='Approved Spring HTTPS base URL; certificate verification is mandatory')
     p.add_argument('--video', type=Path, required=True)
     p.add_argument('--credential-file', type=Path, required=True)
     p.add_argument('--existing-flow', type=Path, required=True)
@@ -88,7 +123,7 @@ def main():
             raise ValueError('check_failed:' + name)
 
     try:
-        code, raw = request(SPRING + '/auth/login', 'POST', json.dumps({'email': account, 'password': password}).encode(),
+        code, raw = request(args.spring_api + '/auth/login', 'POST', json.dumps({'email': account, 'password': password}).encode(),
                             {'Content-Type': 'application/json'})
         check('existing_account_login_200', code == 200)
         auth = json.loads(raw)
@@ -120,7 +155,9 @@ def main():
             evidence['reused_existing_job'] = True
         else:
             check('prepare_requests_upload', prepared.get('status') == 'upload_required')
-            for item in prepared['files']:
+            # Validate the entire batch before uploading any bytes.
+            targets = validate_upload_targets(prepared['files'], blobs)
+            for item in targets:
                 name = item['name']
                 # The storage request uses no bearer token.
                 code, _ = request(signed_url(item['url']), 'PUT', blobs[name], {'Content-Type': types[name]})

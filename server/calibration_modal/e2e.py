@@ -12,6 +12,7 @@ Also checks: duplicate complete -> same job, bad token -> 401, missing file -> r
 import argparse
 import json
 import os
+import re
 import sys
 import time
 import uuid
@@ -23,11 +24,35 @@ import httpx
 sys.path.insert(0, str(Path(__file__).resolve().parent / "tests"))
 
 
+def valid_https(url, hosts=None, base=False):
+    """Reject ambiguous destinations before attaching credentials or sending bytes."""
+    try:
+        u = urlparse(url)
+        return (isinstance(url, str) and not any(c.isspace() for c in url)
+                and u.scheme == "https" and u.hostname is not None
+                and u.port in (None, 443) and u.username is None and u.password is None
+                and not u.fragment and (not base or not u.query)
+                and (hosts is None or u.hostname.lower() in hosts))
+    except (ValueError, TypeError):
+        return False
+
+
 def app_allows_storage(url, hosts):
-    """CalibrationUploadConfig.allowsStorage: https, port 443, exact host, no user info or fragment."""
-    u = urlparse(url)
-    return (u.scheme == "https" and (u.port or 443) == 443 and not u.username and not u.fragment
-            and (u.hostname or "").lower() in hosts)
+    return valid_https(url, hosts)
+
+
+def validate_targets(body, files, hosts):
+    """Validate the entire response, so a later invalid target cannot follow a PUT."""
+    targets = body.get("files") if isinstance(body, dict) else None
+    if (not isinstance(targets, list) or len(targets) != len(files)
+            or not all(isinstance(t, dict) and isinstance(t.get("name"), str) for t in targets)
+            or sorted(t.get("name", "") for t in targets) != sorted(files)
+            or any(t.get("method") != "PUT" or not app_allows_storage(t.get("url"), hosts)
+                   for t in targets)):
+        raise ValueError("invalid upload targets")
+    if not re.fullmatch(r"[A-Za-z0-9_-]{1,128}", str(body.get("uploadId", ""))):
+        raise ValueError("invalid upload identifier")
+    return targets
 
 
 def load_bundle(session_dir):
@@ -52,9 +77,13 @@ def main():
     args.add_argument("--session-dir")
     args.add_argument("--wait", type=int, default=120, help="seconds to poll the job")
     opts = args.parse_args()
-    token = os.environ["BPT_TOKEN"]
     api = opts.api.rstrip("/")
     hosts = [h.lower() for h in opts.storage_host]
+    if not valid_https(api, base=True):
+        args.error("--api must be an HTTPS base URL on port 443 without credentials, query or fragment")
+    if any(not re.fullmatch(r"[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?", h) for h in hosts):
+        args.error("--storage-host requires exact host names")
+    token = os.environ["BPT_TOKEN"]
     session, files = load_bundle(opts.session_dir)
     auth = {"Authorization": f"Bearer {token}", "Idempotency-Key": session}
     client = httpx.Client(timeout=30, follow_redirects=False)
@@ -73,19 +102,21 @@ def main():
 
     # A first upload missing one photo must not be accepted.
     partial = client.post(f"{api}/calibrations/uploads", json=prepare_body, headers=auth).json()
-    for target in partial["files"]:
+    partial_targets = validate_targets(partial, files, hosts)
+    for target in partial_targets:
         if target["name"] != "view_back.jpg":
             data = files[target["name"]]
             client.put(target["url"], content=data, headers={"Content-Type": content_type(target["name"]),
                                                              "Content-Length": str(len(data))}).raise_for_status()
     missing = client.post(f"{api}/calibrations/uploads/{partial['uploadId']}/complete",
                           json={"clientSessionId": session}, headers=auth)
-    check("missing file -> rejected", missing.status_code == 422, missing.text)
+    check("missing file -> rejected", missing.status_code == 422, missing.status_code)
 
     started = time.time()
     prepared = client.post(f"{api}/calibrations/uploads", json=prepare_body, headers=auth)
     body = prepared.json()
     check("prepare", prepared.status_code in (200, 201) and body["status"] == "upload_required", prepared.status_code)
+    validate_targets(body, files, hosts)
     check("five targets, all PUT", sorted(t["name"] for t in body["files"]) == sorted(files)
           and all(t["method"] == "PUT" for t in body["files"]))
     check("storage URLs pass the app's host rules", all(app_allows_storage(t["url"], hosts) for t in body["files"]),
@@ -102,7 +133,7 @@ def main():
 
     complete_url = f"{api}/calibrations/uploads/{body['uploadId']}/complete"
     first = client.post(complete_url, json={"clientSessionId": session}, headers=auth)
-    check("complete -> accepted", first.status_code in (200, 202) and first.json()["status"] == "accepted", first.text)
+    check("complete -> accepted", first.status_code in (200, 202) and first.json()["status"] == "accepted", first.status_code)
     second = client.post(complete_url, json={"clientSessionId": session}, headers=auth)
     check("duplicate complete -> same job", second.json() == first.json())
     again = client.post(f"{api}/calibrations/uploads", json=prepare_body, headers=auth)
@@ -136,4 +167,9 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as error:
+        # Transport exceptions may embed signed storage URLs. Keep them out of logs.
+        print(f"FAIL operator request failed ({type(error).__name__})")
+        sys.exit(1)

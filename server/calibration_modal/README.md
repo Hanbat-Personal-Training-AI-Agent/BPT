@@ -60,6 +60,8 @@ python -m venv .venv && .venv/bin/pip install modal "fastapi[standard]" boto3 py
 
 배포 뒤 점검 (토큰은 백엔드 로그인 토큰, 출력하지 않는다):
 
+`e2e.py`는 API에 HTTPS·443·사용자 정보/쿼리/fragment 없는 주소만 허용한다. 저장소는 `--storage-host`의 정확한 호스트만 허용하며, 첫 부분 업로드와 최종 업로드 각각 전체 대상 목록을 검사한 뒤 바이트를 보낸다. 리다이렉트는 따라가지 않는다. 이 명령은 실제 업로드·작업을 만들므로 읽기 전용 상태 점검이 아니다.
+
 ```sh
 BPT_TOKEN=<token> .venv/bin/python e2e.py \
   --api https://<workspace>--bpt-calibration-api.modal.run/v1 \
