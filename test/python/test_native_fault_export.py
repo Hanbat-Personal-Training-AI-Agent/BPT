@@ -166,6 +166,17 @@ class NativePayloadTests(unittest.TestCase):
         self.assertEqual(negative['state'],'withheld')
         self.assertLessEqual(positive['exposureEndSeconds'],0.02)
 
+    def test_one_trustworthy_tied_extremum_suffices_for_pointwise_positive(self):
+        trace=core_trace('pushup');rep=list(trace.reps.values())[0]
+        support=rep['judgements']['2d']['metricSupport']['hip_dev_max']
+        # Adversarial redundant-tie lineage: frame0 remains the actual native
+        # maximum witness; a second allegedly tied frame is untrustworthy.
+        support['selectedFrames'].append(2)
+        trace.frames[2]['sample2D']['inputSupport']['jointEvidence'][11]['finiteCoordinates']=False
+        row,audit=decision(trace,'pushup_hip_sag')
+        self.assertEqual(row['state'],'warning')
+        self.assertEqual(audit['metricChecks'][0]['provenSelectedFrames'],[0])
+
     def test_shallow_positive_needs_whole_current_minimum_search(self):
         trace=core_trace('pushup')
         self.assertEqual(decision(trace,'pushup_shallow',1)[0]['state'],'warning')

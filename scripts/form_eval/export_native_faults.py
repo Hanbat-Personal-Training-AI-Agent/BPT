@@ -516,6 +516,7 @@ class Support:
         fields=support.get('dependencyFields') or [support.get('field')]
         proof(all(isinstance(f,str) and f for f in fields),'missing_metric_fields')
         selected=support.get('selectedFrames',[]);reference=support.get('referenceFrames',[])
+        proven_selected=selected
         require(isinstance(selected,list) and isinstance(reference,list),'invalid metric witnesses')
         proof(set(selected+reference)<=set(allframes),'metric_witness_outside_rep')
         selector=support.get('selectorFrames',[])
@@ -545,14 +546,21 @@ class Support:
                 self.finite_fields(frames,fields,rep,source)
         else:
             proof(bool(selected),'no_selected_native_witness')
-            self.finite_fields(selected,fields,rep,source)
+            errors=[]
+            for frame in selected:
+                try:
+                    self.finite_fields([frame],fields,rep,source)
+                    proven_selected=[frame]
+                    break
+                except Unproven as error:errors.append(str(error))
+            else:raise Unproven('no_trustworthy_selected_witness:'+','.join(errors))
         if reference:
             self.finite_fields(reference,fields,rep,source)
             if name.startswith('head_dev_change') or name in ('heel_rise_max','ear_shoulder_drop'):
                 self.covered(allframes[:allframes.index(reference[0])+1],rep,source)
         if name=='ear_shoulder_drop':
             proof(bool(reference),'missing_first_jointly_available_reference')
-            self.finite_fields(reference+selected,['headAngle','earShoulder'],rep,source)
+            self.finite_fields(reference+proven_selected,['headAngle','earShoulder'],rep,source)
             # Positive only needs its actual accepted minimum plus first-ref
             # origin. Negative must classify the entire head-angle filter.
             if mode=='complete':
@@ -563,9 +571,10 @@ class Support:
                       all(finite(self.sample(f,rep,source).get('measurements',{}).get(k)) for k in fields)
                       for f in frames),'required_phase_not_observed_'+phase)
         if rep is self.rep:
-            self.witness.update(frames if full else selected+reference)
+            self.witness.update(frames if full else proven_selected+reference)
         self.metric_checks.append({'traceID':judge['traceID'],'metric':name,'mode':mode,
-                                   'scopeFrames':frames,'selectedFrames':selected,'referenceFrames':reference})
+                                   'scopeFrames':frames,'selectedFrames':selected,'referenceFrames':reference,
+                                   'provenSelectedFrames':proven_selected})
         return support['value']
 
     def references(self, operand, positive):
@@ -634,7 +643,7 @@ class Support:
             self.reference_ids.append(judge['traceID'])
         self.metric(metric,mode,rep,judge,source)
         support=judge['metricSupport'][metric]
-        frames=self.scope_frames(rep) if mode=='complete' else sorted(set(support.get('selectedFrames',[])+support.get('referenceFrames',[])))
+        frames=self.scope_frames(rep) if mode=='complete' else sorted(set(self.metric_checks[-1]['provenSelectedFrames']+support.get('referenceFrames',[])))
         self.view(mode=='complete',rep,judge,source,frames)
 
     def operand(self, operand, positive):
