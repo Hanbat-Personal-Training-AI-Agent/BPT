@@ -23,8 +23,8 @@
 // nearLegFallback / rebaselineStraightLegFrames / heightRepSignal / heightCounter.minRange.
 // --row-offside off: no row reps off the side view (old gate behaviour; BarbellRowEvaluatorConfig.countOffSideView).
 //
-// --keypoints-csv: skip decoding and RTMPose, read the 2D keypoints (j0..j16 x/y/c, extra columns
-// ignored) from a CSV in the format this tool writes; the video path then only names the outputs (no 3D).
+// --keypoints-csv: skip decoding and RTMPose, read the 2D keypoints (j0..j16 x/y/c, plus the nine Halpe26 extras j17..j25
+// (including six toe/heel points) when present) from a CSV in the format this tool writes; the video path then only names the outputs (no 3D).
 // --keypoints-dir: the same, per video from DIR/<video>_<exercise>_<model>.csv (many clips in one run, no model load).
 // bench/deadlift: BenchPressEvaluator / DeadliftEvaluator (2D only; their bench_* / deadlift_* keys are off in the app).
 //
@@ -254,14 +254,26 @@ for video in videos {
     var poseSeconds = 0.0
     if let keypointsCSV {
         guard FileManager.default.fileExists(atPath: keypointsCSV) else { print("no keypoints: \(keypointsCSV)"); continue }
-        for line in try String(contentsOfFile: keypointsCSV, encoding: .utf8).split(whereSeparator: \.isNewline).dropFirst() {
+        let lines = try String(contentsOfFile: keypointsCSV, encoding: .utf8).split(whereSeparator: \.isNewline)
+        let header = lines.first?.split(separator: ",", omittingEmptySubsequences: false).map(String.init) ?? []
+        let halpeHeader = (17..<Halpe26.jointCount).flatMap { j in ["j\(j)_x", "j\(j)_y", "j\(j)_c"] }
+        // Legacy COCO17 CSVs may have unrelated trailing metrics. Only the writer's exact named,
+        // positional j17..j25 columns declare Halpe extras; length alone is not evidence of feet.
+        let hasHalpeHeader = header.count >= 4 + Halpe26.jointCount * 3
+            && Array(header[(4 + 17 * 3)..<(4 + Halpe26.jointCount * 3)]) == halpeHeader
+        for line in lines.dropFirst() {
             let cells = line.split(separator: ",", omittingEmptySubsequences: false)
             guard cells.count >= 4 + 17 * 3 else { continue }
             let v = cells.map { Double($0) ?? 0 }
+            let joint = { (j: Int) in PoseKeypoint(x: v[4 + j * 3], y: v[5 + j * 3], confidence: v[6 + j * 3]) }
             times.append(v[1])
-            coco17Frames.append((0..<17).map { PoseKeypoint(x: v[4 + $0 * 3], y: v[5 + $0 * 3], confidence: v[6 + $0 * 3]) })
-            extraFrames.append([])
-            feetFrames.append(nil)
+            coco17Frames.append((0..<17).map(joint))
+            // A Halpe26 CSV (j17..j25) also carries the toes/heels: the keypoint replay sees the feet like the video run.
+            let halpe = hasHalpeHeader && cells.count >= 4 + Halpe26.jointCount * 3
+            extraFrames.append(halpe ? (17..<Halpe26.jointCount).map(joint) : [])
+            feetFrames.append(halpe ? FootKeypoints(leftBigToe: joint(Halpe26.leftBigToe), rightBigToe: joint(Halpe26.rightBigToe),
+                                                    leftSmallToe: joint(Halpe26.leftSmallToe), rightSmallToe: joint(Halpe26.rightSmallToe),
+                                                    leftHeel: joint(Halpe26.leftHeel), rightHeel: joint(Halpe26.rightHeel)) : nil)
         }
     }
     let output: AVAssetReaderTrackOutput? = try {

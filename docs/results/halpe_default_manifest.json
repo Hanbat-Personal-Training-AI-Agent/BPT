@@ -1,0 +1,170 @@
+{
+  "branch": "ai/halpe-default-m2b98256",
+  "base": "2b98256",
+  "C1": "f715c3b",
+  "C2": "24d0466",
+  "models": {
+    "rtmpose_m_halpe26_forward": [
+      {
+        "file": "Data/com.apple.CoreML/model.mlmodel",
+        "bytes": 109455,
+        "sha256": "9629373af5161123a184d1bbc4c3627a42e925c51b1b31a26083de889bd13be0",
+        "equals_git_blob": "0024c50^:rtmpose_m_halpe26_forward.mlpackage/Data/com.apple.CoreML/model.mlmodel"
+      },
+      {
+        "file": "Data/com.apple.CoreML/weights/weight.bin",
+        "bytes": 27843200,
+        "sha256": "eec87e9dccdb278f695669243e24f8a6c656c0ab98bd9de25ff3c5e0d1574b1e",
+        "equals_git_blob": "0024c50^:rtmpose_m_halpe26_forward.mlpackage/Data/com.apple.CoreML/weights/weight.bin"
+      },
+      {
+        "file": "Manifest.json",
+        "bytes": 617,
+        "sha256": "649d02743369181d0556fdbfa37c508be8d77942d10e799e57055fa1ebe5b68a",
+        "equals_git_blob": "0024c50^:rtmpose_m_halpe26_forward.mlpackage/Manifest.json"
+      }
+    ],
+    "rtmpose_m_forward": [
+      {
+        "file": "Data/com.apple.CoreML/model.mlmodel",
+        "bytes": 108802,
+        "sha256": "e075437e28676fb7ebeba834bb2c2d6e1cae4a3ecce7fd5b79548bbce54dbbf4",
+        "equals_git_blob": "24d0466^:rtmpose_m_forward.mlpackage/Data/com.apple.CoreML/model.mlmodel"
+      },
+      {
+        "file": "Data/com.apple.CoreML/weights/weight.bin",
+        "bytes": 27165824,
+        "sha256": "c03d3ca169b36b657262e719f9bac12fa6e4b4dc331745ce045a77890ff1cc74",
+        "equals_git_blob": "24d0466^:rtmpose_m_forward.mlpackage/Data/com.apple.CoreML/weights/weight.bin"
+      },
+      {
+        "file": "Manifest.json",
+        "bytes": 617,
+        "sha256": "cb5289e623f493172828dd2579d50bec864fabcd6c404fac5d142b1915b4dff9",
+        "equals_git_blob": "24d0466^:rtmpose_m_forward.mlpackage/Manifest.json"
+      }
+    ]
+  },
+  "binaries": {
+    "pose-replay-f715c3b": {
+      "sha256": "ab462c9c15390b750a50ef19cb25580fc2679efb8b0b0317d0796df1de66d0c3",
+      "bytes": 608424
+    },
+    "pose-replay-f583d5d": {
+      "sha256": "392fae1d7b30b35b689f17762d83db81e5fde02114da6c8816dded8827938928",
+      "bytes": 605864
+    },
+    "pose-replay-f715c3b-cropsin": {
+      "sha256": "858147845da452f11e102829f92e155a63aade8411bc7d4526cc3c761ae0eb2c",
+      "bytes": 632200
+    },
+    "pose-replay-c3wip": {
+      "sha256": "a5f5522583cd83e5e95ea9b4a3a947d94cd4ff60799d7c15313d4da51fde0384",
+      "bytes": 608424
+    }
+  },
+  "scripts": {
+    "mmfit_run.py": "f2c2ab76fee5614af8eed00dee9b2b62bb12decfc217977e5d7e8e4b63c66a58",
+    "ex3d_run.py": "0613ca7f0efe4b79d461086bc60332c0350cdb9351e31d50241d848bb56fae90",
+    "verify_c3.py": "55fb46396b1a9695ca4c6cefb493c9798db16f9001c5f62ba19d0712f7103452"
+  },
+  "C3": "5edbb26b5bc6bfea049de1e78706380f0728e12c",
+  "csv_checks": {
+    "binary_sha256": "a5f5522583cd83e5e95ea9b4a3a947d94cd4ff60799d7c15313d4da51fde0384",
+    "source_sha256": "2a3aef217fc36f79e95235351a43ee3b48d6fee1bac403cb003ce6db7887d02a",
+    "results": {
+      "feet": {
+        "frames": 362,
+        "joints": 26,
+        "reps": 2,
+        "heel_rise_max": [
+          0.13690095284744155,
+          0.0020189673743331304
+        ]
+      },
+      "coco": {
+        "frames": 362,
+        "joints": 17,
+        "reps": 2,
+        "heel_rise_max": [
+          null,
+          null
+        ]
+      },
+      "raised": {
+        "frames": 362,
+        "joints": 26,
+        "reps": 2,
+        "heel_rise_max": [
+          0.0038661223590378824,
+          0.0022437857292622876
+        ]
+      }
+    }
+  },
+  "tests": {
+    "swift_final": {
+      "passed": 105,
+      "failures": 0,
+      "completed_kst": "2026-10-20 22:43:19",
+      "log_sha256": "3732efa219ac45b061f0d76779c8801803e11967eb8f8b2ec2ed4631bc2e75ca"
+    },
+    "device_release_build": {
+      "commit": "a8b29f1",
+      "exit_code": 0,
+      "installed": true,
+      "log_sha256": "05ffe9cb40bf2703a9a1079dd4e7388b15b20ea08aa99975dfcb631b88667df0"
+    }
+  },
+  "device_build": {
+    "runner_binary": "674a755e8e3c7eff708b7f6bc92e98a2995abccf2047e60452f4fc78e71e2adb",
+    "git": "a8b29f1fdc9ddcb302f03aae36c2eca7fd4fa81a",
+    "build": "Release iphoneos com.bpt.liftdev",
+    "phase": "experimental C1 plus rotation; baseline m COCO17 retained only for A/B",
+    "motionagformer_xs.mlmodelc": {
+      "analytics/coremldata.bin": "a4d9f8019a486accedf21cf856c3b26ef350216b279771e9f3562df22104a0e4",
+      "coremldata.bin": "ffff318336e8a75733d72f9a173f1f0c67d442854c4c851900c3c237e26b3767",
+      "metadata.json": "7068fccb43ab53bb4bcc0c5165af92e94f768d485a944fbad0f4d9d186dc27b5",
+      "model.mil": "768b5f53b06c471b667005b71d0e17d6c2a87cc15f1a975dbd135456ca910c49",
+      "weights/weight.bin": "37a5c83431601e421a4d3d1e6fa6af39951062a08a7372cea172b98110d2f38e"
+    },
+    "rtmpose_m_forward.mlmodelc": {
+      "analytics/coremldata.bin": "060c59d6608a0bab0f84f27d8031a29279f2b828327fc31c146064d835eba760",
+      "coremldata.bin": "2e5da3e0c2362aeb75bb4b2024acbc85d601d7a931215498974b2d2d57970e20",
+      "metadata.json": "34563435712e98f452dea2e0eaa61064eacdcaf2ed8e4463d8adac4c0c270f7d",
+      "model.mil": "687892d47cf3827252b87799bc083d2189c53bc203b92431936b2c4cabd98836",
+      "weights/weight.bin": "c03d3ca169b36b657262e719f9bac12fa6e4b4dc331745ce045a77890ff1cc74"
+    },
+    "rtmpose_m_halpe26_forward.mlmodelc": {
+      "analytics/coremldata.bin": "f952063422fff8768c9ca388ae422622b577e29cb1477bfe507f3d8b4aca5689",
+      "coremldata.bin": "02656bbcd6132d4b466e44b7f341e59d9641190040444a7cefbff59053a9a9c8",
+      "metadata.json": "7bea18fb8c741ed18dc2c98a791b59f43f3b4df61a8eab6c3277a08a843d5ee5",
+      "model.mil": "57d5145bb2116905290326ecef5e2485c864cbd1ed477724569fbc8a0835b3ea",
+      "weights/weight.bin": "eec87e9dccdb278f695669243e24f8a6c656c0ab98bd9de25ff3c5e0d1574b1e"
+    },
+    "rtmpose_s_forward.mlmodelc": {
+      "analytics/coremldata.bin": "54a25e99b4b6e1fa17ffc9520a373a02c785313ec0b94cef513aabb030f2388c",
+      "coremldata.bin": "2a9025daed8139a922c3532ca4b4fb3481fcdc4a55a9d7dd4b72098a494a5d50",
+      "metadata.json": "bf36183010ae9dd746acb8ea1d7a9663491d33922557e81ec79fc03153729f58",
+      "model.mil": "a1ee32ac3816709af62a0d1d68433dc18eb63596f95d83d3e87a32dd05759abd",
+      "weights/weight.bin": "bf1a64719c5e43b24708559d000d2f6a693d59e546e6fc5e2a7f45a1bacf7591"
+    },
+    "rtmpose_s_halpe26_forward.mlmodelc": {
+      "analytics/coremldata.bin": "5c5879b697016a7d78465e1c8b72a93e6ff54897634f1eb23822d8d772326861",
+      "coremldata.bin": "7586bee7ed8d8f2a31cbad48b7f56f3c29f7a2dc3e034419291ccc08c8aa1902",
+      "metadata.json": "a13b84f1c1c92f6956248955044e6b1c535bc659cddf00303a0d1a2fe04ea277",
+      "model.mil": "9d834cb4672f9927c1bd70b0ae029da3db7edec9ac4546a72c9aa9703161e286",
+      "weights/weight.bin": "f6f12b361030da6f4a786eec40174f94f6560837f0021f5393faf1233663e31d"
+    }
+  },
+  "phone_partial_checkpoint": {
+    "at": "2026-10-20T23:00:36+0900",
+    "status": "partial; 3 paired row clips out of 39; not full result",
+    "comparison_sha256": "4dc73f0c6148d70cc3b62b9626e8020165b8c73899cd9ba6f1a3c9c1488dc2ac",
+    "home_manifest_sha256": "7df85c0e57104bdb845b66bd1547a64cef660fd32ee1c080a4243a5e06f87595",
+    "home_archive": "synced to Home ~/bpt-runs/lift-app/20261020-device-halpe-ab-a8b29f1-partial-20261020-230031/, sha256 verified 2026-10-20T23:00:36+0900",
+    "smoke_old_build_comparison_sha256": "ed4a8836c96545b9d579ab128a6db3cb46e2493f3d0796e7b19dcc0fcdba0340",
+    "setup_ready": "unmeasured: no setup gate in a8b29f1; earlier setup success used s Halpe26, not m",
+    "transfer_policy": "Wi-Fi per user: continue launches, preserve recordings, defer failed pulls; count completed only with expected model/rotation, session_end and local SHA match"
+  }
+}

@@ -954,6 +954,20 @@
   - `ai/teammate-notes` 4bba51a: docs/handoff/teammate_requests.md, PR 초안 갱신.
 - **제외**(검증 중): 3D 켜기·XS 번들(`ai/lift-app`), 새 뼈대 화면(`ai/lift-refine`), 가림 보정·준비 자세(`ai/setup-constraint`), 파인튜닝(`ai/finetune3`), 운동 중 대기 문구 변경(6a78a29, 사용자가 다른 사양을 줌).
 
+
+### D-M-03 운동 카메라 2D 모델은 RTMPose-m Halpe26 하나 — m COCO17은 운동 번들에서 뺌 (2026-10-20 20:50 무렵, 사용자 결정)
+- **사용자 결정**("할페만 남기자"): 두 가지를 승인.
+  1. D8: 운동 카메라 기본 2D 모델 = RTMPose-m Halpe26(`rtmpose_m_halpe26_forward`).
+  2. m COCO17(`rtmpose_m_forward.mlpackage`)을 운동 번들·pbxproj·`RTMPoseModel`에서 뺀다.
+- **이 결정에 들어가지 않은 것**(그대로 두고, 각각 따로 승인): integration/ai·main 병합, 캘리브레이션 캡처 모델(s COCO17 — 키포인트가 서버 체형 맞춤에 들어감), 미세조정 m Halpe26(ai/finetune3)으로 교체, 자세 경고 임계값.
+- **에이전트 판단**(사용자 결정 아님, 바꿀 수 있음):
+  - 브랜치 `ai/halpe-default-m2b98256`(integration/ai 2b98256 = main에서). 커밋을 나눔: C1 = m Halpe26 복구·기본값(m COCO17도 아직 번들에 있음, 기기 A/B용 `BPT_POSE_MODEL=mcoco17`), C2 = m COCO17 제거, C3 = pose-replay CSV 재생이 Halpe26 발 관절을 읽게(도구), C4 = 문서.
+  - m COCO17을 쓰는 곳을 먼저 찾음: 앱 코드는 `RTMPoseModel.workout` 기본값 하나뿐. 개발 도구(pose-replay `--model mcoco17`, 평가 스크립트 4개의 기본값)는 기본값을 `mhalpe26`으로 옮기고, m COCO17 기준선은 `~/bpt-models/rtmpose_m_forward.mlpackage`(마지막 번들과 sha256 같음)를 `--model coco17 --model-path`로 읽음. 기기 벤치(`tools/pose_model_bench`)는 모델을 경로로 받아 영향 없음.
+  - `workoutUsesMediumModel` 플래그 삭제(m 모델이 하나라 고를 것이 없음). s Halpe26(`halpe26`)은 10/9 사용자 지시대로 남김.
+  - 이 전환은 결과를 본 뒤의 제품 결정이다. D-T3-17 사전 등록 규칙(에이전트 제안, 미승인)을 통과해서 정한 것이 아니고, 그 규칙·기록은 고치지 않는다.
+- **확인**: `docs/results/halpe_default.md` A(테스트·재생)·E(재현 자료).
+- **되돌리기**: 기기 시험만이면 C1 빌드에서 `BPT_POSE_MODEL=mcoco17`. 제품을 되돌리려면 C2를 되돌리고(번들·pbxproj·enum) `RTMPoseModel.workout = .mcoco17`.
+
 ## D-D-10 3D 보정 다듬기 — 관절 각 한 설정·무릎 과신전 클램프·사람별 뼈 길이 목표·손 crop 중복 제거·오버레이 (2026-10-20, ai/lift-refine) — 제안, 결정 아님
 상세: `docs/results/lift_refine.md`(판정 규칙은 결과 전에 d305a49로 고정).
 - **관절 각 한계**: 값은 `pose_feedback/geometry/anatomical_limits.json` 한 곳(근거 포함), Swift는 같은 값(테스트로 강제). 내각 한계는 384e684 값 그대로(이미 모캡 p0.1/p99.9였다 — 작업 지시의 “느슨하다”는 ed67a6e 값 이야기). 새로 넣은 것은 **무릎 과신전 클램프 θ ≥ −15°**(CDC 정상 폄 평균 1.0–1.6°, Beighton > 10°, Fit3D 세 운동 −10° 아래 없음): 뒤로 꺾인 무릎이 출력에 남지 않는다. θ < −30° 무효 표시·스쿼트 반사는 그대로.
@@ -980,3 +994,14 @@
 - **그대로 둔 것**: 판정과 로그(`FormRepReport.warnings`, 세션 로그, pose-replay). 기준값은 바꾸지 않음 — R6(rc1 기본 채택)은 **승인되지 않음**.
 - **결과**: `docs/results/quiet_keys.md`. 브랜치 `ai/quiet-keys-m2b98256`, 병합하지 않음.
 
+
+### D-M-05 검증·승인된 4건을 integration/ai에 병합 (2026-10-23 04시 무렵, 사용자 위임)
+- **사용자 위임**: 자기 전에 "다 알아서해 앵간한거 다 허가해줌". 이미 검증되고 사용자가 승인한 것만 integration/ai(base main f953336)에 병합했다. main에는 병합·push하지 않음.
+- **병합함**:
+  1. `ai/halpe-default-m2b98256` 7db0b33 — 운동 2D 기본 m Halpe26, m COCO17 번들 제외(D-M-03, 기기 37쌍 A/B 확인). decisions.md 충돌은 D-M-03·D-M-04 둘 다 남김.
+  2. `ai/quiet-keys-m2b98256` 02677c1(7d2c0ef) — 오경보 큰 키 6개 기본 전달 끔(D-M-04).
+  3. `ai/kori-short-mf953336` 195f7a5 — 짧은 코리 대사. 테스트 기대값 갱신 0e01dea·d04e5c8(Swift 테스트만, pubspec.lock 제외)을 함께 가져옴.
+  4. 가로 촬영: `ai/orientation-m2b98256` 8e962e4(분석 회전, CaptureRotation) + `ai/trial-mf953336` cb6dcf1을 integration 오버레이에 맞게 옮김(미리보기가 화면 방향을 따르고, 가로 뷰에서 관절·손을 분석 좌표로 그림; 팀원 #67 푸시업 가로 화면용). 기기 결과: 가로 hip_pike 오경보 0, 270° 3D ok 67→96%(3D는 lift-app 기준).
+- **뺀 것**(3D 전용·integration에 해당 코드 없음): ebcfb38의 3D 창 분리(MotionAGFormerLive), a8b29f1 실행 로그 필드(integration에 실행 로그 없음).
+- **아침 검토로 남김**(병합 안 함): 3D 켜기(`ai/lift-app`), C3·미세조정 모델, calib-fix(사람 기기 시험 대기), setup-constraint·손목 고정, trial 전용 로그 커밋, motion-contact, eval-full·rules-calib 스크립트.
+- **확인**: flutter analyze 문제 없음, flutter test 109 통과, CalibrationEngineKit `swift test` 111 통과, `flutter build ios --debug --no-codesign` 성공. 가로 미리보기·오버레이는 기기에서 좌우 가로 방향 모두 아직 눈으로 확인 필요.
