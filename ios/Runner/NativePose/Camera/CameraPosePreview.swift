@@ -86,14 +86,6 @@ struct CameraFrameData: Identifiable {
     var shade: [OverlaySegment: OverlayShade] = [:]
 }
 
-/// Cross-queue identity only; records remain on the main actor.
-private final class FormFaultCaptureToken: @unchecked Sendable {
-    private let lock = NSLock()
-    private var value: String?
-    func set(_ next: String?) { lock.lock(); value = next; lock.unlock() }
-    func snapshot() -> String? { lock.lock(); defer { lock.unlock() }; return value }
-}
-
 struct CameraProcessingResult {
     let frameIndex: Int
     /// Quarter turn from the camera buffer to the analysis frame everything below is in (gravity down the image).
@@ -114,7 +106,8 @@ struct CameraProcessingResult {
     var sourceTimeScale: Int32?
     var sourceTimeEpoch: Int64 = 0
     var sourceTimeFlags: UInt32 = 0
-    var faultEvidenceRunID: String?
+    var ingress: CameraFrameIngress?
+    var sourceIndex: Int?
     var terminalEpoch: Int?
     var coachingCandidateEpoch: Int?
     var motionObserverEpoch: Int?
@@ -140,7 +133,20 @@ private final class CameraCaptureManager: NSObject, AVCaptureVideoDataOutputSamp
     nonisolated(unsafe) private var frameIndex = 0
     /// (frame, index, arrival time). Arrival = when the frame reached the app (camera: captureOutput entry; video
     /// mode: its pacing slot), the start of the input → judgement latency.
-    nonisolated(unsafe) var onFrame: (@Sendable (CMSampleBuffer, Int, CFTimeInterval) -> Void)?
+    typealias FrameHandler = @Sendable (CMSampleBuffer, Int, CFTimeInterval, CameraSourceFrame?) -> Bool
+    private let frameRoute = CameraIngressRoute<FrameHandler>()
+    private let cameraRoutes = CameraIngressRoute<[ObjectIdentifier:FrameHandler]>()
+    private var configuredOutput: AVCaptureVideoDataOutput?
+    var onFrame: FrameHandler? {
+        get { frameRoute.snapshot() }
+        set {
+            frameRoute.install(newValue)
+            if let output = configuredOutput {
+                // Removed camera outputs must not retain old models/handlers or acquire a new setup's handler.
+                cameraRoutes.install(newValue.map { [ObjectIdentifier(output):$0] } ?? [:])
+            }
+        }
+    }
     /// Video-as-camera: the processing queue is busy with a frame (drop rule of alwaysDiscardsLateVideoFrames).
     private let busyLock = NSLock()
     nonisolated(unsafe) private var externalBusy = false
@@ -148,6 +154,9 @@ private final class CameraCaptureManager: NSObject, AVCaptureVideoDataOutputSamp
     nonisolated(unsafe) private var recorder: WorkoutSetRecorder?
     nonisolated(unsafe) var recordingRotation = 0
     nonisolated(unsafe) var perfLog: WorkoutPerfLog?
+
+    /// Called only by main-actor setup, never from processingQueue. Drain capture work before replacing its state.
+    func drainProcessingForSetup() { processingQueue.sync {} }
 
     func afterPendingExternalFrames(_ completion: @escaping @Sendable () -> Void) {
         TerminalEvidenceIngressFence.afterPending(on: processingQueue, completion: completion)
@@ -193,6 +202,7 @@ private final class CameraCaptureManager: NSObject, AVCaptureVideoDataOutputSamp
         }
 
         let output = AVCaptureVideoDataOutput()
+        configuredOutput = output
         output.alwaysDiscardsLateVideoFrames = true
         output.videoSettings = [
             kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA
@@ -235,15 +245,18 @@ private final class CameraCaptureManager: NSObject, AVCaptureVideoDataOutputSamp
     ) {
         guard !isProcessingFrame else { perfLog?.frameDropped(); return }
         isProcessingFrame = true
-        handleFrame(sampleBuffer, arrival: CACurrentMediaTime())
+        handleFrame(sampleBuffer, arrival: CACurrentMediaTime(), source: nil, handler: cameraRoutes.snapshot()?[ObjectIdentifier(output)])
         isProcessingFrame = false
     }
 
     /// The per-frame entry both sources share (processing queue).
-    nonisolated private func handleFrame(_ sampleBuffer: CMSampleBuffer, arrival: CFTimeInterval) {
+    nonisolated private func handleFrame(_ sampleBuffer: CMSampleBuffer, arrival: CFTimeInterval,
+                                         source: CameraSourceFrame?, handler: FrameHandler?) {
         let idx = frameIndex
         frameIndex += 1
-        onFrame?(sampleBuffer, idx, arrival)
+        guard handler?(sampleBuffer, idx, arrival, source) == true else {
+            perfLog?.frameDropped(); VideoRunLog.shared?.count("dropped"); return
+        }
         recorder?.append(sampleBuffer, frameIndex: idx, rotationDegrees: recordingRotation)
         perfLog?.frameProcessed()
         VideoRunLog.shared?.count("processed")
@@ -252,7 +265,8 @@ private final class CameraCaptureManager: NSObject, AVCaptureVideoDataOutputSamp
     /// Video-as-camera (VideoCameraSource): same queue and entry as captureOutput. A frame that arrives while the
     /// previous one is still being processed is dropped, as AVCaptureVideoDataOutput does with
     /// alwaysDiscardsLateVideoFrames. Returns false when dropped.
-    nonisolated func deliverExternal(_ sampleBuffer: CMSampleBuffer, arrival: CFTimeInterval) -> Bool {
+    nonisolated func deliverExternal(_ sampleBuffer: CMSampleBuffer, arrival: CFTimeInterval,
+                                     source: CameraSourceFrame?, handler: @escaping FrameHandler) -> Bool {
         busyLock.lock()
         if externalBusy {
             busyLock.unlock()
@@ -264,7 +278,7 @@ private final class CameraCaptureManager: NSObject, AVCaptureVideoDataOutputSamp
         busyLock.unlock()
         VideoRunLog.shared?.count("arrived")
         processingQueue.async { [self] in
-            handleFrame(sampleBuffer, arrival: arrival)
+            handleFrame(sampleBuffer, arrival: arrival, source: source, handler: handler)
             busyLock.lock()
             externalBusy = false
             busyLock.unlock()
@@ -443,10 +457,9 @@ final class CameraPoseViewModel: ObservableObject {
     private var lastReportedPose3D: String?
     private var motion: DeviceMotionMonitor?
     private var nativeFaultEvidence: FormFaultEvidence?
-    nonisolated private let nativeFaultToken = FormFaultCaptureToken()
+    nonisolated private let ingressGeneration = CameraIngressGeneration()
 
     private func closeNativeFaultEvidence(_ reason: String) {
-        nativeFaultToken.set(nil)
         nativeFaultEvidence?.finish(reason:reason,sourceDrained:false)
         nativeFaultEvidence = nil
         formTracker?.faultEvidence = nil
@@ -455,12 +468,12 @@ final class CameraPoseViewModel: ObservableObject {
 
     private func bindNativeFaultSource(_ result: CameraProcessingResult, flush: Bool) {
         guard let evidence = nativeFaultEvidence else { return }
-        guard result.faultEvidenceRunID == evidence.runID else {
+        guard let ingress = result.ingress, ingress.faultRunID == evidence.runID else {
             closeNativeFaultEvidence("source_session_mismatch"); return
         }
         formTracker?.faultSource = FormFaultSource(frame:result.frameIndex,
-            sourceIndex:VideoCameraOptions.isActive ? VideoRunLog.shared?.clipFrame(result.frameIndex) : result.frameIndex,
-            timeValue:result.sourceTimeValue,timeScale:result.sourceTimeScale,session:evidence.runID,
+            sourceIndex:result.sourceIndex,
+            timeValue:result.sourceTimeValue,timeScale:result.sourceTimeScale,session:evidence.runID+"/"+ingress.sourceID,
             kind:VideoCameraOptions.isActive ? "video" : "camera",flush:flush,
             timeEpoch:result.sourceTimeEpoch,timeFlags:result.sourceTimeFlags)
     }
@@ -512,6 +525,7 @@ final class CameraPoseViewModel: ObservableObject {
     }
 
     func stopCamera() {
+        ingressGeneration.stopIngress()
         closeNativeFaultEvidence("camera_stop")
         if CameraPreviewOptions.motionObserverEnabled { motionObserverSession.end(); motionProfileGate.clear() }
         if coachingCandidateEnabled { resetCoachingCandidate(end: true) }
@@ -717,7 +731,7 @@ final class CameraPoseViewModel: ObservableObject {
     /// Set-scope feedback (참고 keys, n = reps in the set), then onSetEnd once the file is closed.
     private func endSet(_ index: Int) {
         VideoRunLog.shared?.write("end_set_received", ["set": index, "between_sets": betweenSets])
-        guard !betweenSets else { return }
+        guard !betweenSets, let generation = ingressGeneration.snapshot() else { return }
         betweenSets = true
         if CameraPreviewOptions.motionObserverEnabled { motionObserverSession.end(); motionProfileGate.clear() }
         if coachingCandidateEnabled { resetCoachingCandidate(end: true) }
@@ -726,9 +740,9 @@ final class CameraPoseViewModel: ObservableObject {
         recording = false
         // The last `lookahead` frames are still in the 3D window: judge them (window clamped at the newest frame)
         // before the set summary.
-        guard lifter != nil else { return finishEndSet(index, evidenceEpoch: evidenceEpoch, evidenceEndHost: evidenceEndHost) }
+        guard lifter != nil else { return finishEndSet(index, generation:generation, evidenceEpoch: evidenceEpoch, evidenceEndHost: evidenceEndHost) }
         liftQueue.async { [weak self] in
-            guard let self else { return }
+            guard let self, self.ingressGeneration.accepts(generation) else { return }
             let flushed = try? self.lifter?.flush()
             let tail = flushed ?? []
             let flushSucceeded = flushed != nil
@@ -739,16 +753,21 @@ final class CameraPoseViewModel: ObservableObject {
             if CameraPreviewOptions.motionObserverEnabled { observerDeliveries.enter() }
             Task { @MainActor in
                 defer { if CameraPreviewOptions.motionObserverEnabled { observerDeliveries.leave() } }
+                guard self.ingressGeneration.accepts(generation) else {
+                    for (result,_) in tail { self.terminalCapture.delivered(epoch:result.terminalEpoch,frame:result.frameIndex,failed:true) }
+                    return
+                }
                 let currentEvidence = self.terminalCapture.accepts(evidenceEpoch)
                 if currentEvidence { self.terminalFlushing = true }
                 for (result, frame3D) in tail { self.handleLifted(result, frame3D) }
                 if currentEvidence { self.terminalFlushing = false }
-                self.finishEndSet(index, evidenceEpoch: evidenceEpoch, flushSucceeded: flushSucceeded, evidenceEndHost: evidenceEndHost)
+                self.finishEndSet(index, generation:generation, evidenceEpoch: evidenceEpoch, flushSucceeded: flushSucceeded, evidenceEndHost: evidenceEndHost)
             }
         }
     }
 
-    private func finishEndSet(_ index: Int, evidenceEpoch: Int? = nil, flushSucceeded: Bool = false, evidenceEndHost: Double? = nil) {
+    private func finishEndSet(_ index: Int, generation: String, evidenceEpoch: Int? = nil, flushSucceeded: Bool = false, evidenceEndHost: Double? = nil) {
+        guard ingressGeneration.accepts(generation) else { return }
         if !flushSucceeded { motionObserverLog?.markIncomplete(.flushFailure) }
         if motionObserverFinishAtSetEnd {
             motionObserverFinishAtSetEnd = false
@@ -784,6 +803,7 @@ final class CameraPoseViewModel: ObservableObject {
         let reports = tracker?.reports ?? []
         captureManager.finishRecording { [weak self] url, times, duration in
             Task { @MainActor in
+                guard let self, self.ingressGeneration.accepts(generation) else { return }
                 var reps: [[String: Any]] = []
                 var previousEnd = 0.0
                 for report in reports {
@@ -801,7 +821,7 @@ final class CameraPoseViewModel: ObservableObject {
                 }
                 let metadata: [String: Any] = ["schemaVersion": 1, "sessionId": UUID().uuidString,
                                                "timebase": "video_ms", "reps": reps]
-                self?.bridge?.sendSetEnd(setIndex: index, videoLocalPath: url?.path, worstJoint: worstJoint,
+                self.bridge?.sendSetEnd(setIndex: index, videoLocalPath: url?.path, worstJoint: worstJoint,
                                          deepAnalysis: url == nil || reps.isEmpty ? nil : metadata)
             }
         }
@@ -820,6 +840,11 @@ final class CameraPoseViewModel: ObservableObject {
     }
 
     private func setup() {
+        ingressGeneration.activate(nil)
+        // A capture task can sync-wait on liftQueue (BPT_3D_ASYNC=0), so drain processing first.
+        // Neither queue waits for the main actor. Late old-source callbacks fail their entry gate.
+        captureManager.drainProcessingForSetup()
+        liftQueue.sync {}
         closeNativeFaultEvidence("setup_replaced")
         if coachingCandidateEnabled { resetCoachingCandidate() }
         let workspace: RTMPoseInputWorkspace
@@ -887,21 +912,9 @@ final class CameraPoseViewModel: ObservableObject {
             print("CameraPosePreview hand landmarkers initialized: \(handLandmarkers?.statusDescription ?? "nil")")
         }
 
-        if VideoCameraOptions.isActive {
-            let manager = captureManager
-            let source = VideoCameraSource(
-                urls: VideoCameraOptions.clips, loops: VideoCameraOptions.loops,
-                deliver: { sampleBuffer, arrival in manager.deliverExternal(sampleBuffer, arrival: arrival) },
-                onFinish: { [weak self] in Task { @MainActor in self?.videoFinished() } })
-            videoSource = source
-            videoDisplayLayer = source.displayLayer
-        } else {
-            do {
-                try captureManager.configure()
-            } catch {
-                statusText = "Failed to configure camera: \(error.localizedDescription)"
-                return
-            }
+        if !VideoCameraOptions.isActive {
+            do { try captureManager.configure() }
+            catch { statusText = "Failed to configure camera: \(error.localizedDescription)"; return }
         }
 
         if CameraPreviewOptions.nativeFaultEvidenceEnabled, let tracker = formTracker {
@@ -911,7 +924,7 @@ final class CameraPoseViewModel: ObservableObject {
                 let evidence = try FormFaultEvidence.file(directory:documents.appendingPathComponent("native_fault_evidence",isDirectory:true),
                     runID:runID,binding:["provenance":"live_observed_judgements_only", "exercise":tracker.exercise.rawValue,
                         "expectedInputManifestAvailable":false])
-                nativeFaultEvidence = evidence; tracker.faultEvidence = evidence; nativeFaultToken.set(runID)
+                nativeFaultEvidence = evidence; tracker.faultEvidence = evidence
             } catch {
                 VideoRunLog.shared?.write("native_fault_capture_error",["reason":"open_failed"])
             }
@@ -921,17 +934,29 @@ final class CameraPoseViewModel: ObservableObject {
         let handLandmarkRunner = self.handLandmarkers
         let context = self.ciContext
 
-        captureManager.onFrame = { [weak self, context] sampleBuffer, frameIdx, arrival in
-            guard let self, let rtmposeModel else { return }
-            self.processFrame(
-                sampleBuffer,
-                frameIdx: frameIdx,
-                arrival: arrival,
-                rtmpose: rtmposeModel,
-                workspace: workspace,
-                handLandmarkers: handLandmarkRunner,
-                ciContext: context
-            )
+        let sourceBinding = CameraIngressBinding(faultRunID:nativeFaultEvidence?.runID)
+        ingressGeneration.activate(sourceBinding.generation)
+        let frameHandler: CameraCaptureManager.FrameHandler = { [weak self, context] sampleBuffer, frameIdx, arrival, source in
+            guard let self, let rtmposeModel, self.ingressGeneration.acceptsIngress(sourceBinding.generation) else { return false }
+            let ingress = sourceBinding.frame(processingFrame:frameIdx,source:source)
+            self.processFrame(sampleBuffer,frameIdx:frameIdx,arrival:arrival,ingress:ingress,
+                rtmpose:rtmposeModel,workspace:workspace,
+                handLandmarkers:handLandmarkRunner,ciContext:context)
+            return self.ingressGeneration.accepts(ingress)
+        }
+        captureManager.onFrame = frameHandler
+        if VideoCameraOptions.isActive {
+            let manager = captureManager
+            let source = VideoCameraSource(urls:VideoCameraOptions.clips,loops:VideoCameraOptions.loops,
+                deliver:{ sampleBuffer,arrival in
+                    manager.deliverExternal(sampleBuffer,arrival:arrival,source:nil,handler:frameHandler)
+                },deliverIndexed:{ sampleBuffer,arrival,source in
+                    manager.deliverExternal(sampleBuffer,arrival:arrival,source:source,handler:frameHandler)
+                },onFinish:{ [weak self] in Task { @MainActor in
+                    guard let self, self.ingressGeneration.acceptsIngress(sourceBinding.generation) else { return }
+                    self.videoFinished()
+                } })
+            videoSource = source; videoDisplayLayer = source.displayLayer
         }
 
         bridge?.onObserverProfile = { [weak self] method, args in
@@ -1009,12 +1034,13 @@ final class CameraPoseViewModel: ObservableObject {
         _ sampleBuffer: CMSampleBuffer,
         frameIdx: Int,
         arrival: CFTimeInterval,
+        ingress: CameraFrameIngress,
         rtmpose: MLModel,
         workspace: RTMPoseInputWorkspace,
         handLandmarkers: MediaPipeHandLandmarkerPair?,
         ciContext: CIContext
     ) {
-        let faultRunID = CameraPreviewOptions.nativeFaultEvidenceEnabled ? nativeFaultToken.snapshot() : nil
+        guard ingressGeneration.acceptsIngress(ingress) else { return }
         let terminalEpoch = VideoRunLog.terminalEvidence ? terminalCapture.capture(frame: frameIdx) : nil
         let candidateEpoch = coachingCandidateEnabled ? coachingCandidateSession.snapshot() : nil
         let observerRevision = CameraPreviewOptions.motionObserverEnabled ? motionObserverSession.revision() : 0
@@ -1127,7 +1153,8 @@ final class CameraPoseViewModel: ObservableObject {
                 result.sourceTimeScale = sourceTime.isValid ? sourceTime.timescale : nil
                 result.sourceTimeEpoch = sourceTime.epoch
                 result.sourceTimeFlags = sourceTime.flags.rawValue
-                result.faultEvidenceRunID = faultRunID
+                result.ingress = ingress
+                result.sourceIndex = ingress.sourceIndex
                 result.terminalEpoch = terminalEpoch
                 result.coachingCandidateEpoch = candidateEpoch
                 result.motionObserverEpoch = observerEpoch
@@ -1153,7 +1180,7 @@ final class CameraPoseViewModel: ObservableObject {
                 Task { @MainActor [weak self] in self?.showFrame(shown) }
                 let bookkeeping = terminalCapture
                 let lift = { [weak self] in
-                    guard let self else {
+                    guard let self, self.ingressGeneration.accepts(shown.ingress) else {
                         bookkeeping.delivered(epoch: shown.terminalEpoch, frame: frameIdx, failed: true)
                         return
                     }
@@ -1161,7 +1188,7 @@ final class CameraPoseViewModel: ObservableObject {
                     let observerSource: ExerciseMotionObserver.Source?
                     if let epoch = shown.motionObserverEpoch, self.motionObserverSession.accepts(epoch) {
                         observerSource = ExerciseMotionObserver.Source(session: epoch, frame: frameIdx,
-                            sourceIndex: VideoCameraOptions.isActive ? VideoRunLog.shared?.clipFrame(frameIdx) : frameIdx,
+                            sourceIndex: shown.sourceIndex,
                             pts: shown.sourcePTS, timeValue: shown.sourceTimeValue, timeScale: shown.sourceTimeScale,
                             rotation: shown.rotation.rawValue, width: cgImage.width, height: cgImage.height, isVideo: VideoCameraOptions.isActive, profileBinding: shown.motionObserverAccountProfile?.binding)
                     } else { observerSource = nil }
@@ -1210,6 +1237,7 @@ final class CameraPoseViewModel: ObservableObject {
     /// Overlay only (3D path): the newest 2D right away, status/rep from the last judged frame.
     @MainActor
     private func showFrame(_ result: CameraProcessingResult) {
+        guard ingressGeneration.accepts(result.ingress) else { return }
         if currentFrame?.rotation != result.rotation { overlaySmoother = OverlaySmoother() }
         currentFrame = CameraFrameData(
             id: result.frameIndex, frameIndex: result.frameIndex, rotation: result.rotation, imageWidth: result.imageWidth,
@@ -1223,6 +1251,10 @@ final class CameraPoseViewModel: ObservableObject {
     /// 3D path: frame t with its own 2D and 3D (state never hidden: it goes to the evaluators and to Flutter).
     @MainActor
     private func handleLifted(_ result: CameraProcessingResult, _ frame3D: Lifted3DFrame) {
+        guard ingressGeneration.accepts(result.ingress) else {
+            terminalCapture.delivered(epoch:result.terminalEpoch,frame:result.frameIndex,failed:true)
+            return
+        }
         if result.motionObserverEpoch != nil {
             if frame3D.diagnosticFlushed {
                 motionObserverLog?.recordSuppressed(.flushTail)
@@ -1251,7 +1283,7 @@ final class CameraPoseViewModel: ObservableObject {
         // Compute once under the existing opt-in flag, then reuse for both log paths.
         var experimentalLine: [String: Any]?
         if experimentalCoachingEnabled {
-            let sourceIndex = VideoCameraOptions.isActive ? VideoRunLog.shared?.clipFrame(result.frameIndex) : result.frameIndex
+            let sourceIndex = result.sourceIndex
             let sourceKey = "\(VideoCameraOptions.isActive)/\(result.terminalEpoch.map(String.init) ?? "unknown")/\(result.imageWidth)/\(result.imageHeight)/\(result.rotation.rawValue)/\(isFrontCamera)"
             if sourceKey != experimentalSourceKey || sourceIndex.flatMap({ current in experimentalSourceIndex.map { current <= $0 } }) == true {
                 experimentalCoaching = ExperimentalCoaching()
@@ -1284,7 +1316,7 @@ final class CameraPoseViewModel: ObservableObject {
         if coachingCandidateEnabled, coachingCandidateSession.accepts(result.coachingCandidateEpoch) {
             let source: [String: Any] = ["epoch": (result.terminalEpoch ?? result.coachingCandidateEpoch) as Any? ?? NSNull(),
                 "frame": result.frameIndex,
-                "source_index": VideoCameraOptions.isActive ? (VideoRunLog.shared?.clipFrame(result.frameIndex) as Any? ?? NSNull()) : result.frameIndex,
+                "source_index": result.sourceIndex as Any? ?? NSNull(),
                 "source_pts": TerminalEvidence.number(result.sourcePTS),
                 "source_time_value": result.sourceTimeValue as Any? ?? NSNull(),
                 "source_time_scale": result.sourceTimeScale as Any? ?? NSNull(), "time_basis": "sample_pts_seconds"]
@@ -1327,7 +1359,7 @@ final class CameraPoseViewModel: ObservableObject {
                     }
                 }
                 let input = TerminalObservationCandidate.Frame(epoch: epoch, frame: result.frameIndex,
-                    sourceIndex: VideoCameraOptions.isActive ? VideoRunLog.shared?.clipFrame(result.frameIndex) : result.frameIndex,
+                    sourceIndex: result.sourceIndex,
                     sourceTime: result.sourcePTS, hostTime: CACurrentMediaTime(), activeRepStart: formTracker?.diagnosticActiveRepStart,
                     side: side, phase: snapshot?.phase, required2D: snapshot?.required2D ?? false, sideView: snapshot?.sideView,
                     state: (result.supportCorridor?.assessmentState(frame3D.state) ?? frame3D.state).rawValue,
@@ -1350,7 +1382,7 @@ final class CameraPoseViewModel: ObservableObject {
             let confidence = result.supportCorridor?.assessmentConfidence(frame3D.confidence) ?? frame3D.confidence
             let up = formTracker?.up3D
             var terminalLine: [String: Any] = ["epoch": epoch, "frame": result.frameIndex,
-                "source_index": VideoCameraOptions.isActive ? (VideoRunLog.shared?.clipFrame(result.frameIndex) as Any? ?? NSNull()) : result.frameIndex,
+                "source_index": result.sourceIndex as Any? ?? NSNull(),
                 "source_kind": VideoCameraOptions.isActive ? "video_frame" : "camera_capture_index",
                 "source_pts": TerminalEvidence.number(result.sourcePTS),
                 "source_time_value": result.sourceTimeValue as Any? ?? NSNull(),
@@ -1473,7 +1505,7 @@ final class CameraPoseViewModel: ObservableObject {
                 line["support_corridor"] = diagnostic
             }
             if let a = result.wristAnchor { line["wrist_anchor"] = a }
-            if let src = log.clipFrame(result.frameIndex) { line["src"] = src }
+            if let src = result.sourceIndex { line["src"] = src }
             // RTMPose keypoints the evaluators used (frame px, 1 decimal) and the raw MediaPipe wrist per crop side, for
             // the left/right analysis against the Exercise3D labels (scripts/ex3d_lr_swap_device.py).
             line["kp"] = result.rawCoco17.flatMap { [($0.x * 10).rounded() / 10, ($0.y * 10).rounded() / 10,
@@ -1520,8 +1552,10 @@ final class CameraPoseViewModel: ObservableObject {
         if state.phase == .ready && !setupSeeded {
             setupSeeded = true
             let seeds = setup.seeds(AdaptiveRelationConstraint.relations(for: setup.exercise))
+            let generation = ingressGeneration.snapshot()
             liftQueue.async { [weak self] in
-                for (name, seed) in seeds { self?.lifter?.adaptive?.seedReference(name: name, refPx: seed.ref, spreadPx: seed.spread) }
+                guard let self, let generation, self.ingressGeneration.accepts(generation) else { return }
+                for (name, seed) in seeds { self.lifter?.adaptive?.seedReference(name: name, refPx: seed.ref, spreadPx: seed.spread) }
             }
             VideoRunLog.shared?.write("setup_ready", ["snapshot": setup.ready ?? [:], "seeds": Array(seeds.keys).sorted()])
         }
@@ -1541,11 +1575,19 @@ final class CameraPoseViewModel: ObservableObject {
         exerciseSetup?.reset()
         setupSeeded = false
         lastSetupSignature = nil
-        liftQueue.async { [weak self] in self?.lifter?.adaptive?.reset() }
+        let generation = ingressGeneration.snapshot()
+        liftQueue.async { [weak self] in
+            guard let self, let generation, self.ingressGeneration.accepts(generation) else { return }
+            self.lifter?.adaptive?.reset()
+        }
     }
 
     @MainActor
     private func handleProcessingResult(_ result: CameraProcessingResult) {
+        guard ingressGeneration.accepts(result.ingress) else {
+            terminalCapture.delivered(epoch:result.terminalEpoch,frame:result.frameIndex,failed:true)
+            return
+        }
         bindNativeFaultSource(result,flush:false)
         if currentFrame?.rotation != result.rotation { overlaySmoother = OverlaySmoother() }
         let (statusText, rep, done) = self.runEvaluator(frameIndex: result.frameIndex, rawCoco17: result.supportCorridor?.assessment2D(result.rawCoco17) ?? result.rawCoco17,

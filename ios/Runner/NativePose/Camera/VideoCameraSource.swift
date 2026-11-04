@@ -70,6 +70,7 @@ final class VideoCameraSource: @unchecked Sendable {
     private let loops: Int
     /// Returns false when the frame was dropped (processing queue busy).
     private let deliver: (CMSampleBuffer, CFTimeInterval) -> Bool
+    private let deliverIndexed: ((CMSampleBuffer, CFTimeInterval, CameraSourceFrame) -> Bool)?
     /// Set before `start()` when the consumer is made after the source (calibration demo); wins over `deliver`.
     var deliverOverride: ((CMSampleBuffer, CFTimeInterval) -> Bool)?
     private let onFinish: () -> Void
@@ -83,12 +84,15 @@ final class VideoCameraSource: @unchecked Sendable {
     private var rotatePoolSize = (0, 0)
 
     init(urls: [URL], loops: Int, mirror: Bool = VideoCameraOptions.mirror, rotate: Int = VideoCameraOptions.rotate,
-         deliver: @escaping (CMSampleBuffer, CFTimeInterval) -> Bool, onFinish: @escaping () -> Void) {
+         deliver: @escaping (CMSampleBuffer, CFTimeInterval) -> Bool,
+         deliverIndexed: ((CMSampleBuffer, CFTimeInterval, CameraSourceFrame) -> Bool)? = nil,
+         onFinish: @escaping () -> Void) {
         self.mirror = mirror
         self.rotate = rotate
         self.urls = urls
         self.loops = loops
         self.deliver = deliver
+        self.deliverIndexed = deliverIndexed
         self.onFinish = onFinish
         displayLayer.videoGravity = .resizeAspectFill
     }
@@ -140,6 +144,7 @@ final class VideoCameraSource: @unchecked Sendable {
                                                  "rotate": rotate,
                                                  "fps": Double(track.nominalFrameRate),
                                                  "size": [Int(track.naturalSize.width), Int(track.naturalSize.height)]])
+        let sourceID = UUID().uuidString // unique to this clip occurrence, including repeat loops
         let clipStart = CACurrentMediaTime()
         var firstPTS: Double?
         var frames = 0, accepted = 0
@@ -154,7 +159,12 @@ final class VideoCameraSource: @unchecked Sendable {
             if rotate != 0 { frame = rotated(frame, degrees: rotate) ?? frame }
             show(frame)
             frames += 1
-            if (deliverOverride ?? deliver)(frame, arrival) {
+            let acceptedFrame: Bool
+            if let override = deliverOverride { acceptedFrame = override(frame,arrival) }
+            else if let deliverIndexed {
+                acceptedFrame = deliverIndexed(frame,arrival,CameraSourceFrame(sourceID:sourceID,sourceIndex:frames-1))
+            } else { acceptedFrame = deliver(frame,arrival) }
+            if acceptedFrame {
                 accepted += 1
                 VideoRunLog.shared?.noteDelivered(clipFrame: frames - 1)
             }

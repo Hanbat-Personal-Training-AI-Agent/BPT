@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		7FA017E01DE11CE000000011 /* CameraFrameIngress.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FA017E01DE11CE000000012 /* CameraFrameIngress.swift */; };
 		B03110300000000000000992 /* MotionObserverAccountProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = B03110300000000000000991 /* MotionObserverAccountProfile.swift */; };
 		B03110300000000000000012 /* ExerciseMotionObserver.swift in Sources */ = {isa = PBXBuildFile; fileRef = B03110300000000000000011 /* ExerciseMotionObserver.swift */; };
 		B03110300000000000000002 /* ExerciseMotionEstimator.swift in Sources */ = {isa = PBXBuildFile; fileRef = B03110300000000000000001 /* ExerciseMotionEstimator.swift */; };
@@ -113,6 +114,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		7FA017E01DE11CE000000012 /* CameraFrameIngress.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CameraFrameIngress.swift; sourceTree = "<group>"; };
 		B03110300000000000000991 /* MotionObserverAccountProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MotionObserverAccountProfile.swift; sourceTree = "<group>"; };
 		B03110300000000000000011 /* ExerciseMotionObserver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExerciseMotionObserver.swift; sourceTree = "<group>"; };
 		B03110300000000000000001 /* ExerciseMotionEstimator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExerciseMotionEstimator.swift; sourceTree = "<group>"; };
@@ -400,6 +402,7 @@
 			isa = PBXGroup;
 			children = (
 				C1ACABEF752B807EA9D21EAB /* CameraPosePreview.swift */,
+				7FA017E01DE11CE000000012 /* CameraFrameIngress.swift */,
 				8C4E1A2B3D5F6A7B8C9D0E02 /* VideoCameraSource.swift */,
 				9E6C4A2B3D5F6A7B8C9D0E02 /* DemoConfig.swift */,
 			);
@@ -693,6 +696,7 @@
 				74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */,
 				1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */,
 				FEEDD62DEEFAEFF0804DBBBC /* CameraPosePreview.swift in Sources */,
+				7FA017E01DE11CE000000011 /* CameraFrameIngress.swift in Sources */,
 				8C4E1A2B3D5F6A7B8C9D0E01 /* VideoCameraSource.swift in Sources */,
 				9E6C4A2B3D5F6A7B8C9D0E01 /* DemoConfig.swift in Sources */,
 				5E1B0A7C2F3D4E6A8B9C0D11 /* KneeHingeLimit.swift in Sources */,
