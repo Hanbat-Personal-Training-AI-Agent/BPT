@@ -12,8 +12,10 @@ Stopping input is distinct from replacing identity: `stopIngress()` rejects new 
 
 Validation:
 
-- Seven pure Swift lifecycle tests passed: restart frame zero, queued-handler snapshot, late old feeder/lift rejection, repeated clip identity, stop-versus-replacement drain, obsolete camera-output routing, and unbound identity.
-- Cached all-Runner iOS typecheck passed, **66 Swift sources**, 6.09 seconds. Existing CoreMedia sendability and AVFoundation deprecation warnings remain; no new dependency build, signing or device execution occurred.
+- Eight pure Swift lifecycle tests passed: restart frame zero, queued-handler snapshot, late old feeder/lift rejection, repeated clip identity, stop-versus-replacement drain, obsolete camera-output routing, unbound identity, and a second EOF callback hop with coincident terminal epoch.
+- Cached all-Runner iOS typecheck passed, **66 Swift sources**, 5.71 seconds. Existing CoreMedia sendability and AVFoundation deprecation warnings remain; no new dependency build, signing or device execution occurred.
 - `git diff --check` passed. The coordinated combined branch will run its broader suite/build separately.
 
 Logs, exact commands, typecheck receipt and SHA-256 of every checked Runner source are preserved under `~/bpt-data/completion-20261104-private/native-fault-evidence/camera-ingress/`. The typecheck was performed on the working source before this commit, so its inherited `candidateId` is the preceding test-only commit; `runner_source_sha256.json` records the actual checked source bytes. This is a lifecycle/provenance fix, not an accuracy claim. No phone/UI or new model inference was used for this work.
+
+The EOF review follow-up captures the generation again inside `videoFinished` and rechecks it after the processing-queue fence, before ending a set. Matching terminal epochs alone cannot authorize an old source to finish a replacement setup. The final passing typecheck is `typecheck-v3`; earlier receipts remain preserved.

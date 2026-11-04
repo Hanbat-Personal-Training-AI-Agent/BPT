@@ -1666,13 +1666,15 @@ final class CameraPoseViewModel: ObservableObject {
     /// Video-as-camera: the clip list ended. Like the real app with main's workout screen, no endSet arrives, so the
     /// frames still in the 3D window are not flushed and no set-scope keys / onSetEnd are produced.
     private func videoFinished() {
+        guard let generation = ingressGeneration.snapshot() else { return }
         if CameraPreviewOptions.motionObserverEnabled { motionObserverSession.end(); motionProfileGate.clear() }
         // Explicit capture-harness hook only: close through the real production flush lifecycle.
         if VideoRunLog.terminalEvidence, DemoConfig.environment["BPT_TERMINAL_EOF_FLUSH"] == "1", !betweenSets,
            let index = terminalSetIndex, let epoch = terminalCapture.snapshot() {
             captureManager.afterPendingExternalFrames { [weak self] in
                 Task { @MainActor [weak self] in
-                    guard let self, !self.betweenSets, self.terminalCapture.snapshot() == epoch else { return }
+                    guard let self, self.ingressGeneration.accepts(generation),
+                          !self.betweenSets, self.terminalCapture.snapshot() == epoch else { return }
                     VideoRunLog.shared?.write("terminal_eof_flush", ["epoch": epoch, "set": index,
                         "trigger": "video_eof_test_hook", "processing_queue_drained": true])
                     self.motionObserverFinishAtSetEnd = true

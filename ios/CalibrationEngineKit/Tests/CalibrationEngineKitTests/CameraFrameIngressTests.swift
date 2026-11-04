@@ -80,6 +80,17 @@ final class CameraFrameIngressTests: XCTestCase {
         XCTAssertEqual(snapshot["output-B"]?.generation,"B")
     }
 
+    func testSecondAsynchronousEOFHopChecksGenerationEvenIfTerminalEpochMatches() throws {
+        let gate = CameraIngressGeneration(); gate.activate("A")
+        let generation = try XCTUnwrap(gate.snapshot())
+        let capturedTerminalEpoch = 4, currentTerminalEpoch = 4
+        let deferredEOF = { gate.accepts(generation) && capturedTerminalEpoch == currentTerminalEpoch }
+        gate.stopIngress()
+        XCTAssertTrue(deferredEOF()) // valid same-session drain
+        gate.activate("B")
+        XCTAssertFalse(deferredEOF()) // epoch coincidence cannot finish B's set
+    }
+
     func testUnboundIdentityStaysUnboundAndMissingDelayedIdentityRejected() {
         let binding = CameraIngressBinding(generation:"camera",faultRunID:nil)
         let frame = binding.frame(processingFrame:5,source:nil)
