@@ -167,6 +167,8 @@ final class AdaptiveRelationConstraintTests: XCTestCase {
         XCTAssertTrue(on.contains { $0.adaptive?.filled[6] != nil })
         let filled = try XCTUnwrap(on.first { $0.adaptive?.filled[6] != nil })
         XCTAssertNotEqual(filled.adapted?[6], filled.pose3D?[6])
-        XCTAssertEqual(filled.masked3D?[6], filled.adapted?[6])
+        XCTAssertTrue(filled.invalidJoints.contains(6))
+        XCTAssertTrue(try XCTUnwrap(filled.masked3D)[6].x.isNaN,
+                      "the estimate stays in adapted, but is withheld from assessment")
     }
 }

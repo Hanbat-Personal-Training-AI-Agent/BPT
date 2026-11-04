@@ -22,7 +22,8 @@ import simd
 /// - bad3D: every joint is untrusted (bone gate) — judging skips the frame.
 /// - ok.
 /// Optional `adaptive` (AdaptiveRelationConstraint, experimental, off by default) runs right after `constraints`; its
-/// output is `adapted`, its expired joints join the invalid set.
+/// output is `adapted`; both current fills and expired joints join the assessment invalid set.
+/// The adapted coordinates remain available for display/debug, but inferred joints are NaN in `masked3D`.
 enum Pose3DState: String {
     case warmingUp = "warming_up"
     case trackingLost = "tracking_lost"
@@ -59,8 +60,12 @@ struct Lifted3DFrame {
     /// 3D the evaluators may judge with: ok, or partial with the untrusted joints NaN.
     var usable3D: [SIMD3<Double>]? { state == .ok || state == .partial3D ? masked3D : nil }
 
-    /// Untrusted joints: Pose3DConstraints' plus the adaptive constraint's expired ones.
-    var invalidJoints: Set<Int> { (constraints?.invalidJoints ?? []).union(adaptive?.invalid ?? []) }
+    /// Assessment-only mask: keep adaptive estimates available for display/debug,
+    /// but neither a filled joint nor an expired one is a current observation.
+    var invalidJoints: Set<Int> {
+        (constraints?.invalidJoints ?? []).union(adaptive?.invalid ?? [])
+            .union(adaptive?.filled.keys.map { $0 } ?? [])
+    }
 
     /// `adapted` (when on) else `pose3D`, with `invalidJoints` set to NaN (what the evaluators get; = pose3D when nothing
     /// is invalid and the adaptive constraint is off).
@@ -262,7 +267,10 @@ struct MotionAGFormerLive<Payload> {
             let (fixed, report) = constraints.apply(raw)
             // The one hook of the experimental adaptive constraint: after the anatomical constraints, same frame order.
             let adapted = adaptive?.update(fixed, confidence: confidence, frame: e.frameIndex, unit: e.unit)
+            // Classify with the same assessment mask used by Lifted3DFrame.masked3D.
+            // A live fill is withheld immediately, independently of its age/sigma.
             let invalid = report.invalidJoints.union(adapted?.1.invalid ?? [])
+                .union(adapted?.1.filled.keys.map { $0 } ?? [])
             let state: Pose3DState = invalid.isEmpty ? .ok : invalid.count == 17 ? .bad3D : .partial3D
             emitted.append((e.payload, Lifted3DFrame(frameIndex: e.frameIndex, state: state,
                                                      filled: min(realFrames, w), raw: raw, pose3D: fixed,
