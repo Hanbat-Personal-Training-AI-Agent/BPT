@@ -569,7 +569,6 @@ final class FormWarningTracker {
     /// Optional diagnostics only; never read by judgment, delivery, or pose consumers.
     var faultEvidence: FormFaultEvidence?
     var faultSource: FormFaultSource?
-    private var faultOrdinal = 0
     private var faultHistory2D: [FormFaultHistory] = []
     private var faultHistory3D: [FormFaultHistory] = []
     var common = FormCommonConfig()
@@ -636,7 +635,7 @@ final class FormWarningTracker {
 
     func reset() {
         faultEvidence?.reset()
-        faultSource = nil; faultOrdinal = 0; faultHistory2D = []; faultHistory3D = []
+        faultSource = nil; faultHistory2D = []; faultHistory3D = []
         sessionFrames3D = 0
         sessionBad3DFrames = 0
         warningRepCounts = [:]
@@ -861,8 +860,7 @@ final class FormWarningTracker {
         repFrames = []
         repFrames3D = []
         let tracing = faultEvidence != nil
-        if tracing { faultOrdinal += 1 }
-        let traceID = "\(faultEvidence?.runID ?? "unbound")/rep/\(faultOrdinal)"
+        let traceID = faultEvidence?.nextRepID() ?? "unbound"
         let aggregation2D = tracing ? FormFaultAggregation(frames: frames) : nil
         let metrics = metrics2D(frames, isFirstRep: reports.isEmpty, evidence: aggregation2D)
         let prior2D = (tracing ? repMetrics : []).enumerated().map { index,m in

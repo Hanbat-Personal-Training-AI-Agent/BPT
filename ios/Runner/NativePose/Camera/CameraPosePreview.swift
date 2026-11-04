@@ -8,6 +8,7 @@ import UIKit
 // MARK: - Options
 
 private enum CameraPreviewOptions {
+    static let nativeFaultEvidenceEnabled = DemoConfig.environment["BPT_NATIVE_FAULT_EVIDENCE"] == "1"
     static let motionObserverEnabled = ExerciseMotionVariant.environment(DemoConfig.environment["BPT_MOTION_OBSERVER"]) != nil
     /// Xcode scheme environment: BPT_CAMERA_HANDS=1 (all on), 0 (all off), unset (exercise policy).
     static let handBranchOverride: Bool? = {
@@ -85,6 +86,14 @@ struct CameraFrameData: Identifiable {
     var shade: [OverlaySegment: OverlayShade] = [:]
 }
 
+/// Cross-queue identity only; records remain on the main actor.
+private final class FormFaultCaptureToken: @unchecked Sendable {
+    private let lock = NSLock()
+    private var value: String?
+    func set(_ next: String?) { lock.lock(); value = next; lock.unlock() }
+    func snapshot() -> String? { lock.lock(); defer { lock.unlock() }; return value }
+}
+
 struct CameraProcessingResult {
     let frameIndex: Int
     /// Quarter turn from the camera buffer to the analysis frame everything below is in (gravity down the image).
@@ -103,6 +112,9 @@ struct CameraProcessingResult {
     var sourcePTS: Double?
     var sourceTimeValue: Int64?
     var sourceTimeScale: Int32?
+    var sourceTimeEpoch: Int64 = 0
+    var sourceTimeFlags: UInt32 = 0
+    var faultEvidenceRunID: String?
     var terminalEpoch: Int?
     var coachingCandidateEpoch: Int?
     var motionObserverEpoch: Int?
@@ -430,6 +442,28 @@ final class CameraPoseViewModel: ObservableObject {
     private let liftQueue = DispatchQueue(label: "com.bpt.camera.lift3d", qos: .userInitiated)
     private var lastReportedPose3D: String?
     private var motion: DeviceMotionMonitor?
+    private var nativeFaultEvidence: FormFaultEvidence?
+    nonisolated private let nativeFaultToken = FormFaultCaptureToken()
+
+    private func closeNativeFaultEvidence(_ reason: String) {
+        nativeFaultToken.set(nil)
+        nativeFaultEvidence?.finish(reason:reason,sourceDrained:false)
+        nativeFaultEvidence = nil
+        formTracker?.faultEvidence = nil
+        formTracker?.faultSource = nil
+    }
+
+    private func bindNativeFaultSource(_ result: CameraProcessingResult, flush: Bool) {
+        guard let evidence = nativeFaultEvidence else { return }
+        guard result.faultEvidenceRunID == evidence.runID else {
+            closeNativeFaultEvidence("source_session_mismatch"); return
+        }
+        formTracker?.faultSource = FormFaultSource(frame:result.frameIndex,
+            sourceIndex:VideoCameraOptions.isActive ? VideoRunLog.shared?.clipFrame(result.frameIndex) : result.frameIndex,
+            timeValue:result.sourceTimeValue,timeScale:result.sourceTimeScale,session:evidence.runID,
+            kind:VideoCameraOptions.isActive ? "video" : "camera",flush:flush,
+            timeEpoch:result.sourceTimeEpoch,timeFlags:result.sourceTimeFlags)
+    }
     nonisolated private var perfLog: WorkoutPerfLog? { captureManager.perfLog }
     /// Video-as-camera (test-only, BPT_CAMERA_VIDEO); nil with the real camera.
     private var videoSource: VideoCameraSource?
@@ -478,6 +512,7 @@ final class CameraPoseViewModel: ObservableObject {
     }
 
     func stopCamera() {
+        closeNativeFaultEvidence("camera_stop")
         if CameraPreviewOptions.motionObserverEnabled { motionObserverSession.end(); motionProfileGate.clear() }
         if coachingCandidateEnabled { resetCoachingCandidate(end: true) }
         if VideoRunLog.terminalEvidence, let epoch = terminalCapture.beginFlush() {
@@ -526,7 +561,10 @@ final class CameraPoseViewModel: ObservableObject {
         let center = NotificationCenter.default
         lifecycleObservers = [
             center.addObserver(forName: AVCaptureSession.wasInterruptedNotification, object: captureManager.session, queue: .main) { [weak self] _ in
-                Task { @MainActor in self?.motionObserverLog?.markIncomplete(.captureInterrupted) }
+                Task { @MainActor in
+                    self?.motionObserverLog?.markIncomplete(.captureInterrupted)
+                    self?.closeNativeFaultEvidence("capture_interrupted")
+                }
             },
             center.addObserver(forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: .main) { [weak self] _ in
                 Task { @MainActor in
@@ -534,6 +572,7 @@ final class CameraPoseViewModel: ObservableObject {
                     if self.coachingCandidateEnabled { self.resetCoachingCandidate(end: true) }
                     if CameraPreviewOptions.motionObserverEnabled { self.motionObserverSession.end(); self.motionProfileGate.clear() }
                     self.motionObserverLog?.markIncomplete(.background)
+                    self.closeNativeFaultEvidence("background")
                     self.keepScreenAwake(false, reason: "background")
                 }
             },
@@ -781,6 +820,7 @@ final class CameraPoseViewModel: ObservableObject {
     }
 
     private func setup() {
+        closeNativeFaultEvidence("setup_replaced")
         if coachingCandidateEnabled { resetCoachingCandidate() }
         let workspace: RTMPoseInputWorkspace
         do {
@@ -861,6 +901,19 @@ final class CameraPoseViewModel: ObservableObject {
             } catch {
                 statusText = "Failed to configure camera: \(error.localizedDescription)"
                 return
+            }
+        }
+
+        if CameraPreviewOptions.nativeFaultEvidenceEnabled, let tracker = formTracker {
+            do {
+                let documents = FileManager.default.urls(for:.documentDirectory,in:.userDomainMask)[0]
+                let runID = UUID().uuidString
+                let evidence = try FormFaultEvidence.file(directory:documents.appendingPathComponent("native_fault_evidence",isDirectory:true),
+                    runID:runID,binding:["provenance":"live_observed_judgements_only", "exercise":tracker.exercise.rawValue,
+                        "expectedInputManifestAvailable":false])
+                nativeFaultEvidence = evidence; tracker.faultEvidence = evidence; nativeFaultToken.set(runID)
+            } catch {
+                VideoRunLog.shared?.write("native_fault_capture_error",["reason":"open_failed"])
             }
         }
 
@@ -961,6 +1014,7 @@ final class CameraPoseViewModel: ObservableObject {
         handLandmarkers: MediaPipeHandLandmarkerPair?,
         ciContext: CIContext
     ) {
+        let faultRunID = CameraPreviewOptions.nativeFaultEvidenceEnabled ? nativeFaultToken.snapshot() : nil
         let terminalEpoch = VideoRunLog.terminalEvidence ? terminalCapture.capture(frame: frameIdx) : nil
         let candidateEpoch = coachingCandidateEnabled ? coachingCandidateSession.snapshot() : nil
         let observerRevision = CameraPreviewOptions.motionObserverEnabled ? motionObserverSession.revision() : 0
@@ -1071,6 +1125,9 @@ final class CameraPoseViewModel: ObservableObject {
                 result.sourcePTS = sourcePTS.isFinite ? sourcePTS : nil
                 result.sourceTimeValue = sourceTime.isValid ? sourceTime.value : nil
                 result.sourceTimeScale = sourceTime.isValid ? sourceTime.timescale : nil
+                result.sourceTimeEpoch = sourceTime.epoch
+                result.sourceTimeFlags = sourceTime.flags.rawValue
+                result.faultEvidenceRunID = faultRunID
                 result.terminalEpoch = terminalEpoch
                 result.coachingCandidateEpoch = candidateEpoch
                 result.motionObserverEpoch = observerEpoch
@@ -1188,6 +1245,7 @@ final class CameraPoseViewModel: ObservableObject {
         let t0 = CACurrentMediaTime()
         terminalJudgingEpoch = result.terminalEpoch
         judgingFrame = (result.frameIndex, result.arrivedAt)
+        bindNativeFaultSource(result,flush:terminalFlushing || frame3D.diagnosticFlushed)
         let (statusText, rep, done) = runEvaluator(frameIndex: result.frameIndex, rawCoco17: result.supportCorridor?.assessment2D(result.rawCoco17) ?? result.rawCoco17,
                                                    feet: result.feet, pose3D: result.supportCorridor?.assessment3D(frame3D.masked3D) ?? frame3D.masked3D, pose3DState: result.supportCorridor?.assessmentState(frame3D.state) ?? frame3D.state)
         // Compute once under the existing opt-in flag, then reuse for both log paths.
@@ -1488,6 +1546,7 @@ final class CameraPoseViewModel: ObservableObject {
 
     @MainActor
     private func handleProcessingResult(_ result: CameraProcessingResult) {
+        bindNativeFaultSource(result,flush:false)
         if currentFrame?.rotation != result.rotation { overlaySmoother = OverlaySmoother() }
         let (statusText, rep, done) = self.runEvaluator(frameIndex: result.frameIndex, rawCoco17: result.supportCorridor?.assessment2D(result.rawCoco17) ?? result.rawCoco17,
                                                         feet: result.feet, pose3D: nil, pose3DState: nil)

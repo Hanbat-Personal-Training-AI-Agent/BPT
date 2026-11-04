@@ -62,3 +62,15 @@ Score the new task with the existing `independent_form_eval.py score` command an
 The local synthetic roundtrip produced one warning, one no-warning, one explicit withholding and one missing opportunity; all four labels remained unknown. An actual saved core3 replay aggregate was rejected against the Home task-v2 manifest, before any output task was created. That aggregate contains new motion-rule semantics and lacks this per-opportunity fault export contract. Read-only inspection found the existing task-v2 still has 588 missing predictions and 588 unknown labels (103 physical reps; development only), with the recorded manifest/label/prediction hashes unchanged. No compatible explicit per-rule export was found in the inspected task directory and nearby saved artifacts. This is a scoped availability finding, not an exhaustive search of all machines.
 
 Proof artifacts are local at `/private/tmp/bpt-prediction-import-proof-20261104/`; no media or participant data is committed. The old candidate `8001f4f6955877fbf82f087f77e840fa2486bb6e`, original Home task and protocol remain unchanged. No actual prediction coverage or accuracy improvement is claimed.
+
+
+## Native trace execution versus delivery
+
+The opt-in `bpt-native-fault-trace-v1` producer is separate from this import contract. Its
+`executionEnabled` describes the native rule's judging/configuration switch; quiet delivery
+keys can execute with `deliveryEnabled=false`. A strict exporter maps `ruleEnabled` to
+that actual execution enablement, not the delivery mask. `ruleEvaluated`, view/phase/reference
+and finite-input checks remain independent. An assessed delivery key, a false predicate,
+an absent warning, or a closed observed-only trace is not complete no-warning exposure.
+Stage 2 must use source/operand/aggregation evidence and a new fully bound task; the old
+588 tasks and their missing predictions are unchanged.

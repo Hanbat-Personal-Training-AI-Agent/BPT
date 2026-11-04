@@ -73,6 +73,7 @@ final class FormFaultEvidence {
     private var attemptedRecords = 0
     private var writtenFrames = 0
     private var writtenReps = 0
+    private var repOrdinal = 0
 
     init(runID: String, binding: [String: Any] = [:], expectedSources: [FormFaultSource]? = nil,
          maximumRecords: Int = 20_000, maximumBytes: Int = 32 * 1024 * 1024,
@@ -113,6 +114,12 @@ final class FormFaultEvidence {
         attemptedRecords += 1
         let record = fields.merging(["contract": "bpt-native-fault-trace-v1", "type": type,
                                      "sequence": sequence, "runID": runID]) { _, reserved in reserved }
+        // Darwin JSONSerialization can raise NSException for NaN/unsupported objects; Swift catch does not catch it.
+        guard JSONSerialization.isValidJSONObject(record) else {
+            failure = "capture_write_or_serialization_failed"
+            finish(reason:failure!,sourceDrained:false)
+            return
+        }
         do {
             let data = try JSONSerialization.data(withJSONObject: record, options: .sortedKeys)
             guard sequence < maximumRecords - 1, bytes + data.count + 1 <= maximumBytes - 2048 else {
@@ -128,6 +135,7 @@ final class FormFaultEvidence {
         guard !closed else { return }
         frameRecords += 1
         if let source {
+            if record["observation"] as? String != "observed" { failedSources.insert(source.key) }
             if !observed.insert(source.key).inserted { duplicateSources += 1 }
             if source.seconds == nil { unknownSources += 1 }
             if let expected, let wanted = expected[source.key] {
@@ -145,6 +153,9 @@ final class FormFaultEvidence {
         guard !closed else { return }; failedSources.insert(source.key)
         emit("ingress_failure", ["source": source.dictionary, "reason": reason])
     }
+
+    /// Recorder-lifetime identity survives tracker reset/replacement; called on the owner queue.
+    func nextRepID() -> String { repOrdinal += 1; return "\(runID)/rep/\(repOrdinal)" }
 
     func rep(_ record: [String: Any]) { guard !closed else { return }; repRecords += 1; emit("rep", record) }
     func reset() { emit("reset", ["reason": "tracker_reset"]) }
