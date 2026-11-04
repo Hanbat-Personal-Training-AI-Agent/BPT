@@ -167,6 +167,25 @@ final class FormFaultEvidenceTests: XCTestCase {
         XCTAssertTrue((rep["judgements"] as! [String:Any])["3d"] is NSNull)
         XCTAssertNotNil((rep["judgements"] as! [String:Any])["2d"] as? [String:Any])
     }
+    func testFacingTraceRecordsActualBranchAndRetainsNonfiniteEvidence() {
+        var records = [[String:Any]]()
+        let writer = FormFaultEvidence(runID:"facing") { records.append($0) }
+        let tracker = FormWarningTracker(exercise:.pushUp); tracker.faultEvidence = writer
+        tracker.observe(frameIndex:0,coco17:pose(0),phase:"top")
+        var infinite = pose(0); infinite[0].x = .infinity
+        tracker.observe(frameIndex:1,coco17:infinite,phase:"top")
+        var missing = pose(0); missing[0].confidence = 0
+        tracker.observe(frameIndex:2,coco17:missing,phase:"top")
+        let frames = records.filter { $0["type"] as? String == "frame" }.map { $0["sample2D"] as! [String:Any] }
+        let first = frames[0]["inputSupport"] as! [String:Any]
+        XCTAssertEqual((first["facingObservation"] as! [String:Any])["updateKind"] as? String,"establish")
+        XCTAssertEqual((first["facingObservation"] as! [String:Any])["seen"] as? Double,1)
+        let second = frames[1]["inputSupport"] as! [String:Any]
+        XCTAssertEqual((second["facingObservation"] as! [String:Any])["updateKind"] as? String,"confirm")
+        XCTAssertEqual((second["jointEvidence"] as! [[String:Any]])[0]["finiteCoordinates"] as? Bool,false)
+        XCTAssertTrue((frames[2]["inputSupport"] as! [String:Any])["facingObservation"] is NSNull)
+        writer.finish(reason:"done",sourceDrained:false)
+    }
     func testPartial3DKeepsMissingJointEvidenceWithoutFilling() {
         var records = [[String:Any]]()
         let writer = FormFaultEvidence(runID:"partial") { records.append($0) }

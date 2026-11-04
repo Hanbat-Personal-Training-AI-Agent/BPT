@@ -693,6 +693,8 @@ final class FormWarningTracker {
             },"minimumConfidence":common.minJointConfidence]
         }
         let facingBefore = facing
+        let facingRunBefore = facingCandidateRun
+        if faultEvidence != nil { sample.faultInputSupport?["facingObservation"] = NSNull() }
         measure2D(coco17, feet: feet, side: side, into: &sample)
         if faultEvidence != nil {
             let j = FormGeometry.joints(side)
@@ -706,7 +708,7 @@ final class FormWarningTracker {
                 "shoulderRatio":[5,6,11,12], "frontView":[5,6,11,12],
                 "kneeAnkleGapRatio":[5,6,11,12,13,14,15,16], "heelToe":[j.knee,j.ankle]]
             sample.faultInputSupport?["facing"] = ["before":FormFaultJSON.number(facingBefore),
-                "after":FormFaultJSON.number(facing), "candidateRun":facingCandidateRun,
+                "after":FormFaultJSON.number(facing), "candidateRunBefore":facingRunBefore, "candidateRun":facingCandidateRun,
                 "sourceJoints":[FormGeometry.nose,j.ear], "stateMayPrecedeCapture":true]
             sample.faultInputSupport?["facingRequiredFields"] = ["torso","elbowBehind","wristAhead"]
             sample.faultInputSupport?["footMinimumConfidence"] = FormFaultJSON.number(squat.footMinConfidence)
@@ -1067,15 +1069,25 @@ final class FormWarningTracker {
         // where it can't be read.
         if let nose, let ear, abs(nose.x - ear.x) > 1 {
             let seen: Double = nose.x > ear.x ? 1 : -1
+            let priorFacing = facing, priorRun = facingCandidateRun
+            var updateKind = "candidate"
             if facing == nil || seen == facing {
+                updateKind = facing == nil ? "establish" : "confirm"
                 facing = seen
                 facingCandidateRun = 0
             } else {
                 facingCandidateRun += 1
                 if facingCandidateRun >= common.facingFlipFrames {
+                    updateKind = "flip"
                     facing = seen
                     facingCandidateRun = 0
                 }
+            }
+            if faultEvidence != nil {
+                s.faultInputSupport?["facingObservation"] = ["seen":seen,"updateKind":updateKind,
+                    "before":FormFaultJSON.number(priorFacing),"after":FormFaultJSON.number(facing),
+                    "candidateRunBefore":priorRun,"candidateRunAfter":facingCandidateRun,
+                    "sourceJoints":[FormGeometry.nose,j.ear]]
             }
         }
         if let shoulder, let elbow, let wrist {
