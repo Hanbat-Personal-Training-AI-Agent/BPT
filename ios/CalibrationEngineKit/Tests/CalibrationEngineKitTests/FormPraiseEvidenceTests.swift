@@ -208,4 +208,98 @@ final class FormPraiseEvidenceTests: XCTestCase {
         }
     }
 
+    func testFiniteOK3DRowRequiresObservedElbowSupport() {
+        // -1: full support; 1/4: missing relevant elbow in baseline/current; 5: unrelated wrist absent.
+        for loss in [-1,1,4,5] {
+            let tracker=FormWarningTracker(exercise:.barbellRow)
+            tracker.common.form3DRequired=true;tracker.common.baselineRepCount=1;tracker.common.cooldownReps=0
+            tracker.common.enabledFeedbackKeys=["row_short_pull","praise_fixed"]
+            var reports=[FormRepReport]()
+            for rep in 1...4 {
+                for step in 0..<3 {
+                    var pose=rowPose(shrug:false)
+                    if step == 1 && rep == loss { pose[7].confidence=0;pose[8].confidence=0 }
+                    if step == 1 && rep == 4 && loss == 5 { pose[9].confidence=0;pose[10].confidence=0 }
+                    tracker.observe(frameIndex:(rep-1)*3+step,coco17:pose,
+                        pose3D:row3D(elbowBehind:rep == 1 || rep == 4 ? 0.2 : 0),pose3DState:.ok,
+                        phase:["top","bottom","ascending"][step])
+                    if step == 0 { tracker.beginRep() } else { tracker.recordCurrentFrame() }
+                }
+                reports.append(tracker.finishRep(repIndex:rep))
+            }
+            XCTAssertEqual(reports[2].spoken,"row_short_pull")
+            XCTAssertEqual(reports[3].states3D,["ok":3])
+            if loss == -1 || loss == 5 { XCTAssertEqual(reports[3].spoken,"praise_fixed") }
+            else { XCTAssertNotEqual(reports[3].spoken,"praise_fixed","finite3D .ok does not prove elbow source support: rep \(loss)") }
+        }
+    }
+    private func plank3D(bent: Bool) -> [SIMD3<Double>] {
+        var j=row3D(elbowBehind:0)
+        j[8]=[0,0,-0.5];j[10]=[0,0,-0.6]
+        j[3]=[-0.1,0,1];j[6]=[0.1,0,1];j[2]=[-0.1,0,0.5];j[5]=[0.1,0,0.5]
+        j[11]=[0.2,0,-0.5];j[14]=[-0.2,0,-0.5]
+        j[12]=[0.2,0.2,-0.5];j[15]=[-0.2,0.2,-0.5]
+        j[13]=bent ? [0.35,0.1,-0.5] : [0.2,0.4,-0.5]
+        j[16]=bent ? [-0.35,0.1,-0.5] : [-0.2,0.4,-0.5]
+        return j
+    }
+    func testFiniteOK3DPushupRequiresObservedWristButNot2DFacing() {
+        for loss in [-1,1,4,5] {
+            let tracker=FormWarningTracker(exercise:.pushUp)
+            tracker.common.form3DRequired=true;tracker.common.baselineRepCount=1;tracker.common.cooldownReps=0
+            tracker.common.enabledFeedbackKeys=["pushup_shallow","praise_fixed"]
+            var reports=[FormRepReport]()
+            for rep in 1...4 {
+                for step in 0..<3 {
+                    var pose=rowPose(shrug:false)
+                    if step == 1 && rep == loss { pose[9].confidence=0;pose[10].confidence=0 }
+                    if rep == 4 && loss == 5 { pose[0].confidence=0;pose[3].confidence=0;pose[4].confidence=0 }
+                    tracker.observe(frameIndex:(rep-1)*3+step,coco17:pose,
+                        pose3D:plank3D(bent:(rep == 1 || rep == 4) && step == 1),pose3DState:.ok,
+                        phase:["top","bottom","ascending"][step])
+                    if step == 0 { tracker.beginRep() } else { tracker.recordCurrentFrame() }
+                }
+                reports.append(tracker.finishRep(repIndex:rep))
+            }
+            XCTAssertEqual(reports[2].spoken,"pushup_shallow")
+            XCTAssertEqual(reports[3].states3D,["ok":3])
+            if loss == -1 || loss == 5 { XCTAssertEqual(reports[3].spoken,"praise_fixed") }
+            else { XCTAssertNotEqual(reports[3].spoken,"praise_fixed","finite3D .ok does not prove wrist source support: rep \(loss)") }
+        }
+    }
+
+    func testObservedH36MMappingRequiresEveryRootAndThoraxConstituent() throws {
+        var pose=rowPose(shrug:false)
+        pose[11].confidence=0.1;pose[12].confidence=0.95
+        let converted=try PoseCoordinateTransforms.coco17ToH36M17(pose)
+        XCTAssertGreaterThan(converted[0].confidence,0.3,"averaged root confidence alone hides the unsupported left hip")
+        let supported=FormCorrectionEvidence.observedH36MJoints(pose,minimumConfidence:0.3)
+        XCTAssertFalse(supported.contains(0));XCTAssertFalse(supported.contains(7));XCTAssertFalse(supported.contains(4))
+        XCTAssertTrue(supported.contains(1));XCTAssertTrue(supported.contains(8));XCTAssertTrue(supported.contains(13))
+        pose=rowPose(shrug:false);pose[6].x = .infinity
+        let badShoulder=FormCorrectionEvidence.observedH36MJoints(pose,minimumConfidence:0.3)
+        XCTAssertFalse(badShoulder.contains(8));XCTAssertFalse(badShoulder.contains(7));XCTAssertFalse(badShoulder.contains(9))
+        XCTAssertTrue(badShoulder.contains(0));XCTAssertTrue(badShoulder.contains(11))
+        pose=rowPose(shrug:false);pose[9].confidence = .infinity
+        let badScore=FormCorrectionEvidence.observedH36MJoints(pose,minimumConfidence:0.3)
+        XCTAssertFalse(badScore.contains(13));XCTAssertTrue(badScore.contains(12))
+    }
+
+    func testObservedSupportMatchesActualConverterDependenciesForEveryCOCOJoint() throws {
+        let all=Set(0..<17)
+        let original=rowPose(shrug:false)
+        let baseline=try PoseCoordinateTransforms.coco17ToH36M17(original)
+        for source in 0..<17 {
+            var shifted=original;shifted[source].x += 100
+            let mapped=try PoseCoordinateTransforms.coco17ToH36M17(shifted)
+            let affected=Set((0..<17).filter { mapped[$0].x != baseline[$0].x })
+            var low=original;low[source].confidence=0.29
+            XCTAssertEqual(FormCorrectionEvidence.observedH36MJoints(low,minimumConfidence:0.3),all.subtracting(affected),"source joint \(source)")
+            low[source].confidence = .nan
+            XCTAssertEqual(FormCorrectionEvidence.observedH36MJoints(low,minimumConfidence:0.3),all.subtracting(affected),"NaN source joint \(source)")
+            low[source].confidence=0.3
+            XCTAssertEqual(FormCorrectionEvidence.observedH36MJoints(low,minimumConfidence:0.3),all,"unchanged inclusive native threshold")
+        }
+    }
+
 }

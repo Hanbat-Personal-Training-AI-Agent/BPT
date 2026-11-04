@@ -132,6 +132,17 @@ struct FormCorrectionEvidence {
         return out
     }
 
+    /// Same constituent mapping as coco17ToH36M17, preserving each source joint's support rather than averaging scores.
+    static func observedH36MJoints(_ pose: [PoseKeypoint], minimumConfidence: Double) -> Set<Int> {
+        guard pose.count == 17,minimumConfidence.isFinite else { return [] }
+        let constituents=[[11,12],[12],[14],[16],[11],[13],[15],[11,12,5,6],
+                          [5,6],[0,5,6],[1,2],[5],[7],[9],[6],[8],[10]]
+        return Set(constituents.indices.filter { i in constituents[i].allSatisfy { source in
+            let p=pose[source]
+            return p.x.isFinite && p.y.isFinite && p.confidence.isFinite && p.confidence>=minimumConfidence
+        } })
+    }
+
     static func finite3D(_ sample: FormFrameSample, pose: [SIMD3<Double>], like sample2D: FormFrameSample,
                          up: SIMD3<Double>) -> Set<String> {
         let j=FormGeometry.h36mSide(sample.side)
@@ -141,7 +152,8 @@ struct FormCorrectionEvidence {
         let measurements=sample.faultMeasurements
         var out=Set(fields.compactMap { field,ids -> String? in
             guard measurements[field]?.isFinite == true,
-                  ids.allSatisfy({ pose[$0].x.isFinite && pose[$0].y.isFinite && pose[$0].z.isFinite }) else { return nil }
+                  ids.allSatisfy({ sample2D.correctionObservedH36M.contains($0) &&
+                      pose[$0].x.isFinite && pose[$0].y.isFinite && pose[$0].z.isFinite }) else { return nil }
             if ["torso","hipDeviation"].contains(field), !(up.x.isFinite && up.y.isFinite && up.z.isFinite) { return nil }
             return field
         })

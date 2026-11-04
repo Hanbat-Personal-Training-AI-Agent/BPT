@@ -373,6 +373,7 @@ struct FormFrameSample {
     var state3D: Pose3DState?
     /// Private support for correction praise; independent of optional diagnostic capture.
     var correctionFields: Set<String> = []
+    var correctionObservedH36M: Set<Int> = []
     var correctionFacing: Double?
     var correctionUp: SIMD3<Double>?
     var faultSource: FormFaultSource?
@@ -709,6 +710,7 @@ final class FormWarningTracker {
         if faultEvidence != nil { sample.faultInputSupport?["facingObservation"] = NSNull() }
         measure2D(coco17, feet: feet, side: side, into: &sample)
         sample.correctionFacing = facing
+        sample.correctionObservedH36M = FormCorrectionEvidence.observedH36MJoints(coco17,minimumConfidence:common.minJointConfidence)
         sample.correctionFields = FormCorrectionEvidence.finite2D(sample,pose:coco17,feet:feet,common:common,squat:squat,facing:facing,facingTrusted:correctionFacingTrusted)
         if faultEvidence != nil {
             let j = FormGeometry.joints(side)
