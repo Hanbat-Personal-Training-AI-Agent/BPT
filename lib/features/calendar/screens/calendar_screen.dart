@@ -527,11 +527,10 @@ class _CalendarRecordTile extends StatelessWidget {
           'incorrectReps': record.incorrectReps,
           'elapsedSeconds': record.durationSeconds,
           'postureScore': record.postureScore,
-          'poseMetricsSummary': record.poseMetricsSummary,
+          ...record.resultEvidenceFields,
           'feedbackHistory': record.feedbackNotes,
           'targetReps': record.targetReps,
           'targetSets': record.targetSets,
-          'weightKg': record.weightKg,
           'isHistory': true,
           'clientRecordId': record.id,
           'date': record.date,
@@ -604,7 +603,8 @@ class _CalendarRecordTile extends StatelessWidget {
             Divider(color: Colors.white.withValues(alpha: 0.08), height: 1),
             const SizedBox(height: 10),
             WorkoutRecordCompletionText(
-              record: record, isKo: isKo,
+              record: record,
+              isKo: isKo,
               style: TextStyle(
                 color: Colors.white.withValues(alpha: 0.5),
                 fontSize: 13,

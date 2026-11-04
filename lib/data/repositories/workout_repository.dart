@@ -16,6 +16,87 @@ abstract class IWorkoutRepository {
   Future<List<WorkoutRecordModel>> getWorkoutRecords();
 }
 
+bool _echoesUnknownWeight(Map response, double weight, bool wasRecorded) =>
+    !wasRecorded && weight == 0 && response['weightRecorded'] != true;
+
+bool _unmarkedZero(Map response, double weight) =>
+    weight == 0 && !response.containsKey('weightRecorded');
+
+String _setWireSignature(List<WorkoutSetDetail> sets) =>
+    jsonEncode(sets.map((set) => jsonEncode(set.toJson())).toList()..sort());
+
+bool _restoredSetValidity(
+    Map response, WorkoutRecordModel remote, WorkoutRecordModel local) {
+  if (!response.containsKey('setsDetail')) return local.setsDetailValid;
+  if (response['setsDetailValid'] is bool) {
+    return response['setsDetailValid'] == true && remote.setsDetailValid;
+  }
+  // A legacy echo of normalized wire values cannot validate a malformed
+  // original list whose local provenance explicitly remains invalid.
+  if (!local.setsDetailValid &&
+      _setWireSignature(remote.setsDetail) ==
+          _setWireSignature(local.setsDetail)) {
+    return false;
+  }
+  return remote.setsDetailValid;
+}
+
+List<WorkoutSetDetail> _restoreOmittedSetMetadata(Map<String, dynamic> response,
+    List<WorkoutSetDetail> remote, List<WorkoutSetDetail> local) {
+  if (!response.containsKey('setsDetail')) return local;
+  final raw = response['setsDetail'];
+  if (raw is! List) return remote;
+  return remote.map((set) {
+    final rows = raw
+        .whereType<Map>()
+        .where((row) =>
+            (row['setNumber'] ?? row['setIndex']) == set.setNumber &&
+            row['reps'] == set.reps)
+        .toList();
+    final matches = local
+        .where((old) =>
+            old.setNumber == set.setNumber &&
+            old.reps == set.reps &&
+            (rows.length == 1 && !rows.single.containsKey('weightKg') ||
+                set.weightRecorded &&
+                    old.weightRecorded &&
+                    set.weightKg == old.weightKg ||
+                rows.length == 1 &&
+                    old.weightRecorded &&
+                    old.weightKg == 0 &&
+                    _unmarkedZero(rows.single, set.weightKg) ||
+                rows.length == 1 &&
+                    _echoesUnknownWeight(
+                        rows.single, set.weightKg, old.weightRecorded)))
+        .toList();
+    if (rows.length != 1 || matches.length != 1) return set;
+    final row = rows.single, old = matches.single;
+    return WorkoutSetDetail(
+      setNumber: set.setNumber,
+      reps: set.reps,
+      weightKg: row.containsKey('weightKg') ? set.weightKg : old.weightKg,
+      weightRecorded: row['weightRecorded'] is bool
+          ? row['weightRecorded'] as bool
+          : !row.containsKey('weightKg') ||
+                  _echoesUnknownWeight(row, set.weightKg, old.weightRecorded) ||
+                  old.weightRecorded &&
+                      old.weightKg == 0 &&
+                      _unmarkedZero(row, set.weightKg)
+              ? old.weightRecorded
+              : set.weightRecorded,
+      warningEvents:
+          row.containsKey('badCount') ? set.warningEvents : old.warningEvents,
+      videoLocalPath: row.containsKey('videoLocalPath')
+          ? set.videoLocalPath
+          : old.videoLocalPath,
+      videoRemoteUrl:
+          row.containsKey('videoRemoteUrl') || row.containsKey('videoUrl')
+              ? set.videoRemoteUrl
+              : old.videoRemoteUrl,
+    );
+  }).toList();
+}
+
 /// 로그인한 계정 하나의 운동 기록만 다룬다. 기기 캐시와 전송 대기열도 그
 /// 계정 것만 읽고 쓴다. 로그인 안 했으면 [_queueStorage]가 null 이다.
 class WorkoutRepository implements IWorkoutRepository {
@@ -125,8 +206,9 @@ class WorkoutRepository implements IWorkoutRepository {
         // A submit may have staged data while this GET was pending. Never overwrite it from an old snapshot.
         final latestLocal = _localStorage.loadRecords(uid: uid);
         final serverRecords = (response.data as List).map((json) {
-          final dto =
-              WorkoutMetadataRequestDto.fromJson(json as Map<String, dynamic>);
+          final dto = WorkoutMetadataRequestDto.fromJson(
+              json as Map<String, dynamic>,
+              unversionedRemote: true);
           final serverId =
               json['id']?.toString() ?? json['serverId']?.toString();
           var record = WorkoutRecordModel.fromDto(dto,
@@ -153,6 +235,22 @@ class WorkoutRepository implements IWorkoutRepository {
               feedbackCounts: json['feedbackCounts'] == null
                   ? local.feedbackCounts
                   : record.feedbackCounts,
+              setsDetail: _restoreOmittedSetMetadata(
+                  json, record.setsDetail, local.setsDetail),
+              setsDetailValid: _restoredSetValidity(json, record, local),
+              weightKg: !json.containsKey('weightKg')
+                  ? local.weightKg
+                  : record.weightKg,
+              weightRecorded: json['weightRecorded'] is bool
+                  ? json['weightRecorded'] as bool
+                  : !json.containsKey('weightKg') ||
+                          _echoesUnknownWeight(
+                              json, record.weightKg, local.weightRecorded) ||
+                          local.weightRecorded &&
+                              local.weightKg == 0 &&
+                              _unmarkedZero(json, record.weightKg)
+                      ? local.weightRecorded
+                      : record.weightRecorded,
               // Preserve raw historical values if the response omitted them; none are validation.
               postureScore: json['postureScore'] == null
                   ? local.postureScore

@@ -69,6 +69,116 @@ WorkoutMetadataRequestDto _dto() => WorkoutMetadataRequestDto(
         ]));
 void main() {
   for (final mode in [
+    'omitted',
+    'matching_sets',
+    'changed_values',
+    'other_identity',
+    'unknown_weight_echo',
+    'explicit_weight_clear',
+    'invalid_sets_echo',
+  ]) {
+    test('GET preserves only same-record observed metadata: $mode', () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final f = await sessionFixture(prefs);
+      addTearDown(f.auth.dispose);
+      final unknown = mode == 'unknown_weight_echo';
+      final dto = WorkoutMetadataRequestDto.fromJson({
+        'clientRecordId': 'local-observed',
+        'totalReps': 7,
+        'targetSets': 9,
+        if (!unknown) 'weightKg': 12.5,
+        'setsDetail': [
+          {
+            'setNumber': 1,
+            'reps': 3,
+            if (!unknown) 'weightKg': 0,
+            'badCount': 4,
+            'videoLocalPath': '/recorded/set1.mp4'
+          },
+          {
+            'setNumber': 2,
+            'reps': 4,
+            if (!unknown) 'weightKg': 12.5,
+            'badCount': 0,
+            'videoRemoteUrl': 'https://example.test/set2.mp4'
+          },
+          if (mode == 'invalid_sets_echo') null,
+        ],
+      });
+      await f.storage.addRecord(
+          WorkoutRecordModel.fromDto(dto,
+              isSynced: true, serverId: 'server-observed'),
+          uid: 'A');
+      final wire = <String, dynamic>{
+        'clientRecordId':
+            mode == 'other_identity' ? 'unrelated' : 'local-observed',
+        'id': 'server-observed',
+        'totalReps': 7,
+        if (mode == 'matching_sets' || unknown)
+          'setsDetail': dto.toJson()['setsDetail'],
+        if (mode == 'invalid_sets_echo')
+          'setsDetail': (dto.toJson()['setsDetail'] as List).reversed.toList(),
+        if (unknown) 'weightKg': 0,
+        if (mode == 'explicit_weight_clear') ...{
+          'weightRecorded': false,
+          'setsDetail': [
+            {'setNumber': 1, 'reps': 3, 'weightRecorded': false},
+            {'setNumber': 2, 'reps': 4, 'weightRecorded': false},
+          ],
+        },
+        if (mode == 'changed_values') ...{
+          'weightKg': 0,
+          'setsDetail': [
+            {'setNumber': 1, 'reps': 3, 'weightKg': 99}
+          ],
+        },
+      };
+      final server = _DelayedGet([wire]);
+      final api = ApiClient(baseUrl: 'http://test')..setAuthToken('token-A');
+      api.dio.httpClientAdapter = server;
+      final lease = f.auth.captureSession()!,
+          queue = SyncQueueStorage(prefs, 'A'),
+          online = _Online();
+      final sync = WorkoutSyncNotifier(api, queue, f.storage, online,
+          isCurrentAccount: () => lease.isCurrent);
+      addTearDown(sync.dispose);
+      final repository = WorkoutRepository(api, f.storage, queue, sync, online,
+          isCurrentAccount: () => lease.isCurrent);
+      final pending = repository.getWorkoutRecords();
+      await server.entered.future;
+      server.release.complete();
+      final result = (await pending).single;
+      if (mode == 'other_identity') {
+        expect(result.setsDetail, isEmpty);
+        expect(result.weightRecorded, isFalse);
+      } else if (mode == 'changed_values') {
+        expect(result.weightKg, 0);
+        // An unversioned remote zero may be a legacy placeholder. The changed
+        // nonzero set value is still preserved, without certifying that zero.
+        expect(result.weightRecorded, isFalse);
+        expect(result.setsDetail.single.weightKg, 99);
+        expect(result.setsDetail.single.videoLocalPath, isNull);
+      } else {
+        expect(result.setsDetail, hasLength(2));
+        final byNumber = {
+          for (final set in result.setsDetail) set.setNumber: set
+        };
+        expect(byNumber[1]!.videoLocalPath, '/recorded/set1.mp4');
+        expect(byNumber[2]!.videoRemoteUrl, 'https://example.test/set2.mp4');
+        expect(byNumber[1]!.warningEvents, 4);
+        expect(
+            result.weightRecorded, !unknown && mode != 'explicit_weight_clear');
+        expect(result.setsDetail.every((set) => set.weightRecorded),
+            !unknown && mode != 'explicit_weight_clear');
+        if (mode == 'invalid_sets_echo') {
+          expect(result.setsDetailValid, isFalse);
+          expect(result.completedSets, isNull);
+        }
+      }
+    });
+  }
+  for (final mode in [
     'new_ack_absent',
     'new_evidence_omitted',
     'old_pending_acked',

@@ -127,7 +127,7 @@ class SyncQueueStorage {
   }
 
   Future<void> _saveQueue(List<WorkoutMetadataRequestDto> queue) async {
-    final jsonList = queue.map((e) => e.toJson()).toList();
+    final jsonList = queue.map((e) => e.toStorageJson()).toList();
     await _prefs.setString(_queueKey, jsonEncode(jsonList));
   }
 }
