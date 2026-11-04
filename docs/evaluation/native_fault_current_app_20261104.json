@@ -1,0 +1,50 @@
+{
+  "aotSHA256": "833679fd84518933f0eac1dced3102c32f80d05ff1e7d15ef537f14f56275634",
+  "appPath": "/Users/6_month/Documents/bpt-handoff/native-fault-current-20261104/app_native_fault_current_39b0e28_20261104.app",
+  "build": {
+    "dependencyTargets": 3,
+    "exitCode": 0,
+    "initialFreeGuardBytes": 3221225472,
+    "minimumFreeBytesObserved": 3062525952,
+    "sourceUnchanged": true,
+    "trackedPodLockRestored": true,
+    "wallSeconds": 61.13239502906799
+  },
+  "buildReceiptPath": "/Users/6_month/bpt-runs/native-fault-current-app-20261104/result.json",
+  "buildReceiptSHA256": "7c7c6f89831ea56c9da383c232bc05816db556eecfb694b9d531e9a3fadf439b",
+  "builtSourceCommit": "39b0e28ea298721fbaf7904abf5e43567c3ef7ec",
+  "contract": "bpt-current-offline-app-v1",
+  "copiedFilesBytesAndModesVerified": 221,
+  "currentSourceComparison": {
+    "allEqual": true,
+    "builtSourceCommit": "39b0e28ea298721fbaf7904abf5e43567c3ef7ec",
+    "currentCentralCommit": "1798833feacb596456376a99f99e31cab596d02f",
+    "receiptPath": "/Users/6_month/bpt-runs/native-fault-current-app-20261104/current-source-comparison.json",
+    "receiptSHA256": "67e912404c0b7ba7ecaf9cec9818d238ef986990f76892913e8fee47dfcb5ed8",
+    "trackedFileCount": 208
+  },
+  "deviceRuntimeTested": false,
+  "handoffReceiptPath": "/Users/6_month/Documents/bpt-handoff/native-fault-current-20261104/handoff-receipt.json",
+  "handoffReceiptSHA256": "26a10a2200688bace536a3094fd3dc5dd5dc90bed220c0bc714423a1245fd3b3",
+  "installed": false,
+  "modelsUnchangedFromPrior": [
+    "motionagformer_xs.mlmodelc",
+    "rtmpose_m_forward.mlmodelc",
+    "rtmpose_m_halpe26_forward.mlmodelc",
+    "rtmpose_s_forward.mlmodelc",
+    "rtmpose_s_halpe26_forward.mlmodelc"
+  ],
+  "nextSteps": "Signing and device launch/runtime validation remain pending; no automatic execution is scheduled.",
+  "oldSigned6cAppPreserved": true,
+  "rootVerificationReceiptPath": "/Users/6_month/Documents/bpt-handoff/native-fault-current-20261104/root-verification.json",
+  "rootVerificationReceiptSHA256": "e517627965fd2346dc9bd33d5352f416d1b12d56097a298f5c314d7f36ef487a",
+  "runnerSHA256": "92d7ca1721c7c466fe5434686530c55c0fc5c2ef944273ffa0b0314f50963025",
+  "signingAttempted": false,
+  "sourceInputHashesSHA256": "5aba73badd4b60cd83f38545123ec1e11f37611f72c6936d11cee077239a252c",
+  "swiftTests": {
+    "executed": 346,
+    "failures": 0,
+    "skipped": 4
+  },
+  "unsigned": true
+}
