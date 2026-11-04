@@ -2,6 +2,8 @@
 
 This is **preparation only**, based on tested review `d9f681aad386070ec21cc4d1f6ca2723eca62538`. It is **not an approved integration configuration**, adoption, deployment, or the separately built review app. `integration/ai` and the active review were not updated. No push, phone operation, or iOS build occurred.
 
+Subsequent root integration of this preparation: commit `40395df` applies these compatibility files to `review/bpt-completion-20261104` only. The first paragraph describes the isolated preparation step. The actual `integration/ai` ref remains `3cef41d5f18bbd62a66249bb50ac7bb6fc7f1600`; runtime Runner/Dart/build-project files remain identical to the separately signed `6c932d2` app. No adoption or model/default change occurred.
+
 The separate branch `review/bpt-integration-preview-20261104` starts at that review commit. `git merge-tree --write-tree --name-only` with integration `3cef41d5f18bbd62a66249bb50ac7bb6fc7f1600` produced tree `9b6ab7f3e0830ca7860426005151eda984ebf118` with five conflicts. That tree was loaded only in the new clean preview using `git read-tree --reset -u`, then resolved as below. The preview commit has one parent, the review commit; this does not create an integration merge commit. The exact inputs, three merge bases, pre-report resolved tree and verification hashes are in [the receipt](integration_preview_20261104.json).
 
 The live input refs were 22 integration-only and 368 review-only commits apart at inspection. Multiple merge bases make a blanket “take one side” resolution unsafe.
