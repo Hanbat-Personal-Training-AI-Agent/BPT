@@ -126,6 +126,16 @@
   ],
   "contract": "bpt-native-fault-replay-validation-v1",
   "rawOutputPrecision": "Existing CSV writer rounds floating values to 4 decimal places. Raw and corrected array columns are preserved structurally, not as lossless full-float archival.",
+  "readOnlyCrossArtifactAudit": {
+    "exactRationalMonotonicClips": 3,
+    "metricDictionariesCompared": 60,
+    "receiptSHA256": "8484f11c184af1af70d1c125f6432d593de0940fd251df19e006268b42721695",
+    "scope": "read-only equality/hash/integer-rational checks; no inference, rule evaluation or metric recomputation",
+    "separateSourceWarningListsCompared": 60,
+    "success": true,
+    "totalFrames": 2408,
+    "totalReps": 30
+  },
   "runtimeCandidate": "94a72a5ffae86011a87af93eb246eb8a7a58f4fe",
   "scope": "headless native replay of three newly bound development sources; no human labels, accuracy claim, phone run, upload, training, or default model replacement",
   "settings": {
