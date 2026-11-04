@@ -1,0 +1,152 @@
+{
+  "binarySHA256": "75c81e36070400a5015400fa1f641c25e5bb1d89ecb750fe9f31667173c9015e",
+  "clips": [
+    {
+      "artifactsStable": true,
+      "clipId": "native-dev-squat-7da9af0c13a9",
+      "coverageComplete": true,
+      "duplicateSources": 0,
+      "exercise": "squat",
+      "failedSources": 0,
+      "flushFrames": 5,
+      "frames": 1267,
+      "inferences3D": 1246,
+      "missingSources": 0,
+      "rawArrayPreservation": {
+        "all17RawAndConstrainedXYZColumnsPresent": true,
+        "all26KeypointColumnsPresent": true,
+        "constrained3DFiniteCompleteRows": 1246,
+        "keypointCSVRows": 1267,
+        "keypointIndicesContiguous": true,
+        "legacyFloatFormatting": "4 decimal places; structural preservation is not full-float binary archival",
+        "pose3DCSVRows": 1267,
+        "pose3DIndicesContiguous": true,
+        "raw3DFiniteCompleteRows": 1246,
+        "rowsRawAndConstrainedDiffer": 1246
+      },
+      "repCount": 10,
+      "sourceClockTimeScales": [
+        1000,
+        15360
+      ],
+      "sourceSHA256": "7da9af0c13a9015fc2fc6b3591773e63c68c6f2d72a004f10b72dbed8d7e1004",
+      "states3D": {
+        "ok": 1246,
+        "warming_up": 21
+      },
+      "traceSHA256": "8a089e38ca0b11f13a66b0dd87b991453ab16cc7d8ac47cd079cdf9bd92ae09c",
+      "wallSeconds": 30.363182792,
+      "warningRepCounts": {
+        "squat_hips_first": 2,
+        "squat_knee_valgus": 5,
+        "squat_no_lockout": 3
+      },
+      "writerComplete": true
+    },
+    {
+      "artifactsStable": true,
+      "clipId": "native-dev-row-848d03a6103c",
+      "coverageComplete": true,
+      "duplicateSources": 0,
+      "exercise": "barbell_row",
+      "failedSources": 0,
+      "flushFrames": 5,
+      "frames": 590,
+      "inferences3D": 569,
+      "missingSources": 0,
+      "rawArrayPreservation": {
+        "all17RawAndConstrainedXYZColumnsPresent": true,
+        "all26KeypointColumnsPresent": true,
+        "constrained3DFiniteCompleteRows": 569,
+        "keypointCSVRows": 590,
+        "keypointIndicesContiguous": true,
+        "legacyFloatFormatting": "4 decimal places; structural preservation is not full-float binary archival",
+        "pose3DCSVRows": 590,
+        "pose3DIndicesContiguous": true,
+        "raw3DFiniteCompleteRows": 569,
+        "rowsRawAndConstrainedDiffer": 569
+      },
+      "repCount": 10,
+      "sourceClockTimeScales": [
+        1000,
+        15360
+      ],
+      "sourceSHA256": "848d03a6103c25b814e15ce7f1ff47abfc0a7d8f5378d2ce1dc67fde644dc9ee",
+      "states3D": {
+        "ok": 569,
+        "warming_up": 21
+      },
+      "traceSHA256": "19f3e81969cfb4d9f2ee8e4f5dc0a8b45bcb438d17db27fee47bc8e1a6187455",
+      "wallSeconds": 14.734736291,
+      "warningRepCounts": {},
+      "writerComplete": true
+    },
+    {
+      "artifactsStable": true,
+      "clipId": "native-dev-pushup-b553b205ba4b",
+      "coverageComplete": true,
+      "duplicateSources": 0,
+      "exercise": "pushup",
+      "failedSources": 0,
+      "flushFrames": 5,
+      "frames": 551,
+      "inferences3D": 526,
+      "missingSources": 0,
+      "rawArrayPreservation": {
+        "all17RawAndConstrainedXYZColumnsPresent": true,
+        "all26KeypointColumnsPresent": true,
+        "constrained3DFiniteCompleteRows": 526,
+        "keypointCSVRows": 551,
+        "keypointIndicesContiguous": true,
+        "legacyFloatFormatting": "4 decimal places; structural preservation is not full-float binary archival",
+        "pose3DCSVRows": 551,
+        "pose3DIndicesContiguous": true,
+        "raw3DFiniteCompleteRows": 526,
+        "rowsRawAndConstrainedDiffer": 526
+      },
+      "repCount": 10,
+      "sourceClockTimeScales": [
+        1000,
+        15360
+      ],
+      "sourceSHA256": "b553b205ba4bdbcc88c445208813346b445f7b98b48cc60fc1ad1f77bc06d2d0",
+      "states3D": {
+        "ok": 510,
+        "partial_3d": 16,
+        "tracking_lost": 4,
+        "warming_up": 21
+      },
+      "traceSHA256": "48364b2b24139185a13aae74d2cd7809282ae3479cb5672f82e9fdb16f4e0af8",
+      "wallSeconds": 15.228069124999998,
+      "warningRepCounts": {
+        "pushup_no_lockout": 1
+      },
+      "writerComplete": true
+    }
+  ],
+  "contract": "bpt-native-fault-replay-validation-v1",
+  "rawOutputPrecision": "Existing CSV writer rounds floating values to 4 decimal places. Raw and corrected array columns are preserved structurally, not as lossless full-float archival.",
+  "runtimeCandidate": "94a72a5ffae86011a87af93eb246eb8a7a58f4fe",
+  "scope": "headless native replay of three newly bound development sources; no human labels, accuracy claim, phone run, upload, training, or default model replacement",
+  "settings": {
+    "adaptive": false,
+    "cadence": 1,
+    "constraints": true,
+    "cropEdgeRefit": true,
+    "formSource": "3d",
+    "input": "crop",
+    "lookahead": 5,
+    "model": "mhalpe26",
+    "motion3D": "bundled motionagformer_xs.mlpackage, explicit path",
+    "readyPose": "off",
+    "wristAnchor": false
+  },
+  "timingScope": "whole headless CLI process, including CoreML compilation/model load, source decoding, inference, native evaluation, writes; not phone performance",
+  "validation": {
+    "focusedCLIChecksPassed": 7,
+    "iosRunnerSourcesTypechecked": 65,
+    "swiftFailures": 0,
+    "swiftTestsExecuted": 337,
+    "swiftTestsSkipped": 4
+  }
+}
