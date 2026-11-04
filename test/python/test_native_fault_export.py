@@ -300,6 +300,8 @@ class EnvelopeTests(unittest.TestCase):
         before.update({p:p.read_bytes() for p in task.iterdir()})
         result=ex.export(task,self.repo,self.protocol,out)
         self.assertEqual(result['states'],{'no_warning':17,'withheld':15})
+        self.assertEqual(result['evidenceSHA256'],ex.file_sha(out/'evidence.json'))
+        self.assertEqual(ev.load(out/'export_audit.json')[0]['evidenceSHA256'],ex.file_sha(out/'evidence.json'))
         imp.import_task(task,out/'evidence.json',self.protocol,task/'boundary_manifest.json',
                         task/'clip_index_PRIVATE.json',self.repo,imported)
         manifest,sha=ev.load(imported/'manifest.json');labels,_=ev.load(imported/'labels.json');predictions,_=ev.load(imported/'predictions.json')

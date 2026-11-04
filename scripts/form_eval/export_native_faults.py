@@ -847,7 +847,9 @@ def export(task_dir,repo,protocol,output_dir):
         'inputHashesUnchanged':True,'decisions':audit}
     unchanged_artifacts(traces,snapshots)
     output.mkdir(mode=0o700)
-    write_new(output/'evidence.json',evidence);write_new(output/'export_audit.json',receipt)
+    with (output/'evidence.json').open('xb') as destination:
+        destination.write(dumps(evidence))
+    write_new(output/'export_audit.json',receipt)
     return {k:receipt[k] for k in ('status','states','opportunities','evidenceSHA256','inputHashesUnchanged')}
 
 
