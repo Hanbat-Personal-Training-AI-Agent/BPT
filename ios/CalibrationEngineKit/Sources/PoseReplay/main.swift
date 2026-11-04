@@ -667,24 +667,29 @@ for (videoOrdinal, video) in videos.enumerated() {
         events.append(entry)
     }
     var artifactsStable = true
-    if let evidence, let faultTraceDirectory {
+    var completionReceipt: [String: Any]?
+    if let evidence, faultTraceDirectory != nil {
         let sourceAfter = try sha256File(video)
         var modelsAfter: [String: String] = [:]
         for path in faultModelHashes.keys { modelsAfter[path] = try sha256Artifact(URL(fileURLWithPath: path)) }
         artifactsStable = sourceAfter == (faultBindings[videoOrdinal]["sourceSHA256"] as? String)?.lowercased()
             && modelsAfter == faultModelHashes
-        let receipt: [String: Any] = ["contract": "bpt-pose-replay-receipt-v1", "runID": faultSession,
+        completionReceipt = ["contract": "bpt-pose-replay-receipt-v1", "runID": faultSession,
             "tracePath": evidence.url?.path as Any? ?? NSNull(), "candidateId": faultBindings[videoOrdinal]["candidateId"]!,
             "sourceSHA256Before": faultBindings[videoOrdinal]["sourceSHA256"]!, "sourceSHA256After": sourceAfter,
             "modelArtifactSHA256Before": faultModelHashes, "modelArtifactSHA256After": modelsAfter,
             "artifactsStable": artifactsStable, "lifterActive": lifter != nil,
-            "formSource3D": tracker.common.form3DRequired]
-        try JSONSerialization.data(withJSONObject: receipt, options: [.prettyPrinted, .sortedKeys])
-            .write(to: faultTraceDirectory.appendingPathComponent("receipt_\(faultSession).json"), options: .withoutOverwriting)
+            "formSource3D": tracker.common.form3DRequired,
+            "modelDigestAlgorithm": "sha256-relative-path-nul-file-sha256-lf-v1"]
     }
     evidence?.finish(reason: !artifactsStable ? "artifact_changed_during_execution" :
                         (poseFailure ?? (sourceDrained ? "replay_eof" : "source_decode_incomplete")),
                      sourceDrained: sourceDrained && poseFailure == nil && artifactsStable)
+    if var receipt = completionReceipt, let faultTraceDirectory, let traceURL = evidence?.url {
+        receipt["traceSHA256"] = try sha256File(traceURL)
+        try JSONSerialization.data(withJSONObject: receipt, options: [.prettyPrinted, .sortedKeys])
+            .write(to: faultTraceDirectory.appendingPathComponent("receipt_\(faultSession).json"), options: .withoutOverwriting)
+    }
     let reps: [[String: Any]] = tracker.reports.map { report in
         var entry = report.dictionary
         entry["start_time"] = times.indices.contains(report.startFrame) ? times[report.startFrame] : NSNull()
