@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "purpose": "import_contract_validation_not_accuracy",
-  "testsPassed": 24,
+  "testsPassed": 25,
   "synthetic": {
     "opportunities": 4,
     "unknownLabels": 4,
@@ -29,5 +29,6 @@
     "rejectedAggregateSha256": "6d0a2aa5e3fbe01df2ee40d0293d501bac4f26bb604e7100888c2ecacd7a0f1e",
     "rejection": "missing/unknown evidence fields; different rule contract and opportunity semantics",
     "predictionRowsImported": 0
-  }
+  },
+  "disjointWithholdingGateRejected": true
 }

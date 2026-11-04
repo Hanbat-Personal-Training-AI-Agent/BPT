@@ -21,4 +21,4 @@ Validation on the isolated source worktree:
 - **305 full-package tests, 4 skipped, 0 failures.** The existing terminal failure-injection tests emitted their expected `write_failed`/`serialization_failed` messages and passed.
 - No iOS build or phone action. The source change can join the separately coordinated final app build.
 
-Local logs: `/private/tmp/bpt-form-evidence-swift-20261104.log` and `/private/tmp/bpt-form-evidence-full-swift-20261104.log`. The isolated build cache is `/private/tmp/bpt-form-evidence-build-20261104`.
+Local logs: `/private/tmp/bpt-form-evidence-swift-20261104.log` and `/private/tmp/bpt-form-evidence-full-swift-20261104.log`. The isolated cache at `/private/tmp/bpt-form-evidence-build-20261104` was removed after validation to recover disk space; both logs are retained.

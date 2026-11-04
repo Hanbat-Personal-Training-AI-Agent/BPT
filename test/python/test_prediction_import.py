@@ -98,6 +98,16 @@ class PredictionImportTests(unittest.TestCase):
         e['observations'][0]['reason'] = None
         with self.assertRaises(ev.ContractError): importer.convert(e,m,'e'*64,'f'*64)
 
+    def test_withheld_gate_exposure_must_overlap_target_opportunity(self):
+        m = manifest(1); e = exported(m); row = e['observations'][0]
+        row.update(state='withheld', reason='high_uncertainty')
+        for start, end in ((100,101), (1,2)):
+            row.update(exposureStartSeconds=start, exposureEndSeconds=end)
+            with self.subTest(start=start), self.assertRaises(ev.ContractError):
+                importer.convert(e,m,'e'*64,'f'*64)
+        row.update(exposureStartSeconds=.5, exposureEndSeconds=1.5)
+        self.assertEqual(importer.convert(e,m,'e'*64,'f'*64)['observations'][0]['state'],'withheld')
+
     def fixture(self, d):
         task = d/'source-task'; task.mkdir()
         protocol, boundary, clip = d/'protocol.md', d/'boundaries.json', d/'clip.bin'

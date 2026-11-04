@@ -84,6 +84,9 @@ def convert(evidence, manifest, manifest_sha, rule_source_sha):
             require(row['positiveEvidenceSufficient'], 'positive rule evidence sufficiency not attested')
             require(start >= row['startSeconds'] and end <= row['endSeconds'],
                     'positive witness must be contained in the frozen opportunity')
+        else:
+            require(start < row['endSeconds'] and end > row['startSeconds'],
+                    'withheld gate exposure must overlap the frozen opportunity')
         # A withheld decision may reflect uncertainty beyond the six checks.
         # Its explicit local reason is required by the prediction validator.
         # Existing prediction validator checks reason codes and requires withheld reason.
