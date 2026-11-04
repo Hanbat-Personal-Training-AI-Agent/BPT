@@ -1,0 +1,20 @@
+# Nine-policy offline metric supplement — predeclared protocol
+
+Declared after reading the completed first paired-agreement experiment, **before viewing any nine-policy edge outcomes**. This is a post-first-experiment supplement, not an original preregistration. No estimator, gate, policy, threshold, model, default, or active replay code changes. No phone or new inference.
+
+The supplement may execute only after the nine-policy run has a closed manifest and a matching complete aggregate for all 72 streams / nine policies. Verify every manifest input and prediction hash before and after scoring. Use only its saved `corrected` and `uncertainty` arrays and the same frozen observations/crops/timestamps and GT score references. GT/up direction remain scorer-only; do not construct or call an estimator. All per-sequence arrays and records stay on Home; export only aggregates and hash receipts.
+
+## Scope and definitions
+
+Use the original frozen `scripts/motion_contact/metrics.py` `pose_angles` and `derivative` functions and the original coordinate conversion: root-relative corrected crop units × the GT camera-depth metric scale **only for scoring**. Primary rows are 90:end, with derivatives computed over the original full sequence before selecting those rows. All nine policies use the exact same selected streams, frames and joint denominators.
+
+- Left/right knee, elbow and hip angular MAE plus torso angular MAE, in degrees. Reuse `pose_angles` exactly; hip and torso angles are not lumbar-flexion ground truth. Report expected frame count, finite error count, predicted/reference nonfinite-coordinate counts and finite-coordinate-but-degenerate-angle counts separately. Nonfinite/degenerate values do not become zeros or disappear from denominators.
+- Velocity error (mm/s) and acceleration error (mm/s²) against the reference; predicted jerk magnitude (mm/s³). Reuse `derivative` exactly, including actual source timestamps. Report expected joint-frames, finite samples and nonfinite samples. Jerk is a third-derivative proxy and must be interpreted alongside motion preservation, not called correctness or actual bad-form FP/FN.
+- Nominal 95% coordinate-interval coverage: preserve the original `1.96 × sigma` definition, with finite positive sigma as the original eligibility gate. Report all expected coordinates, eligible coordinates, finite predicted/reference coordinates within eligibility, covered coordinates and the original covered/eligible ratio. This is empirical coverage, not a calibrated probability. Record missing sigma and nonfinite coordinates explicitly.
+- Observed-still support image speed (image-height/s): reproduce the original 2D observation reconstruction, derivative, `speed < 0.02` and score ≥0.45 eligibility. Support joints are wrists+ankles for pushups and ankles otherwise. Reproduce the original projection from the image root and corrected crop xy. This is an observed-image stillness proxy, not verified contact. Report candidate support joint-frame count, observed-still eligible count and finite/nonfinite predicted-speed counts.
+
+## Aggregation and reporting
+
+For each scenario × policy × exercise, retain scalar sample sums and counts on Home and calculate means and exact pooled p50/p90/p95 from the pooled finite samples. Also pool across the three exercises per scenario/policy. **Never average per-sequence quantiles or per-sequence means.** Report finite conditional means alongside expected/finite denominators, especially when policies differ in missing values. Interval coverage pools numerator/denominator counts, not sequence percentages.
+
+The supplement inherits the same reused-development-data boundary and candidate-package interpretation. No outcomes from it authorize tuning or adoption. Inherited confidence clipping, conditional edge-reference-age sampling, and abrupt-scale limitations remain unchanged. Preserve the source/protocol hashes, closed main manifest/aggregate hashes, input/prediction rechecks, Python/environment and elapsed time in a separate supplemental receipt. Execute CPU/BLAS single-threaded; expected cost is minutes and bounded scalar-metric memory on Home.

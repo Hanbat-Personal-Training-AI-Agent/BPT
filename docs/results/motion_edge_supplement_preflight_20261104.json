@@ -1,0 +1,22 @@
+{
+  "schema": "bpt.motion-edge-supplement-preflight.v1",
+  "status": "PASS",
+  "tests": 6,
+  "failures": 0,
+  "protocolSha256": "a97f6ded175414357aaf95592f03380939776f942b5841bbf5c05f8366506d55",
+  "sourceSha256": {
+    "supplemental_score.py": "d649a2325b3484135693e7e3216421fce591e77f0059b5fe6a7e002c8573c0b4",
+    "test_motion_supplement.py": "4331a96a04e43f411731401828dd5a10d482bad2351594770dca3e7719ad1465"
+  },
+  "logSha256": "5e064bbabcfb7f44c6d1b5ea88d0f7fc65085afe16ecec868db30dd19c38e2f4",
+  "phase": "post-first-paired-results/pre-nine-policy-outcome-scoring",
+  "noEstimatorCalls": true,
+  "newInference": false,
+  "phoneActions": false,
+  "mainIdentityRequired": {
+    "protocolSha256": "474a00f975485718e1e65c4dcef97e3a6eea9f6902eea69b30965597e6c96946",
+    "streams": 72,
+    "policies": 9,
+    "firstFiveExactParity": true
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "schema": "bpt.motion-edge-supplement-execution.v1",
+  "status": "PASS",
+  "streams": 72,
+  "policies": 9,
+  "aggregateSha256": "477e94043a6730b2e8b3e5114fa2df5330952934f5ef8269366987dd3afb03f0",
+  "receiptHomeOnlySha256": "4b0cad05a3ce20c4dae16cdc62ffc1fb6498fd3b7f841027860229c93bfb8845",
+  "freezeHomeOnlySha256": "f381871da88305aed7b312fdc7e4606868d0727b70c9dbf6805c2521c9f6078a",
+  "logSha256": "b74c8264c9a86aae68bb10c36018511022950d7e11ba08bb5292857492c53b26",
+  "closedMainManifestSha256": "9a8c32a150c7a42ab0f43310a6b01f9618cfa340e1ac4c8c58ef78717c2c80a3",
+  "closedMainAggregateSha256": "06e432973dada120c5bb3b09fcbc234d1b39ed7a4405cfc981d2426160825849",
+  "sourceSha256": "d649a2325b3484135693e7e3216421fce591e77f0059b5fe6a7e002c8573c0b4",
+  "protocolSha256": "a97f6ded175414357aaf95592f03380939776f942b5841bbf5c05f8366506d55",
+  "inputFilesRehashed": 1484,
+  "inputsPredictionsUnchanged": true,
+  "elapsedSeconds": 7.103251214954071,
+  "pythonVersion": "3.11.15 (main, Jun 11 2026, 15:20:16) [GCC 14.3.0]",
+  "numpyVersion": "1.26.4",
+  "cpuThreads": 1,
+  "estimatorCalls": 0,
+  "newInference": false,
+  "phoneActions": false
+}

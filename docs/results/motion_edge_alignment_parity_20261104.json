@@ -1,0 +1,37 @@
+{
+  "schema": "bpt.motion-edge-alignment-parity.v1",
+  "status": "PASS",
+  "createdAt": "2026-11-04T12:23:13.436907+00:00",
+  "source_sha256": {
+    "edge_policy.py": "ea4c40b1365600163af067209d38fb5f5fcd6ed3e6cdf6ac726af4b8ec1f0097",
+    "paired_policy.py": "a70faba57b61d0fbf5df42756169e4887c5def69d345652837b3dfff0b7b00ef",
+    "ExerciseMotionEstimator.swift": "c602412516fe40f1e47954742658d74f27f24c59ca72db32814a42b4b8cb085e",
+    "motion_edge_alignment_cases.json": "bb573195772cbc6cd3eeab6657967ea12a79e5f3c79d9baf59784725f59330c5",
+    "generate_edge_fixture.py": "3151b1ee6bf22432d69bec6616ae57e4f83319fe464a4ca4e7b68a8367133aef",
+    "make_synthetic_fixture.py": "8e6295fb5ef4112ab3b1c5867d997ed4b0952e9feebeef27ab4894d616a7b1e9",
+    "reproduce_edge_mismatch.py": "f6ed35df9832a06557d59fbe475b15278ebb7a147b354ed7883deeb3f91ffd4c",
+    "MotionEdgePolicyTests.swift": "2b89fdff4ca79def6bd98d99f5726358beac93f57a4912fca05d012ce1f2c2ce"
+  },
+  "candidate_source_sha256": {
+    "legacy": "c58740a36791962c9196f2c0443c9d5ae9ad71b343d6688f55614abaea57c40d",
+    "paired": "f18e3ffee953489aade340fb0766f0e43915599e5b73d63f9a38aa767db6f684",
+    "edge": "9079641847c188ddb303bd86688656e2458e9fe326b1e42e9bca4d9ae6dcc5ab",
+    "paired_edge": "6c74f8efc6ef46bb3b85c06476a8619c9f2328844c2b819fdad749180c602172"
+  },
+  "protocol_sha256": "474a00f975485718e1e65c4dcef97e3a6eea9f6902eea69b30965597e6c96946",
+  "legacy_parity_outputs": 720,
+  "prior_paired_synthetic_outputs": 616,
+  "prior_paired_fixture_sha256": "c6a6efc43eda3c27e7dd73fae89833ec3f3a99eed74be80b209d7b9dcf16bda7",
+  "edge_synthetic_cases": 19,
+  "edge_synthetic_policy_variant_frames": 1388,
+  "tolerance": 1e-08,
+  "focusedTests": 33,
+  "failures": 0,
+  "testLogSHA256": "5ecf9ae29a097477e1176c6a28d07b6a26f979ac23a04c70cf4586471f699add",
+  "defaults": {
+    "agreement": "legacy",
+    "edge": "legacy"
+  },
+  "newInference": false,
+  "phoneActions": false
+}
