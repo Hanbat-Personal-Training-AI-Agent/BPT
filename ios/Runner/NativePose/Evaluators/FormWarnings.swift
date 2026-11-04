@@ -371,6 +371,8 @@ struct FormFrameSample {
     var bad3D = false
     /// MotionAGFormerLive state of this frame (nil = caller gave no 3D pipeline state).
     var state3D: Pose3DState?
+    var faultSource: FormFaultSource?
+    var faultInputSupport: [String: Any]?
 }
 
 /// Snapshot of the existing judge/delivery bookkeeping, not complete per-rule exposure.
@@ -564,6 +566,12 @@ final class FormWarningTracker {
     }
 
     let exercise: FormExercise
+    /// Optional diagnostics only; never read by judgment, delivery, or pose consumers.
+    var faultEvidence: FormFaultEvidence?
+    var faultSource: FormFaultSource?
+    private var faultOrdinal = 0
+    private var faultHistory2D: [FormFaultHistory] = []
+    private var faultHistory3D: [FormFaultHistory] = []
     var common = FormCommonConfig()
     var pushUp = PushUpFormConfig()
     var squat = SquatFormConfig()
@@ -627,6 +635,8 @@ final class FormWarningTracker {
     }
 
     func reset() {
+        faultEvidence?.reset()
+        faultSource = nil; faultOrdinal = 0; faultHistory2D = []; faultHistory3D = []
         sessionFrames3D = 0
         sessionBad3DFrames = 0
         warningRepCounts = [:]
@@ -667,13 +677,49 @@ final class FormWarningTracker {
     func observe(frameIndex: Int, coco17: [PoseKeypoint], pose3D: [SIMD3<Double>]? = nil,
                  pose3DState: Pose3DState? = nil, feet: FootKeypoints? = nil, phase: String) {
         guard coco17.count == 17 else {
+            faultEvidence?.frame(["frame":frameIndex,"observation":"invalid_coco17_count",
+                                  "sample2D":NSNull(),"sample3D":NSNull()],source:faultSource)
             current = nil
             current3D = nil
             return
         }
         let side = updateSide(coco17)
         var sample = FormFrameSample(frame: frameIndex, phase: phase, side: side)
+        if faultEvidence != nil {
+            sample.faultSource = faultSource
+            sample.faultInputSupport = ["jointEvidence":coco17.enumerated().map { index,p in
+                ["joint":index,"finiteCoordinates":p.x.isFinite && p.y.isFinite,
+                 "score":FormFaultJSON.number(p.confidence),"finiteScore":p.confidence.isFinite,
+                 "confidenceAccepted":p.confidence >= common.minJointConfidence] as [String:Any]
+            },"minimumConfidence":common.minJointConfidence]
+        }
+        let facingBefore = facing
         measure2D(coco17, feet: feet, side: side, into: &sample)
+        if faultEvidence != nil {
+            let j = FormGeometry.joints(side)
+            sample.faultInputSupport?["measurementJoints"] = [
+                "elbow":[j.shoulder,j.elbow,j.wrist], "knee":[j.hip,j.knee,j.ankle],
+                "hipAngle":[j.shoulder,j.hip,j.knee], "torso":[j.shoulder,j.hip],
+                "hipDeviation":[j.hip,j.shoulder,j.ankle], "headDeviation":[j.ear,j.hip,j.shoulder],
+                "headAngle":[FormGeometry.nose,j.ear], "wristAhead":[j.shoulder,j.elbow,j.wrist],
+                "elbowBehind":[j.elbow,j.shoulder,j.hip], "earShoulder":[j.ear,j.shoulder,j.hip],
+                "hipY":[j.shoulder,j.hip], "shoulderY":[j.shoulder,j.hip], "torsoLength":[j.shoulder,j.hip],
+                "shoulderRatio":[5,6,11,12], "frontView":[5,6,11,12],
+                "kneeAnkleGapRatio":[5,6,11,12,13,14,15,16], "heelToe":[j.knee,j.ankle]]
+            sample.faultInputSupport?["facing"] = ["before":FormFaultJSON.number(facingBefore),
+                "after":FormFaultJSON.number(facing), "candidateRun":facingCandidateRun,
+                "sourceJoints":[FormGeometry.nose,j.ear], "stateMayPrecedeCapture":true]
+            sample.faultInputSupport?["facingRequiredFields"] = ["torso","elbowBehind","wristAhead"]
+            sample.faultInputSupport?["footMinimumConfidence"] = FormFaultJSON.number(squat.footMinConfidence)
+            if let feet {
+                let heel = side == .left ? feet.leftHeel : feet.rightHeel
+                let toe = side == .left ? feet.leftBigToe : feet.rightBigToe
+                sample.faultInputSupport?["feet"] = ["heel": ["finiteCoordinates":heel.x.isFinite && heel.y.isFinite,
+                    "score":FormFaultJSON.number(heel.confidence),"finiteScore":heel.confidence.isFinite],
+                    "bigToe":["finiteCoordinates":toe.x.isFinite && toe.y.isFinite,
+                    "score":FormFaultJSON.number(toe.confidence),"finiteScore":toe.confidence.isFinite]]
+            }
+        }
         current3D = nil
         var state = pose3DState
         if let pose3D, pose3D.count == 17 {
@@ -689,6 +735,24 @@ final class FormWarningTracker {
             } else if state == .ok || state == .partial3D {
                 // partial3D: untrusted joints are NaN; every metric that needs one comes out nil (sanitised below).
                 var s3 = FormFrameSample(frame: frameIndex, phase: phase, side: side)
+                if faultEvidence != nil {
+                    s3.faultSource = faultSource
+                    s3.faultInputSupport = ["jointEvidence":pose3D.enumerated().map { index,p in
+                        ["joint":index,"finiteCoordinates":p.x.isFinite && p.y.isFinite && p.z.isFinite] as [String:Any]
+                    },"viewAndHeightSource":"same_frame_2d","selectedInput":"provided_assessment_pose"]
+                }
+                if faultEvidence != nil {
+                    let j = FormGeometry.h36mSide(side)
+                    s3.faultInputSupport?["measurementJoints"] = ["elbow":[j.shoulder,j.elbow,j.wrist],
+                        "knee":[j.hip,j.knee,j.ankle], "hipAngle":[j.shoulder,j.hip,j.knee],
+                        "torso":[0,8,1,4], "hipDeviation":[0,8,3,6], "headDeviation":[10,0,8],
+                        "elbowBehind":[j.elbow,0,8,1,4], "wristAhead":[j.shoulder,j.elbow,j.wrist,0,8],
+                        "kneeAnkleGapRatio":[1,4,2,5,3,6]]
+                    s3.faultInputSupport?["up"] = [FormFaultJSON.number(up3D.x),FormFaultJSON.number(up3D.y),FormFaultJSON.number(up3D.z)]
+                    s3.faultInputSupport?["upRequiredFields"] = ["torso","hipDeviation","headDeviation","wristAhead"]
+                    s3.faultInputSupport?["borrowed2DFields"] = ["frontView","shoulderRatio","torsoLength","hipY","shoulderY"]
+                    s3.faultInputSupport?["unavailableFields"] = ["earShoulder","headAngle","heelToe"]
+                }
                 measure3D(pose3D, like: sample, into: &s3)
                 s3.state3D = state
                 current3D = s3
@@ -698,6 +762,9 @@ final class FormWarningTracker {
         current = sample
         updateTracking(sample)
         if exercise == .pushUp || exercise == .barbellRow { updateSideView(sample) }
+        faultEvidence?.frame(["frame":frameIndex,"observation":"observed",
+            "sample2D":sample.faultDictionary,"sample3D":current3D?.faultDictionary as Any? ?? NSNull(),
+            "sessionSideView":FormFaultJSON.optional(sideView)],source:faultSource)
     }
 
     /// The 2D quantities, measured on the H36M17 3D pose (same names and signs, view-independent
@@ -793,11 +860,22 @@ final class FormWarningTracker {
         let frames = repFrames, frames3D = repFrames3D
         repFrames = []
         repFrames3D = []
-        let metrics = metrics2D(frames, isFirstRep: reports.isEmpty)
+        let tracing = faultEvidence != nil
+        if tracing { faultOrdinal += 1 }
+        let traceID = "\(faultEvidence?.runID ?? "unbound")/rep/\(faultOrdinal)"
+        let aggregation2D = tracing ? FormFaultAggregation(frames: frames) : nil
+        let metrics = metrics2D(frames, isFirstRep: reports.isEmpty, evidence: aggregation2D)
+        let prior2D = (tracing ? repMetrics : []).enumerated().map { index,m in
+            faultHistory2D.indices.contains(index) ? faultHistory2D[index] : FormFaultHistory(traceID:nil,repIndex:nil,metrics:m)
+        }
+        let judgeTrace2D = aggregation2D.map { FormFaultJudge(traceID:traceID+"/2d",source:"2d",repIndex:repIndex,exercise:exercise,
+            metrics:metrics,aggregation:$0,history:prior2D,common:common,squat:squat,row:row) }
         var assessed2D: Set<String> = []
-        let fired2D = judge(metrics, history: repMetrics, repIndex: repIndex, assessed: { assessed2D = $0 })
+        let fired2D = judge(metrics, history: repMetrics, repIndex: repIndex, assessed: { assessed2D = $0 }, trace: judgeTrace2D)
         repMetrics.append(metrics)
-        if repMetrics.count > 100 { repMetrics.removeFirst() }
+        if tracing { faultHistory2D = prior2D + [FormFaultHistory(traceID:traceID+"/2d",repIndex:repIndex,metrics:metrics)] }
+        else { faultHistory2D = [] }
+        if repMetrics.count > 100 { repMetrics.removeFirst(); if !faultHistory2D.isEmpty { faultHistory2D.removeFirst() } }
         // 3D: the same aggregation and rules on the 3D samples, with its own baseline history.
         var states: [String: Int] = [:]
         for f in frames { states[f.state3D?.rawValue ?? "none", default: 0] += 1 }
@@ -805,13 +883,22 @@ final class FormWarningTracker {
         var metrics3D: [String: Double] = [:]
         var fired3D: [String]?
         var assessed3D: Set<String> = []
+        let aggregation3D = tracing ? FormFaultAggregation(frames: frames3D) : nil
+        var judgeTrace3D: FormFaultJudge?
         if !frames3D.isEmpty {
-            metrics3D = metrics2D(frames3D, isFirstRep: repMetrics3D.isEmpty)
+            metrics3D = metrics2D(frames3D, isFirstRep: repMetrics3D.isEmpty, evidence: aggregation3D)
         }
         if enough3D {
-            fired3D = judge(metrics3D, history: repMetrics3D, repIndex: repIndex, assessed: { assessed3D = $0 })
+            let prior3D = (tracing ? repMetrics3D : []).enumerated().map { index,m in
+                faultHistory3D.indices.contains(index) ? faultHistory3D[index] : FormFaultHistory(traceID:nil,repIndex:nil,metrics:m)
+            }
+            judgeTrace3D = aggregation3D.map { FormFaultJudge(traceID:traceID+"/3d",source:"3d",repIndex:repIndex,exercise:exercise,
+                metrics:metrics3D,aggregation:$0,history:prior3D,common:common,squat:squat,row:row) }
+            fired3D = judge(metrics3D, history: repMetrics3D, repIndex: repIndex, assessed: { assessed3D = $0 }, trace: judgeTrace3D)
             repMetrics3D.append(metrics3D)
-            if repMetrics3D.count > 100 { repMetrics3D.removeFirst() }
+            if tracing { faultHistory3D = prior3D + [FormFaultHistory(traceID:traceID+"/3d",repIndex:repIndex,metrics:metrics3D)] }
+            else { faultHistory3D = [] }
+            if repMetrics3D.count > 100 { repMetrics3D.removeFirst(); if !faultHistory3D.isEmpty { faultHistory3D.removeFirst() } }
         }
         let formSource = !common.form3DRequired ? "2d" : (fired3D == nil ? "3d_unavailable" : "3d")
         let fired = common.form3DRequired ? (fired3D ?? []) : fired2D
@@ -850,6 +937,18 @@ final class FormWarningTracker {
                 enabledFeedbackKeys: enabledFeedbackKeys,
                 spokenKey: spoken)
         )
+        if let evidence = faultEvidence {
+            evidence.rep(["traceID":traceID,"nativeRepIndex":repIndex,"startFrame":report.startFrame,
+                "endFrame":report.endFrame,"reportedSide":report.side,"formSource":formSource,
+                "frames2D":frames.map(\.frame),"frames3D":frames3D.map(\.frame),
+                "sourceKeys":frames.map { $0.faultSource?.key as Any? ?? NSNull() },
+                "enough3D":enough3D,"minimum3DRepFraction":common.min3DRepFraction,
+                "judgements":["2d":judgeTrace2D?.finish(fired:fired2D,assessed:assessed2D) as Any? ?? NSNull(),
+                    "3d":judgeTrace3D?.finish(fired:fired3D ?? [],assessed:assessed3D) as Any? ?? NSNull()],
+                "deliverySnapshot":report.deliveryDecisionEvidence?.dictionary as Any? ?? NSNull(),
+                "configuration":["common":FormFaultJSON.config(common),"pushup":FormFaultJSON.config(pushUp),
+                    "squat":FormFaultJSON.config(squat),"row":FormFaultJSON.config(row)]])
+        }
         reports.append(report)
         if reports.count > 100 { reports.removeFirst() }
         return report
@@ -1028,9 +1127,9 @@ final class FormWarningTracker {
 
     // MARK: Aggregation
 
-    func metrics2D(_ frames: [FormFrameSample], isFirstRep: Bool) -> [String: Double] {
+    func metrics2D(_ frames: [FormFrameSample], isFirstRep: Bool, evidence: FormFaultAggregation? = nil) -> [String: Double] {
         var m: [String: Double] = [:]
-        func put(_ name: String, _ value: Double?) { if let value { m[name] = value } }
+        func put(_ name: String, _ value: Double?) { if let value { m[name] = value }; evidence?.put(name,value:value) }
         func vals(_ key: KeyPath<FormFrameSample, Double?>, _ slice: ArraySlice<FormFrameSample>? = nil) -> [Double] {
             (slice ?? frames[...]).compactMap { $0[keyPath: key] }
         }
@@ -1046,12 +1145,23 @@ final class FormWarningTracker {
         let torso = FormGeometry.unwrapDegrees(vals(\.torso))
         put("torso_min", torso.min())
         put("torso_max", torso.max())
+        let torsoFrames = frames.filter { $0.torso != nil }.map(\.frame)
+        evidence?.selection("torso_min",selected:zip(torsoFrames,torso).filter { $0.1 == torso.min() }.map { $0.0 },
+            fields:["torso"],operation:"minimum_unwrapped_torso",contributors:torsoFrames)
+        evidence?.selection("torso_max",selected:zip(torsoFrames,torso).filter { $0.1 == torso.max() }.map { $0.0 },
+            fields:["torso"],operation:"maximum_unwrapped_torso",contributors:torsoFrames)
         put("torso_mean", torso.isEmpty ? nil : FormGeometry.wrapDegrees(torso.reduce(0, +) / Double(torso.count)))
         put("hip_dev_min", vals(\.hipDeviation).min())
         put("hip_dev_max", vals(\.hipDeviation).max())
         if let head0 = firstValue(\.headDeviation) {
-            put("head_dev_change_min", vals(\.headDeviation).min().map { $0 - head0 })
-            put("head_dev_change_max", vals(\.headDeviation).max().map { $0 - head0 })
+            let headMin = vals(\.headDeviation).min(), headMax = vals(\.headDeviation).max()
+            put("head_dev_change_min", headMin.map { $0 - head0 })
+            put("head_dev_change_max", headMax.map { $0 - head0 })
+            let reference = frames.first { $0.headDeviation != nil }.map { [$0.frame] } ?? []
+            evidence?.selection("head_dev_change_min",selected:frames.filter { $0.headDeviation == headMin }.map(\.frame),
+                reference:reference,fields:["headDeviation"],operation:"minimum_minus_first_available")
+            evidence?.selection("head_dev_change_max",selected:frames.filter { $0.headDeviation == headMax }.map(\.frame),
+                reference:reference,fields:["headDeviation"],operation:"maximum_minus_first_available")
         }
         put("elbow_behind_max", vals(\.elbowBehind).max())
 
@@ -1061,6 +1171,11 @@ final class FormWarningTracker {
             let window = frames[b...].prefix(windowFrames + 1)
             if let t0 = bottom.torso, let rise = vals(\.torso, window).map({ FormGeometry.wrapDegrees($0 - t0) }).max() {
                 put("hips_first_torso_rise", rise)
+                evidence?.selection("hips_first_torso_rise",selected:window.filter {
+                    guard let t = $0.torso else { return false }; return FormGeometry.wrapDegrees(t - t0) == rise
+                }.map(\.frame),reference:[bottom.frame],scope:window.map(\.frame),
+                    fields:["torso"],operation:"maximum_wrapped_torso_delta_from_selected_bottom",
+                    contributors:window.filter { $0.torso != nil }.map(\.frame))
             }
             if let end = window.last(where: { $0.hipY != nil && $0.shoulderY != nil }),
                let h0 = bottom.hipY, let s0 = bottom.shoulderY, let length = bottom.torsoLength,
@@ -1068,6 +1183,17 @@ final class FormWarningTracker {
                 let dt = Double(end.frame - bottom.frame)
                 put("hips_first_hip_rise_speed", (h0 - end.hipY!) / length / dt)
                 put("hips_first_shoulder_rise_speed", (s0 - end.shoulderY!) / length / dt)
+                evidence?.selection("hips_first_hip_rise_speed",selected:[end.frame],reference:[bottom.frame],scope:window.map(\.frame),
+                    fields:["hipY","torsoLength"],operation:"selected_bottom_to_last_supported_end",contributors:[bottom.frame,end.frame],
+                    selectorFields:["hipY","shoulderY"],selectorFrames:window.map(\.frame))
+                evidence?.selection("hips_first_shoulder_rise_speed",selected:[end.frame],reference:[bottom.frame],scope:window.map(\.frame),
+                    fields:["shoulderY","torsoLength"],operation:"selected_bottom_to_last_supported_end",contributors:[bottom.frame,end.frame],
+                    selectorFields:["hipY","shoulderY"],selectorFrames:window.map(\.frame))
+            }
+            let fields = exercise == .squat ? ["knee"] : ["hipY","hipAngle"]
+            for name in ["hips_first_torso_rise","hips_first_hip_rise_speed","hips_first_shoulder_rise_speed"] {
+                evidence?.stage(name,operation:exercise == .squat ? "first_minimum_knee_selects_bottom" : "maximum_hip_before_maximum_hip_angle",
+                    fields:fields,scope:frames.map(\.frame),selected:[bottom.frame])
             }
         }
 
@@ -1076,19 +1202,35 @@ final class FormWarningTracker {
             // pushup_hand_position: first rep, most extended (top) frame.
             if isFirstRep, let top = frames.filter({ $0.elbow != nil }).max(by: { $0.elbow! < $1.elbow! }) {
                 put("first_rep_top_wrist_ahead", top.wristAhead)
+                evidence?.selection("first_rep_top_wrist_ahead",selected:[top.frame],fields:["wristAhead"],
+                    operation:"wrist_at_selected_maximum_elbow",contributors:[top.frame],
+                    selectorFields:["elbow"],selectorFrames:frames.map(\.frame))
             }
         case .squat:
             let kneeMin = vals(\.knee).min()
             if let b = frames.firstIndex(where: { $0.knee != nil && $0.knee == kneeMin }) {
                 put("torso_at_bottom", frames[b].torso)
+                evidence?.selection("torso_at_bottom",selected:[frames[b].frame],fields:["torso"],
+                    operation:"torso_at_first_minimum_knee",contributors:[frames[b].frame],
+                    selectorFields:["knee"],selectorFrames:frames.map(\.frame))
                 putHipsFirst(from: b, windowFrames: squat.hipsFirstWindowFrames)
             }
             // Front view: bottom = lowest hip, then through the ascent.
             let hipYMax = vals(\.hipY).max()
             if let b = frames.firstIndex(where: { $0.hipY != nil && $0.hipY == hipYMax }) {
                 put("knee_ankle_gap_ratio_min", vals(\.kneeAnkleGapRatio, frames[b...]).min())
+                evidence?.selection("knee_ankle_gap_ratio_min",
+                    selected:frames[b...].filter { $0.kneeAnkleGapRatio == m["knee_ankle_gap_ratio_min"] }.map(\.frame),
+                    reference:[frames[b].frame],scope:frames[b...].map(\.frame),
+                    fields:["kneeAnkleGapRatio"],operation:"minimum_ratio_after_first_maximum_hip_y",
+                    selectorFields:["hipY"],selectorFrames:frames.map(\.frame))
             }
-            if let h0 = firstValue(\.heelToe), let low = vals(\.heelToe).min() { put("heel_rise_max", h0 - low) }
+            if let h0 = firstValue(\.heelToe), let low = vals(\.heelToe).min() {
+                put("heel_rise_max", h0 - low)
+                evidence?.selection("heel_rise_max",selected:frames.filter { $0.heelToe == low }.map(\.frame),
+                    reference:frames.first { $0.heelToe != nil }.map { [$0.frame] } ?? [],
+                    fields:["heelToe"],operation:"first_available_minus_minimum")
+            }
         case .barbellRow:
             if let e0 = frames.first(where: { $0.earShoulder != nil && $0.headAngle != nil }),
                let start = e0.earShoulder, start > 1e-8 {
@@ -1097,7 +1239,13 @@ final class FormWarningTracker {
                     let d = abs(FormGeometry.wrapDegrees(a - e0.headAngle!))
                     return d <= row.shrugMaxHeadAngleChangeDegrees
                 }
-                if let low = kept.compactMap(\.earShoulder).min() { put("ear_shoulder_drop", 1 - low / start) }
+                if let low = kept.compactMap(\.earShoulder).min() {
+                    put("ear_shoulder_drop", 1 - low / start)
+                    evidence?.selection("ear_shoulder_drop",selected:kept.filter { $0.earShoulder == low }.map(\.frame),
+                        reference:[e0.frame],scope:kept.map(\.frame),
+                        fields:["earShoulder"],operation:"minimum_ear_shoulder_in_head_angle_filtered_frames",
+                        selectorFields:["headAngle","earShoulder"],selectorFrames:frames.map(\.frame))
+                }
             }
         case .benchPress:
             // bench_hips_up: hip rise vs the rep start (image y down), over the rep-start torso length.
@@ -1125,7 +1273,7 @@ final class FormWarningTracker {
 
     /// Keys whose condition holds for this rep, in rule order. `history` = earlier reps' metrics.
     func judge(_ m: [String: Double], history: [[String: Double]], repIndex: Int,
-               assessed: ((Set<String>) -> Void)? = nil) -> [String] {
+               assessed: ((Set<String>) -> Void)? = nil, trace: FormFaultJudge? = nil) -> [String] {
         var fired: Set<String> = [], evaluated: Set<String> = []
         var viewQualified = false
         func completeReference(_ key: String) -> Bool {
@@ -1145,7 +1293,10 @@ final class FormWarningTracker {
             if key == "deadlift_no_lockout" { return m["knee_max"] != nil && m["hip_angle_max"] != nil }
             return true
         }
-        func fire(_ key: String, _ condition: Bool?) {
+        func fire(_ key: String, _ evaluate: @autoclosure () -> Bool?) {
+            trace?.begin(key)
+            let condition = evaluate()
+            trace?.complete(key,condition:condition)
             // Preserve historical rule decisions. Only the delivery qualification is new.
             if condition == true { fired.insert(key) }
             if condition != nil, viewQualified, m.values.allSatisfy(\.isFinite),
@@ -1154,33 +1305,66 @@ final class FormWarningTracker {
                 evaluated.insert(key)
             }
         }
-        func over(_ name: String, _ t: Double) -> Bool? { m[name].map { $0 > t } }
-        func under(_ name: String, _ t: Double) -> Bool? { m[name].map { $0 < t } }
+        func over(_ name: String, _ t: Double) -> Bool? {
+            let result = m[name].map { $0 > t }
+            trace?.operand(operation:"over",metric:name,current:m[name],threshold:t,result:result)
+            return result
+        }
+        func under(_ name: String, _ t: Double) -> Bool? {
+            let result = m[name].map { $0 < t }
+            trace?.operand(operation:"under",metric:name,current:m[name],threshold:t,result:result)
+            return result
+        }
         /// (current − baseline median of the first reps) > t; nil until the baseline exists.
         func overBaseline(_ name: String, _ t: Double) -> Bool? {
-            guard history.count >= common.baselineRepCount, let v = m[name],
-                  let b = Self.median(history.prefix(common.baselineRepCount).compactMap { $0[name] }) else { return nil }
-            return v - b > t
+            let count = common.baselineRepCount
+            var reference: Double?, result: Bool?
+            if history.count >= count, let v = m[name],
+               let b = Self.median(history.prefix(count).compactMap { $0[name] }) {
+                reference = b; result = v - b > t
+            }
+            trace?.operand(operation:"over_baseline",metric:name,current:m[name],threshold:t,result:result,
+                reference:reference,indices:Array(0..<min(count,history.count)),expectedCount:count,
+                completeReference:history.count >= count && history.prefix(count).allSatisfy { $0[name]?.isFinite == true })
+            return result
         }
         /// Current is below the set's max (this rep included) by more than t.
         func belowSetMax(_ name: String, _ t: Double) -> Bool? {
-            guard let v = m[name], let best = (history.compactMap { $0[name] } + [v]).max() else { return nil }
-            return best - v > t
+            var reference: Double?, result: Bool?
+            if let v = m[name], let best = (history.compactMap { $0[name] } + [v]).max() {
+                reference = best; result = best - v > t
+            }
+            trace?.operand(operation:"below_set_max",metric:name,current:m[name],threshold:t,result:result,
+                reference:reference,indices:Array(0...history.count),expectedCount:history.count+1,
+                completeReference:history.allSatisfy { $0[name]?.isFinite == true },currentIncluded:true)
+            return result
         }
         /// mean(last N reps, this one included) − mean(first N) > t; needs 2N reps.
         func trend(_ name: String, _ t: Double) -> Bool? {
             let all = history + [m]
             let n = common.trendRepCount
-            guard all.count >= 2 * n else { return nil }
-            let first = all.prefix(n).compactMap { $0[name] }, last = all.suffix(n).compactMap { $0[name] }
-            guard first.count == n, last.count == n else { return nil }
-            return last.reduce(0, +) / Double(n) - first.reduce(0, +) / Double(n) > t
+            var firstMean: Double?, lastMean: Double?, result: Bool?
+            if all.count >= 2 * n {
+                let first = all.prefix(n).compactMap { $0[name] }, last = all.suffix(n).compactMap { $0[name] }
+                if first.count == n, last.count == n {
+                    firstMean = first.reduce(0,+) / Double(n); lastMean = last.reduce(0,+) / Double(n)
+                    result = lastMean! - firstMean! > t
+                }
+            }
+            let indices = Array(0..<min(n,all.count)) + Array(max(0,all.count-n)..<all.count)
+            trace?.operand(operation:"trend",metric:name,current:m[name],threshold:t,result:result,
+                reference:firstMean,indices:indices,expectedCount:2*n,
+                completeReference:all.count >= 2*n && indices.allSatisfy { all[$0][name]?.isFinite == true },
+                currentIncluded:true,derivedCurrent:lastMean)
+            return result
         }
         // Row: the session gate when decided, else the per-rep front-view fraction.
         let sideView = (exercise == .barbellRow ? self.sideView : nil)
             ?? ((m["front_view_fraction"] ?? 0) < common.frontViewRepFraction)
         viewQualified = (exercise == .barbellRow && self.sideView != nil) || m["front_view_fraction"]?.isFinite == true
         let firstRep = history.isEmpty
+        trace?.setView(actualSideView:sideView,qualified:viewQualified,sessionSideView:self.sideView,
+                       fraction:m["front_view_fraction"])
 
         switch exercise {
         case .pushUp:
@@ -1194,7 +1378,10 @@ final class FormWarningTracker {
             fire("pushup_head_drop", over("head_dev_change_max", c.headDropDeviation))
             fire("pushup_head_up", under("head_dev_change_min", -c.headUpDeviation))
             if let ahead = m["first_rep_top_wrist_ahead"] {
-                fire("pushup_hand_position", ahead > c.handForwardRatio || ahead < -c.handBackwardRatio)
+                let condition = ahead > c.handForwardRatio || ahead < -c.handBackwardRatio
+                trace?.manual("pushup_hand_position",inputs:["first_rep_top_wrist_ahead":ahead],condition:condition,
+                    operation:"outside_signed_hand_position_range",thresholds:["forward":c.handForwardRatio,"backward":-c.handBackwardRatio])
+                fire("pushup_hand_position", condition)
             }
             fire("pushup_depth_fade", trend("elbow_min", c.depthFadeDegrees))
         case .squat:
@@ -1202,7 +1389,11 @@ final class FormWarningTracker {
             if sideView {
                 if let rise = m["hips_first_torso_rise"], let hip = m["hips_first_hip_rise_speed"],
                    let shoulder = m["hips_first_shoulder_rise_speed"] {
-                    fire("squat_hips_first", rise > c.hipsFirstTorsoRiseDegrees && hip > shoulder)
+                    let condition = rise > c.hipsFirstTorsoRiseDegrees && hip > shoulder
+                    trace?.manual("squat_hips_first",inputs:["hips_first_torso_rise":rise,"hips_first_hip_rise_speed":hip,
+                        "hips_first_shoulder_rise_speed":shoulder],condition:condition,operation:"rise_and_relative_speed",
+                        thresholds:["torsoRise":c.hipsFirstTorsoRiseDegrees])
+                    fire("squat_hips_first", condition)
                 }
                 fire("squat_shallow", overBaseline("knee_min", c.shallowOverBaselineDegrees))
                 fire("squat_no_lockout", belowSetMax("knee_max", c.noLockoutBelowSetMaxDegrees) == true
@@ -1218,15 +1409,28 @@ final class FormWarningTracker {
             fire("setup_side_view", firstRep && !sideView && !sideViewGuided)
             guard sideView else { break }
             let c = row
-            if let lo = m["torso_min"], let hi = m["torso_max"] { fire("row_torso_swing", hi - lo > c.torsoSwingRangeDegrees) }
+            if let lo = m["torso_min"], let hi = m["torso_max"] {
+                let condition = hi - lo > c.torsoSwingRangeDegrees
+                trace?.manual("row_torso_swing",inputs:["torso_min":lo,"torso_max":hi],condition:condition,
+                    operation:"torso_range",thresholds:["range":c.torsoSwingRangeDegrees])
+                fire("row_torso_swing", condition)
+            }
             // More upright = smaller forward torso angle.
             if let v = m["torso_mean"], history.count >= common.baselineRepCount,
                let b = Self.median(history.prefix(common.baselineRepCount).compactMap { $0["torso_mean"] }) {
-                fire("row_standing_up", FormGeometry.wrapDegrees(b - v) > c.standingUpDegrees)
+                let condition = FormGeometry.wrapDegrees(b - v) > c.standingUpDegrees
+                trace?.manual("row_standing_up",inputs:["torso_mean":v],condition:condition,operation:"wrapped_baseline_minus_current",
+                    referenceMetric:"torso_mean",referenceValue:b,indices:Array(0..<common.baselineRepCount),
+                    expectedCount:common.baselineRepCount,thresholds:["standingUp":c.standingUpDegrees])
+                fire("row_standing_up", condition)
             }
             if let v = m["elbow_behind_max"], history.count >= common.baselineRepCount,
                let b = Self.median(history.prefix(common.baselineRepCount).compactMap { $0["elbow_behind_max"] }) {
-                fire("row_short_pull", b - v > c.shortPullBelowBaseline)
+                let condition = b - v > c.shortPullBelowBaseline
+                trace?.manual("row_short_pull",inputs:["elbow_behind_max":v],condition:condition,operation:"baseline_minus_current",
+                    referenceMetric:"elbow_behind_max",referenceValue:b,indices:Array(0..<common.baselineRepCount),
+                    expectedCount:common.baselineRepCount,thresholds:["shortPull":c.shortPullBelowBaseline])
+                fire("row_short_pull", condition)
             }
             if c.shrugEnabled { fire("row_shrug", over("ear_shoulder_drop", c.shrugEarShoulderDrop)) }
             fire("row_head_up", under("head_dev_change_min", -c.headUpDeviation))

@@ -45,6 +45,7 @@
 		40E3761BDF18FECA75D4155D /* BarbellRowEvaluator.swift in Sources */ = {isa = PBXBuildFile; fileRef = D17BBF73154938F9C729D2C4 /* BarbellRowEvaluator.swift */; };
 		511C8B1A5E3231BB606B95BE /* SquatTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66A9249975D25A56873258E4 /* SquatTypes.swift */; };
 		7A3F0C1E9B2D4E5F6A7B8C01 /* FormWarnings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A3F0C1E9B2D4E5F6A7B8C02 /* FormWarnings.swift */; };
+		7FA017E01DE11CE000000001 /* FormFaultEvidence.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FA017E01DE11CE000000002 /* FormFaultEvidence.swift */; };
 		A16F0C1E9B2D4E5F6A7B8C01 /* ExperimentalCoaching.swift in Sources */ = {isa = PBXBuildFile; fileRef = A16F0C1E9B2D4E5F6A7B8C02 /* ExperimentalCoaching.swift */; };
 		55B007C91D57370B112B9A8F /* PoseOverlayRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36C9903487E33B6D811F2A8D /* PoseOverlayRenderer.swift */; };
 		622CB33062458ACA0B781D8B /* NativePoseCameraPlatformView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCEB665660D0A67B817FFAB4 /* NativePoseCameraPlatformView.swift */; };
@@ -145,6 +146,7 @@
 		5F9D88DA5CB850FD0093B2DD /* BenchPressEvaluator.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BenchPressEvaluator.swift; sourceTree = "<group>"; };
 		66A9249975D25A56873258E4 /* SquatTypes.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SquatTypes.swift; sourceTree = "<group>"; };
 		7A3F0C1E9B2D4E5F6A7B8C02 /* FormWarnings.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = FormWarnings.swift; sourceTree = "<group>"; };
+		7FA017E01DE11CE000000002 /* FormFaultEvidence.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = FormFaultEvidence.swift; sourceTree = "<group>"; };
 		A16F0C1E9B2D4E5F6A7B8C02 /* ExperimentalCoaching.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ExperimentalCoaching.swift; sourceTree = "<group>"; };
 		74858FAD1ED2DC5600515810 /* Runner-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "Runner-Bridging-Header.h"; sourceTree = "<group>"; };
 		74858FAE1ED2DC5600515810 /* AppDelegate.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
@@ -426,6 +428,7 @@
 				F6B6AACE97A047453F5ADE62 /* SquatEvaluator.swift */,
 				66A9249975D25A56873258E4 /* SquatTypes.swift */,
 				7A3F0C1E9B2D4E5F6A7B8C02 /* FormWarnings.swift */,
+				7FA017E01DE11CE000000002 /* FormFaultEvidence.swift */,
 				A16F0C1E9B2D4E5F6A7B8C02 /* ExperimentalCoaching.swift */,
 				C77E00000000000000000002 /* TerminalObservationCandidate.swift */,
 				C77F00000000000000000002 /* CoachingCriteria.swift */,
@@ -724,6 +727,7 @@
 				6A92035D6C60A5B2C3F40A9D /* SquatEvaluator.swift in Sources */,
 				511C8B1A5E3231BB606B95BE /* SquatTypes.swift in Sources */,
 				7A3F0C1E9B2D4E5F6A7B8C01 /* FormWarnings.swift in Sources */,
+				7FA017E01DE11CE000000001 /* FormFaultEvidence.swift in Sources */,
 				A16F0C1E9B2D4E5F6A7B8C01 /* ExperimentalCoaching.swift in Sources */,
 				C77E00000000000000000001 /* TerminalObservationCandidate.swift in Sources */,
 				C77F00000000000000000001 /* CoachingCriteria.swift in Sources */,
