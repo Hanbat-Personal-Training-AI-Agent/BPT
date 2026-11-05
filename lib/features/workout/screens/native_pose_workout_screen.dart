@@ -40,6 +40,7 @@ class NativePoseWorkoutScreen extends ConsumerStatefulWidget {
     this.setWeightsKg = const [],
     this.setReps = const [],
     this.restSeconds = _defaultRestSeconds,
+    this.formStrictness = 'standard',
   });
 
   static const int _defaultRestSeconds = 60;
@@ -65,6 +66,10 @@ class NativePoseWorkoutScreen extends ConsumerStatefulWidget {
 
   /// 세트 사이 쉬는 시간(초).
   final int restSeconds;
+
+  /// 자세 판정 엄격도: 'strict'(PT 엄격) · 'standard'(표준, 기본) · 'relaxed'(여유).
+  /// 네이티브 FormStrictness로 그대로 넘긴다. 모르는 값은 표준으로 처리된다.
+  final String formStrictness;
 
   @override
   ConsumerState<NativePoseWorkoutScreen> createState() =>
@@ -789,6 +794,7 @@ class _NativePoseWorkoutScreenState
               // 실험용 푸시업 손목 바닥 고정 (--dart-define=BPT_WRIST_ANCHOR=true 일 때만, 기본 꺼짐)
               if (const bool.fromEnvironment('BPT_WRIST_ANCHOR'))
                 'wristAnchor': true,
+              'formStrictness': widget.formStrictness,
             },
             creationParamsCodec: const StandardMessageCodec(),
             onPlatformViewCreated: _onPlatformViewCreated,

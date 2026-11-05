@@ -1793,6 +1793,87 @@ struct OverlaySeverityTrack {
     }
 }
 
+// MARK: - Strictness modes
+
+/// Judgement strictness (user, 2026-10-23: not lenient, aim for proper form; three modes PT 엄격 / 표준 / 여유).
+/// Flutter passes it as the platform view's `formStrictness` ("strict" | "standard" | "relaxed", default standard; UI is the
+/// teammate's). standard = the app's own values, unchanged. Overrides use the rules-calib FormRulePreset names
+/// ("<config>.<field>"), so ai/rules-calib presets map onto the same table. docs/results/rules_fix.md.
+///
+/// Release merge (2026-11-05): ai/rules-fix's three strict-only metrics (pushup_elbow_flare, pushup_head_hang,
+/// squat_torso_lean) and its lockout-window redefinition were not ported — review's audited 20-rule set, fault evidence
+/// and Python metric parity stay as they are (docs/results/release_merge_20261105.md). Only threshold overrides remain.
+///
+/// CAUTION: the strict / relaxed numbers come from the 3D Python app path (original XS, m Halpe26 input;
+/// ex3d_form_labels_strict.md 3절, rules-calib xs_orig_rc1). The tracker here judges 2D, so the same names measure a 2D
+/// quantity; the 2D effect is in rules_fix.md. 잠정 = 근거 부족 (one-sided Ex3D distribution, detection unknown).
+enum FormStrictness: String, CaseIterable {
+    case strict, standard, relaxed
+
+    static let doubles: [String: ReferenceWritableKeyPath<FormWarningTracker, Double>] = [
+        "pushUp.hipSagDeviation": \.pushUp.hipSagDeviation, "pushUp.hipPikeDeviation": \.pushUp.hipPikeDeviation,
+        "pushUp.shallowOverBaselineDegrees": \.pushUp.shallowOverBaselineDegrees,
+        "pushUp.headDropDeviation": \.pushUp.headDropDeviation, "pushUp.headUpDeviation": \.pushUp.headUpDeviation,
+        "squat.hipsFirstTorsoRiseDegrees": \.squat.hipsFirstTorsoRiseDegrees,
+        "squat.shallowOverBaselineDegrees": \.squat.shallowOverBaselineDegrees,
+        "squat.valgusKneeAnkleGapRatio": \.squat.valgusKneeAnkleGapRatio, "squat.heelRiseShinRatio": \.squat.heelRiseShinRatio,
+        "row.torsoSwingRangeDegrees": \.row.torsoSwingRangeDegrees, "row.standingUpDegrees": \.row.standingUpDegrees,
+        "row.shortPullBelowBaseline": \.row.shortPullBelowBaseline, "row.headUpDeviation": \.row.headUpDeviation,
+    ]
+
+    /// Threshold overrides per mode. Empty = standard.
+    var values: [String: Double] {
+        switch self {
+        case .standard: return [:]
+        case .strict: return [
+            // 근거 있음 (Ex3D good vs tip, AI label): row swing good p90–p95 5.8–7.9°; squat lean ≈ FMS (0°).
+            "row.torsoSwingRangeDegrees": 7.0,
+            // 잠정 (근거 부족): one-sided Ex3D good p90, no wrong-form examples.
+            "squat.hipsFirstTorsoRiseDegrees": 4.4,
+            "squat.valgusKneeAnkleGapRatio": 0.47,
+            "squat.heelRiseShinRatio": 0.10,
+            "pushUp.hipSagDeviation": 0.054,
+            "pushUp.hipPikeDeviation": -0.002,
+            "pushUp.headUpDeviation": 0.058,
+        ]
+        case .relaxed: return [
+            // rules-calib rc1 (xs_orig_rc1, 4deb16c). no_lockout rc1 is not used: its definition changed here.
+            "pushUp.hipSagDeviation": 0.1786, "pushUp.hipPikeDeviation": 0.2346,
+            "pushUp.shallowOverBaselineDegrees": 43.8707, "pushUp.headDropDeviation": 0.1514,
+            "pushUp.headUpDeviation": 0.2571,
+            "squat.hipsFirstTorsoRiseDegrees": 8.3071, "squat.shallowOverBaselineDegrees": 30.8123,
+            "squat.valgusKneeAnkleGapRatio": 0.2235,
+            "squat.heelRiseShinRatio": 0.4091,
+            "row.torsoSwingRangeDegrees": 34.153, "row.standingUpDegrees": 2.587,
+            "row.shortPullBelowBaseline": 0.0429, "row.headUpDeviation": 0.1688,
+        ]
+        }
+    }
+
+    /// Quiet keys (D-M-04) this mode also sends. Empty here: ai/rules-fix let strict send the two no_lockout keys only
+    /// after its lockout-window fix, which was not ported; with the set-max definition they false-alarm 23–52 %.
+    var extraDeliveredKeys: Set<String> { [] }
+
+    /// Keys this mode does not send (still judged and logged): relaxed = rc1 "off".
+    var withheldKeys: Set<String> {
+        self == .relaxed ? ["pushup_hand_position", "row_short_pull", "row_standing_up"] : []
+    }
+
+    /// Flutter / env value → mode; nil or unknown = standard.
+    init(flutterValue: String?) {
+        self = flutterValue.flatMap(FormStrictness.init(rawValue:)) ?? .standard
+    }
+
+    func apply(to tracker: FormWarningTracker) {
+        for (name, value) in values {
+            if let path = Self.doubles[name] { tracker[keyPath: path] = value }
+            else { assertionFailure("unknown strictness field \(name)") }
+        }
+        tracker.common.enabledFeedbackKeys.formUnion(extraDeliveredKeys)
+        tracker.common.enabledFeedbackKeys.subtract(withheldKeys)
+    }
+}
+
 // MARK: - Session log
 
 /// Debug-build JSONL of per-rep form reports (2D + 3D metrics, warnings, "3D 불량" counts) under

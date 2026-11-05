@@ -502,12 +502,16 @@ final class CameraPoseViewModel: ObservableObject {
     private var cameraRunning = false
     private var lifecycleObservers: [NSObjectProtocol] = []
 
-    init(exercise: NativePoseExercise, bridge: WorkoutChannel? = nil, setupOptions: ExerciseSetup.Options? = nil) {
+    /// Form judgement mode from Flutter (`formStrictness` creation param; default standard = app values).
+    private let strictness: FormStrictness
+
+    init(exercise: NativePoseExercise, bridge: WorkoutChannel? = nil, setupOptions: ExerciseSetup.Options? = nil,
+         strictness: FormStrictness = .standard) {
         self.exercise = exercise
         self.bridge = bridge
         self.setupOptions = setupOptions
         self.setupVariant = setupOptions?.variant
-    }
+        self.strictness = strictness
 
     func requestCameraAndStart() {
         if VideoCameraOptions.isActive { return setup() }
@@ -863,7 +867,10 @@ final class CameraPoseViewModel: ObservableObject {
         case .barbellRow: barbellRowEvaluator = BarbellRowEvaluator()
         case .pushUp: pushUpEvaluator = PushUpEvaluator()
         }
-        if let tracker = formTracker { formLog = WorkoutFormLog(exercise: tracker.exercise) }
+        if let tracker = formTracker {
+            strictness.apply(to: tracker)
+            formLog = WorkoutFormLog(exercise: tracker.exercise)
+        }
 
         if CameraPreviewOptions.enableMotion3DForCamera {
             // 3D is part of the analysis: no silent 2D-only fallback when the model is missing.
@@ -1759,9 +1766,11 @@ struct CameraPosePreview: View {
     let exercise: NativePoseExercise
     @StateObject private var model: CameraPoseViewModel
 
-    init(exercise: NativePoseExercise, bridge: WorkoutChannel? = nil, setupOptions: ExerciseSetup.Options? = nil) {
+    init(exercise: NativePoseExercise, bridge: WorkoutChannel? = nil, setupOptions: ExerciseSetup.Options? = nil,
+         strictness: FormStrictness = .standard) {
         self.exercise = exercise
-        _model = StateObject(wrappedValue: CameraPoseViewModel(exercise: exercise, bridge: bridge, setupOptions: setupOptions))
+        _model = StateObject(wrappedValue: CameraPoseViewModel(exercise: exercise, bridge: bridge, setupOptions: setupOptions,
+                                                               strictness: strictness))
     }
 
     var body: some View {

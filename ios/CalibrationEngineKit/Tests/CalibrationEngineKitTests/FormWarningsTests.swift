@@ -394,6 +394,34 @@ final class FormWarningsTests: XCTestCase {
         XCTAssertEqual(quiet.drainEvents(), [])
     }
 
+    /// FormStrictness: standard = app values; strict / relaxed override by name; new strict-only keys are logged only.
+    func testStrictnessModes() {
+        for exercise in [FormExercise.squat, .pushUp, .barbellRow] {
+            let plain = FormWarningTracker(exercise: exercise), standard = FormWarningTracker(exercise: exercise)
+            FormStrictness.standard.apply(to: standard)
+            for path in FormStrictness.doubles.values { XCTAssertEqual(standard[keyPath: path], plain[keyPath: path]) }
+            XCTAssertEqual(standard.common.enabledFeedbackKeys, plain.common.enabledFeedbackKeys)
+        }
+        for mode in FormStrictness.allCases {
+            XCTAssertEqual(Set(mode.values.keys).subtracting(FormStrictness.doubles.keys), [],
+                           "\(mode): every name is a real field")
+        }
+        let strict = FormWarningTracker(exercise: .pushUp)
+        FormStrictness.strict.apply(to: strict)
+        XCTAssertEqual(strict.row.torsoSwingRangeDegrees, 7)
+        XCTAssertEqual(strict.squat.hipsFirstTorsoRiseDegrees, 4.4)
+        XCTAssertTrue(strict.common.enabledFeedbackKeys.isDisjoint(with: ["squat_no_lockout", "pushup_no_lockout"]),
+                      "lockout-window fix not ported: no_lockout stays quiet (D-M-04)")
+        XCTAssertFalse(strict.common.enabledFeedbackKeys.contains("squat_knee_valgus"), "valgus threshold not fixed yet")
+        let relaxed = FormWarningTracker(exercise: .barbellRow)
+        FormStrictness.relaxed.apply(to: relaxed)
+        XCTAssertEqual(relaxed.row.torsoSwingRangeDegrees, 34.153)
+        XCTAssertFalse(relaxed.common.enabledFeedbackKeys.contains("row_standing_up"))
+        XCTAssertEqual(FormStrictness(flutterValue: nil), .standard)
+        XCTAssertEqual(FormStrictness(flutterValue: "bogus"), .standard)
+        XCTAssertEqual(FormStrictness(flutterValue: "strict"), .strict)
+    }
+
     func testAngleWrap() {
         XCTAssertEqual(FormGeometry.wrapDegrees(358), -2, accuracy: 1e-9)
         XCTAssertEqual(FormGeometry.wrapDegrees(-181), 179, accuracy: 1e-9)

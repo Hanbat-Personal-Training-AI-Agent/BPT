@@ -6,7 +6,7 @@
 //
 //   swift run -c release --package-path ios/CalibrationEngineKit pose-replay \
 //       [--exercise squat|pushup|row|bench|deadlift] [--model coco17|halpe26|mcoco17|mhalpe26] [--model-path PATH] [--motion3d PATH|none] [--lookahead N] [--cadence K] [--constraints on|off] [--form-source 3d|2d] [--image-size WxH] \
-//       [--row-shrug] [--side-cutoff R] [--row-offside off] [--pushup-ankle on|off] [--pushup-wrist-conf C] [--pushup-min-frames N] [--pushup-height on|off] [--squat-hold on|off] [--squat-near-leg on|off] [--squat-rebaseline N] [--squat-height on|off] [--squat-height-range R] [--ready-pose off|preset] [--input crop|full] [--crop-edge on|off] [--keypoints-csv PATH] [--keypoints-dir DIR] [--output-dir PATH] <video.mp4>...
+//       [--row-shrug] [--side-cutoff R] [--row-offside off] [--pushup-ankle on|off] [--pushup-wrist-conf C] [--pushup-min-frames N] [--pushup-height on|off] [--squat-hold on|off] [--squat-near-leg on|off] [--squat-rebaseline N] [--squat-height on|off] [--squat-height-range R] [--ready-pose off|preset] [--input crop|full] [--crop-edge on|off] [--keypoints-csv PATH] [--keypoints-dir DIR] [--strictness strict|standard|relaxed] [--output-dir PATH] <video.mp4>...
 //
 // --crop-edge off: keep a crop whose border pins confident joints (RTMPoseCropTracker.refitAtCropEdge = false, old).
 // --model-path: another RTMPose .mlpackage with the same 256x192 input and SimCC outputs (17 or 26 joints;
@@ -25,6 +25,7 @@
 //
 // --keypoints-csv: skip decoding and RTMPose, read the 2D keypoints (j0..j16 x/y/c, plus the nine Halpe26 extras j17..j25
 // (including six toe/heel points) when present) from a CSV in the format this tool writes; the video path then only names the outputs (no 3D).
+// --strictness: FormStrictness mode applied to the tracker (default standard = app values).
 // --keypoints-dir: the same, per video from DIR/<video>_<exercise>_<model>.csv (many clips in one run, no model load).
 // bench/deadlift: BenchPressEvaluator / DeadliftEvaluator (2D only; their bench_* / deadlift_* keys are off in the app).
 //
@@ -57,6 +58,7 @@ var poseModelPath: String?
 var exercise = FormExercise.squat
 var keypointsCSV: String?
 var keypointsDir: String?
+var strictness = FormStrictness.standard
 var motion3DPath: String? = {
     let path = repoRoot.appendingPathComponent("assets/coreml/motionagformer_xs.mlpackage").path
     return FileManager.default.fileExists(atPath: path) ? path : nil
@@ -93,7 +95,7 @@ var faultTraceDirectory: URL?
 var faultBindingPath: String?
 var videos: [URL] = []
 var arguments = CommandLine.arguments.dropFirst().makeIterator()
-let usage = "usage: pose-replay [--fault-trace-dir DIR --fault-binding JSON] [--bone-targets PATH] [--exercise squat|pushup|row|bench|deadlift] [--model coco17|halpe26|mcoco17|mhalpe26] [--model-path PATH] [--motion3d PATH|none] [--lookahead N] [--cadence K] [--constraints on|off] [--form-source 3d|2d] [--image-size WxH] [--row-shrug] [--side-cutoff R] [--row-offside off] [--pushup-ankle on|off] [--pushup-wrist-conf C] [--pushup-min-frames N] [--pushup-height on|off] [--squat-hold on|off] [--squat-near-leg on|off] [--squat-rebaseline N] [--squat-height on|off] [--squat-height-range R] [--ready-pose off|preset] [--input crop|full] [--crop-edge on|off] [--keypoints-csv PATH] [--keypoints-dir DIR] [--output-dir PATH] <video.mp4>..."
+let usage = "usage: pose-replay [--fault-trace-dir DIR --fault-binding JSON] [--bone-targets PATH] [--exercise squat|pushup|row|bench|deadlift] [--model coco17|halpe26|mcoco17|mhalpe26] [--model-path PATH] [--motion3d PATH|none] [--lookahead N] [--cadence K] [--constraints on|off] [--form-source 3d|2d] [--image-size WxH] [--row-shrug] [--side-cutoff R] [--row-offside off] [--pushup-ankle on|off] [--pushup-wrist-conf C] [--pushup-min-frames N] [--pushup-height on|off] [--squat-hold on|off] [--squat-near-leg on|off] [--squat-rebaseline N] [--squat-height on|off] [--squat-height-range R] [--ready-pose off|preset] [--input crop|full] [--crop-edge on|off] [--keypoints-csv PATH] [--keypoints-dir DIR] [--strictness strict|standard|relaxed] [--output-dir PATH] <video.mp4>..."
 while let argument = arguments.next() {
     switch argument {
     case "--fault-trace-dir":
@@ -196,6 +198,12 @@ while let argument = arguments.next() {
     case "--keypoints-csv":
         guard let path = arguments.next() else { exit(2) }
         keypointsCSV = path
+    case "--strictness":
+        guard let v = arguments.next().flatMap(FormStrictness.init(rawValue:)) else {
+            print("--strictness requires strict, standard or relaxed")
+            exit(2)
+        }
+        strictness = v
     case "--keypoints-dir":
         guard let path = arguments.next() else { exit(2) }
         keypointsDir = path
@@ -592,6 +600,7 @@ for (videoOrdinal, video) in videos.enumerated() {
     }
     tracker.faultEvidence = evidence
     // Every key on (the app sends none by default) so `spoken` and `events` show what would be said.
+    strictness.apply(to: tracker)
     tracker.common.enabledFeedbackKeys = FormWarningTracker.allKeys
     var csv = "frame,time,status,rep," + (0..<(17 + (extraFrames.first?.count ?? 0)))
         .map { "j\($0)_x,j\($0)_y,j\($0)_c" }.joined(separator: ",") + "\n"
@@ -712,6 +721,7 @@ for (videoOrdinal, video) in videos.enumerated() {
         "inferences_3d": lifter.map { $0.inferences as Any } ?? NSNull(),
         "ms_3d_per_frame_mac": coco17Frames.isEmpty ? 0 : seconds3D * 1000 / Double(coco17Frames.count),
         "ready_pose": readyPosePreset ? "preset" : "off",
+        "strictness": strictness.rawValue,
         "input": personCrop ? "crop" : "full",
         "full_frame_inputs": fullFrameInputs,
         "whole_frame_rechecks": rechecks,
