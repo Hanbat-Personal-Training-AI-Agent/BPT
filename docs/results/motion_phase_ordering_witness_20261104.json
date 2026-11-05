@@ -1,0 +1,29 @@
+{
+  "base": "9cfe92b",
+  "scope": "legacy_H_synthetic_witness_no_runtime_change",
+  "tests": 5,
+  "failures": 0,
+  "legacyParityCheckpoints": 720,
+  "files": [
+    {
+      "name": "rejected-wrist-cross-joint.json",
+      "bytes": 78191,
+      "sha256": "ee465992b4813b3d099b804ce3103e04c2101142c6c1812bf123481b928de5f4"
+    },
+    {
+      "name": "accepted-turning-control.json",
+      "bytes": 9818,
+      "sha256": "b716c36fa49fbb05348aa5f3a0c97f1d793f67c013cdc50942488f9485bca296"
+    },
+    {
+      "name": "bpt-phase-witness-v1-tests.log",
+      "bytes": 12448,
+      "sha256": "c897053e67fc42acd2d59919137b8b8e17e02c1699e41e5e9f53036c80dee753"
+    }
+  ],
+  "sourceSha256": {
+    "ios/Runner/NativePose/PosePipeline/ExerciseMotionEstimator.swift": "c33c43cc565e210c026062731488ca7f779ffaf5685de39bc7902947310ef764",
+    "ios/CalibrationEngineKit/Tests/CalibrationEngineKitTests/ExerciseMotionPhaseOrderingTests.swift": "891d50462f33278da0b0be74f214d0af4c68efb7e75afc541fb80d233197f3fc",
+    "docs/results/motion_phase_acceptance_proposal_20261104.md": "89b75bc86d3b3718261776130d81b4bcd9c15ec09c79bad8ca710226a18c47fe"
+  }
+}

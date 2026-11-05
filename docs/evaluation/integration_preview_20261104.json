@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "purpose": "review_based_prospective_compatibility_tree_not_approved_integration_configuration",
+  "reviewCommit": "d9f681aad386070ec21cc4d1f6ca2723eca62538",
+  "integrationCommit": "3cef41d5f18bbd62a66249bb50ac7bb6fc7f1600",
+  "mergeBases": [
+    "f9533362abecf3d2d42f2f0c0a6b66f590fe2fdb",
+    "b6d04419e6d10f10fef5d66f0768ab31986cf3b2",
+    "7d2c0eff9da83e880a6682f2abe9ea8c4147619e"
+  ],
+  "inputUniqueCommits": {
+    "integration": 22,
+    "review": 368
+  },
+  "rawMergeTree": "9b6ab7f3e0830ca7860426005151eda984ebf118",
+  "resolvedTreeBeforeReport": "5f01f1a79a9db832766ecc48cc4f9ba8d987a3c9",
+  "conflictedPaths": [
+    "docs/decisions.md",
+    "ios/CalibrationEngineKit/Sources/PoseReplay/main.swift",
+    "ios/Runner.xcodeproj/project.pbxproj",
+    "ios/Runner/NativePose/Camera/CameraPosePreview.swift",
+    "ios/Runner/NativePose/PosePipeline/SimCCDecoder.swift"
+  ],
+  "protectedReviewFileSha256": {
+    "ios/Runner/NativePose/Camera/CameraPosePreview.swift": "c8d0931f18447de2f6e9e724c43f048437ada1121d327d1743e0b3fdd64fa58d",
+    "ios/Runner/NativePose/PosePipeline/SimCCDecoder.swift": "dd32771fa78628438b13f6f49aa337ca6945f633290edf48365107dcaf3df20f",
+    "ios/Runner.xcodeproj/project.pbxproj": "ba13c7a5d52ac7abba59138e15f6be711bb23f05a4ad09cc14da3dc49f0b431b",
+    "ios/Runner/NativePose/Calibration/CalibrationConfig.swift": "f4c59b2432dd030d8ed39494a90523da059e909d3901f9ae615fba127c7a1925",
+    "ios/Runner/NativePose/Evaluators/FormWarnings.swift": "b2f5fe701841c9aed5892df09e33d37d96716f3e9fceee753328611c64930d42",
+    "scripts/data_collect/eval_public_sets.py": "385f57c0e89a6418a7a5bbb3037ff0d2200534e94068230d99cbddb26ff8c95d",
+    "scripts/data_collect/replay_remote_clips.py": "92a4a15d32c0335988422a01ed26e762fd597d10fb13a8b91341e38c1c305625",
+    "scripts/eval_pushup_mmfit.py": "a694eeaed8b087b4bafd2e4003acddad59a6297dcc02db7dbf17bf6d7cc36bf4",
+    "scripts/eval_side_videos.py": "f445a1c7d5281d0ba64065a5d23b0798428e2e372c37939af5e9c516130e06be"
+  },
+  "runtimeSourceTreeMatchesReview": true,
+  "checks": {
+    "swiftFocused": {
+      "tests": 101,
+      "failures": 0
+    },
+    "csvExecutableRegression": {
+      "tests": 5,
+      "failures": 0,
+      "modelInference": false,
+      "videoRead": false
+    },
+    "pbxprojLint": "passed",
+    "cameraSwiftSyntaxParse": "passed"
+  },
+  "testLogSha256": {
+    "/private/tmp/bpt-integration-preview-swift-20261104.log": "81a6d7badc1e5ee891fcedeb0f34f401152b378d921892f438bdd9741c7fb71a",
+    "/private/tmp/bpt-integration-preview-model-tests-20261104.log": "d8548f642f08a07a5d821f5afd92e9a5eb139123c5d4a93ffa34e997b097e96d",
+    "/private/tmp/bpt-integration-preview-csv-tests-20261104.log": "a0d2d8246fd83afeab3300d2283bb6cbe1999fd693e2bf7d76c4bd3e584c7a05"
+  },
+  "integrationRefUpdated": false,
+  "activeReviewUpdated": false,
+  "pushed": false,
+  "phoneUsed": false,
+  "iosBuildPerformed": false
+}

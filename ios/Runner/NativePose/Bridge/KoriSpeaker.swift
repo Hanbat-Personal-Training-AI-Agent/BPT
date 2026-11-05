@@ -48,6 +48,12 @@ final class KoriSpeaker: NSObject, AVAudioPlayerDelegate, AVSpeechSynthesizerDel
     /// [text]를 말한다. [interrupt]면 지금 말하던 것을 끊고 바로 말하고, 아니면
     /// 말하는 중이거나 대사 사이 쉬는 시간([minGap]) 안일 때 말하지 않고 건너뛴다.
     func speak(_ text: String, language: String = "ko-KR", interrupt: Bool = true) {
+        // Muted launch: no synthesis request, no playback at all (not only volume 0); the caller still gets onFinish.
+        if WorkoutDebugFlags.voiceMuted {
+            print("[TTS] muted: \(text)")
+            DispatchQueue.main.async { [weak self] in self?.onFinish?() }
+            return
+        }
         if !interrupt && isBusy {
             print("[TTS] 말하는 중이라 건너뜀: \(text)")
             return
@@ -103,6 +109,7 @@ final class KoriSpeaker: NSObject, AVAudioPlayerDelegate, AVSpeechSynthesizerDel
             return
         }
         player.delegate = self
+        player.volume = WorkoutDebugFlags.outputVolume  // 0 only in test-only muted launches
         player.play()
         self.player = player
     }
@@ -111,6 +118,7 @@ final class KoriSpeaker: NSObject, AVAudioPlayerDelegate, AVSpeechSynthesizerDel
         let utterance = AVSpeechUtterance(string: text)
         utterance.voice = AVSpeechSynthesisVoice(language: language)
         utterance.rate = AVSpeechUtteranceDefaultSpeechRate * 0.95
+        utterance.volume = WorkoutDebugFlags.outputVolume  // 0 only in test-only muted launches
         fallback.speak(utterance)
     }
 
@@ -165,6 +173,7 @@ final class KoriVoiceChannel {
                 result(nil)
                 return
             }
+            VideoRunLog.shared?.write("speak", ["text": text, "language": args?["language"] as? String ?? ""])  // test-only (video-as-camera)
             activateSession()
             speaker.speak(text,
                           language: args?["language"] as? String ?? "ko-KR",

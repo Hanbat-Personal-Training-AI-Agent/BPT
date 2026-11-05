@@ -8,6 +8,8 @@ import 'core/i18n/locale_provider.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'features/profile/providers/profile_provider.dart';
+import 'demo/demo_autopilot.dart';
+import 'features/workout/data/deep_analysis_queue.dart';
 import 'services/local_storage_service.dart';
 import 'services/reminder_notification_service.dart';
 
@@ -32,6 +34,9 @@ void main() async {
     ),
   );
 
+  // TRIAL BRANCH ONLY: demo autopilot clears saved state before the app reads it.
+  final demoPilot = await DemoAutopilot.prepare(prefs);
+
   runApp(
     ProviderScope(
       overrides: [
@@ -40,6 +45,8 @@ void main() async {
       child: const BPTApp(),
     ),
   );
+  // TRIAL BRANCH ONLY: demo recording autopilot (no-op without Documents/bpt_demo.json BPT_DEMO_AUTOPILOT=1).
+  demoPilot?.run();
 }
 
 class BPTApp extends ConsumerWidget {
@@ -47,6 +54,7 @@ class BPTApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(deepAnalysisQueueProvider.notifier);
     final router = ref.watch(appRouterProvider);
     final locale = ref.watch(appLocaleProvider);
 

@@ -1,0 +1,384 @@
+{
+  "definition": "180-angle(pelvis0,spine7,thorax8), unsigned 3-joint proxy, not lumbar curvature",
+  "correlationGuardReferenceStdDeg": 0.001,
+  "syntheticExamples": {
+    "straight_upright": {
+      "proxyDeg": 0.0,
+      "wholeTrunkTiltDeg": 0.0
+    },
+    "rigid_tilt_60deg": {
+      "proxyDeg": 0.0,
+      "wholeTrunkTiltDeg": 59.99999999999999
+    },
+    "upper_segment_bend_30deg": {
+      "proxyDeg": 29.99999999999997,
+      "wholeTrunkTiltDeg": 15.000000000000018
+    }
+  },
+  "C3": {
+    "assessed": false,
+    "reason": "no_matching_fit3d_per_frame_cache_found"
+  },
+  "exercises": {
+    "squat": {
+      "videos": 5,
+      "referenceProxy": {
+        "count": 1927,
+        "meanDeg": 23.53847825809172,
+        "stdDeg": 13.620645515770445,
+        "minDeg": 0.023817242152063045,
+        "maxDeg": 48.84675974995463,
+        "p05Deg": 2.8003489090453257,
+        "p95Deg": 46.10359120345745
+      },
+      "referenceWholeTrunkTilt": {
+        "count": 1927,
+        "meanDeg": 28.09300538393173,
+        "stdDeg": 16.819515851316808,
+        "minDeg": 0.30695434694257656,
+        "maxDeg": 61.404390992271566,
+        "p05Deg": 4.2570979605370445,
+        "p95Deg": 54.18700218899966
+      },
+      "withinVideoReferenceStdDeg": {
+        "min": 6.109452445183154,
+        "median": 8.965831194312555,
+        "max": 11.185928901317796
+      },
+      "referenceNumericallyConstantVideos": 0,
+      "referenceStdBelowOneDegreeVideos": 0,
+      "variants": {
+        "GVHMR_B": {
+          "videos": 5,
+          "proxy": {
+            "count": 1927,
+            "meanDeg": 7.321590492870131,
+            "stdDeg": 5.18893550383968,
+            "minDeg": 0.0740203857421875,
+            "maxDeg": 18.070510864257812,
+            "p05Deg": 0.8786453247070313,
+            "p95Deg": 16.155410766601562
+          },
+          "proxyMaeDeg": 18.616691030368255,
+          "wholeTrunkTiltMaeDeg": 8.537490193683615,
+          "withinVideoCorrelationCount": 5,
+          "medianWithinVideoCorrelation": 0.7719301420725894
+        },
+        "GVHMR_C_oracle_intrinsics": {
+          "videos": 5,
+          "proxy": {
+            "count": 1927,
+            "meanDeg": 7.286840077565009,
+            "stdDeg": 5.143855948454825,
+            "minDeg": 0.034271240234375,
+            "maxDeg": 18.055862426757812,
+            "p05Deg": 0.8855178833007813,
+            "p95Deg": 16.208790588378903
+          },
+          "proxyMaeDeg": 18.613454224300156,
+          "wholeTrunkTiltMaeDeg": 8.624608567657766,
+          "withinVideoCorrelationCount": 5,
+          "medianWithinVideoCorrelation": 0.7886514289816617
+        },
+        "XS_legacy": {
+          "videos": 5,
+          "proxy": {
+            "count": 1927,
+            "meanDeg": 5.865187350252381,
+            "stdDeg": 5.1731820682038,
+            "minDeg": 0.1261411588307908,
+            "maxDeg": 34.04680607702366,
+            "p05Deg": 1.0354838965897215,
+            "p95Deg": 16.18117982923218
+          },
+          "proxyMaeDeg": 20.218993519778255,
+          "wholeTrunkTiltMaeDeg": 15.187961826688523,
+          "withinVideoCorrelationCount": 5,
+          "medianWithinVideoCorrelation": -0.09245351830867449
+        },
+        "floor_oracle_neutral_smplx": {
+          "videos": 5,
+          "proxy": {
+            "count": 1927,
+            "meanDeg": 5.528447863273601,
+            "stdDeg": 3.2199058915090712,
+            "minDeg": 0.03904464816110931,
+            "maxDeg": 14.009607214750929,
+            "p05Deg": 0.9788939382112289,
+            "p95Deg": 10.82161851230839
+          },
+          "proxyMaeDeg": 19.239239374783864,
+          "wholeTrunkTiltMaeDeg": 4.0989413068126925,
+          "withinVideoCorrelationCount": 5,
+          "medianWithinVideoCorrelation": 0.604424513929379
+        }
+      }
+    },
+    "barbell_row": {
+      "videos": 5,
+      "referenceProxy": {
+        "count": 1624,
+        "meanDeg": 22.727052650155343,
+        "stdDeg": 17.100478006651763,
+        "minDeg": 2.2329449491097364,
+        "maxDeg": 59.211329236062724,
+        "p05Deg": 3.6857193704450366,
+        "p95Deg": 52.847376090548934
+      },
+      "referenceWholeTrunkTilt": {
+        "count": 1624,
+        "meanDeg": 49.857960029815715,
+        "stdDeg": 10.308637417922483,
+        "minDeg": 30.940791477654724,
+        "maxDeg": 90.09741307088515,
+        "p05Deg": 33.58990415745647,
+        "p95Deg": 67.3711496379538
+      },
+      "withinVideoReferenceStdDeg": {
+        "min": 1.5163538620385808,
+        "median": 2.1185331897630117,
+        "max": 4.219997321646643
+      },
+      "referenceNumericallyConstantVideos": 0,
+      "referenceStdBelowOneDegreeVideos": 0,
+      "variants": {
+        "GVHMR_B": {
+          "videos": 5,
+          "proxy": {
+            "count": 1624,
+            "meanDeg": 19.89932053664635,
+            "stdDeg": 5.627369242975117,
+            "minDeg": 8.409988403320312,
+            "maxDeg": 29.097671508789062,
+            "p05Deg": 9.402403259277344,
+            "p95Deg": 27.24345703125
+          },
+          "proxyMaeDeg": 20.36103953569379,
+          "wholeTrunkTiltMaeDeg": 7.564950591588217,
+          "withinVideoCorrelationCount": 5,
+          "medianWithinVideoCorrelation": -0.02100311656387173
+        },
+        "GVHMR_C_oracle_intrinsics": {
+          "videos": 5,
+          "proxy": {
+            "count": 1624,
+            "meanDeg": 19.83043059926902,
+            "stdDeg": 5.620834288660267,
+            "minDeg": 8.35888671875,
+            "maxDeg": 28.954818725585938,
+            "p05Deg": 9.376466369628906,
+            "p95Deg": 27.13838119506836
+          },
+          "proxyMaeDeg": 20.361922760256263,
+          "wholeTrunkTiltMaeDeg": 7.521232429984778,
+          "withinVideoCorrelationCount": 5,
+          "medianWithinVideoCorrelation": -0.011746622068791812
+        },
+        "XS_legacy": {
+          "videos": 5,
+          "proxy": {
+            "count": 1624,
+            "meanDeg": 7.012064026357665,
+            "stdDeg": 2.8797504971065355,
+            "minDeg": 0.2570864079188482,
+            "maxDeg": 13.955473709798298,
+            "p05Deg": 2.1739321016522455,
+            "p95Deg": 11.696564320805011
+          },
+          "proxyMaeDeg": 17.824586543953245,
+          "wholeTrunkTiltMaeDeg": 23.650385245546392,
+          "withinVideoCorrelationCount": 5,
+          "medianWithinVideoCorrelation": -0.2498522166507525
+        },
+        "floor_oracle_neutral_smplx": {
+          "videos": 5,
+          "proxy": {
+            "count": 1624,
+            "meanDeg": 16.716991580995707,
+            "stdDeg": 7.2076650897265795,
+            "minDeg": 0.2875032192516471,
+            "maxDeg": 28.34048002415429,
+            "p05Deg": 1.7903978099104152,
+            "p95Deg": 25.595600408237264
+          },
+          "proxyMaeDeg": 20.742713360042508,
+          "wholeTrunkTiltMaeDeg": 4.334761179656395,
+          "withinVideoCorrelationCount": 5,
+          "medianWithinVideoCorrelation": 0.12682832673988015
+        }
+      }
+    },
+    "pushup": {
+      "videos": 5,
+      "referenceProxy": {
+        "count": 1231,
+        "meanDeg": 11.931893745962457,
+        "stdDeg": 7.6551936259977555,
+        "minDeg": 0.1566075282876227,
+        "maxDeg": 32.20054096919341,
+        "p05Deg": 2.9746384056224997,
+        "p95Deg": 29.293853059006892
+      },
+      "referenceWholeTrunkTilt": {
+        "count": 1231,
+        "meanDeg": 81.02522984181225,
+        "stdDeg": 6.969902258297638,
+        "minDeg": 69.55995618924793,
+        "maxDeg": 96.48541010754494,
+        "p05Deg": 71.25739132003997,
+        "p95Deg": 93.8538717914416
+      },
+      "withinVideoReferenceStdDeg": {
+        "min": 1.1439046371404575,
+        "median": 1.5756034892978517,
+        "max": 4.370773494172486
+      },
+      "referenceNumericallyConstantVideos": 0,
+      "referenceStdBelowOneDegreeVideos": 0,
+      "variants": {
+        "GVHMR_B": {
+          "videos": 5,
+          "proxy": {
+            "count": 1231,
+            "meanDeg": 10.774338189999714,
+            "stdDeg": 2.2785604801050163,
+            "minDeg": 5.75579833984375,
+            "maxDeg": 17.26165771484375,
+            "p05Deg": 6.295158386230469,
+            "p95Deg": 14.241584777832031
+          },
+          "proxyMaeDeg": 6.691617931108295,
+          "wholeTrunkTiltMaeDeg": 5.8502079937417255,
+          "withinVideoCorrelationCount": 5,
+          "medianWithinVideoCorrelation": 0.24953834613675707
+        },
+        "GVHMR_C_oracle_intrinsics": {
+          "videos": 5,
+          "proxy": {
+            "count": 1231,
+            "meanDeg": 10.621637934693275,
+            "stdDeg": 2.388481700563757,
+            "minDeg": 5.315032958984375,
+            "maxDeg": 17.161300659179688,
+            "p05Deg": 5.873344421386719,
+            "p95Deg": 14.245071411132812
+          },
+          "proxyMaeDeg": 6.7055590867365025,
+          "wholeTrunkTiltMaeDeg": 5.960848105350095,
+          "withinVideoCorrelationCount": 5,
+          "medianWithinVideoCorrelation": 0.27772873642220053
+        },
+        "XS_legacy": {
+          "videos": 5,
+          "proxy": {
+            "count": 1231,
+            "meanDeg": 17.62105906138021,
+            "stdDeg": 11.062142336977358,
+            "minDeg": 0.18630383136164141,
+            "maxDeg": 53.12537085047141,
+            "p05Deg": 3.0434204069518103,
+            "p95Deg": 40.87684145236486
+          },
+          "proxyMaeDeg": 11.385570955291541,
+          "wholeTrunkTiltMaeDeg": 25.099470561643553,
+          "withinVideoCorrelationCount": 5,
+          "medianWithinVideoCorrelation": 0.02676774241758553
+        },
+        "floor_oracle_neutral_smplx": {
+          "videos": 5,
+          "proxy": {
+            "count": 1231,
+            "meanDeg": 10.37899885235309,
+            "stdDeg": 2.168159649973501,
+            "minDeg": 4.030584805171316,
+            "maxDeg": 16.405395107830714,
+            "p05Deg": 6.646249618706477,
+            "p95Deg": 14.024791379427711
+          },
+          "proxyMaeDeg": 6.036446650154464,
+          "wholeTrunkTiltMaeDeg": 3.5791109312900873,
+          "withinVideoCorrelationCount": 5,
+          "medianWithinVideoCorrelation": -0.05229584972269794
+        }
+      }
+    },
+    "deadlift": {
+      "videos": 5,
+      "referenceProxy": {
+        "count": 2459,
+        "meanDeg": 20.695925158924492,
+        "stdDeg": 12.725508461931472,
+        "minDeg": 0.9632916135693108,
+        "maxDeg": 50.934624493035784,
+        "p05Deg": 3.889979549919181,
+        "p95Deg": 44.50755614366375
+      },
+      "referenceWholeTrunkTilt": {
+        "count": 2459,
+        "meanDeg": 43.96761087968684,
+        "stdDeg": 31.920060649486988,
+        "minDeg": 0.12826442289013282,
+        "maxDeg": 103.60952000208421,
+        "p05Deg": 3.8899932643650805,
+        "p95Deg": 91.49536452344908
+      },
+      "withinVideoReferenceStdDeg": {
+        "min": 2.880006094819466,
+        "median": 5.67850582382323,
+        "max": 8.696892318399208
+      },
+      "referenceNumericallyConstantVideos": 0,
+      "referenceStdBelowOneDegreeVideos": 0,
+      "variants": {
+        "GVHMR_B": {
+          "videos": 5,
+          "proxy": {
+            "count": 2459,
+            "meanDeg": 19.284704790894896,
+            "stdDeg": 5.041601401237635,
+            "minDeg": 8.97100830078125,
+            "maxDeg": 34.42771911621094,
+            "p05Deg": 11.448222351074218,
+            "p95Deg": 27.189224243164062
+          },
+          "proxyMaeDeg": 13.497682259626384,
+          "wholeTrunkTiltMaeDeg": 7.354855301099463,
+          "withinVideoCorrelationCount": 5,
+          "medianWithinVideoCorrelation": 0.33126889162514767
+        },
+        "GVHMR_C_oracle_intrinsics": {
+          "videos": 5,
+          "proxy": {
+            "count": 2459,
+            "meanDeg": 19.21646973251957,
+            "stdDeg": 5.063698663249874,
+            "minDeg": 8.816818237304688,
+            "maxDeg": 34.280426025390625,
+            "p05Deg": 11.294708251953125,
+            "p95Deg": 27.109869384765624
+          },
+          "proxyMaeDeg": 13.516237969862456,
+          "wholeTrunkTiltMaeDeg": 7.349887060101782,
+          "withinVideoCorrelationCount": 5,
+          "medianWithinVideoCorrelation": 0.3409414296167715
+        },
+        "floor_oracle_neutral_smplx": {
+          "videos": 5,
+          "proxy": {
+            "count": 2459,
+            "meanDeg": 14.217443612952463,
+            "stdDeg": 4.311334544905435,
+            "minDeg": 0.06313085917093986,
+            "maxDeg": 22.745465201000542,
+            "p05Deg": 3.5418744600107117,
+            "p95Deg": 19.54416247426684
+          },
+          "proxyMaeDeg": 12.412128054186097,
+          "wholeTrunkTiltMaeDeg": 4.133267823758081,
+          "withinVideoCorrelationCount": 5,
+          "medianWithinVideoCorrelation": 0.43852651737980136
+        }
+      }
+    }
+  }
+}

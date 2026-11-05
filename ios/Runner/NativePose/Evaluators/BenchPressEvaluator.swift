@@ -141,13 +141,14 @@ final class BenchPressEvaluator {
         formTracker.reset()
     }
 
-    func evaluate(frameIndex: Int, coco17: [PoseKeypoint]) -> BenchPressFrameResult {
+    func evaluate(frameIndex: Int, coco17: [PoseKeypoint], pose3D: [SIMD3<Double>]? = nil,
+                  pose3DState: Pose3DState? = nil) -> BenchPressFrameResult {
         let measurements = computeMeasurements(coco17: coco17)
         let rawCandidate = classifyRawStatusCandidate(measurements)
         let lastStable = stableStatus
         var status = updateStableStatus(rawCandidate: rawCandidate, measurements: measurements)
         updateTopBaselineIfNeeded(status: status, measurements: measurements)
-        formTracker.observe(frameIndex: frameIndex, coco17: coco17, phase: status.rawValue)
+        formTracker.observe(frameIndex: frameIndex, coco17: coco17, pose3D: pose3D, pose3DState: pose3DState, phase: status.rawValue)
         
         let transitionedToTop = (lastStable != .top && status == .top)
         
@@ -644,7 +645,7 @@ final class BenchPressEvaluator {
     }
 
     /// Judges the counted rep (its frames + the lockout window) and stores the warnings in its summary.
-    private func finishPendingFormRep() {
+    func finishPendingFormRep() {
         guard let pending = pendingFormRep else { return }
         pendingFormRep = nil
         let warnings = formTracker.finishRep(repIndex: pending.index).warnings

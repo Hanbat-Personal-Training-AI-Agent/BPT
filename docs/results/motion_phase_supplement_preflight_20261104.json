@@ -1,0 +1,17 @@
+{
+  "arithmeticScope": "unchanged old collector, primary90:end only",
+  "legacyCollectorSha256": "d649a2325b3484135693e7e3216421fce591e77f0059b5fe6a7e002c8573c0b4",
+  "mainAggregateSha256": "64f8aee540927c439824cc1192e172fd129a1d57fe5cc929daa98a84863fd723",
+  "mainManifestSha256": "13f835733dbe9f02db0d6b8e16160eb5988e6f3493f43185a26fa45a7291b409",
+  "mainProtocolSha256": "234f0a77436bd699b2455194fb2f8adbf4d5bda142084743f552bfd285187afb",
+  "scope": "frozen before viewing phase outcome metrics",
+  "source_sha256": {
+    "docs/results/motion_phase_supplement_protocol_20261104.md": "7837dc5ce278d033fc8987cc94d6cad38b5a8b4743c51f341afbebf725963d9c",
+    "scripts/motion_phase_acceptance/supplement_adapter.py": "646d0e0172fa26ca531e00fdd4c59188c12477c50bff855f588e8ff1a7ae199d",
+    "test/python/test_motion_phase_supplement.py": "6020118a8e34c0d12be7e92d1648a785ed9cc85bfb624ba0decfa8bd6c7200c5"
+  },
+  "unitTests": {
+    "failures": 0,
+    "total": 6
+  }
+}

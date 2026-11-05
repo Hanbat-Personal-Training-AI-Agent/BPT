@@ -1,0 +1,9 @@
+{
+  "aggregateSha256": "64f8aee540927c439824cc1192e172fd129a1d57fe5cc929daa98a84863fd723",
+  "allHRecoveryRecordsExactlyUnchanged": true,
+  "partitionChecks": 1152,
+  "recordedTimingDifferenceSeconds": 3.687523059919471,
+  "schema": "bpt.motion-phase-replay-arithmetic.v1",
+  "status": "PASS",
+  "timingInterpretation": "unreconciled recorder difference; retain both Home CPU values; no device speed claim"
+}

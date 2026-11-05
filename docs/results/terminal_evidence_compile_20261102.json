@@ -1,0 +1,34 @@
+{
+  "date": "2026-11-02",
+  "base_commit": "8006baf",
+  "check": "unsigned iOS native compiler/link in temporary existing-donor dependency environment; not fresh original-lock app build",
+  "xcode": "Xcode 27.1\nBuild version 27A9275",
+  "sdk": "27.1",
+  "result": {
+    "returncode": 0,
+    "source_unchanged": true,
+    "elapsed_seconds": 30.959731817245483,
+    "unsigned": true,
+    "protected_donor_outputs_written": false
+  },
+  "dependency_graph_targets": 3,
+  "new_swift_sources_registered_in_xcode": true,
+  "swift_package_source_symlink": true,
+  "tracked_pod_lock_sha256": "79c96ff1b5381898532a56d1b6f443d7229ed3e209be64c0be41f9e043ccf999",
+  "temporary_pod_lock_sha256": "520ca3910800a44c8dc531211df6913d5686c46550669530df2ea9b00657460a",
+  "tracked_pod_lock_restored": true,
+  "dependency_difference": "existing donor adds integration_test; Flutter podspec checksum differs; native pod versions otherwise unchanged; exact diff retained privately",
+  "pods_source": "existing coaching-review-build-20261030 cache, read only",
+  "pods_products": "existing exact673 runtime Release cache APFS-cloned to independent DD; no protected output writes",
+  "native_source_manifest_sha256": "39110aa24cc5a27e048761a07b79a76fa79f12137bca25be9641b7d6e9b7399a",
+  "app_installed": false,
+  "phone_run": "UNRUN: device connection unavailable; no install/launch attempted",
+  "model_inference_run_for_this_task": false,
+  "validation": {
+    "python_terminal_tests_passed": 28,
+    "swift_executed": 221,
+    "swift_skipped": 3,
+    "swift_failed": 0
+  },
+  "interpretation": "Synthetic recording/replay integrity and compiler validation only. No terminal completion, native assessment parity or form accuracy claim."
+}

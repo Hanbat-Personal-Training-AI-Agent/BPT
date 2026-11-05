@@ -1,0 +1,116 @@
+{
+  "schema": "bpt-integration-preview-refresh-v1",
+  "createdAt": "2026-11-04T13:45:30.011436+00:00",
+  "reviewCommit": "ce86ae64fbbdcaab3ca4921317fe39c28072b04a",
+  "integrationCommit": "3cef41d5f18bbd62a66249bb50ac7bb6fc7f1600",
+  "mergeBases": [
+    "f9533362abecf3d2d42f2f0c0a6b66f590fe2fdb",
+    "b6d04419e6d10f10fef5d66f0768ab31986cf3b2",
+    "7d2c0eff9da83e880a6682f2abe9ea8c4147619e"
+  ],
+  "rawAutomaticTree": "a3d57db9ad8c291c3807a02b8b44b055288f7ff2",
+  "conflicts": [
+    "docs/decisions.md",
+    "ios/CalibrationEngineKit/Sources/PoseReplay/main.swift",
+    "ios/Runner.xcodeproj/project.pbxproj",
+    "ios/Runner/NativePose/Camera/CameraPosePreview.swift",
+    "ios/Runner/NativePose/PosePipeline/SimCCDecoder.swift"
+  ],
+  "reviewedResolutionPaths": {
+    "docs/decisions.md": {
+      "mode": "100644",
+      "blob": "f1edb799922939b0ceb86a183927bd5364afae6f"
+    },
+    "ios/CalibrationEngineKit/Sources/PoseReplay/main.swift": {
+      "mode": "100644",
+      "blob": "6ea927c6184e71de9c7aaeb4326ff8649364c0ee"
+    },
+    "ios/Runner.xcodeproj/project.pbxproj": {
+      "mode": "100644",
+      "blob": "00e201b26a7ced174b924442c02f4dabe4d04410"
+    },
+    "ios/Runner/NativePose/Camera/CameraPosePreview.swift": {
+      "mode": "100644",
+      "blob": "58089ef272470f8e45b965e3bc037078dc4dea52"
+    },
+    "ios/Runner/NativePose/Models/rtmpose_m_forward.mlpackage/Data/com.apple.CoreML/model.mlmodel": {
+      "mode": "100644",
+      "blob": "7835d59d20557e4027b8d144354d8117c268e387"
+    },
+    "ios/Runner/NativePose/Models/rtmpose_m_forward.mlpackage/Data/com.apple.CoreML/weights/weight.bin": {
+      "mode": "100644",
+      "blob": "1331d4fe4a5919b98f431f4ed098d440df534e4f"
+    },
+    "ios/Runner/NativePose/Models/rtmpose_m_forward.mlpackage/Manifest.json": {
+      "mode": "100644",
+      "blob": "c6571feb8329c1c50da745ce82e0aed78dde5e36"
+    },
+    "ios/Runner/NativePose/PosePipeline/SimCCDecoder.swift": {
+      "mode": "100644",
+      "blob": "46ec40948cf036dce7b3a450a961bc8f759111ca"
+    },
+    "scripts/data_collect/eval_public_sets.py": {
+      "mode": "100644",
+      "blob": "383ffd27cff28a0d65c2ea39656c7c6350fc83f0"
+    },
+    "scripts/data_collect/replay_remote_clips.py": {
+      "mode": "100644",
+      "blob": "d564e2da7a7b436a77f7f554cc91d203cb8948af"
+    },
+    "scripts/eval_pushup_mmfit.py": {
+      "mode": "100644",
+      "blob": "1547c2a023b43963183a9675c0887a22d2c0606d"
+    },
+    "scripts/eval_side_videos.py": {
+      "mode": "100644",
+      "blob": "0f2da30bed64af555f6c4fb90f39648ff8391a26"
+    }
+  },
+  "resolvedTree": "8e05ea539110426667f2ae9d8a884f330e76a491",
+  "resolvedTreeExactlyReview": true,
+  "resolutionPolicy": "Retain already-imported compatibility work and current review runtime/models/defaults; no new adoption decision",
+  "integrationRefUpdated": false,
+  "checkoutUpdated": false,
+  "branchCreated": false,
+  "pushed": false,
+  "phoneUsed": false,
+  "mergeCommand": [
+    "git",
+    "merge-tree",
+    "--write-tree",
+    "--name-only",
+    "3cef41d5f18bbd62a66249bb50ac7bb6fc7f1600",
+    "ce86ae64fbbdcaab3ca4921317fe39c28072b04a"
+  ],
+  "csvTests": {
+    "command": [
+      "python3",
+      "-m",
+      "unittest",
+      "discover",
+      "-s",
+      "test/python",
+      "-p",
+      "test_pose_replay_csv.py",
+      "-v"
+    ],
+    "cwd": "/Users/6_month/github/06-month/hanbat/repositories/BPT/.claude/worktrees/project-completion-20261104",
+    "binary": "/Users/6_month/bpt-data/native-fault-evidence-20261104-private/run-17fa752-praise-regression/artifacts/pose-replay",
+    "binarySHA256": "c764700aead732d7a1f7255a75eaaccd22fad2526ce7c3f758d8b4d1eb7e02bb",
+    "testSHA256": "14306c268fe4175c2355759bf2fa22426590dd95e37544ec507f7a69674f3ab7",
+    "exitCode": 0,
+    "elapsedSeconds": 0.244031459,
+    "logSHA256": "96b96a704b03ec5f029d7c50e63c7ca86698c85d7ff32b23dc8c5af5d330291d",
+    "modelInference": false,
+    "videoOpened": false,
+    "passed": 5,
+    "skipped": 0
+  },
+  "privateArtifactSHA256": {
+    "merge-tree.txt": "bdbc00d1541d704d3fa5fb0e012cf757bf2ebded9f2380a44600f1bf70e26ddc",
+    "review-vs-automatic-tree.diff": "da6def11de564ca96c027351be04726d6f168a6765b87d8916feb6b97d2f59db",
+    "tree-receipt.json": "d1676eb8c2fdaefbe65bf2e5e05f381dd491bd14f45b97da53a2edfdfb1c9ed0",
+    "csv-tests.log": "96b96a704b03ec5f029d7c50e63c7ca86698c85d7ff32b23dc8c5af5d330291d",
+    "csv-tests.json": "a4879fb679988cd021fa73a2640181520a031eb48dabcf80d9e54565f2454219"
+  }
+}

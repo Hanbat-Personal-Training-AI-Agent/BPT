@@ -102,7 +102,8 @@ final class CalibrationEngine {
         }
         guard let measurement = measure(frame) else {
             previousJoints = [:]
-            return fail(.showFullBody, target: target, measurement: nil, didTimeOut: didTimeOut)
+            // Upper body found but legs lost: the user is too close, not "show more" (they would step closer).
+            return fail(lowerBodyCut(levelled(frame)) ? .stepBack : .showFullBody, target: target, measurement: nil, didTimeOut: didTimeOut)
         }
         let motion = motionSince(frame, torso: measurement.torso)
         lastMotion = motion
@@ -194,7 +195,35 @@ final class CalibrationEngine {
         return kp.score >= config.framing.minKeypointConfidence ? kp : nil
     }
 
-    private func measure(_ frame: CalibrationFrame) -> CalibrationMeasurement? {
+    /// The frame's keypoints as a level phone would have seen them: rotated back by the phone's roll
+    /// about the image centre, in square (height) units. Judging only — saved keypoints stay raw.
+    ///
+    /// rollDeg > 0 is the phone turned clockwise as the user sees it; the unmirrored front buffer then
+    /// shows the scene turned clockwise by the same angle, so this turns it back counter-clockwise.
+    func levelled(_ frame: CalibrationFrame) -> CalibrationFrame {
+        guard frame.device.isAvailable, frame.device.rollDeg != 0, frame.aspect > 0 else { return frame }
+        let theta = frame.device.rollDeg * .pi / 180
+        let c = cos(theta), s = sin(theta), a = frame.aspect
+        var out = frame
+        out.keypoints = frame.keypoints.map { kp in
+            let x = (kp.x - 0.5) * a, y = kp.y - 0.5
+            return CalibrationKeypoint(x: (c * x + s * y) / a + 0.5, y: -s * x + c * y + 0.5, score: kp.score)
+        }
+        return out
+    }
+
+    /// Shoulders and hips confident, the hips low in the frame and a knee or ankle lost: the legs run off the bottom.
+    private func lowerBodyCut(_ frame: CalibrationFrame) -> Bool {
+        let torsoJoints: [CocoJoint] = [.leftShoulder, .rightShoulder, .leftHip, .rightHip]
+        guard torsoJoints.allSatisfy({ joint(frame, $0) != nil }) else { return false }
+        let legs: [CocoJoint] = [.leftKnee, .rightKnee, .leftAnkle, .rightAnkle]
+        guard legs.contains(where: { joint(frame, $0) == nil }) else { return false }
+        let hipY = (frame.keypoints[CocoJoint.leftHip.rawValue].y + frame.keypoints[CocoJoint.rightHip.rawValue].y) / 2
+        return hipY > config.framing.cutLegsMinHipY
+    }
+
+    private func measure(_ raw: CalibrationFrame) -> CalibrationMeasurement? {
+        let frame = levelled(raw)
         var required: [CocoJoint: CalibrationKeypoint] = [:]
         for j in CocoJoint.required {
             guard let kp = joint(frame, j) else { return nil }
@@ -280,6 +309,11 @@ final class CalibrationEngine {
 
     private func framingGuidance(_ m: CalibrationMeasurement, frontCaptured: Bool) -> CalibrationGuidance? {
         if m.bodyHeight > config.framing.maxBodyHeight { return .stepBack }
+        // Head cut at the top with the feet low or the body already large: backing off frames it, coming closer never does.
+        if m.headTop < config.framing.minHeadTop,
+           m.feet > config.framing.cutHeadMinFeet || m.bodyHeight > config.framing.cutHeadMinBodyHeight {
+            return .stepBack
+        }
         if m.headTop < config.framing.minHeadTop || m.feet > config.framing.maxFeet { return .showFullBody }
         if m.bodyHeight < config.framing.minBodyHeight { return .stepForward }
         if abs(m.midX - 0.5) > config.framing.maxCentreOffset {

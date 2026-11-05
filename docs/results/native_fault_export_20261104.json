@@ -1,0 +1,474 @@
+{
+  "adjudicated": 0,
+  "boundarySource": "ai_windows",
+  "byExercise": {
+    "barbell_row": {
+      "no_warning": 34,
+      "withheld": 16
+    },
+    "pushup": {
+      "no_warning": 32,
+      "withheld": 48
+    },
+    "squat": {
+      "warning": 3,
+      "withheld": 67
+    }
+  },
+  "byRule": {
+    "pushup_depth_fade": {
+      "withheld": 10
+    },
+    "pushup_hand_position": {
+      "withheld": 10
+    },
+    "pushup_head_drop": {
+      "no_warning": 8,
+      "withheld": 2
+    },
+    "pushup_head_up": {
+      "no_warning": 8,
+      "withheld": 2
+    },
+    "pushup_hip_pike": {
+      "no_warning": 8,
+      "withheld": 2
+    },
+    "pushup_hip_sag": {
+      "no_warning": 8,
+      "withheld": 2
+    },
+    "pushup_no_lockout": {
+      "nativeFired": 1,
+      "withheld": 10
+    },
+    "pushup_shallow": {
+      "withheld": 10
+    },
+    "row_head_up": {
+      "no_warning": 10
+    },
+    "row_short_pull": {
+      "no_warning": 7,
+      "withheld": 3
+    },
+    "row_shrug": {
+      "withheld": 10
+    },
+    "row_standing_up": {
+      "no_warning": 7,
+      "withheld": 3
+    },
+    "row_torso_swing": {
+      "no_warning": 10
+    },
+    "squat_depth_fade": {
+      "withheld": 10
+    },
+    "squat_heel_rise": {
+      "withheld": 10
+    },
+    "squat_hips_first": {
+      "nativeFired": 2,
+      "withheld": 10
+    },
+    "squat_knee_valgus": {
+      "nativeFired": 5,
+      "warning": 3,
+      "withheld": 7
+    },
+    "squat_lean_drift": {
+      "withheld": 10
+    },
+    "squat_no_lockout": {
+      "nativeFired": 3,
+      "withheld": 10
+    },
+    "squat_shallow": {
+      "withheld": 10
+    }
+  },
+  "candidateCommit": "94a72a5ffae86011a87af93eb246eb8a7a58f4fe",
+  "freeze": {
+    "all200DecisionObjectsExactlyEqualToFirstAttempt": true,
+    "exporterSHA256": "d9857160c93f7330ea743a3612c1b9e6f5af71a5ea4b6d7031ac5e59b5406712",
+    "initialExporterCommit": "33976b7f754be2d57c08c28909ccdb5990860d81",
+    "postOutcomeSerializationOnlyFixCommit": "7247475",
+    "postOutcomeTestOnlyCoverageCommit": "3b2a13a",
+    "preOutcomePointwiseTieFixCommit": "3efa046ae6ad4577011f5c1087658a24c30c94f6",
+    "supportPolicySHA256": "14515e585175c7e1a396dc9a6b5a73dc1a14639976ee0cc203c028f20fcbcccc"
+  },
+  "holdoutOpportunities": 0,
+  "independentAudit": {
+    "reviewer": "independent evidence audit agent",
+    "scope": "exact attempt2 file hash, attempt1 parsed equality, task byte equality, preserved labels, null accuracy, all trace/source/model/executable/receipt hashes",
+    "status": "PASS"
+  },
+  "integrity": {
+    "attemptReceiptSHA256": "4c9c5efa9566ce469f9eddc5e873dfb26c749f041f374d4305793dd8973edaff",
+    "boundaryManifestSHA256": "783b91070ac12e1ef18b8a87ea602c828874f290697183944978cc1d6ee125d4",
+    "evidenceSHA256": "4348a50b28b4a1aa4593ab82513da49c1e036bf4018eac8354c2bedaf1d81f02",
+    "exportAuditSHA256": "c32ef9141b0f1ac71b66d44b2feafb3326f4786237a467b3c55cf08fb84ff655",
+    "inputsUnchanged": true,
+    "manifestSHA256": "8e3f38ebd9bff883a32d697c233301562edd1a4ae30ea799354007535ee41ce2",
+    "old588TaskTouched": false,
+    "protocolSHA256": "7e4b9ccbc08e1d4ac896a4567045a5a2734f8e5728b861426e33d12faf85c882",
+    "scoreSHA256": "7779ae17c88666ca610de01af61a7f9705cf9911309384c2f7b03a88533e9bce",
+    "sources": [
+      {
+        "binarySHA256": "75c81e36070400a5015400fa1f641c25e5bb1d89ecb750fe9f31667173c9015e",
+        "clipId": "native-dev-squat-7da9af0c13a9",
+        "executionReceiptSHA256": "6ebb41ed78df9f237d41f16b170fd360144d4d3bd01afc1e02f118b2f0280d6e",
+        "exercise": "squat",
+        "fullClipSHA256": "7da9af0c13a9015fc2fc6b3591773e63c68c6f2d72a004f10b72dbed8d7e1004",
+        "modelArtifactSHA256": {
+          "motionagformer_xs.mlpackage": "8c78f0e03a862dead5d0b57f25ef358b2fcc713ace383c8135409997062862c2",
+          "rtmpose_m_halpe26_forward.mlpackage": "be06472c7ca3cf7ec2c9d422482b21da6d48f7b9e5a55ebc25205977ed68d203"
+        },
+        "modelsStable": true,
+        "sourceStable": true,
+        "traceSHA256": "8a089e38ca0b11f13a66b0dd87b991453ab16cc7d8ac47cd079cdf9bd92ae09c"
+      },
+      {
+        "binarySHA256": "75c81e36070400a5015400fa1f641c25e5bb1d89ecb750fe9f31667173c9015e",
+        "clipId": "native-dev-row-848d03a6103c",
+        "executionReceiptSHA256": "fe62001c38bd68d0f622e5cfc022c0367ee6441705aa25b713bc34cd505f24c7",
+        "exercise": "barbell_row",
+        "fullClipSHA256": "848d03a6103c25b814e15ce7f1ff47abfc0a7d8f5378d2ce1dc67fde644dc9ee",
+        "modelArtifactSHA256": {
+          "motionagformer_xs.mlpackage": "8c78f0e03a862dead5d0b57f25ef358b2fcc713ace383c8135409997062862c2",
+          "rtmpose_m_halpe26_forward.mlpackage": "be06472c7ca3cf7ec2c9d422482b21da6d48f7b9e5a55ebc25205977ed68d203"
+        },
+        "modelsStable": true,
+        "sourceStable": true,
+        "traceSHA256": "19f3e81969cfb4d9f2ee8e4f5dc0a8b45bcb438d17db27fee47bc8e1a6187455"
+      },
+      {
+        "binarySHA256": "75c81e36070400a5015400fa1f641c25e5bb1d89ecb750fe9f31667173c9015e",
+        "clipId": "native-dev-pushup-b553b205ba4b",
+        "executionReceiptSHA256": "0c97515430733f39c8673ff74a56a43207a2dd152fe8b80ec9d3351bb557e51c",
+        "exercise": "pushup",
+        "fullClipSHA256": "b553b205ba4bdbcc88c445208813346b445f7b98b48cc60fc1ad1f77bc06d2d0",
+        "modelArtifactSHA256": {
+          "motionagformer_xs.mlpackage": "8c78f0e03a862dead5d0b57f25ef358b2fcc713ace383c8135409997062862c2",
+          "rtmpose_m_halpe26_forward.mlpackage": "be06472c7ca3cf7ec2c9d422482b21da6d48f7b9e5a55ebc25205977ed68d203"
+        },
+        "modelsStable": true,
+        "sourceStable": true,
+        "traceSHA256": "48364b2b24139185a13aae74d2cd7809282ae3479cb5672f82e9fdb16f4e0af8"
+      }
+    ]
+  },
+  "limitations": [
+    "No independent human labels; correctness, false-warning rate and missed-fault rate are unknown.",
+    "Bottom/top/ascending requirements are additional frozen conservative export criteria; missing phase is not proof that native geometry or a native positive is false.",
+    "A sufficient positive can survive unrelated missing observations; negatives require complete relevant search/window support.",
+    "A first finite tied extremum failing a later view check is conservatively withheld; later eligible ties are not searched.",
+    "First attempt preserved with incorrect evidence-byte receipt hash; second attempt fixes serialization only, retaining all200 identical decisions.",
+    "Synthetic fixtures demonstrate code paths under explicitly declared test configurations, not media accuracy."
+  ],
+  "nativeFired": [
+    {
+      "disposition": "required_phase_not_observed_ascending",
+      "exercise": "squat",
+      "rep": 1,
+      "rule": "squat_hips_first",
+      "sampleId": "c0001.r0001.squat_hips_first",
+      "state": "withheld"
+    },
+    {
+      "disposition": "no_supported_true_lockout_branch:required_phase_not_observed_top",
+      "exercise": "squat",
+      "rep": 2,
+      "rule": "squat_no_lockout",
+      "sampleId": "c0001.r0002.squat_no_lockout",
+      "state": "withheld"
+    },
+    {
+      "disposition": "required_phase_not_observed_ascending",
+      "exercise": "squat",
+      "rep": 3,
+      "rule": "squat_hips_first",
+      "sampleId": "c0001.r0003.squat_hips_first",
+      "state": "withheld"
+    },
+    {
+      "disposition": "no_supported_true_lockout_branch:required_phase_not_observed_top",
+      "exercise": "squat",
+      "rep": 4,
+      "rule": "squat_no_lockout",
+      "sampleId": "c0001.r0004.squat_no_lockout",
+      "state": "withheld"
+    },
+    {
+      "disposition": "no_supported_true_lockout_branch:maximum_reference_unproven:required_phase_not_observed_top",
+      "exercise": "squat",
+      "rep": 5,
+      "rule": "squat_no_lockout",
+      "sampleId": "c0001.r0005.squat_no_lockout",
+      "state": "withheld"
+    },
+    {
+      "disposition": "supported_positive",
+      "exercise": "squat",
+      "rep": 6,
+      "rule": "squat_knee_valgus",
+      "sampleId": "c0001.r0006.squat_knee_valgus",
+      "state": "warning"
+    },
+    {
+      "disposition": "ineligible_view_at_witness",
+      "exercise": "squat",
+      "rep": 7,
+      "rule": "squat_knee_valgus",
+      "sampleId": "c0001.r0007.squat_knee_valgus",
+      "state": "withheld"
+    },
+    {
+      "disposition": "supported_positive",
+      "exercise": "squat",
+      "rep": 8,
+      "rule": "squat_knee_valgus",
+      "sampleId": "c0001.r0008.squat_knee_valgus",
+      "state": "warning"
+    },
+    {
+      "disposition": "required_phase_not_observed_ascending",
+      "exercise": "squat",
+      "rep": 9,
+      "rule": "squat_knee_valgus",
+      "sampleId": "c0001.r0009.squat_knee_valgus",
+      "state": "withheld"
+    },
+    {
+      "disposition": "supported_positive",
+      "exercise": "squat",
+      "rep": 10,
+      "rule": "squat_knee_valgus",
+      "sampleId": "c0001.r0010.squat_knee_valgus",
+      "state": "warning"
+    },
+    {
+      "disposition": "ineligible_view_at_witness",
+      "exercise": "pushup",
+      "rep": 3,
+      "rule": "pushup_no_lockout",
+      "sampleId": "c0003.r0003.pushup_no_lockout",
+      "state": "withheld"
+    }
+  ],
+  "nativeFiredCount": 11,
+  "nativeFiredSupported": 3,
+  "nativeFiredWithheld": 8,
+  "nativeReps": 30,
+  "opportunities": 200,
+  "privateArtifactRoot": "~/bpt-data/native-fault-evidence-20261104-private/run-94a72a5/native-export-attempt2",
+  "schema": "bpt-native-fault-export-result-v1",
+  "scope": "three_existing_development_clips_actual_native_windows_no_independent_ground_truth",
+  "scoreOverall": {
+    "adjudicated": 0,
+    "correctCoverage": {
+      "denominator": 0,
+      "numerator": 0,
+      "value": null
+    },
+    "decisionCoverage": {
+      "denominator": 0,
+      "numerator": 0,
+      "value": null
+    },
+    "missingAdjudicated": {
+      "negative": 0,
+      "positive": 0
+    },
+    "opportunities": 200,
+    "physicalReps": 30,
+    "precision": {
+      "denominator": 0,
+      "numerator": 0,
+      "value": null
+    },
+    "predictionStatesAllRows": {
+      "missing": 0,
+      "no_warning": 66,
+      "warning": 3,
+      "withheld": 131
+    },
+    "selectiveAccuracy": {
+      "denominator": 0,
+      "numerator": 0,
+      "value": null
+    },
+    "selectiveConfusion": {
+      "FN": 0,
+      "FP": 0,
+      "TN": 0,
+      "TP": 0
+    },
+    "selectiveRecall": {
+      "denominator": 0,
+      "numerator": 0,
+      "value": null
+    },
+    "selectiveSpecificity": {
+      "denominator": 0,
+      "numerator": 0,
+      "value": null
+    },
+    "strictFNIncludingMisses": 0,
+    "strictRecall": {
+      "denominator": 0,
+      "numerator": 0,
+      "value": null
+    },
+    "unknownLabels": 200,
+    "unresolvedNegative": 0,
+    "withheldAdjudicated": {
+      "negative": 0,
+      "positive": 0
+    }
+  },
+  "selectedSource": "3d",
+  "states": {
+    "no_warning": 66,
+    "warning": 3,
+    "withheld": 131
+  },
+  "supportedDecisions": 69,
+  "unknownLabels": 200,
+  "validation": {
+    "all20NativePositivePathsSupported": true,
+    "combinedPythonTests": 53,
+    "fixtureProvenanceFiles": [
+      "test/python/fixtures/native_fault_trace/provenance.json",
+      "test/python/fixtures/native_fault_trace/coverage_v2_provenance.json"
+    ],
+    "nativeFixtureRuleStates": {
+      "pushup_depth_fade": {
+        "no_warning": 3,
+        "warning": 3,
+        "withheld": 6
+      },
+      "pushup_hand_position": {
+        "warning": 1,
+        "withheld": 11
+      },
+      "pushup_head_drop": {
+        "no_warning": 7,
+        "warning": 4,
+        "withheld": 1
+      },
+      "pushup_head_up": {
+        "no_warning": 7,
+        "warning": 4,
+        "withheld": 1
+      },
+      "pushup_hip_pike": {
+        "no_warning": 8,
+        "warning": 4
+      },
+      "pushup_hip_sag": {
+        "no_warning": 4,
+        "warning": 8
+      },
+      "pushup_no_lockout": {
+        "no_warning": 2,
+        "warning": 6,
+        "withheld": 4
+      },
+      "pushup_shallow": {
+        "no_warning": 1,
+        "warning": 6,
+        "withheld": 5
+      },
+      "row_head_up": {
+        "no_warning": 3,
+        "warning": 1,
+        "withheld": 4
+      },
+      "row_short_pull": {
+        "warning": 3,
+        "withheld": 5
+      },
+      "row_shrug": {
+        "warning": 8
+      },
+      "row_standing_up": {
+        "warning": 3,
+        "withheld": 5
+      },
+      "row_torso_swing": {
+        "no_warning": 1,
+        "warning": 6,
+        "withheld": 1
+      },
+      "squat_depth_fade": {
+        "no_warning": 3,
+        "warning": 3,
+        "withheld": 6
+      },
+      "squat_heel_rise": {
+        "warning": 8,
+        "withheld": 4
+      },
+      "squat_hips_first": {
+        "warning": 7,
+        "withheld": 5
+      },
+      "squat_knee_valgus": {
+        "warning": 4,
+        "withheld": 8
+      },
+      "squat_lean_drift": {
+        "warning": 3,
+        "withheld": 9
+      },
+      "squat_no_lockout": {
+        "no_warning": 1,
+        "warning": 7,
+        "withheld": 4
+      },
+      "squat_shallow": {
+        "no_warning": 3,
+        "warning": 3,
+        "withheld": 6
+      }
+    },
+    "newPythonTests": 28,
+    "supportedNegativeFixtureGapsAtResultFreeze": [
+      "pushup_hand_position",
+      "row_short_pull",
+      "row_shrug",
+      "row_standing_up",
+      "squat_heel_rise",
+      "squat_hips_first",
+      "squat_knee_valgus",
+      "squat_lean_drift"
+    ]
+  },
+  "withheldFirstReason": {
+    "incomplete_whole_rep_search": 20,
+    "ineligible_view_at_witness": 8,
+    "no_supported_true_lockout_branch:maximum_reference_unproven:required_phase_not_observed_top": 1,
+    "no_supported_true_lockout_branch:required_phase_not_observed_top": 2,
+    "required_phase_not_observed_ascending": 6,
+    "required_phase_not_observed_top": 2,
+    "rule_execution_disabled": 20,
+    "rule_not_definitively_evaluated": 66,
+    "selected_source_unavailable": 6
+  },
+  "withheldFirstReasonCategories": {
+    "execution_disabled": 20,
+    "incomplete_whole_rep_search": 20,
+    "not_definitively_evaluated": 66,
+    "phase": 11,
+    "selected_source_unavailable": 6,
+    "view": 8
+  },
+  "withheldNotDefinitiveBreakdown": {
+    "native_nil_insufficient_baseline_or_trend_history": 21,
+    "native_not_called_nonfirst_rep_hand_setup": 9,
+    "native_not_called_other_view_branch": 30,
+    "native_not_called_row_baseline_history": 6
+  }
+}

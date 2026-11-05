@@ -1,5 +1,7 @@
 import 'dart:convert';
 import '../data/dto/workout_metadata_dto.dart';
+import '../features/workout/data/workout_evidence.dart';
+import '../features/workout/data/workout_result_evidence.dart';
 
 class WorkoutRecordModel {
   final String id; // Client side unique ID
@@ -8,11 +10,16 @@ class WorkoutRecordModel {
   final String exerciseName;
   final DateTime date;
   final double weightKg;
+  final bool weightRecorded;
+  final List<WorkoutSetDetail> setsDetail;
+  final bool setsDetailValid;
   final int totalReps;
   final int correctReps;
   final int incorrectReps;
   final int durationSeconds;
-  final double postureScore; // 피드백 점수 (0.0 ~ 100.0)
+  final double?
+      postureScore; // Raw legacy value; not independently validated form evidence.
+  final Map<String, dynamic> poseMetricsSummary;
   final List<String> feedbackNotes;
   final int targetReps;
   final int targetSets;
@@ -27,7 +34,10 @@ class WorkoutRecordModel {
     required this.exerciseId,
     required this.exerciseName,
     required this.date,
-    this.weightKg = 0.0,
+    double? weightKg,
+    bool? weightRecorded,
+    this.setsDetail = const [],
+    this.setsDetailValid = true,
     required this.totalReps,
     required this.correctReps,
     required this.incorrectReps,
@@ -38,18 +48,40 @@ class WorkoutRecordModel {
     this.targetSets = 1,
     this.isSynced = false,
     this.feedbackCounts = const {},
-  });
+    this.poseMetricsSummary = const {},
+  })  : weightKg = weightKg ?? 0.0,
+        weightRecorded = weightRecorded ?? (weightKg != null);
 
-  int get accuracy =>
-      totalReps == 0 ? 0 : ((correctReps / totalReps) * 100).round();
+  /// No current producer supplies independently validated correct-form rep evidence.
+  int? get accuracy => null;
+  double? get assessedPostureScore => null;
+  int? get achievement =>
+      WorkoutEvidence.completionPercent(totalReps, targetReps);
 
-  int get achievement =>
-      targetReps == 0 ? 100 : ((correctReps / targetReps) * 100).clamp(0.0, 100.0).round();
+  Map<String, dynamic> get resultEvidenceFields => {
+        'poseMetricsSummary': poseMetricsSummary,
+        'setResultsValid': setsDetailValid,
+        if (weightRecorded) 'weightKg': weightKg,
+        if (setsDetail.isNotEmpty)
+          'setResults': setsDetail.map((set) => set.toStorageJson()).toList(),
+      };
 
-  /// 세트당 평균 반복 수. `totalReps` 는 전체 세트 합계라서 목록에 "N세트 × M회"
-  /// 로 보여줄 때는 이 값을 쓴다.
-  int get repsPerSet =>
-      targetSets <= 0 ? totalReps : (totalReps / targetSets).round();
+  WorkoutResultEvidence get _resultEvidence =>
+      WorkoutResultEvidence.fromResult({
+        ...resultEvidenceFields,
+        'totalReps': totalReps,
+      });
+
+  /// Actual recorded sets come from a matching list, never from a target goal.
+  int? get completedSets => _resultEvidence.completedSets;
+
+  /// Only a uniform observed set list has one reps-per-set value. Mixed/legacy unknown is not an average.
+  int? get repsPerSet {
+    final evidence = _resultEvidence;
+    if (!evidence.completeBreakdown || evidence.sets.isEmpty) return null;
+    final counts = evidence.sets.map((s) => s.reps).toSet();
+    return counts.length == 1 ? counts.single : null;
+  }
 
   String get durationFormatted {
     final m = durationSeconds ~/ 60;
@@ -64,15 +96,21 @@ class WorkoutRecordModel {
     String? exerciseName,
     DateTime? date,
     double? weightKg,
+    bool? weightRecorded,
+    List<WorkoutSetDetail>? setsDetail,
+    bool? setsDetailValid,
     int? totalReps,
     int? correctReps,
     int? incorrectReps,
     int? durationSeconds,
     double? postureScore,
+    bool clearPostureScore = false,
     List<String>? feedbackNotes,
     int? targetReps,
     int? targetSets,
     bool? isSynced,
+    Map<String, dynamic>? poseMetricsSummary,
+    Map<String, int>? feedbackCounts,
   }) {
     return WorkoutRecordModel(
       id: id ?? this.id,
@@ -81,16 +119,22 @@ class WorkoutRecordModel {
       exerciseName: exerciseName ?? this.exerciseName,
       date: date ?? this.date,
       weightKg: weightKg ?? this.weightKg,
+      weightRecorded:
+          weightRecorded ?? (weightKg != null ? true : this.weightRecorded),
+      setsDetail: setsDetail ?? this.setsDetail,
+      setsDetailValid: setsDetailValid ?? this.setsDetailValid,
       totalReps: totalReps ?? this.totalReps,
       correctReps: correctReps ?? this.correctReps,
       incorrectReps: incorrectReps ?? this.incorrectReps,
       durationSeconds: durationSeconds ?? this.durationSeconds,
-      postureScore: postureScore ?? this.postureScore,
+      postureScore:
+          clearPostureScore ? null : postureScore ?? this.postureScore,
       feedbackNotes: feedbackNotes ?? this.feedbackNotes,
       targetReps: targetReps ?? this.targetReps,
       targetSets: targetSets ?? this.targetSets,
       isSynced: isSynced ?? this.isSynced,
-      feedbackCounts: feedbackCounts,
+      feedbackCounts: feedbackCounts ?? this.feedbackCounts,
+      poseMetricsSummary: poseMetricsSummary ?? this.poseMetricsSummary,
     );
   }
 
@@ -101,6 +145,9 @@ class WorkoutRecordModel {
       exerciseName: exerciseName,
       date: date,
       weightKg: weightKg,
+      weightRecorded: weightRecorded,
+      setsDetail: setsDetail,
+      setsDetailValid: setsDetailValid,
       totalReps: totalReps,
       correctReps: correctReps,
       incorrectReps: incorrectReps,
@@ -110,17 +157,22 @@ class WorkoutRecordModel {
       targetReps: targetReps,
       targetSets: targetSets,
       feedbackCounts: feedbackCounts,
+      poseMetricsSummary: poseMetricsSummary,
     );
   }
 
-  factory WorkoutRecordModel.fromDto(WorkoutMetadataRequestDto dto, {bool isSynced = false, String? serverId}) {
+  factory WorkoutRecordModel.fromDto(WorkoutMetadataRequestDto dto,
+      {bool isSynced = false, String? serverId}) {
     return WorkoutRecordModel(
       id: dto.clientRecordId,
       serverId: serverId,
       exerciseId: dto.exerciseId,
       exerciseName: dto.exerciseName,
       date: dto.date,
-      weightKg: dto.weightKg,
+      weightKg: dto.effectiveWeightKg,
+      weightRecorded: dto.effectiveWeightRecorded,
+      setsDetail: dto.effectiveSetsDetail,
+      setsDetailValid: dto.effectiveSetsDetailValid,
       totalReps: dto.totalReps,
       correctReps: dto.correctReps,
       incorrectReps: dto.incorrectReps,
@@ -131,6 +183,7 @@ class WorkoutRecordModel {
       targetSets: dto.targetSets,
       isSynced: isSynced,
       feedbackCounts: dto.feedbackCounts,
+      poseMetricsSummary: dto.poseMetricsSummary ?? const {},
     );
   }
 
@@ -141,6 +194,9 @@ class WorkoutRecordModel {
         'exerciseName': exerciseName,
         'date': date.toIso8601String(),
         'weightKg': weightKg,
+        'weightRecorded': weightRecorded,
+        'setsDetail': setsDetail.map((set) => set.toStorageJson()).toList(),
+        'setsDetailValid': setsDetailValid,
         'totalReps': totalReps,
         'correctReps': correctReps,
         'incorrectReps': incorrectReps,
@@ -151,6 +207,7 @@ class WorkoutRecordModel {
         'targetSets': targetSets,
         'isSynced': isSynced,
         'feedbackCounts': feedbackCounts,
+        'poseMetricsSummary': poseMetricsSummary,
       };
 
   factory WorkoutRecordModel.fromJson(Map<String, dynamic> json) =>
@@ -162,17 +219,32 @@ class WorkoutRecordModel {
         date: json['date'] != null
             ? DateTime.parse(json['date'] as String)
             : DateTime.now(),
-        weightKg: (json['weightKg'] as num?)?.toDouble() ?? 0.0,
+        weightKg: (json['weightKg'] as num?)?.toDouble(),
+        // Old unmarked zero may be the historical missing-value fallback.
+        weightRecorded: json['weightRecorded'] as bool? ??
+            (json['weightKg'] == 0 ? false : null),
+        setsDetail: json['setsDetail'] is List
+            ? (json['setsDetail'] as List)
+                .whereType<Map>()
+                .map((set) => WorkoutSetDetail.fromJson(
+                    set.cast<String, dynamic>(),
+                    unversionedRemote: true))
+                .toList()
+            : const [],
+        setsDetailValid: json['setsDetailValid'] != false &&
+            WorkoutSetDetail.validJsonList(json['setsDetail']),
         totalReps: (json['totalReps'] as num?)?.toInt() ?? 0,
         correctReps: (json['correctReps'] as num?)?.toInt() ?? 0,
         incorrectReps: (json['incorrectReps'] as num?)?.toInt() ?? 0,
         durationSeconds: (json['durationSeconds'] as num?)?.toInt() ?? 0,
-        postureScore: (json['postureScore'] as num?)?.toDouble() ?? 0.0,
-        feedbackNotes:
-            (json['feedbackNotes'] as List?)?.cast<String>() ?? [],
+        postureScore: (json['postureScore'] as num?)?.toDouble(),
+        feedbackNotes: (json['feedbackNotes'] as List?)?.cast<String>() ?? [],
         targetReps: (json['targetReps'] as num?)?.toInt() ?? 0,
         targetSets: (json['targetSets'] as num?)?.toInt() ?? 1,
         isSynced: json['isSynced'] as bool? ?? false,
+        poseMetricsSummary:
+            WorkoutEvidence.summaryObject(json['poseMetricsSummary']) ??
+                const {},
         feedbackCounts: (json['feedbackCounts'] as Map?)?.map(
                 (k, v) => MapEntry(k.toString(), (v as num?)?.toInt() ?? 0)) ??
             const {},

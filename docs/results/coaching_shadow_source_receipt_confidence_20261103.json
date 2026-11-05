@@ -1,0 +1,29 @@
+{
+  "aggregate_sha256": "4c81e1411ea8430e0672a2bfcb88fb4fef93087c989cdead0b77aa0d713d6e77",
+  "files": {
+    "scripts/coaching_contract/__init__.py": "5e8dcf9e033ae63e28d9bbddf7ad090d3fb7b169e8351be867bb557427a7268b",
+    "scripts/coaching_contract/adapters.py": "ed1f0df494e42c9c05afe6a0b6836bea5630e11e75e397938601f24ba128a9a6",
+    "scripts/coaching_contract/contract.py": "629e67cfd89ea6c501b90adfff5c5350578952f0c2a611ee6f6b7a8d2b12d260",
+    "scripts/coaching_contract/engine.py": "b63596493debb028e8a086563486297b0bf75f907e0560780cf1b173721a7afc",
+    "scripts/coaching_contract/replay.py": "22c153c05e1267bbd8704af0f462a030f7511355a8389b24ac0abb1e0157c515",
+    "test/python/test_coaching_contract_adapters.py": "80702586cf4711c79ad910345fbdb0e9e56bd4ea49552bdeb483130ee3dc2604",
+    "test/python/test_coaching_contract_engine.py": "38e0fc3de90f0342cdde0f8c5cca1d3286c6aeaad86c71a05891842cf3e71a44"
+  },
+  "previous_aggregate_preserved": "docs/results/coaching_shadow_replay_20261103.json",
+  "private_result_hashes": {
+    "aggregate.json": "4c81e1411ea8430e0672a2bfcb88fb4fef93087c989cdead0b77aa0d713d6e77",
+    "comparison-02-03.json": "5e61b42e51eb481317f38d8aba5c56b1506394e35a251a709a72308a4fe3a058",
+    "input-receipt.json": "bebbd6db73ce608a395af6bde33294b680f50cf838cca9f61267d7189c9c65f0",
+    "result-00.json": "ec49d7209a44f67e304837f4457929fb99a34451acbaa0b7bc5f70e37eb5a412",
+    "result-01.json": "eacc6ead0d993d27aadf456ef49bd844326d8650966ab00ff66a217bd7078e4f",
+    "result-02.json": "af11da3d08933f77ab45267f711bf0776306afc6a154c8061da82e6a63566db9",
+    "result-03.json": "56e8008311df00d3240756091d90b0a4a896d7dd74a05dbe8e5dee74cdaff8e7",
+    "stream-00.json": "a13925fe3e55dc2ae55a06e318a6891f547b1ba756839130aa0e15b279e832ce",
+    "stream-01.json": "4fca0b8c537e2ea278297af8cf27407e3736c13a982e2baf4b8362538e0a9b6c",
+    "stream-02.json": "a421b999cf113e83e518fb8797ed46928db1482de2434ba124915008f06f6fd0",
+    "stream-03.json": "f1362e976ebcf27e9fca8a4a0dca26ddd6084fe177fe91bf9a9c0692ca3c077c"
+  },
+  "schema": "bpt.coaching-shadow-source-receipt.v1",
+  "source_base": "654fab2b62affee52fb4cb3eb313dbbe784b3f08",
+  "supersedes_engine_candidate": "06ff5bbb0907579201ca28ed6e69254dabc5f162"
+}

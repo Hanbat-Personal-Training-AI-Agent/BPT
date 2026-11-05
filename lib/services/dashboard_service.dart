@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart' show Options;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/network/api_client.dart';
@@ -11,12 +12,16 @@ class DashboardSummary {
     required this.todayTotalReps,
     required this.weeklyCompletedCount,
     required this.daysSinceLastScan,
+    this.hasCompletedSetsEvidence = false,
   });
 
   /// 서버가 계산한 기준 날짜. 기기 날짜와 다르면 "오늘"·"이번 주" 값이 어긋난다.
   final DateTime? date;
   final int todayWorkoutMinutes;
-  final int todayCompletedSets;
+
+  /// Nullable: old unversioned servers may report planned sets instead.
+  final int? todayCompletedSets;
+  final bool hasCompletedSetsEvidence;
   final int todayTotalReps;
 
   /// 이번 주에 운동한 날 수.
@@ -31,7 +36,12 @@ class DashboardSummary {
     return DashboardSummary(
       date: DateTime.tryParse(json['date']?.toString() ?? ''),
       todayWorkoutMinutes: toInt(json['todayWorkoutMinutes']),
-      todayCompletedSets: toInt(json['todayCompletedSets']),
+      hasCompletedSetsEvidence: json['completedSetsEvidenceVersion'] == 1,
+      todayCompletedSets: json['completedSetsEvidenceVersion'] == 1 &&
+              json['todayCompletedSets'] is int &&
+              (json['todayCompletedSets'] as int) >= 0
+          ? json['todayCompletedSets'] as int
+          : null,
       todayTotalReps: toInt(json['todayTotalReps']),
       weeklyCompletedCount: toInt(json['weeklyCompletedCount']),
       daysSinceLastScan: days is num ? days.toInt() : null,
@@ -51,8 +61,11 @@ class DashboardService {
 
   final ApiClient _apiClient;
 
-  Future<DashboardSummary> fetchSummary() async {
-    final response = await _apiClient.get('/users/me/dashboard');
+  Future<DashboardSummary> fetchSummary({bool Function()? sessionGuard}) async {
+    final response = await _apiClient.get('/users/me/dashboard',
+        options: Options(extra: {
+          if (sessionGuard != null) ApiClient.sessionGuardKey: sessionGuard
+        }));
     return DashboardSummary.fromJson(response.data as Map<String, dynamic>);
   }
 }

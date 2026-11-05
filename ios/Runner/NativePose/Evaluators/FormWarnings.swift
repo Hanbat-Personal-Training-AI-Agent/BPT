@@ -9,8 +9,9 @@ import simd
 // starts a rep, `recordCurrentFrame` while the rep is open and `finishRep` when it counts the rep.
 // Only frames inside that interval are judged. Metrics come from the camera-near side (higher
 // confidence, with hysteresis), signed (no abs), in 2D, and from MotionAGFormer 3D when the caller
-// has it (H36M17, y down); "3D 불량" frames (knee hinge θ < −limit) get no 3D metrics. Warnings fire
-// from 2D only; 3D is logged.
+// has it (H36M17, y down; `measure3D`: the same quantities as 2D). Frames whose MotionAGFormerLive state is
+// not ok get no 3D metrics. With `form3DRequired` (lift-app, 3D running) the delivered keys come from the 3D
+// judgement and the 2D judgement is kept beside it for comparison; otherwise warnings fire from 2D.
 //
 // Delivery (spec 등급): 우선 = right after the rep, 개선 = only when the same key also fired on the
 // previous rep, 셋업 = first rep only, 참고 = once at set end (`endSet`, scope "set", n = reps in the
@@ -66,6 +67,12 @@ struct FormCommonConfig {
     /// Side-view gate: rolling window (frames, ~5 s) / frames needed before the first decision (nil until then).
     var sideViewWindowFrames = 150
     var sideViewMinFrames = 30
+    /// Posture keys come from the 3D judgement (MotionAGFormerLive running). A rep without enough usable
+    /// 3D frames gets no posture keys (formSource "3d_unavailable") — never the 2D judgement instead.
+    /// false = no 3D pipeline: 2D judgement (old behaviour, tests). lift-app turns it on wherever 3D runs.
+    var form3DRequired = false
+    /// A rep's 3D judgement needs at least this fraction of its frames in state ok. 임시값 — 테스트 영상으로 조정
+    var min3DRepFraction = 0.5
 }
 
 /// Push-up (side view).
@@ -285,6 +292,15 @@ enum FormGeometry {
     // forward = (L hip − R hip) × up.
     static let up3D = SIMD3<Double>(0, -1, 0)
 
+    /// "Up" in the XS output frame (image x right, y down, z away from the camera) from CoreMotion gravity (device
+    /// frame: x right, y up the screen, z out of the screen), phone in portrait. Front camera: the image is mirrored
+    /// (x flips) and "away from the camera" is +z of the device. Upright phone → (0, −1, 0) = `up3D`.
+    /// Hypothesis: XS depth (z) sign follows the camera frame — not verified on a device yet (lift_app.md).
+    static func cameraUp(gravity g: SIMD3<Double>, frontCamera: Bool) -> SIMD3<Double> {
+        let image = SIMD3<Double>(frontCamera ? -g.x : g.x, -g.y, frontCamera ? g.z : -g.z)
+        return simd_length(image) > 1e-6 ? -simd_normalize(image) : up3D
+    }
+
     /// 3D trunk (pelvis → thorax) vs vertical, deg; > 0 forward lean, < 0 backward.
     static func signedTorsoAngle3D(_ j: [SIMD3<Double>], up: SIMD3<Double> = up3D) -> Double? {
         guard j.count == 17 else { return nil }
@@ -298,14 +314,32 @@ enum FormGeometry {
     /// same meaning as `signedLineDeviation2D`.
     static func signedHipDeviation3D(_ j: [SIMD3<Double>], up: SIMD3<Double> = up3D) -> Double? {
         guard j.count == 17 else { return nil }
-        let s = j[8], a = (j[3] + j[6]) * 0.5
-        let d = a - s
+        return signedLineDeviation3D(point: j[0], a: j[8], b: (j[3] + j[6]) * 0.5, up: up)
+    }
+
+    /// `signedLineDeviation2D` in 3D: offset of `point` from the line a–b along "down" made
+    /// perpendicular to the line, over |a − b|; nil when the line is within ~17° of vertical.
+    static func signedLineDeviation3D(point: SIMD3<Double>, a: SIMD3<Double>, b: SIMD3<Double>,
+                                      up: SIMD3<Double> = up3D) -> Double? {
+        let d = b - a
         let length = simd_length(d)
         guard length > 1e-8 else { return nil }
         let dHat = d / length
         let n = -up - dHat * simd_dot(dHat, -up)
         guard simd_length(n) >= 0.3 else { return nil }
-        return simd_dot(j[0] - s, simd_normalize(n)) / length
+        return simd_dot(point - a, simd_normalize(n)) / length
+    }
+
+    /// Interior angle at b (deg), nil if a bone is ~0.
+    static func angle3D(_ a: SIMD3<Double>, _ b: SIMD3<Double>, _ c: SIMD3<Double>) -> Double? {
+        let u = a - b, v = c - b
+        guard simd_length(u) > 1e-8, simd_length(v) > 1e-8 else { return nil }
+        return atan2(simd_length(simd_cross(u, v)), simd_dot(u, v)) * 180 / .pi
+    }
+
+    /// H36M17 joints of one body side (shoulder, elbow, wrist, hip, knee, ankle).
+    static func h36mSide(_ side: FormSide) -> (shoulder: Int, elbow: Int, wrist: Int, hip: Int, knee: Int, ankle: Int) {
+        side == .left ? (11, 12, 13, 4, 5, 6) : (14, 15, 16, 1, 2, 3)
     }
 }
 
@@ -333,10 +367,66 @@ struct FormFrameSample {
     var shoulderRatio: Double?
     var kneeAnkleGapRatio: Double?
     var heelToe: Double?
-    var torso3D: Double?
-    var hipDeviation3D: Double?
     var has3D = false
     var bad3D = false
+    /// MotionAGFormerLive state of this frame (nil = caller gave no 3D pipeline state).
+    var state3D: Pose3DState?
+    /// Private support for correction praise; independent of optional diagnostic capture.
+    var correctionFields: Set<String> = []
+    var correctionObservedH36M: Set<Int> = []
+    var correctionFacing: Double?
+    var correctionUp: SIMD3<Double>?
+    var faultSource: FormFaultSource?
+    var faultInputSupport: [String: Any]?
+}
+
+/// Snapshot of the existing judge/delivery bookkeeping, not complete per-rule exposure.
+/// An assessed key qualified for delivery/praise checks; its absence is not a negative decision.
+/// A condition can fire with partial support while not qualifying for the assessed set.
+struct FormDeliveryDecisionEvidence {
+    let deliveryAssessedKeys2D: Set<String>
+    /// nil = no 3D judge call; an empty set = judge ran but qualified no keys.
+    let deliveryAssessedKeys3D: Set<String>?
+    let conditionFiredKeys2D: [String]
+    let conditionFiredKeys3D: [String]?
+    let selectedSource: String
+    let enabledFeedbackKeys: Set<String>
+    let spokenKey: String?
+
+    var selectedDeliveryAssessedKeys: Set<String>? {
+        switch selectedSource {
+        case "2d": return deliveryAssessedKeys2D
+        case "3d": return deliveryAssessedKeys3D
+        default: return nil
+        }
+    }
+
+    var selectedConditionFiredKeys: [String]? {
+        switch selectedSource {
+        case "2d": return conditionFiredKeys2D
+        case "3d": return conditionFiredKeys3D
+        default: return nil
+        }
+    }
+
+    var dictionary: [String: Any] {
+        [
+            "contract": "bpt-form-delivery-evidence-v1",
+            "scope": "delivery_qualification_not_complete_rule_coverage",
+            "delivery_assessed_keys_2d": deliveryAssessedKeys2D.sorted(),
+            "delivery_assessed_keys_3d": deliveryAssessedKeys3D.map { $0.sorted() as Any } ?? NSNull(),
+            "condition_fired_keys_2d": conditionFiredKeys2D,
+            "condition_fired_keys_3d": conditionFiredKeys3D.map { $0 as Any } ?? NSNull(),
+            "selected_source": selectedSource,
+            "selected_delivery_assessed_keys": selectedDeliveryAssessedKeys.map { $0.sorted() as Any } ?? NSNull(),
+            "selected_condition_fired_keys": selectedConditionFiredKeys.map { $0 as Any } ?? NSNull(),
+            "enabled_feedback_keys": enabledFeedbackKeys.sorted(),
+            "selected_condition_fired_enabled_keys": selectedConditionFiredKeys.map {
+                $0.filter(enabledFeedbackKeys.contains) as Any
+            } ?? NSNull(),
+            "spoken_key": spokenKey.map { $0 as Any } ?? NSNull(),
+        ]
+    }
 }
 
 struct FormRepReport {
@@ -349,10 +439,20 @@ struct FormRepReport {
     let metrics3D: [String: Double]
     let frames3D: Int
     let bad3DFrames: Int
-    /// Every key whose condition held, in rule order.
+    /// Every key whose condition held, in rule order, from `formSource` (the keys that are delivered).
     let warnings: [String]
     /// The one key said after this rep (a warning or praise_fixed), if any.
     let spoken: String?
+    /// 2D judgement of the same rep (kept for comparison only when formSource is 3D).
+    var warnings2D: [String] = []
+    /// 3D judgement; nil when the rep had too few usable 3D frames.
+    var warnings3D: [String]?
+    /// "3d", "3d_unavailable" (3D required but missing: no posture keys) or "2d" (no 3D pipeline).
+    var formSource = "2d"
+    /// Rep frames per MotionAGFormerLive state.
+    var states3D: [String: Int] = [:]
+    /// nil for manually constructed/legacy reports: unknown, never empty-as-evaluated.
+    var deliveryDecisionEvidence: FormDeliveryDecisionEvidence? = nil
 
     var dictionary: [String: Any] {
         [
@@ -366,9 +466,49 @@ struct FormRepReport {
             "frames_3d": frames3D,
             "bad_3d_frames": bad3DFrames,
             "warnings": warnings,
+            "warnings_2d": warnings2D,
+            "warnings_3d": warnings3D.map { $0 as Any } ?? NSNull(),
+            "form_source": formSource,
+            "states_3d": states3D,
+            "delivery_decision_evidence": deliveryDecisionEvidence.map { $0.dictionary as Any } ?? NSNull(),
             "grades": warnings.map { FormWarningTracker.grade(of: $0).name },
             "spoken": spoken.map { $0 as Any } ?? NSNull(),
         ]
+    }
+}
+
+extension FormRepReport {
+    /// Test-mode (video mode) caption of this rep's real judgement: rep, validity, every fired key (참고 = reference,
+    /// 로그 = not enabled for Flutter), what was sent to Flutter, and 1–2 key metrics of the judged source.
+    func debugCaption(sent: [String], enabled: Set<String>) -> String {
+        let source = formSource == "3d" ? "3D" : formSource == "2d" ? "2D" : "판정 불가(3D 부족)"
+        let states = ["ok", "partial_3d", "bad_3d", "tracking_lost", "warming_up"].compactMap { k in
+            states3D[k].map { "\(k.replacingOccurrences(of: "_3d", with: "")) \($0)" } }.joined(separator: "·")
+        let fired: [String] = warnings.map { key in
+            let reference = FormWarningTracker.grade(of: key) == .reference ? "(참고)" : ""
+            let logOnly = enabled.contains(key) ? "" : "(로그)"
+            return key + reference + logOnly
+        }
+        let m: [String: Double] = formSource == "3d" ? metrics3D : metrics2D
+        func f(_ name: String, _ label: String, _ digits: Int) -> String? {
+            guard let v = m[name] else { return nil }
+            return label + " " + String(format: "%.\(digits)f", v)
+        }
+        var metric: [String?]
+        switch exercise {
+        case .squat: metric = [f("knee_min", "무릎 최소", 0), f("torso_at_bottom", "바닥 몸통", 0)]
+        case .pushUp: metric = [f("hip_dev_min", "엉덩이 선 최소", 2), f("hip_dev_max", "최대", 2)]
+        case .barbellRow:
+            var range: String?
+            if let hi = m["torso_max"], let lo = m["torso_min"] { range = "범위 " + String(format: "%.0f", hi - lo) }
+            metric = [f("torso_mean", "몸통 평균", 0), range]
+        default: metric = [f("elbow_min", "팔꿈치 최소", 0)]
+        }
+        let head: String = "#\(repIndex) " + source + (states.isEmpty ? "" : " (" + states + ")")
+        let firedLine: String = "울림: " + (fired.isEmpty ? "없음" : fired.joined(separator: ", "))
+        let sentLine: String = "보냄: " + (sent.isEmpty ? "없음" : sent.joined(separator: ", "))
+        let metricLine: String = metric.compactMap { $0 }.joined(separator: " · ")
+        return [head, firedLine, sentLine, metricLine].filter { !$0.isEmpty }.joined(separator: "\n")
     }
 }
 
@@ -402,10 +542,17 @@ final class FormWarningTracker {
     ]
 
     /// Every key the tracker can send: the rules plus praise_fixed, setup_full_body, tracking_lost.
-    static let allKeys = Set(rules.values.flatMap { $0.map(\.key) } + ["praise_fixed", "setup_full_body", "tracking_lost"])
+    static let allKeys = Set(rules.values.flatMap { $0.map(\.key) } + ["praise_fixed", "praise_good", "setup_full_body", "tracking_lost"])
 
-    /// Bench press / deadlift keys (track G): their lines are drafted in docs/progress/2026-10-10.md for the
-    /// teammate who owns kori_feedback_lines.dart. They stay off until the dart file has them.
+    /// Rep metrics every praise needs: without them "no warning" may only mean "could not measure" (never praise that).
+    static let praiseMetrics: [FormExercise: [String]] = [
+        .pushUp: ["hip_dev_min", "hip_dev_max", "elbow_min", "elbow_max"],
+        .squat: ["knee_min", "knee_max", "hip_angle_max"],
+        .barbellRow: ["torso_min", "torso_max", "elbow_behind_max"],
+    ]
+
+    /// Historical name: bench/deadlift drafts now have Flutter lines, but remain deliberately OFF.
+    /// A phrase alone is not validation or authorization to enable these measurements as coaching.
     static let keysWithoutFlutterLines: Set<String> = [
         "bench_hips_up", "bench_shallow", "bench_no_lockout",
         "deadlift_hips_first", "deadlift_no_lockout", "deadlift_lean_back",
@@ -424,10 +571,17 @@ final class FormWarningTracker {
     }
 
     let exercise: FormExercise
+    /// Optional diagnostics only; never read by judgment, delivery, or pose consumers.
+    var faultEvidence: FormFaultEvidence?
+    var faultSource: FormFaultSource?
+    private var faultHistory2D: [FormFaultHistory] = []
+    private var faultHistory3D: [FormFaultHistory] = []
     var common = FormCommonConfig()
     var pushUp = PushUpFormConfig()
     var squat = SquatFormConfig()
     var row = BarbellRowFormConfig()
+    /// "Up" for 3D metrics (camera −y by default; FormGeometry.cameraUp(gravity:) when the camera feeds gravity).
+    var up3D = FormGeometry.up3D
     var bench = BenchPressFormConfig()
     var deadlift = DeadliftFormConfig()
 
@@ -448,16 +602,40 @@ final class FormWarningTracker {
 
     private var facing: Double?
     private var facingCandidateRun = 0
+    private var correctionFacingTrusted = false
+    /// Actual evaluator phase for opt-in observation diagnostics; never inferred from UI text.
+    var observationPhase: String? { current?.phase }
+    /// Diagnostic-only boundary of the actual open tracker span; no predicted/GT phase inference.
+    var diagnosticActiveRepStart: Int? { repOpen ? repFrames.first?.frame : nil }
     private var current: FormFrameSample?
+    /// Same quantities measured on the 3D pose of the same frame (nil when it has no usable 3D).
+    private var current3D: FormFrameSample?
+    /// Read-only actual samples for the OFF-by-default terminal experiment; no raw/2D fallback.
+    var terminalCandidateSnapshot: (frame: Int, side: String, phase: String, required2D: Bool, sideView: Bool?, angles: [String: Double])? {
+        guard let current else { return nil }
+        var angles: [String: Double] = [:]
+        for (key, value) in [("elbow", current3D?.elbow), ("knee", current3D?.knee), ("hip", current3D?.hipAngle)] {
+            if let value, value.isFinite { angles[key] = value }
+        }
+        let knownSideView = current.frontView.map { !$0 }
+        return (current.frame, current.side.rawValue, current.phase, current.requiredOK, knownSideView, angles)
+    }
     private var repFrames: [FormFrameSample] = []
+    private var repFrames3D: [FormFrameSample] = []
     private var repMetrics: [[String: Double]] = []
+    private var repMetrics3D: [[String: Double]] = []
     private var lastRecordedFrame = Int.min
     private var missingRun = 0
     private var repOpen = false
     private var trackingLostSent = false
     private var lastSpokenRep: [String: Int] = [:]
     private var previousFired: Set<String> = []
+    private var previousSpoken3D: Bool?
     private var previousSpoken: String?
+    private var previousCorrection: FormCorrectionEvidence.Signature?
+    private var correctionOrdinal = 0
+    private var correctionHistory2D: [FormCorrectionEvidence] = []
+    private var correctionHistory3D: [FormCorrectionEvidence] = []
     private var events: [FormFeedbackEvent] = []
 
     init(exercise: FormExercise) {
@@ -466,6 +644,8 @@ final class FormWarningTracker {
     }
 
     func reset() {
+        faultEvidence?.reset()
+        faultSource = nil; faultHistory2D = []; faultHistory3D = []
         sessionFrames3D = 0
         sessionBad3DFrames = 0
         warningRepCounts = [:]
@@ -477,9 +657,13 @@ final class FormWarningTracker {
         sideViewGuided = false
         facing = nil
         facingCandidateRun = 0
+        correctionFacingTrusted = false
         current = nil
+        current3D = nil
         repFrames = []
+        repFrames3D = []
         repMetrics = []
+        repMetrics3D = []
         lastRecordedFrame = .min
         missingRun = 0
         repOpen = false
@@ -487,6 +671,9 @@ final class FormWarningTracker {
         lastSpokenRep = [:]
         previousFired = []
         previousSpoken = nil
+        previousSpoken3D = nil
+        previousCorrection = nil
+        correctionOrdinal = 0; correctionHistory2D = []; correctionHistory3D = []
         events = []
     }
 
@@ -497,31 +684,156 @@ final class FormWarningTracker {
     }
 
     /// Every frame, once the evaluator's status for it is known. `pose3D`: H36M17 selected3D or nil;
-    /// `feet`: Halpe26 toes/heels or nil.
+    /// `feet`: Halpe26 toes/heels or nil. `pose3DState`: MotionAGFormerLive state of this frame (the 3D
+    /// is measured only in state ok); nil = old callers, then the knee hinge check alone decides bad 3D.
     func observe(frameIndex: Int, coco17: [PoseKeypoint], pose3D: [SIMD3<Double>]? = nil,
-                 feet: FootKeypoints? = nil, phase: String) {
+                 pose3DState: Pose3DState? = nil, feet: FootKeypoints? = nil, phase: String) {
         guard coco17.count == 17 else {
+            faultEvidence?.frame(["frame":frameIndex,"observation":"invalid_coco17_count",
+                                  "sample2D":NSNull(),"sample3D":NSNull()],source:faultSource)
             current = nil
+            current3D = nil
             return
         }
         let side = updateSide(coco17)
         var sample = FormFrameSample(frame: frameIndex, phase: phase, side: side)
+        if faultEvidence != nil {
+            sample.faultSource = faultSource
+            sample.faultInputSupport = ["jointEvidence":coco17.enumerated().map { index,p in
+                ["joint":index,"finiteCoordinates":p.x.isFinite && p.y.isFinite,
+                 "score":FormFaultJSON.number(p.confidence),"finiteScore":p.confidence.isFinite,
+                 "confidenceAccepted":p.confidence >= common.minJointConfidence] as [String:Any]
+            },"minimumConfidence":common.minJointConfidence]
+        }
+        let facingBefore = facing
+        let facingRunBefore = facingCandidateRun
+        if faultEvidence != nil { sample.faultInputSupport?["facingObservation"] = NSNull() }
         measure2D(coco17, feet: feet, side: side, into: &sample)
+        sample.correctionFacing = facing
+        sample.correctionObservedH36M = FormCorrectionEvidence.observedH36MJoints(coco17,minimumConfidence:common.minJointConfidence)
+        sample.correctionFields = FormCorrectionEvidence.finite2D(sample,pose:coco17,feet:feet,common:common,squat:squat,facing:facing,facingTrusted:correctionFacingTrusted)
+        if faultEvidence != nil {
+            let j = FormGeometry.joints(side)
+            sample.faultInputSupport?["measurementJoints"] = [
+                "elbow":[j.shoulder,j.elbow,j.wrist], "knee":[j.hip,j.knee,j.ankle],
+                "hipAngle":[j.shoulder,j.hip,j.knee], "torso":[j.shoulder,j.hip],
+                "hipDeviation":[j.hip,j.shoulder,j.ankle], "headDeviation":[j.ear,j.hip,j.shoulder],
+                "headAngle":[FormGeometry.nose,j.ear], "wristAhead":[j.shoulder,j.elbow,j.wrist],
+                "elbowBehind":[j.elbow,j.shoulder,j.hip], "earShoulder":[j.ear,j.shoulder,j.hip],
+                "hipY":[j.shoulder,j.hip], "shoulderY":[j.shoulder,j.hip], "torsoLength":[j.shoulder,j.hip],
+                "shoulderRatio":[5,6,11,12], "frontView":[5,6,11,12],
+                "kneeAnkleGapRatio":[5,6,11,12,13,14,15,16], "heelToe":[j.knee,j.ankle]]
+            sample.faultInputSupport?["facing"] = ["before":FormFaultJSON.number(facingBefore),
+                "after":FormFaultJSON.number(facing), "candidateRunBefore":facingRunBefore, "candidateRun":facingCandidateRun,
+                "sourceJoints":[FormGeometry.nose,j.ear], "stateMayPrecedeCapture":true]
+            sample.faultInputSupport?["facingRequiredFields"] = ["torso","elbowBehind","wristAhead"]
+            sample.faultInputSupport?["footMinimumConfidence"] = FormFaultJSON.number(squat.footMinConfidence)
+            if let feet {
+                let heel = side == .left ? feet.leftHeel : feet.rightHeel
+                let toe = side == .left ? feet.leftBigToe : feet.rightBigToe
+                sample.faultInputSupport?["feet"] = ["heel": ["finiteCoordinates":heel.x.isFinite && heel.y.isFinite,
+                    "score":FormFaultJSON.number(heel.confidence),"finiteScore":heel.confidence.isFinite],
+                    "bigToe":["finiteCoordinates":toe.x.isFinite && toe.y.isFinite,
+                    "score":FormFaultJSON.number(toe.confidence),"finiteScore":toe.confidence.isFinite]]
+            }
+        }
+        current3D = nil
+        var state = pose3DState
         if let pose3D, pose3D.count == 17 {
             sample.has3D = true
             sessionFrames3D += 1
-            let hinge = KneeHingeLimit.apply(pose3D, config: .init(enabled: false, limitDegrees: common.hingeLimitDegrees))
-            if hinge.bad3D {
+            if state == nil {
+                let hinge = KneeHingeLimit.apply(pose3D, config: .init(enabled: false, limitDegrees: common.hingeLimitDegrees))
+                state = hinge.bad3D ? .bad3D : .ok
+            }
+            if state == .bad3D {
                 sample.bad3D = true
                 sessionBad3DFrames += 1
-            } else {
-                sample.torso3D = FormGeometry.signedTorsoAngle3D(pose3D)
-                sample.hipDeviation3D = FormGeometry.signedHipDeviation3D(pose3D)
+            } else if state == .ok || state == .partial3D {
+                // partial3D: untrusted joints are NaN; every metric that needs one comes out nil (sanitised below).
+                var s3 = FormFrameSample(frame: frameIndex, phase: phase, side: side)
+                if faultEvidence != nil {
+                    s3.faultSource = faultSource
+                    s3.faultInputSupport = ["jointEvidence":pose3D.enumerated().map { index,p in
+                        ["joint":index,"finiteCoordinates":p.x.isFinite && p.y.isFinite && p.z.isFinite] as [String:Any]
+                    },"viewAndHeightSource":"same_frame_2d","selectedInput":"provided_assessment_pose"]
+                }
+                if faultEvidence != nil {
+                    let j = FormGeometry.h36mSide(side)
+                    s3.faultInputSupport?["measurementJoints"] = ["elbow":[j.shoulder,j.elbow,j.wrist],
+                        "knee":[j.hip,j.knee,j.ankle], "hipAngle":[j.shoulder,j.hip,j.knee],
+                        "torso":[0,8,1,4], "hipDeviation":[0,8,3,6], "headDeviation":[10,0,8],
+                        "elbowBehind":[j.elbow,0,8,1,4], "wristAhead":[j.shoulder,j.elbow,j.wrist,0,8],
+                        "kneeAnkleGapRatio":[1,4,2,5,3,6]]
+                    s3.faultInputSupport?["up"] = [FormFaultJSON.number(up3D.x),FormFaultJSON.number(up3D.y),FormFaultJSON.number(up3D.z)]
+                    s3.faultInputSupport?["upRequiredFields"] = ["torso","hipDeviation","headDeviation","wristAhead"]
+                    s3.faultInputSupport?["borrowed2DFields"] = ["frontView","shoulderRatio","torsoLength","hipY","shoulderY"]
+                    s3.faultInputSupport?["unavailableFields"] = ["earShoulder","headAngle","heelToe"]
+                }
+                measure3D(pose3D, like: sample, into: &s3)
+                s3.correctionUp = up3D
+                s3.correctionFields = FormCorrectionEvidence.finite3D(s3,pose:pose3D,like:sample,up:up3D)
+                s3.state3D = state
+                current3D = s3
             }
         }
+        sample.state3D = state
         current = sample
         updateTracking(sample)
         if exercise == .pushUp || exercise == .barbellRow { updateSideView(sample) }
+        faultEvidence?.frame(["frame":frameIndex,"observation":"observed",
+            "sample2D":sample.faultDictionary,"sample3D":current3D?.faultDictionary as Any? ?? NSNull(),
+            "sessionSideView":FormFaultJSON.optional(sideView)],source:faultSource)
+    }
+
+    /// The 2D quantities, measured on the H36M17 3D pose (same names and signs, view-independent
+    /// angles). Camera-view fields (front view, shoulder ratio) stay the 2D ones — they describe the camera.
+    /// "Down" is the camera +y (no gravity yet, D-D-07). Ear/nose quantities have no H36M17 joint: head (10) is used for
+    /// the head-line deviation, shrug and heel quantities stay nil.
+    private func measure3D(_ j: [SIMD3<Double>], like s2: FormFrameSample, into s: inout FormFrameSample) {
+        let k = FormGeometry.h36mSide(s2.side)
+        let up = up3D
+        s.requiredOK = true
+        s.has3D = true
+        s.state3D = .ok
+        s.frontView = s2.frontView
+        s.shoulderRatio = s2.shoulderRatio
+        s.elbow = FormGeometry.angle3D(j[k.shoulder], j[k.elbow], j[k.wrist])
+        s.knee = FormGeometry.angle3D(j[k.hip], j[k.knee], j[k.ankle])
+        s.hipAngle = FormGeometry.angle3D(j[k.shoulder], j[k.hip], j[k.knee])
+        s.torso = FormGeometry.signedTorsoAngle3D(j, up: up)
+        s.hipDeviation = FormGeometry.signedHipDeviation3D(j, up: up)
+        s.headDeviation = FormGeometry.signedLineDeviation3D(point: j[10], a: j[0], b: j[8], up: up)
+        let trunk = j[8] - j[0], torsoLength = simd_length(trunk)
+        if torsoLength > 1e-8 {
+            // XS output is pelvis-relative, so 3D hip height is always 0 (S7 finding): hip / shoulder heights and the
+            // torso length that normalises their speeds come from the 2D sample of the same frame (image y, absolute).
+            s.torsoLength = s2.torsoLength
+            s.hipY = s2.hipY
+            s.shoulderY = s2.shoulderY
+            // Back normal in the trunk's sagittal plane: −(L hip − R hip) × trunk, as the 2D "behind the torso".
+            let chest = simd_cross(j[4] - j[1], trunk)
+            if simd_length(chest) > 1e-8 {
+                s.elbowBehind = simd_dot(j[k.elbow] - j[0], -simd_normalize(chest)) / torsoLength
+            }
+        }
+        let arm = simd_length(j[k.shoulder] - j[k.elbow]) + simd_length(j[k.elbow] - j[k.wrist])
+        let headward = trunk - up * simd_dot(trunk, up)
+        if arm > 1e-8, simd_length(headward) > 1e-8 {
+            // Horizontal, towards the head (2D: image x towards the facing side ≈ the head in a side push-up).
+            s.wristAhead = simd_dot(j[k.wrist] - j[k.shoulder], simd_normalize(headward)) / arm
+        }
+        let lr = j[4] - j[1]
+        if simd_length(lr) > 1e-8 {
+            let u = simd_normalize(lr)
+            let ankleGap = simd_dot(j[6] - j[3], u)
+            if abs(ankleGap) > 1e-6 { s.kneeAnkleGapRatio = simd_dot(j[5] - j[2], u) / ankleGap }
+        }
+        // NaN joints (partial3D) give NaN metrics: drop them, keep the rest.
+        for key in [\FormFrameSample.elbow, \.knee, \.hipAngle, \.torso, \.hipDeviation, \.headDeviation,
+                    \.wristAhead, \.elbowBehind, \.kneeAnkleGapRatio] where s[keyPath: key]?.isFinite == false {
+            s[keyPath: key] = nil
+        }
     }
 
     /// Rolling-median shoulder ratio vs the cutoff, with hysteresis. For the row the first "not
@@ -548,12 +860,14 @@ final class FormWarningTracker {
     func beginRep() {
         repOpen = true
         repFrames = []
+        repFrames3D = []
         recordCurrentFrame()
     }
 
     func recordCurrentFrame() {
         guard let current, repFrames.last?.frame != current.frame else { return }
         repFrames.append(current)
+        if let current3D { repFrames3D.append(current3D) }
         lastRecordedFrame = current.frame
     }
 
@@ -562,17 +876,72 @@ final class FormWarningTracker {
     func finishRep(repIndex: Int) -> FormRepReport {
         recordCurrentFrame()
         repOpen = false
-        let frames = repFrames
+        let frames = repFrames, frames3D = repFrames3D
         repFrames = []
-        let metrics = metrics2D(frames, isFirstRep: reports.isEmpty)
-        let fired = judge(metrics, history: repMetrics, repIndex: repIndex)
+        repFrames3D = []
+        let tracing = faultEvidence != nil
+        let traceID = faultEvidence?.nextRepID() ?? "unbound"
+        let aggregation2D = tracing ? FormFaultAggregation(frames: frames) : nil
+        let metrics = metrics2D(frames, isFirstRep: reports.isEmpty, evidence: aggregation2D)
+        correctionOrdinal += 1
+        let correction2D = FormCorrectionEvidence(id:correctionOrdinal,source3D:false,frames:frames,
+            common:common,pushUp:pushUp,squat:squat,row:row)
+        let signatures2D = correction2D.signatures(history:correctionHistory2D,baselineCount:common.baselineRepCount)
+        let prior2D = (tracing ? repMetrics : []).enumerated().map { index,m in
+            faultHistory2D.indices.contains(index) ? faultHistory2D[index] : FormFaultHistory(traceID:nil,repIndex:nil,metrics:m)
+        }
+        let judgeTrace2D = aggregation2D.map { FormFaultJudge(traceID:traceID+"/2d",source:"2d",repIndex:repIndex,exercise:exercise,
+            metrics:metrics,aggregation:$0,history:prior2D,common:common,squat:squat,row:row) }
+        var assessed2D: Set<String> = []
+        let fired2D = judge(metrics, history: repMetrics, repIndex: repIndex, assessed: { assessed2D = $0 }, trace: judgeTrace2D)
         repMetrics.append(metrics)
-        if repMetrics.count > 100 { repMetrics.removeFirst() }
+        correctionHistory2D.append(correction2D)
+        if correctionHistory2D.count > 100 { correctionHistory2D.removeFirst() }
+        if tracing { faultHistory2D = prior2D + [FormFaultHistory(traceID:traceID+"/2d",repIndex:repIndex,metrics:metrics)] }
+        else { faultHistory2D = [] }
+        if repMetrics.count > 100 { repMetrics.removeFirst(); if !faultHistory2D.isEmpty { faultHistory2D.removeFirst() } }
+        // 3D: the same aggregation and rules on the 3D samples, with its own baseline history.
+        var states: [String: Int] = [:]
+        for f in frames { states[f.state3D?.rawValue ?? "none", default: 0] += 1 }
+        let enough3D = !frames.isEmpty && Double(frames3D.count) >= common.min3DRepFraction * Double(frames.count)
+        var metrics3D: [String: Double] = [:]
+        var fired3D: [String]?
+        var assessed3D: Set<String> = []
+        let aggregation3D = tracing ? FormFaultAggregation(frames: frames3D) : nil
+        var judgeTrace3D: FormFaultJudge?
+        var signatures3D: [String:FormCorrectionEvidence.Signature] = [:]
+        if !frames3D.isEmpty {
+            metrics3D = metrics2D(frames3D, isFirstRep: repMetrics3D.isEmpty, evidence: aggregation3D)
+        }
+        if enough3D {
+            let correction3D = FormCorrectionEvidence(id:correctionOrdinal,source3D:true,frames:frames3D,
+                common:common,pushUp:pushUp,squat:squat,row:row,expectedFrameIDs:frames.map(\.frame))
+            signatures3D = correction3D.signatures(history:correctionHistory3D,baselineCount:common.baselineRepCount)
+            let prior3D = (tracing ? repMetrics3D : []).enumerated().map { index,m in
+                faultHistory3D.indices.contains(index) ? faultHistory3D[index] : FormFaultHistory(traceID:nil,repIndex:nil,metrics:m)
+            }
+            judgeTrace3D = aggregation3D.map { FormFaultJudge(traceID:traceID+"/3d",source:"3d",repIndex:repIndex,exercise:exercise,
+                metrics:metrics3D,aggregation:$0,history:prior3D,common:common,squat:squat,row:row) }
+            fired3D = judge(metrics3D, history: repMetrics3D, repIndex: repIndex, assessed: { assessed3D = $0 }, trace: judgeTrace3D)
+            repMetrics3D.append(metrics3D)
+            correctionHistory3D.append(correction3D)
+            if correctionHistory3D.count > 100 { correctionHistory3D.removeFirst() }
+            if tracing { faultHistory3D = prior3D + [FormFaultHistory(traceID:traceID+"/3d",repIndex:repIndex,metrics:metrics3D)] }
+            else { faultHistory3D = [] }
+            if repMetrics3D.count > 100 { repMetrics3D.removeFirst(); if !faultHistory3D.isEmpty { faultHistory3D.removeFirst() } }
+        }
+        let formSource = !common.form3DRequired ? "2d" : (fired3D == nil ? "3d_unavailable" : "3d")
+        let fired = common.form3DRequired ? (fired3D ?? []) : fired2D
         for key in fired {
             warningRepCounts[key, default: 0] += 1
             setWarningRepCounts[key, default: 0] += 1
         }
-        let spoken = deliver(fired, repIndex: repIndex)
+        let enabledFeedbackKeys = common.enabledFeedbackKeys
+        let spoken = deliver(fired, repIndex: repIndex, assessed: common.form3DRequired ? assessed3D : assessed2D,
+                             source3D: common.form3DRequired,
+                             corrections:common.form3DRequired ? signatures3D : signatures2D,
+                             judged: judgedForPraise(frames: frames, metrics: common.form3DRequired ? metrics3D : metrics,
+                                                     judged3D: fired3D != nil))
         let sides = frames.map(\.side)
         let report = FormRepReport(
             exercise: exercise,
@@ -581,12 +950,36 @@ final class FormWarningTracker {
             endFrame: frames.last?.frame ?? -1,
             side: (sides.filter { $0 == .left }.count * 2 >= sides.count ? FormSide.left : .right).rawValue,
             metrics2D: metrics,
-            metrics3D: Self.metrics3D(frames),
+            metrics3D: metrics3D,
             frames3D: frames.filter(\.has3D).count,
             bad3DFrames: frames.filter(\.bad3D).count,
             warnings: fired,
-            spoken: spoken
+            spoken: spoken,
+            warnings2D: fired2D,
+            warnings3D: fired3D,
+            formSource: formSource,
+            states3D: states,
+            deliveryDecisionEvidence: FormDeliveryDecisionEvidence(
+                deliveryAssessedKeys2D: assessed2D,
+                deliveryAssessedKeys3D: fired3D == nil ? nil : assessed3D,
+                conditionFiredKeys2D: fired2D,
+                conditionFiredKeys3D: fired3D,
+                selectedSource: formSource,
+                enabledFeedbackKeys: enabledFeedbackKeys,
+                spokenKey: spoken)
         )
+        if let evidence = faultEvidence {
+            evidence.rep(["traceID":traceID,"nativeRepIndex":repIndex,"startFrame":report.startFrame,
+                "endFrame":report.endFrame,"reportedSide":report.side,"formSource":formSource,
+                "frames2D":frames.map(\.frame),"frames3D":frames3D.map(\.frame),
+                "sourceKeys":frames.map { $0.faultSource?.key as Any? ?? NSNull() },
+                "enough3D":enough3D,"minimum3DRepFraction":common.min3DRepFraction,
+                "judgements":["2d":judgeTrace2D?.finish(fired:fired2D,assessed:assessed2D) as Any? ?? NSNull(),
+                    "3d":judgeTrace3D?.finish(fired:fired3D ?? [],assessed:assessed3D) as Any? ?? NSNull()],
+                "deliverySnapshot":report.deliveryDecisionEvidence?.dictionary as Any? ?? NSNull(),
+                "configuration":["common":FormFaultJSON.config(common),"pushup":FormFaultJSON.config(pushUp),
+                    "squat":FormFaultJSON.config(squat),"row":FormFaultJSON.config(row)]])
+        }
         reports.append(report)
         if reports.count > 100 { reports.removeFirst() }
         return report
@@ -606,8 +999,19 @@ final class FormWarningTracker {
         return counts
     }
 
-    /// Picks the one key said after this rep and queues it (scope "rep").
-    private func deliver(_ fired: [String], repIndex: Int) -> String? {
+    /// Enough source data for generic encouragement, never proof of whole-form correctness.
+    /// Per-rule gates/references can still be inapplicable; correction praise separately requires the prior rule
+    /// to have complete comparable input/search/reference support under the same source, side and parameters.
+    private func judgedForPraise(frames: [FormFrameSample], metrics: [String: Double], judged3D: Bool) -> Bool {
+        guard !frames.isEmpty, let needed = Self.praiseMetrics[exercise], needed.allSatisfy({ metrics[$0] != nil }) else { return false }
+        if common.form3DRequired { return judged3D && frames.allSatisfy { $0.state3D == .ok } }
+        return frames.allSatisfy(\.requiredOK)
+    }
+
+    /// Picks the one key said after this rep and queues it (scope "rep"). A rep judged on usable data with nothing fired
+    /// gets praise_good (not on a rep that said a warning or praise_fixed, at most once per `cooldownReps` + 1 reps).
+    private func deliver(_ fired: [String], repIndex: Int, assessed: Set<String>, source3D: Bool,
+                         corrections: [String:FormCorrectionEvidence.Signature], judged: Bool = false) -> String? {
         let eligible = fired.filter { key in
             let grade = Self.grade(of: key)
             guard grade != .reference, common.enabledFeedbackKeys.contains(key) else { return false }
@@ -619,12 +1023,22 @@ final class FormWarningTracker {
             lastSpokenRep[key] = repIndex
             // n only for set scope: rep-scope lines have no {n}, and the app adds `n ?? 1` per event to feedbackCounts.
             emit(FormFeedbackEvent(key: key, n: nil))
-        } else if let last = previousSpoken, !fired.contains(last), common.enabledFeedbackKeys.contains("praise_fixed") {
+        } else if judged, fired.isEmpty, let previousSpoken, assessed.contains(previousSpoken),
+                  let currentCorrection = corrections[previousSpoken], previousCorrection == currentCorrection,
+                  previousSpoken3D == source3D, common.enabledFeedbackKeys.contains(previousSpoken),
+                  common.enabledFeedbackKeys.contains("praise_fixed") {
             spoken = "praise_fixed"
             emit(FormFeedbackEvent(key: "praise_fixed", n: nil))
+        } else if judged, fired.isEmpty, common.enabledFeedbackKeys.contains("praise_good"),
+                  lastSpokenRep["praise_good"].map({ repIndex - $0 > common.cooldownReps }) ?? true {
+            spoken = "praise_good"
+            lastSpokenRep["praise_good"] = repIndex
+            emit(FormFeedbackEvent(key: "praise_good", n: nil))
         }
         previousFired = Set(fired)
-        previousSpoken = spoken == "praise_fixed" ? nil : spoken
+        previousSpoken = spoken == "praise_fixed" || spoken == "praise_good" ? nil : spoken
+        previousSpoken3D = previousSpoken == nil ? nil : source3D
+        previousCorrection = previousSpoken.flatMap { corrections[$0] }
         return spoken
     }
 
@@ -689,15 +1103,28 @@ final class FormWarningTracker {
         // where it can't be read.
         if let nose, let ear, abs(nose.x - ear.x) > 1 {
             let seen: Double = nose.x > ear.x ? 1 : -1
+            let priorFacing = facing, priorRun = facingCandidateRun
+            var updateKind = "candidate"
             if facing == nil || seen == facing {
+                updateKind = facing == nil ? "establish" : "confirm"
                 facing = seen
                 facingCandidateRun = 0
             } else {
                 facingCandidateRun += 1
                 if facingCandidateRun >= common.facingFlipFrames {
+                    updateKind = "flip"
                     facing = seen
                     facingCandidateRun = 0
                 }
+            }
+            correctionFacingTrusted = updateKind != "candidate" &&
+                nose.x.isFinite && nose.y.isFinite && ear.x.isFinite && ear.y.isFinite &&
+                nose.confidence.isFinite && ear.confidence.isFinite
+            if faultEvidence != nil {
+                s.faultInputSupport?["facingObservation"] = ["seen":seen,"updateKind":updateKind,
+                    "before":FormFaultJSON.number(priorFacing),"after":FormFaultJSON.number(facing),
+                    "candidateRunBefore":priorRun,"candidateRunAfter":facingCandidateRun,
+                    "sourceJoints":[FormGeometry.nose,j.ear]]
             }
         }
         if let shoulder, let elbow, let wrist {
@@ -747,9 +1174,9 @@ final class FormWarningTracker {
 
     // MARK: Aggregation
 
-    func metrics2D(_ frames: [FormFrameSample], isFirstRep: Bool) -> [String: Double] {
+    func metrics2D(_ frames: [FormFrameSample], isFirstRep: Bool, evidence: FormFaultAggregation? = nil) -> [String: Double] {
         var m: [String: Double] = [:]
-        func put(_ name: String, _ value: Double?) { if let value { m[name] = value } }
+        func put(_ name: String, _ value: Double?) { if let value { m[name] = value }; evidence?.put(name,value:value) }
         func vals(_ key: KeyPath<FormFrameSample, Double?>, _ slice: ArraySlice<FormFrameSample>? = nil) -> [Double] {
             (slice ?? frames[...]).compactMap { $0[keyPath: key] }
         }
@@ -765,12 +1192,23 @@ final class FormWarningTracker {
         let torso = FormGeometry.unwrapDegrees(vals(\.torso))
         put("torso_min", torso.min())
         put("torso_max", torso.max())
+        let torsoFrames = frames.filter { $0.torso != nil }.map(\.frame)
+        evidence?.selection("torso_min",selected:zip(torsoFrames,torso).filter { $0.1 == torso.min() }.map { $0.0 },
+            fields:["torso"],operation:"minimum_unwrapped_torso",contributors:torsoFrames)
+        evidence?.selection("torso_max",selected:zip(torsoFrames,torso).filter { $0.1 == torso.max() }.map { $0.0 },
+            fields:["torso"],operation:"maximum_unwrapped_torso",contributors:torsoFrames)
         put("torso_mean", torso.isEmpty ? nil : FormGeometry.wrapDegrees(torso.reduce(0, +) / Double(torso.count)))
         put("hip_dev_min", vals(\.hipDeviation).min())
         put("hip_dev_max", vals(\.hipDeviation).max())
         if let head0 = firstValue(\.headDeviation) {
-            put("head_dev_change_min", vals(\.headDeviation).min().map { $0 - head0 })
-            put("head_dev_change_max", vals(\.headDeviation).max().map { $0 - head0 })
+            let headMin = vals(\.headDeviation).min(), headMax = vals(\.headDeviation).max()
+            put("head_dev_change_min", headMin.map { $0 - head0 })
+            put("head_dev_change_max", headMax.map { $0 - head0 })
+            let reference = frames.first { $0.headDeviation != nil }.map { [$0.frame] } ?? []
+            evidence?.selection("head_dev_change_min",selected:frames.filter { $0.headDeviation == headMin }.map(\.frame),
+                reference:reference,fields:["headDeviation"],operation:"minimum_minus_first_available")
+            evidence?.selection("head_dev_change_max",selected:frames.filter { $0.headDeviation == headMax }.map(\.frame),
+                reference:reference,fields:["headDeviation"],operation:"maximum_minus_first_available")
         }
         put("elbow_behind_max", vals(\.elbowBehind).max())
 
@@ -780,6 +1218,11 @@ final class FormWarningTracker {
             let window = frames[b...].prefix(windowFrames + 1)
             if let t0 = bottom.torso, let rise = vals(\.torso, window).map({ FormGeometry.wrapDegrees($0 - t0) }).max() {
                 put("hips_first_torso_rise", rise)
+                evidence?.selection("hips_first_torso_rise",selected:window.filter {
+                    guard let t = $0.torso else { return false }; return FormGeometry.wrapDegrees(t - t0) == rise
+                }.map(\.frame),reference:[bottom.frame],scope:window.map(\.frame),
+                    fields:["torso"],operation:"maximum_wrapped_torso_delta_from_selected_bottom",
+                    contributors:window.filter { $0.torso != nil }.map(\.frame))
             }
             if let end = window.last(where: { $0.hipY != nil && $0.shoulderY != nil }),
                let h0 = bottom.hipY, let s0 = bottom.shoulderY, let length = bottom.torsoLength,
@@ -787,6 +1230,17 @@ final class FormWarningTracker {
                 let dt = Double(end.frame - bottom.frame)
                 put("hips_first_hip_rise_speed", (h0 - end.hipY!) / length / dt)
                 put("hips_first_shoulder_rise_speed", (s0 - end.shoulderY!) / length / dt)
+                evidence?.selection("hips_first_hip_rise_speed",selected:[end.frame],reference:[bottom.frame],scope:window.map(\.frame),
+                    fields:["hipY","torsoLength"],operation:"selected_bottom_to_last_supported_end",contributors:[bottom.frame,end.frame],
+                    selectorFields:["hipY","shoulderY"],selectorFrames:window.map(\.frame))
+                evidence?.selection("hips_first_shoulder_rise_speed",selected:[end.frame],reference:[bottom.frame],scope:window.map(\.frame),
+                    fields:["shoulderY","torsoLength"],operation:"selected_bottom_to_last_supported_end",contributors:[bottom.frame,end.frame],
+                    selectorFields:["hipY","shoulderY"],selectorFrames:window.map(\.frame))
+            }
+            let fields = exercise == .squat ? ["knee"] : ["hipY","hipAngle"]
+            for name in ["hips_first_torso_rise","hips_first_hip_rise_speed","hips_first_shoulder_rise_speed"] {
+                evidence?.stage(name,operation:exercise == .squat ? "first_minimum_knee_selects_bottom" : "maximum_hip_before_maximum_hip_angle",
+                    fields:fields,scope:frames.map(\.frame),selected:[bottom.frame])
             }
         }
 
@@ -795,19 +1249,35 @@ final class FormWarningTracker {
             // pushup_hand_position: first rep, most extended (top) frame.
             if isFirstRep, let top = frames.filter({ $0.elbow != nil }).max(by: { $0.elbow! < $1.elbow! }) {
                 put("first_rep_top_wrist_ahead", top.wristAhead)
+                evidence?.selection("first_rep_top_wrist_ahead",selected:[top.frame],fields:["wristAhead"],
+                    operation:"wrist_at_selected_maximum_elbow",contributors:[top.frame],
+                    selectorFields:["elbow"],selectorFrames:frames.map(\.frame))
             }
         case .squat:
             let kneeMin = vals(\.knee).min()
             if let b = frames.firstIndex(where: { $0.knee != nil && $0.knee == kneeMin }) {
                 put("torso_at_bottom", frames[b].torso)
+                evidence?.selection("torso_at_bottom",selected:[frames[b].frame],fields:["torso"],
+                    operation:"torso_at_first_minimum_knee",contributors:[frames[b].frame],
+                    selectorFields:["knee"],selectorFrames:frames.map(\.frame))
                 putHipsFirst(from: b, windowFrames: squat.hipsFirstWindowFrames)
             }
             // Front view: bottom = lowest hip, then through the ascent.
             let hipYMax = vals(\.hipY).max()
             if let b = frames.firstIndex(where: { $0.hipY != nil && $0.hipY == hipYMax }) {
                 put("knee_ankle_gap_ratio_min", vals(\.kneeAnkleGapRatio, frames[b...]).min())
+                evidence?.selection("knee_ankle_gap_ratio_min",
+                    selected:frames[b...].filter { $0.kneeAnkleGapRatio == m["knee_ankle_gap_ratio_min"] }.map(\.frame),
+                    reference:[frames[b].frame],scope:frames[b...].map(\.frame),
+                    fields:["kneeAnkleGapRatio"],operation:"minimum_ratio_after_first_maximum_hip_y",
+                    selectorFields:["hipY"],selectorFrames:frames.map(\.frame))
             }
-            if let h0 = firstValue(\.heelToe), let low = vals(\.heelToe).min() { put("heel_rise_max", h0 - low) }
+            if let h0 = firstValue(\.heelToe), let low = vals(\.heelToe).min() {
+                put("heel_rise_max", h0 - low)
+                evidence?.selection("heel_rise_max",selected:frames.filter { $0.heelToe == low }.map(\.frame),
+                    reference:frames.first { $0.heelToe != nil }.map { [$0.frame] } ?? [],
+                    fields:["heelToe"],operation:"first_available_minus_minimum")
+            }
         case .barbellRow:
             if let e0 = frames.first(where: { $0.earShoulder != nil && $0.headAngle != nil }),
                let start = e0.earShoulder, start > 1e-8 {
@@ -816,7 +1286,13 @@ final class FormWarningTracker {
                     let d = abs(FormGeometry.wrapDegrees(a - e0.headAngle!))
                     return d <= row.shrugMaxHeadAngleChangeDegrees
                 }
-                if let low = kept.compactMap(\.earShoulder).min() { put("ear_shoulder_drop", 1 - low / start) }
+                if let low = kept.compactMap(\.earShoulder).min() {
+                    put("ear_shoulder_drop", 1 - low / start)
+                    evidence?.selection("ear_shoulder_drop",selected:kept.filter { $0.earShoulder == low }.map(\.frame),
+                        reference:[e0.frame],scope:kept.map(\.frame),
+                        fields:["earShoulder"],operation:"minimum_ear_shoulder_in_head_angle_filtered_frames",
+                        selectorFields:["headAngle","earShoulder"],selectorFrames:frames.map(\.frame))
+                }
             }
         case .benchPress:
             // bench_hips_up: hip rise vs the rep start (image y down), over the rep-start torso length.
@@ -834,59 +1310,108 @@ final class FormWarningTracker {
         return m
     }
 
-    static func metrics3D(_ frames: [FormFrameSample]) -> [String: Double] {
-        var m: [String: Double] = [:]
-        let torso = FormGeometry.unwrapDegrees(frames.compactMap(\.torso3D)), hip = frames.compactMap(\.hipDeviation3D)
-        if !torso.isEmpty {
-            m["torso_min"] = torso.min()
-            m["torso_max"] = torso.max()
-            m["torso_mean"] = FormGeometry.wrapDegrees(torso.reduce(0, +) / Double(torso.count))
-        }
-        if !hip.isEmpty {
-            m["hip_dev_min"] = hip.min()
-            m["hip_dev_max"] = hip.max()
-        }
-        return m
-    }
-
     static func median(_ values: [Double]) -> Double? {
         let v = values.sorted()
         guard !v.isEmpty else { return nil }
         return v.count % 2 == 1 ? v[v.count / 2] : (v[v.count / 2 - 1] + v[v.count / 2]) / 2
     }
 
-    // MARK: Rules (2D only)
+    // MARK: Rules (run on the 2D metrics and, separately, on the same metrics measured in 3D)
 
     /// Keys whose condition holds for this rep, in rule order. `history` = earlier reps' metrics.
-    func judge(_ m: [String: Double], history: [[String: Double]], repIndex: Int) -> [String] {
-        var fired: Set<String> = []
-        func fire(_ key: String, _ condition: Bool?) { if condition == true { fired.insert(key) } }
-        func over(_ name: String, _ t: Double) -> Bool? { m[name].map { $0 > t } }
-        func under(_ name: String, _ t: Double) -> Bool? { m[name].map { $0 < t } }
+    func judge(_ m: [String: Double], history: [[String: Double]], repIndex: Int,
+               assessed: ((Set<String>) -> Void)? = nil, trace: FormFaultJudge? = nil) -> [String] {
+        var fired: Set<String> = [], evaluated: Set<String> = []
+        var viewQualified = false
+        func completeReference(_ key: String) -> Bool {
+            let baselineMetric: String?
+            switch key {
+            case "pushup_shallow", "bench_shallow": baselineMetric = "elbow_min"
+            case "squat_shallow": baselineMetric = "knee_min"
+            case "row_standing_up": baselineMetric = "torso_mean"
+            case "row_short_pull": baselineMetric = "elbow_behind_max"
+            default: baselineMetric = nil
+            }
+            if let metric = baselineMetric {
+                guard history.count >= common.baselineRepCount,
+                      history.prefix(common.baselineRepCount).allSatisfy({ $0[metric]?.isFinite == true }) else { return false }
+            }
+            if key == "squat_no_lockout" { return m["knee_max"] != nil && m["hip_angle_max"] != nil }
+            if key == "deadlift_no_lockout" { return m["knee_max"] != nil && m["hip_angle_max"] != nil }
+            return true
+        }
+        func fire(_ key: String, _ evaluate: @autoclosure () -> Bool?) {
+            trace?.begin(key)
+            let condition = evaluate()
+            trace?.complete(key,condition:condition)
+            // Preserve historical rule decisions. Only the delivery qualification is new.
+            if condition == true { fired.insert(key) }
+            if condition != nil, viewQualified, m.values.allSatisfy(\.isFinite),
+               history.allSatisfy({ $0.values.allSatisfy(\.isFinite) }),
+               Self.grade(of: key) != .setup, completeReference(key) {
+                evaluated.insert(key)
+            }
+        }
+        func over(_ name: String, _ t: Double) -> Bool? {
+            let result = m[name].map { $0 > t }
+            trace?.operand(operation:"over",metric:name,current:m[name],threshold:t,result:result)
+            return result
+        }
+        func under(_ name: String, _ t: Double) -> Bool? {
+            let result = m[name].map { $0 < t }
+            trace?.operand(operation:"under",metric:name,current:m[name],threshold:t,result:result)
+            return result
+        }
         /// (current − baseline median of the first reps) > t; nil until the baseline exists.
         func overBaseline(_ name: String, _ t: Double) -> Bool? {
-            guard history.count >= common.baselineRepCount, let v = m[name],
-                  let b = Self.median(history.prefix(common.baselineRepCount).compactMap { $0[name] }) else { return nil }
-            return v - b > t
+            let count = common.baselineRepCount
+            var reference: Double?, result: Bool?
+            if history.count >= count, let v = m[name],
+               let b = Self.median(history.prefix(count).compactMap { $0[name] }) {
+                reference = b; result = v - b > t
+            }
+            trace?.operand(operation:"over_baseline",metric:name,current:m[name],threshold:t,result:result,
+                reference:reference,indices:Array(0..<min(count,history.count)),expectedCount:count,
+                completeReference:history.count >= count && history.prefix(count).allSatisfy { $0[name]?.isFinite == true })
+            return result
         }
         /// Current is below the set's max (this rep included) by more than t.
         func belowSetMax(_ name: String, _ t: Double) -> Bool? {
-            guard let v = m[name], let best = (history.compactMap { $0[name] } + [v]).max() else { return nil }
-            return best - v > t
+            var reference: Double?, result: Bool?
+            if let v = m[name], let best = (history.compactMap { $0[name] } + [v]).max() {
+                reference = best; result = best - v > t
+            }
+            trace?.operand(operation:"below_set_max",metric:name,current:m[name],threshold:t,result:result,
+                reference:reference,indices:Array(0...history.count),expectedCount:history.count+1,
+                completeReference:history.allSatisfy { $0[name]?.isFinite == true },currentIncluded:true)
+            return result
         }
         /// mean(last N reps, this one included) − mean(first N) > t; needs 2N reps.
         func trend(_ name: String, _ t: Double) -> Bool? {
             let all = history + [m]
             let n = common.trendRepCount
-            guard all.count >= 2 * n else { return nil }
-            let first = all.prefix(n).compactMap { $0[name] }, last = all.suffix(n).compactMap { $0[name] }
-            guard first.count == n, last.count == n else { return nil }
-            return last.reduce(0, +) / Double(n) - first.reduce(0, +) / Double(n) > t
+            var firstMean: Double?, lastMean: Double?, result: Bool?
+            if all.count >= 2 * n {
+                let first = all.prefix(n).compactMap { $0[name] }, last = all.suffix(n).compactMap { $0[name] }
+                if first.count == n, last.count == n {
+                    firstMean = first.reduce(0,+) / Double(n); lastMean = last.reduce(0,+) / Double(n)
+                    result = lastMean! - firstMean! > t
+                }
+            }
+            let indices = Array(0..<min(n,all.count)) + Array(max(0,all.count-n)..<all.count)
+            trace?.operand(operation:"trend",metric:name,current:m[name],threshold:t,result:result,
+                reference:firstMean,indices:indices,expectedCount:2*n,
+                completeReference:all.count >= 2*n && indices.allSatisfy { all[$0][name]?.isFinite == true },
+                currentIncluded:true,derivedCurrent:lastMean)
+            return result
         }
         // Row: the session gate when decided, else the per-rep front-view fraction.
         let sideView = (exercise == .barbellRow ? self.sideView : nil)
             ?? ((m["front_view_fraction"] ?? 0) < common.frontViewRepFraction)
+        viewQualified = (exercise == .barbellRow && self.sideView != nil) || m["front_view_fraction"]?.isFinite == true
         let firstRep = history.isEmpty
+        trace?.setView(actualSideView:sideView,qualified:viewQualified,sessionSideView:self.sideView,
+                       fraction:m["front_view_fraction"])
 
         switch exercise {
         case .pushUp:
@@ -900,7 +1425,10 @@ final class FormWarningTracker {
             fire("pushup_head_drop", over("head_dev_change_max", c.headDropDeviation))
             fire("pushup_head_up", under("head_dev_change_min", -c.headUpDeviation))
             if let ahead = m["first_rep_top_wrist_ahead"] {
-                fire("pushup_hand_position", ahead > c.handForwardRatio || ahead < -c.handBackwardRatio)
+                let condition = ahead > c.handForwardRatio || ahead < -c.handBackwardRatio
+                trace?.manual("pushup_hand_position",inputs:["first_rep_top_wrist_ahead":ahead],condition:condition,
+                    operation:"outside_signed_hand_position_range",thresholds:["forward":c.handForwardRatio,"backward":-c.handBackwardRatio])
+                fire("pushup_hand_position", condition)
             }
             fire("pushup_depth_fade", trend("elbow_min", c.depthFadeDegrees))
         case .squat:
@@ -908,7 +1436,11 @@ final class FormWarningTracker {
             if sideView {
                 if let rise = m["hips_first_torso_rise"], let hip = m["hips_first_hip_rise_speed"],
                    let shoulder = m["hips_first_shoulder_rise_speed"] {
-                    fire("squat_hips_first", rise > c.hipsFirstTorsoRiseDegrees && hip > shoulder)
+                    let condition = rise > c.hipsFirstTorsoRiseDegrees && hip > shoulder
+                    trace?.manual("squat_hips_first",inputs:["hips_first_torso_rise":rise,"hips_first_hip_rise_speed":hip,
+                        "hips_first_shoulder_rise_speed":shoulder],condition:condition,operation:"rise_and_relative_speed",
+                        thresholds:["torsoRise":c.hipsFirstTorsoRiseDegrees])
+                    fire("squat_hips_first", condition)
                 }
                 fire("squat_shallow", overBaseline("knee_min", c.shallowOverBaselineDegrees))
                 fire("squat_no_lockout", belowSetMax("knee_max", c.noLockoutBelowSetMaxDegrees) == true
@@ -924,15 +1456,28 @@ final class FormWarningTracker {
             fire("setup_side_view", firstRep && !sideView && !sideViewGuided)
             guard sideView else { break }
             let c = row
-            if let lo = m["torso_min"], let hi = m["torso_max"] { fire("row_torso_swing", hi - lo > c.torsoSwingRangeDegrees) }
+            if let lo = m["torso_min"], let hi = m["torso_max"] {
+                let condition = hi - lo > c.torsoSwingRangeDegrees
+                trace?.manual("row_torso_swing",inputs:["torso_min":lo,"torso_max":hi],condition:condition,
+                    operation:"torso_range",thresholds:["range":c.torsoSwingRangeDegrees])
+                fire("row_torso_swing", condition)
+            }
             // More upright = smaller forward torso angle.
             if let v = m["torso_mean"], history.count >= common.baselineRepCount,
                let b = Self.median(history.prefix(common.baselineRepCount).compactMap { $0["torso_mean"] }) {
-                fire("row_standing_up", FormGeometry.wrapDegrees(b - v) > c.standingUpDegrees)
+                let condition = FormGeometry.wrapDegrees(b - v) > c.standingUpDegrees
+                trace?.manual("row_standing_up",inputs:["torso_mean":v],condition:condition,operation:"wrapped_baseline_minus_current",
+                    referenceMetric:"torso_mean",referenceValue:b,indices:Array(0..<common.baselineRepCount),
+                    expectedCount:common.baselineRepCount,thresholds:["standingUp":c.standingUpDegrees])
+                fire("row_standing_up", condition)
             }
             if let v = m["elbow_behind_max"], history.count >= common.baselineRepCount,
                let b = Self.median(history.prefix(common.baselineRepCount).compactMap { $0["elbow_behind_max"] }) {
-                fire("row_short_pull", b - v > c.shortPullBelowBaseline)
+                let condition = b - v > c.shortPullBelowBaseline
+                trace?.manual("row_short_pull",inputs:["elbow_behind_max":v],condition:condition,operation:"baseline_minus_current",
+                    referenceMetric:"elbow_behind_max",referenceValue:b,indices:Array(0..<common.baselineRepCount),
+                    expectedCount:common.baselineRepCount,thresholds:["shortPull":c.shortPullBelowBaseline])
+                fire("row_short_pull", condition)
             }
             if c.shrugEnabled { fire("row_shrug", over("ear_shoulder_drop", c.shrugEarShoulderDrop)) }
             fire("row_head_up", under("head_dev_change_min", -c.headUpDeviation))
@@ -955,7 +1500,296 @@ final class FormWarningTracker {
                  || belowSetMax("knee_max", c.noLockoutBelowSetMaxDegrees) == true)
             fire("deadlift_lean_back", under("torso_min", -c.leanBackDegrees))
         }
+        assessed?(evaluated)
         return (Self.rules[exercise] ?? []).map(\.key).filter(fired.contains)
+    }
+}
+
+// MARK: - Overlay: live posture colour (display only)
+
+/// A body edge the camera overlay draws (COCO17, lower index first). No face, head or neck: head rules are judged and
+/// voiced but have no segment to colour.
+enum OverlaySegment: Hashable {
+    case edge(Int, Int)
+
+    /// Shoulders, arms, trunk sides, hips, legs.
+    static let edges: [OverlaySegment] = [[5, 6], [5, 7], [7, 9], [6, 8], [8, 10], [5, 11], [6, 12], [11, 12],
+                                          [11, 13], [13, 15], [12, 14], [14, 16]].map { OverlaySegment.edge($0[0], $0[1]) }
+}
+
+/// When a rule's per-frame quantity means something. Rep-extremum rules (depth, lockout, peak pull) only near their
+/// phase; elsewhere the rule does not apply.
+enum OverlayPhase {
+    case always, inRep, bottom, top, bottomOrAscending, ascending
+
+    func matches(_ phase: String, repOpen: Bool) -> Bool {
+        switch self {
+        case .always: true
+        case .inRep: repOpen
+        case .bottom: phase == "bottom"
+        case .top: phase == "top"
+        case .bottomOrAscending: phase == "bottom" || phase == "ascending"
+        case .ascending: phase == "ascending"
+        }
+    }
+}
+
+/// Evidence is scoped to a rule, never proof that the entire segment/form is correct.
+enum OverlayObservationScope: Equatable {
+    case frameGeometry, withinRepChange, selfRelative
+}
+
+enum OverlayWithheldReason: Hashable {
+    case noObservation, missingQuantity, baseline, reference, phase, view, viewUnknown
+}
+
+/// A composite rule may retain a measured issue AND missing evidence (e.g. knee known, hip missing).
+struct OverlayValue {
+    let number: Double?
+    var withheld: Set<OverlayWithheldReason> = []
+
+    static func measured(_ v: Double?) -> OverlayValue {
+        guard let v, v.isFinite else { return unavailable(.missingQuantity) }
+        return OverlayValue(number: v)
+    }
+    static func unavailable(_ reason: OverlayWithheldReason) -> OverlayValue {
+        OverlayValue(number: nil, withheld: [reason])
+    }
+    static func maximum(_ values: [OverlayValue]) -> OverlayValue {
+        OverlayValue(number: values.compactMap(\.number).max(),
+                     withheld: values.reduce(into: []) { $0.formUnion($1.withheld) })
+    }
+}
+
+/// One table for scoped rule observations: rule → segments (judged side) → quantity → display anchor (severity 0) and the
+/// rule's own threshold (severity 1, read from the tracker config, so a threshold change moves the colour with it).
+/// severity = clamp((value − normal) / (threshold − normal), 0, 1). Display only: judge() does not read this.
+/// `normal` is a display anchor (a line, no change, the baseline), never whole-form approval; except valgus: knees 25% wider than the
+/// ankles (display anchor, 제안값). Not coloured: head rules (no head is drawn), trend rules (depth_fade, lean_drift),
+/// setup rules (hand_position, side view) and rules that are off (heel_rise, shrug).
+struct OverlayRule {
+    let key: String
+    let phase: OverlayPhase
+    let segments: (FormSide) -> [OverlaySegment]
+    let normal: Double
+    let threshold: (FormWarningTracker) -> Double
+    let value: (FormWarningTracker, FormFrameSample) -> OverlayValue
+    var scope: OverlayObservationScope = .frameGeometry
+
+    static func severity(_ value: Double, normal: Double, threshold: Double) -> Double {
+        guard threshold != normal else { return 0 }
+        return min(max((value - normal) / (threshold - normal), 0), 1)
+    }
+
+    private static func side(_ s: FormSide) -> FormGeometry.SideJoints { FormGeometry.joints(s) }
+    private static func trunk(_ s: FormSide) -> [OverlaySegment] { let j = side(s); return [.edge(j.shoulder, j.hip)] }
+    private static func arm(_ s: FormSide) -> [OverlaySegment] {
+        let j = side(s); return [.edge(j.shoulder, j.elbow), .edge(j.elbow, j.wrist)]
+    }
+    private static func thigh(_ s: FormSide) -> [OverlaySegment] { let j = side(s); return [.edge(j.hip, j.knee)] }
+    private static func leg(_ s: FormSide) -> [OverlaySegment] { let j = side(s); return [.edge(j.hip, j.knee), .edge(j.knee, j.ankle)] }
+    /// Squat side-view rules do not apply in a front view (judge()), valgus only there.
+    private static func sideOnly(_ s: FormFrameSample, _ v: () -> OverlayValue) -> OverlayValue {
+        guard let front = s.frontView else { return .unavailable(.viewUnknown) }
+        return front ? .unavailable(.view) : v()
+    }
+
+    static let table: [FormExercise: [OverlayRule]] = [
+        .pushUp: [
+            OverlayRule(key: "pushup_hip_sag", phase: .always, segments: { trunk($0) + leg($0) }, normal: 0,
+                        threshold: { $0.pushUp.hipSagDeviation }, value: { _, s in .measured(s.hipDeviation) }),
+            OverlayRule(key: "pushup_hip_pike", phase: .always, segments: { trunk($0) + leg($0) }, normal: 0,
+                        threshold: { -$0.pushUp.hipPikeDeviation }, value: { _, s in .measured(s.hipDeviation) }),
+            OverlayRule(key: "pushup_shallow", phase: .bottom, segments: { arm($0) }, normal: 0,
+                        threshold: { $0.pushUp.shallowOverBaselineDegrees },
+                        value: { t, s in t.liveOverBaseline("elbow_min", s.elbow) }, scope: .selfRelative),
+            OverlayRule(key: "pushup_no_lockout", phase: .top, segments: { arm($0) }, normal: 0,
+                        threshold: { $0.pushUp.noLockoutBelowSetMaxDegrees },
+                        value: { t, s in t.liveBelowSetMax("elbow_max", \.elbow, s.elbow) }, scope: .selfRelative),
+        ],
+        .squat: [
+            OverlayRule(key: "squat_knee_valgus", phase: .bottomOrAscending, segments: { _ in
+                [.edge(11, 13), .edge(13, 15), .edge(12, 14), .edge(14, 16)] }, normal: 1.25,
+                        threshold: { $0.squat.valgusKneeAnkleGapRatio },
+                        value: { _, s in
+                            guard let front = s.frontView else { return .unavailable(.viewUnknown) }
+                            return front ? .measured(s.kneeAnkleGapRatio) : .unavailable(.view)
+                        }),
+            OverlayRule(key: "squat_shallow", phase: .bottom, segments: { leg($0) }, normal: 0,
+                        threshold: { $0.squat.shallowOverBaselineDegrees },
+                        value: { t, s in sideOnly(s) { t.liveOverBaseline("knee_min", s.knee) } }, scope: .selfRelative),
+            OverlayRule(key: "squat_no_lockout", phase: .top, segments: { trunk($0) + leg($0) }, normal: 0,
+                        threshold: { $0.squat.noLockoutBelowSetMaxDegrees },
+                        value: { t, s in sideOnly(s) {
+                            let k = t.liveBelowSetMax("knee_max", \.knee, s.knee), h = t.liveBelowSetMax("hip_angle_max", \.hipAngle, s.hipAngle)
+                            return .maximum([k, h])
+                        } }, scope: .selfRelative),
+            OverlayRule(key: "squat_hips_first", phase: .ascending, segments: { trunk($0) + thigh($0) }, normal: 0,
+                        threshold: { $0.squat.hipsFirstTorsoRiseDegrees },
+                        value: { t, s in sideOnly(s) { t.liveTorsoRiseSinceBottom(s) } }, scope: .withinRepChange),
+        ],
+        .barbellRow: [
+            OverlayRule(key: "row_torso_swing", phase: .inRep, segments: { trunk($0) }, normal: 0,
+                        threshold: { $0.row.torsoSwingRangeDegrees }, value: { t, s in t.liveTorsoRange(s) }, scope: .withinRepChange),
+            OverlayRule(key: "row_standing_up", phase: .inRep, segments: { trunk($0) }, normal: 0,
+                        threshold: { $0.row.standingUpDegrees },
+                        value: { t, s in t.liveFromBaseline("torso_mean", s.torso) { b, v in FormGeometry.wrapDegrees(b - v) } }, scope: .selfRelative),
+            OverlayRule(key: "row_short_pull", phase: .top, segments: { arm($0) }, normal: 0,
+                        threshold: { $0.row.shortPullBelowBaseline },
+                        value: { t, s in t.liveFromBaseline("elbow_behind_max", s.elbowBehind) { b, v in b - v } }, scope: .selfRelative),
+        ],
+    ]
+}
+
+/// Per-segment evidence keeps rule identity: a measured-normal rule cannot erase a different missing rule.
+struct OverlayObservation {
+    var measured: [String: OverlayObservationScope] = [:]
+    var withheld: [String: Set<OverlayWithheldReason>] = [:]
+    /// Ordinary phase/known-view exclusions are not missing evidence for a currently applicable rule.
+    var inactive: [String: OverlayWithheldReason] = [:]
+
+    var displayStatus: OverlayDisplayStatus {
+        if measured.isEmpty { return .unassessed }
+        if !withheld.isEmpty { return .partial }
+        if measured.values.contains(where: { $0 != .frameGeometry }) { return .relativeConsistency }
+        return .observed
+    }
+}
+
+enum OverlayDisplayStatus: Equatable {
+    case unassessed, partial, relativeConsistency, observed
+}
+
+struct OverlayShade {
+    var severity = 0.0
+    var opacity = 1.0
+    var status: OverlayDisplayStatus = .unassessed
+
+    /// Raw wrist uncertainty always overrides even a known posture issue. Neutral styles have no solid glow/dot.
+    func style(rawJointUncertain: Bool) -> OverlayStrokeStyle {
+        if rawJointUncertain { return .withheld }
+        if status == .unassessed || (status == .partial && severity <= 0) { return .withheld }
+        if status == .relativeConsistency && severity <= 0 { return .relative }
+        return status == .observed ? .observed : .limitedIssue
+    }
+}
+
+enum OverlayStrokeStyle: Equatable { case withheld, relative, observed, limitedIssue }
+
+struct OverlayState {
+    var severity: [OverlaySegment: Double] = [:]
+    var observations: [OverlaySegment: OverlayObservation] = [:]
+    var uncertain: Set<OverlaySegment> {
+        Set(observations.compactMap { $0.value.withheld.isEmpty ? nil : $0.key })
+    }
+
+    mutating func record(_ rule: OverlayRule, side: FormSide, value: OverlayValue, threshold: Double) {
+        for segment in rule.segments(side) {
+            var observation = observations[segment] ?? OverlayObservation()
+            if let v = value.number {
+                observation.measured[rule.key] = rule.scope
+                severity[segment] = max(severity[segment] ?? 0,
+                    OverlayRule.severity(v, normal: rule.normal, threshold: threshold))
+            }
+            if value.withheld == [.phase] { observation.inactive[rule.key] = .phase }
+            else if value.withheld == [.view] { observation.inactive[rule.key] = .view }
+            else if !value.withheld.isEmpty { observation.withheld[rule.key] = value.withheld }
+            observations[segment] = observation
+        }
+    }
+}
+
+extension FormWarningTracker {
+    /// Display only. No applicable rule stays neutral; missing view/reference is withheld, not assessed normal. Positive evidence survives
+    /// partial coverage; no zero self-relative quantity certifies full extension/depth or correct form.
+    func liveSeverity() -> OverlayState {
+        var out = OverlayState()
+        guard let s = common.form3DRequired ? current3D : current, let side else {
+            for segment in OverlaySegment.edges {
+                out.observations[segment] = OverlayObservation(withheld: ["source": [.noObservation]])
+            }
+            return out
+        }
+        let needsSideView = exercise == .pushUp || exercise == .barbellRow
+        // Row may use its verified session gate. Before that, a missing frame view stays unknown.
+        let verifiedSideView = (exercise == .barbellRow ? sideView : nil) ?? s.frontView.map { !$0 }
+        for rule in OverlayRule.table[exercise] ?? [] {
+            let value: OverlayValue
+            if !rule.phase.matches(s.phase, repOpen: repOpen) { value = .unavailable(.phase) }
+            else if needsSideView, verifiedSideView == nil { value = .unavailable(.viewUnknown) }
+            else if needsSideView, verifiedSideView == false { value = .unavailable(.view) }
+            else { value = rule.value(self, s) }
+            out.record(rule, side: side, value: value, threshold: rule.threshold(self))
+        }
+        return out
+    }
+
+    private var liveRepFrames: [FormFrameSample] { common.form3DRequired ? repFrames3D : repFrames }
+    private var liveHistory: [[String: Double]] { common.form3DRequired ? repMetrics3D : repMetrics }
+
+    /// Same first-rep reference as judge(), but display requires this metric in every baseline rep.
+    fileprivate func liveBaseline(_ name: String) -> Double? {
+        guard liveHistory.count >= common.baselineRepCount else { return nil }
+        let values = liveHistory.prefix(common.baselineRepCount).compactMap { $0[name] }.filter(\.isFinite)
+        guard values.count == common.baselineRepCount else { return nil }
+        return Self.median(values)
+    }
+
+    /// f(baseline, live value); missing baseline and missing quantity retain distinct withheld reasons.
+    fileprivate func liveFromBaseline(_ name: String, _ value: Double?, _ f: (Double, Double) -> Double) -> OverlayValue {
+        guard let b = liveBaseline(name) else { return .unavailable(.baseline) }
+        return .measured(value.map { f(b, $0) })
+    }
+
+    fileprivate func liveOverBaseline(_ name: String, _ value: Double?) -> OverlayValue {
+        liveFromBaseline(name, value) { b, v in v - b }
+    }
+
+    /// belowSetMax: the set's best so far (earlier reps and this rep's frames) minus the live value.
+    fileprivate func liveBelowSetMax(_ name: String, _ key: KeyPath<FormFrameSample, Double?>, _ value: Double?) -> OverlayValue {
+        guard let value, value.isFinite else { return .unavailable(.missingQuantity) }
+        let best = (liveHistory.compactMap { $0[name] } + liveRepFrames.compactMap { $0[keyPath: key] } + [value]).max() ?? value
+        return .measured(best - value)
+    }
+
+    /// Torso angle max − min within the rep so far, this frame included (row_torso_swing).
+    fileprivate func liveTorsoRange(_ s: FormFrameSample) -> OverlayValue {
+        guard let t = s.torso else { return .unavailable(.missingQuantity) }
+        let torso = FormGeometry.unwrapDegrees(liveRepFrames.compactMap(\.torso) + [t])
+        return .measured((torso.max() ?? t) - (torso.min() ?? t))
+    }
+
+    /// Torso rise since the rep's deepest (min knee) frame — squat_hips_first's angle part (its hip-faster-than-shoulder
+    /// part is not shown).
+    fileprivate func liveTorsoRiseSinceBottom(_ s: FormFrameSample) -> OverlayValue {
+        let frames = liveRepFrames.filter { $0.knee != nil }
+        guard let bottom = frames.min(by: { $0.knee! < $1.knee! }), let t0 = bottom.torso else { return .unavailable(.reference) }
+        return .measured(s.torso.map { FormGeometry.wrapDegrees($0 - t0) })
+    }
+}
+
+/// Smooth severity only while observation status remains the same. Lost/changed evidence snaps immediately;
+/// a previous red or green must not leak into an unassessed/relative-zero frame. Evidence status is never smoothed.
+struct OverlaySeverityTrack {
+    var tau = 0.2
+    var dimOpacity = 0.4
+    private var shown: [OverlaySegment: OverlayShade] = [:]
+    private var last: Double?
+
+    mutating func update(_ state: OverlayState, at now: Double) -> [OverlaySegment: OverlayShade] {
+        let dt = last.map { min(max(now - $0, 0), 1) } ?? 0
+        last = now
+        let a = 1 - exp(-dt / tau)
+        for seg in OverlaySegment.edges {
+            let status = state.observations[seg]?.displayStatus ?? .unassessed
+            let severity = state.severity[seg] ?? 0
+            var target = OverlayShade(severity: severity, opacity: status == .unassessed ? dimOpacity : 1, status: status)
+            if let old = shown[seg], old.status == status, severity > 0 || status == .observed {
+                target.severity = old.severity + a * (severity - old.severity)
+            }
+            shown[seg] = target
+        }
+        return shown
     }
 }
 
@@ -964,13 +1798,9 @@ final class FormWarningTracker {
 /// Debug-build JSONL of per-rep form reports (2D + 3D metrics, warnings, "3D 불량" counts) under
 /// Documents/workout_form_logs/, plus one `session` line on close. Same idea as CalibrationDebugLog.
 final class WorkoutFormLog {
-    static let isEnabled: Bool = {
-        #if DEBUG
-        return true
-        #else
-        return false
-        #endif
-    }()
+    /// TRIAL BRANCH ONLY (ai/trial-*): on in Release too, so the user's own trial sessions can be collected
+    /// (Documents/workout_form_logs). Mainline keeps DEBUG-only.
+    static let isEnabled: Bool = true
 
     private let queue = DispatchQueue(label: "com.bpt.workout.formlog")
     private var handle: FileHandle?  // queue only

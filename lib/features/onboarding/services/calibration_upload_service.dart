@@ -1,10 +1,13 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/api_client.dart';
+import '../../auth/providers/auth_provider.dart';
+import 'calibration_measurements.dart';
 
 /// Independent of the existing Spring API. No endpoint means no network request.
 class CalibrationUploadConfig {
@@ -423,7 +426,9 @@ class CalibrationUploadService {
         // Never show a stub or a result without a body as an analysis.
         if (result['stub'] != false ||
             result['smplBeta'] is! List ||
-            result['boneLengthData'] is! Map) {
+            result['boneLengthData'] is! Map ||
+            result['userHeightCm'] is! num ||
+            calibrationMeasurements(result) == null) {
           throw const FormatException('Not a body fit');
         }
         return CalibrationJob(status, 100, result: result);
@@ -452,6 +457,41 @@ class CalibrationUploadService {
     }
   }
 
+  /// Downloads the user's body mesh (`result.modelGlbUrl`, a presigned GET valid for 1 h).
+  /// Only from an allowed storage host, without the app's Authorization header, and only
+  /// a binary glTF (`glTF` magic) of at most 4 MB (the server's is about 250 KB).
+  Future<Uint8List> fetchModel(String url, {CancelToken? cancelToken}) async {
+    final uri = Uri.tryParse(url);
+    if (uri == null || !config.allowsStorage(uri)) {
+      throw const CalibrationUploadException('허용되지 않은 모델 저장소예요.');
+    }
+    try {
+      _storage.options.connectTimeout = const Duration(seconds: 10);
+      final response = await _storage.getUri<List<int>>(
+        uri,
+        options: Options(
+          responseType: ResponseType.bytes,
+          followRedirects: false,
+          receiveTimeout: const Duration(seconds: 30),
+          validateStatus: (status) =>
+              status != null && status >= 200 && status < 300,
+        ),
+        cancelToken: cancelToken,
+      );
+      final bytes = Uint8List.fromList(response.data ?? const []);
+      if (bytes.length < 12 ||
+          bytes.length > 4 << 20 ||
+          String.fromCharCodes(bytes.sublist(0, 4)) != 'glTF') {
+        throw const CalibrationUploadException('3D 몸 모델 형식이 올바르지 않아요.');
+      }
+      return bytes;
+    } on DioException catch (error) {
+      if (CancelToken.isCancel(error)) rethrow;
+      // Never surface the signed URL.
+      throw const CalibrationUploadException('3D 몸 모델을 받지 못했어요.');
+    }
+  }
+
   static Map<String, dynamic> _object(dynamic value) {
     if (value is! Map<String, dynamic>) {
       throw const FormatException('Object required');
@@ -476,9 +516,12 @@ class CalibrationUploadService {
 final calibrationUploadServiceProvider =
     Provider<CalibrationUploadService>((ref) {
   final auth = ref.watch(apiClientProvider);
+  ref.watch(authSessionIdentityProvider);
+  final session = ref.read(authNotifierProvider).captureSession();
   final service = CalibrationUploadService(
     config: CalibrationUploadConfig.fromEnvironment(),
-    tokenProvider: () async => auth.authToken,
+    tokenProvider: () async =>
+        session?.isCurrent == true ? auth.authToken : null,
   );
   ref.onDispose(service.close);
   return service;

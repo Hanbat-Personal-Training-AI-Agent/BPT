@@ -1,0 +1,11 @@
+# Native capture → current deep contract plan
+
+Actual date2026-11-02 KST; task suffix20261103 is an identifier. Base4eea822. No model job or media transfer has started.
+
+Start from the preserved local_capture receipt SHA256 `a9902d5fc54b9f33ca33b7d74c59bac6f41b237ec9f992494bd76291acb5f522`: source770b2a0,3actual video_ms reps,6,266ms,720×1280,row. Preserve the native session/exercise/side/warnings/numeric observations exactly. The separate existing-owner20s squat4rep report must never be attached to this row input. Existing research dataset boundaries and side_gt are not adapter inputs.
+
+1. Locate only receipt-linked actual recorded bytes and a phone-owner read-only copy receipt, hash immutable input, and verify path/duration/dimensions/manifest correspondence. Phone operations belong to the storage owner.
+2. Implement a strict local adapter that rejects changed receipt/video/manifest identity, validates the exact native manifest with current production parser, and writes a private deterministic service-input package without changing rep boundaries or inventing observations.
+3. Privacy is fail closed: integration test `_NoTransport` forbids dataset transport; status docs prohibit private capture video on git/Home. No upload, credential read, new remote job or private-video Home transfer is permitted by this plan. Public-license and same-source provenance require separate proof, not a filename inference.
+4. If an exact same-input, already-permitted service prediction cache exists, use the real saved support/tracking provenance unchanged for17583f3 versus current partial-validity metrics. Missing support/masks remain missing. Do not convert camera-coordinate XS into gravity-aligned GVHMR world data or borrow an unrelated job. If unavailable, expose the exact missing dependency; preserve adapter/parser evidence separately from unrun inference.
+5. Run current Flutter capture/job parse regression against the verified local artifact. A real prior report can test parsing independently, but cannot establish this row capture's complete E2E. Keep private fields/media/individual outputs local; export aggregate counts/hashes only. No GT inputs, fault-label creation, model/default changes or deployment.

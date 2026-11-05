@@ -1,0 +1,247 @@
+{
+  "schema": "bpt.final-phone-validation-summary.v1",
+  "sourceCommit": "9eb7e28f574cbf2766bb6c57ca910637eff3e706",
+  "completedCases": 6,
+  "cases": [
+    {
+      "case": "barbellrow-final5",
+      "mode": "capture",
+      "buildCommit": "9eb7e28f574cbf2766bb6c57ca910637eff3e706",
+      "frames": 569,
+      "genuineFrames": 564,
+      "flushFrames": 5,
+      "repetitions": 10,
+      "sourceFrameCount": 590,
+      "unprocessedSourceFrameCount": 21,
+      "firstLastIncludingFlush": [
+        0,
+        588
+      ],
+      "knownCandidateDecisions": 220,
+      "lifecycleInterrupted": false,
+      "positiveCandidateDecisions": 0,
+      "performance": {
+        "bins": 20,
+        "poseFPSMedianAcrossBins": 30.0,
+        "poseFPSRangeAcrossBins": [
+          12,
+          30
+        ],
+        "thermalBinCounts": {
+          "serious": 20
+        },
+        "perBinLatencyP95RangeMs": [
+          191.02,
+          348.58
+        ],
+        "note": "Bin summaries, not a pooled p95 or isolated causal overhead benchmark."
+      }
+    },
+    {
+      "case": "nonterminal-pushup-final5",
+      "mode": "nonterminal",
+      "buildCommit": "9eb7e28f574cbf2766bb6c57ca910637eff3e706",
+      "performance": {
+        "bins": 18,
+        "poseFPSMedianAcrossBins": 28.0,
+        "poseFPSRangeAcrossBins": [
+          23.8,
+          30
+        ],
+        "thermalBinCounts": {
+          "serious": 18
+        },
+        "perBinLatencyP95RangeMs": [
+          198.83,
+          310.21
+        ],
+        "note": "Bin summaries, not a pooled p95 or isolated causal overhead benchmark."
+      }
+    },
+    {
+      "case": "pushup-final5",
+      "mode": "capture",
+      "buildCommit": "9eb7e28f574cbf2766bb6c57ca910637eff3e706",
+      "frames": 509,
+      "genuineFrames": 504,
+      "flushFrames": 5,
+      "repetitions": 10,
+      "sourceFrameCount": 551,
+      "unprocessedSourceFrameCount": 42,
+      "firstLastIncludingFlush": [
+        0,
+        550
+      ],
+      "knownCandidateDecisions": 137,
+      "lifecycleInterrupted": false,
+      "positiveCandidateDecisions": 0,
+      "performance": {
+        "bins": 18,
+        "poseFPSMedianAcrossBins": 28.0,
+        "poseFPSRangeAcrossBins": [
+          24,
+          30
+        ],
+        "thermalBinCounts": {
+          "serious": 18
+        },
+        "perBinLatencyP95RangeMs": [
+          192.39,
+          340.95
+        ],
+        "note": "Bin summaries, not a pooled p95 or isolated causal overhead benchmark."
+      }
+    },
+    {
+      "case": "pushup-observerH5",
+      "mode": "capture",
+      "buildCommit": "9eb7e28f574cbf2766bb6c57ca910637eff3e706",
+      "frames": 549,
+      "genuineFrames": 544,
+      "flushFrames": 5,
+      "repetitions": 10,
+      "sourceFrameCount": 551,
+      "unprocessedSourceFrameCount": 2,
+      "firstLastIncludingFlush": [
+        0,
+        550
+      ],
+      "knownCandidateDecisions": 148,
+      "lifecycleInterrupted": false,
+      "positiveCandidateDecisions": 0,
+      "performance": {
+        "bins": 18,
+        "poseFPSMedianAcrossBins": 30.0,
+        "poseFPSRangeAcrossBins": [
+          29,
+          31
+        ],
+        "thermalBinCounts": {
+          "serious": 18
+        },
+        "perBinLatencyP95RangeMs": [
+          193.14,
+          226.78
+        ],
+        "note": "Bin summaries, not a pooled p95 or isolated causal overhead benchmark."
+      }
+    },
+    {
+      "case": "report-barbellrow-final5b",
+      "mode": "report",
+      "buildCommit": "9eb7e28f574cbf2766bb6c57ca910637eff3e706"
+    },
+    {
+      "case": "squat-final5b",
+      "mode": "capture",
+      "buildCommit": "9eb7e28f574cbf2766bb6c57ca910637eff3e706",
+      "frames": 1262,
+      "genuineFrames": 1257,
+      "flushFrames": 5,
+      "repetitions": 10,
+      "sourceFrameCount": 1267,
+      "unprocessedSourceFrameCount": 5,
+      "firstLastIncludingFlush": [
+        0,
+        1266
+      ],
+      "knownCandidateDecisions": 32,
+      "lifecycleInterrupted": false,
+      "positiveCandidateDecisions": 0,
+      "performance": {
+        "bins": 42,
+        "poseFPSMedianAcrossBins": 30.0,
+        "poseFPSRangeAcrossBins": [
+          29,
+          31
+        ],
+        "thermalBinCounts": {
+          "serious": 42
+        },
+        "perBinLatencyP95RangeMs": [
+          189.32,
+          239.79
+        ],
+        "note": "Bin summaries, not a pooled p95 or isolated causal overhead benchmark."
+      }
+    }
+  ],
+  "observer": {
+    "schema": "bpt.phone-observer-pair-audit.v1",
+    "observerSHA256": "e6d8978c9b839f774ffb5310c6c7db7d64297b8e13e097e5da3cdde2c834ee84",
+    "terminalSHA256": "f975ae4516c87dd5b1242a2ecb188a1d82f8782ec24ccf1d16ef4b9c299de628",
+    "pairedRows": 522,
+    "eligibleTerminalRows": 523,
+    "unpairedEligibleRows": 1,
+    "exactPassthroughJointFrames": 8407,
+    "expiredExactFallbackJointFrames": 0,
+    "predictedJointFrames": 18,
+    "roleCounts": {
+      "dynamic_joint": 6898,
+      "contact_anchor": 1958,
+      "temporarily_occluded_joint": 18
+    },
+    "contactStateCounts": {
+      "UNINITIALIZED": 28,
+      "CONTACT": 1929,
+      "MOVING": 15,
+      "REACQUIRE": 69,
+      "OCCLUDED": 47
+    },
+    "unavailableReasons": {},
+    "maxCorrectionModelUnits": 0.10228223493028099,
+    "maxUncertaintyModelUnits": 0.0624725407833919,
+    "rawPreservedAndSourceBound": true,
+    "adoptedForFeedback": false,
+    "scope": "Same-run source/geometry/diagnostic contract, not ground-truth accuracy or contact validation. Missing eligible rows require separate lifecycle accounting; sidecar has no completion footer."
+  },
+  "wristEvent": {
+    "source": "current phone v5 same-run H sidecar",
+    "joint": "model H36M left wrist 13; physical side not independently labelled",
+    "rows": [
+      {
+        "sourceIndex": 500,
+        "rtmScore": 0.2305908203125,
+        "predictionUsed": true,
+        "invalid": true,
+        "candidateEqualsRaw": false
+      },
+      {
+        "sourceIndex": 501,
+        "rtmScore": 0.1834716796875,
+        "predictionUsed": true,
+        "invalid": true,
+        "candidateEqualsRaw": false
+      },
+      {
+        "sourceIndex": 510,
+        "rtmScore": 0.52490234375,
+        "predictionUsed": false,
+        "invalid": false,
+        "candidateEqualsRaw": true
+      }
+    ],
+    "jump500to501OriginalXSUnits": {
+      "raw": 0.02684003212909438,
+      "candidate": 0.001637265907196409
+    },
+    "limits": "No hidden wrist ground truth or accuracy improvement claim. Candidate not adopted for feedback."
+  },
+  "restoration": {
+    "originalAppRestored": true,
+    "originalDemoExact": true,
+    "preferencesExactNoOverwrite": true,
+    "originalEntriesPreserved": 574,
+    "protectedFilesSHA256Preserved": 8
+  },
+  "artifacts": {
+    "independentAuditSHA256": "754fd15cd2e9b7d8dfad4476d9a87b652cba4c2e7be625638620e4d04db344f2",
+    "restorationProofSHA256": "c0d6d4c23624b9d2e2f21e2f1039d83c839cbb3f1d79f4ce72d0356d0d190cca"
+  },
+  "limitations": [
+    "Authorized existing video replay on a real iPhone, not new live-camera participant validation",
+    "No independent posture/contact labels or correctness certification",
+    "No model replacement, training, default activation or deployment",
+    "Ordered warm-device runs and different retained frames cannot identify isolated H overhead"
+  ]
+}

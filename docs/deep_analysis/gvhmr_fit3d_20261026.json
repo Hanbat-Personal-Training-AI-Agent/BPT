@@ -1,0 +1,708 @@
+{
+  "videos": 20,
+  "exercises": {
+    "squat": {
+      "videos": 5,
+      "framesInsideReps": 1927,
+      "referenceReps": 25,
+      "referenceCounterReps": 27,
+      "referenceCounterNetAccuracy": 0.9259259259259259,
+      "variants": {
+        "A2D": {
+          "videos": 5,
+          "angleMaeDeg": {
+            "knee": 9.923267137747843,
+            "hip": 7.186014906515841,
+            "elbow": 7.512647089561154,
+            "torso": 12.908377902634593
+          },
+          "fourAngleMeanDeg": 9.382576759114858,
+          "acrossVideoStdDeg": 1.1174375072359708,
+          "paMpjpeMm": null,
+          "repNetCountAccuracy": 0.9615384615384616,
+          "predictedReps": 26
+        },
+        "A": {
+          "videos": 5,
+          "angleMaeDeg": {
+            "knee": 10.828173070622007,
+            "hip": 9.34719105049368,
+            "elbow": 22.964253942941117,
+            "torso": 14.778374317595569
+          },
+          "fourAngleMeanDeg": 14.479498095413096,
+          "acrossVideoStdDeg": 1.5263499278164234,
+          "paMpjpeMm": 88.15299719482043,
+          "repNetCountAccuracy": 0.9259259259259259,
+          "predictedReps": 27
+        },
+        "B": {
+          "videos": 5,
+          "angleMaeDeg": {
+            "knee": 7.757407041117861,
+            "hip": 4.786456954220327,
+            "elbow": 3.2485044424781186,
+            "torso": 11.550676994038152
+          },
+          "fourAngleMeanDeg": 6.835761357963615,
+          "acrossVideoStdDeg": 2.007849941012716,
+          "paMpjpeMm": 47.23372853487133,
+          "repNetCountAccuracy": 0.9259259259259259,
+          "predictedReps": 27
+        },
+        "C": {
+          "videos": 5,
+          "angleMaeDeg": {
+            "knee": 7.636175571943204,
+            "hip": 4.88660818315929,
+            "elbow": 3.180398716229489,
+            "torso": 11.74252624784234
+          },
+          "fourAngleMeanDeg": 6.86142717979358,
+          "acrossVideoStdDeg": 1.957872509129024,
+          "paMpjpeMm": 47.08607565362746,
+          "repNetCountAccuracy": 0.9259259259259259,
+          "predictedReps": 27
+        },
+        "Bw": {
+          "videos": 5,
+          "angleMaeDeg": {
+            "knee": 7.714110313360133,
+            "hip": 4.794688395166709,
+            "elbow": 3.247161613330725,
+            "torso": 8.5371710555761
+          },
+          "fourAngleMeanDeg": 6.073282844358416,
+          "acrossVideoStdDeg": 1.7817619782145793,
+          "paMpjpeMm": null,
+          "repNetCountAccuracy": 0.9259259259259259,
+          "predictedReps": 27
+        },
+        "Cw": {
+          "videos": 5,
+          "angleMaeDeg": {
+            "knee": 7.6001792779423925,
+            "hip": 4.89559030247342,
+            "elbow": 3.1808454105981108,
+            "torso": 8.623407308468202
+          },
+          "fourAngleMeanDeg": 6.075005574870532,
+          "acrossVideoStdDeg": 1.7359031584164846,
+          "paMpjpeMm": null,
+          "repNetCountAccuracy": 0.9259259259259259,
+          "predictedReps": 27
+        },
+        "floor": {
+          "videos": 5,
+          "angleMaeDeg": {
+            "knee": 5.520685548798898,
+            "hip": 6.461284341217916,
+            "elbow": 7.732183758895668,
+            "torso": 4.040836374835488
+          },
+          "fourAngleMeanDeg": 5.938747505936992,
+          "acrossVideoStdDeg": 1.152578491600464,
+          "paMpjpeMm": 39.32614738401024,
+          "repNetCountAccuracy": 0.9615384615384616,
+          "predictedReps": 26
+        }
+      }
+    },
+    "barbell_row": {
+      "videos": 5,
+      "framesInsideReps": 1624,
+      "referenceReps": 27,
+      "referenceCounterReps": 27,
+      "referenceCounterNetAccuracy": 1.0,
+      "variants": {
+        "A2D": {
+          "videos": 5,
+          "angleMaeDeg": {
+            "knee": 7.5425624745294515,
+            "hip": 18.644500654801153,
+            "elbow": 30.95157047695029,
+            "torso": 23.788254604243757
+          },
+          "fourAngleMeanDeg": 20.231722052631163,
+          "acrossVideoStdDeg": 3.0237114884069825,
+          "paMpjpeMm": null,
+          "repNetCountAccuracy": 0.9259259259259259,
+          "predictedReps": 25
+        },
+        "A": {
+          "videos": 5,
+          "angleMaeDeg": {
+            "knee": 8.975467492979224,
+            "hip": 4.579054358031199,
+            "elbow": 13.975194337176069,
+            "torso": 23.888842145722162
+          },
+          "fourAngleMeanDeg": 12.854639583477162,
+          "acrossVideoStdDeg": 2.7390725675257377,
+          "paMpjpeMm": 68.9136367073595,
+          "repNetCountAccuracy": 0.9259259259259259,
+          "predictedReps": 25
+        },
+        "B": {
+          "videos": 5,
+          "angleMaeDeg": {
+            "knee": 5.555291313466318,
+            "hip": 3.0922710260730786,
+            "elbow": 6.433855149229633,
+            "torso": 14.761142803391602
+          },
+          "fourAngleMeanDeg": 7.4606400730401585,
+          "acrossVideoStdDeg": 1.807971899859998,
+          "paMpjpeMm": 37.7446128755369,
+          "repNetCountAccuracy": 1.0,
+          "predictedReps": 27
+        },
+        "C": {
+          "videos": 5,
+          "angleMaeDeg": {
+            "knee": 5.4776468398847715,
+            "hip": 3.2080452431044058,
+            "elbow": 6.519739105796492,
+            "torso": 15.127593619692641
+          },
+          "fourAngleMeanDeg": 7.583256202119577,
+          "acrossVideoStdDeg": 1.7672466050545168,
+          "paMpjpeMm": 37.687564395495976,
+          "repNetCountAccuracy": 1.0,
+          "predictedReps": 27
+        },
+        "Bw": {
+          "videos": 5,
+          "angleMaeDeg": {
+            "knee": 5.4854269523206565,
+            "hip": 3.1205928851662117,
+            "elbow": 6.503179832208417,
+            "torso": 7.96365225070393
+          },
+          "fourAngleMeanDeg": 5.768212980099804,
+          "acrossVideoStdDeg": 1.3871025567996587,
+          "paMpjpeMm": null,
+          "repNetCountAccuracy": 1.0,
+          "predictedReps": 27
+        },
+        "Cw": {
+          "videos": 5,
+          "angleMaeDeg": {
+            "knee": 5.420626340510868,
+            "hip": 3.236956591811945,
+            "elbow": 6.576369835825051,
+            "torso": 7.922739049062253
+          },
+          "fourAngleMeanDeg": 5.789172954302529,
+          "acrossVideoStdDeg": 1.3505553302332818,
+          "paMpjpeMm": null,
+          "repNetCountAccuracy": 1.0,
+          "predictedReps": 27
+        },
+        "floor": {
+          "videos": 5,
+          "angleMaeDeg": {
+            "knee": 7.01914027779448,
+            "hip": 3.8832301043537685,
+            "elbow": 3.4298175542260916,
+            "torso": 4.516666171227907
+          },
+          "fourAngleMeanDeg": 4.712213526900562,
+          "acrossVideoStdDeg": 1.4057354779902225,
+          "paMpjpeMm": 33.85271657090574,
+          "repNetCountAccuracy": 1.0,
+          "predictedReps": 27
+        }
+      }
+    },
+    "pushup": {
+      "videos": 5,
+      "framesInsideReps": 1231,
+      "referenceReps": 25,
+      "referenceCounterReps": 25,
+      "referenceCounterNetAccuracy": 1.0,
+      "variants": {
+        "A2D": {
+          "videos": 5,
+          "angleMaeDeg": {
+            "knee": 18.4097786491895,
+            "hip": 40.875638471317124,
+            "elbow": 7.729847973134893,
+            "torso": 40.65267087481854
+          },
+          "fourAngleMeanDeg": 26.916983992115014,
+          "acrossVideoStdDeg": 7.352747147764079,
+          "paMpjpeMm": null,
+          "repNetCountAccuracy": 1.0,
+          "predictedReps": 25
+        },
+        "A": {
+          "videos": 5,
+          "angleMaeDeg": {
+            "knee": 21.34515264954097,
+            "hip": 32.66899480960457,
+            "elbow": 7.012517232331464,
+            "torso": 25.026415197200148
+          },
+          "fourAngleMeanDeg": 21.513269972169287,
+          "acrossVideoStdDeg": 3.8144670447993656,
+          "paMpjpeMm": 154.52269770958725,
+          "repNetCountAccuracy": 1.0,
+          "predictedReps": 25
+        },
+        "B": {
+          "videos": 5,
+          "angleMaeDeg": {
+            "knee": 7.545327574711545,
+            "hip": 5.694250064280171,
+            "elbow": 11.638474910635175,
+            "torso": 12.441278816921384
+          },
+          "fourAngleMeanDeg": 9.329832841637067,
+          "acrossVideoStdDeg": 1.8235266197088205,
+          "paMpjpeMm": 48.95616519515587,
+          "repNetCountAccuracy": 1.0,
+          "predictedReps": 25
+        },
+        "C": {
+          "videos": 5,
+          "angleMaeDeg": {
+            "knee": 7.822819134074999,
+            "hip": 5.598603276492793,
+            "elbow": 12.327818982101473,
+            "torso": 11.712169700202061
+          },
+          "fourAngleMeanDeg": 9.365352773217829,
+          "acrossVideoStdDeg": 1.9044977355845432,
+          "paMpjpeMm": 48.92830118441542,
+          "repNetCountAccuracy": 1.0,
+          "predictedReps": 25
+        },
+        "Bw": {
+          "videos": 5,
+          "angleMaeDeg": {
+            "knee": 7.432010833591178,
+            "hip": 5.687254898872146,
+            "elbow": 11.61050132358998,
+            "torso": 5.444682474634358
+          },
+          "fourAngleMeanDeg": 7.543612382671915,
+          "acrossVideoStdDeg": 1.602860400890358,
+          "paMpjpeMm": null,
+          "repNetCountAccuracy": 1.0,
+          "predictedReps": 25
+        },
+        "Cw": {
+          "videos": 5,
+          "angleMaeDeg": {
+            "knee": 7.718729667529802,
+            "hip": 5.592105838327081,
+            "elbow": 12.300011310631605,
+            "torso": 5.566310210225431
+          },
+          "fourAngleMeanDeg": 7.79428925667848,
+          "acrossVideoStdDeg": 1.6435301347790208,
+          "paMpjpeMm": null,
+          "repNetCountAccuracy": 1.0,
+          "predictedReps": 25
+        },
+        "floor": {
+          "videos": 5,
+          "angleMaeDeg": {
+            "knee": 4.058646689473346,
+            "hip": 3.567016984394897,
+            "elbow": 9.947266389151732,
+            "torso": 3.7262473364987065
+          },
+          "fourAngleMeanDeg": 5.32479434987967,
+          "acrossVideoStdDeg": 0.6994708029980017,
+          "paMpjpeMm": 31.641012629917203,
+          "repNetCountAccuracy": 1.0,
+          "predictedReps": 25
+        }
+      }
+    },
+    "deadlift": {
+      "videos": 5,
+      "framesInsideReps": 2459,
+      "referenceReps": 26,
+      "referenceCounterReps": 32,
+      "referenceCounterNetAccuracy": 0.8125,
+      "variants": {
+        "B": {
+          "videos": 5,
+          "angleMaeDeg": {
+            "knee": 7.111304755568808,
+            "hip": 4.635766885173713,
+            "elbow": 9.084767942040084,
+            "torso": 13.608848289926224
+          },
+          "fourAngleMeanDeg": 8.610171968177207,
+          "acrossVideoStdDeg": 1.0498371447444061,
+          "paMpjpeMm": 38.8435320533148,
+          "repNetCountAccuracy": 0.8125,
+          "predictedReps": 32
+        },
+        "C": {
+          "videos": 5,
+          "angleMaeDeg": {
+            "knee": 7.31478062511422,
+            "hip": 4.667591782022358,
+            "elbow": 9.010393720872447,
+            "torso": 13.854652742693961
+          },
+          "fourAngleMeanDeg": 8.711854717675745,
+          "acrossVideoStdDeg": 1.0801609631118534,
+          "paMpjpeMm": 38.883522691224826,
+          "repNetCountAccuracy": 0.8125,
+          "predictedReps": 32
+        },
+        "Bw": {
+          "videos": 5,
+          "angleMaeDeg": {
+            "knee": 7.064026885795146,
+            "hip": 4.64696391787061,
+            "elbow": 9.180614258211902,
+            "torso": 7.625427794850282
+          },
+          "fourAngleMeanDeg": 7.129258214181985,
+          "acrossVideoStdDeg": 0.962365308948842,
+          "paMpjpeMm": null,
+          "repNetCountAccuracy": 0.8125,
+          "predictedReps": 32
+        },
+        "Cw": {
+          "videos": 5,
+          "angleMaeDeg": {
+            "knee": 7.272519283105862,
+            "hip": 4.677632704732614,
+            "elbow": 9.089492731347116,
+            "torso": 7.621571612125774
+          },
+          "fourAngleMeanDeg": 7.165304082827842,
+          "acrossVideoStdDeg": 1.0135482060143142,
+          "paMpjpeMm": null,
+          "repNetCountAccuracy": 0.8125,
+          "predictedReps": 32
+        },
+        "floor": {
+          "videos": 5,
+          "angleMaeDeg": {
+            "knee": 6.5397946606910695,
+            "hip": 5.358778939534112,
+            "elbow": 4.4508195683577085,
+            "torso": 4.429435851480459
+          },
+          "fourAngleMeanDeg": 5.194707255015837,
+          "acrossVideoStdDeg": 1.1329677170755335,
+          "paMpjpeMm": 31.012490780271435,
+          "repNetCountAccuracy": 0.8125,
+          "predictedReps": 32
+        }
+      }
+    }
+  },
+  "decisionAgreement": {
+    "row_torso_swing": {
+      "A": {
+        "agree": 26,
+        "total": 27,
+        "nearAgree": 2,
+        "nearTotal": 3
+      },
+      "B": {
+        "agree": 25,
+        "total": 27,
+        "nearAgree": 1,
+        "nearTotal": 3
+      },
+      "C": {
+        "agree": 25,
+        "total": 27,
+        "nearAgree": 1,
+        "nearTotal": 3
+      },
+      "Bw": {
+        "agree": 25,
+        "total": 27,
+        "nearAgree": 1,
+        "nearTotal": 3
+      },
+      "Cw": {
+        "agree": 25,
+        "total": 27,
+        "nearAgree": 1,
+        "nearTotal": 3
+      },
+      "A2D": {
+        "agree": 25,
+        "total": 27,
+        "nearAgree": 1,
+        "nearTotal": 3
+      },
+      "floor": {
+        "agree": 26,
+        "total": 27,
+        "nearAgree": 2,
+        "nearTotal": 3
+      }
+    },
+    "squat_shallow": {
+      "A": {
+        "agree": 10,
+        "total": 10,
+        "nearAgree": 0,
+        "nearTotal": 0
+      },
+      "B": {
+        "agree": 10,
+        "total": 10,
+        "nearAgree": 0,
+        "nearTotal": 0
+      },
+      "C": {
+        "agree": 10,
+        "total": 10,
+        "nearAgree": 0,
+        "nearTotal": 0
+      },
+      "Bw": {
+        "agree": 10,
+        "total": 10,
+        "nearAgree": 0,
+        "nearTotal": 0
+      },
+      "Cw": {
+        "agree": 10,
+        "total": 10,
+        "nearAgree": 0,
+        "nearTotal": 0
+      },
+      "A2D": {
+        "agree": 10,
+        "total": 10,
+        "nearAgree": 0,
+        "nearTotal": 0
+      },
+      "floor": {
+        "agree": 10,
+        "total": 10,
+        "nearAgree": 0,
+        "nearTotal": 0
+      }
+    },
+    "squat_no_lockout": {
+      "A": {
+        "agree": 24,
+        "total": 25,
+        "nearAgree": 0,
+        "nearTotal": 0
+      },
+      "B": {
+        "agree": 25,
+        "total": 25,
+        "nearAgree": 0,
+        "nearTotal": 0
+      },
+      "C": {
+        "agree": 25,
+        "total": 25,
+        "nearAgree": 0,
+        "nearTotal": 0
+      },
+      "Bw": {
+        "agree": 25,
+        "total": 25,
+        "nearAgree": 0,
+        "nearTotal": 0
+      },
+      "Cw": {
+        "agree": 25,
+        "total": 25,
+        "nearAgree": 0,
+        "nearTotal": 0
+      },
+      "A2D": {
+        "agree": 25,
+        "total": 25,
+        "nearAgree": 0,
+        "nearTotal": 0
+      },
+      "floor": {
+        "agree": 25,
+        "total": 25,
+        "nearAgree": 0,
+        "nearTotal": 0
+      }
+    },
+    "pushup_shallow": {
+      "A": {
+        "agree": 10,
+        "total": 10,
+        "nearAgree": 0,
+        "nearTotal": 0
+      },
+      "B": {
+        "agree": 10,
+        "total": 10,
+        "nearAgree": 0,
+        "nearTotal": 0
+      },
+      "C": {
+        "agree": 10,
+        "total": 10,
+        "nearAgree": 0,
+        "nearTotal": 0
+      },
+      "Bw": {
+        "agree": 10,
+        "total": 10,
+        "nearAgree": 0,
+        "nearTotal": 0
+      },
+      "Cw": {
+        "agree": 10,
+        "total": 10,
+        "nearAgree": 0,
+        "nearTotal": 0
+      },
+      "A2D": {
+        "agree": 10,
+        "total": 10,
+        "nearAgree": 0,
+        "nearTotal": 0
+      },
+      "floor": {
+        "agree": 10,
+        "total": 10,
+        "nearAgree": 0,
+        "nearTotal": 0
+      }
+    },
+    "pushup_no_lockout": {
+      "A": {
+        "agree": 22,
+        "total": 25,
+        "nearAgree": 1,
+        "nearTotal": 1
+      },
+      "B": {
+        "agree": 19,
+        "total": 25,
+        "nearAgree": 0,
+        "nearTotal": 1
+      },
+      "C": {
+        "agree": 17,
+        "total": 25,
+        "nearAgree": 0,
+        "nearTotal": 1
+      },
+      "Bw": {
+        "agree": 19,
+        "total": 25,
+        "nearAgree": 0,
+        "nearTotal": 1
+      },
+      "Cw": {
+        "agree": 17,
+        "total": 25,
+        "nearAgree": 0,
+        "nearTotal": 1
+      },
+      "A2D": {
+        "agree": 25,
+        "total": 25,
+        "nearAgree": 1,
+        "nearTotal": 1
+      },
+      "floor": {
+        "agree": 25,
+        "total": 25,
+        "nearAgree": 1,
+        "nearTotal": 1
+      }
+    }
+  },
+  "interpretation": {
+    "B": "monocular_default_intrinsics_no_gt_shape",
+    "C": "oracle_dataset_camera_intrinsics_no_gt_shape",
+    "floor": "oracle_gt_smplx_joint_definition_diagnostic",
+    "viewSelection": "GT-assisted camera selection frozen before results",
+    "repAccuracy": "net_count_proxy_not_temporally_matched_detection_accuracy",
+    "decisionRules": "frozen_20261020_legacy_not_current_team_catalog"
+  },
+  "preregisteredCriterion1": {
+    "B": {
+      "exercises": {
+        "squat": {
+          "angleImproves": true,
+          "agreementScope": "all_reps",
+          "agreement": {
+            "A": 0.9714285714285714,
+            "B": 1.0
+          },
+          "agreementNotWorse": true
+        },
+        "barbell_row": {
+          "angleImproves": true,
+          "agreementScope": "near_threshold",
+          "agreement": {
+            "A": 0.6666666666666666,
+            "B": 0.3333333333333333
+          },
+          "agreementNotWorse": false
+        },
+        "pushup": {
+          "angleImproves": true,
+          "agreementScope": "near_threshold",
+          "agreement": {
+            "A": 1.0,
+            "B": 0.0
+          },
+          "agreementNotWorse": false
+        }
+      },
+      "criterion1Pass": false
+    },
+    "C": {
+      "exercises": {
+        "squat": {
+          "angleImproves": true,
+          "agreementScope": "all_reps",
+          "agreement": {
+            "A": 0.9714285714285714,
+            "C": 1.0
+          },
+          "agreementNotWorse": true
+        },
+        "barbell_row": {
+          "angleImproves": true,
+          "agreementScope": "near_threshold",
+          "agreement": {
+            "A": 0.6666666666666666,
+            "C": 0.3333333333333333
+          },
+          "agreementNotWorse": false
+        },
+        "pushup": {
+          "angleImproves": true,
+          "agreementScope": "near_threshold",
+          "agreement": {
+            "A": 1.0,
+            "C": 0.0
+          },
+          "agreementNotWorse": false
+        }
+      },
+      "criterion1Pass": false
+    }
+  },
+  "acceptanceLimitations": [
+    "L4_60s_latency_not_measured_here",
+    "L4_peak_vram_not_measured_here",
+    "portrait_geometry_not_tested_by_square_fit3d",
+    "rep_accuracy_uses_net_counts_not_event_matching",
+    "historical_input_hashes_not_recorded_for_11_reused_pairs"
+  ]
+}

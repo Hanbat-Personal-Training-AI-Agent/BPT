@@ -1,3 +1,4 @@
+import 'package:bpt/services/aggregate_session_scope.dart';
 import 'package:bpt/data/dto/workout_metadata_dto.dart';
 import 'package:bpt/data/repositories/workout_repository.dart';
 import 'package:bpt/features/home/providers/home_provider.dart';
@@ -127,6 +128,8 @@ void main() {
 
     await tester.pumpWidget(ProviderScope(
       overrides: [
+        // These fixtures exercise local-record reporting without an authenticated server aggregate.
+        aggregateSessionScopeProvider.overrideWithValue(null),
         workoutRecordsProvider.overrideWith(
             (ref) => WorkoutRecordsNotifier(_FakeRepository(records))),
         // 리포트는 목데이터가 섞인 allRecordsProvider 를 보므로, 테스트에서는

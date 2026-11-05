@@ -1,3 +1,4 @@
+import '../../workout/widgets/workout_record_completion_text.dart';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -12,6 +13,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/floating_decoration.dart';
 import '../../../data/mock_data.dart';
 import '../../../models/workout_record_model.dart';
+import '../../workout/screens/deep_analysis_report_screen.dart';
 import '../providers/home_provider.dart';
 
 const _weekdayLabelsKo = ['월', '화', '수', '목', '금', '토', '일'];
@@ -288,7 +290,7 @@ class _QuickStatsRow extends StatelessWidget {
         Expanded(
           child: _StatBox(
             label: isKo ? '완료 세트' : 'Sets done',
-            value: summary['completedSets'] as int? ?? 0,
+            value: summary['completedSets'] as int?,
             unit: isKo ? '세트' : ' sets',
           ),
         ),
@@ -312,7 +314,7 @@ class _StatBox extends StatelessWidget {
     required this.unit,
   });
   final String label;
-  final int value;
+  final int? value;
   final String unit;
 
   @override
@@ -337,14 +339,14 @@ class _StatBox extends StatelessWidget {
           const SizedBox(height: 6),
           // 화면이 열릴 때 0부터 실제 값까지 빠르게 올라간다.
           TweenAnimationBuilder<int>(
-            tween: IntTween(begin: 0, end: value),
+            tween: IntTween(begin: 0, end: value ?? 0),
             duration: const Duration(milliseconds: 800),
             curve: Curves.easeOutCubic,
             builder: (context, shown, _) => RichText(
               text: TextSpan(
                 children: [
                   TextSpan(
-                    text: '$shown',
+                    text: value == null ? '—' : '$shown',
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 23,
@@ -695,11 +697,12 @@ class _RecentRecordTile extends StatelessWidget {
           'incorrectReps': record.incorrectReps,
           'elapsedSeconds': record.durationSeconds,
           'postureScore': record.postureScore,
+          ...record.resultEvidenceFields,
           'feedbackHistory': record.feedbackNotes,
           'targetReps': record.targetReps,
           'targetSets': record.targetSets,
-          'weightKg': record.weightKg,
           'isHistory': true,
+          'clientRecordId': record.id,
           'date': record.date,
         },
       ),
@@ -742,17 +745,10 @@ class _RecentRecordTile extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 3),
-                  Text(
-                    () {
-                      // 무게가 저장되지 않은 기록(맨몸 운동 등)은 무게를 표시하지 않는다.
-                      final weight = record.weightKg;
-                      final weightPart = weight <= 0
-                          ? ''
-                          : ' · ${weight == weight.roundToDouble() ? weight.toInt() : weight}kg';
-                      return isKo
-                          ? '${record.targetSets}세트 × ${record.repsPerSet}회$weightPart'
-                          : '${record.targetSets} sets × ${record.repsPerSet} reps$weightPart';
-                    }(),
+                  WorkoutRecordCompletionText(
+                    record: record,
+                    isKo: isKo,
+                    includeWeight: true,
                     style: TextStyle(
                       color: Colors.white.withValues(alpha: 0.5),
                       fontSize: 13,
@@ -761,13 +757,19 @@ class _RecentRecordTile extends StatelessWidget {
                 ],
               ),
             ),
-            Text(
-              _timeAgo(record.date, s),
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.4),
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-              ),
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                DeepAnalysisStatus(recordId: record.id),
+                Text(
+                  _timeAgo(record.date, s),
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.4),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
             ),
           ],
         ),

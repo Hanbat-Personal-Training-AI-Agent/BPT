@@ -19,8 +19,7 @@ final class WorkoutSessionBridgeTests: XCTestCase {
         return lines
     }
 
-    /// Keys whose dart line does not exist yet (`FormWarningTracker.keysWithoutFlutterLines`); remove a key
-    /// there once its line is in the dart file. They must stay off (`enabledFeedbackKeys`) until then.
+    /// Reserved keys remain disabled even after draft lines are prepared; wording does not authorize activation.
     static let keysAwaitingDartLines = FormWarningTracker.keysWithoutFlutterLines
 
     func testSwiftKeysMatchDartLines() throws {
@@ -85,6 +84,15 @@ final class WorkoutSessionBridgeTests: XCTestCase {
         voice.say(key: "tracking_lost", n: nil, text: "인식이 잠깐 끊겼어.", language: "ko-KR")
         XCTAssertNil(voice.lastStarted, "muted: nothing plays")
         XCTAssertEqual(asked, [])
+    }
+
+    func testChangedMeaningUsesCurrentTextInsteadOfLegacyBundledAudio() {
+        for key in ["praise_fixed", "praise_clean_set"] {
+            XCTAssertEqual(workoutVoiceAudioNames(key: key, n: nil), [])
+            XCTAssertEqual(workoutVoiceAudioNames(key: key, n: 10), [], "no numbered legacy recording either")
+        }
+        XCTAssertEqual(workoutVoiceAudioNames(key: "pushup_hip_sag", n: nil), ["pushup_hip_sag"],
+                       "unrelated warning routing is unchanged")
     }
 
     func testSetRecorderWritesH264() throws {

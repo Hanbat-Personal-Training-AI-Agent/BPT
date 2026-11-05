@@ -9,21 +9,27 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/route_constants.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../demo/demo_autopilot.dart';
+import '../../auth/providers/auth_provider.dart';
+import '../services/calibration_result_store.dart';
+import '../models/body_analysis_result.dart';
+import '../models/calibration_capture.dart';
 import '../services/calibration_upload_service.dart';
+import '../widgets/body_mesh_reveal.dart';
 
 /// Shown right after the 4 body-scan photos are captured. Uploads the capture
 /// bundle on its own (no button), plays the analysis progress animation, then
-/// continues to the 3D result screen once both are done.
-///
-/// The ring is still a 40 s animation: no analysis result comes back yet, and
-/// the result screen is a placeholder. A missing upload config or a failed
-/// upload does not block the flow; it is only logged and the photos stay on
-/// the device.
+/// prepares the result during the existing wait when the mesh flag is enabled.
+/// Missing or failed analysis never blocks continuing to the result.
 class OnboardingAnalyzingScreen extends ConsumerStatefulWidget {
-  const OnboardingAnalyzingScreen({super.key, this.sessionPath});
+  const OnboardingAnalyzingScreen({super.key, this.sessionPath, this.capture});
 
   /// `Documents/calibration/<sessionId>` written by the native calibration session.
   final String? sessionPath;
+
+  /// Only a capture-start lease can authorize upload/result use. A legacy path
+  /// alone remains unowned and can continue only with an empty local result.
+  final CalibrationCapture? capture;
 
   @override
   ConsumerState<OnboardingAnalyzingScreen> createState() =>
@@ -39,12 +45,66 @@ class _OnboardingAnalyzingScreenState
 
   /// Settles (never throws) when the upload has finished, failed or was skipped.
   late final Future<void> _upload;
+  late final Future<void> _analysis;
+  final _cancel = CancelToken();
+  final _uploadCancel = CancelToken();
+  Timer? _pollTimer;
+  Timer? _resultDeadline;
+  Completer<void>? _pollWait;
+
+  void _stopResultObservation() {
+    _cancel.cancel('calibration observation ended');
+    _resultDeadline?.cancel();
+    _pollTimer?.cancel();
+    final wait = _pollWait;
+    if (wait != null && !wait.isCompleted) wait.complete();
+  }
+
+  Future<void> _waitForPoll() async {
+    if (_cancel.isCancelled) return;
+    final wait = Completer<void>();
+    _pollWait = wait;
+    _pollTimer = Timer(const Duration(seconds: 3), () => wait.complete());
+    await wait.future;
+    _pollWait = null;
+    _pollTimer = null;
+  }
+
+  BodyAnalysisResult _result = const BodyAnalysisResult();
   bool _finished = false;
+
+  /// Accepted fit job, for the 3D body reveal ([kBodyMeshReveal]).
+  String? _jobId;
+  late final AuthNotifier _auth;
+  AuthSessionLease? _session;
+  late final CalibrationUploadService _service;
+  late final CalibrationResultStore _store;
+  bool get _ownsResult => _session?.isCurrent ?? false;
+
+  void _sessionChanged() {
+    if (_ownsResult) return;
+    _stopResultObservation();
+    _uploadCancel.cancel('account session changed');
+    final mesh = _result.meshId;
+    _result = const BodyAnalysisResult();
+    _jobId = null;
+    unawaited(BodyMeshReveal.release(mesh));
+  }
 
   @override
   void initState() {
     super.initState();
+    _auth = ref.read(authNotifierProvider);
+    _session = widget.capture?.session;
+    _service = ref.read(calibrationUploadServiceProvider);
+    // The account provider owns setup-only background observation across routes.
+    // Never adopt a stale capture into the current account's store.
+    _store = _ownsResult
+        ? ref.read(calibrationResultStoreProvider)
+        : CalibrationResultStore.forSession(_session);
+    _auth.addListener(_sessionChanged);
     _upload = _startUpload();
+    _analysis = kBodyMeshReveal ? _prepareResult() : _upload;
     _controller = AnimationController(vsync: this, duration: _duration)
       ..addStatusListener((status) {
         if (status == AnimationStatus.completed) _finishAfterUpload();
@@ -55,10 +115,10 @@ class _OnboardingAnalyzingScreenState
   /// Sends the 4 photos + metadata right away. Keeps running if the user
   /// leaves the screen, so the bundle still reaches the server.
   Future<void> _startUpload() async {
-    final path = widget.sessionPath;
-    final service = ref.read(calibrationUploadServiceProvider);
+    final path = widget.capture?.sessionPath ?? widget.sessionPath;
+    final service = _service;
     final issue = service.config.configurationIssue;
-    if (path == null || path.isEmpty) {
+    if (!_ownsResult || path == null || path.isEmpty) {
       debugPrint('[Calibration] 촬영 데이터 없음 → 전송 건너뜀');
       return;
     }
@@ -68,8 +128,13 @@ class _OnboardingAnalyzingScreenState
     }
     try {
       debugPrint('[Calibration] 사진 4장 자동 전송 시작');
-      final receipt = await service.upload(path, cancelToken: CancelToken());
+      final receipt = await service.upload(path, cancelToken: _uploadCancel);
+      if (!_ownsResult) return;
+      _jobId = receipt.jobId;
       debugPrint('[Calibration] 전송·접수 완료 (접수 번호 ${receipt.jobId})');
+      if (CalibrationResultStore.enabled && !kBodyMeshReveal) {
+        unawaited(_store.track(service, receipt.jobId));
+      }
     } on CalibrationUploadException catch (error) {
       debugPrint('[Calibration] 전송 실패: ${error.message}');
     } on DioException catch (error) {
@@ -81,15 +146,79 @@ class _OnboardingAnalyzingScreenState
   }
 
   Future<void> _finishAfterUpload() async {
-    await _upload;
+    await _analysis;
     _finish();
+  }
+
+  Future<void> _prepareResult() async {
+    await _upload;
+    final jobId = _jobId;
+    if (!mounted || _finished || !_ownsResult || jobId == null) return;
+    final service = _service;
+    // TRIAL BRANCH ONLY: the demo autopilot waits up to 7 min (a cold GPU start took longer than 3).
+    final started = DateTime.now();
+    final limit = DemoAutopilot.active
+        ? const Duration(minutes: 7)
+        : const Duration(minutes: 3);
+    final timeout = Timer(limit, _stopResultObservation);
+    _resultDeadline = timeout;
+    try {
+      while (mounted && !_finished && _ownsResult && !_cancel.isCancelled) {
+        CalibrationJob job;
+        try {
+          job = await service.fetchJob(jobId, cancelToken: _cancel);
+        } on CalibrationUploadException catch (error) {
+          DemoAutopilot.logJob(jobId, started, error: 'poll: ${error.message}');
+          await _waitForPoll();
+          continue;
+        }
+        if (!mounted || _finished || !_ownsResult || _cancel.isCancelled) {
+          return;
+        }
+        DemoAutopilot.logJob(jobId, started, job: job);
+        if (job.status == 'failed') return;
+        if (job.status == 'done') {
+          final values = job.result ?? const <String, dynamic>{};
+          if (CalibrationResultStore.enabled) await _store.save(jobId, values);
+          if (!mounted || !_ownsResult || _cancel.isCancelled) return;
+          _result = BodyAnalysisResult(values: values, session: _session);
+          final url = values['modelGlbUrl'];
+          if (url is! String || url.isEmpty) return;
+          final glb = await service.fetchModel(url, cancelToken: _cancel);
+          if (!mounted || _finished || !_ownsResult || _cancel.isCancelled) {
+            return;
+          }
+          DemoAutopilot.logJob(jobId, started,
+              error: 'glb ${glb.length} bytes');
+          final meshId = await BodyMeshReveal.prepare(glb);
+          DemoAutopilot.logJob(jobId, started,
+              error: 'mesh prepared ${meshId != null}');
+          if (!mounted || _finished || !_ownsResult || _cancel.isCancelled) {
+            await BodyMeshReveal.release(meshId);
+            return;
+          }
+          _result = BodyAnalysisResult(
+              values: values, meshId: meshId, session: _session);
+          return;
+        }
+        await _waitForPoll();
+      }
+    } catch (error) {
+      DemoAutopilot.logJob(jobId, started,
+          error: 'stopped: ${error.runtimeType}');
+      // Preserve the summary on download/parse failure; never log signed URLs.
+      debugPrint('[BodyMesh] 미리보기 없이 분석 결과 표시');
+    } finally {
+      timeout.cancel();
+    }
   }
 
   void _finish() {
     // The capture bundle stays on disk so a failed upload can be sent again later.
-    if (!mounted || _finished) return;
+    if (!mounted || _finished || (_session != null && !_ownsResult)) return;
     _finished = true;
-    context.go(RouteConstants.onboardingResult);
+    context.go(RouteConstants.onboardingResult,
+        extra: kBodyMeshReveal ? _result : null);
   }
 
   // TODO(temp): debug-only skip button — the analysis is still a fake
@@ -101,12 +230,16 @@ class _OnboardingAnalyzingScreenState
 
   @override
   void dispose() {
+    _auth.removeListener(_sessionChanged);
+    _stopResultObservation();
+    if (!_finished) BodyMeshReveal.release(_result.meshId);
     _controller.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(authSessionIdentityProvider, (_, __) => _sessionChanged());
     return Theme(
       data: ThemeData.dark().copyWith(
         textTheme: ThemeData.dark().textTheme.apply(fontFamily: 'Pretendard'),

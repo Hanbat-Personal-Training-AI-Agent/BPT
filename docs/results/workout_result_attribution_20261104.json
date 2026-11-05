@@ -1,0 +1,52 @@
+{
+  "baseCommit": "58e36ec7f8297d535d0f55ff8a965d5e653d275d",
+  "behaviors": [
+    "Planned target sets never allocate observed per-set reps or completed sets",
+    "Known totals, complete observed sets, explicit zero weight and scoped warning-event counts remain available",
+    "Absent/unversioned ambiguous zero weights remain unknown; raw legacy wire fields remain compatibility data",
+    "Malformed and duplicate-identity set lists remain invalid through DTO, storage, model, GET echoes and navigation",
+    "Native envelope owns counts; recording metadata attaches by matching set identity and values",
+    "Only recorded local or explicit remote media can play or save; no arbitrary demo or rep-derived duration",
+    "No warning count or legacy correctness/score is presented as certified good posture"
+  ],
+  "compatibilityLimits": [
+    "The unchanged legacy wire totalSets/totalVolume/weight numeric fallbacks remain untrusted for presentation",
+    "Unmarked zero in old cache or remote records cannot distinguish an original bodyweight entry from an old placeholder",
+    "This is evidence-attribution correctness, not independent posture accuracy or device visual validation"
+  ],
+  "genuineLocalHTTPProofSHA256": "40573d23161d85e2df50af830465bab3f69504fb9adec4a1696c20d7958c9b29",
+  "logSHA256": {
+    "bpt-result-attribution-analysis-frozen-20261104.log": "427c52e9a3870fffcabdefb594d5f42ffd2102c1532b6e7c10ce30b8e46cd789",
+    "bpt-result-attribution-complete-final-20261104.log": "8ea911c579cd01c7a47d359acc9e2f0edacabe2e0efa6a8cc523373ce42ecac2",
+    "bpt-result-attribution-final-edge-20261104.log": "0b6c5a183a05b03ed3ac536cb638a7d4857e5ce144ff7ff6f42711a91146ed69",
+    "bpt-result-attribution-focused-20261104.log": "a674a8fd1ad9303cd5aacb9ab83d2577f39ac4c7f8d24da751ff39f356af3ad3",
+    "bpt-result-attribution-focused2-20261104.log": "74f4b9911caf65ae5b73aefbe33e2a342e27b308da2767dacbde30de4580e648",
+    "bpt-result-attribution-full-20261104.log": "7a4392bb83f1cf67b0bdf1adec8d41ce7212f6e8f0f6fc18e1e129d8ccbfd4ca",
+    "bpt-result-attribution-local-http-20261104.log": "e018b2ebfdbd20528fd93cbc78c8495983cb42600b183f59887043f9b1a35b01",
+    "bpt-result-attribution-standard-full-20261104.log": "cf12856626bca438778758464316529ef62693a32beea70ce8c7e388b8870601"
+  },
+  "noNativeInferenceOrRuntimeChanges": true,
+  "noPhoneOrWindows": true,
+  "privateArtifacts": "/Users/6_month/bpt-data/completion-20261104-private/workout-result-attribution",
+  "schema": "bpt-workout-result-attribution-v1",
+  "scope": "Dart result, local persistence and history/share attribution; no native or model changes",
+  "sourceSHA256": {
+    "lib/data/dto/workout_metadata_dto.dart": "27b5636ac8ae445784fbbeae1bc9961b5962f82b50b4285c261643865c82f70b",
+    "lib/data/repositories/workout_repository.dart": "fc38fa5a29f8c87c0538fece623b5a579d355753a6be2b298005db793fa7ef4e",
+    "lib/features/calendar/screens/calendar_screen.dart": "0ef503b4df51bda367532da51006cc3d0fc3cc3d34eaf50a91d6cd00ea3e7395",
+    "lib/features/home/screens/home_screen.dart": "2bdd609e5c199c53ff88646b0580733659d6337f092b1edf4d8b70330c5f5005",
+    "lib/features/workout/data/workout_result_evidence.dart": "cdbc48219445679712f0ee92416b8750e069edb3f9d8e577929fe59946d15fc7",
+    "lib/features/workout/screens/workout_result_screen.dart": "6024c5fe3ee12b6567b485a17c6f6db32559a50151bf845b0d2adf54e5d10c74",
+    "lib/models/workout_record_model.dart": "924fa03ba2be351133396ee51fc777438798ba351ea69db8466430defada2594",
+    "lib/services/sync_service.dart": "1709f9d8afd44a64d5c47a2d5986304771c643b9a63b6a3828164b76be0a8fe5"
+  },
+  "tests": {
+    "analysis": "No issues found",
+    "conditionalSkipped": 8,
+    "failed": 0,
+    "files": 51,
+    "fullDartPassed": 282,
+    "newAttributionTests": 12,
+    "newRepositoryCases": 7
+  }
+}

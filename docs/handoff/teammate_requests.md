@@ -55,3 +55,9 @@ main 병합 뒤 요청과 별도 AI 브랜치의 작업 상태를 정리했다.
 - **상태**: 경고 키 6개는 Flutter 대사가 없어 꺼져 있다(`FormWarningTracker.keysWithoutFlutterLines`).
 - **근거(파일·커밋)**: `ios/Runner/NativePose/Evaluators/FormWarnings.swift`의 AI 쪽 변경(`ai/real-feedback` `a938ab1`, integration·main 반영). 대사 초안은 `docs/progress/2026-10-10.md`.
 - **제안**: 초안을 확인해 `lib/features/workout/data/kori_feedback_lines.dart`에 대사를 넣으면 해당 키가 켜진다.
+
+## 10. 분석 뒤 3D 몸 공개 화면 (2026-10-23)
+
+- **상태**: 분석 화면과 결과 화면 사이에 사용자 본인 3D 몸(SMPL 메시)을 카드 공개처럼 보여 주는 화면(`/onboarding/mesh`)을 AI 쪽에서 만들었다. 흐름 변경이라 **기본은 꺼짐**이고 `--dart-define=BPT_MESH_REVEAL=true`일 때만 분석 → 3D 몸 → 결과로 간다. 꺼져 있거나 메시를 못 받으면 지금 결과 화면 그대로다.
+- **근거(파일·커밋)**: `docs/results/mesh_reveal.md`, `lib/features/onboarding/screens/onboarding_mesh_screen.dart`, `lib/features/onboarding/widgets/body_mesh_reveal.dart`, 분석 화면은 `_finish`의 분기 한 곳만 바뀜. 브랜치 `ai/mesh-reveal-mf953336`.
+- **제안**: 기본으로 켤지, 결과 화면의 자리표시 골격 카드를 이 위젯(`BodyMeshReveal`)으로 바꿀지는 팀원이 결정.

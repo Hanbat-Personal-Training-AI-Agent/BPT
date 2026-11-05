@@ -1,0 +1,27 @@
+{
+  "aggregate_sha256": "712886456f98f6b33b0e1157128b797edd1d362b3d606a16c4c178492790c80d",
+  "files": {
+    "scripts/coaching_contract/__init__.py": "5e8dcf9e033ae63e28d9bbddf7ad090d3fb7b169e8351be867bb557427a7268b",
+    "scripts/coaching_contract/adapters.py": "b9aa4a2d169e2ead5072f208d2830e4087b83982e05f904e5e84983e7f58fab4",
+    "scripts/coaching_contract/contract.py": "bb90e12f63aee88e4edd437ccc6d5642742f3a16644bd48b993857fb65165156",
+    "scripts/coaching_contract/engine.py": "aafbb14a2b46cabc3c413c6cdb636f99506a7ae38e0e19e1cf2e9e1d59c67c43",
+    "scripts/coaching_contract/replay.py": "22c153c05e1267bbd8704af0f462a030f7511355a8389b24ac0abb1e0157c515",
+    "test/python/test_coaching_contract_adapters.py": "80702586cf4711c79ad910345fbdb0e9e56bd4ea49552bdeb483130ee3dc2604",
+    "test/python/test_coaching_contract_engine.py": "63e2dbd625cc2cce93dafff5a78f17c137bf1d417181bbe32df0993251e51376"
+  },
+  "private_result_hashes": {
+    "aggregate.json": "712886456f98f6b33b0e1157128b797edd1d362b3d606a16c4c178492790c80d",
+    "comparison-02-03.json": "5e61b42e51eb481317f38d8aba5c56b1506394e35a251a709a72308a4fe3a058",
+    "input-receipt.json": "bebbd6db73ce608a395af6bde33294b680f50cf838cca9f61267d7189c9c65f0",
+    "result-00.json": "74fe7460aa151293b66355736904c4227bb2eb7f2cf7933a2c30d53bbbed82ae",
+    "result-01.json": "ffe25ce55575ed86f50c35ec6a1597cf8aa4a7ed39553eb7931637113b3702d8",
+    "result-02.json": "d2e32dbd5689ad703ca0616082a93e3f6b8c644a77729ca88a5a91340e8b9c4c",
+    "result-03.json": "56e8008311df00d3240756091d90b0a4a896d7dd74a05dbe8e5dee74cdaff8e7",
+    "stream-00.json": "678ecf2774082561f12caad2cff7450ff622fb5b6fd800633aedb262600e6d37",
+    "stream-01.json": "4d24c05098239d921f66eaa675385eb2842116e61c04465418b3baa219a57ffe",
+    "stream-02.json": "a52b4ff8da889127376d8147bd5d17dc583aa568d35144ffa321133caf36dac6",
+    "stream-03.json": "f1362e976ebcf27e9fca8a4a0dca26ddd6084fe177fe91bf9a9c0692ca3c077c"
+  },
+  "schema": "bpt.coaching-shadow-source-receipt.v1",
+  "source_base": "654fab2b62affee52fb4cb3eb313dbbe784b3f08"
+}

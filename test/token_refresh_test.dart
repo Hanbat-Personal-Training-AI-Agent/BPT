@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:bpt/core/network/api_client.dart';
@@ -56,6 +57,41 @@ void main() {
       ..setRefreshToken('old-refresh');
     client.dio.httpClientAdapter = api;
   }
+
+  test(
+      'late refresh response cannot restore a logged out or replacement session',
+      () async {
+    for (final replacement in [false, true]) {
+      final started = Completer<void>();
+      final release = Completer<void>();
+      final dio = Dio(BaseOptions(baseUrl: 'http://test'));
+      dio.interceptors
+          .add(InterceptorsWrapper(onRequest: (options, handler) async {
+        started.complete();
+        await release.future;
+        handler.resolve(Response(
+            requestOptions: options,
+            statusCode: 200,
+            data: {
+              'accessToken': 'stale-new',
+              'refreshToken': 'stale-refresh'
+            }));
+      }));
+      final auth = ApiClient(baseUrl: 'http://test', refreshDio: dio)
+        ..setAuthToken('old')
+        ..setRefreshToken('old-refresh');
+      var saved = 0;
+      auth.onTokensRefreshed = (_, __) => saved++;
+      final future = auth.refreshAccessToken('old');
+      await started.future;
+      auth.setAuthToken(replacement ? 'other' : null);
+      auth.setRefreshToken(replacement ? 'other-refresh' : null);
+      release.complete();
+      expect(await future, isNull);
+      expect(auth.authToken, replacement ? 'other' : null);
+      expect(saved, 0);
+    }
+  });
 
   test('expired access token is refreshed once and the request retried',
       () async {

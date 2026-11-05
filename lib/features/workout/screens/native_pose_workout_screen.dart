@@ -13,10 +13,20 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/workout_orientation.dart';
 import '../../../core/widgets/app_toast.dart';
 import '../../../data/mock_data.dart';
+import '../../../data/dto/workout_metadata_dto.dart';
 import '../../home/providers/home_provider.dart';
 import '../../../services/kori_voice_service.dart';
+import '../../auth/providers/auth_provider.dart';
+import '../../onboarding/services/calibration_result_store.dart';
 import '../data/kori_feedback_lines.dart';
 import '../data/native_pose_channel.dart';
+import '../data/experimental_coaching_candidate.dart';
+import '../data/motion_observer_profile.dart';
+import '../widgets/experimental_coaching_candidate_banner.dart';
+import '../data/workout_evidence.dart';
+import '../widgets/exercise_setup_panel.dart';
+import '../data/deep_analysis_queue.dart';
+import 'deep_analysis_report_screen.dart';
 
 /// Preparation phases shown before the native camera PlatformView appears.
 enum _PrepPhase { alignHint, countdown, live }
@@ -62,7 +72,7 @@ class NativePoseWorkoutScreen extends ConsumerStatefulWidget {
 }
 
 class _NativePoseWorkoutScreenState
-    extends ConsumerState<NativePoseWorkoutScreen> {
+    extends ConsumerState<NativePoseWorkoutScreen> with WidgetsBindingObserver {
   // "카메라를 몸 전체가 보이도록 맞춰주세요" guidance duration before the countdown.
   static const Duration _alignHintDuration = Duration(milliseconds: 1800);
 
@@ -93,6 +103,23 @@ class _NativePoseWorkoutScreenState
   // 코리 피드백: 네이티브 판정이 `onFeedback` 으로 보낸 대사 키만 보여준다
   // (kori_feedback_lines.dart). 첫 피드백 전에는 운동별 기본 팁을 보여준다.
   String? _feedbackKey;
+  ExperimentalCoachingCandidate? _experimentalCandidate;
+  final _experimentalInbox = ExperimentalCoachingCandidateInbox();
+  int _candidateChannelGeneration = 0;
+  MotionObserverProfileBridge? _motionProfileBridge;
+  bool _motionProfileReadyRequested = false;
+  int _motionProfileBoundary = 0;
+  ProviderSubscription<CalibrationResultStore>? _motionProfileSubscription;
+  // 실시간 3D 상태 (onPoseUpdate.pose3d). null = 3D 경로 없음.
+  NativePose3DStatus? _pose3d;
+
+  // 실험용 개인화 준비 자세 (--dart-define=BPT_EXERCISE_SETUP=true 일 때만, 기본 꺼짐). 첫 세트 첫 렙 전까지 패널을 띄운다.
+  static const bool _setupEnabled = CalibrationResultStore.enabled;
+  NativeSetupStatus? _setupStatus;
+  String _setupVariant = 'bodyweight';
+  Map<String, double> _setupReference = const {};
+  Map<String, double>? _bodyProfile;
+  bool _setupDismissed = false;
   int? _feedbackCount;
   int _badCountThisSet = 0;
   final Set<String> _warningKeysThisSet = {};
@@ -104,6 +131,10 @@ class _NativePoseWorkoutScreenState
   late int _restTotal = widget.restSeconds;
   late int _restRemaining = widget.restSeconds;
   final List<_SetResult> _setResults = [];
+  final Map<int, Map<String, dynamic>> _setMedia = {};
+  final String _recordId = newClientRecordId();
+  final Map<int, Completer<void>> _setClosures = {};
+  bool _finishing = false;
 
   /// [setNumber] 번째 세트(1부터)에 들 무게.
   int _weightForSetNumber(int setNumber) {
@@ -148,6 +179,69 @@ class _NativePoseWorkoutScreenState
   void initState() {
     super.initState();
     _alignTimer = Timer(_alignHintDuration, _startCountdown);
+    if (_setupEnabled) _loadSetup();
+    if (MotionObserverProfileBridge.enabled) {
+      WidgetsBinding.instance.addObserver(this);
+      _motionProfileSubscription = ref.listenManual(
+        calibrationResultStoreProvider,
+        (_, next) {
+          final bridge = _motionProfileBridge;
+          if (bridge != null) unawaited(bridge.bind(next));
+        },
+      );
+    }
+  }
+
+  // ── 실험용 준비 자세 (BPT_EXERCISE_SETUP) ─────────────────────────────────
+  Future<void> _loadSetup() async {
+    final store = ref.read(calibrationResultStoreProvider);
+    final profile = await store.bodyProfile();
+    final reference =
+        await store.loadReference(widget.exerciseId, _setupVariant);
+    if (!mounted || !store.isCurrent) return;
+    setState(() {
+      _bodyProfile = profile;
+      _setupReference = reference;
+    });
+    // 카메라 뷰가 먼저 만들어졌으면 기준을 네이티브에 다시 알려 준다.
+    _channel?.invokeMethod<void>(NativePoseChannel.setSetupVariant,
+        {'variant': _setupVariant, 'reference': reference});
+  }
+
+  Map<String, Object> get _setupCreationParams => {
+        'exerciseSetup': true,
+        'setupVariant': _setupVariant,
+        'setupReference': _setupReference,
+        if (_bodyProfile != null) 'bodyProfile': _bodyProfile!,
+      };
+
+  void _resetSetup() {
+    _channel?.invokeMethod<void>(NativePoseChannel.resetSetup);
+    setState(() => _setupStatus = null);
+  }
+
+  Future<void> _saveSetupReference() async {
+    final snapshot = _setupStatus?.snapshot;
+    if (snapshot == null) return;
+    final store = ref.read(calibrationResultStoreProvider);
+    final saved =
+        await store.saveReference(widget.exerciseId, _setupVariant, snapshot);
+    if (!mounted || !store.isCurrent || !saved) return;
+    setState(() => _setupReference = snapshot);
+    _channel?.invokeMethod<void>(NativePoseChannel.setSetupVariant,
+        {'variant': _setupVariant, 'reference': snapshot});
+  }
+
+  Future<void> _changeSetupVariant(String variant) async {
+    final store = ref.read(calibrationResultStoreProvider);
+    final reference = await store.loadReference(widget.exerciseId, variant);
+    if (!mounted || !store.isCurrent) return;
+    setState(() {
+      _setupVariant = variant;
+      _setupReference = reference;
+    });
+    _channel?.invokeMethod<void>(NativePoseChannel.setSetupVariant,
+        {'variant': variant, 'reference': reference});
   }
 
   void _startCountdown() {
@@ -179,15 +273,91 @@ class _NativePoseWorkoutScreenState
 
   void _onPlatformViewCreated(int id) {
     _channel = MethodChannel('${NativePoseWorkoutScreen.viewType}/$id');
-    _channel!.setMethodCallHandler(_handleNativeCall);
+    final generation = ++_candidateChannelGeneration;
+    if (MotionObserverProfileBridge.enabled) {
+      _motionProfileBridge?.dispose();
+      final channel = _channel!;
+      _motionProfileBridge = MotionObserverProfileBridge(
+        invoke: (method, args) => channel.invokeMethod(method, args),
+        declaration: MotionProfileDeclaration.fromEnvironment(),
+      );
+      _motionProfileReadyRequested = false;
+    }
+    _channel!.setMethodCallHandler(
+      (call) => _handleNativeCall(call, generation: generation),
+    );
     if (_voiceMuted) _notifyVoiceMuted();
   }
 
-  Future<dynamic> _handleNativeCall(MethodCall call) async {
+  Future<dynamic> _handleNativeCall(MethodCall call, {int? generation}) async {
     if (call.method == 'onPoseUpdate') {
+      if (mounted &&
+          (generation == null || generation == _candidateChannelGeneration) &&
+          MotionObserverProfileBridge.enabled &&
+          !_motionProfileReadyRequested) {
+        _motionProfileReadyRequested = true;
+        final bridge = _motionProfileBridge;
+        if (bridge != null) {
+          unawaited(bridge.bind(ref.read(calibrationResultStoreProvider)));
+        }
+      }
       final args = (call.arguments as Map).cast<String, dynamic>();
       final rep = (args['rep'] as num?)?.toInt() ?? _latestNativeRep;
+      final pose3d = NativePose3DStatus.parse(args);
+      if (pose3d != null &&
+          mounted &&
+          (pose3d.state != _pose3d?.state ||
+              pose3d.filled != _pose3d?.filled ||
+              pose3d.occluded.length != (_pose3d?.occluded.length ?? 0))) {
+        setState(() => _pose3d = pose3d);
+      }
+      if (_setupEnabled) {
+        final setup = NativeSetupStatus.parse(args);
+        if (setup != null && mounted) setState(() => _setupStatus = setup);
+      }
       _onNativeUpdate(rep);
+    } else if (call.method ==
+        NativePoseChannel.onExperimentalCoachingCandidate) {
+      if (generation != null && generation != _candidateChannelGeneration) {
+        return {'presented': false};
+      }
+      if (!_experimentalInbox.accept(call.arguments,
+          active:
+              mounted && !_isPaused && !_setComplete && !_workoutComplete)) {
+        return {'presented': false};
+      }
+      final candidate = _experimentalInbox.current!;
+      setState(() => _experimentalCandidate = candidate);
+      Future<void>.delayed(const Duration(seconds: 3), () {
+        if (mounted &&
+            _experimentalCandidate?.proposalId == candidate.proposalId) {
+          _experimentalInbox.clear();
+          setState(() => _experimentalCandidate = null);
+        }
+      });
+      return {
+        'presented': true,
+        'proposalId': candidate.proposalId,
+        'tts': false
+      };
+    } else if (call.method == 'onExperimentalCoachingCandidateClear') {
+      if (generation != null && generation != _candidateChannelGeneration) {
+        return {'cleared': false};
+      }
+      final cleared = _experimentalInbox.expire(call.arguments);
+      if (cleared && mounted) setState(() => _experimentalCandidate = null);
+      return {'cleared': cleared, 'tts': false};
+    } else if (call.method == NativePoseChannel.onSetEnd) {
+      _experimentalInbox.clear();
+      if (mounted) setState(() => _experimentalCandidate = null);
+      final args = (call.arguments as Map).cast<String, dynamic>();
+      final index = (args['setIndex'] as num).toInt();
+      if (mounted) setState(() => _setMedia[index] = args);
+      unawaited(ref
+          .read(deepAnalysisQueueProvider.notifier)
+          .enqueueSet(args, widget.exerciseId, recordId: _recordId));
+      final pending = _setClosures[index];
+      if (pending != null && !pending.isCompleted) pending.complete();
     } else if (call.method == NativePoseChannel.onFeedback) {
       // { key: 'squat_shallow', n?: 3, scope: 'rep'|'set' } — key는 kori_feedback_lines.dart 목록 기준.
       final feedback = NativeFeedback.parse(call.arguments);
@@ -222,14 +392,31 @@ class _NativePoseWorkoutScreenState
   /// 세트 끝 요약 경고(scope "set", n = 세트 안 렙 수). 세트 요약 음성과 겹치지 않게
   /// 말풍선·음성 없이 운동 기록의 경고 횟수에만 더한다.
   void _onNativeSetSummary(String key, int? count) {
-    if (!mounted || koriFeedbackLines[key]?.kind != KoriFeedbackKind.warning) return;
+    if (!mounted || koriFeedbackLines[key]?.kind != KoriFeedbackKind.warning) {
+      return;
+    }
     _nativeFeedbackCounts.update(key, (c) => c + (count ?? 1),
         ifAbsent: () => count ?? 1);
   }
 
   /// 세트 경계를 네이티브에 알린다(세트 요약 경고, 세트별 기록, 3D 마지막 프레임 판정).
   void _notifySet(String method) {
-    _channel?.invokeMethod(method, {'setIndex': _currentSet});
+    if (method == NativePoseChannel.endSet && _channel != null) {
+      _setClosures.putIfAbsent(_currentSet, Completer<void>.new);
+    }
+    final bridge = _motionProfileBridge;
+    final store = MotionObserverProfileBridge.enabled ? ref.read(calibrationResultStoreProvider) : null;
+    final channelGeneration = _candidateChannelGeneration;
+    final set = _currentSet;
+    final boundary = ++_motionProfileBoundary;
+    if (method == NativePoseChannel.endSet) bridge?.cancelPendingStart();
+    final sent = _channel?.invokeMethod(method, {'setIndex': set});
+    if (method == NativePoseChannel.startSet && bridge != null && store != null) {
+      unawaited(bridge.bindAfterStart(sent, store, stillCurrent: () =>
+          mounted && identical(bridge, _motionProfileBridge) &&
+          channelGeneration == _candidateChannelGeneration && boundary == _motionProfileBoundary &&
+          set == _currentSet && !_setComplete && !_workoutComplete));
+    }
   }
 
   void _toggleVoiceMuted() {
@@ -240,8 +427,8 @@ class _NativePoseWorkoutScreenState
 
   /// 네이티브 운동 음성에도 음소거 상태를 알린다.
   void _notifyVoiceMuted() {
-    _channel?.invokeMethod(
-        NativePoseChannel.setVoiceMuted, {'muted': _voiceMuted});
+    _channel
+        ?.invokeMethod(NativePoseChannel.setVoiceMuted, {'muted': _voiceMuted});
   }
 
   bool get _isKo => ref.read(appStringsProvider).locale == 'ko';
@@ -257,7 +444,7 @@ class _NativePoseWorkoutScreenState
         isKo: isKo, interrupt: line.kind == KoriFeedbackKind.warning);
   }
 
-  /// 방금 끝낸 세트에 대한 코멘트 (_KoriBreakMessage 와 같은 대사)를 말한다.
+  /// 방금 끝낸 세트의 완료/기록 경고 코멘트. 경고 키0개는 자세 정상의 증거가 아니다.
   void _speakSetSummary() {
     if (_voiceMuted) return;
     final result = _setResults.last;
@@ -309,7 +496,11 @@ class _NativePoseWorkoutScreenState
   }
 
   void _togglePause() {
-    setState(() => _isPaused = !_isPaused);
+    _experimentalInbox.clear();
+    setState(() {
+      _isPaused = !_isPaused;
+      _experimentalCandidate = null;
+    });
   }
 
   void _startRestTimer() {
@@ -379,9 +570,20 @@ class _NativePoseWorkoutScreenState
     }
   }
 
-  void _finishWorkout() {
+  Future<void> _finishWorkout() async {
+    if (!mounted || _finishing) return;
+    _finishing = true;
+    if (!_setComplete && !_workoutComplete) {
+      _notifySet(NativePoseChannel.endSet);
+    }
+    // AVAssetWriter가 파일을 닫은 뒤 결과 화면으로 이동한다.
+    try {
+      await Future.wait(_setClosures.values.map((c) => c.future))
+          .timeout(const Duration(seconds: 8));
+    } on TimeoutException {
+      // 원래 운동 기록은 영상 저장 실패와 무관하게 남긴다.
+    }
     if (!mounted) return;
-    if (!_setComplete && !_workoutComplete) _notifySet(NativePoseChannel.endSet);
 
     // 실제로 수행한 세트만 모은다. 끝난 세트 + 진행 중이던 세트(1회 이상 했을 때).
     // 쉬는 시간/완료 화면에서는 방금 끝낸 세트가 이미 _setResults 에 들어 있다.
@@ -426,20 +628,34 @@ class _NativePoseWorkoutScreenState
         'exerciseName': exercise.name,
         'exerciseNameKr': exercise.nameKr,
         'totalReps': totalReps,
-        'correctReps': totalReps - totalBad,
-        'incorrectReps': totalBad,
+        // Required legacy wire fields cannot encode unknown: 0/0 are explicit placeholders.
+        'correctReps': 0,
+        'incorrectReps': 0,
+        'poseMetricsSummary': WorkoutEvidence.nativeSummary(
+          completedReps: totalReps,
+          recordedWarningEvents: totalBad,
+          sets: performedSets
+              .map((r) => <String, dynamic>{
+                    'reps': r.reps,
+                    'weightKg': r.weightKg,
+                    'badCount': r.badCount,
+                  })
+              .toList(),
+        ),
         'elapsedSeconds': elapsedSeconds,
         'postureScore': null,
         'feedbackHistory': null,
         'feedbackCounts': Map<String, int>.of(_nativeFeedbackCounts),
         'targetReps': _totalPlannedReps,
-        // 계획한 세트 수가 아니라 실제로 수행한 세트 수를 기록한다.
-        'targetSets': performedSets.length,
-        'setResults': performedSets
-            .map((r) => {
-                  'reps': r.reps,
-                  'weightKg': r.weightKg,
-                  'badCount': r.badCount,
+        // Keep the planned goal separate; actual performed sets live in workoutEvidence/totalSets.
+        'targetSets': widget.targetSets,
+        'clientRecordId': _recordId,
+        'setResults': performedSets.indexed
+            .map((entry) => {
+                  ...?_setMedia[entry.$1 + 1],
+                  'reps': entry.$2.reps,
+                  'weightKg': entry.$2.weightKg,
+                  'badCount': entry.$2.badCount,
                 })
             .toList(),
       },
@@ -447,7 +663,19 @@ class _NativePoseWorkoutScreenState
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && MotionObserverProfileBridge.enabled && mounted) {
+      // Wait for a genuine new native update after foreground before rebinding.
+      // Tracker/person switches intentionally stay cleared until a new set or owner bind.
+      _motionProfileReadyRequested = false;
+    }
+  }
+
+  @override
   void dispose() {
+    if (MotionObserverProfileBridge.enabled) { WidgetsBinding.instance.removeObserver(this); }
+    _motionProfileSubscription?.close();
+    _motionProfileBridge?.dispose();
     _alignTimer?.cancel();
     _countdownTimer?.cancel();
     _elapsedTimer?.cancel();
@@ -459,6 +687,16 @@ class _NativePoseWorkoutScreenState
 
   @override
   Widget build(BuildContext context) {
+    if (_setupEnabled) {
+      ref.listen(authSessionIdentityProvider, (previous, next) {
+        if (previous == next || !mounted) return;
+        // Dispose the camera's creation-time body dimensions as well as Dart UI.
+        // An account switch must not retain another account's native setup view.
+        _bodyProfile = null;
+        _setupReference = const {};
+        context.go(RouteConstants.home);
+      });
+    }
     final s = ref.watch(appStringsProvider);
     final isKo = s.locale == 'ko';
     final exercise = findExercise(widget.exerciseId);
@@ -476,6 +714,16 @@ class _NativePoseWorkoutScreenState
         body: Stack(
           children: [
             Positioned.fill(child: _buildBody(context, exName, isKo)),
+            if (!_isPaused &&
+                !_setComplete &&
+                !_workoutComplete &&
+                _experimentalCandidate != null)
+              Positioned(
+                  top: 80,
+                  left: 16,
+                  right: 16,
+                  child: ExperimentalCoachingCandidateBanner(
+                      candidate: _experimentalCandidate!, isKo: isKo)),
             if (!isLiveTracking && !_setComplete && !_workoutComplete)
               Positioned.fill(
                 child: SafeArea(
@@ -535,7 +783,13 @@ class _NativePoseWorkoutScreenState
         if (_isSupportedExercise && _isIOS)
           UiKitView(
             viewType: NativePoseWorkoutScreen.viewType,
-            creationParams: {'exerciseId': widget.exerciseId},
+            creationParams: {
+              'exerciseId': widget.exerciseId,
+              if (_setupEnabled) ..._setupCreationParams,
+              // 실험용 푸시업 손목 바닥 고정 (--dart-define=BPT_WRIST_ANCHOR=true 일 때만, 기본 꺼짐)
+              if (const bool.fromEnvironment('BPT_WRIST_ANCHOR'))
+                'wristAnchor': true,
+            },
             creationParamsCodec: const StandardMessageCodec(),
             onPlatformViewCreated: _onPlatformViewCreated,
           )
@@ -561,6 +815,43 @@ class _NativePoseWorkoutScreenState
                 voiceMuted: _voiceMuted,
                 onToggleVoice: _toggleVoiceMuted,
               ),
+            ),
+          ),
+        if (_setupEnabled &&
+            !_setupDismissed &&
+            _currentSet == 1 &&
+            _latestNativeRep == 0 &&
+            !_setComplete &&
+            !_workoutComplete)
+          Positioned(
+            left: 12,
+            right: 12,
+            top: 150,
+            child: SafeArea(
+              child: ExerciseSetupPanel(
+                isKo: isKo,
+                exerciseId: widget.exerciseId,
+                exerciseName: exerciseName,
+                status: _setupStatus,
+                variant: _setupVariant,
+                bodyProfile: _bodyProfile,
+                hasReference: _setupReference.isNotEmpty,
+                onVariantChanged: _changeSetupVariant,
+                onReset: _resetSetup,
+                onSaveReference: _saveSetupReference,
+                onDismiss: () => setState(() => _setupDismissed = true),
+              ),
+            ),
+          ),
+        if (!_setComplete &&
+            !_workoutComplete &&
+            _pose3d?.message(isKo: isKo) != null)
+          Positioned(
+            left: 16,
+            right: 16,
+            top: 96,
+            child: SafeArea(
+              child: _Pose3DBanner(text: _pose3d!.message(isKo: isKo)!),
             ),
           ),
         // TODO(temp): 디버그 빌드에서만 보이는 테스트 버튼. 실제 기기 카메라
@@ -606,6 +897,15 @@ class _NativePoseWorkoutScreenState
             totalSets: widget.targetSets,
             isKo: isKo,
             onFinish: _finishWorkout,
+          ),
+        if ((_setComplete || _workoutComplete) &&
+            _setMedia[_currentSet] != null)
+          Positioned(
+            top: MediaQuery.paddingOf(context).top + 8,
+            right: 20,
+            child: DeepAnalysisStatus(
+                sessionId: (_setMedia[_currentSet]!['deepAnalysis']
+                    as Map?)?['sessionId'] as String?),
           ),
       ],
     );
@@ -763,6 +1063,7 @@ class _LiveHud extends StatelessWidget {
   final int targetReps;
   final int currentSet;
   final int totalSets;
+
   /// null이면 첫 피드백 전 기본 팁.
   final String? feedbackKey;
   final int? feedbackCount;
@@ -1127,7 +1428,7 @@ class _SoundToggleButton extends StatelessWidget {
 
 /// 코리 피드백 말풍선. [feedbackKey] 대사를 보여주고, null이면 운동별 기본 팁.
 class _KoriFeedbackRow extends StatelessWidget {
-  // 첫 rep이 잡히기 전 기본 상태에서 운동별로 보여주는 한 줄 주의사항.
+  // 첫 피드백 대사가 오기 전 기본 상태에서 운동별로 보여주는 한 줄 주의사항.
   static const Map<String, String> _idleTipsKo = {
     'squat': '무릎이 발끝 방향을 향하게 해줘',
     'benchpress': '가슴까지 천천히 바를 내려줘',
@@ -1186,8 +1487,7 @@ class _KoriFeedbackRow extends StatelessWidget {
           bubbleColor = AppColors.purple;
           textColor = AppColors.black;
       }
-      final parts =
-          splitKoriLine(line.render(isKo: isKo, n: feedbackCount));
+      final parts = splitKoriLine(line.render(isKo: isKo, n: feedbackCount));
       title = parts.title;
       subtitle = parts.subtitle;
     }
@@ -1479,9 +1779,8 @@ class _DialogButton extends StatelessWidget {
         height: 52,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: primary
-              ? AppColors.green
-              : Colors.white.withValues(alpha: 0.08),
+          color:
+              primary ? AppColors.green : Colors.white.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(16),
           border: primary
               ? null
@@ -1511,7 +1810,7 @@ class _SetResult {
   final int reps;
   final int weightKg;
 
-  /// 경고가 나온 횟수 (결과 기록의 incorrectReps).
+  /// 전달된 경고 이벤트 수. 올바른/잘못된 반복 수가 아니다.
   final int badCount;
 
   /// 이 세트에서 나온 서로 다른 경고 종류 수 (set_summary 의 {k}).
@@ -1940,7 +2239,7 @@ class _KoriBreakMessage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 경고 없이 끝난 세트 → praise_clean_set, 경고가 있었으면 → set_summary.
+    // 전달된 경고 키가 없으면 완료 격려. 판정 범위/가시성이나 자세의 정상 여부를 뜻하지 않는다.
     final line = fixCount == 0
         ? koriFeedbackLines['praise_clean_set']!
         : koriFeedbackLines['set_summary']!;
@@ -2137,8 +2436,8 @@ class _SetRow extends StatelessWidget {
       trailingText = null;
       trailingColor = Colors.transparent;
     } else if (badCount == 0) {
-      trailingText = isKo ? '완벽해' : 'Perfect';
-      trailingColor = AppColors.green;
+      trailingText = isKo ? '완료' : 'Completed';
+      trailingColor = Colors.white.withValues(alpha: 0.65);
     } else {
       trailingText = isKo ? '교정 $badCount회' : 'Fix x$badCount';
       trailingColor = AppColors.pink;
@@ -2153,16 +2452,16 @@ class _SetRow extends StatelessWidget {
             height: 24,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color:
-                  done ? AppColors.green : Colors.white.withValues(alpha: 0.1),
+              color: done
+                  ? Colors.white.withValues(alpha: 0.16)
+                  : Colors.white.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(
               '$setNumber',
               style: TextStyle(
-                color: done
-                    ? AppColors.black
-                    : Colors.white.withValues(alpha: 0.4),
+                color:
+                    done ? Colors.white : Colors.white.withValues(alpha: 0.4),
                 fontWeight: FontWeight.w800,
                 fontSize: 12,
               ),
@@ -2478,4 +2777,29 @@ class _ConfettiPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_ConfettiPainter old) => false;
+}
+
+/// 실시간 3D 상태 안내 (3D를 쓸 수 없을 때만 보임).
+class _Pose3DBanner extends StatelessWidget {
+  const _Pose3DBanner({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.topCenter,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.6),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          child: Text(text,
+              style: const TextStyle(color: Colors.white, fontSize: 13)),
+        ),
+      ),
+    );
+  }
 }

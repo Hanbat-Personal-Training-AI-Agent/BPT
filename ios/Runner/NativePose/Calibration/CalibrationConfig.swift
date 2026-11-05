@@ -6,7 +6,10 @@ import Foundation
 /// real-device tuning; `debug_frames.csv` in each session folder records what they see.
 struct CalibrationConfig {
     struct Device {
-        var maxRollDeg: Double = 3.0
+        /// 10° (was 3°, 2026-10-23 proposal): the engine levels keypoints by the roll before judging
+        /// (`CalibrationEngine.levelled`), and the server never reads gravity — it fits each photo's own
+        /// orientation (docs/results/calib_root_cause.md §4).
+        var maxRollDeg: Double = 10.0
         /// 25° (was 12°) lets a phone lean back on the floor or a table and still see the head.
         /// The server fits each photo's own orientation and camera, and the manifest keeps each
         /// photo's gravity, so camera tilt is not lost (docs/decisions.md, 2026-10-11 framing).
@@ -30,25 +33,37 @@ struct CalibrationConfig {
         var maxBodyHeight: Double = 0.85
         var minHeadTop: Double = 0.02
         var maxFeet: Double = 0.98
-        var maxCentreOffset: Double = 0.06
+        /// 0.10 of the frame width (was 0.06, 2026-10-23 proposal): turning in place moves the shoulder/hip
+        /// midpoint 0.07–0.10 (calib_root_cause.md R3).
+        var maxCentreOffset: Double = 0.10
         /// Head top sits this many torso lengths above the shoulder midpoint.
         var headTopTorsoFactor: Double = 0.75
         /// Soles sit this many torso lengths below the lowest ankle.
         var feetTorsoFactor: Double = 0.06
+        /// Legs lost below hips this low in the frame means the legs run off the bottom edge → step back.
+        var cutLegsMinHipY: Double = 0.55
+        /// Head cut at the top with the feet this low, or the body this large → step back, not "show all".
+        var cutHeadMinFeet: Double = 0.9
+        var cutHeadMinBodyHeight: Double = 0.75
     }
 
     struct Stance {
-        var maxFeetDrift: Double = 0.03
-        var maxCentreDrift: Double = 0.08
+        /// 0.08 / 0.15 (were 0.03 / 0.08, 2026-10-23 proposal): stepping round in place moves the feet line
+        /// 0.03–0.065 on a low camera, and the server fits each photo's own position (calib_root_cause.md R3).
+        var maxFeetDrift: Double = 0.08
+        var maxCentreDrift: Double = 0.15
     }
 
     struct APose {
-        var maxWristDrop: Double = 0.97
+        /// 1.05 (was 0.97, 2026-10-23 proposal): a 3–5° roll pushes one wrist to 0.98–1.03 (calib_root_cause.md R2).
+        var maxWristDrop: Double = 1.05
         var minWristDrop: Double = 0.60
         var minElbowRatio: Double = 0.38
         var maxElbowRatio: Double = 0.75
         /// Front view only: horizontal distance from the body centre to the nearer wrist, in torso lengths.
-        var minWristReach: Double = 0.8
+        /// 0.5 (was 0.8, 2026-10-23 proposal): wrist half a torso out from the midline, about the hip outline.
+        /// At 0.8 neither user video held the front pose once (calib_root_cause.md R2).
+        var minWristReach: Double = 0.5
         var minAnkleGapOverHipWidth: Double = 0.9
         var maxAnkleGapOverHipWidth: Double = 2.6
     }

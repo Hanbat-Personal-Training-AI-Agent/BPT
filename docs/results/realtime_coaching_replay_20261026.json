@@ -1,0 +1,150 @@
+[
+  {
+    "candidate_assessments" : {
+      "withheld" : 2432
+    },
+    "file" : "pose_20261023_160217.jsonl",
+    "frames" : 2432,
+    "interpretation" : "Corrected geometry distributions only. Missing raw\/mask\/support\/phase\/profile stays withheld; no accuracy claim.",
+    "metric_reason_occurrences" : {
+      "missing_geometry" : 3448,
+      "missing_gravity" : 2432,
+      "missing_invalid_mask" : 21888,
+      "missing_joint_support" : 21888,
+      "missing_raw_geometry" : 21888,
+      "unusable_3d" : 1143
+    },
+    "metrics" : {
+      "leftElbowDeg" : {
+        "count" : 2305,
+        "fully_supported_frames" : 0,
+        "median" : 139.01673121166385,
+        "p05" : 88.520736606992287,
+        "p95" : 163.31594342651618
+      },
+      "leftHipDeg" : {
+        "count" : 2305,
+        "fully_supported_frames" : 0,
+        "median" : 107.56202357470752,
+        "p05" : 95.532546120206703,
+        "p95" : 165.68468519537046
+      },
+      "leftKneeDeg" : {
+        "count" : 2305,
+        "fully_supported_frames" : 0,
+        "median" : 121.41132034205724,
+        "p05" : 92.105427563590325,
+        "p95" : 171.94486491849898
+      },
+      "leftUpperArmDeg" : {
+        "count" : 2305,
+        "fully_supported_frames" : 0,
+        "median" : 25.790012871519245,
+        "p05" : 7.4969726252305042,
+        "p95" : 39.105438994975394
+      },
+      "rightElbowDeg" : {
+        "count" : 2305,
+        "fully_supported_frames" : 0,
+        "median" : 101.58919860164772,
+        "p05" : 74.3918031640534,
+        "p95" : 147.67787516424741
+      },
+      "rightHipDeg" : {
+        "count" : 2305,
+        "fully_supported_frames" : 0,
+        "median" : 109.64848680135772,
+        "p05" : 88.857417546191371,
+        "p95" : 170.33245915914995
+      },
+      "rightKneeDeg" : {
+        "count" : 2305,
+        "fully_supported_frames" : 0,
+        "median" : 134.01678356180662,
+        "p05" : 86.203044502435063,
+        "p95" : 164.86336057156973
+      },
+      "rightUpperArmDeg" : {
+        "count" : 2305,
+        "fully_supported_frames" : 0,
+        "median" : 25.271157627843703,
+        "p05" : 14.939308970404579,
+        "p95" : 31.902867142912744
+      }
+    }
+  },
+  {
+    "candidate_assessments" : {
+      "withheld" : 2440
+    },
+    "file" : "pose_20261023_144640.jsonl",
+    "frames" : 2440,
+    "interpretation" : "Corrected geometry distributions only. Missing raw\/mask\/support\/phase\/profile stays withheld; no accuracy claim.",
+    "metric_reason_occurrences" : {
+      "missing_geometry" : 3448,
+      "missing_gravity" : 2440,
+      "missing_invalid_mask" : 21960,
+      "missing_joint_support" : 21960,
+      "missing_raw_geometry" : 21960,
+      "unusable_3d" : 1134
+    },
+    "metrics" : {
+      "leftElbowDeg" : {
+        "count" : 2314,
+        "fully_supported_frames" : 0,
+        "median" : 139.00723745391389,
+        "p05" : 88.207057269762473,
+        "p95" : 163.4729722021132
+      },
+      "leftHipDeg" : {
+        "count" : 2314,
+        "fully_supported_frames" : 0,
+        "median" : 107.46823783441802,
+        "p05" : 93.470251426525166,
+        "p95" : 166.11906686312466
+      },
+      "leftKneeDeg" : {
+        "count" : 2314,
+        "fully_supported_frames" : 0,
+        "median" : 117.04973492843439,
+        "p05" : 92.091816268520461,
+        "p95" : 171.11675287334864
+      },
+      "leftUpperArmDeg" : {
+        "count" : 2314,
+        "fully_supported_frames" : 0,
+        "median" : 25.538449053755752,
+        "p05" : 7.4969726252305042,
+        "p95" : 38.921027875815966
+      },
+      "rightElbowDeg" : {
+        "count" : 2314,
+        "fully_supported_frames" : 0,
+        "median" : 101.58308754282228,
+        "p05" : 73.966986540750213,
+        "p95" : 147.67787516424741
+      },
+      "rightHipDeg" : {
+        "count" : 2314,
+        "fully_supported_frames" : 0,
+        "median" : 105.19396937510956,
+        "p05" : 88.53522547529785,
+        "p95" : 169.23690355873475
+      },
+      "rightKneeDeg" : {
+        "count" : 2314,
+        "fully_supported_frames" : 0,
+        "median" : 124.48460883647351,
+        "p05" : 86.070214159141344,
+        "p95" : 164.90600262851913
+      },
+      "rightUpperArmDeg" : {
+        "count" : 2314,
+        "fully_supported_frames" : 0,
+        "median" : 25.426660259009392,
+        "p05" : 14.669118597586781,
+        "p95" : 31.862977849226358
+      }
+    }
+  }
+]

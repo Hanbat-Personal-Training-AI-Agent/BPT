@@ -1,0 +1,55 @@
+{
+  "scope": "read-only existing Home arrays and scorer; no inference, candidate processing, raw transfer or new profile",
+  "original_run_complete": true,
+  "source_manifest_sha256": "b70c0f6059006abca72f5f510dc154669628315b489f53927cf36a77ca42db06",
+  "source_results_sha256": "2626a8e9f1fb8eba724068f6c7d292f9a991923a0361d0baf143dab79fcaa5b8",
+  "frozen_code_files_hash_verified": 18,
+  "unique_observation_and_GT_files_hash_verified": 200,
+  "combined_input_hash_manifest_sha256": "b9abdd12757d68e11611dec4c9ce1251eb9ce96ebbabbc04625d2ca3e38eed02",
+  "streams": 60,
+  "joint_frames_including_pelvis": 568004,
+  "scored_frames": 33412,
+  "score_start_index": 90,
+  "raw_first_usable_index": 21,
+  "A_raw_root_relative_MPJPE_mm": 146.83896455327258,
+  "original_A_records_weighted_MPJPE_mm": 146.83896455327263,
+  "max_perstream_MPJPE_disagreement_mm": 2.842170943040401e-14,
+  "saved_raw_model_max_absolute_difference": 0.0,
+  "saved_A_corrected_vs_rootcentered_raw_max_absolute_difference": 1.1102230246251565e-16,
+  "exercise_groups": {
+    "barbell_row": {
+      "streams": 20,
+      "joint_frames": 174216,
+      "MPJPE_mm": 123.67267531036048
+    },
+    "pushup": {
+      "streams": 20,
+      "joint_frames": 143480,
+      "MPJPE_mm": 233.04127334204898
+    },
+    "squat": {
+      "streams": 20,
+      "joint_frames": 250308,
+      "MPJPE_mm": 113.55049986868207
+    }
+  },
+  "raw_frames_total": 38812,
+  "raw_frames_per_stream_range": [
+    417,
+    1180
+  ],
+  "finite_raw_all_streams": true,
+  "timestamp_contract": "retained Fit3D pick index / 50Hz; loader verifies pick==round(arange(n)*50/30); never invented uniform30fps",
+  "actual_source_dt_seconds_unique": [
+    0.02,
+    0.04
+  ],
+  "maximum_source_time_seconds": 39.3,
+  "coordinate_contract": "XS H36M17 crop-model coordinates; center at current pelvis. GT camera=(joints-T)@R.T, H36M mapping retained. Scoring-only metres_per_crop_unit=crop.side/2*GTcameraRootDepth/meanFocal; multiply Euclidean error by1000 for mm.",
+  "data_boundary": "Files are full stream reset boundaries, fixed subject/exercise/camera; raw producer edge-clamps L5 windows at both ends, first usable21; tail5 are clamped and original A denominator includes them.",
+  "baseline_distinction": "A is original pretrained cached XS, not current native full constraints or phone hybrid MP input. Native full vs continuity would be a new offline postprocessing ablation on these raw caches.",
+  "split_status": "60 streams were heldout from original tuning36 but have already been evaluated/inspected for A-H and v4; reused development evidence for this followup, not a fresh independent holdout.",
+  "candidate_executed": false,
+  "runtime_modified": false,
+  "gt_runtime_input": false
+}

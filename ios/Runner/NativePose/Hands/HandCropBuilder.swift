@@ -66,40 +66,6 @@ enum HandCropBuilder {
         return UIImage(cgImage: cropped, scale: image.scale, orientation: image.imageOrientation)
     }
 
-    static func visualBodyKeypoints(
-        rawBodyKeypoints: [PoseKeypoint],
-        leftHand: HandLandmarkResult?,
-        rightHand: HandLandmarkResult?,
-        useMediaPipeWrist: Bool
-    ) -> [PoseKeypoint] {
-        guard useMediaPipeWrist else {
-            return rawBodyKeypoints
-        }
-
-        var visual = rawBodyKeypoints
-        replaceWrist(in: &visual, wristIndex: 9, hand: leftHand)
-        replaceWrist(in: &visual, wristIndex: 10, hand: rightHand)
-        return visual
-    }
-
-    private static func replaceWrist(
-        in keypoints: inout [PoseKeypoint],
-        wristIndex: Int,
-        hand: HandLandmarkResult?
-    ) {
-        guard keypoints.indices.contains(wristIndex),
-              let wrist = hand?.wristFramePoint else {
-            return
-        }
-
-        let original = keypoints[wristIndex]
-        keypoints[wristIndex] = PoseKeypoint(
-            x: wrist.x,
-            y: wrist.y,
-            confidence: original.confidence
-        )
-    }
-
     private static func clamp(_ value: Double, lower: Double, upper: Double) -> Double {
         min(max(value, lower), upper)
     }

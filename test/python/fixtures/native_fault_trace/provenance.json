@@ -1,0 +1,20 @@
+{
+  "contract": "bpt-native-synthetic-fixture-provenance-v1",
+  "fixtureSHA256": {
+    "core_barbell_row.jsonl": "e5a4ea10034c01de47adc688120e801e48eafb02a0d13452c86e493bd88d5b30",
+    "core_pushup.jsonl": "1a06d681fd856cce352e853a32134931782d14ef09a31dfe1efbe4bb08e53ca2",
+    "core_squat.jsonl": "00faab45ff44de4084502dfb1bb352784fdd99dc2b9c14c4d5c8dc81c20eae91",
+    "native_pushup.jsonl": "b7fd60bee17489aa282a46bdbba14f3f3dd72ba964cb2973430c9f076d791a16"
+  },
+  "generatorTestMethods": [
+    "testCaptureDoesNotChangeReportsOrEventsAndEmitsActualFixture",
+    "testEmitCoreThreeActualTrackerFixtures"
+  ],
+  "producerCommit": "7dea736c994d68f0248ca82720878a7502fe4ce8",
+  "scope": "actual_native_tracker_synthetic_geometry_with_test_only_configuration_overrides_not_media_or_ground_truth",
+  "sourceSHA256": {
+    "ios/CalibrationEngineKit/Tests/CalibrationEngineKitTests/FormFaultEvidenceTests.swift": "d9fdd9b33bd67f62ca3f6858dc212a094dde5b17659c4803f48f7ae721440930",
+    "ios/Runner/NativePose/Evaluators/FormFaultEvidence.swift": "ef70df234da5fe14133dd3c0df419d476c749fa2c62bbc0541c0b5e5927819f2",
+    "ios/Runner/NativePose/Evaluators/FormWarnings.swift": "1afc5663228d40cca71630f8587fd12501f36d66fea666e891dc08a4da3089c4"
+  }
+}
