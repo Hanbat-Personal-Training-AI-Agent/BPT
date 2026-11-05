@@ -87,9 +87,9 @@ deep_image = (
     .add_local_python_source("checks", "storage", "deep_analysis", "deep_metrics", "deep_worker")
 )
 
-# 팀 코칭 카탈로그가 들어오면 이미지에 같은 계약으로 포함한다.
+# 팀 코칭 카탈로그는 BPT_DEEP_TEAM_CATALOG=1로 배포할 때만 이미지에 넣는다(deep_metrics.CATALOG_PATH와 같은 조건).
 catalog = REPO / "docs/coaching/fault_catalog.csv"
-if catalog.is_file():
+if os.environ.get("BPT_DEEP_TEAM_CATALOG") == "1" and catalog.is_file():
     deep_image = deep_image.add_local_file(catalog, "/docs/coaching/fault_catalog.csv", copy=True)
 
 

@@ -1,5 +1,6 @@
 """중력 정렬 H36M-17 좌표의 반복별 지표와 근거. 모델·영상 없이 검증한다."""
 import csv
+import os
 from pathlib import Path
 
 import numpy as np
@@ -8,7 +9,11 @@ from checks import Rejected
 
 RULE_COLUMNS = ("fault_id", "exercise_id", "metric", "threshold", "severity", "title_ko", "body_ko", "device_key")
 RULE_PATH = Path(__file__).with_name("deep_rules.csv")
-CATALOG_PATH = Path(__file__).resolve().parent.parent.parent / "docs/coaching/fault_catalog.csv"
+# 팀 결함 카탈로그(docs/coaching/fault_catalog.csv)는 "배포 설정이 아니다"(gap_analysis.md). 저장소에 있다는
+# 것만으로 심층분석 규칙이 바뀌지 않도록 BPT_DEEP_TEAM_CATALOG=1일 때만 읽는다(release_merge_20261105.md).
+# 끄면 존재하지 않는 경로(rescore_saved_assessment_evidence.py의 absent 경로와 같은 방식) → deep_rules.csv.
+CATALOG_PATH = (Path(__file__).resolve().parent.parent.parent / "docs/coaching/fault_catalog.csv"
+                if os.environ.get("BPT_DEEP_TEAM_CATALOG") == "1" else Path(__file__).with_name("absent-team-catalog.csv"))
 
 
 TEAM_COLUMNS = ("exercise", "fault_id", "name_ko", "severity", "phase", "signal",
