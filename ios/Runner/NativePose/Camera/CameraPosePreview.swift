@@ -512,6 +512,7 @@ final class CameraPoseViewModel: ObservableObject {
         self.setupOptions = setupOptions
         self.setupVariant = setupOptions?.variant
         self.strictness = strictness
+    }
 
     func requestCameraAndStart() {
         if VideoCameraOptions.isActive { return setup() }
