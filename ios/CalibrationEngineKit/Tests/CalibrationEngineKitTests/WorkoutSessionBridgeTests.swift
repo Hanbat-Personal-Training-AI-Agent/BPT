@@ -179,4 +179,14 @@ final class WorkoutSessionBridgeTests: XCTestCase {
                                                  sampleTiming: &timing, sampleBufferOut: &buffer)
         return try XCTUnwrap(buffer)
     }
+
+    /// Set recording (deep analysis input) is on by default; BPT_SET_RECORDING=0 or BPTSetRecording NO opts out.
+    func testSetRecordingDefaultsOn() {
+        XCTAssertTrue(WorkoutDebugFlags.setRecordingEnabled(env: [:], stored: nil))
+        XCTAssertFalse(WorkoutDebugFlags.setRecordingEnabled(env: ["BPT_SET_RECORDING": "0"], stored: nil))
+        XCTAssertFalse(WorkoutDebugFlags.setRecordingEnabled(env: [:], stored: false))
+        XCTAssertTrue(WorkoutDebugFlags.setRecordingEnabled(env: ["BPT_SET_RECORDING": "1"], stored: false))
+        XCTAssertFalse(WorkoutDebugFlags.setRecordingEnabled(env: ["BPT_SET_RECORDING": "0"], stored: true))
+    }
 }
+

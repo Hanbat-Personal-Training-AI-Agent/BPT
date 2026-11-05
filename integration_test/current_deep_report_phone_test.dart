@@ -59,7 +59,8 @@ void registerCurrentDeepReportTest(
             jsonDecode(File('${docs.path}/bpt_demo.json').readAsStringSync())
                 as Map;
         expect('${config['BPT_DEMO_AUTOPILOT'] ?? '0'}', '0');
-        expect('${config['BPT_SET_RECORDING'] ?? '0'}', '0');
+        // Set recording is on by default (2026-11-05): this saved-rescore check must opt out explicitly.
+        expect('${config['BPT_SET_RECORDING']}', '0');
         expect('${config['BPT_VOICE_MUTE']}', '1');
         expect('${config['BPT_TERMINAL_EVIDENCE'] ?? '0'}', '0');
         final bindingFile = local(config['BPT_DEEP_REPORT_BINDING']);

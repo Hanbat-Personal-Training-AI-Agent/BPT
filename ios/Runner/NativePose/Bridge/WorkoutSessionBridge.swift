@@ -255,18 +255,24 @@ final class WorkoutVoice: NSObject, AVSpeechSynthesizerDelegate, AVAudioPlayerDe
 /// Launch-time switches: environment (`xcrun devicectl device process launch --environment-variables`)
 /// or UserDefaults (launch argument `-BPTPerfLog YES`).
 enum WorkoutDebugFlags {
-    private static func flag(_ env: String, _ defaultsKey: String) -> Bool {
-        ProcessInfo.processInfo.environment[env] == "1" || UserDefaults.standard.bool(forKey: defaultsKey)
-    }
-
     /// One JSON line per second (pose FPS, drops, thermal, battery, recording) under workout_form_logs.
     /// TRIAL BRANCH ONLY: on by default (BPT_PERF_LOG=0 turns it off) so trial sessions record FPS/latency/thermal/battery.
     static var perfLog: Bool { ProcessInfo.processInfo.environment["BPT_PERF_LOG"] != "0" }
 
-    /// Per-set 720p video for the server deep analysis (the set-end upload needs it). OFF until the on-device
-    /// FPS check (recording ON vs OFF) shows a drop ≤ 10 % (docs/research/set_recording_perf.md); while off,
-    /// onSetEnd sends videoLocalPath = null and deepAnalysis = null, so nothing is uploaded.
-    static var setRecording: Bool { flag("BPT_SET_RECORDING", "BPTSetRecording") }
+    /// Per-set 720p video for the server deep analysis (the set-end upload needs it). ON by default (user decision
+    /// 2026-11-05: deep analysis on in the release). Opt out with BPT_SET_RECORDING=0 (launch env or bpt_demo.json)
+    /// or UserDefaults BPTSetRecording NO; while off, onSetEnd sends videoLocalPath = null and deepAnalysis = null,
+    /// so nothing is uploaded.
+    static var setRecording: Bool {
+        setRecordingEnabled(env: DemoConfig.environment, stored: UserDefaults.standard.object(forKey: "BPTSetRecording"))
+    }
+
+    /// Env wins over UserDefaults; neither set = on.
+    static func setRecordingEnabled(env: [String: String], stored: Any?) -> Bool {
+        if let value = env["BPT_SET_RECORDING"] { return value != "0" }
+        if let value = stored as? Bool { return value }
+        return true
+    }
 
     /// Test-only: every app sound at volume 0 while the speech / audio work still runs (realistic CPU cost).
     /// BPT_VOICE_MUTE=1, or implied by a video-as-camera launch (BPT_CAMERA_VIDEO) unless BPT_VOICE_MUTE=0.
