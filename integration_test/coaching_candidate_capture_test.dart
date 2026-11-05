@@ -13,6 +13,7 @@ import 'package:video_player/video_player.dart';
 import 'package:crypto/crypto.dart';
 import 'current_deep_report_phone_test.dart' as report_mode;
 import 'phone_lifecycle_guard.dart';
+import 'phone_reentry_record_test.dart' as reentry_mode;
 import 'package:bpt/features/workout/data/experimental_coaching_candidate.dart';
 import 'package:bpt/features/workout/widgets/experimental_coaching_candidate_banner.dart';
 
@@ -68,6 +69,11 @@ Future<void> main() async {
   }));
   if (mode == 'report') {
     report_mode.registerCurrentDeepReportTest(
+        onOutputCreated: outputCreated, lifecycle: lifecycle);
+    return;
+  }
+  if (mode == 'reentry') {
+    reentry_mode.registerPhoneReentryRecordTest(
         onOutputCreated: outputCreated, lifecycle: lifecycle);
     return;
   }
