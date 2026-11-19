@@ -25,7 +25,4 @@ public class ResetPasswordRequest {
     @NotBlank(message = "새 비밀번호를 입력해 주세요.")
     @Schema(description = "새 비밀번호 (6자 이상)", example = "newPassword123!")
     private String newPassword;
-
-    @Schema(description = "이메일 인증 코드 (토큰 미사용 시 호환용)", example = "842109")
-    private String code;
 }
