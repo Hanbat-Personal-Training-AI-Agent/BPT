@@ -11,7 +11,9 @@ spring:
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/bpt_db}
     username: ${DB_USERNAME:bpt_user}
-    password: ${DB_PASSWORD:bptpass123!}
+    # 비밀값은 기본값 없이 환경변수 또는 application-secret.yml(git 제외)에서만 받는다.
+    # 둘 다 없으면 서버가 시작하지 않는다 (공개된 기본값으로 조용히 뜨는 것보다 낫다).
+    password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
     hikari:
       maximum-pool-size: 10
@@ -21,7 +23,7 @@ spring:
   mail:
     host: ${MAIL_HOST:smtp.gmail.com}
     port: ${MAIL_PORT:587}
-    username: ${MAIL_USERNAME:20211936@edu.hanbat.ac.kr}
+    username: ${MAIL_USERNAME:}
     password: ${MAIL_PASSWORD:}
     properties:
       mail:
@@ -48,7 +50,9 @@ spring:
       max-request-size: 50MB
 
 jwt:
-  secret: ${JWT_SECRET:c2VjdXJlX2tleV9mb3JfYnB0X2tvcmVfc3ByaW5nX2Jvb3Rfc2VydmVyXzIwMjYxMjM0NTY3ODkwMTIzNDU2Nzg5MDEyMzQ1Ng==}
+  # base64 인코딩한 32바이트 이상 무작위 값 (예: openssl rand -base64 48).
+  # Modal 캘리브레이션 서버(bpt-jwt)와 같은 값이어야 한다.
+  secret: ${JWT_SECRET}
   access-token-expiration-ms: 3600000 # 1 hour
   refresh-token-expiration-ms: 1209600000 # 14 days
 

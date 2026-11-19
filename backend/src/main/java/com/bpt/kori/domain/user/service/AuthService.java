@@ -39,8 +39,6 @@ public class AuthService {
     private final Map<String, LocalDateTime> failedEmailStore = new ConcurrentHashMap<>();
     // 계정 찾기 및 비밀번호 재설정용 1회용 인증 토큰 저장소: verificationToken -> VerificationTokenEntry
     private final Map<String, VerificationTokenEntry> verificationTokenStore = new ConcurrentHashMap<>();
-    // 인증 완료 이메일 저장소 (하위 호환용)
-    private final Map<String, LocalDateTime> verifiedEmailStore = new ConcurrentHashMap<>();
 
     public record VerificationEntry(
             String code,
@@ -131,7 +129,7 @@ public class AuthService {
     @Transactional
     public TokenResponse refresh(RefreshTokenRequest request) {
         String refreshToken = request.getRefreshToken();
-        if (refreshToken == null || refreshToken.isBlank() || !tokenProvider.validateToken(refreshToken.trim())) {
+        if (refreshToken == null || refreshToken.isBlank() || !tokenProvider.validateRefreshToken(refreshToken.trim())) {
             throw new CustomException(ErrorCode.TOKEN_EXPIRED);
         }
 
@@ -276,7 +274,6 @@ public class AuthService {
         verificationStore.remove(email);
         String verificationToken = "vt_" + UUID.randomUUID().toString().replace("-", "").substring(0, 16);
         verificationTokenStore.put(verificationToken, new VerificationTokenEntry(email, LocalDateTime.now().plusMinutes(10)));
-        verifiedEmailStore.put(email, LocalDateTime.now().plusMinutes(15)); // 호환용
 
         log.info("[EMAIL VERIFIED] Email {} verified successfully. verificationToken generated.", email);
         return EmailVerificationConfirmResponse.builder()
@@ -288,29 +285,8 @@ public class AuthService {
     }
 
     public FindUsernameResponse findUsername(FindUsernameRequest request) {
-        String email = null;
-
-        // 1. verificationToken 기반 인증 (권장)
-        if (request.getVerificationToken() != null && !request.getVerificationToken().isBlank()) {
-            String token = request.getVerificationToken().trim();
-            VerificationTokenEntry tokenEntry = verificationTokenStore.get(token);
-            if (tokenEntry == null || LocalDateTime.now().isAfter(tokenEntry.expiresAt())) {
-                verificationTokenStore.remove(token);
-                throw new CustomException(ErrorCode.INVALID_VERIFICATION_TOKEN);
-            }
-            email = tokenEntry.email();
-            // 1회용 토큰 즉시 파기
-            verificationTokenStore.remove(token);
-        } else if (request.getEmail() != null && !request.getEmail().isBlank()) {
-            // 하위 호환: email + code 직접 전달 또는 이전 인증 기록 확인
-            String reqEmail = request.getEmail().trim().toLowerCase();
-            if (!isEmailVerified(reqEmail, request.getCode())) {
-                throw new CustomException(ErrorCode.EMAIL_NOT_VERIFIED);
-            }
-            email = reqEmail;
-        } else {
-            throw new CustomException(ErrorCode.INVALID_VERIFICATION_TOKEN);
-        }
+        // 이메일 인증 확인(/verify-email/confirm)에서 받은 1회용 토큰만 인정한다.
+        String email = consumeVerificationToken(request.getVerificationToken()).email();
 
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
@@ -336,25 +312,10 @@ public class AuthService {
             throw new CustomException(ErrorCode.INVALID_INPUT_VALUE);
         }
 
-        // 1. verificationToken 기반 검증
-        if (request.getVerificationToken() != null && !request.getVerificationToken().isBlank()) {
-            String token = request.getVerificationToken().trim();
-            VerificationTokenEntry tokenEntry = verificationTokenStore.get(token);
-            if (tokenEntry == null || LocalDateTime.now().isAfter(tokenEntry.expiresAt())) {
-                verificationTokenStore.remove(token);
-                throw new CustomException(ErrorCode.INVALID_VERIFICATION_TOKEN);
-            }
-            // 토큰에 바인딩된 이메일과 요청의 이메일 일치 확인
-            if (!tokenEntry.email().equalsIgnoreCase(email)) {
-                throw new CustomException(ErrorCode.INVALID_VERIFICATION_TOKEN);
-            }
-            // 1회용 토큰 즉시 파기
-            verificationTokenStore.remove(token);
-        } else {
-            // 하위 호환
-            if (!isEmailVerified(email, request.getCode())) {
-                throw new CustomException(ErrorCode.EMAIL_NOT_VERIFIED);
-            }
+        // 이메일 인증 확인에서 받은 1회용 토큰만 인정하고, 토큰에 묶인 이메일과 요청 이메일이 같아야 한다.
+        VerificationTokenEntry tokenEntry = consumeVerificationToken(request.getVerificationToken());
+        if (!tokenEntry.email().equalsIgnoreCase(email)) {
+            throw new CustomException(ErrorCode.INVALID_VERIFICATION_TOKEN);
         }
 
         // 아이디와 이메일이 같은 계정인지 검증
@@ -375,7 +336,6 @@ public class AuthService {
         user.setPassword(passwordEncoder.encode(newPassword));
         userRepository.save(user);
 
-        verifiedEmailStore.remove(email);
         log.info("[PASSWORD RESET] Successfully reset password for email: {}, username: {}", email, user.getUsername());
 
         return ResetPasswordResponse.builder()
@@ -384,16 +344,16 @@ public class AuthService {
                 .build();
     }
 
-    private boolean isEmailVerified(String email, String code) {
-        if (code != null && !code.isBlank()) {
-            VerificationEntry entry = verificationStore.get(email);
-            if (entry != null && !LocalDateTime.now().isAfter(entry.expiresAt()) && entry.code().equals(code.trim())) {
-                verificationStore.remove(email);
-                return true;
-            }
+    /** 1회용 인증 토큰을 꺼내면서 바로 파기한다. 없거나 만료됐으면 INVALID_VERIFICATION_TOKEN. */
+    private VerificationTokenEntry consumeVerificationToken(String rawToken) {
+        if (rawToken == null || rawToken.isBlank()) {
+            throw new CustomException(ErrorCode.INVALID_VERIFICATION_TOKEN);
         }
-        LocalDateTime verifiedUntil = verifiedEmailStore.get(email);
-        return verifiedUntil != null && LocalDateTime.now().isBefore(verifiedUntil);
+        VerificationTokenEntry tokenEntry = verificationTokenStore.remove(rawToken.trim());
+        if (tokenEntry == null || LocalDateTime.now().isAfter(tokenEntry.expiresAt())) {
+            throw new CustomException(ErrorCode.INVALID_VERIFICATION_TOKEN);
+        }
+        return tokenEntry;
     }
 
     private String maskUsername(String username) {
