@@ -1,3 +1,4 @@
+import 'package:bpt/services/aggregate_session_scope.dart';
 import 'package:bpt/data/dto/workout_metadata_dto.dart';
 import 'package:bpt/data/repositories/workout_repository.dart';
 import 'package:bpt/features/report/providers/report_analysis_provider.dart';
@@ -76,11 +77,14 @@ void main() {
     expect(data.insight(true), contains('스쿼트를 가장 많이 했어'));
   });
 
-  test('mistakes add up feedback counts across records, most frequent first', () {
+  test('mistakes add up feedback counts across records, most frequent first',
+      () {
     final data = buildReportAnalysis([
-      _record('squat', feedbackCounts: {'squat_knee_valgus': 2, 'squat_shallow': 1}),
+      _record('squat',
+          feedbackCounts: {'squat_knee_valgus': 2, 'squat_shallow': 1}),
       _record('squat', feedbackCounts: {'squat_knee_valgus': 3}),
-      _record('pushup', feedbackCounts: {'pushup_hip_sag': 2, 'unknown_key': 9}),
+      _record('pushup',
+          feedbackCounts: {'pushup_hip_sag': 2, 'unknown_key': 9}),
     ]);
     expect(data.mistakes.map((m) => m.labelKo),
         ['무릎 안쪽 모임 · 스쿼트', '엉덩이 처짐 · 푸쉬업', '앉는 깊이 부족 · 스쿼트']);
@@ -107,6 +111,8 @@ void main() {
 
     await tester.pumpWidget(ProviderScope(
       overrides: [
+        // These fixtures exercise local-record reporting without an authenticated server aggregate.
+        aggregateSessionScopeProvider.overrideWithValue(null),
         workoutRecordsProvider.overrideWith((ref) => WorkoutRecordsNotifier(
             _FakeRepository([_record('squat'), _record('pushup')]))),
       ],

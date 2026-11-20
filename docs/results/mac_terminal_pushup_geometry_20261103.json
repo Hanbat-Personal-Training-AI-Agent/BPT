@@ -1,0 +1,93 @@
+{
+  "sourceKind": "mac_pose_replay_raw_geometry_only",
+  "exercise": "pushup",
+  "extraObservations": 15,
+  "processed2DFrames": 772,
+  "stored3DFrameRows": 772,
+  "originalObservedReports": 6,
+  "windowWithheldReasons": {
+    "last_or_open_next_rep_unknown": 1
+  },
+  "completeFutureClosedWindows": 5,
+  "wholeRun3DStates": {
+    "warming_up": 21,
+    "ok": 751
+  },
+  "nativeAssessmentEligible": false,
+  "constraintInvalidMaskAvailable": false,
+  "supportCorridorAssessmentAvailable": false,
+  "originalPacketIndexAvailable": false,
+  "sourceRationalPtsAvailable": false,
+  "savedCsvPrecisionDecimals": 4,
+  "observedClampedFlagAvailable": false,
+  "row21ProvesUnclamped": false,
+  "legacyFlushSafety": "only_explicit_eof_tail_reachable_from_frozen_source",
+  "knownEofTailExcludedFrames": 5,
+  "rawSimccScores": {
+    "finiteCount": 20072,
+    "nonfiniteCount": 0,
+    "min": 0.0728,
+    "max": 1.1494,
+    "outsideZeroOne": 158,
+    "clamped": false
+  },
+  "metrics": {
+    "raw_elbow": {
+      "completeFiniteWindows": 5,
+      "geometryWithheldWindows": 0,
+      "positiveObservedDifferenceCount": 4,
+      "differenceDegrees": {
+        "count": 5,
+        "median": 16.242888209940674,
+        "min": 0.0,
+        "max": 19.0784796380334
+      },
+      "maxOffsetFrames": {
+        "count": 5,
+        "median": 9,
+        "min": -2,
+        "max": 12
+      },
+      "maxOffsetSeconds": {
+        "count": 5,
+        "median": 0.17999999999999972,
+        "min": -0.040000000000000036,
+        "max": 0.2400000000000002
+      }
+    },
+    "constrained_elbow": {
+      "completeFiniteWindows": 5,
+      "geometryWithheldWindows": 0,
+      "positiveObservedDifferenceCount": 4,
+      "differenceDegrees": {
+        "count": 5,
+        "median": 16.264108548452015,
+        "min": 0.0,
+        "max": 19.121653551797692
+      },
+      "maxOffsetFrames": {
+        "count": 5,
+        "median": 9,
+        "min": -2,
+        "max": 12
+      },
+      "maxOffsetSeconds": {
+        "count": 5,
+        "median": 0.17999999999999972,
+        "min": -0.040000000000000036,
+        "max": 0.2400000000000002
+      }
+    }
+  },
+  "extraSpanSeconds": {
+    "count": 5,
+    "median": 0.2999999999999998,
+    "min": 0.29999999999999893,
+    "max": 0.3000000000000007
+  },
+  "inputSha256": {
+    "report": "64bd9a53acb8e6a8700b55edcd1493b2106bfad89f4ae32bb497e9fefeda607d",
+    "csv2d": "ab3e6c958117d631a6877dd6a371f7a9e244915ccc61159683cb7d5d920c323b",
+    "csv3d": "de6d0c6b02953ac2da57ccb015ca3a25f387774d504583f411f44a17e4e07293"
+  }
+}

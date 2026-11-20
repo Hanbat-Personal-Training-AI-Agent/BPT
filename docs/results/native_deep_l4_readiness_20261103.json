@@ -1,0 +1,49 @@
+{
+  "checkedAtUtc": "2026-11-01T22:56:14.871303+00:00",
+  "metadataOnly": true,
+  "mediaTransferred": false,
+  "gpuInvocations": 0,
+  "sourceFunction": "bpt-calibration.deep_analysis_job",
+  "functionId": "fu-TDxH9OwFXVQbmlM7iQ2cCg",
+  "imageId": "im-4SiTgQLfJqcNflEuz14dR3",
+  "gpus": [
+    [
+      "L4",
+      1
+    ]
+  ],
+  "timeout": 900,
+  "maxRetries": 0,
+  "volumeId": "vo-PaJI2oGtteoNeTikv2DP3O",
+  "requiredAssets": {
+    "gvhmr/gvhmr_siga24_release.ckpt": {
+      "exists": true,
+      "bytes": 163508011
+    },
+    "hmr2/epoch=10-step=25000.ckpt": {
+      "exists": true,
+      "bytes": 2709494041
+    },
+    "vitpose/vitpose-h-multi-coco.pth": {
+      "exists": true,
+      "bytes": 2549075546
+    },
+    "yolo/yolov8x.pt": {
+      "exists": true,
+      "bytes": 136867539
+    },
+    "smpl_neutral_h36m.npz": {
+      "exists": true,
+      "bytes": 35029082
+    },
+    "body_models/smplx/SMPLX_NEUTRAL.npz": {
+      "exists": true,
+      "bytes": 108752058
+    },
+    "body_models/smpl/SMPL_NEUTRAL.pkl": {
+      "exists": true,
+      "bytes": 89461460
+    }
+  },
+  "deployedSourceCommit": "not_exposed_by_function_metadata"
+}

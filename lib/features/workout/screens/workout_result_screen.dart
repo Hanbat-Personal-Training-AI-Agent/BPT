@@ -15,13 +15,24 @@ import '../../../core/i18n/locale_provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../data/dto/workout_metadata_dto.dart';
-import '../../../data/mock_data.dart';
 import '../../../services/workout_records_service.dart';
-import '../providers/workout_provider.dart';
+import '../data/workout_evidence.dart';
+import '../data/workout_result_evidence.dart';
+import 'deep_analysis_report_screen.dart';
 
 const _monthsEn = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
 ];
 const _weekdaysKo = ['월', '화', '수', '목', '금', '토', '일'];
 const _weekdaysEn = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -42,45 +53,18 @@ String _formatWorkoutDateTime(DateTime date, bool isKo) {
       '${date.day}, $hour12:$minute $period';
 }
 
-// 운동별로 자세가 흐트러졌을 때 가장 흔히 지적되는 부위. 관절별 세부 분석
-// 데이터가 아직 없어서, 운동 종류당 대표 부위 하나로 단순화해 보여준다.
-const _issueBodyPartKo = <String, String>{
-  'squat': '무릎',
-  'benchpress': '가슴',
-  'deadlift': '허리',
-  'barbell-row': '허리',
-  'pushup': '상체',
-  'lat-pulldown': '어깨',
-};
-const _issueBodyPartEn = <String, String>{
-  'squat': 'knees',
-  'benchpress': 'chest',
-  'deadlift': 'lower back',
-  'barbell-row': 'lower back',
-  'pushup': 'upper body',
-  'lat-pulldown': 'shoulders',
-};
-
-String _groupThousands(int n) {
-  final digits = n.abs().toString();
+String _groupThousands(num n) {
+  final raw = n.abs().toString();
+  if (raw.contains('e')) return n.toString();
+  final parts = raw.split('.');
+  final digits = parts.first;
+  final fraction = parts.length > 1 && parts[1] != '0' ? '.${parts[1]}' : '';
   final buf = StringBuffer();
   for (var i = 0; i < digits.length; i++) {
     if (i > 0 && (digits.length - i) % 3 == 0) buf.write(',');
     buf.write(digits[i]);
   }
-  return (n < 0 ? '-' : '') + buf.toString();
-}
-
-/// 완료된 세트 1개의 기록 (반복 수 / 무게 / 자세 이슈 횟수).
-class _SetRecord {
-  const _SetRecord({
-    required this.reps,
-    required this.weightKg,
-    required this.badCount,
-  });
-  final int reps;
-  final int weightKg;
-  final int badCount;
+  return (n < 0 ? '-' : '') + buf.toString() + fraction;
 }
 
 class WorkoutResultScreen extends ConsumerStatefulWidget {
@@ -111,7 +95,6 @@ class _WorkoutResultScreenState extends ConsumerState<WorkoutResultScreen>
     final isHistory = widget.result['isHistory'] as bool? ?? false;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!isHistory) {
-        ref.read(workoutProvider.notifier).reset();
         _saveRecord();
       }
     });
@@ -122,7 +105,9 @@ class _WorkoutResultScreenState extends ConsumerState<WorkoutResultScreen>
     final r = widget.result;
     final dto = WorkoutMetadataRequestDto(
       weightKg: _heaviestSetWeightKg(),
-      clientRecordId: newClientRecordId(),
+      weightRecorded:
+          WorkoutResultEvidence.fromResult(r).recordedWeightKg != null,
+      clientRecordId: r['clientRecordId'] as String? ?? newClientRecordId(),
       exerciseId: r['exerciseId'] as String? ?? 'squat',
       exerciseName: r['exerciseName'] as String? ?? 'Squat',
       date: DateTime.now(),
@@ -130,7 +115,9 @@ class _WorkoutResultScreenState extends ConsumerState<WorkoutResultScreen>
       correctReps: r['correctReps'] as int? ?? 0,
       incorrectReps: r['incorrectReps'] as int? ?? 0,
       durationSeconds: r['elapsedSeconds'] as int? ?? 0,
-      postureScore: (r['postureScore'] as num?)?.toDouble() ?? 0.0,
+      postureScore: (r['postureScore'] as num?)?.toDouble(),
+      poseMetricsSummary:
+          WorkoutEvidence.summaryObject(r['poseMetricsSummary']),
       feedbackNotes: (r['feedbackHistory'] as List?)?.cast<String>() ?? [],
       targetReps: r['targetReps'] as int? ?? 0,
       targetSets: r['targetSets'] as int? ?? 1,
@@ -145,74 +132,36 @@ class _WorkoutResultScreenState extends ConsumerState<WorkoutResultScreen>
 
   /// 운동 화면이 넘긴 세트별 기록(`setResults`)을 서버 setsDetail 로 바꾼다.
   List<WorkoutSetDetail> _setsDetail() {
-    final raw = widget.result['setResults'];
-    if (raw is! List) return const [];
+    final records = WorkoutResultEvidence.fromResult(widget.result).sets;
     return [
-      for (final (i, e) in raw.indexed)
-        if (e is Map)
-          WorkoutSetDetail(
-            setNumber: i + 1,
-            reps: (e['reps'] as num?)?.toInt() ?? 0,
-            weightKg: (e['weightKg'] as num?)?.toDouble() ?? 0,
-          ),
+      for (final record in records)
+        WorkoutSetDetail(
+          setNumber: record.number,
+          reps: record.reps,
+          weightKg: record.weightKg?.toDouble(),
+          warningEvents: record.warningEvents,
+          videoLocalPath: record.localVideoPath,
+          videoRemoteUrl: record.remoteVideoUrl,
+        ),
     ];
   }
 
   /// 기록에는 무게를 하나만 저장하므로, 세트마다 무게가 다르면 가장 무거운
-  /// 세트의 무게를 대표값으로 쓴다. 세트 정보가 없으면 운동별 기본 무게.
-  double _heaviestSetWeightKg() {
-    final exerciseId = widget.result['exerciseId'] as String? ?? 'squat';
-    final raw = widget.result['setResults'];
-    final weights = raw is List
-        ? raw
-            .map((e) => ((e as Map)['weightKg'] as num?)?.toDouble() ?? 0)
-            .toList()
-        : const <double>[];
-    if (weights.isNotEmpty) return weights.reduce(math.max);
-    return (mockWeightKgByExercise[exerciseId] ?? 0).toDouble();
-  }
-
-  /// 세트별 원본 기록(`setResults`)이 넘어온 경우 그대로 쓰고, 과거 기록
-  /// 조회처럼 세트별 값이 없는 경우에는 합계를 세트 수만큼 균등하게 나눠
-  /// 근사치로 보여준다.
-  List<_SetRecord> _buildSetRecords({
-    required int targetSets,
-    required int totalReps,
-    required int incorrectReps,
-    required int weightKg,
-  }) {
-    final raw = widget.result['setResults'];
-    if (raw is List && raw.isNotEmpty) {
-      return raw.map((e) {
-        final m = (e as Map).cast<String, dynamic>();
-        return _SetRecord(
-          reps: (m['reps'] as num?)?.toInt() ?? 0,
-          weightKg: (m['weightKg'] as num?)?.toInt() ?? weightKg,
-          badCount: (m['badCount'] as num?)?.toInt() ?? 0,
-        );
-      }).toList();
-    }
-
-    final sets = targetSets > 0 ? targetSets : 1;
-    final baseReps = totalReps ~/ sets;
-    final repsRemainder = totalReps % sets;
-    final baseBad = incorrectReps ~/ sets;
-    final badRemainder = incorrectReps % sets;
-    return List.generate(sets, (i) {
-      return _SetRecord(
-        reps: baseReps + (i < repsRemainder ? 1 : 0),
-        weightKg: weightKg,
-        badCount: baseBad + (i < badRemainder ? 1 : 0),
-      );
-    });
-  }
+  /// 세트의 무게를 대표값으로 쓴다. 누락은 기존 wire의 0 자리표시자로
+  /// 유지하며 운동별 데모 무게를 실제 기록으로 저장하지 않는다.
+  double _heaviestSetWeightKg() =>
+      WorkoutResultEvidence.fromResult(widget.result)
+          .recordedWeightKg
+          ?.toDouble() ??
+      0;
 
   Future<void> _onSharePressed() async {
     try {
       final bytes = await _screenshotController.capture(pixelRatio: 3);
       if (bytes == null) return;
       await Share.shareXFiles([
-        XFile.fromData(bytes, name: 'bpt_workout_result.png', mimeType: 'image/png'),
+        XFile.fromData(bytes,
+            name: 'bpt_workout_result.png', mimeType: 'image/png'),
       ]);
     } catch (_) {
       // 공유 시트를 열지 못해도 화면 이용에는 지장이 없으므로 조용히 무시한다.
@@ -233,41 +182,19 @@ class _WorkoutResultScreenState extends ConsumerState<WorkoutResultScreen>
 
     final isHistory = r['isHistory'] as bool? ?? false;
     final date = r['date'] as DateTime? ?? DateTime.now();
-    final exerciseId = r['exerciseId'] as String? ?? 'squat';
     final exerciseName = isKo
         ? (r['exerciseNameKr'] as String? ?? r['exerciseName'] as String? ?? '')
         : (r['exerciseName'] as String? ?? '');
 
     final totalReps = r['totalReps'] as int? ?? 0;
-    final correctReps = r['correctReps'] as int? ?? totalReps;
-    final incorrectReps =
-        r['incorrectReps'] as int? ?? (totalReps - correctReps).clamp(0, totalReps);
     final elapsedSec = r['elapsedSeconds'] as int? ?? 0;
     final targetReps = r['targetReps'] as int? ?? 0;
-    var targetSets = r['targetSets'] as int? ?? 0;
+    final evidence = WorkoutResultEvidence.fromResult(r);
+    final setRecords = evidence.sets;
 
-    // 과거 기록에 저장된 무게가 있으면 그걸 쓰고, 없으면 운동별 기본값.
-    final recordedWeight = (r['weightKg'] as num?)?.round() ?? 0;
-    final weightKg = recordedWeight > 0
-        ? recordedWeight
-        : mockWeightKgByExercise[exerciseId] ?? 0;
-    final setRecords = _buildSetRecords(
-      targetSets: targetSets > 0 ? targetSets : 1,
-      totalReps: totalReps,
-      incorrectReps: incorrectReps,
-      weightKg: weightKg,
-    );
-    if (targetSets <= 0) targetSets = setRecords.length;
-
-    final volume =
-        setRecords.fold<int>(0, (sum, set) => sum + set.reps * set.weightKg);
-
-    final achieved = targetReps > 0
-        ? correctReps >= targetReps
-        : (incorrectReps == 0 && totalReps > 0);
-    final achievementPct = targetReps > 0
-        ? ((correctReps / targetReps) * 100).clamp(0, 100).round()
-        : (totalReps == 0 ? 0 : ((correctReps / totalReps) * 100).round());
+    final achievementPct =
+        WorkoutEvidence.completionPercent(totalReps, targetReps);
+    final achieved = achievementPct == 100;
 
     final historyTitle = _formatWorkoutDateTime(date, isKo);
 
@@ -306,29 +233,40 @@ class _WorkoutResultScreenState extends ConsumerState<WorkoutResultScreen>
                                 achieved: achieved,
                                 achievementPct: achievementPct,
                               ),
+                              const SizedBox(height: 8),
+                              Text(
+                                  isKo
+                                      ? '전체 자세 판정: 미확인 · 완료율은 수행 횟수 기준'
+                                      : 'Overall form unassessed · completion uses performed reps',
+                                  style: TextStyle(
+                                      color:
+                                          Colors.white.withValues(alpha: 0.65),
+                                      fontSize: 12)),
                               const SizedBox(height: 16),
                               _StatsRow(
                                 isKo: isKo,
-                                sets: targetSets,
+                                sets: evidence.completedSets,
                                 totalReps: totalReps,
-                                volume: volume,
+                                volume: evidence.volumeKg,
                                 elapsedSec: elapsedSec,
                               ),
                               const SizedBox(height: 16),
                               _SetRecordsCard(
                                 isKo: isKo,
-                                exerciseId: exerciseId,
                                 records: setRecords,
+                                complete: evidence.completeBreakdown,
                               ),
                               const SizedBox(height: 16),
                               _FeedbackCard(
                                 isKo: isKo,
-                                exerciseId: exerciseId,
                                 records: setRecords,
-                                isHistory: isHistory,
+                                complete: evidence.completeBreakdown,
                               ),
                               const SizedBox(height: 16),
                               _ReplaySection(isKo: isKo, records: setRecords),
+                              const SizedBox(height: 16),
+                              DeepAnalysisSection(
+                                  recordId: r['clientRecordId'] as String?),
                             ],
                           ),
                         ),
@@ -346,7 +284,8 @@ class _WorkoutResultScreenState extends ConsumerState<WorkoutResultScreen>
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
             child: _BottomActions(
               isKo: isKo,
-              onOtherWorkout: () => context.go(RouteConstants.exerciseSelection),
+              onOtherWorkout: () =>
+                  context.go(RouteConstants.exerciseSelection),
               onViewReport: () => context.go(RouteConstants.report),
             ),
           ),
@@ -430,7 +369,7 @@ class _HeroCard extends StatelessWidget {
   final DateTime date;
   final String exerciseName;
   final bool achieved;
-  final int achievementPct;
+  final int? achievementPct;
 
   static const double _cardHeight = 112;
   static const double _characterSize = 230;
@@ -481,10 +420,14 @@ class _HeroCard extends StatelessWidget {
                       ),
                       child: Text(
                         achieved
-                            ? (isKo ? '목표 달성!' : 'Goal hit!')
+                            ? (isKo ? '목표 횟수 완료!' : 'Rep goal completed!')
                             : (isKo
-                                ? '$achievementPct% 달성'
-                                : '$achievementPct% done'),
+                                ? (achievementPct == null
+                                    ? '목표 횟수 미기록'
+                                    : '목표 횟수 $achievementPct% 완료')
+                                : (achievementPct == null
+                                    ? 'Rep goal not recorded'
+                                    : '$achievementPct% of rep goal completed')),
                         style: TextStyle(
                           color: achieved ? Colors.white : AppColors.green,
                           fontSize: 11,
@@ -535,9 +478,9 @@ class _StatsRow extends StatelessWidget {
     required this.elapsedSec,
   });
   final bool isKo;
-  final int sets;
+  final int? sets;
   final int totalReps;
-  final int volume;
+  final num? volume;
   final int elapsedSec;
 
   @override
@@ -548,7 +491,8 @@ class _StatsRow extends StatelessWidget {
       children: [
         Expanded(
           child: _ResultStatTile(
-              value: '$sets', label: isKo ? '세트' : 'Sets'),
+              value: sets?.toString() ?? '—',
+              label: isKo ? '완료 세트' : 'Completed sets'),
         ),
         const SizedBox(width: 10),
         Expanded(
@@ -558,7 +502,7 @@ class _StatsRow extends StatelessWidget {
         const SizedBox(width: 10),
         Expanded(
           child: _ResultStatTile(
-              value: _groupThousands(volume),
+              value: volume == null ? '—' : _groupThousands(volume!),
               label: isKo ? '볼륨 kg' : 'Volume kg'),
         ),
         const SizedBox(width: 10),
@@ -612,19 +556,15 @@ class _ResultStatTile extends StatelessWidget {
 class _SetRecordsCard extends StatelessWidget {
   const _SetRecordsCard({
     required this.isKo,
-    required this.exerciseId,
     required this.records,
+    required this.complete,
   });
   final bool isKo;
-  final String exerciseId;
-  final List<_SetRecord> records;
+  final List<ObservedWorkoutSet> records;
+  final bool complete;
 
   @override
   Widget build(BuildContext context) {
-    final bodyPart = isKo
-        ? (_issueBodyPartKo[exerciseId] ?? _issueBodyPartKo['squat']!)
-        : (_issueBodyPartEn[exerciseId] ?? _issueBodyPartEn['squat']!);
-
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -643,13 +583,24 @@ class _SetRecordsCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 10),
+          if (!complete)
+            Text(
+              records.isEmpty
+                  ? (isKo
+                      ? '세트별 기록이 없어. 확인된 합계만 표시했어.'
+                      : 'Set breakdown unavailable. Only recorded totals are shown.')
+                  : (isKo
+                      ? '일부 세트 기록만 있어. 전체 배분은 미확인이야.'
+                      : 'Some sets are recorded. The full breakdown is unknown.'),
+              style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.65), fontSize: 12),
+            ),
           for (var i = 0; i < records.length; i++) ...[
             if (i > 0) const SizedBox(height: 8),
             _SetRecordRow(
-              index: i + 1,
+              index: records[i].number,
               record: records[i],
               isKo: isKo,
-              bodyPart: bodyPart,
             ),
           ],
         ],
@@ -663,20 +614,24 @@ class _SetRecordRow extends StatelessWidget {
     required this.index,
     required this.record,
     required this.isKo,
-    required this.bodyPart,
   });
   final int index;
-  final _SetRecord record;
+  final ObservedWorkoutSet record;
   final bool isKo;
-  final String bodyPart;
 
   @override
   Widget build(BuildContext context) {
-    final ok = record.badCount == 0;
-    final tag = ok
-        ? (isKo ? '안정' : 'Stable')
-        : (isKo ? '$bodyPart ${record.badCount}회' : '$bodyPart x${record.badCount}');
-    final tagColor = ok ? AppColors.green : AppColors.red;
+    final noRecordedWarnings = record.warningEvents == 0;
+    final tag = record.warningEvents == null
+        ? (isKo ? '경고 기록 미확인' : 'Warning record unavailable')
+        : noRecordedWarnings
+            ? (isKo ? '완료' : 'Completed')
+            : (isKo
+                ? '경고 ${record.warningEvents}회'
+                : 'Warnings x${record.warningEvents}');
+    final tagColor = noRecordedWarnings || record.warningEvents == null
+        ? Colors.white.withValues(alpha: 0.65)
+        : AppColors.red;
 
     return Row(
       children: [
@@ -700,8 +655,8 @@ class _SetRecordRow extends StatelessWidget {
         const SizedBox(width: 14),
         Text(
           isKo
-              ? '${record.reps}회 · ${record.weightKg}kg'
-              : '${record.reps} reps · ${record.weightKg}kg',
+              ? '${record.reps}회 · ${record.weightKg == null ? '무게 미기록' : '${record.weightKg}kg'}'
+              : '${record.reps} reps · ${record.weightKg == null ? 'Weight not recorded' : '${record.weightKg}kg'}',
           style: const TextStyle(
             color: Colors.white,
             fontSize: 14,
@@ -726,38 +681,40 @@ class _SetRecordRow extends StatelessWidget {
 class _FeedbackCard extends StatelessWidget {
   const _FeedbackCard({
     required this.isKo,
-    required this.exerciseId,
     required this.records,
-    this.isHistory = false,
+    required this.complete,
   });
   final bool isKo;
-  final String exerciseId;
-  final List<_SetRecord> records;
-  final bool isHistory;
+  final List<ObservedWorkoutSet> records;
+  final bool complete;
 
   @override
   Widget build(BuildContext context) {
     final badIndices = [
       for (var i = 0; i < records.length; i++)
-        if (records[i].badCount > 0) i + 1,
+        if ((records[i].warningEvents ?? 0) > 0) records[i].number,
     ];
-    final bodyPartKo = _issueBodyPartKo[exerciseId] ?? _issueBodyPartKo['squat']!;
-    final bodyPartEn = _issueBodyPartEn[exerciseId] ?? _issueBodyPartEn['squat']!;
-
     final String message;
     final String character;
-    if (badIndices.isEmpty) {
+    if (!complete ||
+        records.isEmpty ||
+        records.any((r) => r.warningEvents == null)) {
       character = 'assets/images/character/face2.png';
       message = isKo
-          ? '${isHistory ? '이 날' : '오늘'} 자세 다 좋았어!\n이 페이스 그대로 가자!'
-          : 'Great form all the way through ${isHistory ? 'that day' : 'today'}!\nKeep this pace up.';
+          ? '경고 기록의 범위를 확인할 수 없어.\n수행 기록을 확인해줘.'
+          : 'Warning evidence is unavailable.\nReview the completion record.';
+    } else if (badIndices.isEmpty) {
+      character = 'assets/images/character/face2.png';
+      message = isKo
+          ? '기록된 경고는 없어.\n세트 마치느라 수고했어!'
+          : 'No warnings were recorded.\nNice work completing your sets!';
     } else {
       character = 'assets/images/character/worrying.png';
       final setsLabelKo = badIndices.join('·');
       final setsLabelEn = badIndices.join(', ');
       message = isKo
-          ? '$setsLabelKo세트에서 $bodyPartKo이(가) 안쪽으로 모였어.\n다음엔 방향만 살짝 신경 써줘. 깊이랑 속도는 좋았어!'
-          : 'Your $bodyPartEn drifted inward on set $setsLabelEn.\nWatch the direction next time — depth and tempo were great!';
+          ? '$setsLabelKo세트에 경고가 기록됐어.\n세부 내용을 확인해줘.'
+          : 'Warnings were recorded on set $setsLabelEn.\nReview the details.';
     }
 
     return Container(
@@ -804,17 +761,13 @@ class _FeedbackCard extends StatelessWidget {
 class _ReplaySection extends StatefulWidget {
   const _ReplaySection({required this.isKo, required this.records});
   final bool isKo;
-  final List<_SetRecord> records;
+  final List<ObservedWorkoutSet> records;
 
   @override
   State<_ReplaySection> createState() => _ReplaySectionState();
 }
 
 class _ReplaySectionState extends State<_ReplaySection> {
-  // 세트별 실제 녹화 저장소가 아직 없어서, 데모용 영상 하나를 세트 전환마다
-  // 처음부터 다시 재생하는 방식으로 "세트별로 볼 수 있다"는 동작만 보여준다.
-  static const _demoVideoUrl = 'https://www.w3schools.com/html/mov_bbb.mp4';
-
   late int _index;
   VideoPlayerController? _controller;
   bool _savingVideo = false;
@@ -830,12 +783,31 @@ class _ReplaySectionState extends State<_ReplaySection> {
     var best = 0;
     var bestBad = -1;
     for (var i = 0; i < widget.records.length; i++) {
-      if (widget.records[i].badCount > bestBad) {
-        bestBad = widget.records[i].badCount;
+      if (_recording(widget.records[i]) != null &&
+          (widget.records[i].warningEvents ?? 0) > bestBad) {
+        bestBad = widget.records[i].warningEvents ?? 0;
         best = i;
       }
     }
     return best;
+  }
+
+  Uri? _recording(ObservedWorkoutSet? record) {
+    if (record == null) return null;
+    final path = record.localVideoPath;
+    if (path != null) {
+      try {
+        if (File(path).existsSync()) return Uri.file(path);
+      } on FileSystemException {
+        // Missing local media can still have an explicitly recorded remote URL.
+      }
+    }
+    final remote = Uri.tryParse(record.remoteVideoUrl ?? '');
+    return remote != null &&
+            remote.host.isNotEmpty &&
+            (remote.scheme == 'https' || remote.scheme == 'http')
+        ? remote
+        : null;
   }
 
   @override
@@ -848,24 +820,35 @@ class _ReplaySectionState extends State<_ReplaySection> {
     final next = (_index + delta).clamp(0, widget.records.length - 1);
     if (next == _index) return;
     _controller?.pause();
-    _controller?.seekTo(Duration.zero);
-    setState(() => _index = next);
+    _controller?.dispose();
+    setState(() {
+      _controller = null;
+      _index = next;
+    });
   }
 
-  /// 지금 보고 있는 세트의 영상만 갤러리에 저장한다. 세트별 실제 녹화 파일이
-  /// 생기면 [_demoVideoUrl] 대신 해당 세트의 파일 경로/URL을 넘기면 된다.
+  /// 지금 보고 있는 세트의 기기 녹화 파일을 갤러리에 저장한다.
   Future<void> _saveCurrentSetVideo() async {
     if (_savingVideo || widget.records.isEmpty) return;
+    final source = _recording(widget.records[_index]);
+    if (source == null) return;
     final isKo = widget.isKo;
-    final setNo = _index + 1;
+    final setNo = widget.records[_index].number;
     final messenger = ScaffoldMessenger.of(context);
     setState(() => _savingVideo = true);
     File? tmp;
     try {
-      tmp = File(
-          '${Directory.systemTemp.path}/bpt_set${setNo}_${DateTime.now().millisecondsSinceEpoch}.mp4');
-      await Dio().download(_demoVideoUrl, tmp.path);
-      await Gal.putVideo(tmp.path, album: 'BPT');
+      if (source.scheme == 'file') {
+        if (!await Gal.hasAccess() && !await Gal.requestAccess()) {
+          throw const FileSystemException();
+        }
+        await Gal.putVideo(source.toFilePath());
+      } else {
+        tmp = File(
+            '${Directory.systemTemp.path}/bpt_set${setNo}_${DateTime.now().millisecondsSinceEpoch}.mp4');
+        await Dio().download(source.toString(), tmp.path);
+        await Gal.putVideo(tmp.path, album: 'BPT');
+      }
       messenger.showSnackBar(SnackBar(
         content: Text(isKo
             ? '$setNo세트 영상을 갤러리에 저장했어!'
@@ -874,8 +857,9 @@ class _ReplaySectionState extends State<_ReplaySection> {
       ));
     } catch (_) {
       messenger.showSnackBar(SnackBar(
-        content: Text(
-            isKo ? '영상 저장에 실패했어. 다시 시도해줘.' : 'Failed to save video. Try again.'),
+        content: Text(isKo
+            ? '영상 저장에 실패했어. 다시 시도해줘.'
+            : 'Failed to save video. Try again.'),
         backgroundColor: AppColors.red,
       ));
     } finally {
@@ -887,9 +871,14 @@ class _ReplaySectionState extends State<_ReplaySection> {
   }
 
   Future<void> _togglePlay() async {
+    if (widget.records.isEmpty) return;
+    final source = _recording(widget.records[_index]);
+    if (source == null) return;
     final controller = _controller;
     if (controller == null) {
-      final c = VideoPlayerController.networkUrl(Uri.parse(_demoVideoUrl));
+      final c = source.scheme == 'file'
+          ? VideoPlayerController.file(File(source.toFilePath()))
+          : VideoPlayerController.networkUrl(source);
       try {
         await c.initialize();
         c.setLooping(true);
@@ -913,8 +902,10 @@ class _ReplaySectionState extends State<_ReplaySection> {
   Widget build(BuildContext context) {
     final isKo = widget.isKo;
     final record = widget.records.isEmpty ? null : widget.records[_index];
-    final durationLabel =
-        record == null ? '0' : (4 + record.reps ~/ 2).toString();
+    final hasRecording = _recording(record) != null;
+    final durationLabel = _controller?.value.isInitialized == true
+        ? _controller!.value.duration.inSeconds.toString()
+        : null;
 
     return Container(
       padding: const EdgeInsets.all(18),
@@ -937,7 +928,8 @@ class _ReplaySectionState extends State<_ReplaySection> {
                 ),
               ),
               GestureDetector(
-                onTap: _savingVideo ? null : _saveCurrentSetVideo,
+                onTap:
+                    _savingVideo || !hasRecording ? null : _saveCurrentSetVideo,
                 behavior: HitTestBehavior.opaque,
                 child: Container(
                   padding:
@@ -987,13 +979,14 @@ class _ReplaySectionState extends State<_ReplaySection> {
                 child: Column(
                   children: [
                     GestureDetector(
-                      onTap: _togglePlay,
+                      onTap: hasRecording ? _togglePlay : null,
                       child: Container(
                         width: 56,
                         height: 56,
                         alignment: Alignment.center,
-                        decoration: const BoxDecoration(
-                          color: AppColors.green,
+                        decoration: BoxDecoration(
+                          color:
+                              hasRecording ? AppColors.green : AppColors.grey,
                           shape: BoxShape.circle,
                         ),
                         child: Icon(
@@ -1007,9 +1000,17 @@ class _ReplaySectionState extends State<_ReplaySection> {
                     ),
                     const SizedBox(height: 10),
                     Text(
-                      isKo
-                          ? '${_index + 1}세트 · $durationLabel초'
-                          : 'Set ${_index + 1} · ${durationLabel}s',
+                      !hasRecording
+                          ? record == null
+                              ? (isKo
+                                  ? '녹화된 운동 영상이 없어.'
+                                  : 'No workout recording is available.')
+                              : (isKo
+                                  ? '이 세트의 녹화 영상이 없어.'
+                                  : 'No recording is available for this set.')
+                          : isKo
+                              ? '${record!.number}세트${durationLabel == null ? '' : ' · $durationLabel초'}'
+                              : 'Set ${record!.number}${durationLabel == null ? '' : ' · ${durationLabel}s'}',
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 13,
@@ -1084,8 +1085,9 @@ class _ReplayProgressBar extends StatelessWidget {
       valueListenable: controller,
       builder: (context, value, _) {
         final total = value.duration.inMilliseconds;
-        final progress =
-            total == 0 ? 0.0 : (value.position.inMilliseconds / total).clamp(0.0, 1.0);
+        final progress = total == 0
+            ? 0.0
+            : (value.position.inMilliseconds / total).clamp(0.0, 1.0);
         return ClipRRect(
           borderRadius: BorderRadius.circular(4),
           child: SizedBox(

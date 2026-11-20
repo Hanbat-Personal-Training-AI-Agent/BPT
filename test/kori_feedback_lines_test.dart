@@ -4,6 +4,9 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   test('기획 문서의 키가 모두 있다', () {
     const keys = [
+      // Existing log-only draft keys are registered, but this does not enable delivery.
+      'bench_hips_up', 'bench_shallow', 'bench_no_lockout',
+      'deadlift_hips_first', 'deadlift_no_lockout', 'deadlift_lean_back',
       'pushup_hip_sag', 'pushup_hip_pike', 'pushup_shallow', 'pushup_no_lockout',
       'pushup_head_drop', 'pushup_head_up', 'pushup_hand_position',
       'pushup_depth_fade',
@@ -12,24 +15,20 @@ void main() {
       'row_torso_swing', 'row_standing_up', 'row_short_pull', 'row_head_up',
       'row_shrug',
       'setup_side_view', 'setup_full_body', 'setup_phone_upright',
-      'setup_front_view', 'tracking_lost', 'praise_fixed', 'praise_clean_set',
+      'setup_front_view', 'tracking_lost', 'praise_fixed', 'praise_good', 'praise_clean_set',
       'set_summary',
     ];
     expect(koriFeedbackLines.keys.toSet(), keys.toSet());
   });
 
-  test('{n} {reps} {k} 를 채운다', () {
-    expect(
-      koriFeedbackLines['squat_no_lockout']!.render(isKo: true, n: 3),
-      '다 안 일어선 렙이 3번 있었어. 위에서 무릎이랑 엉덩이를 끝까지 펴 줘.',
-    );
+  test('{reps} {k} 를 채운다', () {
     expect(
       koriFeedbackLines['praise_clean_set']!.render(isKo: true, reps: 12),
-      '12개 다 좋았어! 수고했어',
+      '12회 완료! 수고했어!',
     );
     expect(
       koriFeedbackLines['set_summary']!.render(isKo: true, k: 2),
-      '수고했어! 고칠 점 2개 정리해 뒀어',
+      '수고했어! 고칠 거 2개',
     );
   });
 

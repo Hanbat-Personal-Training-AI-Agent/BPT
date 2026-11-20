@@ -1,0 +1,646 @@
+import 'dart:async';
+import 'dart:io';
+
+import 'package:dio/dio.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:gal/gal.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:video_player/video_player.dart';
+
+import '../../../core/theme/app_colors.dart';
+import '../data/deep_analysis_queue.dart';
+import '../data/deep_assessment_evidence.dart';
+import '../data/deep_analysis_service.dart';
+import '../data/kori_feedback_lines.dart';
+
+class DeepAnalysisReportScreen extends ConsumerStatefulWidget {
+  const DeepAnalysisReportScreen({super.key, required this.jobId});
+  final String jobId;
+
+  @override
+  ConsumerState<DeepAnalysisReportScreen> createState() =>
+      _DeepAnalysisReportScreenState();
+}
+
+class _DeepAnalysisReportScreenState
+    extends ConsumerState<DeepAnalysisReportScreen>
+    with WidgetsBindingObserver {
+  final _cancel = CancelToken();
+  VideoPlayerController? _video;
+  VideoPlayerController? _initializingVideo;
+  final _disposedVideos = Expando<bool>();
+  Map<String, dynamic>? _result;
+  Timer? _refresh;
+  bool _loading = false;
+  bool _saving = false;
+  bool _accountChanged = false;
+  late final ProviderSubscription<DeepAnalysisService> _serviceSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    // A report belongs to the service/account that opened it. Never reopen its
+    // job using a replacement account's token, or retain the old signed video.
+    _serviceSubscription =
+        ref.listenManual(deepAnalysisServiceProvider, (previous, next) {
+      if (previous == null || identical(previous, next)) return;
+      _cancel.cancel('account changed');
+      _refresh?.cancel();
+      final video = _video;
+      setState(() {
+        _accountChanged = true;
+        _video = null;
+        _result = null;
+      });
+      unawaited(_disposeVideo(video));
+      unawaited(_disposeVideo(_initializingVideo));
+      _initializingVideo = null;
+    });
+    Future.microtask(_load);
+    // 오래 열어 둬도 1시간짜리 URL을 만료 전에 교체한다.
+    _refresh = Timer.periodic(const Duration(minutes: 50), (_) => _load());
+  }
+
+  Future<void> _disposeVideo(VideoPlayerController? video) async {
+    // initialize/account-change/dispose can finish concurrently. The plugin's
+    // asynchronous dispose must only be entered once for each controller.
+    if (video == null || _disposedVideos[video] == true) return;
+    _disposedVideos[video] = true;
+    await video.dispose();
+  }
+
+  Future<void> _load() async {
+    if (_loading || !mounted || _accountChanged) return;
+    setState(() => _loading = true);
+    VideoPlayerController? next;
+    try {
+      final service = ref.read(deepAnalysisServiceProvider);
+      final job = await service.fetchJob(widget.jobId, _cancel);
+      if (!mounted || _accountChanged || job.status != 'done') return;
+      next = VideoPlayerController.networkUrl(service.videoUri(job.result!));
+      _initializingVideo = next;
+      await next.initialize();
+      if (!mounted || _accountChanged) return;
+      final previous = _video;
+      await next.seekTo(previous?.value.position ?? Duration.zero);
+      if (previous?.value.isPlaying == true) await next.play();
+      if (!mounted || _accountChanged) return;
+      setState(() {
+        _video = next;
+        _result = job.result;
+      });
+      next = null;
+      _initializingVideo = null;
+      await _disposeVideo(previous);
+    } catch (_) {
+      // 연결 오류는 재생 영역의 다시 불러오기로 처리한다.
+    } finally {
+      await _disposeVideo(next);
+      _initializingVideo = null;
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) unawaited(_load());
+    if (state == AppLifecycleState.paused) unawaited(_video?.pause());
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _refresh?.cancel();
+    _serviceSubscription.close();
+    _cancel.cancel();
+    unawaited(_disposeVideo(_video));
+    unawaited(_disposeVideo(_initializingVideo));
+    super.dispose();
+  }
+
+  Future<void> _download() async {
+    final share = await showModalBottomSheet<bool>(
+        context: context,
+        builder: (context) => SafeArea(
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                ListTile(
+                    leading: const Icon(Icons.photo_library_outlined),
+                    title: const Text('사진에 저장'),
+                    onTap: () => Navigator.pop(context, false)),
+                ListTile(
+                    leading: const Icon(Icons.ios_share),
+                    title: const Text('공유하기'),
+                    onTap: () => Navigator.pop(context, true)),
+              ]),
+            ));
+    if (share == null || !mounted || _accountChanged) return;
+    final box = context.findRenderObject() as RenderBox?;
+    final origin =
+        box == null ? null : box.localToGlobal(Offset.zero) & box.size;
+    setState(() => _saving = true);
+    File? file;
+    try {
+      if (!share && !await Gal.hasAccess() && !await Gal.requestAccess()) {
+        return;
+      }
+      if (!mounted || _accountChanged) return;
+      file = await ref
+          .read(deepAnalysisServiceProvider)
+          .downloadVideo(widget.jobId, _cancel);
+      if (!mounted || _accountChanged) return;
+      if (share) {
+        await Share.shareXFiles([XFile(file.path, mimeType: 'video/mp4')],
+            sharePositionOrigin: origin);
+      } else {
+        await Gal.putVideo(file.path);
+        if (mounted && !_accountChanged) {
+          ScaffoldMessenger.of(context)
+              .showSnackBar(const SnackBar(content: Text('영상을 저장했어!')));
+        }
+      }
+    } catch (_) {
+      if (mounted && !_accountChanged) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('저장을 다시 시도해 줘.')));
+      }
+    } finally {
+      try {
+        await file?.parent.delete(recursive: true);
+      } catch (_) {/* 임시 파일 정리 */}
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _seek(Duration time) async {
+    final video = _video;
+    if (video == null || _accountChanged) return;
+    try {
+      await video.seekTo(time);
+      if (mounted && !_accountChanged && identical(video, _video)) {
+        await video.play();
+      }
+    } catch (_) {
+      // A URL refresh or account change may dispose this controller mid-seek.
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+        backgroundColor: AppColors.black,
+        appBar: AppBar(title: const Text('코리의 심층분석')),
+        body: _accountChanged
+            ? const Center(child: Text('계정이 바뀌었어. 기록에서 다시 열어 줘.'))
+            : _result != null && _video != null
+                ? DeepAnalysisReport(
+                    report: (_result!['report'] as Map).cast<String, dynamic>(),
+                    video: _VideoControls(controller: _video!),
+                    onSeek: _seek,
+                    onDownload: _saving ? null : _download,
+                    downloading: _saving)
+                : Center(
+                    child: _loading
+                        ? const CircularProgressIndicator()
+                        : TextButton(
+                            onPressed: _load, child: const Text('영상 다시 불러오기'))),
+      );
+}
+
+class _VideoControls extends StatelessWidget {
+  const _VideoControls({required this.controller});
+  final VideoPlayerController controller;
+
+  @override
+  Widget build(BuildContext context) =>
+      ValueListenableBuilder<VideoPlayerValue>(
+        valueListenable: controller,
+        builder: (context, value, _) =>
+            Column(mainAxisSize: MainAxisSize.min, children: [
+          ConstrainedBox(
+              constraints: BoxConstraints(
+                  maxHeight: MediaQuery.sizeOf(context).height * .48),
+              child: AspectRatio(
+                  aspectRatio: value.aspectRatio,
+                  child: VideoPlayer(controller))),
+          VideoProgressIndicator(controller,
+              allowScrubbing: true, padding: const EdgeInsets.all(12)),
+          Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+            IconButton(
+                tooltip: value.isPlaying ? '일시정지' : '재생',
+                onPressed: value.isPlaying ? controller.pause : controller.play,
+                icon: Icon(value.isPlaying ? Icons.pause : Icons.play_arrow)),
+            Text(
+                '${_timestamp(value.position.inMilliseconds / 1000)} / ${_timestamp(value.duration.inMilliseconds / 1000)}'),
+          ]),
+        ]),
+      );
+}
+
+num? _finiteNumber(Object? value) =>
+    value is num && value.isFinite ? value : null;
+
+Map _reportMap(Object? value) => value is Map ? value : const {};
+
+String _measurement(Object? value, String unit) =>
+    _finiteNumber(value) == null ? '확인 불가' : '$value$unit';
+
+String _timestamp(num seconds) {
+  if (!seconds.isFinite) return '확인 불가';
+  final total = seconds.floor();
+  return '${total ~/ 60}:${(total % 60).toString().padLeft(2, '0')}';
+}
+
+/// 실제 플레이어와 같은 seek 콜백을 합성 리포트에서도 검증한다.
+class DeepAnalysisReport extends StatelessWidget {
+  const DeepAnalysisReport(
+      {super.key,
+      required this.report,
+      required this.video,
+      required this.onSeek,
+      this.onDownload,
+      this.downloading = false});
+  final Map<String, dynamic> report;
+  final Widget video;
+  final ValueChanged<Duration> onSeek;
+  final VoidCallback? onDownload;
+  final bool downloading;
+
+  @override
+  Widget build(BuildContext context) => Column(children: [
+        video,
+        Expanded(
+            child: ListView(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+                children: [
+              Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton.icon(
+                      onPressed: onDownload,
+                      icon: const Icon(Icons.download_rounded),
+                      label: Text(downloading ? '영상 준비 중…' : '영상 저장 · 공유'))),
+              if (_reportMap(report['rules'])['placeholder'] == true)
+                const Padding(
+                    padding: EdgeInsets.only(bottom: 12),
+                    child: Text('코칭 기준은 아직 검증 중이야. 영상에서 추정한 수치와 소견은 참고해서 봐 줘.',
+                        style: TextStyle(color: Colors.amber))),
+              if ((report['unassessedCatalog'] as List? ?? []).isNotEmpty)
+                const Text('일부 자세 항목은 이 영상으로 확인하지 못했어.'),
+              for (final entry
+                  in (report['timeline'] as List? ?? []).asMap().entries)
+                _timelineItem(entry.value as Map, entry.key),
+              for (final rep in report['reps'] as List? ?? [])
+                _metrics(rep as Map),
+              for (final note in report['notes'] as List? ?? [])
+                Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Text('$note',
+                        style: const TextStyle(
+                            fontSize: 12, color: Colors.white60))),
+            ])),
+      ]);
+
+  Widget _timelineItem(Map item, int index) {
+    var color = switch (item['severity']) {
+      'critical' || 'error' => Colors.redAccent,
+      'warning' => Colors.amber,
+      _ => Colors.lightBlueAccent,
+    };
+    final candidateTime = _finiteNumber(item['t']);
+    final seconds =
+        candidateTime != null && candidateTime >= 0 ? candidateTime : null;
+    final faults =
+        (report['faults'] is List ? report['faults'] as List : const [])
+            .whereType<Map>()
+            .toList();
+    Map? recordedFault;
+    for (final fault in faults) {
+      final evidence = fault['evidence'];
+      if (fault['rep'] == item['rep'] &&
+          fault['title'] == item['title'] &&
+          evidence is List &&
+          evidence.isNotEmpty &&
+          evidence.first is Map &&
+          evidence.first['t'] == item['t']) {
+        recordedFault = fault;
+        break;
+      }
+    }
+    // Legacy fault names/thresholds remain in the stored report for traceability.
+    // No current server contract validates them as posture-correctness judgments.
+    final summary = item['rep'] == null && faults.isNotEmpty;
+    final placeholderFinding =
+        _reportMap(report['rules'])['placeholder'] == true &&
+            {'warning', 'critical', 'error'}.contains(item['severity']);
+    if (summary || recordedFault != null || placeholderFinding) {
+      color = Colors.lightBlueAccent;
+    }
+    final title = summary
+        ? '측정 기록 · 잠정 소견 ${faults.length}개'
+        : recordedFault != null
+            ? _recordedObservation(recordedFault)
+            : placeholderFinding
+                ? '잠정 측정 소견'
+                : '${item['title']}';
+    final body = summary || recordedFault != null || placeholderFinding
+        ? '추정값 차이가 기록된 구간이야. 자세의 정상·이상 판정은 보류했어.'
+        : '${item['body']}';
+    return Card(
+        key: ValueKey('deep-analysis-timeline-$index'),
+        child: ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      leading: Text(seconds == null ? '시간 확인 불가' : _timestamp(seconds),
+          style: TextStyle(color: color, fontWeight: FontWeight.bold)),
+      title: Text(title,
+          style: TextStyle(color: color, fontWeight: FontWeight.w700)),
+      subtitle: Text(body, maxLines: 2, overflow: TextOverflow.ellipsis),
+      onTap: seconds == null
+          ? null
+          : () => onSeek(Duration(milliseconds: (seconds * 1000).round())),
+    ));
+  }
+
+  Widget _metrics(Map rep) {
+    final evidence =
+        DeepAssessmentEvidence.parseReport(report)?.reps[rep['repIndex']];
+    final validity = rep['validity'] as Map?;
+    final confidence = _finiteNumber(rep['confidence']);
+    final held = confidence == null ||
+        confidence < .35 ||
+        validity?['confidenceSource'] == 'missing' ||
+        validity?['detectionSupport'] == 'insufficient';
+    final metricValidity = rep['metricValidity'] as Map? ?? const {};
+    String metricNote(String key, [Object? value]) {
+      final metric = evidence?.metrics[key];
+      if (metric == null) {
+        return (metricValidity[key] as Map?)?['assessment'] == 'withheld'
+            ? (_finiteNumber(value) == null ? ' (판정 보류)' : ' (추정값 · 판정 보류)')
+            : ' (측정 근거 미확인)';
+      }
+      return metric.measurement.available
+          ? ' (영상 추정값)'
+          : (_finiteNumber(value) == null ? ' (측정 보류)' : ' (추정값 · 측정 근거 부족)');
+    }
+
+    final angles = _reportMap(rep['anglesDeg']);
+    final tempo = _reportMap(rep['tempoSeconds']);
+    final path = _reportMap(rep['handPath']);
+    final trunk = _reportMap(rep['trunkStability']);
+    final symmetry =
+        _reportMap(_reportMap(rep['symmetryDeg'])[rep['primaryJoint']]);
+    final fatigue = _reportMap(rep['fatigueDrift']);
+    String angleText(String key, String label) {
+      final a = _reportMap(angles[key]);
+      if ((_finiteNumber(a['top']) == null ||
+              _finiteNumber(a['bottom']) == null) &&
+          _finiteNumber(a['min']) != null &&
+          _finiteNumber(a['max']) != null) {
+        return '$label · 최소 ${_measurement(a['min'], '°')} / 최대 ${_measurement(a['max'], '°')} · 위·아래 시점 확인 불가${metricNote(key, a['min'])}';
+      }
+      return '$label · 위 ${_measurement(a['top'], '°')} / 아래 ${_measurement(a['bottom'], '°')}${metricNote(key, a['top'])}';
+    }
+
+    final deviceNotes = (rep['onDeviceWarnings'] as List? ?? [])
+        .map((key) =>
+            koriFeedbackLines[key]?.render(isKo: true) ?? '다른 자세 메모가 있어.')
+        .join(' · ');
+    final comparison = evidence?.nativeComparison == null
+        ? '기기와 같은 기준으로 비교했는지 확인할 수 없어'
+        : evidence!.nativeComparison!.unassessedKeys.isEmpty
+            ? '기기와 직접 비교할 공통 측정 기준이 없어'
+            : '기기 메모와 같은 측정 방식·기준인지 확인하지 못해 일치 여부를 판정하지 않았어';
+    return ExpansionTile(
+        title: Text('${rep['repIndex']}회 · ${held ? '추정값 · 판정 보류' : '자세히 보기'}'),
+        childrenPadding: const EdgeInsets.all(12),
+        children: [
+          ..._assessmentDetails(evidence),
+          if (held)
+            const Text('영상에서 자세를 확인할 근거가 부족해. 아래 수치는 추정값이고 자세 판정은 보류했어.',
+                style: TextStyle(color: Colors.amber)),
+          if (!held &&
+              metricValidity.values.any((value) =>
+                  value is Map &&
+                  value['assessment'] == 'withheld' &&
+                  (value['reasons'] as List? ?? []).any(const {
+                    'joint_support_missing',
+                    'low_joint_support',
+                    'tracking_mask_missing',
+                    'tracking_interpolated',
+                    'low_detection_support',
+                  }.contains)))
+            const Text(
+                '일부 관절이나 추적 근거가 부족해서 해당 수치의 판정을 보류했어. 아래 표시된 추정값은 참고만 해 줘.',
+                style: TextStyle(color: Colors.amber)),
+          if (metricValidity.values.any((value) =>
+              value is Map &&
+              (value['reasons'] as List? ?? []).any(const {
+                'invalid_geometry',
+                'invalid_baseline_geometry'
+              }.contains)))
+            const Text('일부 관절값을 계산할 수 없어 해당 측정을 보류했어. 확인 불가 항목은 숫자로 해석하지 마.',
+                style: TextStyle(color: Colors.amber)),
+          if ((validity?['reasons'] as List? ?? [])
+              .contains('low_baseline_support'))
+            Text((validity?['reasons'] as List? ?? [])
+                    .contains('invalid_baseline_geometry')
+                ? '처음 반복의 관절값을 계산할 수 없어 세트 중 자세 변화는 비교하지 않았어.'
+                : '처음 반복의 영상 근거가 부족해서 세트 중 자세 변화는 비교하지 않았어.'),
+          if ((rep['unassessedCatalog'] as List? ?? []).isNotEmpty ||
+              (rep['catalogMeasurements'] as List? ?? []).any(
+                  (item) => item is Map && item['assessment'] == 'withheld'))
+            const Text('일부 자세 항목은 판정에 필요한 조건을 확인하지 못했어.'),
+          Text(
+              '주요 관절 각도 범위 ROM ${_measurement(rep['romDeg'], '°')}${metricNote('romDeg', rep['romDeg'])} · 깊이 최소각 ${_measurement(rep['depthAngleDeg'], '°')}${metricNote('depthAngleDeg', rep['depthAngleDeg'])} · 골반 높이 변화 ${_measurement(rep['depthMeters'], 'm')}${metricNote('depthMeters', rep['depthMeters'])}'),
+          if (evidence?.metrics['romDeg'] != null)
+            const Text('ROM은 이 반복 전체의 주요 관절 최대각−최소각, 깊이 최소각은 같은 구간의 최소각이야.'),
+          if (evidence?.metrics['depthMeters'] != null)
+            const Text(
+                '골반 높이 변화는 추정된 공간의 수직 이동 범위야. 실제 신체 치수를 기준으로 검증한 거리는 아니야.'),
+          for (final entry in const {
+            'knee': '무릎',
+            'hip': '고관절',
+            'elbow': '팔꿈치',
+            'shoulder': '위팔·몸통 사이 각도(어깨 대리지표)',
+            'torso': '몸통(중력 기준)'
+          }.entries)
+            Text(angleText(entry.key, entry.value)),
+          if (evidence != null)
+            const Text(
+                '세 점의 가운데 관절 각도: 무릎은 고관절–무릎–발목, 고관절은 어깨–고관절–무릎, 팔꿈치는 어깨–팔꿈치–손목, 어깨 대리지표는 고관절–어깨–팔꿈치야.'),
+          Text(
+              '늘림 ${_measurement(tempo['eccentric'], '초')} · 멈춤 ${_measurement(tempo['pause'], '초')} · 수축 ${_measurement(tempo['concentric'], '초')}${metricNote('tempoSeconds', tempo['total'])}'),
+          if (evidence?.metrics['tempoSeconds'] != null)
+            const Text(
+                '멈춤은 전환 각도에서 3° 이내인 연속 구간으로 추정해. 늘림·수축 시간은 주요 관절의 전환 시점을 기준으로 나눠.'),
+          Text(
+              '손목 경로(골반 기준 양 손목 중점) ${_measurement(path['length'], 'm')} · 수평 이동 ${_measurement(path['horizontalExcursion'], 'm')}${metricNote('handPath', path['length'])}'),
+          Text(
+              '몸통 기울기 변동(표준편차) ${_measurement(trunk['stdDeg'], '°')}${metricNote('trunkStdDeg', trunk['stdDeg'])} · 좌우 최대 차이 ${_measurement(symmetry['max'], '°')}${metricNote('symmetryMaxDeg', symmetry['max'])}'),
+          if (evidence?.metrics['symmetryMaxDeg'] != null)
+            const Text(
+                '좌우 차이는 같은 시점의 주요 관절 각도 차이 중 최대값이야. 무릎 간격이나 좌우 힘의 차이를 뜻하지 않아.'),
+          if (evidence != null || fatigue['comparable'] == true) ...[
+            Text(
+                '기준 반복 대비 ROM 감소 ${_measurement(fatigue['romDropDeg'], '°')}${metricNote('romDropDeg', fatigue['romDropDeg'])}'),
+            if (evidence != null) ...[
+              Text(
+                  '기준 반복 대비 최소각 변화 ${_measurement(fatigue['depthDriftDeg'], '°')}${metricNote('depthDriftDeg', fatigue['depthDriftDeg'])}'),
+              Text(
+                  '기준 반복 대비 시간 변화 비율 ${_measurement(fatigue['tempoDriftRatio'], '')}${metricNote('tempoDriftRatio', fatigue['tempoDriftRatio'])}'),
+              const Text(
+                  'ROM 감소는 기준 범위−현재 범위, 최소각 변화는 현재−기준, 시간 변화 비율은 현재 시간÷기준 시간−1이야.'),
+            ],
+          ],
+          Text('기기 메모: ${deviceNotes.isEmpty ? '별도 경고는 없었어.' : deviceNotes}'),
+          Text(
+              '$comparison · ${confidence == null || validity?['confidenceSource'] == 'missing' ? '검출 지지도 확인 불가' : '검출 지지도 ${(confidence * 100).round()}%'}'),
+          if ((rep['unassessedDeviceWarnings'] as List? ?? []).isNotEmpty)
+            const Text('기기 경고 중 아직 비교하지 못한 항목이 있어.'),
+          for (final fault in rep['faults'] as List? ?? [])
+            _faultButton(fault as Map),
+        ]);
+  }
+
+  List<Widget> _assessmentDetails(DeepRepEvidence? evidence) {
+    if (evidence == null) {
+      return [
+        const Text('이 기록은 측정 정의와 비교 기준을 확인할 수 없어. 수치는 참고용 추정값이야.',
+            style: TextStyle(color: Colors.amber))
+      ];
+    }
+    final reasons = evidence.metrics.values
+        .where((m) => !m.measurement.available)
+        .expand((m) => m.measurement.reasons)
+        .toSet();
+    final baselines =
+        evidence.metrics.values.where((m) => m.referenceReps.isNotEmpty);
+    return [
+      const Text('3차원 영상 추정값이야. 수치가 확인되어도 올바른 자세인지 판정할 검증된 기준은 없어.',
+          style: TextStyle(color: Colors.amber)),
+      const Text(
+          '각 관절의 위·아래 값은 주요 관절 각도가 가장 크거나 작은 시점의 값이야. 관절 각도는 세 점 사이의 각도야. 몸통은 중력 방향과의 기울기, 손목 경로는 골반에 대한 양 손목 중점의 이동이야. 어깨 대리지표는 임상적 어깨 가동범위나 견갑 움직임을 뜻하지 않아.'),
+      if (reasons.any({
+        'joint_support_missing',
+        'low_joint_support',
+        'tracking_mask_missing',
+        'tracking_interpolated',
+        'low_detection_support'
+      }.contains))
+        const Text('일부 관절·추적 근거가 부족해 해당 측정만 보류했어. 확인 가능한 다른 관절 수치는 함께 볼 수 있어.'),
+      if (reasons
+          .any({'invalid_geometry', 'invalid_baseline_geometry'}.contains))
+        const Text('계산할 수 없는 관절값이 있어 해당 측정은 확인 불가야.'),
+      if (reasons.contains('requires_baseline_reps'))
+        const Text('기준 반복을 모으는 구간이라 변화량 수치는 참고로만 표시하고 비교 판정은 보류했어.'),
+      if (reasons.contains('low_baseline_support'))
+        const Text('기준 반복의 관절·추적 근거가 부족해 변화량 비교를 보류했어.'),
+      if (baselines.isNotEmpty)
+        Text(
+            '변화량 기준: ${baselines.first.referenceReps.map((i) => '$i회').join(', ')}의 중앙값. 같은 세트 안의 변화이며 권장 자세 기준은 아니야.'),
+      if (evidence.metrics.length < 15)
+        const Text(
+            '일부 측정의 정의나 기준 반복이 이 기록과 맞는지 확인할 수 없어. 해당 수치는 측정 근거 미확인으로 표시했어.'),
+    ];
+  }
+
+  String _recordedObservation(Map fault) {
+    const labels = {
+      'symmetryMaxDeg': '좌우 관절각 최대 차이',
+      'trunkStdDeg': '몸통 기울기 표준편차',
+      'depthDriftDeg': '기준 반복 대비 최소각 변화',
+      'romDropDeg': '기준 반복 대비 ROM 감소',
+      'tempoDriftRatio': '기준 반복 대비 시간 변화 비율',
+    };
+    final label = labels[fault['metric']];
+    if (label == null) return '잠정 측정 소견';
+    return '$label ${_measurement(fault['value'], fault['metric'] == 'tempoDriftRatio' ? '' : '°')}';
+  }
+
+  Widget _faultButton(Map fault) {
+    final evidence = fault['evidence'];
+    final rawTime =
+        evidence is List && evidence.isNotEmpty && evidence.first is Map
+            ? _finiteNumber((evidence.first as Map)['t'])
+            : null;
+    final time = rawTime != null && rawTime >= 0 ? rawTime : null;
+    final confidence = _finiteNumber(fault['confidence']);
+    final support =
+        confidence == null ? '검출 지지도 확인 불가' : '${(confidence * 100).round()}%';
+    return TextButton(
+        onPressed: time == null
+            ? null
+            : () => onSeek(Duration(milliseconds: (time * 1000).round())),
+        child: Text(
+            '${_recordedObservation(fault)} · ${time == null ? '측정 시간 확인 불가' : '측정 근거 보기'} (자세 판정 보류 · 검출 지지도 $support)'));
+  }
+}
+
+class DeepAnalysisStatus extends ConsumerWidget {
+  const DeepAnalysisStatus(
+      {super.key, this.sessionId, this.recordId, this.label});
+  final String? sessionId;
+  final String? recordId;
+  final String? label;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final rows = ref
+        .watch(deepAnalysisQueueProvider)
+        .values
+        .where((row) => sessionId != null
+            ? row['sessionId'] == sessionId
+            : recordId != null && row['recordId'] == recordId)
+        .toList();
+    final visible = rows.where((row) => row['status'] != 'failed').toList();
+    if (visible.isEmpty) return const SizedBox.shrink();
+    final done = visible.every((row) => row['status'] == 'done');
+    return TextButton(
+      onPressed: done && visible.length == 1
+          ? () async {
+              final landscape =
+                  MediaQuery.orientationOf(context) == Orientation.landscape;
+              await SystemChrome.setPreferredOrientations(
+                  [DeviceOrientation.portraitUp]);
+              if (!context.mounted) return;
+              await Navigator.of(context).push(MaterialPageRoute<void>(
+                  builder: (_) => DeepAnalysisReportScreen(
+                      jobId: visible.single['jobId'] as String)));
+              if (landscape && context.mounted) {
+                await SystemChrome.setPreferredOrientations([
+                  DeviceOrientation.landscapeLeft,
+                  DeviceOrientation.landscapeRight
+                ]);
+              }
+            }
+          : null,
+      child: Text(
+          '${label == null ? '' : '$label · '}${done ? '완료' : '심층분석 중…'}',
+          style: TextStyle(
+              fontSize: 12,
+              color: done ? Colors.lightGreenAccent : Colors.white70)),
+    );
+  }
+}
+
+class DeepAnalysisSection extends ConsumerWidget {
+  const DeepAnalysisSection({super.key, required this.recordId});
+  final String? recordId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final rows = ref
+        .watch(deepAnalysisQueueProvider)
+        .values
+        .where((row) => recordId != null && row['recordId'] == recordId)
+        .toList()
+      ..sort(
+          (a, b) => (a['setNumber'] as int).compareTo(b['setNumber'] as int));
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      for (final row in rows)
+        DeepAnalysisStatus(
+            sessionId: row['sessionId'] as String,
+            label: '${row['setNumber']}세트 심층분석'),
+    ]);
+  }
+}

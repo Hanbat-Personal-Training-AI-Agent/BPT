@@ -128,4 +128,29 @@ final class RTMPoseWorkspaceTests: XCTestCase {
                                        extraInputCoordinates: [], extraConfidences: []),
             inverseAffine: Affine2x3(a: 1, b: 0, c: 0, d: 0, e: 1, f: 0)))
     }
+
+    /// The bundled workout model (m Halpe26, D-M-03) through the live pose step: 17 COCO joints for the
+    /// evaluators / overlay / MotionAGFormer, and the 9 extra joints give the feet.
+    func testWorkoutModelGivesCOCO17AndFeet() throws {
+        var root = URL(fileURLWithPath: #filePath)
+        for _ in 0..<5 { root.deleteLastPathComponent() }
+        let package = root.appendingPathComponent("ios/Runner/NativePose/Models/\(RTMPoseModel.workout.rawValue).mlpackage")
+        let compiled = try MLModel.compileModel(at: package)
+        defer { try? FileManager.default.removeItem(at: compiled) }
+        let config = MLModelConfiguration()
+        config.computeUnits = .cpuOnly
+        let model = try MLModel(contentsOf: compiled, configuration: config)
+        let (w, h) = (360, 640)
+        var rgba = (0..<(w * h * 4)).map { UInt8(($0 * 7 + $0 / (w * 4) * 3) % 256) }
+        let image = try XCTUnwrap(rgba.withUnsafeMutableBytes {
+            CGContext(data: $0.baseAddress, width: w, height: h, bitsPerComponent: 8, bytesPerRow: w * 4,
+                      space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue)?.makeImage()
+        })
+        var tracker = RTMPoseCropTracker()
+        let estimate = try XCTUnwrap(tracker.estimate(image, model: model, workspace: try RTMPoseInputWorkspace()))
+        XCTAssertEqual(estimate.coco17.count, 17)
+        XCTAssertEqual(estimate.decoded.extraInputCoordinates.count, Halpe26.jointCount - 17)
+        XCTAssertNotNil(PoseCoordinateTransforms.applyInverseAffineToFeet(decoded: estimate.decoded,
+                                                                          inverseAffine: estimate.inverseAffine))
+    }
 }

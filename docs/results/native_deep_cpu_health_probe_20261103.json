@@ -1,0 +1,36 @@
+{
+  "scope": "one_no_GPU_no_media_existing_image_diagnostic",
+  "planSha256": "902ffcf7db691a6b67d28718a0823a607ecf18cc22c91e960f502b7f8451b9a2",
+  "scriptSha256": "4c2393cb1a06710dfe71a072763e33aee5fde65b48a69a9595289006e9f7ae65",
+  "result": {
+    "python": "3.10.17 (main, May 21 2025, 23:32:05) [GCC 12.2.0]",
+    "platform": "Linux-4.19.0-gvisor-x86_64-with-glibc2.36"
+  },
+  "execution": {
+    "elapsedLocalSeconds": 12.038,
+    "localWaitTimedOut": false,
+    "childReturnCode": 0,
+    "resultReturned": true,
+    "cleanup": "own_probe_stop_failed",
+    "gpuCalls": 0,
+    "modelCalls": 0,
+    "mediaTransferred": false
+  },
+  "cleanupProof": {
+    "appId": "ap-Asuv3StqJX4aieq7zKe6IA",
+    "description": "bpt-owned-image-cpu-health-probe",
+    "lifecycle": {
+      "state": "stopped",
+      "created_at": "2026-11-02 09:17:47+09:00",
+      "stopped_at": "2026-11-02 09:17:56+09:00"
+    }
+  },
+  "artifactSha256": {
+    "health-result.json": "f53401db1d46cc139ad7ae83db39c7bbeca5aabc22519ec1bd0b67a1e0acafe9",
+    "probe-execution.json": "5a811ce772269bb3c5219932262bfbf61aa198bbedb36e3baa22e07c6c171221",
+    "probe-cleanup-proof.json": "39b1d5abe3c25603bf4bfcc0d02af495eeefc5ca43d08789f5d8ed47aacb71a6",
+    "probe-plan.json": "902ffcf7db691a6b67d28718a0823a607ecf18cc22c91e960f502b7f8451b9a2"
+  },
+  "GPUAnalysisResultProduced": false,
+  "diagnosis": "existing_image_and_CPU_source_loading_work;GPU_analysis_pending_cause_unproven"
+}

@@ -1,0 +1,2769 @@
+{
+  "schema": "coaching_observation_aggregate.v1",
+  "profile": null,
+  "proof": {
+    "ExperimentalCoaching_sha256": "8927fd1262ce9db4e6ebcd9844994ca0b1f5b259e9f05b693e0d407b3a87e9b7",
+    "FormWarnings_sha256": "b4161e2b386f46ab1db2f14075ef11e0ab9c709962ef6f7cfcf4a2ec74758449",
+    "extracted_function_sha256": {
+      "signedTorsoAngle3D": "eb40fa7dfc95c5b6415b85fe29029b8578b8d1172732fc1bedfb43b4b0d9f5eb",
+      "signedHipDeviation3D": "a092284550c77558e0b116b876a760e6b5d47680065ec59fb0d9d6010aeb1d01",
+      "signedLineDeviation3D": "b6c587ca3bc45be8298de4bfe81732030c7ba98d25f2615e35cbb1184a4a5de4",
+      "wrapDegrees": "f1271ed96d649884af39b255142eaab3ff40c7936d20515ca89eef365cd327cc",
+      "unwrapDegrees": "3682de67f07d91fbf0a85149f96dec00c53d634c0f826840a92cdf96e8ea12bc"
+    },
+    "compiled_extraction_sha256": "fa873e6fcb48f4a53580409f2216b2e092725755190ba725d7d0772662a7106a",
+    "adapter_sha256": "246b7f6f59bf3fec41834e5d6430dd9dca4479a0005fd4fbaaa360768b037642",
+    "reader_sha256": "4c38fdfdb564dee4f919979e1d638d04ddf35d46a77d1c562bb451410b32b501",
+    "combined_input_hash_manifest_sha256": "a40d01dbf95c4c2098ab249c9954bda943feb8f92b1d40fcab50fb8f0ea42aab",
+    "original_input_arrays_file_unchanged": true,
+    "profile": null,
+    "native_outputs_reused_with_exact_source_and_input_hashes": true,
+    "native_output_sha256": "7f2efb8b7a06776e3ba5b85bf4670be0cdbcd01a68a79f5eeb597f1b3a729f1d",
+    "native_synthetic_test": "source formulas/profile-nil/gravity/unwrap synthetic PASS"
+  },
+  "groups": {
+    "squat": {
+      "genuine_frames": 1258,
+      "flush_excluded": 5,
+      "phase_counts": {
+        "top": 609,
+        "descending": 40,
+        "bottom": 545,
+        "ascending": 64
+      },
+      "side_view_counts": {
+        "None": 1258
+      },
+      "metric_summary": {
+        "leftKneeDeg": {
+          "available_frames": 1237,
+          "withheld_frames": 21,
+          "reasons": {
+            "unusable_3d": 21,
+            "missing_joint_support": 21,
+            "missing_raw_geometry": 21,
+            "missing_geometry": 21
+          },
+          "available_corrected_values": {
+            "count": 1237,
+            "min": 79.17686968644381,
+            "median": 121.3235452918429,
+            "mean": 129.76215479380792,
+            "p95": 175.9944739622479,
+            "max": 178.5979872611164
+          },
+          "numeric_withheld_values": {
+            "count": 0
+          },
+          "raw_minus_corrected_absolute_difference": {
+            "count": 1237,
+            "min": 0.0,
+            "median": 0.0,
+            "mean": 1.71058711971995e-14,
+            "p95": 9.094947017729412e-14,
+            "max": 5.115907697472721e-13
+          },
+          "definition": {
+            "definitionId": "ExperimentalCoaching.KneeDeg",
+            "unit": "degrees",
+            "coordinateSpace": "XS_H36M17_model_space_body_relative",
+            "scope": "frame_geometry_not_approved_form",
+            "requiredJoints": [
+              4,
+              5,
+              6
+            ],
+            "sourceDefinitionSha256": "8927fd1262ce9db4e6ebcd9844994ca0b1f5b259e9f05b693e0d407b3a87e9b7"
+          }
+        },
+        "leftElbowDeg": {
+          "available_frames": 1237,
+          "withheld_frames": 21,
+          "reasons": {
+            "unusable_3d": 21,
+            "missing_joint_support": 21,
+            "missing_raw_geometry": 21,
+            "missing_geometry": 21
+          },
+          "available_corrected_values": {
+            "count": 1237,
+            "min": 33.96518081808077,
+            "median": 47.60937037706178,
+            "mean": 49.67366853540344,
+            "p95": 69.02675651120344,
+            "max": 75.21479575062989
+          },
+          "numeric_withheld_values": {
+            "count": 0
+          },
+          "raw_minus_corrected_absolute_difference": {
+            "count": 1237,
+            "min": 0.0,
+            "median": 0.0,
+            "mean": 6.284023871637426e-15,
+            "p95": 2.1316282072803006e-14,
+            "max": 3.552713678800501e-14
+          },
+          "definition": {
+            "definitionId": "ExperimentalCoaching.ElbowDeg",
+            "unit": "degrees",
+            "coordinateSpace": "XS_H36M17_model_space_body_relative",
+            "scope": "frame_geometry_not_approved_form",
+            "requiredJoints": [
+              11,
+              12,
+              13
+            ],
+            "sourceDefinitionSha256": "8927fd1262ce9db4e6ebcd9844994ca0b1f5b259e9f05b693e0d407b3a87e9b7"
+          }
+        },
+        "leftHipDeg": {
+          "available_frames": 1237,
+          "withheld_frames": 21,
+          "reasons": {
+            "unusable_3d": 21,
+            "missing_joint_support": 21,
+            "missing_raw_geometry": 21,
+            "missing_geometry": 21
+          },
+          "available_corrected_values": {
+            "count": 1237,
+            "min": 63.948916392937676,
+            "median": 119.21197953782692,
+            "mean": 118.9843668469083,
+            "p95": 162.22805859963233,
+            "max": 167.8695960472849
+          },
+          "numeric_withheld_values": {
+            "count": 0
+          },
+          "raw_minus_corrected_absolute_difference": {
+            "count": 1237,
+            "min": 0.0,
+            "median": 0.0,
+            "mean": 3.4234718715684697e-15,
+            "p95": 2.842170943040401e-14,
+            "max": 8.526512829121202e-14
+          },
+          "definition": {
+            "definitionId": "ExperimentalCoaching.HipDeg",
+            "unit": "degrees",
+            "coordinateSpace": "XS_H36M17_model_space_body_relative",
+            "scope": "frame_geometry_not_approved_form",
+            "requiredJoints": [
+              4,
+              5,
+              8
+            ],
+            "sourceDefinitionSha256": "8927fd1262ce9db4e6ebcd9844994ca0b1f5b259e9f05b693e0d407b3a87e9b7"
+          }
+        },
+        "leftUpperArmDeg": {
+          "available_frames": 1237,
+          "withheld_frames": 21,
+          "reasons": {
+            "unusable_3d": 21,
+            "missing_joint_support": 21,
+            "missing_raw_geometry": 21,
+            "missing_geometry": 21
+          },
+          "available_corrected_values": {
+            "count": 1237,
+            "min": 22.873404338740183,
+            "median": 36.2353231781028,
+            "mean": 37.96276197059182,
+            "p95": 53.70959917448324,
+            "max": 60.161994980253674
+          },
+          "numeric_withheld_values": {
+            "count": 0
+          },
+          "raw_minus_corrected_absolute_difference": {
+            "count": 1237,
+            "min": 0.0,
+            "median": 7.105427357601002e-15,
+            "mean": 7.378271172868623e-15,
+            "p95": 2.4868995751603507e-14,
+            "max": 4.973799150320701e-14
+          },
+          "definition": {
+            "definitionId": "ExperimentalCoaching.UpperArmDeg",
+            "unit": "degrees",
+            "coordinateSpace": "XS_H36M17_model_space_body_relative",
+            "scope": "projected_body_frontal_abduction_from_caudal_axis",
+            "requiredJoints": [
+              0,
+              8,
+              11,
+              14,
+              11,
+              12
+            ],
+            "sourceDefinitionSha256": "8927fd1262ce9db4e6ebcd9844994ca0b1f5b259e9f05b693e0d407b3a87e9b7"
+          }
+        },
+        "rightKneeDeg": {
+          "available_frames": 1237,
+          "withheld_frames": 21,
+          "reasons": {
+            "unusable_3d": 21,
+            "missing_joint_support": 21,
+            "missing_raw_geometry": 21,
+            "missing_geometry": 21
+          },
+          "available_corrected_values": {
+            "count": 1237,
+            "min": 53.99886549643027,
+            "median": 104.6856819219489,
+            "mean": 116.08019514672206,
+            "p95": 175.15030417962691,
+            "max": 179.7444154919848
+          },
+          "numeric_withheld_values": {
+            "count": 0
+          },
+          "raw_minus_corrected_absolute_difference": {
+            "count": 1237,
+            "min": 0.0,
+            "median": 0.0,
+            "mean": 1.7324146249413597e-14,
+            "p95": 8.526512829121202e-14,
+            "max": 2.8705926524708048e-12
+          },
+          "definition": {
+            "definitionId": "ExperimentalCoaching.KneeDeg",
+            "unit": "degrees",
+            "coordinateSpace": "XS_H36M17_model_space_body_relative",
+            "scope": "frame_geometry_not_approved_form",
+            "requiredJoints": [
+              1,
+              2,
+              3
+            ],
+            "sourceDefinitionSha256": "8927fd1262ce9db4e6ebcd9844994ca0b1f5b259e9f05b693e0d407b3a87e9b7"
+          }
+        },
+        "rightElbowDeg": {
+          "available_frames": 177,
+          "withheld_frames": 1081,
+          "reasons": {
+            "unusable_3d": 21,
+            "missing_joint_support": 21,
+            "missing_raw_geometry": 21,
+            "missing_geometry": 21,
+            "low_joint_support": 1060,
+            "correction_disagreement": 3
+          },
+          "available_corrected_values": {
+            "count": 177,
+            "min": 22.464676574146683,
+            "median": 53.381524149536396,
+            "mean": 59.061708365464426,
+            "p95": 102.26752388897995,
+            "max": 145.49717014029008
+          },
+          "numeric_withheld_values": {
+            "count": 1060,
+            "min": 21.999999999999964,
+            "median": 115.5440858307798,
+            "mean": 99.85438763813275,
+            "p95": 130.73600940862974,
+            "max": 165.39427233832407
+          },
+          "raw_minus_corrected_absolute_difference": {
+            "count": 1237,
+            "min": 0.0,
+            "median": 0.0,
+            "mean": 0.05706431420716771,
+            "p95": 2.842170943040401e-14,
+            "max": 18.39773117231048
+          },
+          "definition": {
+            "definitionId": "ExperimentalCoaching.ElbowDeg",
+            "unit": "degrees",
+            "coordinateSpace": "XS_H36M17_model_space_body_relative",
+            "scope": "frame_geometry_not_approved_form",
+            "requiredJoints": [
+              14,
+              15,
+              16
+            ],
+            "sourceDefinitionSha256": "8927fd1262ce9db4e6ebcd9844994ca0b1f5b259e9f05b693e0d407b3a87e9b7"
+          }
+        },
+        "rightHipDeg": {
+          "available_frames": 1237,
+          "withheld_frames": 21,
+          "reasons": {
+            "unusable_3d": 21,
+            "missing_joint_support": 21,
+            "missing_raw_geometry": 21,
+            "missing_geometry": 21
+          },
+          "available_corrected_values": {
+            "count": 1237,
+            "min": 49.94185830384588,
+            "median": 100.15364911511904,
+            "mean": 111.9342930329692,
+            "p95": 174.8598802395965,
+            "max": 179.49695519983814
+          },
+          "numeric_withheld_values": {
+            "count": 0
+          },
+          "raw_minus_corrected_absolute_difference": {
+            "count": 1237,
+            "min": 0.0,
+            "median": 0.0,
+            "mean": 7.875134120671765e-15,
+            "p95": 5.684341886080802e-14,
+            "max": 3.979039320256561e-13
+          },
+          "definition": {
+            "definitionId": "ExperimentalCoaching.HipDeg",
+            "unit": "degrees",
+            "coordinateSpace": "XS_H36M17_model_space_body_relative",
+            "scope": "frame_geometry_not_approved_form",
+            "requiredJoints": [
+              1,
+              2,
+              8
+            ],
+            "sourceDefinitionSha256": "8927fd1262ce9db4e6ebcd9844994ca0b1f5b259e9f05b693e0d407b3a87e9b7"
+          }
+        },
+        "rightUpperArmDeg": {
+          "available_frames": 962,
+          "withheld_frames": 296,
+          "reasons": {
+            "unusable_3d": 21,
+            "missing_joint_support": 21,
+            "missing_raw_geometry": 21,
+            "missing_geometry": 21,
+            "low_joint_support": 275
+          },
+          "available_corrected_values": {
+            "count": 962,
+            "min": 0.11531242605487664,
+            "median": 8.228200826801263,
+            "mean": 15.014144875330267,
+            "p95": 59.07764013004925,
+            "max": 140.48740608751595
+          },
+          "numeric_withheld_values": {
+            "count": 275,
+            "min": 0.006166070311359406,
+            "median": 3.6147219371399495,
+            "mean": 10.426511067307429,
+            "p95": 55.02134036401894,
+            "max": 104.09753547916645
+          },
+          "raw_minus_corrected_absolute_difference": {
+            "count": 1237,
+            "min": 0.0,
+            "median": 1.4210854715202004e-14,
+            "mean": 7.037676378966086e-14,
+            "p95": 2.705391466406586e-13,
+            "max": 5.734773766974399e-12
+          },
+          "definition": {
+            "definitionId": "ExperimentalCoaching.UpperArmDeg",
+            "unit": "degrees",
+            "coordinateSpace": "XS_H36M17_model_space_body_relative",
+            "scope": "projected_body_frontal_abduction_from_caudal_axis",
+            "requiredJoints": [
+              0,
+              8,
+              11,
+              14,
+              14,
+              15
+            ],
+            "sourceDefinitionSha256": "8927fd1262ce9db4e6ebcd9844994ca0b1f5b259e9f05b693e0d407b3a87e9b7"
+          }
+        },
+        "trunkInclineDeg": {
+          "available_frames": 0,
+          "withheld_frames": 1258,
+          "reasons": {
+            "synchronized_gravity_required": 1258,
+            "missing_gravity": 1258
+          },
+          "available_corrected_values": {
+            "count": 0
+          },
+          "numeric_withheld_values": {
+            "count": 0
+          },
+          "raw_minus_corrected_absolute_difference": {
+            "count": 0
+          },
+          "definition": {
+            "definitionId": "ExperimentalCoaching.trunkInclineDeg",
+            "unit": "degrees",
+            "coordinateSpace": "source_synchronized_up_required",
+            "scope": "gravity_referenced_geometry",
+            "requiredJoints": [
+              0,
+              8
+            ],
+            "sourceDefinitionSha256": "8927fd1262ce9db4e6ebcd9844994ca0b1f5b259e9f05b693e0d407b3a87e9b7"
+          }
+        },
+        "cameraTorsoSignedDeg": {
+          "available_frames": 1237,
+          "withheld_frames": 21,
+          "reasons": {
+            "unusable_3d": 21,
+            "missing_joint_support": 21,
+            "missing_raw_geometry": 21,
+            "missing_geometry": 21
+          },
+          "available_corrected_values": {
+            "count": 1237,
+            "min": -1.989663622083551,
+            "median": 25.933000777633758,
+            "mean": 24.821365498322102,
+            "p95": 40.33163861432022,
+            "max": 41.993995898198044
+          },
+          "numeric_withheld_values": {
+            "count": 0
+          },
+          "raw_minus_corrected_absolute_difference": {
+            "count": 1237,
+            "min": 0.0,
+            "median": 0.0,
+            "mean": 0.0,
+            "p95": 0.0,
+            "max": 0.0
+          },
+          "definition": {
+            "definitionId": "FormGeometry.signedTorsoAngle3D(up=(0,-1,0))",
+            "unit": "degrees",
+            "coordinateSpace": "XS_H36M17_camera_reference_no_verified_ground",
+            "scope": "camera_reference_proxy",
+            "requiredJoints": [
+              0,
+              1,
+              4,
+              8
+            ],
+            "sourceDefinitionSha256": "b4161e2b386f46ab1db2f14075ef11e0ab9c709962ef6f7cfcf4a2ec74758449"
+          }
+        },
+        "cameraHipLineDeviationRatio": {
+          "available_frames": 412,
+          "withheld_frames": 846,
+          "reasons": {
+            "unusable_3d": 21,
+            "missing_joint_support": 21,
+            "missing_raw_geometry": 840,
+            "missing_geometry": 844
+          },
+          "available_corrected_values": {
+            "count": 412,
+            "min": 0.015794838529556366,
+            "median": 0.055266298711472185,
+            "mean": 0.15519984088089214,
+            "p95": 0.4291122471918656,
+            "max": 0.45139041939792307
+          },
+          "numeric_withheld_values": {
+            "count": 2,
+            "min": 0.019781159490815943,
+            "median": 0.023906488901879467,
+            "mean": 0.023906488901879467,
+            "p95": 0.027619285371836638,
+            "max": 0.02803181831294299
+          },
+          "raw_minus_corrected_absolute_difference": {
+            "count": 412,
+            "min": 6.5829897561570094e-06,
+            "median": 0.00074598725058923,
+            "mean": 0.002858819172981229,
+            "p95": 0.012547423848929835,
+            "max": 0.018565861951556628
+          },
+          "definition": {
+            "definitionId": "FormGeometry.signedHipDeviation3D(up=(0,-1,0))",
+            "unit": "dimensionless_ratio",
+            "coordinateSpace": "XS_H36M17_camera_reference_no_verified_ground",
+            "scope": "camera_reference_proxy",
+            "requiredJoints": [
+              0,
+              8,
+              3,
+              6
+            ],
+            "sourceDefinitionSha256": "b4161e2b386f46ab1db2f14075ef11e0ab9c709962ef6f7cfcf4a2ec74758449"
+          }
+        }
+      },
+      "native_candidate_assessments": {},
+      "native_candidate_reasons": {},
+      "squat_candidate_not_implemented": true,
+      "interval_summary": {
+        "leftKneeRateDegPerSecond": {
+          "available_intervals": 0,
+          "total_phase_intervals": 64,
+          "reasons": {
+            "phase_changed": 8,
+            "unknown_side_view": 64
+          },
+          "values": {
+            "count": 0
+          },
+          "numeric_withheld_values": {
+            "count": 64,
+            "min": 1.643581545212052,
+            "median": 79.80011705273427,
+            "mean": 77.38862807427552,
+            "p95": 106.88818909608914,
+            "max": 124.07757697264033
+          }
+        },
+        "leftElbowRateDegPerSecond": {
+          "available_intervals": 0,
+          "total_phase_intervals": 64,
+          "reasons": {
+            "phase_changed": 8,
+            "unknown_side_view": 64
+          },
+          "values": {
+            "count": 0
+          },
+          "numeric_withheld_values": {
+            "count": 64,
+            "min": -206.26296811339103,
+            "median": 4.294123951397053,
+            "mean": -1.2008192293767574,
+            "p95": 46.84030702914807,
+            "max": 132.83585259176212
+          }
+        },
+        "leftHipRisePxPerSecond": {
+          "available_intervals": 0,
+          "total_phase_intervals": 64,
+          "reasons": {
+            "phase_changed": 8,
+            "side_view_required_for_image_timing": 64,
+            "unknown_side_view": 64
+          },
+          "values": {
+            "count": 0
+          },
+          "numeric_withheld_values": {
+            "count": 64,
+            "min": 10.400169521041727,
+            "median": 90.30829001988371,
+            "mean": 98.28351743696363,
+            "p95": 172.79789362511892,
+            "max": 212.25339518100057
+          }
+        },
+        "leftShoulderRisePxPerSecond": {
+          "available_intervals": 0,
+          "total_phase_intervals": 64,
+          "reasons": {
+            "phase_changed": 8,
+            "side_view_required_for_image_timing": 64,
+            "unknown_side_view": 64
+          },
+          "values": {
+            "count": 0
+          },
+          "numeric_withheld_values": {
+            "count": 64,
+            "min": 126.68247727456257,
+            "median": 194.95218301125277,
+            "mean": 198.80809013821437,
+            "p95": 264.85654956398065,
+            "max": 314.6315527870891
+          }
+        },
+        "rightKneeRateDegPerSecond": {
+          "available_intervals": 0,
+          "total_phase_intervals": 64,
+          "reasons": {
+            "phase_changed": 8,
+            "unknown_side_view": 64
+          },
+          "values": {
+            "count": 0
+          },
+          "numeric_withheld_values": {
+            "count": 64,
+            "min": 31.884451020004683,
+            "median": 120.47304962381688,
+            "mean": 113.71798562708356,
+            "p95": 169.24336316001046,
+            "max": 179.5841100114402
+          }
+        },
+        "rightElbowRateDegPerSecond": {
+          "available_intervals": 0,
+          "total_phase_intervals": 64,
+          "reasons": {
+            "phase_changed": 8,
+            "unknown_side_view": 64,
+            "incomplete_rightElbowDeg": 63
+          },
+          "values": {
+            "count": 0
+          },
+          "numeric_withheld_values": {
+            "count": 64,
+            "min": -1476.6275639427843,
+            "median": -25.576433194580723,
+            "mean": -55.8468272148188,
+            "p95": 238.93579046036643,
+            "max": 603.0019363058605
+          }
+        },
+        "rightHipRisePxPerSecond": {
+          "available_intervals": 0,
+          "total_phase_intervals": 64,
+          "reasons": {
+            "phase_changed": 8,
+            "side_view_required_for_image_timing": 64,
+            "unknown_side_view": 64
+          },
+          "values": {
+            "count": 0
+          },
+          "numeric_withheld_values": {
+            "count": 64,
+            "min": -0.0,
+            "median": 92.77920978432779,
+            "mean": 101.07775432077541,
+            "p95": 154.77588052661602,
+            "max": 167.85270082028478
+          }
+        },
+        "rightShoulderRisePxPerSecond": {
+          "available_intervals": 0,
+          "total_phase_intervals": 64,
+          "reasons": {
+            "phase_changed": 8,
+            "side_view_required_for_image_timing": 64,
+            "unknown_side_view": 64
+          },
+          "values": {
+            "count": 0
+          },
+          "numeric_withheld_values": {
+            "count": 64,
+            "min": 63.24271480745797,
+            "median": 188.66803043364308,
+            "mean": 191.67475341933908,
+            "p95": 290.587993130722,
+            "max": 337.8199393988324
+          }
+        }
+      },
+      "row_simultaneous_motion": {},
+      "rep_windows": [
+        {
+          "hip_shoulder_timing": {
+            "available": false,
+            "reasons": [
+              "side_view_required_for_image_timing",
+              "unknown_side_view"
+            ],
+            "interval_count": 3,
+            "unqualified_image_peak_delta_seconds": 0.033333333333333215,
+            "unqualified_scope": "image_plane_numeric_observation_not_hips_first_fault_or_criterion_eligible"
+          },
+          "original_rep_index": 1,
+          "original_side": "left",
+          "original_start_frame": 73,
+          "original_end_frame": 119,
+          "boundary_semantics": "inclusive_native_report",
+          "original_start_phase": "descending",
+          "original_end_phase": "ascending",
+          "physical_completion": "not_established_by_report_boundary",
+          "camera_torso_range": {
+            "available": false,
+            "value": null,
+            "rawValue": null,
+            "reasons": [
+              "view_unknown_or_changed"
+            ],
+            "member_frames": 47
+          }
+        },
+        {
+          "hip_shoulder_timing": {
+            "available": false,
+            "reasons": [
+              "missing_same_phase_intervals"
+            ],
+            "interval_count": 0
+          },
+          "original_rep_index": 2,
+          "original_side": "left",
+          "original_start_frame": 170,
+          "original_end_frame": 224,
+          "boundary_semantics": "inclusive_native_report",
+          "original_start_phase": "descending",
+          "original_end_phase": "ascending",
+          "physical_completion": "not_established_by_report_boundary",
+          "camera_torso_range": {
+            "available": false,
+            "value": null,
+            "rawValue": null,
+            "reasons": [
+              "view_unknown_or_changed"
+            ],
+            "member_frames": 55
+          }
+        },
+        {
+          "hip_shoulder_timing": {
+            "available": false,
+            "reasons": [
+              "missing_same_phase_intervals"
+            ],
+            "interval_count": 0
+          },
+          "original_rep_index": 3,
+          "original_side": "left",
+          "original_start_frame": 280,
+          "original_end_frame": 337,
+          "boundary_semantics": "inclusive_native_report",
+          "original_start_phase": "descending",
+          "original_end_phase": "bottom",
+          "physical_completion": "not_established_by_report_boundary",
+          "camera_torso_range": {
+            "available": false,
+            "value": null,
+            "rawValue": null,
+            "reasons": [
+              "view_unknown_or_changed"
+            ],
+            "member_frames": 58
+          }
+        },
+        {
+          "hip_shoulder_timing": {
+            "available": false,
+            "reasons": [
+              "missing_same_phase_intervals"
+            ],
+            "interval_count": 0
+          },
+          "original_rep_index": 4,
+          "original_side": "left",
+          "original_start_frame": 406,
+          "original_end_frame": 450,
+          "boundary_semantics": "inclusive_native_report",
+          "original_start_phase": "bottom",
+          "original_end_phase": "bottom",
+          "physical_completion": "not_established_by_report_boundary",
+          "camera_torso_range": {
+            "available": false,
+            "value": null,
+            "rawValue": null,
+            "reasons": [
+              "view_unknown_or_changed"
+            ],
+            "member_frames": 45
+          }
+        },
+        {
+          "hip_shoulder_timing": {
+            "available": false,
+            "reasons": [
+              "side_view_required_for_image_timing",
+              "unknown_side_view"
+            ],
+            "interval_count": 1,
+            "unqualified_image_peak_delta_seconds": 0.0,
+            "unqualified_scope": "image_plane_numeric_observation_not_hips_first_fault_or_criterion_eligible"
+          },
+          "original_rep_index": 5,
+          "original_side": "left",
+          "original_start_frame": 514,
+          "original_end_frame": 578,
+          "boundary_semantics": "inclusive_native_report",
+          "original_start_phase": "descending",
+          "original_end_phase": "ascending",
+          "physical_completion": "not_established_by_report_boundary",
+          "camera_torso_range": {
+            "available": false,
+            "value": null,
+            "rawValue": null,
+            "reasons": [
+              "view_unknown_or_changed"
+            ],
+            "member_frames": 65
+          }
+        },
+        {
+          "hip_shoulder_timing": {
+            "available": false,
+            "reasons": [
+              "missing_same_phase_intervals"
+            ],
+            "interval_count": 0
+          },
+          "original_rep_index": 6,
+          "original_side": "left",
+          "original_start_frame": 654,
+          "original_end_frame": 706,
+          "boundary_semantics": "inclusive_native_report",
+          "original_start_phase": "bottom",
+          "original_end_phase": "bottom",
+          "physical_completion": "not_established_by_report_boundary",
+          "camera_torso_range": {
+            "available": false,
+            "value": null,
+            "rawValue": null,
+            "reasons": [
+              "view_unknown_or_changed"
+            ],
+            "member_frames": 53
+          }
+        },
+        {
+          "hip_shoulder_timing": {
+            "available": false,
+            "reasons": [
+              "side_view_required_for_image_timing",
+              "unknown_side_view"
+            ],
+            "interval_count": 1,
+            "unqualified_image_peak_delta_seconds": 0.0,
+            "unqualified_scope": "image_plane_numeric_observation_not_hips_first_fault_or_criterion_eligible"
+          },
+          "original_rep_index": 7,
+          "original_side": "left",
+          "original_start_frame": 777,
+          "original_end_frame": 831,
+          "boundary_semantics": "inclusive_native_report",
+          "original_start_phase": "bottom",
+          "original_end_phase": "ascending",
+          "physical_completion": "not_established_by_report_boundary",
+          "camera_torso_range": {
+            "available": false,
+            "value": null,
+            "rawValue": null,
+            "reasons": [
+              "view_unknown_or_changed"
+            ],
+            "member_frames": 55
+          }
+        },
+        {
+          "hip_shoulder_timing": {
+            "available": false,
+            "reasons": [
+              "missing_same_phase_intervals"
+            ],
+            "interval_count": 0
+          },
+          "original_rep_index": 8,
+          "original_side": "left",
+          "original_start_frame": 896,
+          "original_end_frame": 960,
+          "boundary_semantics": "inclusive_native_report",
+          "original_start_phase": "descending",
+          "original_end_phase": "ascending",
+          "physical_completion": "not_established_by_report_boundary",
+          "camera_torso_range": {
+            "available": false,
+            "value": null,
+            "rawValue": null,
+            "reasons": [
+              "view_unknown_or_changed"
+            ],
+            "member_frames": 65
+          }
+        },
+        {
+          "hip_shoulder_timing": {
+            "available": false,
+            "reasons": [
+              "missing_same_phase_intervals"
+            ],
+            "interval_count": 0
+          },
+          "original_rep_index": 9,
+          "original_side": "left",
+          "original_start_frame": 1034,
+          "original_end_frame": 1097,
+          "boundary_semantics": "inclusive_native_report",
+          "original_start_phase": "descending",
+          "original_end_phase": "bottom",
+          "physical_completion": "not_established_by_report_boundary",
+          "camera_torso_range": {
+            "available": false,
+            "value": null,
+            "rawValue": null,
+            "reasons": [
+              "view_unknown_or_changed"
+            ],
+            "member_frames": 64
+          }
+        },
+        {
+          "hip_shoulder_timing": {
+            "available": false,
+            "reasons": [
+              "missing_same_phase_intervals"
+            ],
+            "interval_count": 0
+          },
+          "original_rep_index": 10,
+          "original_side": "left",
+          "original_start_frame": 1164,
+          "original_end_frame": 1226,
+          "boundary_semantics": "inclusive_native_report",
+          "original_start_phase": "descending",
+          "original_end_phase": "bottom",
+          "physical_completion": "not_established_by_report_boundary",
+          "camera_torso_range": {
+            "available": false,
+            "value": null,
+            "rawValue": null,
+            "reasons": [
+              "view_unknown_or_changed"
+            ],
+            "member_frames": 63
+          }
+        }
+      ]
+    },
+    "pushup": {
+      "genuine_frames": 543,
+      "flush_excluded": 5,
+      "phase_counts": {
+        "top": 186,
+        "bottom": 140,
+        "ascending": 165,
+        "descending": 52
+      },
+      "side_view_counts": {
+        "None": 30,
+        "True": 513
+      },
+      "metric_summary": {
+        "leftKneeDeg": {
+          "available_frames": 13,
+          "withheld_frames": 530,
+          "reasons": {
+            "unusable_3d": 21,
+            "missing_joint_support": 21,
+            "missing_raw_geometry": 21,
+            "missing_geometry": 21,
+            "low_joint_support": 509
+          },
+          "available_corrected_values": {
+            "count": 13,
+            "min": 150.41280271641386,
+            "median": 168.6442745682033,
+            "mean": 163.1944555180494,
+            "p95": 170.5981743074333,
+            "max": 170.68161907214588
+          },
+          "numeric_withheld_values": {
+            "count": 509,
+            "min": 143.55233396342,
+            "median": 154.75090084919438,
+            "mean": 154.94198795450305,
+            "p95": 162.04663379719983,
+            "max": 168.1542557829464
+          },
+          "raw_minus_corrected_absolute_difference": {
+            "count": 522,
+            "min": 0.0,
+            "median": 0.0,
+            "mean": 1.333969120775667e-14,
+            "p95": 5.684341886080802e-14,
+            "max": 8.526512829121202e-14
+          },
+          "definition": {
+            "definitionId": "ExperimentalCoaching.KneeDeg",
+            "unit": "degrees",
+            "coordinateSpace": "XS_H36M17_model_space_body_relative",
+            "scope": "frame_geometry_not_approved_form",
+            "requiredJoints": [
+              4,
+              5,
+              6
+            ],
+            "sourceDefinitionSha256": "8927fd1262ce9db4e6ebcd9844994ca0b1f5b259e9f05b693e0d407b3a87e9b7"
+          }
+        },
+        "leftElbowDeg": {
+          "available_frames": 338,
+          "withheld_frames": 205,
+          "reasons": {
+            "unusable_3d": 21,
+            "missing_joint_support": 21,
+            "missing_raw_geometry": 21,
+            "missing_geometry": 21,
+            "low_joint_support": 184
+          },
+          "available_corrected_values": {
+            "count": 338,
+            "min": 100.49534591872786,
+            "median": 143.29149484890004,
+            "mean": 138.03457428882012,
+            "p95": 152.24595971711437,
+            "max": 156.70450326251623
+          },
+          "numeric_withheld_values": {
+            "count": 184,
+            "min": 73.57015423789379,
+            "median": 86.33396901078135,
+            "mean": 88.82484212936771,
+            "p95": 105.75506119845315,
+            "max": 110.53383765758898
+          },
+          "raw_minus_corrected_absolute_difference": {
+            "count": 522,
+            "min": 0.0,
+            "median": 0.0,
+            "mean": 5.962025254079001e-15,
+            "p95": 2.842170943040401e-14,
+            "max": 5.684341886080802e-14
+          },
+          "definition": {
+            "definitionId": "ExperimentalCoaching.ElbowDeg",
+            "unit": "degrees",
+            "coordinateSpace": "XS_H36M17_model_space_body_relative",
+            "scope": "frame_geometry_not_approved_form",
+            "requiredJoints": [
+              11,
+              12,
+              13
+            ],
+            "sourceDefinitionSha256": "8927fd1262ce9db4e6ebcd9844994ca0b1f5b259e9f05b693e0d407b3a87e9b7"
+          }
+        },
+        "leftHipDeg": {
+          "available_frames": 13,
+          "withheld_frames": 530,
+          "reasons": {
+            "unusable_3d": 21,
+            "missing_joint_support": 21,
+            "missing_raw_geometry": 21,
+            "missing_geometry": 21,
+            "low_joint_support": 509
+          },
+          "available_corrected_values": {
+            "count": 13,
+            "min": 153.72654386023373,
+            "median": 161.20818749037963,
+            "mean": 159.88418970918045,
+            "p95": 163.25632833406854,
+            "max": 163.28865311035406
+          },
+          "numeric_withheld_values": {
+            "count": 509,
+            "min": 149.5313470198091,
+            "median": 156.02522410107943,
+            "mean": 156.2109786231305,
+            "p95": 160.753235123057,
+            "max": 162.2975422249441
+          },
+          "raw_minus_corrected_absolute_difference": {
+            "count": 522,
+            "min": 0.0,
+            "median": 0.0,
+            "mean": 7.350442094070002e-15,
+            "p95": 2.842170943040401e-14,
+            "max": 5.684341886080802e-14
+          },
+          "definition": {
+            "definitionId": "ExperimentalCoaching.HipDeg",
+            "unit": "degrees",
+            "coordinateSpace": "XS_H36M17_model_space_body_relative",
+            "scope": "frame_geometry_not_approved_form",
+            "requiredJoints": [
+              4,
+              5,
+              8
+            ],
+            "sourceDefinitionSha256": "8927fd1262ce9db4e6ebcd9844994ca0b1f5b259e9f05b693e0d407b3a87e9b7"
+          }
+        },
+        "leftUpperArmDeg": {
+          "available_frames": 296,
+          "withheld_frames": 247,
+          "reasons": {
+            "unusable_3d": 21,
+            "missing_joint_support": 21,
+            "missing_raw_geometry": 21,
+            "missing_geometry": 21,
+            "low_joint_support": 226
+          },
+          "available_corrected_values": {
+            "count": 296,
+            "min": 11.844733916814324,
+            "median": 55.74136515938474,
+            "mean": 58.081676544514565,
+            "p95": 68.06674894474808,
+            "max": 173.9448129108299
+          },
+          "numeric_withheld_values": {
+            "count": 226,
+            "min": 30.607561429182567,
+            "median": 47.25752522059359,
+            "mean": 49.35553078054601,
+            "p95": 61.237760584430596,
+            "max": 66.62601899491553
+          },
+          "raw_minus_corrected_absolute_difference": {
+            "count": 522,
+            "min": 0.0,
+            "median": 7.105427357601002e-15,
+            "mean": 1.0487991913853585e-14,
+            "p95": 2.842170943040401e-14,
+            "max": 8.526512829121202e-14
+          },
+          "definition": {
+            "definitionId": "ExperimentalCoaching.UpperArmDeg",
+            "unit": "degrees",
+            "coordinateSpace": "XS_H36M17_model_space_body_relative",
+            "scope": "projected_body_frontal_abduction_from_caudal_axis",
+            "requiredJoints": [
+              0,
+              8,
+              11,
+              14,
+              11,
+              12
+            ],
+            "sourceDefinitionSha256": "8927fd1262ce9db4e6ebcd9844994ca0b1f5b259e9f05b693e0d407b3a87e9b7"
+          }
+        },
+        "rightKneeDeg": {
+          "available_frames": 516,
+          "withheld_frames": 27,
+          "reasons": {
+            "unusable_3d": 21,
+            "missing_joint_support": 21,
+            "missing_raw_geometry": 21,
+            "missing_geometry": 21,
+            "low_joint_support": 6
+          },
+          "available_corrected_values": {
+            "count": 516,
+            "min": 158.35093425788213,
+            "median": 168.97102058134726,
+            "mean": 168.91295335914873,
+            "p95": 172.46505927188775,
+            "max": 174.25346043412446
+          },
+          "numeric_withheld_values": {
+            "count": 6,
+            "min": 168.1340968802104,
+            "median": 171.01493301687952,
+            "mean": 170.2608510136268,
+            "p95": 171.657197798441,
+            "max": 171.72051177600056
+          },
+          "raw_minus_corrected_absolute_difference": {
+            "count": 522,
+            "min": 0.0,
+            "median": 2.842170943040401e-14,
+            "mean": 3.103519995274001e-14,
+            "p95": 8.526512829121202e-14,
+            "max": 1.7053025658242404e-13
+          },
+          "definition": {
+            "definitionId": "ExperimentalCoaching.KneeDeg",
+            "unit": "degrees",
+            "coordinateSpace": "XS_H36M17_model_space_body_relative",
+            "scope": "frame_geometry_not_approved_form",
+            "requiredJoints": [
+              1,
+              2,
+              3
+            ],
+            "sourceDefinitionSha256": "8927fd1262ce9db4e6ebcd9844994ca0b1f5b259e9f05b693e0d407b3a87e9b7"
+          }
+        },
+        "rightElbowDeg": {
+          "available_frames": 522,
+          "withheld_frames": 21,
+          "reasons": {
+            "unusable_3d": 21,
+            "missing_joint_support": 21,
+            "missing_raw_geometry": 21,
+            "missing_geometry": 21
+          },
+          "available_corrected_values": {
+            "count": 522,
+            "min": 84.82876602211,
+            "median": 128.14545798172844,
+            "mean": 127.52217065999741,
+            "p95": 163.85788460021718,
+            "max": 174.8598413999652
+          },
+          "numeric_withheld_values": {
+            "count": 0
+          },
+          "raw_minus_corrected_absolute_difference": {
+            "count": 522,
+            "min": 0.0,
+            "median": 0.0,
+            "mean": 8.793306653276336e-15,
+            "p95": 5.684341886080802e-14,
+            "max": 1.1368683772161603e-13
+          },
+          "definition": {
+            "definitionId": "ExperimentalCoaching.ElbowDeg",
+            "unit": "degrees",
+            "coordinateSpace": "XS_H36M17_model_space_body_relative",
+            "scope": "frame_geometry_not_approved_form",
+            "requiredJoints": [
+              14,
+              15,
+              16
+            ],
+            "sourceDefinitionSha256": "8927fd1262ce9db4e6ebcd9844994ca0b1f5b259e9f05b693e0d407b3a87e9b7"
+          }
+        },
+        "rightHipDeg": {
+          "available_frames": 516,
+          "withheld_frames": 27,
+          "reasons": {
+            "unusable_3d": 21,
+            "missing_joint_support": 21,
+            "missing_raw_geometry": 21,
+            "missing_geometry": 21,
+            "low_joint_support": 6
+          },
+          "available_corrected_values": {
+            "count": 516,
+            "min": 143.6010452211301,
+            "median": 158.42051522412925,
+            "mean": 157.6803095634047,
+            "p95": 162.03373454415174,
+            "max": 164.3812428452584
+          },
+          "numeric_withheld_values": {
+            "count": 6,
+            "min": 154.48536498870706,
+            "median": 159.52860622809243,
+            "mean": 158.93194627169626,
+            "p95": 160.47746078012494,
+            "max": 160.4987684927848
+          },
+          "raw_minus_corrected_absolute_difference": {
+            "count": 522,
+            "min": 0.0,
+            "median": 0.0,
+            "mean": 1.1107334719928004e-14,
+            "p95": 5.684341886080802e-14,
+            "max": 5.684341886080802e-14
+          },
+          "definition": {
+            "definitionId": "ExperimentalCoaching.HipDeg",
+            "unit": "degrees",
+            "coordinateSpace": "XS_H36M17_model_space_body_relative",
+            "scope": "frame_geometry_not_approved_form",
+            "requiredJoints": [
+              1,
+              2,
+              8
+            ],
+            "sourceDefinitionSha256": "8927fd1262ce9db4e6ebcd9844994ca0b1f5b259e9f05b693e0d407b3a87e9b7"
+          }
+        },
+        "rightUpperArmDeg": {
+          "available_frames": 326,
+          "withheld_frames": 217,
+          "reasons": {
+            "unusable_3d": 21,
+            "missing_joint_support": 21,
+            "missing_raw_geometry": 21,
+            "missing_geometry": 21,
+            "low_joint_support": 196
+          },
+          "available_corrected_values": {
+            "count": 326,
+            "min": 9.77564752050178,
+            "median": 26.190651295740423,
+            "mean": 25.513046593582963,
+            "p95": 32.458684798138016,
+            "max": 39.94814329437659
+          },
+          "numeric_withheld_values": {
+            "count": 196,
+            "min": 17.50863728031633,
+            "median": 23.186502185524365,
+            "mean": 23.10917586065959,
+            "p95": 27.3757238379511,
+            "max": 28.692846095285166
+          },
+          "raw_minus_corrected_absolute_difference": {
+            "count": 522,
+            "min": 0.0,
+            "median": 7.105427357601002e-15,
+            "mean": 9.446679283860335e-15,
+            "p95": 2.842170943040401e-14,
+            "max": 7.460698725481052e-14
+          },
+          "definition": {
+            "definitionId": "ExperimentalCoaching.UpperArmDeg",
+            "unit": "degrees",
+            "coordinateSpace": "XS_H36M17_model_space_body_relative",
+            "scope": "projected_body_frontal_abduction_from_caudal_axis",
+            "requiredJoints": [
+              0,
+              8,
+              11,
+              14,
+              14,
+              15
+            ],
+            "sourceDefinitionSha256": "8927fd1262ce9db4e6ebcd9844994ca0b1f5b259e9f05b693e0d407b3a87e9b7"
+          }
+        },
+        "trunkInclineDeg": {
+          "available_frames": 0,
+          "withheld_frames": 543,
+          "reasons": {
+            "synchronized_gravity_required": 543,
+            "missing_gravity": 543
+          },
+          "available_corrected_values": {
+            "count": 0
+          },
+          "numeric_withheld_values": {
+            "count": 0
+          },
+          "raw_minus_corrected_absolute_difference": {
+            "count": 0
+          },
+          "definition": {
+            "definitionId": "ExperimentalCoaching.trunkInclineDeg",
+            "unit": "degrees",
+            "coordinateSpace": "source_synchronized_up_required",
+            "scope": "gravity_referenced_geometry",
+            "requiredJoints": [
+              0,
+              8
+            ],
+            "sourceDefinitionSha256": "8927fd1262ce9db4e6ebcd9844994ca0b1f5b259e9f05b693e0d407b3a87e9b7"
+          }
+        },
+        "cameraTorsoSignedDeg": {
+          "available_frames": 39,
+          "withheld_frames": 504,
+          "reasons": {
+            "unusable_3d": 21,
+            "missing_joint_support": 21,
+            "missing_raw_geometry": 21,
+            "missing_geometry": 21,
+            "low_joint_support": 483
+          },
+          "available_corrected_values": {
+            "count": 39,
+            "min": 71.2611707139427,
+            "median": 73.94175119525477,
+            "mean": 74.72302607400785,
+            "p95": 80.37038668845187,
+            "max": 83.9706136104896
+          },
+          "numeric_withheld_values": {
+            "count": 483,
+            "min": 71.08333836248453,
+            "median": 83.87226555036192,
+            "mean": 83.91620205184897,
+            "p95": 93.61058495079872,
+            "max": 96.06230955949435
+          },
+          "raw_minus_corrected_absolute_difference": {
+            "count": 522,
+            "min": 0.0,
+            "median": 0.0,
+            "mean": 0.0,
+            "p95": 0.0,
+            "max": 0.0
+          },
+          "definition": {
+            "definitionId": "FormGeometry.signedTorsoAngle3D(up=(0,-1,0))",
+            "unit": "degrees",
+            "coordinateSpace": "XS_H36M17_camera_reference_no_verified_ground",
+            "scope": "camera_reference_proxy",
+            "requiredJoints": [
+              0,
+              1,
+              4,
+              8
+            ],
+            "sourceDefinitionSha256": "b4161e2b386f46ab1db2f14075ef11e0ab9c709962ef6f7cfcf4a2ec74758449"
+          }
+        },
+        "cameraHipLineDeviationRatio": {
+          "available_frames": 295,
+          "withheld_frames": 248,
+          "reasons": {
+            "unusable_3d": 21,
+            "missing_joint_support": 21,
+            "missing_raw_geometry": 21,
+            "missing_geometry": 21,
+            "low_joint_support": 227
+          },
+          "available_corrected_values": {
+            "count": 295,
+            "min": -0.05169277929116657,
+            "median": 0.038098805021729354,
+            "mean": 0.03486654104381119,
+            "p95": 0.05685733101551561,
+            "max": 0.06488814464649166
+          },
+          "numeric_withheld_values": {
+            "count": 227,
+            "min": 0.007674969432789388,
+            "median": 0.01908636132747389,
+            "mean": 0.02234918655708478,
+            "p95": 0.04048856363345044,
+            "max": 0.04963957573840648
+          },
+          "raw_minus_corrected_absolute_difference": {
+            "count": 522,
+            "min": 4.5103391065060006e-07,
+            "median": 0.00040358180450582575,
+            "mean": 0.000760108584046908,
+            "p95": 0.0052334084158037085,
+            "max": 0.008270872960594124
+          },
+          "definition": {
+            "definitionId": "FormGeometry.signedHipDeviation3D(up=(0,-1,0))",
+            "unit": "dimensionless_ratio",
+            "coordinateSpace": "XS_H36M17_camera_reference_no_verified_ground",
+            "scope": "camera_reference_proxy",
+            "requiredJoints": [
+              0,
+              8,
+              3,
+              6
+            ],
+            "sourceDefinitionSha256": "b4161e2b386f46ab1db2f14075ef11e0ab9c709962ef6f7cfcf4a2ec74758449"
+          }
+        }
+      },
+      "native_candidate_assessments": {
+        "withheld": 543
+      },
+      "native_candidate_reasons": {
+        "active_phase_required": 186,
+        "approved_profile_required": 543,
+        "approved_upper_arm_range_required": 543,
+        "missing_geometry": 21,
+        "missing_joint_support": 21,
+        "missing_raw_geometry": 21,
+        "unusable_3d": 21,
+        "low_joint_support": 226
+      },
+      "squat_candidate_not_implemented": false,
+      "interval_summary": {
+        "leftKneeRateDegPerSecond": {
+          "available_intervals": 0,
+          "total_phase_intervals": 165,
+          "reasons": {
+            "phase_changed": 10,
+            "incomplete_leftKneeDeg": 165,
+            "noncontiguous_source": 1
+          },
+          "values": {
+            "count": 0
+          },
+          "numeric_withheld_values": {
+            "count": 165,
+            "min": -58.00923056336294,
+            "median": 3.9290285083521463,
+            "mean": 2.9193556441523385,
+            "p95": 35.8111398242133,
+            "max": 58.23932426366034
+          }
+        },
+        "leftElbowRateDegPerSecond": {
+          "available_intervals": 81,
+          "total_phase_intervals": 165,
+          "reasons": {
+            "phase_changed": 10,
+            "incomplete_leftElbowDeg": 84,
+            "noncontiguous_source": 1
+          },
+          "values": {
+            "count": 81,
+            "min": 3.8166576712527935,
+            "median": 114.9074015671104,
+            "mean": 115.60671560142711,
+            "p95": 172.27365757518675,
+            "max": 189.19077698265664
+          },
+          "numeric_withheld_values": {
+            "count": 84,
+            "min": 13.604820035052304,
+            "median": 115.72206477850314,
+            "mean": 115.99550281229361,
+            "p95": 232.35230350409194,
+            "max": 282.11914244750403
+          }
+        },
+        "leftHipRisePxPerSecond": {
+          "available_intervals": 155,
+          "total_phase_intervals": 165,
+          "reasons": {
+            "phase_changed": 10,
+            "noncontiguous_source": 1
+          },
+          "values": {
+            "count": 155,
+            "min": -338.10629198948624,
+            "median": 56.35104866491437,
+            "mean": 75.61947175678812,
+            "p95": 225.4041946596592,
+            "max": 338.10629198948175
+          },
+          "numeric_withheld_values": {
+            "count": 10,
+            "min": -0.0,
+            "median": -0.0,
+            "mean": 16.905314599474274,
+            "p95": 56.35104866491437,
+            "max": 56.35104866491437
+          }
+        },
+        "leftShoulderRisePxPerSecond": {
+          "available_intervals": 155,
+          "total_phase_intervals": 165,
+          "reasons": {
+            "phase_changed": 10,
+            "noncontiguous_source": 1
+          },
+          "values": {
+            "count": 155,
+            "min": -56.35104866491437,
+            "median": 169.05314599474312,
+            "mean": 180.68691088040256,
+            "p95": 411.3626552538716,
+            "max": 507.1594379842311
+          },
+          "numeric_withheld_values": {
+            "count": 10,
+            "min": 28.175524332457186,
+            "median": 56.35104866491437,
+            "mean": 76.07391569763347,
+            "p95": 112.70209732982875,
+            "max": 112.70209732982875
+          }
+        },
+        "rightKneeRateDegPerSecond": {
+          "available_intervals": 147,
+          "total_phase_intervals": 165,
+          "reasons": {
+            "phase_changed": 10,
+            "incomplete_rightKneeDeg": 8,
+            "noncontiguous_source": 1
+          },
+          "values": {
+            "count": 147,
+            "min": -57.73341627377947,
+            "median": -11.877200521831,
+            "mean": -10.486851261505551,
+            "p95": 18.86554021471953,
+            "max": 33.75141829969221
+          },
+          "numeric_withheld_values": {
+            "count": 18,
+            "min": -21.8420643443249,
+            "median": 2.7254895714030147,
+            "mean": 1.6576294373278737,
+            "p95": 23.10917562375136,
+            "max": 28.56109041859195
+          }
+        },
+        "rightElbowRateDegPerSecond": {
+          "available_intervals": 155,
+          "total_phase_intervals": 165,
+          "reasons": {
+            "phase_changed": 10,
+            "noncontiguous_source": 1
+          },
+          "values": {
+            "count": 155,
+            "min": 39.88712705259446,
+            "median": 114.92357957396307,
+            "mean": 114.06479029416256,
+            "p95": 161.73977516581715,
+            "max": 187.93750498913496
+          },
+          "numeric_withheld_values": {
+            "count": 10,
+            "min": 3.8732271738467143,
+            "median": 39.56015957277387,
+            "mean": 38.56144237202632,
+            "p95": 62.96516068712539,
+            "max": 70.3114216062351
+          }
+        },
+        "rightHipRisePxPerSecond": {
+          "available_intervals": 155,
+          "total_phase_intervals": 165,
+          "reasons": {
+            "phase_changed": 10,
+            "noncontiguous_source": 1
+          },
+          "values": {
+            "count": 155,
+            "min": -0.0,
+            "median": 112.70209732982875,
+            "mean": 121.42742099407322,
+            "p95": 225.4041946596575,
+            "max": 281.7552433245719
+          },
+          "numeric_withheld_values": {
+            "count": 10,
+            "min": -0.0,
+            "median": 56.35104866491267,
+            "mean": 64.80370596464947,
+            "p95": 112.70209732982579,
+            "max": 112.70209732982616
+          }
+        },
+        "rightShoulderRisePxPerSecond": {
+          "available_intervals": 155,
+          "total_phase_intervals": 165,
+          "reasons": {
+            "phase_changed": 10,
+            "noncontiguous_source": 1
+          },
+          "values": {
+            "count": 155,
+            "min": -0.0,
+            "median": 225.4041946596575,
+            "mean": 228.6761910337488,
+            "p95": 394.45734065439814,
+            "max": 507.159437984226
+          },
+          "numeric_withheld_values": {
+            "count": 10,
+            "min": 56.35104866490967,
+            "median": 112.70209732982875,
+            "mean": 123.97230706280989,
+            "p95": 200.04622276044293,
+            "max": 225.4041946596515
+          }
+        }
+      },
+      "row_simultaneous_motion": {},
+      "rep_windows": [
+        {
+          "hip_shoulder_timing": {},
+          "original_rep_index": 1,
+          "original_side": "right",
+          "original_start_frame": 31,
+          "original_end_frame": 66,
+          "boundary_semantics": "inclusive_native_report",
+          "original_start_phase": "bottom",
+          "original_end_phase": "top",
+          "physical_completion": "not_established_by_report_boundary",
+          "camera_torso_range": {
+            "available": false,
+            "value": null,
+            "rawValue": null,
+            "reasons": [
+              "incomplete_metric_support"
+            ],
+            "member_frames": 36
+          }
+        },
+        {
+          "hip_shoulder_timing": {},
+          "original_rep_index": 2,
+          "original_side": "right",
+          "original_start_frame": 74,
+          "original_end_frame": 106,
+          "boundary_semantics": "inclusive_native_report",
+          "original_start_phase": "descending",
+          "original_end_phase": "ascending",
+          "physical_completion": "not_established_by_report_boundary",
+          "camera_torso_range": {
+            "available": false,
+            "value": null,
+            "rawValue": null,
+            "reasons": [
+              "incomplete_metric_support"
+            ],
+            "member_frames": 33
+          }
+        },
+        {
+          "hip_shoulder_timing": {},
+          "original_rep_index": 3,
+          "original_side": "right",
+          "original_start_frame": 118,
+          "original_end_frame": 150,
+          "boundary_semantics": "inclusive_native_report",
+          "original_start_phase": "descending",
+          "original_end_phase": "ascending",
+          "physical_completion": "not_established_by_report_boundary",
+          "camera_torso_range": {
+            "available": false,
+            "value": null,
+            "rawValue": null,
+            "reasons": [
+              "incomplete_metric_support"
+            ],
+            "member_frames": 33
+          }
+        },
+        {
+          "hip_shoulder_timing": {},
+          "original_rep_index": 4,
+          "original_side": "right",
+          "original_start_frame": 164,
+          "original_end_frame": 197,
+          "boundary_semantics": "inclusive_native_report",
+          "original_start_phase": "descending",
+          "original_end_phase": "top",
+          "physical_completion": "not_established_by_report_boundary",
+          "camera_torso_range": {
+            "available": false,
+            "value": null,
+            "rawValue": null,
+            "reasons": [
+              "incomplete_metric_support",
+              "noncontiguous_source"
+            ],
+            "member_frames": 34
+          }
+        },
+        {
+          "hip_shoulder_timing": {},
+          "original_rep_index": 5,
+          "original_side": "right",
+          "original_start_frame": 213,
+          "original_end_frame": 250,
+          "boundary_semantics": "inclusive_native_report",
+          "original_start_phase": "descending",
+          "original_end_phase": "ascending",
+          "physical_completion": "not_established_by_report_boundary",
+          "camera_torso_range": {
+            "available": false,
+            "value": null,
+            "rawValue": null,
+            "reasons": [
+              "incomplete_metric_support"
+            ],
+            "member_frames": 38
+          }
+        },
+        {
+          "hip_shoulder_timing": {},
+          "original_rep_index": 6,
+          "original_side": "right",
+          "original_start_frame": 266,
+          "original_end_frame": 299,
+          "boundary_semantics": "inclusive_native_report",
+          "original_start_phase": "descending",
+          "original_end_phase": "ascending",
+          "physical_completion": "not_established_by_report_boundary",
+          "camera_torso_range": {
+            "available": false,
+            "value": null,
+            "rawValue": null,
+            "reasons": [
+              "incomplete_metric_support"
+            ],
+            "member_frames": 34
+          }
+        },
+        {
+          "hip_shoulder_timing": {},
+          "original_rep_index": 7,
+          "original_side": "right",
+          "original_start_frame": 317,
+          "original_end_frame": 352,
+          "boundary_semantics": "inclusive_native_report",
+          "original_start_phase": "descending",
+          "original_end_phase": "top",
+          "physical_completion": "not_established_by_report_boundary",
+          "camera_torso_range": {
+            "available": false,
+            "value": null,
+            "rawValue": null,
+            "reasons": [
+              "incomplete_metric_support"
+            ],
+            "member_frames": 36
+          }
+        },
+        {
+          "hip_shoulder_timing": {},
+          "original_rep_index": 8,
+          "original_side": "right",
+          "original_start_frame": 369,
+          "original_end_frame": 402,
+          "boundary_semantics": "inclusive_native_report",
+          "original_start_phase": "descending",
+          "original_end_phase": "ascending",
+          "physical_completion": "not_established_by_report_boundary",
+          "camera_torso_range": {
+            "available": false,
+            "value": null,
+            "rawValue": null,
+            "reasons": [
+              "incomplete_metric_support"
+            ],
+            "member_frames": 34
+          }
+        },
+        {
+          "hip_shoulder_timing": {},
+          "original_rep_index": 9,
+          "original_side": "right",
+          "original_start_frame": 422,
+          "original_end_frame": 456,
+          "boundary_semantics": "inclusive_native_report",
+          "original_start_phase": "descending",
+          "original_end_phase": "ascending",
+          "physical_completion": "not_established_by_report_boundary",
+          "camera_torso_range": {
+            "available": false,
+            "value": null,
+            "rawValue": null,
+            "reasons": [
+              "incomplete_metric_support",
+              "noncontiguous_source"
+            ],
+            "member_frames": 35
+          }
+        },
+        {
+          "hip_shoulder_timing": {},
+          "original_rep_index": 10,
+          "original_side": "right",
+          "original_start_frame": 477,
+          "original_end_frame": 524,
+          "boundary_semantics": "inclusive_native_report",
+          "original_start_phase": "descending",
+          "original_end_phase": "top",
+          "physical_completion": "not_established_by_report_boundary",
+          "camera_torso_range": {
+            "available": false,
+            "value": null,
+            "rawValue": null,
+            "reasons": [
+              "incomplete_metric_support"
+            ],
+            "member_frames": 48
+          }
+        }
+      ]
+    },
+    "barbell_row": {
+      "genuine_frames": 582,
+      "flush_excluded": 5,
+      "phase_counts": {
+        "bottom": 209,
+        "pulling": 169,
+        "top": 76,
+        "lowering": 128
+      },
+      "side_view_counts": {
+        "None": 29,
+        "True": 553
+      },
+      "metric_summary": {
+        "leftKneeDeg": {
+          "available_frames": 561,
+          "withheld_frames": 21,
+          "reasons": {
+            "unusable_3d": 21,
+            "missing_joint_support": 21,
+            "missing_raw_geometry": 21,
+            "missing_geometry": 21
+          },
+          "available_corrected_values": {
+            "count": 561,
+            "min": 136.6988867584558,
+            "median": 151.3696294002197,
+            "mean": 151.02026373056808,
+            "p95": 159.6116124015816,
+            "max": 162.6454918221444
+          },
+          "numeric_withheld_values": {
+            "count": 0
+          },
+          "raw_minus_corrected_absolute_difference": {
+            "count": 561,
+            "min": 0.0,
+            "median": 0.0,
+            "mean": 1.185504457524873e-14,
+            "p95": 5.684341886080802e-14,
+            "max": 5.684341886080802e-14
+          },
+          "definition": {
+            "definitionId": "ExperimentalCoaching.KneeDeg",
+            "unit": "degrees",
+            "coordinateSpace": "XS_H36M17_model_space_body_relative",
+            "scope": "frame_geometry_not_approved_form",
+            "requiredJoints": [
+              4,
+              5,
+              6
+            ],
+            "sourceDefinitionSha256": "8927fd1262ce9db4e6ebcd9844994ca0b1f5b259e9f05b693e0d407b3a87e9b7"
+          }
+        },
+        "leftElbowDeg": {
+          "available_frames": 561,
+          "withheld_frames": 21,
+          "reasons": {
+            "unusable_3d": 21,
+            "missing_joint_support": 21,
+            "missing_raw_geometry": 21,
+            "missing_geometry": 21
+          },
+          "available_corrected_values": {
+            "count": 561,
+            "min": 70.7653637466946,
+            "median": 115.85066350529081,
+            "mean": 117.59498700224535,
+            "p95": 163.01194263226083,
+            "max": 165.11520801953003
+          },
+          "numeric_withheld_values": {
+            "count": 0
+          },
+          "raw_minus_corrected_absolute_difference": {
+            "count": 561,
+            "min": 0.0,
+            "median": 0.0,
+            "mean": 6.763454917930366e-15,
+            "p95": 2.842170943040401e-14,
+            "max": 8.526512829121202e-14
+          },
+          "definition": {
+            "definitionId": "ExperimentalCoaching.ElbowDeg",
+            "unit": "degrees",
+            "coordinateSpace": "XS_H36M17_model_space_body_relative",
+            "scope": "frame_geometry_not_approved_form",
+            "requiredJoints": [
+              11,
+              12,
+              13
+            ],
+            "sourceDefinitionSha256": "8927fd1262ce9db4e6ebcd9844994ca0b1f5b259e9f05b693e0d407b3a87e9b7"
+          }
+        },
+        "leftHipDeg": {
+          "available_frames": 561,
+          "withheld_frames": 21,
+          "reasons": {
+            "unusable_3d": 21,
+            "missing_joint_support": 21,
+            "missing_raw_geometry": 21,
+            "missing_geometry": 21
+          },
+          "available_corrected_values": {
+            "count": 561,
+            "min": 66.0860603729862,
+            "median": 108.67803866787887,
+            "mean": 107.48677189525507,
+            "p95": 119.49987277478044,
+            "max": 125.14840804030214
+          },
+          "numeric_withheld_values": {
+            "count": 0
+          },
+          "raw_minus_corrected_absolute_difference": {
+            "count": 561,
+            "min": 0.0,
+            "median": 0.0,
+            "mean": 2.0771659298512734e-15,
+            "p95": 1.4210854715202004e-14,
+            "max": 4.263256414560601e-14
+          },
+          "definition": {
+            "definitionId": "ExperimentalCoaching.HipDeg",
+            "unit": "degrees",
+            "coordinateSpace": "XS_H36M17_model_space_body_relative",
+            "scope": "frame_geometry_not_approved_form",
+            "requiredJoints": [
+              4,
+              5,
+              8
+            ],
+            "sourceDefinitionSha256": "8927fd1262ce9db4e6ebcd9844994ca0b1f5b259e9f05b693e0d407b3a87e9b7"
+          }
+        },
+        "leftUpperArmDeg": {
+          "available_frames": 561,
+          "withheld_frames": 21,
+          "reasons": {
+            "unusable_3d": 21,
+            "missing_joint_support": 21,
+            "missing_raw_geometry": 21,
+            "missing_geometry": 21
+          },
+          "available_corrected_values": {
+            "count": 561,
+            "min": 4.700902255758905,
+            "median": 22.86106832082529,
+            "mean": 22.374301543624604,
+            "p95": 38.253192385753586,
+            "max": 40.94149570949814
+          },
+          "numeric_withheld_values": {
+            "count": 0
+          },
+          "raw_minus_corrected_absolute_difference": {
+            "count": 561,
+            "min": 0.0,
+            "median": 0.0,
+            "mean": 1.5282685000651175e-14,
+            "p95": 6.483702463810914e-14,
+            "max": 2.078337502098293e-13
+          },
+          "definition": {
+            "definitionId": "ExperimentalCoaching.UpperArmDeg",
+            "unit": "degrees",
+            "coordinateSpace": "XS_H36M17_model_space_body_relative",
+            "scope": "projected_body_frontal_abduction_from_caudal_axis",
+            "requiredJoints": [
+              0,
+              8,
+              11,
+              14,
+              11,
+              12
+            ],
+            "sourceDefinitionSha256": "8927fd1262ce9db4e6ebcd9844994ca0b1f5b259e9f05b693e0d407b3a87e9b7"
+          }
+        },
+        "rightKneeDeg": {
+          "available_frames": 552,
+          "withheld_frames": 30,
+          "reasons": {
+            "unusable_3d": 21,
+            "missing_joint_support": 21,
+            "missing_raw_geometry": 21,
+            "missing_geometry": 21,
+            "low_joint_support": 9
+          },
+          "available_corrected_values": {
+            "count": 552,
+            "min": 143.97994263578516,
+            "median": 152.6188299630674,
+            "mean": 152.70814011012277,
+            "p95": 157.6089196945744,
+            "max": 160.14016181252282
+          },
+          "numeric_withheld_values": {
+            "count": 9,
+            "min": 144.4251277239857,
+            "median": 145.0549398995477,
+            "mean": 144.9851638546601,
+            "p95": 145.41350117732713,
+            "max": 145.42889383081837
+          },
+          "raw_minus_corrected_absolute_difference": {
+            "count": 561,
+            "min": 0.0,
+            "median": 0.0,
+            "mean": 1.1956369742558548e-14,
+            "p95": 5.684341886080802e-14,
+            "max": 5.684341886080802e-14
+          },
+          "definition": {
+            "definitionId": "ExperimentalCoaching.KneeDeg",
+            "unit": "degrees",
+            "coordinateSpace": "XS_H36M17_model_space_body_relative",
+            "scope": "frame_geometry_not_approved_form",
+            "requiredJoints": [
+              1,
+              2,
+              3
+            ],
+            "sourceDefinitionSha256": "8927fd1262ce9db4e6ebcd9844994ca0b1f5b259e9f05b693e0d407b3a87e9b7"
+          }
+        },
+        "rightElbowDeg": {
+          "available_frames": 438,
+          "withheld_frames": 144,
+          "reasons": {
+            "unusable_3d": 21,
+            "missing_joint_support": 21,
+            "missing_raw_geometry": 21,
+            "missing_geometry": 21,
+            "low_joint_support": 123
+          },
+          "available_corrected_values": {
+            "count": 438,
+            "min": 67.02624208595184,
+            "median": 94.79549831404236,
+            "mean": 95.85361024505866,
+            "p95": 126.01719617302454,
+            "max": 133.0946170099009
+          },
+          "numeric_withheld_values": {
+            "count": 123,
+            "min": 69.43295081260922,
+            "median": 83.1812442658101,
+            "mean": 84.75195093828471,
+            "p95": 97.20139879442259,
+            "max": 100.87451222075973
+          },
+          "raw_minus_corrected_absolute_difference": {
+            "count": 561,
+            "min": 0.0,
+            "median": 0.0,
+            "mean": 4.129000567875092e-15,
+            "p95": 2.842170943040401e-14,
+            "max": 4.263256414560601e-14
+          },
+          "definition": {
+            "definitionId": "ExperimentalCoaching.ElbowDeg",
+            "unit": "degrees",
+            "coordinateSpace": "XS_H36M17_model_space_body_relative",
+            "scope": "frame_geometry_not_approved_form",
+            "requiredJoints": [
+              14,
+              15,
+              16
+            ],
+            "sourceDefinitionSha256": "8927fd1262ce9db4e6ebcd9844994ca0b1f5b259e9f05b693e0d407b3a87e9b7"
+          }
+        },
+        "rightHipDeg": {
+          "available_frames": 552,
+          "withheld_frames": 30,
+          "reasons": {
+            "unusable_3d": 21,
+            "missing_joint_support": 21,
+            "missing_raw_geometry": 21,
+            "missing_geometry": 21,
+            "low_joint_support": 9
+          },
+          "available_corrected_values": {
+            "count": 552,
+            "min": 81.48157823807585,
+            "median": 124.33555458618294,
+            "mean": 123.78691678562588,
+            "p95": 134.5042020959522,
+            "max": 139.7756920482092
+          },
+          "numeric_withheld_values": {
+            "count": 9,
+            "min": 81.03049597013387,
+            "median": 82.27634707612064,
+            "mean": 82.29153630911645,
+            "p95": 83.87377405986064,
+            "max": 84.36462925595468
+          },
+          "raw_minus_corrected_absolute_difference": {
+            "count": 561,
+            "min": 0.0,
+            "median": 0.0,
+            "mean": 3.1410801866043645e-15,
+            "p95": 2.842170943040401e-14,
+            "max": 5.684341886080802e-14
+          },
+          "definition": {
+            "definitionId": "ExperimentalCoaching.HipDeg",
+            "unit": "degrees",
+            "coordinateSpace": "XS_H36M17_model_space_body_relative",
+            "scope": "frame_geometry_not_approved_form",
+            "requiredJoints": [
+              1,
+              2,
+              8
+            ],
+            "sourceDefinitionSha256": "8927fd1262ce9db4e6ebcd9844994ca0b1f5b259e9f05b693e0d407b3a87e9b7"
+          }
+        },
+        "rightUpperArmDeg": {
+          "available_frames": 442,
+          "withheld_frames": 140,
+          "reasons": {
+            "unusable_3d": 21,
+            "missing_joint_support": 21,
+            "missing_raw_geometry": 21,
+            "missing_geometry": 21,
+            "low_joint_support": 119
+          },
+          "available_corrected_values": {
+            "count": 442,
+            "min": 16.319177854174484,
+            "median": 28.204692351296927,
+            "mean": 26.896407658209704,
+            "p95": 33.049546721056124,
+            "max": 33.848874423384814
+          },
+          "numeric_withheld_values": {
+            "count": 119,
+            "min": 12.187454398786834,
+            "median": 16.594367989214632,
+            "mean": 16.36826079358875,
+            "p95": 18.541202748623412,
+            "max": 19.841612886157193
+          },
+          "raw_minus_corrected_absolute_difference": {
+            "count": 561,
+            "min": 0.0,
+            "median": 0.0,
+            "mean": 9.584727545213116e-15,
+            "p95": 3.552713678800501e-14,
+            "max": 5.3290705182007514e-14
+          },
+          "definition": {
+            "definitionId": "ExperimentalCoaching.UpperArmDeg",
+            "unit": "degrees",
+            "coordinateSpace": "XS_H36M17_model_space_body_relative",
+            "scope": "projected_body_frontal_abduction_from_caudal_axis",
+            "requiredJoints": [
+              0,
+              8,
+              11,
+              14,
+              14,
+              15
+            ],
+            "sourceDefinitionSha256": "8927fd1262ce9db4e6ebcd9844994ca0b1f5b259e9f05b693e0d407b3a87e9b7"
+          }
+        },
+        "trunkInclineDeg": {
+          "available_frames": 0,
+          "withheld_frames": 582,
+          "reasons": {
+            "synchronized_gravity_required": 582,
+            "missing_gravity": 582
+          },
+          "available_corrected_values": {
+            "count": 0
+          },
+          "numeric_withheld_values": {
+            "count": 0
+          },
+          "raw_minus_corrected_absolute_difference": {
+            "count": 0
+          },
+          "definition": {
+            "definitionId": "ExperimentalCoaching.trunkInclineDeg",
+            "unit": "degrees",
+            "coordinateSpace": "source_synchronized_up_required",
+            "scope": "gravity_referenced_geometry",
+            "requiredJoints": [
+              0,
+              8
+            ],
+            "sourceDefinitionSha256": "8927fd1262ce9db4e6ebcd9844994ca0b1f5b259e9f05b693e0d407b3a87e9b7"
+          }
+        },
+        "cameraTorsoSignedDeg": {
+          "available_frames": 560,
+          "withheld_frames": 22,
+          "reasons": {
+            "unusable_3d": 21,
+            "missing_joint_support": 21,
+            "missing_raw_geometry": 21,
+            "missing_geometry": 21,
+            "low_joint_support": 1
+          },
+          "available_corrected_values": {
+            "count": 560,
+            "min": 39.60462793995008,
+            "median": 48.43594164875513,
+            "mean": 49.71925892008432,
+            "p95": 59.1489486099021,
+            "max": 82.59118242640729
+          },
+          "numeric_withheld_values": {
+            "count": 1,
+            "min": 82.66404958162482,
+            "median": 82.66404958162482,
+            "mean": 82.66404958162482,
+            "p95": 82.66404958162482,
+            "max": 82.66404958162482
+          },
+          "raw_minus_corrected_absolute_difference": {
+            "count": 561,
+            "min": 0.0,
+            "median": 0.0,
+            "mean": 0.0,
+            "p95": 0.0,
+            "max": 0.0
+          },
+          "definition": {
+            "definitionId": "FormGeometry.signedTorsoAngle3D(up=(0,-1,0))",
+            "unit": "degrees",
+            "coordinateSpace": "XS_H36M17_camera_reference_no_verified_ground",
+            "scope": "camera_reference_proxy",
+            "requiredJoints": [
+              0,
+              1,
+              4,
+              8
+            ],
+            "sourceDefinitionSha256": "b4161e2b386f46ab1db2f14075ef11e0ab9c709962ef6f7cfcf4a2ec74758449"
+          }
+        },
+        "cameraHipLineDeviationRatio": {
+          "available_frames": 561,
+          "withheld_frames": 21,
+          "reasons": {
+            "unusable_3d": 21,
+            "missing_joint_support": 21,
+            "missing_raw_geometry": 21,
+            "missing_geometry": 21
+          },
+          "available_corrected_values": {
+            "count": 561,
+            "min": -0.36513833322020395,
+            "median": -0.12356295112443609,
+            "mean": -0.13303026287125083,
+            "p95": -0.10826878544784149,
+            "max": -0.08381137173996853
+          },
+          "numeric_withheld_values": {
+            "count": 0
+          },
+          "raw_minus_corrected_absolute_difference": {
+            "count": 561,
+            "min": 5.595101423422344e-06,
+            "median": 0.001223324521200303,
+            "mean": 0.0014762972883277242,
+            "p95": 0.004521724771886143,
+            "max": 0.007864210091791002
+          },
+          "definition": {
+            "definitionId": "FormGeometry.signedHipDeviation3D(up=(0,-1,0))",
+            "unit": "dimensionless_ratio",
+            "coordinateSpace": "XS_H36M17_camera_reference_no_verified_ground",
+            "scope": "camera_reference_proxy",
+            "requiredJoints": [
+              0,
+              8,
+              3,
+              6
+            ],
+            "sourceDefinitionSha256": "b4161e2b386f46ab1db2f14075ef11e0ab9c709962ef6f7cfcf4a2ec74758449"
+          }
+        }
+      },
+      "native_candidate_assessments": {
+        "withheld": 582
+      },
+      "native_candidate_reasons": {
+        "approved_profile_required": 582,
+        "missing_geometry": 21,
+        "missing_joint_support": 21,
+        "missing_raw_geometry": 21,
+        "phase_baseline_required": 582,
+        "pulling_phase_required": 413,
+        "unusable_3d": 21,
+        "low_joint_support": 132
+      },
+      "squat_candidate_not_implemented": false,
+      "interval_summary": {
+        "leftKneeRateDegPerSecond": {
+          "available_intervals": 158,
+          "total_phase_intervals": 169,
+          "reasons": {
+            "phase_changed": 10,
+            "noncontiguous_source": 1
+          },
+          "values": {
+            "count": 158,
+            "min": -47.60099349758023,
+            "median": 3.6239965930512272,
+            "mean": 3.4311255342490954,
+            "p95": 21.16925742983674,
+            "max": 49.09329153311384
+          },
+          "numeric_withheld_values": {
+            "count": 11,
+            "min": -15.505250560550847,
+            "median": 23.291295925078057,
+            "mean": 38.362096978173405,
+            "p95": 117.20870719486271,
+            "max": 141.61177243337613
+          }
+        },
+        "leftElbowRateDegPerSecond": {
+          "available_intervals": 158,
+          "total_phase_intervals": 169,
+          "reasons": {
+            "phase_changed": 10,
+            "noncontiguous_source": 1
+          },
+          "values": {
+            "count": 158,
+            "min": -211.57491949890044,
+            "median": -93.99297349725981,
+            "mean": -92.33776252469946,
+            "p95": 9.080439477658047,
+            "max": 101.47110552318374
+          },
+          "numeric_withheld_values": {
+            "count": 11,
+            "min": -223.43629039622678,
+            "median": -196.3147349114857,
+            "mean": -187.3651162973166,
+            "p95": -126.91107854343218,
+            "max": -114.08779330785569
+          }
+        },
+        "leftHipRisePxPerSecond": {
+          "available_intervals": 158,
+          "total_phase_intervals": 169,
+          "reasons": {
+            "phase_changed": 10,
+            "noncontiguous_source": 1
+          },
+          "values": {
+            "count": 158,
+            "min": -114.92204181267921,
+            "median": -0.0,
+            "mean": 7.273546950169545,
+            "p95": 76.61469454178615,
+            "max": 114.92204181267921
+          },
+          "numeric_withheld_values": {
+            "count": 11,
+            "min": -76.61469454178614,
+            "median": -0.0,
+            "mean": 3.48248611553571,
+            "p95": 38.30734727089307,
+            "max": 38.30734727089307
+          }
+        },
+        "leftShoulderRisePxPerSecond": {
+          "available_intervals": 158,
+          "total_phase_intervals": 169,
+          "reasons": {
+            "phase_changed": 10,
+            "noncontiguous_source": 1
+          },
+          "values": {
+            "count": 158,
+            "min": -38.30734727089511,
+            "median": -0.0,
+            "mean": 18.668770505435194,
+            "p95": 76.61469454178615,
+            "max": 76.61469454179021
+          },
+          "numeric_withheld_values": {
+            "count": 11,
+            "min": -0.0,
+            "median": 38.30734727089307,
+            "mean": 20.894916693214398,
+            "p95": 38.30734727089307,
+            "max": 38.30734727089307
+          }
+        },
+        "rightKneeRateDegPerSecond": {
+          "available_intervals": 158,
+          "total_phase_intervals": 169,
+          "reasons": {
+            "phase_changed": 10,
+            "noncontiguous_source": 1
+          },
+          "values": {
+            "count": 158,
+            "min": -36.10730816717576,
+            "median": -2.6975060670756177,
+            "mean": -1.824248456761343,
+            "p95": 15.107264295779322,
+            "max": 35.90365378092271
+          },
+          "numeric_withheld_values": {
+            "count": 11,
+            "min": -27.443420536578838,
+            "median": 8.561487049729267,
+            "mean": 7.7062586366543915,
+            "p95": 31.646179545771503,
+            "max": 45.19672232798501
+          }
+        },
+        "rightElbowRateDegPerSecond": {
+          "available_intervals": 83,
+          "total_phase_intervals": 169,
+          "reasons": {
+            "phase_changed": 10,
+            "incomplete_rightElbowDeg": 75,
+            "noncontiguous_source": 1
+          },
+          "values": {
+            "count": 83,
+            "min": -106.51601515045907,
+            "median": -21.037836101183917,
+            "mean": -17.272102863245728,
+            "p95": 63.03550804933614,
+            "max": 104.9731453352164
+          },
+          "numeric_withheld_values": {
+            "count": 86,
+            "min": -175.18405447504568,
+            "median": 12.662377808659738,
+            "mean": -4.856377102855126,
+            "p95": 81.82426046272569,
+            "max": 103.90475448005412
+          }
+        },
+        "rightHipRisePxPerSecond": {
+          "available_intervals": 158,
+          "total_phase_intervals": 169,
+          "reasons": {
+            "phase_changed": 10,
+            "noncontiguous_source": 1
+          },
+          "values": {
+            "count": 158,
+            "min": -114.92204181267921,
+            "median": -0.0,
+            "mean": 5.333934430124346,
+            "p95": 76.61469454178615,
+            "max": 76.61469454179021
+          },
+          "numeric_withheld_values": {
+            "count": 11,
+            "min": -38.30734727089307,
+            "median": -0.0,
+            "mean": -12.188701404375069,
+            "p95": 9.576836817723267,
+            "max": 19.153673635446534
+          }
+        },
+        "rightShoulderRisePxPerSecond": {
+          "available_intervals": 158,
+          "total_phase_intervals": 169,
+          "reasons": {
+            "phase_changed": 10,
+            "noncontiguous_source": 1
+          },
+          "values": {
+            "count": 158,
+            "min": -76.61469454178614,
+            "median": -0.0,
+            "mean": -2.9094187800678055,
+            "p95": 38.307347270893075,
+            "max": 76.61469454178614
+          },
+          "numeric_withheld_values": {
+            "count": 11,
+            "min": -38.30734727089511,
+            "median": -38.30734727089307,
+            "mean": -13.92994446214312,
+            "p95": 38.30734727089307,
+            "max": 38.30734727089307
+          }
+        }
+      },
+      "row_simultaneous_motion": {
+        "total_pulling_intervals": 169,
+        "simultaneously_available_intervals": 83,
+        "raw_direction_pattern_intervals": 19,
+        "corrected_direction_pattern_intervals": 19,
+        "scope": "coincident_signed_angular_change_only_not_leg_drive_force_or_approved_profile"
+      },
+      "rep_windows": [
+        {
+          "hip_shoulder_timing": {},
+          "original_rep_index": 1,
+          "original_side": "left",
+          "original_start_frame": 45,
+          "original_end_frame": 80,
+          "boundary_semantics": "inclusive_native_report",
+          "original_start_phase": "pulling",
+          "original_end_phase": "bottom",
+          "physical_completion": "not_established_by_report_boundary",
+          "camera_torso_range": {
+            "available": true,
+            "value": 4.479282160960246,
+            "rawValue": 4.479282160960246,
+            "reasons": [],
+            "member_frames": 36,
+            "scope": "original_inclusive_report_window_range_not_physical_rep_completion"
+          }
+        },
+        {
+          "hip_shoulder_timing": {},
+          "original_rep_index": 2,
+          "original_side": "left",
+          "original_start_frame": 92,
+          "original_end_frame": 133,
+          "boundary_semantics": "inclusive_native_report",
+          "original_start_phase": "pulling",
+          "original_end_phase": "bottom",
+          "physical_completion": "not_established_by_report_boundary",
+          "camera_torso_range": {
+            "available": true,
+            "value": 5.816399346331238,
+            "rawValue": 5.816399346331238,
+            "reasons": [],
+            "member_frames": 42,
+            "scope": "original_inclusive_report_window_range_not_physical_rep_completion"
+          }
+        },
+        {
+          "hip_shoulder_timing": {},
+          "original_rep_index": 3,
+          "original_side": "left",
+          "original_start_frame": 141,
+          "original_end_frame": 179,
+          "boundary_semantics": "inclusive_native_report",
+          "original_start_phase": "pulling",
+          "original_end_phase": "bottom",
+          "physical_completion": "not_established_by_report_boundary",
+          "camera_torso_range": {
+            "available": false,
+            "value": null,
+            "rawValue": null,
+            "reasons": [
+              "noncontiguous_source"
+            ],
+            "member_frames": 39
+          }
+        },
+        {
+          "hip_shoulder_timing": {},
+          "original_rep_index": 4,
+          "original_side": "left",
+          "original_start_frame": 194,
+          "original_end_frame": 232,
+          "boundary_semantics": "inclusive_native_report",
+          "original_start_phase": "pulling",
+          "original_end_phase": "bottom",
+          "physical_completion": "not_established_by_report_boundary",
+          "camera_torso_range": {
+            "available": true,
+            "value": 2.3879139909476237,
+            "rawValue": 2.3879139909476237,
+            "reasons": [],
+            "member_frames": 39,
+            "scope": "original_inclusive_report_window_range_not_physical_rep_completion"
+          }
+        },
+        {
+          "hip_shoulder_timing": {},
+          "original_rep_index": 5,
+          "original_side": "left",
+          "original_start_frame": 245,
+          "original_end_frame": 283,
+          "boundary_semantics": "inclusive_native_report",
+          "original_start_phase": "pulling",
+          "original_end_phase": "bottom",
+          "physical_completion": "not_established_by_report_boundary",
+          "camera_torso_range": {
+            "available": true,
+            "value": 3.050618904926388,
+            "rawValue": 3.050618904926388,
+            "reasons": [],
+            "member_frames": 39,
+            "scope": "original_inclusive_report_window_range_not_physical_rep_completion"
+          }
+        },
+        {
+          "hip_shoulder_timing": {},
+          "original_rep_index": 6,
+          "original_side": "left",
+          "original_start_frame": 300,
+          "original_end_frame": 338,
+          "boundary_semantics": "inclusive_native_report",
+          "original_start_phase": "pulling",
+          "original_end_phase": "bottom",
+          "physical_completion": "not_established_by_report_boundary",
+          "camera_torso_range": {
+            "available": true,
+            "value": 2.556576037734871,
+            "rawValue": 2.556576037734871,
+            "reasons": [],
+            "member_frames": 39,
+            "scope": "original_inclusive_report_window_range_not_physical_rep_completion"
+          }
+        },
+        {
+          "hip_shoulder_timing": {},
+          "original_rep_index": 7,
+          "original_side": "left",
+          "original_start_frame": 355,
+          "original_end_frame": 391,
+          "boundary_semantics": "inclusive_native_report",
+          "original_start_phase": "pulling",
+          "original_end_phase": "bottom",
+          "physical_completion": "not_established_by_report_boundary",
+          "camera_torso_range": {
+            "available": true,
+            "value": 2.4182997003760534,
+            "rawValue": 2.4182997003760534,
+            "reasons": [],
+            "member_frames": 37,
+            "scope": "original_inclusive_report_window_range_not_physical_rep_completion"
+          }
+        },
+        {
+          "hip_shoulder_timing": {},
+          "original_rep_index": 8,
+          "original_side": "left",
+          "original_start_frame": 409,
+          "original_end_frame": 445,
+          "boundary_semantics": "inclusive_native_report",
+          "original_start_phase": "pulling",
+          "original_end_phase": "bottom",
+          "physical_completion": "not_established_by_report_boundary",
+          "camera_torso_range": {
+            "available": false,
+            "value": null,
+            "rawValue": null,
+            "reasons": [
+              "noncontiguous_source"
+            ],
+            "member_frames": 37
+          }
+        },
+        {
+          "hip_shoulder_timing": {},
+          "original_rep_index": 9,
+          "original_side": "left",
+          "original_start_frame": 459,
+          "original_end_frame": 496,
+          "boundary_semantics": "inclusive_native_report",
+          "original_start_phase": "pulling",
+          "original_end_phase": "bottom",
+          "physical_completion": "not_established_by_report_boundary",
+          "camera_torso_range": {
+            "available": true,
+            "value": 2.5881696687857243,
+            "rawValue": 2.5881696687857243,
+            "reasons": [],
+            "member_frames": 38,
+            "scope": "original_inclusive_report_window_range_not_physical_rep_completion"
+          }
+        },
+        {
+          "hip_shoulder_timing": {},
+          "original_rep_index": 10,
+          "original_side": "left",
+          "original_start_frame": 509,
+          "original_end_frame": 545,
+          "boundary_semantics": "inclusive_native_report",
+          "original_start_phase": "pulling",
+          "original_end_phase": "bottom",
+          "physical_completion": "not_established_by_report_boundary",
+          "camera_torso_range": {
+            "available": true,
+            "value": 5.9063534010244325,
+            "rawValue": 5.9063534010244325,
+            "reasons": [],
+            "member_frames": 37,
+            "scope": "original_inclusive_report_window_range_not_physical_rep_completion"
+          }
+        }
+      ]
+    }
+  },
+  "interpretation": "Observed metrics with support/scope retained. No approved profile or normal-form/force/lumbar/GT accuracy claim; all native candidates withheld, no squat candidate implementation."
+}

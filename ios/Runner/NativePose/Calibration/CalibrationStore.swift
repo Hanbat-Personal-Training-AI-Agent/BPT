@@ -147,7 +147,7 @@ final class CalibrationStore {
         CalibrationView.allCases.firstIndex(of: view) ?? 0
     }
 
-    private static func deviceModel() -> String {
+    static func deviceModel() -> String {
         var info = utsname()
         uname(&info)
         return withUnsafePointer(to: &info.machine) { pointer in

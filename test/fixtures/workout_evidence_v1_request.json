@@ -1,0 +1,29 @@
+{
+  "clientRecordId": "contract-evidence-v1",
+  "exerciseId": "pushup",
+  "exerciseName": "Push-up",
+  "date": "2026-11-02T10:00:00",
+  "totalReps": 1,
+  "correctReps": 0,
+  "incorrectReps": 0,
+  "postureScore": null,
+  "durationSeconds": 30,
+  "targetReps": 10,
+  "targetSets": 1,
+  "feedbackCounts": {"pushup_hip_sag": 4, "pushup_no_lockout": 1},
+  "poseMetricsSummary": {
+    "workoutEvidence": {
+      "version": 1,
+      "source": "native_scoped_rule_events",
+      "completedReps": 1,
+      "recordedWarningEvents": 4,
+      "warningEventScope": "delivered_rep_scope_only",
+      "formAssessment": "not_available",
+      "assessedReps": null,
+      "validatedCorrectReps": null,
+      "postureScore": null,
+      "legacyCorrectnessFields": "zero_placeholders_not_assessments",
+      "sets": [{"reps": 1, "weightKg": 5, "badCount": 4}]
+    }
+  }
+}

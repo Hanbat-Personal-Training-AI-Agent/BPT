@@ -1,8 +1,9 @@
+import 'package:dio/dio.dart' show Options;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/network/api_client.dart';
-import '../features/auth/providers/auth_provider.dart';
 import 'workout_records_service.dart';
+import 'aggregate_session_scope.dart';
 
 /// 월별 운동 캘린더 요약 (GET /workouts/calendar).
 class MonthlyCalendar {
@@ -38,10 +39,14 @@ class CalendarService {
 
   final ApiClient _apiClient;
 
-  Future<MonthlyCalendar> fetchMonth(int year, int month) async {
+  Future<MonthlyCalendar> fetchMonth(int year, int month,
+      {bool Function()? sessionGuard}) async {
     final response = await _apiClient.get(
       '/workouts/calendar',
       queryParameters: {'year': year, 'month': month},
+      options: Options(extra: {
+        if (sessionGuard != null) ApiClient.sessionGuardKey: sessionGuard
+      }),
     );
     return MonthlyCalendar.fromJson(response.data as Map<String, dynamic>);
   }
@@ -54,13 +59,27 @@ final calendarServiceProvider = Provider<CalendarService>(
 /// 서버의 월별 캘린더. 키는 그 달 1일. 운동 기록이 바뀌면 다시 받는다.
 /// 로그인 전이거나 연결이 안 되면 null 이라 화면은 기기 기록으로 그린다.
 final monthlyCalendarProvider =
-    FutureProvider.family<MonthlyCalendar?, DateTime>((ref, month) async {
+    Provider.family<AsyncValue<MonthlyCalendar?>, DateTime>((ref, month) {
+  final scope = ref.watch(aggregateSessionScopeProvider);
+  return scope == null
+      ? const AsyncValue.data(null)
+      : ref.watch(_sessionCalendarProvider(
+          (scope: scope, month: DateTime(month.year, month.month))));
+});
+
+final _sessionCalendarProvider = FutureProvider.autoDispose
+    .family<MonthlyCalendar?, ({AggregateSessionScope scope, DateTime month})>(
+        (ref, key) async {
   ref.watch(workoutRecordsProvider);
-  if (ref.watch(authNotifierProvider).currentUser == null) return null;
+  var active = true;
+  ref.onDispose(() => active = false);
+  bool ownsSession() => active && key.scope.lease.isCurrent;
+  if (!ownsSession()) return null;
   try {
-    return await ref
+    final result = await ref
         .watch(calendarServiceProvider)
-        .fetchMonth(month.year, month.month);
+        .fetchMonth(key.month.year, key.month.month, sessionGuard: ownsSession);
+    return ownsSession() ? result : null;
   } catch (_) {
     return null;
   }

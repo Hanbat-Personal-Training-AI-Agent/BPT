@@ -1,3 +1,4 @@
+import '../../workout/widgets/workout_record_completion_text.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -11,6 +12,7 @@ import '../../../data/mock_data.dart';
 import '../../../models/workout_record_model.dart';
 import '../../../services/calendar_service.dart';
 import '../../home/providers/home_provider.dart';
+import '../../workout/screens/deep_analysis_report_screen.dart';
 
 const _weekdayHeaderKo = ['일', '월', '화', '수', '목', '금', '토'];
 const _weekdayHeaderEn = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
@@ -525,11 +527,12 @@ class _CalendarRecordTile extends StatelessWidget {
           'incorrectReps': record.incorrectReps,
           'elapsedSeconds': record.durationSeconds,
           'postureScore': record.postureScore,
+          ...record.resultEvidenceFields,
           'feedbackHistory': record.feedbackNotes,
           'targetReps': record.targetReps,
           'targetSets': record.targetSets,
-          'weightKg': record.weightKg,
           'isHistory': true,
+          'clientRecordId': record.id,
           'date': record.date,
         },
       ),
@@ -596,12 +599,12 @@ class _CalendarRecordTile extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 10),
+            DeepAnalysisStatus(recordId: record.id),
             Divider(color: Colors.white.withValues(alpha: 0.08), height: 1),
             const SizedBox(height: 10),
-            Text(
-              isKo
-                  ? '${record.targetSets}세트 × ${record.repsPerSet}회'
-                  : '${record.targetSets} sets × ${record.repsPerSet} reps',
+            WorkoutRecordCompletionText(
+              record: record,
+              isKo: isKo,
               style: TextStyle(
                 color: Colors.white.withValues(alpha: 0.5),
                 fontSize: 13,

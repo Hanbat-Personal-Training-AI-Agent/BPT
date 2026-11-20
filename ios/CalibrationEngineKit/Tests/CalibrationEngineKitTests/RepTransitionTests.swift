@@ -345,10 +345,10 @@ final class RepTransitionTests: XCTestCase {
         XCTAssertEqual(counter.reps, 2, "missing samples are skipped")
     }
 
-    func testWorkoutUsesMediumModelCalibrationKeepsSmall() throws {
+    func testWorkoutUsesMediumHalpe26CalibrationKeepsSmallCOCO17() throws {
         try XCTSkipIf(ProcessInfo.processInfo.environment["BPT_POSE_MODEL"] != nil, "overridden by BPT_POSE_MODEL")
-        XCTAssertEqual(RTMPoseModel.workout, .mcoco17)
-        XCTAssertEqual(RTMPoseModel.workout.rawValue, "rtmpose_m_forward")
+        XCTAssertEqual(RTMPoseModel.workout, .mhalpe26)
+        XCTAssertEqual(RTMPoseModel.workout.rawValue, "rtmpose_m_halpe26_forward")
         XCTAssertEqual(RTMPoseModel.active, .coco17, "calibration capture unchanged")
     }
 

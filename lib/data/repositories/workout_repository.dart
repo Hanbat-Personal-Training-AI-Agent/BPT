@@ -1,9 +1,12 @@
+import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:dio/dio.dart' show Options;
 
 import '../../core/network/api_client.dart';
 import '../../services/local_storage_service.dart';
 import '../../services/sync_service.dart';
+import '../../features/auth/providers/auth_provider.dart';
 import '../dto/workout_metadata_dto.dart';
 import '../../models/workout_record_model.dart';
 
@@ -11,6 +14,87 @@ abstract class IWorkoutRepository {
   Future<WorkoutRecordModel> submitWorkoutRecord(
       WorkoutMetadataRequestDto metadataDto);
   Future<List<WorkoutRecordModel>> getWorkoutRecords();
+}
+
+bool _echoesUnknownWeight(Map response, double weight, bool wasRecorded) =>
+    !wasRecorded && weight == 0 && response['weightRecorded'] != true;
+
+bool _unmarkedZero(Map response, double weight) =>
+    weight == 0 && !response.containsKey('weightRecorded');
+
+String _setWireSignature(List<WorkoutSetDetail> sets) =>
+    jsonEncode(sets.map((set) => jsonEncode(set.toJson())).toList()..sort());
+
+bool _restoredSetValidity(
+    Map response, WorkoutRecordModel remote, WorkoutRecordModel local) {
+  if (!response.containsKey('setsDetail')) return local.setsDetailValid;
+  if (response['setsDetailValid'] is bool) {
+    return response['setsDetailValid'] == true && remote.setsDetailValid;
+  }
+  // A legacy echo of normalized wire values cannot validate a malformed
+  // original list whose local provenance explicitly remains invalid.
+  if (!local.setsDetailValid &&
+      _setWireSignature(remote.setsDetail) ==
+          _setWireSignature(local.setsDetail)) {
+    return false;
+  }
+  return remote.setsDetailValid;
+}
+
+List<WorkoutSetDetail> _restoreOmittedSetMetadata(Map<String, dynamic> response,
+    List<WorkoutSetDetail> remote, List<WorkoutSetDetail> local) {
+  if (!response.containsKey('setsDetail')) return local;
+  final raw = response['setsDetail'];
+  if (raw is! List) return remote;
+  return remote.map((set) {
+    final rows = raw
+        .whereType<Map>()
+        .where((row) =>
+            (row['setNumber'] ?? row['setIndex']) == set.setNumber &&
+            row['reps'] == set.reps)
+        .toList();
+    final matches = local
+        .where((old) =>
+            old.setNumber == set.setNumber &&
+            old.reps == set.reps &&
+            (rows.length == 1 && !rows.single.containsKey('weightKg') ||
+                set.weightRecorded &&
+                    old.weightRecorded &&
+                    set.weightKg == old.weightKg ||
+                rows.length == 1 &&
+                    old.weightRecorded &&
+                    old.weightKg == 0 &&
+                    _unmarkedZero(rows.single, set.weightKg) ||
+                rows.length == 1 &&
+                    _echoesUnknownWeight(
+                        rows.single, set.weightKg, old.weightRecorded)))
+        .toList();
+    if (rows.length != 1 || matches.length != 1) return set;
+    final row = rows.single, old = matches.single;
+    return WorkoutSetDetail(
+      setNumber: set.setNumber,
+      reps: set.reps,
+      weightKg: row.containsKey('weightKg') ? set.weightKg : old.weightKg,
+      weightRecorded: row['weightRecorded'] is bool
+          ? row['weightRecorded'] as bool
+          : !row.containsKey('weightKg') ||
+                  _echoesUnknownWeight(row, set.weightKg, old.weightRecorded) ||
+                  old.weightRecorded &&
+                      old.weightKg == 0 &&
+                      _unmarkedZero(row, set.weightKg)
+              ? old.weightRecorded
+              : set.weightRecorded,
+      warningEvents:
+          row.containsKey('badCount') ? set.warningEvents : old.warningEvents,
+      videoLocalPath: row.containsKey('videoLocalPath')
+          ? set.videoLocalPath
+          : old.videoLocalPath,
+      videoRemoteUrl:
+          row.containsKey('videoRemoteUrl') || row.containsKey('videoUrl')
+              ? set.videoRemoteUrl
+              : old.videoRemoteUrl,
+    );
+  }).toList();
 }
 
 /// 로그인한 계정 하나의 운동 기록만 다룬다. 기기 캐시와 전송 대기열도 그
@@ -21,14 +105,16 @@ class WorkoutRepository implements IWorkoutRepository {
   final SyncQueueStorage? _queueStorage;
   final WorkoutSyncNotifier _syncNotifier;
   final Connectivity _connectivity;
+  final bool Function() _isCurrentAccount;
 
   WorkoutRepository(
     this._apiClient,
     this._localStorage,
     this._queueStorage,
     this._syncNotifier,
-    this._connectivity,
-  );
+    this._connectivity, {
+    bool Function()? isCurrentAccount,
+  }) : _isCurrentAccount = isCurrentAccount ?? (() => false);
 
   /// Submits On-Device AI metadata (Lightweight JSON with postureScore) to Spring Boot
   /// If offline or server fails, caches in local storage and queues for background sync.
@@ -36,19 +122,19 @@ class WorkoutRepository implements IWorkoutRepository {
   Future<WorkoutRecordModel> submitWorkoutRecord(
     WorkoutMetadataRequestDto metadataDto,
   ) async {
-    // Check network status
-    final connectivity = await _connectivity.checkConnectivity();
-    final isOnline = connectivity.any((c) => c != ConnectivityResult.none);
-
-    WorkoutRecordModel recordModel = WorkoutRecordModel.fromDto(
-      metadataDto,
-      isSynced: false,
-    );
-
-    // 로그인 안 했으면 누구 기록인지 알 수 없어 저장·전송하지 않는다.
+    WorkoutRecordModel recordModel =
+        WorkoutRecordModel.fromDto(metadataDto, isSynced: false);
     final queueStorage = _queueStorage;
-    if (queueStorage == null) return recordModel;
+    if (queueStorage == null || !_isCurrentAccount()) return recordModel;
     final uid = queueStorage.uid;
+    // Stage durably in the captured owner namespace before any uncertain external acknowledgement.
+    // Finishing this local pair never changes account credentials or writes another user's cache.
+    await queueStorage.enqueue(metadataDto);
+    await _localStorage.addRecord(recordModel, uid: uid);
+    if (!_isCurrentAccount()) return recordModel;
+    final connectivity = await _connectivity.checkConnectivity();
+    if (!_isCurrentAccount()) return recordModel;
+    final isOnline = connectivity.any((c) => c != ConnectivityResult.none);
 
     if (isOnline) {
       try {
@@ -56,22 +142,30 @@ class WorkoutRepository implements IWorkoutRepository {
         final response = await _apiClient.post(
           '/workouts/records',
           data: metadataDto.toJson(),
+          options:
+              Options(extra: {ApiClient.sessionGuardKey: _isCurrentAccount}),
         );
 
+        if (!_isCurrentAccount()) return recordModel;
         if (response.statusCode == 200 || response.statusCode == 201) {
           final resDto = WorkoutMetadataResponseDto.fromJson(
             response.data as Map<String, dynamic>,
           );
 
+          if (!resDto.success ||
+              resDto.serverRecordId.isEmpty ||
+              (resDto.clientRecordId.isNotEmpty &&
+                  resDto.clientRecordId != metadataDto.clientRecordId)) {
+            throw ApiException('Record acknowledgement identity mismatch');
+          }
           recordModel = recordModel.copyWith(
             isSynced: true,
             serverId: resDto.serverRecordId,
-            postureScore: resDto.postureScore > 0
-                ? resDto.postureScore
-                : metadataDto.postureScore,
+            postureScore: resDto.postureScore ?? metadataDto.postureScore,
           );
 
-          // Save to local storage cache
+          await queueStorage.remove(metadataDto.clientRecordId);
+          // Complete acknowledged bookkeeping in the captured owner namespace only.
           await _localStorage.addRecord(recordModel, uid: uid);
           return recordModel;
         }
@@ -80,12 +174,10 @@ class WorkoutRepository implements IWorkoutRepository {
       }
     }
 
-    // Offline mode or API network error: Save locally & enqueue for sync
-    await queueStorage.enqueue(metadataDto);
-    await _localStorage.addRecord(recordModel, uid: uid);
-
+    // No acknowledgement does not mean no server commit. Keep the staged ID for idempotent retry.
+    if (!_isCurrentAccount()) return recordModel;
     // Trigger background sync attempt in case network recovers
-    _syncNotifier.syncPendingRecords();
+    if (_isCurrentAccount()) _syncNotifier.syncPendingRecords();
 
     return recordModel;
   }
@@ -94,50 +186,155 @@ class WorkoutRepository implements IWorkoutRepository {
   @override
   Future<List<WorkoutRecordModel>> getWorkoutRecords() async {
     final uid = _queueStorage?.uid;
-    if (uid == null) return const [];
+    if (uid == null || !_isCurrentAccount()) return const [];
     final localRecords = _localStorage.loadRecords(uid: uid);
 
     final connectivity = await _connectivity.checkConnectivity();
     final isOnline = connectivity.any((c) => c != ConnectivityResult.none);
+    if (!_isCurrentAccount()) return const [];
 
     if (!isOnline) {
-      return localRecords;
+      return _localStorage.loadRecords(uid: uid);
     }
 
     try {
-      final response = await _apiClient.get('/workouts/records');
+      final response = await _apiClient.get('/workouts/records',
+          options:
+              Options(extra: {ApiClient.sessionGuardKey: _isCurrentAccount}));
+      if (!_isCurrentAccount()) return const [];
       if (response.statusCode == 200 && response.data is List) {
+        // A submit may have staged data while this GET was pending. Never overwrite it from an old snapshot.
+        final latestLocal = _localStorage.loadRecords(uid: uid);
         final serverRecords = (response.data as List).map((json) {
-          final dto =
-              WorkoutMetadataRequestDto.fromJson(json as Map<String, dynamic>);
+          final dto = WorkoutMetadataRequestDto.fromJson(
+              json as Map<String, dynamic>,
+              unversionedRemote: true);
           final serverId =
               json['id']?.toString() ?? json['serverId']?.toString();
-          return WorkoutRecordModel.fromDto(dto,
+          var record = WorkoutRecordModel.fromDto(dto,
               isSynced: true, serverId: serverId);
+          // The current server response omits stored summary metadata. Preserve matching local evidence
+          // within this account; a different device/server-only record remains unknown.
+          // Returned client identity is authoritative. Never attach via a reused server ID when it
+          // contradicts that identity. Server-only fallback requires exactly one local mapping.
+          final same = latestLocal
+              .where((r) => record.id.isNotEmpty
+                  ? r.id == record.id &&
+                      (serverId == null ||
+                          r.serverId == null ||
+                          r.serverId == serverId)
+                  : serverId != null && r.serverId == serverId)
+              .toList();
+          if (same.length == 1) {
+            final local = same.single;
+            record = record.copyWith(
+              id: record.id.isEmpty ? local.id : record.id,
+              poseMetricsSummary: record.poseMetricsSummary.isEmpty
+                  ? local.poseMetricsSummary
+                  : record.poseMetricsSummary,
+              feedbackCounts: json['feedbackCounts'] == null
+                  ? local.feedbackCounts
+                  : record.feedbackCounts,
+              setsDetail: _restoreOmittedSetMetadata(
+                  json, record.setsDetail, local.setsDetail),
+              setsDetailValid: _restoredSetValidity(json, record, local),
+              weightKg: !json.containsKey('weightKg')
+                  ? local.weightKg
+                  : record.weightKg,
+              weightRecorded: json['weightRecorded'] is bool
+                  ? json['weightRecorded'] as bool
+                  : !json.containsKey('weightKg') ||
+                          _echoesUnknownWeight(
+                              json, record.weightKg, local.weightRecorded) ||
+                          local.weightRecorded &&
+                              local.weightKg == 0 &&
+                              _unmarkedZero(json, record.weightKg)
+                      ? local.weightRecorded
+                      : record.weightRecorded,
+              // Preserve raw historical values if the response omitted them; none are validation.
+              postureScore: json['postureScore'] == null
+                  ? local.postureScore
+                  : record.postureScore,
+              correctReps: json['correctReps'] == null
+                  ? local.correctReps
+                  : record.correctReps,
+              incorrectReps: json['incorrectReps'] == null
+                  ? local.incorrectReps
+                  : record.incorrectReps,
+            );
+          }
+          return record;
         }).toList();
 
-        // Merge un-synced local records with server records
-        final unSyncedLocal = localRecords.where((r) => !r.isSynced).toList();
-        final merged = [...unSyncedLocal, ...serverRecords];
+        bool sameRecord(WorkoutRecordModel a, WorkoutRecordModel b) =>
+            a.id.isNotEmpty &&
+            a.id == b.id &&
+            (a.serverId == null ||
+                b.serverId == null ||
+                a.serverId == b.serverId);
+        bool changedSinceRequest(WorkoutRecordModel local) {
+          if (local.id.isEmpty &&
+              (local.serverId == null || local.serverId!.isEmpty)) {
+            return false;
+          }
+          final before = localRecords
+              .where((old) => local.id.isNotEmpty
+                  ? old.id == local.id
+                  : old.id.isEmpty && old.serverId == local.serverId)
+              .toList();
+          return before.length != 1 ||
+              jsonEncode(before.single.toJson()) != jsonEncode(local.toJson());
+        }
+
+        final protected = latestLocal
+            .where((r) => !r.isSynced || changedSinceRequest(r))
+            .toList();
+        // Retain only pending or concurrently added/changed local identities. Unchanged synced history
+        // absent from the response is not resurrected. A stale GET cannot erase a newer submit ACK.
+        final visibleServer = serverRecords
+            .where((remote) => !protected.any((local) =>
+                local.id == remote.id &&
+                (changedSinceRequest(local) || !sameRecord(local, remote))))
+            .toList();
+        final merged = [
+          ...protected.where((local) =>
+              !visibleServer.any((remote) => sameRecord(local, remote))),
+          ...visibleServer,
+        ]..sort((a, b) => b.date.compareTo(a.date));
 
         // Update local cache
         await _localStorage.saveRecords(merged, uid: uid);
-        return merged;
+        return _isCurrentAccount()
+            ? _localStorage.loadRecords(uid: uid)
+            : const [];
       }
     } catch (_) {
       // Fallback to local storage if API call fails
     }
 
-    return localRecords;
+    return _isCurrentAccount() ? _localStorage.loadRecords(uid: uid) : const [];
   }
 }
 
 final workoutRepositoryProvider = Provider<IWorkoutRepository>((ref) {
+  ref.watch(authSessionIdentityProvider);
+  final lease = ref.read(authNotifierProvider).captureSession();
+  final owner = ref.watch(syncQueueStorageProvider);
+  final container = ref.container;
+  var active = true;
+  ref.onDispose(() => active = false);
   return WorkoutRepository(
     ref.watch(apiClientProvider),
     ref.watch(localStorageServiceProvider),
     ref.watch(syncQueueStorageProvider),
     ref.watch(workoutSyncProvider.notifier),
     ref.watch(connectivityProvider),
+    isCurrentAccount: () =>
+        active &&
+        owner != null &&
+        lease != null &&
+        lease.isCurrent &&
+        lease.userId == owner.uid &&
+        container.read(currentUserIdProvider) == owner.uid,
   );
 });

@@ -13,6 +13,7 @@ import com.bpt.kori.domain.user.repository.UserCalibrationRepository;
 import com.bpt.kori.domain.user.repository.UserRepository;
 import com.bpt.kori.domain.user.service.UserService;
 import com.bpt.kori.domain.workout.entity.WorkoutRecord;
+import com.bpt.kori.domain.workout.entity.WorkoutSetRecord;
 import com.bpt.kori.domain.workout.repository.WorkoutRecordRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -92,13 +93,67 @@ class UserServiceTest {
         assertThat(dashboard.getUserName()).isEqualTo("지훈");
         assertThat(dashboard.getWeeklyGoalCount()).isEqualTo(5);
         assertThat(dashboard.getTodayWorkoutMinutes()).isEqualTo(42);
-        assertThat(dashboard.getTodayCompletedSets()).isEqualTo(4);
+        assertThat(dashboard.getTodayCompletedSets()).isNull();
+        assertThat(dashboard.getCompletedSetsEvidenceVersion()).isEqualTo(1);
         assertThat(dashboard.getTodayTotalReps()).isEqualTo(45);
         assertThat(dashboard.getNeedsBodyScan()).isTrue();
         assertThat(dashboard.getDaysSinceLastScan()).isGreaterThanOrEqualTo(30);
         assertThat(dashboard.getRecentWorkouts()).hasSize(1);
         assertThat(dashboard.getRecentWorkouts().get(0).getExerciseName()).isEqualTo("스쿼트");
         assertThat(dashboard.getRecentWorkouts().get(0).getWeightKg()).isEqualByComparingTo("60.0");
+    }
+
+    private DashboardSummaryResponseDto dashboardFor(List<WorkoutRecord> records) {
+        given(userRepository.findById(1L)).willReturn(Optional.of(User.builder().id(1L).username("synthetic").build()));
+        given(workoutRecordRepository.findAllByUserIdAndDateBetweenOrderByDateAsc(eq(1L), any(), any())).willReturn(records);
+        given(workoutRecordRepository.findAllByUserIdOrderByDateDesc(1L)).willReturn(records);
+        return userService.getDashboardSummary(1L);
+    }
+
+    private WorkoutRecord nativeRecord() throws Exception {
+        var json = new com.fasterxml.jackson.databind.ObjectMapper().findAndRegisterModules()
+                .disable(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
+        var dto = json.readValue(java.nio.file.Path.of("../test/fixtures/workout_evidence_v1_request.json").toFile(), com.bpt.kori.domain.workout.dto.WorkoutMetadataRequestDto.class);
+        return WorkoutRecord.builder().date(LocalDateTime.now()).targetSets(3)
+                .totalReps(dto.getTotalReps()).correctReps(0).incorrectReps(0)
+                .poseMetricsSummary(json.writeValueAsString(dto.getPoseMetricsSummary())).build();
+    }
+
+    @Test void dashboardUsesActualOneSetDespiteThreePlanned() throws Exception {
+        var response = dashboardFor(List.of(nativeRecord()));
+        assertThat(response.getTodayCompletedSets()).isEqualTo(1);
+        String wire = new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(response);
+        assertThat(wire).contains("\"completedSetsEvidenceVersion\":1", "\"todayCompletedSets\":1");
+    }
+
+    @Test void dashboardValidatedEmptyNativeSessionIsKnownZero() throws Exception {
+        var record = nativeRecord();
+        var json = new com.fasterxml.jackson.databind.ObjectMapper();
+        var tree = json.readTree(record.getPoseMetricsSummary());
+        var evidence = (com.fasterxml.jackson.databind.node.ObjectNode) tree.get("workoutEvidence");
+        evidence.put("completedReps", 0); evidence.put("recordedWarningEvents", 0); evidence.putArray("sets");
+        record.setTotalReps(0); record.setPoseMetricsSummary(json.writeValueAsString(tree));
+        assertThat(dashboardFor(List.of(record)).getTodayCompletedSets()).isZero();
+    }
+
+    @Test void dashboardMixedLegacyRecordRemainsUnknown() throws Exception {
+        var legacy = WorkoutRecord.builder().date(LocalDateTime.now()).targetSets(8).totalSets(8).totalReps(12).build();
+        assertThat(dashboardFor(List.of(nativeRecord(), legacy)).getTodayCompletedSets()).isNull();
+    }
+
+    @Test void dashboardEmptyDayIsKnownZero() {
+        assertThat(dashboardFor(List.of()).getTodayCompletedSets()).isZero();
+    }
+
+    @Test void dashboardExplicitSavedRowsSupplyActualCount() {
+        var row = com.bpt.kori.domain.workout.entity.WorkoutSetRecord.builder().setNumber(1).reps(12).build();
+        var record = WorkoutRecord.builder().date(LocalDateTime.now()).targetSets(3).totalReps(12).setRecords(List.of(row)).build();
+        assertThat(dashboardFor(List.of(record)).getTodayCompletedSets()).isEqualTo(1);
+    }
+
+    @Test void invalidNativeEnvelopeCannotClaimActualSets() throws Exception {
+        var record = nativeRecord(); record.setTotalReps(999);
+        assertThat(dashboardFor(List.of(record)).getTodayCompletedSets()).isNull();
     }
 
     @Test
@@ -170,8 +225,16 @@ class UserServiceTest {
     }
 
     private WorkoutRecord dashboardRecord(String name, LocalDate day, Integer reps, int seconds, int sets) {
-        return WorkoutRecord.builder().exerciseName(name).date(day.atTime(12, 0))
+        WorkoutRecord record = WorkoutRecord.builder().exerciseName(name).date(day.atTime(12, 0))
                 .totalReps(reps).durationSeconds(seconds).targetSets(sets).build();
+        // 완료 세트는 계획 세트가 아니라 실제 세트 기록으로 센다(WorkoutEvidenceContract).
+        if (reps != null && reps > 0) {
+            for (int n = 1; n <= sets; n++) {
+                int setReps = reps / sets + (n == sets ? reps % sets : 0);
+                record.addSetRecord(WorkoutSetRecord.builder().setNumber(n).reps(setReps).build());
+            }
+        }
+        return record;
     }
 
     @Test

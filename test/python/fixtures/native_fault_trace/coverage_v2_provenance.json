@@ -1,0 +1,196 @@
+{
+  "byCasePositiveRuleIDs": {
+    "native-fault-actual-fixture-coverage-v2-pushup-side.jsonl": [
+      "pushup_depth_fade",
+      "pushup_hand_position",
+      "pushup_head_drop",
+      "pushup_head_up",
+      "pushup_hip_pike",
+      "pushup_hip_sag",
+      "pushup_no_lockout",
+      "pushup_shallow"
+    ],
+    "native-fault-actual-fixture-coverage-v2-row-side.jsonl": [
+      "row_head_up",
+      "row_short_pull",
+      "row_shrug",
+      "row_standing_up",
+      "row_torso_swing"
+    ],
+    "native-fault-actual-fixture-coverage-v2-squat-front.jsonl": [
+      "squat_heel_rise",
+      "squat_knee_valgus"
+    ],
+    "native-fault-actual-fixture-coverage-v2-squat-side.jsonl": [
+      "squat_depth_fade",
+      "squat_heel_rise",
+      "squat_hips_first",
+      "squat_lean_drift",
+      "squat_no_lockout",
+      "squat_shallow"
+    ]
+  },
+  "fixtures": [
+    {
+      "bytes": 138887,
+      "filename": "native-fault-actual-fixture-coverage-v2-pushup-side.jsonl",
+      "records": 26,
+      "sha256": "26f65f0bb2f751ae054432a3cdc28e921a631fd6ca3c61baef0d1a985d5128d5",
+      "sourceCoverageComplete": true
+    },
+    {
+      "bytes": 131846,
+      "filename": "native-fault-actual-fixture-coverage-v2-row-side.jsonl",
+      "records": 26,
+      "sha256": "fc43615081c50f9ebd79a3553473b2af829f0b8399275817ade3d6f9449e0175",
+      "sourceCoverageComplete": true
+    },
+    {
+      "bytes": 141280,
+      "filename": "native-fault-actual-fixture-coverage-v2-squat-front.jsonl",
+      "records": 26,
+      "sha256": "8d58cd3a9d4170a6b16231bb1436402f5ea2f5cb0484938024cd3f6df0b12c26",
+      "sourceCoverageComplete": true
+    },
+    {
+      "bytes": 153727,
+      "filename": "native-fault-actual-fixture-coverage-v2-squat-side.jsonl",
+      "records": 26,
+      "sha256": "cdbf70063ae005af35850ca211e9d0221f303798c2ebd8f672819670621fefc4",
+      "sourceCoverageComplete": true
+    }
+  ],
+  "generator": "ios/CalibrationEngineKit/Tests/CalibrationEngineKitTests/FormFaultCoverageFixtureTests.swift",
+  "generatorSha256": "9f95fd2af5087ecf9ad44b905b3c74b3a11c8b0555379e101ef1533e2c6275cd",
+  "localFileMapping": {
+    "native-fault-actual-fixture-coverage-v2-pushup-side.jsonl": "coverage_v2_pushup_side.jsonl",
+    "native-fault-actual-fixture-coverage-v2-row-side.jsonl": "coverage_v2_row_side.jsonl",
+    "native-fault-actual-fixture-coverage-v2-squat-front.jsonl": "coverage_v2_squat_front.jsonl",
+    "native-fault-actual-fixture-coverage-v2-squat-side.jsonl": "coverage_v2_squat_side.jsonl"
+  },
+  "overrides": {
+    "common.baselineRepCount": 1,
+    "common.trendRepCount": 1,
+    "row.shrugEnabled": true,
+    "squat.heelRiseEnabled": true,
+    "thresholds": "all native defaults"
+  },
+  "producerTestCommit": "b7f9efb2800d79ef9d36378b70f20fe1dc6d4333",
+  "ruleCounts": {
+    "pushup_depth_fade": {
+      "nil": 1,
+      "supported_native_positive": 3,
+      "true": 3
+    },
+    "pushup_hand_position": {
+      "not_called": 3,
+      "supported_native_positive": 1,
+      "true": 1
+    },
+    "pushup_head_drop": {
+      "supported_native_positive": 4,
+      "true": 4
+    },
+    "pushup_head_up": {
+      "supported_native_positive": 4,
+      "true": 4
+    },
+    "pushup_hip_pike": {
+      "supported_native_positive": 4,
+      "true": 4
+    },
+    "pushup_hip_sag": {
+      "supported_native_positive": 4,
+      "true": 4
+    },
+    "pushup_no_lockout": {
+      "false": 2,
+      "supported_native_positive": 2,
+      "true": 2
+    },
+    "pushup_shallow": {
+      "nil": 1,
+      "supported_native_positive": 3,
+      "true": 3
+    },
+    "row_head_up": {
+      "false": 3,
+      "supported_native_positive": 1,
+      "true": 1
+    },
+    "row_short_pull": {
+      "not_called": 1,
+      "supported_native_positive": 3,
+      "true": 3
+    },
+    "row_shrug": {
+      "supported_native_positive": 4,
+      "true": 4
+    },
+    "row_standing_up": {
+      "not_called": 1,
+      "supported_native_positive": 3,
+      "true": 3
+    },
+    "row_torso_swing": {
+      "false": 1,
+      "supported_native_positive": 3,
+      "true": 3
+    },
+    "squat_depth_fade": {
+      "nil": 1,
+      "not_called": 4,
+      "supported_native_positive": 3,
+      "true": 3
+    },
+    "squat_heel_rise": {
+      "supported_native_positive": 8,
+      "true": 8
+    },
+    "squat_hips_first": {
+      "not_called": 4,
+      "supported_native_positive": 4,
+      "true": 4
+    },
+    "squat_knee_valgus": {
+      "not_called": 4,
+      "supported_native_positive": 4,
+      "true": 4
+    },
+    "squat_lean_drift": {
+      "nil": 1,
+      "not_called": 4,
+      "supported_native_positive": 3,
+      "true": 3
+    },
+    "squat_no_lockout": {
+      "false": 1,
+      "not_called": 4,
+      "supported_native_positive": 3,
+      "true": 3
+    },
+    "squat_shallow": {
+      "nil": 1,
+      "not_called": 4,
+      "supported_native_positive": 3,
+      "true": 3
+    }
+  },
+  "runtimeBase": "7dea736c994d68f0248ca82720878a7502fe4ce8",
+  "runtimeSourceSha256": {
+    "ios/Runner/NativePose/Camera/CameraPosePreview.swift": "a986435e03716bc957ec7abbebff93279636b0f3d95437e1cb1fd2de0f0d26fb",
+    "ios/Runner/NativePose/Evaluators/FormFaultEvidence.swift": "ef70df234da5fe14133dd3c0df419d476c749fa2c62bbc0541c0b5e5927819f2",
+    "ios/Runner/NativePose/Evaluators/FormWarnings.swift": "1afc5663228d40cca71630f8587fd12501f36d66fea666e891dc08a4da3089c4"
+  },
+  "runtimeSourceUnchanged": true,
+  "schema": "bpt-native-fault-fixture-coverage-v2",
+  "scope": "synthetic_actual_tracker_execution_not_accuracy",
+  "strictExporterVerification": "all20 actual native true conditions export as supported warning; test_all_twenty_native_default_threshold_positive_paths_are_supported",
+  "supportedNativePositiveRules": 20,
+  "testResult": {
+    "buildSeconds": 18.11,
+    "failures": 0,
+    "tests": 1
+  },
+  "upstreamReceiptSHA256": "f8af687b90ae4055e6f502c2ef14c74865d357d8d77d8610eff5203b90a83c82"
+}

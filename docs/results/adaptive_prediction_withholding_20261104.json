@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "purpose": "adaptive_fill_assessment_withholding_not_accuracy",
+  "baseCommit": "a22c5c4eb105104e74f6047c0520d5197f94392f",
+  "regressionCommit": "3df45b9448cf5beb96af1819b8e70b7ca19d20d8",
+  "before": {
+    "tests": 1,
+    "expectedAssertionFailures": 6,
+    "leakedKneeMinDegrees": 178.34732200667585,
+    "state": "ok",
+    "spoken": "praise_good"
+  },
+  "after": {
+    "focusedTests": 63,
+    "focusedFailures": 0,
+    "fullTests": 321,
+    "fullSkipped": 4,
+    "fullFailures": 0,
+    "inferredKneeMetric": "withheld",
+    "state": "partial_3d",
+    "reliableReacquisition": "assessable",
+    "rawAndConstrainedPreserved": true
+  },
+  "sourceSha256": {
+    "ios/Runner/NativePose/PosePipeline/MotionAGFormerLive.swift": "0804cc2a9d49dba0cfddbe1a8bcb63b24e9058315860a277148e2c9f31b1373e",
+    "ios/CalibrationEngineKit/Tests/CalibrationEngineKitTests/AdaptiveAssessmentWithholdingTests.swift": "df14b12fb178f9e6efe7add3915cd3ee1921bec8c0f14084f3b638b4de9aa778",
+    "ios/CalibrationEngineKit/Tests/CalibrationEngineKitTests/AdaptiveRelationConstraintTests.swift": "e22c04ef6f9eeb447a72d428e03668964500bd4bd28b8c6e50be38e513121ddc"
+  },
+  "unchangedSourceSha256": {
+    "ios/Runner/NativePose/PosePipeline/AdaptiveRelationConstraint.swift": "f578d2794a7261288a0a085bc03ca9373a39bda2371778dd8adb21ad5bd97fb3",
+    "ios/Runner/NativePose/PosePipeline/ExerciseMotionObserver.swift": "6baecbf137ccbb4ad43bfa9c9a49d9d583b29bc0c9e37bbee4b1a32d77c3d8c4",
+    "ios/Runner/NativePose/Evaluators/FormWarnings.swift": "b2f5fe701841c9aed5892df09e33d37d96716f3e9fceee753328611c64930d42",
+    "ios/Runner/NativePose/Camera/CameraPosePreview.swift": "c8d0931f18447de2f6e9e724c43f048437ada1121d327d1743e0b3fdd64fa58d"
+  },
+  "logSha256": {
+    "/private/tmp/bpt-adaptive-withholding-red-20261104.log": "b8e56c6117d5c4a6c702b0c071faf2b03269a470f0e514d4daa8d16c0b485882",
+    "/private/tmp/bpt-adaptive-withholding-green-20261104.log": "43674a99dcdc07908e14ebec3f3802ac643c8f3296ef73924c54ca7ccefc8dac",
+    "/private/tmp/bpt-adaptive-withholding-full-20261104.log": "5cb1c1af8096b12f8bd7aacc4be572bf18482a6756c84b87df97a6f6b5e6cd1f",
+    "/private/tmp/bpt-adaptive-withholding-compile-attempt1-20261104.log": "953d319afe16f5e50ed6b9af55a7e7a897547144522ba420ab419881b2869b33"
+  },
+  "phoneActions": false,
+  "newModelInference": false,
+  "signedAppBuild": false,
+  "modelOrDefaultChange": false,
+  "integrationMerge": false
+}

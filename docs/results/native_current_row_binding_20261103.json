@@ -1,0 +1,33 @@
+{
+  "status": "exact_video_and_manifest_verified",
+  "captureEvidenceSha256": "6ad4de96bfc1e7cb96774637365386af82ca0dba5aa7b4cf4ef1a72427482e33",
+  "originalNativeManifestCanonicalSha256": "cff890f7fcdaf2dd04c4252cc561d6ea5978587e138d07fa8eb9da3f5e1f157a",
+  "serviceReadyManifestCanonicalSha256": "2cc367da42da9c2b218990a730e0e5e1310645ef043392ec2d1d53dfb147c66f",
+  "boundEvidenceSha256": {
+    "nativeSetEnd": "bd88a16c72a8a53985088e51b9fb55e3c9659c71051e5a25b908ad3aba6c082b",
+    "operational": "e5f9bdecd02c489c36488d1b24b1ad8778fadeff7282e3b96d3bf1cce2009d41",
+    "terminal": "20f8daf37800599513bdafba20e0e4b312a66cbf593fca68aad031143bf8921a"
+  },
+  "terminalReaderSourceCommit": "1a35d3fef5cd4b5b5bc49ac003a4584306cce344",
+  "terminalReaderSourceSha256": "4c38fdfdb564dee4f919979e1d638d04ddf35d46a77d1c562bb451410b32b501",
+  "durationMs": 19666,
+  "repetitionCount": 10,
+  "copiedVideoSha256": "53658c052b52bde1285b3e3ee6a1951f201419831e9ce776af094f31749c44d8",
+  "videoByteIdentityVerified": true,
+  "remoteTransportAllowed": false,
+  "uiContextAddedFields": [
+    "exerciseId"
+  ],
+  "verifiedAtUtc": "2026-11-01T23:23:03Z",
+  "scope": "local_byte_binding_and_parser_only_not_GPU_report",
+  "nativeSourceCommit": "1a35d3fef5cd4b5b5bc49ac003a4584306cce344",
+  "harnessSourceCommit": "2d8ca057bbaaaebb20b34e1dd344211a7503f275",
+  "videoBytes": 6534978,
+  "frameRows": 587,
+  "sourceProofSha256": {
+    "copy-and-source-receipt.json": "b14acc385953511edbafac1f9cccfd104163736a43fff80d7c4dc88be4cec993",
+    "actual-ui-context.json": "bad50a5a3c3917665a65e49709a35d412065e52f73b4c99bd7b2bec6542a9bb9",
+    "original-copy-1.json": "6b490cfb6e90a4be1bb4af68b3403019ca65c4c09b0535a02484647b762dd78b",
+    "native-manifest-object.json": "86173fd4194d56ace2d4535e65fd66523a7117ed5dd5d86437fdd1a8b1ee3bc2"
+  }
+}

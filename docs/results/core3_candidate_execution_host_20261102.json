@@ -1,0 +1,1182 @@
+{
+  "actualOriginalReplay": {
+    "PythonNativeRequests": 7155,
+    "finalReplay": "/Users/6_month/bpt-runs/core3-candidate-execution-20261102-v3/aggregate.json",
+    "flush": 15,
+    "frames": 2398,
+    "genuine": 2383,
+    "genuineConfiguredCounts": {
+      "pushup.camera_body_line_transfer": {
+        "negative": 148,
+        "notApplicable": 186,
+        "unknown": 209
+      },
+      "row.camera_torso_window_transfer": {
+        "negative": 198,
+        "notApplicable": 285,
+        "unknown": 99
+      },
+      "row.phase_prefix_leg_arm_cooccurrence": {
+        "negative": 73,
+        "notApplicable": 413,
+        "unknown": 96
+      },
+      "squat.early_ascent_coordination": {
+        "negative": 47,
+        "notApplicable": 1194,
+        "unknown": 17
+      }
+    },
+    "newCandidates": {
+      "actualRawAssessmentStateFlips": 0,
+      "allDeclaredSettingsPositive": 0,
+      "configuredRules": 4,
+      "unconfiguredRules": 5
+    },
+    "originalsUnchanged": true,
+    "v1FailurePreserved": "empty-active same-window Python composition fixed, regression included; no outcome threshold tuning"
+  },
+  "availability": {
+    "C1": {
+      "cache": "rules-calib/_cache/c1_halpeA",
+      "cacheProducerSHA256": "ce539d7f75522fa8c085a026c3fd3aac5b8ac2504c5af8bec5b33f4cb5a2e16f",
+      "checkpointMatchesManifest": true,
+      "checkpointSHA256": "0cb54cb11b9f02d5eb71a274e84601ab788966634f980f43137ccd21e585d763",
+      "comparedOriginalStreams": 60,
+      "manifestActualAPose2DHashEntries": 0,
+      "manifestCacheHashEntries": 0,
+      "manifestSHA256": "fe2d206c7b6b478506728d6ec8f76dd44714826553acbc45e081819d2bd26441",
+      "producerBehavior": "filename-only cache reuse; NPZ stores L5 only, no embedded input/checkpoint identity",
+      "sameNamedFiniteShapeCompatibleStreams": 60,
+      "status": "shape-compatible, exact producer/input/cache lineage unverified; NOT evaluated here"
+    },
+    "C3": {
+      "inputMapping": "Halpe-own pelvis19/thorax18/head17, differs from original benchmark mapping",
+      "inspectedResultLocations": [
+        "finetune3/t4h-base_h26-C3",
+        "finetune3/xs-final-C3"
+      ],
+      "resultManifestSHA256": {
+        "finetune3/t4h-base_h26-C3": "d072fd811bad2cd70669a55275cc929ed3eade2e48bc0e394fdc4805be126206",
+        "finetune3/xs-final-C3": "05c8258dcddce876b0112d51b1c514386601b7006d90b23e25ddfa54a1d8f870"
+      },
+      "savedArtifacts": "aggregate JSON/MD in inspected result folders; no C3 directory in rules-calib/_cache",
+      "status": "compatible saved per-frame prediction cache not found in inspected locations; NOT evaluated here",
+      "wrapperSHA256": "c2063628828aac1a9fe5ad385f0e36e33943d00bbeb4709c10e5868404e826fd"
+    },
+    "newInference": false,
+    "readOnly": true,
+    "schema": "bpt.core3-c1-c3-cache-availability.v1"
+  },
+  "geometry": {
+    "GTScaleOrGravityUsedByPredictions": false,
+    "GTrepSegmentsUsed": false,
+    "aggregateSHA256": "5b8a9962f0085f00768b6caa020bc868c8544a52ce68bdc42514c62485f0c117",
+    "confidenceIllustrations": [
+      {
+        "GTmetricValid": 10248,
+        "metric": "cameraTorsoCausalRangeDeg",
+        "opportunities": 10248,
+        "supportScore": 0.3,
+        "supportedAbsoluteError": {
+          "max": 35.968979660548115,
+          "mean": 6.639574324217638,
+          "median": 5.533713295243558,
+          "min": 0.0022095949634888257,
+          "n": 10248,
+          "p95": 17.115910681393327
+        },
+        "supportedCompared": 10248,
+        "withheldOnGTvalid": 0
+      },
+      {
+        "GTmetricValid": 10248,
+        "metric": "cameraTorsoCausalRangeDeg",
+        "opportunities": 10248,
+        "supportScore": 0.5,
+        "supportedAbsoluteError": {
+          "max": 28.07245932406036,
+          "mean": 6.041700560009363,
+          "median": 5.4004695305717405,
+          "min": 0.0022095949634888257,
+          "n": 8459,
+          "p95": 15.438442821704973
+        },
+        "supportedCompared": 8459,
+        "withheldOnGTvalid": 1789
+      },
+      {
+        "GTmetricValid": 10248,
+        "metric": "cameraTorsoCausalRangeDeg",
+        "opportunities": 10248,
+        "supportScore": 0.7,
+        "supportedAbsoluteError": {
+          "max": 9.90532014825311,
+          "mean": 8.56535959020735,
+          "median": 8.51470702876938,
+          "min": 7.390849862972715,
+          "n": 10,
+          "p95": 9.748761628503175
+        },
+        "supportedCompared": 10,
+        "withheldOnGTvalid": 10238
+      },
+      {
+        "GTmetricValid": 18688,
+        "metric": "leftElbowDeg",
+        "opportunities": 18688,
+        "supportScore": 0.3,
+        "supportedAbsoluteError": {
+          "max": 86.02397002384342,
+          "mean": 9.8686192083567,
+          "median": 7.09698725240596,
+          "min": 0.0017474710676879113,
+          "n": 17520,
+          "p95": 30.192276048138854
+        },
+        "supportedCompared": 17520,
+        "withheldOnGTvalid": 1168
+      },
+      {
+        "GTmetricValid": 18688,
+        "metric": "leftElbowDeg",
+        "opportunities": 18688,
+        "supportScore": 0.5,
+        "supportedAbsoluteError": {
+          "max": 86.02397002384342,
+          "mean": 9.58152474265597,
+          "median": 6.906009857140674,
+          "min": 0.0017474710676879113,
+          "n": 15560,
+          "p95": 29.771215580623664
+        },
+        "supportedCompared": 15560,
+        "withheldOnGTvalid": 3128
+      },
+      {
+        "GTmetricValid": 18688,
+        "metric": "leftElbowDeg",
+        "opportunities": 18688,
+        "supportScore": 0.7,
+        "supportedAbsoluteError": {
+          "max": 86.02397002384342,
+          "mean": 10.537480559173748,
+          "median": 7.857983584211382,
+          "min": 0.004997121043743391,
+          "n": 9981,
+          "p95": 31.40609921049972
+        },
+        "supportedCompared": 9981,
+        "withheldOnGTvalid": 8707
+      },
+      {
+        "GTmetricValid": 8440,
+        "metric": "leftUpperArmDeg",
+        "opportunities": 8440,
+        "supportScore": 0.3,
+        "supportedAbsoluteError": {
+          "max": 178.55985519854167,
+          "mean": 34.501613215138086,
+          "median": 26.550742739886942,
+          "min": 0.003250811012811994,
+          "n": 8243,
+          "p95": 103.86480876077108
+        },
+        "supportedCompared": 8243,
+        "withheldOnGTvalid": 197
+      },
+      {
+        "GTmetricValid": 8440,
+        "metric": "leftUpperArmDeg",
+        "opportunities": 8440,
+        "supportScore": 0.5,
+        "supportedAbsoluteError": {
+          "max": 155.39266398570584,
+          "mean": 31.620559997062216,
+          "median": 20.907244978960755,
+          "min": 0.003250811012811994,
+          "n": 5830,
+          "p95": 98.15819384579532
+        },
+        "supportedCompared": 5830,
+        "withheldOnGTvalid": 2610
+      },
+      {
+        "GTmetricValid": 8440,
+        "metric": "leftUpperArmDeg",
+        "opportunities": 8440,
+        "supportScore": 0.7,
+        "supportedAbsoluteError": {
+          "max": 155.03552415352974,
+          "mean": 13.986961723501576,
+          "median": 9.28264232733099,
+          "min": 0.05918186016111804,
+          "n": 823,
+          "p95": 37.375086856719975
+        },
+        "supportedCompared": 823,
+        "withheldOnGTvalid": 7617
+      }
+    ],
+    "denominatorAudits": 5700,
+    "freezeSHA256": "8eac03fbaf3ef466751052ba3ba1060cf241a64650d0d63939a0f1a2ae90b83c",
+    "fullAggregateHomePath": "/home/junjeon/bpt-runs/core3-exact-geometry-20261102/results-v1/aggregate.json",
+    "fullAggregateLocalPath": "/Users/6_month/bpt-runs/core3-exact-geometry-results-20261102/aggregate.json",
+    "historicalGTResultsJSONReadUpfront": "fixed stream selection/hash gate only; no historical metrics passed to prediction math",
+    "historicalSplit": "heldout",
+    "metricRows": 1530,
+    "modeLabelClarification": "original_continuity_candidate is historical bone-target filter, NOT new coaching candidate",
+    "nativeParity": {
+      "binarySHA256": "721df0b22c249a951668900e839d3c1e6fbbd708c41e99cd46f27e932632b5d6",
+      "cases": 197,
+      "data": "synthetic only; no models/GT",
+      "extractedNativeFunctionsSHA256": {
+        "signedHipDeviation3D": "a092284550c77558e0b116b876a760e6b5d47680065ec59fb0d9d6010aeb1d01",
+        "signedLineDeviation3D": "b6c587ca3bc45be8298de4bfe81732030c7ba98d25f2615e35cbb1184a4a5de4",
+        "signedTorsoAngle3D": "eb40fa7dfc95c5b6415b85fe29029b8578b8d1172732fc1bedfb43b4b0d9f5eb"
+      },
+      "finiteComparisons": 1954,
+      "fixtureSHA256": "b9d37160be586dea0080e1be3326597d6cb18d8dd7e36712957fa82faed70a89",
+      "maximumAbsoluteDifference": 1.4379608614945028e-12,
+      "nativeExpectedSHA256": "08bbd90dc28711d29ebf092ab04ecccdd0beb763f0f0ffc7e7fee5b5413c078c",
+      "nativeSourceSHA256": {
+        "ExperimentalCoaching.swift": "8927fd1262ce9db4e6ebcd9844994ca0b1f5b259e9f05b693e0d407b3a87e9b7",
+        "native_geometry.swift": "50209198445e0f7ad181aa752042e84ed0f2eb625d99d9321700c5085eea17df",
+        "native_metrics.swift": "d04a2d5e877e9e944f434296ca2cc0762a00ec625c0e8766b38eb8d10cf4e840"
+      },
+      "passed": true,
+      "pythonMetricsSHA256": "927052e5d7b78b1b2dced17598f04834e49247b04b660636d2dece6a9b71bb0c",
+      "tolerance": 1e-10
+    },
+    "newEvaluationRole": "reused benchmark/development",
+    "originalsUnchanged": true,
+    "perStreamGTArrayAccess": "after predicted metric NPZ persistence/hash",
+    "pikeKnownStateRawToFullFlips": {
+      "allOpportunities": 8440,
+      "exceedingToNotExceeding": 23,
+      "meaning": "numeric crossing flips, not independently verified posture normalization",
+      "notExceedingToExceeding": 19
+    },
+    "population": "orig_halpeA ORIGINAL XS reused60streams, NOT C1/C3 and no phone-model lineage equivalence assumed",
+    "primaryFrames": 33412,
+    "primaryFullScore05": [
+      {
+        "GTmetricUndefined": 908,
+        "GTmetricValid": 7532,
+        "allNumericAbsoluteError": {
+          "max": 0.4933081283332871,
+          "mean": 0.08810262207571178,
+          "median": 0.07541445910172245,
+          "min": 0.00011011479857409023,
+          "n": 7363,
+          "p95": 0.2249401784807111
+        },
+        "allNumericSignedError": {
+          "max": 0.284746881635461,
+          "mean": -0.07885773114406598,
+          "median": -0.07391821677634046,
+          "min": -0.4933081283332871,
+          "n": 7363,
+          "p95": 0.01923715228885878
+        },
+        "exercise": "all",
+        "geometricProbes": {
+          "camera_pike_transfer_lt_minus0.08": {
+            "GTnegative": 5189,
+            "GTpositive": 2343,
+            "conditionalSupportedAgreementFraction": 0.6857259546661221,
+            "strictAgreementFraction": 0.44583112055231017,
+            "strictGTpositiveConfirmationFraction": 0.5744771660264618,
+            "strictMissedGTpositiveIncludingWithheld": 997,
+            "supportedFalsePositive": 1537,
+            "supportedGTnegativeConfirmed": 2012,
+            "supportedGTpositiveConfirmed": 1346,
+            "withheldGTnegative": 1640,
+            "withheldGTpositive": 995,
+            "wrongNegativeGTpositive": 2
+          },
+          "camera_sag_transfer_gt_0.14": {
+            "GTnegative": 7532,
+            "GTpositive": 0,
+            "conditionalSupportedAgreementFraction": 1.0,
+            "strictAgreementFraction": 0.6501593202336696,
+            "strictGTpositiveConfirmationFraction": null,
+            "strictMissedGTpositiveIncludingWithheld": 0,
+            "supportedFalsePositive": 0,
+            "supportedGTnegativeConfirmed": 4897,
+            "supportedGTpositiveConfirmed": 0,
+            "withheldGTnegative": 2635,
+            "withheldGTpositive": 0,
+            "wrongNegativeGTpositive": 0
+          }
+        },
+        "metric": "cameraHipLineDeviationRatio",
+        "mode": "full",
+        "numericCompared": 7363,
+        "opportunities": 8440,
+        "partition": "primary",
+        "supportDefinition": "required-joint source score + frozen per-mode invalid mask + finite metric geometry only; no app raw-assessment correction veto, NOT app candidate availability",
+        "supportScore": 0.5,
+        "supportedAbsoluteError": {
+          "max": 0.46829798922530635,
+          "mean": 0.08199198401805279,
+          "median": 0.07574465126674917,
+          "min": 0.00011238806492158693,
+          "n": 4897,
+          "p95": 0.1674070113254821
+        },
+        "supportedCompared": 4897,
+        "supportedSignedError": {
+          "max": 0.284746881635461,
+          "mean": -0.07120613712630403,
+          "median": -0.07428635307232873,
+          "min": -0.46829798922530635,
+          "n": 4897,
+          "p95": 0.03297163897620876
+        },
+        "withheldOnGTvalid": 2635
+      },
+      {
+        "GTmetricUndefined": 0,
+        "GTmetricValid": 10248,
+        "allNumericAbsoluteError": {
+          "max": 35.968979660548115,
+          "mean": 6.639574324217638,
+          "median": 5.533713295243558,
+          "min": 0.0022095949634888257,
+          "n": 10248,
+          "p95": 17.115910681393327
+        },
+        "allNumericSignedError": {
+          "max": 29.472177221947874,
+          "mean": 0.9799819941150536,
+          "median": 1.946484958477427,
+          "min": -35.968979660548115,
+          "n": 10248,
+          "p95": 12.78516860014958
+        },
+        "exercise": "all",
+        "geometricProbes": {
+          "phase_free_camera_range_transfer_gt39.9": {
+            "GTnegative": 7062,
+            "GTpositive": 3186,
+            "conditionalSupportedAgreementFraction": 0.9514126965362336,
+            "strictAgreementFraction": 0.7853239656518345,
+            "strictGTpositiveConfirmationFraction": 0.49403640929064657,
+            "strictMissedGTpositiveIncludingWithheld": 1612,
+            "supportedFalsePositive": 157,
+            "supportedGTnegativeConfirmed": 6474,
+            "supportedGTpositiveConfirmed": 1574,
+            "withheldGTnegative": 431,
+            "withheldGTpositive": 1358,
+            "wrongNegativeGTpositive": 254
+          }
+        },
+        "metric": "cameraTorsoCausalRangeDeg",
+        "mode": "full",
+        "numericCompared": 10248,
+        "opportunities": 10248,
+        "partition": "primary",
+        "supportDefinition": "required-joint source score + frozen per-mode invalid mask + finite metric geometry only; no app raw-assessment correction veto, NOT app candidate availability",
+        "supportScore": 0.5,
+        "supportedAbsoluteError": {
+          "max": 28.07245932406036,
+          "mean": 6.041700560009363,
+          "median": 5.4004695305717405,
+          "min": 0.0022095949634888257,
+          "n": 8459,
+          "p95": 15.438442821704973
+        },
+        "supportedCompared": 8459,
+        "supportedSignedError": {
+          "max": 24.164261356748256,
+          "mean": 1.5681564244790875,
+          "median": 2.3362346320651852,
+          "min": -28.07245932406036,
+          "n": 8459,
+          "p95": 12.222308408981029
+        },
+        "withheldOnGTvalid": 1789
+      },
+      {
+        "GTmetricUndefined": 0,
+        "GTmetricValid": 33412,
+        "allNumericAbsoluteError": {
+          "max": 178.39455756816983,
+          "mean": 14.354933295209408,
+          "median": 11.601442135190126,
+          "min": 0.00018369668950413143,
+          "n": 33412,
+          "p95": 35.668610188485346
+        },
+        "allNumericSignedError": {
+          "max": 178.39455756816983,
+          "mean": -9.495187866768749,
+          "median": -9.763431960037579,
+          "min": -178.2378744470614,
+          "n": 33412,
+          "p95": 14.406865743549142
+        },
+        "exercise": "all",
+        "geometricProbes": {},
+        "metric": "cameraTorsoSignedDeg",
+        "mode": "full",
+        "numericCompared": 33412,
+        "opportunities": 33412,
+        "partition": "primary",
+        "supportDefinition": "required-joint source score + frozen per-mode invalid mask + finite metric geometry only; no app raw-assessment correction veto, NOT app candidate availability",
+        "supportScore": 0.5,
+        "supportedAbsoluteError": {
+          "max": 178.39455756816983,
+          "mean": 14.338266151630956,
+          "median": 11.602884718354233,
+          "min": 0.00018369668950413143,
+          "n": 30223,
+          "p95": 36.58926655992549
+        },
+        "supportedCompared": 30223,
+        "supportedSignedError": {
+          "max": 178.39455756816983,
+          "mean": -10.974457738872028,
+          "median": -10.49294622504857,
+          "min": -177.18209078544822,
+          "n": 30223,
+          "p95": 11.783963201581969
+        },
+        "withheldOnGTvalid": 3189
+      },
+      {
+        "GTmetricUndefined": 0,
+        "GTmetricValid": 18688,
+        "allNumericAbsoluteError": {
+          "max": 86.02397002384342,
+          "mean": 10.46927089371378,
+          "median": 7.366642959796732,
+          "min": 0.0017474710676879113,
+          "n": 18688,
+          "p95": 32.02953747458815
+        },
+        "allNumericSignedError": {
+          "max": 86.02397002384342,
+          "mean": 1.9319376954189278,
+          "median": 1.3712564105783045,
+          "min": -57.99546481268898,
+          "n": 18688,
+          "p95": 28.66783110417032
+        },
+        "exercise": "all",
+        "geometricProbes": {
+          "generic_geometry_gt120_NOT_posture": {
+            "GTnegative": 6036,
+            "GTpositive": 12652,
+            "conditionalSupportedAgreementFraction": 0.9393958868894602,
+            "strictAgreementFraction": 0.7821596746575342,
+            "strictGTpositiveConfirmationFraction": 0.8060385709769207,
+            "strictMissedGTpositiveIncludingWithheld": 2454,
+            "supportedFalsePositive": 772,
+            "supportedGTnegativeConfirmed": 4419,
+            "supportedGTpositiveConfirmed": 10198,
+            "withheldGTnegative": 845,
+            "withheldGTpositive": 2283,
+            "wrongNegativeGTpositive": 171
+          },
+          "generic_geometry_gt150_NOT_posture": {
+            "GTnegative": 9624,
+            "GTpositive": 9064,
+            "conditionalSupportedAgreementFraction": 0.8955655526992288,
+            "strictAgreementFraction": 0.7456656678082192,
+            "strictGTpositiveConfirmationFraction": 0.7374227714033539,
+            "strictMissedGTpositiveIncludingWithheld": 2380,
+            "supportedFalsePositive": 918,
+            "supportedGTnegativeConfirmed": 7251,
+            "supportedGTpositiveConfirmed": 6684,
+            "withheldGTnegative": 1455,
+            "withheldGTpositive": 1673,
+            "wrongNegativeGTpositive": 707
+          },
+          "generic_geometry_gt90_NOT_posture": {
+            "GTnegative": 3308,
+            "GTpositive": 15380,
+            "conditionalSupportedAgreementFraction": 0.9188303341902314,
+            "strictAgreementFraction": 0.7650363869863014,
+            "strictGTpositiveConfirmationFraction": 0.8112483745123537,
+            "strictMissedGTpositiveIncludingWithheld": 2903,
+            "supportedFalsePositive": 1031,
+            "supportedGTnegativeConfirmed": 1820,
+            "supportedGTpositiveConfirmed": 12477,
+            "withheldGTnegative": 457,
+            "withheldGTpositive": 2671,
+            "wrongNegativeGTpositive": 232
+          }
+        },
+        "metric": "leftElbowDeg",
+        "mode": "full",
+        "numericCompared": 18688,
+        "opportunities": 18688,
+        "partition": "primary",
+        "supportDefinition": "required-joint source score + frozen per-mode invalid mask + finite metric geometry only; no app raw-assessment correction veto, NOT app candidate availability",
+        "supportScore": 0.5,
+        "supportedAbsoluteError": {
+          "max": 86.02397002384342,
+          "mean": 9.58152474265597,
+          "median": 6.906009857140674,
+          "min": 0.0017474710676879113,
+          "n": 15560,
+          "p95": 29.771215580623664
+        },
+        "supportedCompared": 15560,
+        "supportedSignedError": {
+          "max": 86.02397002384342,
+          "mean": 3.1856482618717537,
+          "median": 2.27528741101672,
+          "min": -49.8142855520388,
+          "n": 15560,
+          "p95": 28.820592583257046
+        },
+        "withheldOnGTvalid": 3128
+      },
+      {
+        "GTmetricUndefined": 0,
+        "GTmetricValid": 33412,
+        "allNumericAbsoluteError": {
+          "max": 96.08350257852939,
+          "mean": 13.830008458828512,
+          "median": 10.42840500594443,
+          "min": 0.001243677969540613,
+          "n": 33412,
+          "p95": 37.21338965265972
+        },
+        "allNumericSignedError": {
+          "max": 87.41266470431613,
+          "mean": -0.01942182327199725,
+          "median": 1.9701236275060623,
+          "min": -96.08350257852939,
+          "n": 33412,
+          "p95": 26.687584819977467
+        },
+        "exercise": "all",
+        "geometricProbes": {
+          "generic_geometry_gt120_NOT_posture": {
+            "GTnegative": 14164,
+            "GTpositive": 19248,
+            "conditionalSupportedAgreementFraction": 0.8714100064977258,
+            "strictAgreementFraction": 0.8027654734825811,
+            "strictGTpositiveConfirmationFraction": 0.8205527847049044,
+            "strictMissedGTpositiveIncludingWithheld": 3454,
+            "supportedFalsePositive": 2168,
+            "supportedGTnegativeConfirmed": 11028,
+            "supportedGTpositiveConfirmed": 15794,
+            "withheldGTnegative": 968,
+            "withheldGTpositive": 1664,
+            "wrongNegativeGTpositive": 1790
+          },
+          "generic_geometry_gt150_NOT_posture": {
+            "GTnegative": 20932,
+            "GTpositive": 12480,
+            "conditionalSupportedAgreementFraction": 0.814327485380117,
+            "strictAgreementFraction": 0.7501795762001676,
+            "strictGTpositiveConfirmationFraction": 0.5855769230769231,
+            "strictMissedGTpositiveIncludingWithheld": 5172,
+            "supportedFalsePositive": 1863,
+            "supportedGTnegativeConfirmed": 17757,
+            "supportedGTpositiveConfirmed": 7308,
+            "withheldGTnegative": 1312,
+            "withheldGTpositive": 1320,
+            "wrongNegativeGTpositive": 3852
+          },
+          "generic_geometry_gt90_NOT_posture": {
+            "GTnegative": 6972,
+            "GTpositive": 26440,
+            "conditionalSupportedAgreementFraction": 0.9351851851851852,
+            "strictAgreementFraction": 0.8615168203040824,
+            "strictGTpositiveConfirmationFraction": 0.904803328290469,
+            "strictMissedGTpositiveIncludingWithheld": 2517,
+            "supportedFalsePositive": 1352,
+            "supportedGTnegativeConfirmed": 4862,
+            "supportedGTpositiveConfirmed": 23923,
+            "withheldGTnegative": 758,
+            "withheldGTpositive": 1874,
+            "wrongNegativeGTpositive": 643
+          }
+        },
+        "metric": "leftHipDeg",
+        "mode": "full",
+        "numericCompared": 33412,
+        "opportunities": 33412,
+        "partition": "primary",
+        "supportDefinition": "required-joint source score + frozen per-mode invalid mask + finite metric geometry only; no app raw-assessment correction veto, NOT app candidate availability",
+        "supportScore": 0.5,
+        "supportedAbsoluteError": {
+          "max": 96.08350257852939,
+          "mean": 13.60406897620995,
+          "median": 10.34715857074525,
+          "min": 0.001243677969540613,
+          "n": 30780,
+          "p95": 36.41414640273829
+        },
+        "supportedCompared": 30780,
+        "supportedSignedError": {
+          "max": 56.94050990463798,
+          "mean": 0.845292370906095,
+          "median": 2.8653139940151178,
+          "min": -96.08350257852939,
+          "n": 30780,
+          "p95": 26.760568581912974
+        },
+        "withheldOnGTvalid": 2632
+      },
+      {
+        "GTmetricUndefined": 0,
+        "GTmetricValid": 33412,
+        "allNumericAbsoluteError": {
+          "max": 115.52904968581362,
+          "mean": 15.788068903543973,
+          "median": 11.141864731795977,
+          "min": 3.568951279930843e-05,
+          "n": 33412,
+          "p95": 52.187236190153115
+        },
+        "allNumericSignedError": {
+          "max": 103.97649287221778,
+          "mean": -8.439744960619167,
+          "median": -7.064204739028952,
+          "min": -115.52904968581362,
+          "n": 33412,
+          "p95": 25.50786381664473
+        },
+        "exercise": "all",
+        "geometricProbes": {
+          "generic_geometry_gt120_NOT_posture": {
+            "GTnegative": 4512,
+            "GTpositive": 28900,
+            "conditionalSupportedAgreementFraction": 0.8822025947135138,
+            "strictAgreementFraction": 0.816113971028373,
+            "strictGTpositiveConfirmationFraction": 0.825674740484429,
+            "strictMissedGTpositiveIncludingWithheld": 5038,
+            "supportedFalsePositive": 705,
+            "supportedGTnegativeConfirmed": 3406,
+            "supportedGTpositiveConfirmed": 23862,
+            "withheldGTnegative": 401,
+            "withheldGTpositive": 2102,
+            "wrongNegativeGTpositive": 2936
+          },
+          "generic_geometry_gt150_NOT_posture": {
+            "GTnegative": 13632,
+            "GTpositive": 19780,
+            "conditionalSupportedAgreementFraction": 0.7506875020220648,
+            "strictAgreementFraction": 0.694451095414821,
+            "strictGTpositiveConfirmationFraction": 0.612639029322548,
+            "strictMissedGTpositiveIncludingWithheld": 7662,
+            "supportedFalsePositive": 1894,
+            "supportedGTnegativeConfirmed": 11085,
+            "supportedGTpositiveConfirmed": 12118,
+            "withheldGTnegative": 653,
+            "withheldGTpositive": 1850,
+            "wrongNegativeGTpositive": 5812
+          },
+          "generic_geometry_gt90_NOT_posture": {
+            "GTnegative": 2248,
+            "GTpositive": 31164,
+            "conditionalSupportedAgreementFraction": 0.9586528195671163,
+            "strictAgreementFraction": 0.8868370645277146,
+            "strictGTpositiveConfirmationFraction": 0.9041843152355282,
+            "strictMissedGTpositiveIncludingWithheld": 2986,
+            "supportedFalsePositive": 521,
+            "supportedGTnegativeConfirmed": 1453,
+            "supportedGTpositiveConfirmed": 28178,
+            "withheldGTnegative": 274,
+            "withheldGTpositive": 2229,
+            "wrongNegativeGTpositive": 757
+          }
+        },
+        "metric": "leftKneeDeg",
+        "mode": "full",
+        "numericCompared": 33412,
+        "opportunities": 33412,
+        "partition": "primary",
+        "supportDefinition": "required-joint source score + frozen per-mode invalid mask + finite metric geometry only; no app raw-assessment correction veto, NOT app candidate availability",
+        "supportScore": 0.5,
+        "supportedAbsoluteError": {
+          "max": 103.97649287221778,
+          "mean": 14.990797407187003,
+          "median": 10.430966353148676,
+          "min": 3.568951279930843e-05,
+          "n": 30909,
+          "p95": 49.52001280614182
+        },
+        "supportedCompared": 30909,
+        "supportedSignedError": {
+          "max": 103.97649287221778,
+          "mean": -7.552637170130348,
+          "median": -6.282730710876351,
+          "min": -93.94740005138803,
+          "n": 30909,
+          "p95": 25.81825284584214
+        },
+        "withheldOnGTvalid": 2503
+      },
+      {
+        "GTmetricUndefined": 0,
+        "GTmetricValid": 8440,
+        "allNumericAbsoluteError": {
+          "max": 178.55985519854167,
+          "mean": 35.433712465555566,
+          "median": 27.356314556460966,
+          "min": 0.003250811012811994,
+          "n": 8440,
+          "p95": 107.46877510055795
+        },
+        "allNumericSignedError": {
+          "max": 155.39266398570584,
+          "mean": 3.916078631596802,
+          "median": 1.7076582117715002,
+          "min": -178.55985519854167,
+          "n": 8440,
+          "p95": 87.53891164845314
+        },
+        "exercise": "all",
+        "geometricProbes": {
+          "generic_geometry_gt90_NOT_posture": {
+            "GTnegative": 6424,
+            "GTpositive": 2016,
+            "conditionalSupportedAgreementFraction": 0.7262435677530017,
+            "strictAgreementFraction": 0.5016587677725118,
+            "strictGTpositiveConfirmationFraction": 0.44047619047619047,
+            "strictMissedGTpositiveIncludingWithheld": 1128,
+            "supportedFalsePositive": 1399,
+            "supportedGTnegativeConfirmed": 3346,
+            "supportedGTpositiveConfirmed": 888,
+            "withheldGTnegative": 1679,
+            "withheldGTpositive": 931,
+            "wrongNegativeGTpositive": 197
+          }
+        },
+        "metric": "leftUpperArmDeg",
+        "mode": "full",
+        "numericCompared": 8440,
+        "opportunities": 8440,
+        "partition": "primary",
+        "supportDefinition": "required-joint source score + frozen per-mode invalid mask + finite metric geometry only; no app raw-assessment correction veto, NOT app candidate availability",
+        "supportScore": 0.5,
+        "supportedAbsoluteError": {
+          "max": 155.39266398570584,
+          "mean": 31.620559997062216,
+          "median": 20.907244978960755,
+          "min": 0.003250811012811994,
+          "n": 5830,
+          "p95": 98.15819384579532
+        },
+        "supportedCompared": 5830,
+        "supportedSignedError": {
+          "max": 155.39266398570584,
+          "mean": 15.347873862698009,
+          "median": 6.1415837129105775,
+          "min": -155.03552415352974,
+          "n": 5830,
+          "p95": 97.870154641937
+        },
+        "withheldOnGTvalid": 2610
+      },
+      {
+        "GTmetricUndefined": 0,
+        "GTmetricValid": 18688,
+        "allNumericAbsoluteError": {
+          "max": 97.3018617999805,
+          "mean": 10.34840646274234,
+          "median": 7.2228443779955,
+          "min": 0.00045510579695928755,
+          "n": 18688,
+          "p95": 34.34973962485036
+        },
+        "allNumericSignedError": {
+          "max": 97.3018617999805,
+          "mean": 2.6359070466909804,
+          "median": 1.4880526205994613,
+          "min": -50.031004219387626,
+          "n": 18688,
+          "p95": 29.903704045242304
+        },
+        "exercise": "all",
+        "geometricProbes": {
+          "generic_geometry_gt120_NOT_posture": {
+            "GTnegative": 6088,
+            "GTpositive": 12600,
+            "conditionalSupportedAgreementFraction": 0.9306810948440484,
+            "strictAgreementFraction": 0.7823737157534246,
+            "strictGTpositiveConfirmationFraction": 0.805,
+            "strictMissedGTpositiveIncludingWithheld": 2457,
+            "supportedFalsePositive": 805,
+            "supportedGTnegativeConfirmed": 4478,
+            "supportedGTpositiveConfirmed": 10143,
+            "withheldGTnegative": 805,
+            "withheldGTpositive": 2173,
+            "wrongNegativeGTpositive": 284
+          },
+          "generic_geometry_gt150_NOT_posture": {
+            "GTnegative": 10076,
+            "GTpositive": 8612,
+            "conditionalSupportedAgreementFraction": 0.8658179503500955,
+            "strictAgreementFraction": 0.7278467465753424,
+            "strictGTpositiveConfirmationFraction": 0.687645146307478,
+            "strictMissedGTpositiveIncludingWithheld": 2690,
+            "supportedFalsePositive": 957,
+            "supportedGTnegativeConfirmed": 7680,
+            "supportedGTpositiveConfirmed": 5922,
+            "withheldGTnegative": 1439,
+            "withheldGTpositive": 1539,
+            "wrongNegativeGTpositive": 1151
+          },
+          "generic_geometry_gt90_NOT_posture": {
+            "GTnegative": 3080,
+            "GTpositive": 15608,
+            "conditionalSupportedAgreementFraction": 0.9348185868873329,
+            "strictAgreementFraction": 0.7858518835616438,
+            "strictGTpositiveConfirmationFraction": 0.8177857508969759,
+            "strictMissedGTpositiveIncludingWithheld": 2844,
+            "supportedFalsePositive": 744,
+            "supportedGTnegativeConfirmed": 1922,
+            "supportedGTpositiveConfirmed": 12764,
+            "withheldGTnegative": 414,
+            "withheldGTpositive": 2564,
+            "wrongNegativeGTpositive": 280
+          }
+        },
+        "metric": "rightElbowDeg",
+        "mode": "full",
+        "numericCompared": 18688,
+        "opportunities": 18688,
+        "partition": "primary",
+        "supportDefinition": "required-joint source score + frozen per-mode invalid mask + finite metric geometry only; no app raw-assessment correction veto, NOT app candidate availability",
+        "supportScore": 0.5,
+        "supportedAbsoluteError": {
+          "max": 68.58852917435567,
+          "mean": 9.228951680847148,
+          "median": 6.970851944668482,
+          "min": 0.00045510579695928755,
+          "n": 15710,
+          "p95": 27.732139015589844
+        },
+        "supportedCompared": 15710,
+        "supportedSignedError": {
+          "max": 68.58852917435567,
+          "mean": 2.6454361526376964,
+          "median": 1.9143541268788695,
+          "min": -46.32061132694315,
+          "n": 15710,
+          "p95": 24.933396266074844
+        },
+        "withheldOnGTvalid": 2978
+      },
+      {
+        "GTmetricUndefined": 0,
+        "GTmetricValid": 33412,
+        "allNumericAbsoluteError": {
+          "max": 94.57936643586676,
+          "mean": 12.948274859986945,
+          "median": 8.705491966364747,
+          "min": 4.261909658964669e-05,
+          "n": 33412,
+          "p95": 38.83513202008249
+        },
+        "allNumericSignedError": {
+          "max": 72.3313136680053,
+          "mean": 0.15564178808970372,
+          "median": 2.0617368726630545,
+          "min": -94.57936643586676,
+          "n": 33412,
+          "p95": 26.937945724799082
+        },
+        "exercise": "all",
+        "geometricProbes": {
+          "generic_geometry_gt120_NOT_posture": {
+            "GTnegative": 14748,
+            "GTpositive": 18664,
+            "conditionalSupportedAgreementFraction": 0.840920966688439,
+            "strictAgreementFraction": 0.7706512630192746,
+            "strictGTpositiveConfirmationFraction": 0.8049721388769824,
+            "strictMissedGTpositiveIncludingWithheld": 3640,
+            "supportedFalsePositive": 2953,
+            "supportedGTnegativeConfirmed": 10725,
+            "supportedGTpositiveConfirmed": 15024,
+            "withheldGTnegative": 1070,
+            "withheldGTpositive": 1722,
+            "wrongNegativeGTpositive": 1918
+          },
+          "generic_geometry_gt150_NOT_posture": {
+            "GTnegative": 20504,
+            "GTpositive": 12908,
+            "conditionalSupportedAgreementFraction": 0.8483344219464403,
+            "strictAgreementFraction": 0.7774452292589489,
+            "strictGTpositiveConfirmationFraction": 0.6548651998760459,
+            "strictMissedGTpositiveIncludingWithheld": 4455,
+            "supportedFalsePositive": 1574,
+            "supportedGTnegativeConfirmed": 17523,
+            "supportedGTpositiveConfirmed": 8453,
+            "withheldGTnegative": 1407,
+            "withheldGTpositive": 1385,
+            "wrongNegativeGTpositive": 3070
+          },
+          "generic_geometry_gt90_NOT_posture": {
+            "GTnegative": 6864,
+            "GTpositive": 26548,
+            "conditionalSupportedAgreementFraction": 0.9450685826257348,
+            "strictAgreementFraction": 0.8660960134083563,
+            "strictGTpositiveConfirmationFraction": 0.9108407412987796,
+            "strictMissedGTpositiveIncludingWithheld": 2367,
+            "supportedFalsePositive": 1144,
+            "supportedGTnegativeConfirmed": 4757,
+            "supportedGTpositiveConfirmed": 24181,
+            "withheldGTnegative": 963,
+            "withheldGTpositive": 1829,
+            "wrongNegativeGTpositive": 538
+          }
+        },
+        "metric": "rightHipDeg",
+        "mode": "full",
+        "numericCompared": 33412,
+        "opportunities": 33412,
+        "partition": "primary",
+        "supportDefinition": "required-joint source score + frozen per-mode invalid mask + finite metric geometry only; no app raw-assessment correction veto, NOT app candidate availability",
+        "supportScore": 0.5,
+        "supportedAbsoluteError": {
+          "max": 94.57936643586676,
+          "mean": 12.27419072469277,
+          "median": 8.203385495151664,
+          "min": 4.261909658964669e-05,
+          "n": 30620,
+          "p95": 36.71602387869098
+        },
+        "supportedCompared": 30620,
+        "supportedSignedError": {
+          "max": 57.2025643722196,
+          "mean": 1.3084354934896878,
+          "median": 2.5659005402499844,
+          "min": -94.57936643586676,
+          "n": 30620,
+          "p95": 27.32083724426453
+        },
+        "withheldOnGTvalid": 2792
+      },
+      {
+        "GTmetricUndefined": 0,
+        "GTmetricValid": 33412,
+        "allNumericAbsoluteError": {
+          "max": 122.3279898262388,
+          "mean": 15.537472154621566,
+          "median": 10.417464642785518,
+          "min": 0.0003954190723618467,
+          "n": 33412,
+          "p95": 52.31666804309938
+        },
+        "allNumericSignedError": {
+          "max": 105.53966548840346,
+          "mean": -7.607094303222997,
+          "median": -5.361195939308331,
+          "min": -122.3279898262388,
+          "n": 33412,
+          "p95": 23.826806364429814
+        },
+        "exercise": "all",
+        "geometricProbes": {
+          "generic_geometry_gt120_NOT_posture": {
+            "GTnegative": 4312,
+            "GTpositive": 29100,
+            "conditionalSupportedAgreementFraction": 0.8676747967479674,
+            "strictAgreementFraction": 0.7985454327786424,
+            "strictGTpositiveConfirmationFraction": 0.8100343642611684,
+            "strictMissedGTpositiveIncludingWithheld": 5528,
+            "supportedFalsePositive": 853,
+            "supportedGTnegativeConfirmed": 3109,
+            "supportedGTpositiveConfirmed": 23572,
+            "withheldGTnegative": 350,
+            "withheldGTpositive": 2312,
+            "wrongNegativeGTpositive": 3216
+          },
+          "generic_geometry_gt150_NOT_posture": {
+            "GTnegative": 13712,
+            "GTpositive": 19700,
+            "conditionalSupportedAgreementFraction": 0.7751219512195122,
+            "strictAgreementFraction": 0.7133664551658087,
+            "strictGTpositiveConfirmationFraction": 0.6647208121827411,
+            "strictMissedGTpositiveIncludingWithheld": 6605,
+            "supportedFalsePositive": 2098,
+            "supportedGTnegativeConfirmed": 10740,
+            "supportedGTpositiveConfirmed": 13095,
+            "withheldGTnegative": 874,
+            "withheldGTpositive": 1788,
+            "wrongNegativeGTpositive": 4817
+          },
+          "generic_geometry_gt90_NOT_posture": {
+            "GTnegative": 1776,
+            "GTpositive": 31636,
+            "conditionalSupportedAgreementFraction": 0.9468943089430895,
+            "strictAgreementFraction": 0.8714533700466898,
+            "strictGTpositiveConfirmationFraction": 0.8876280187128588,
+            "strictMissedGTpositiveIncludingWithheld": 3555,
+            "supportedFalsePositive": 513,
+            "supportedGTnegativeConfirmed": 1036,
+            "supportedGTpositiveConfirmed": 28081,
+            "withheldGTnegative": 227,
+            "withheldGTpositive": 2435,
+            "wrongNegativeGTpositive": 1120
+          }
+        },
+        "metric": "rightKneeDeg",
+        "mode": "full",
+        "numericCompared": 33412,
+        "opportunities": 33412,
+        "partition": "primary",
+        "supportDefinition": "required-joint source score + frozen per-mode invalid mask + finite metric geometry only; no app raw-assessment correction veto, NOT app candidate availability",
+        "supportScore": 0.5,
+        "supportedAbsoluteError": {
+          "max": 105.53966548840346,
+          "mean": 14.755646063907578,
+          "median": 9.724740767330736,
+          "min": 0.0003954190723618467,
+          "n": 30750,
+          "p95": 49.16006129131042
+        },
+        "supportedCompared": 30750,
+        "supportedSignedError": {
+          "max": 105.53966548840346,
+          "mean": -6.820680390634386,
+          "median": -4.837809682349857,
+          "min": -90.28745315085727,
+          "n": 30750,
+          "p95": 23.886239893460374
+        },
+        "withheldOnGTvalid": 2662
+      },
+      {
+        "GTmetricUndefined": 0,
+        "GTmetricValid": 8440,
+        "allNumericAbsoluteError": {
+          "max": 170.37126414657638,
+          "mean": 34.34930300011245,
+          "median": 24.700310927769827,
+          "min": 0.002384557618938743,
+          "n": 8440,
+          "p95": 101.21777770951705
+        },
+        "allNumericSignedError": {
+          "max": 168.43322294008732,
+          "mean": 8.550141929054616,
+          "median": 3.631362271819512,
+          "min": -170.37126414657638,
+          "n": 8440,
+          "p95": 93.94704043209717
+        },
+        "exercise": "all",
+        "geometricProbes": {
+          "generic_geometry_gt90_NOT_posture": {
+            "GTnegative": 6464,
+            "GTpositive": 1976,
+            "conditionalSupportedAgreementFraction": 0.7048442906574395,
+            "strictAgreementFraction": 0.4827014218009479,
+            "strictGTpositiveConfirmationFraction": 0.4893724696356275,
+            "strictMissedGTpositiveIncludingWithheld": 1009,
+            "supportedFalsePositive": 1376,
+            "supportedGTnegativeConfirmed": 3107,
+            "supportedGTpositiveConfirmed": 967,
+            "withheldGTnegative": 1981,
+            "withheldGTpositive": 679,
+            "wrongNegativeGTpositive": 330
+          }
+        },
+        "metric": "rightUpperArmDeg",
+        "mode": "full",
+        "numericCompared": 8440,
+        "opportunities": 8440,
+        "partition": "primary",
+        "supportDefinition": "required-joint source score + frozen per-mode invalid mask + finite metric geometry only; no app raw-assessment correction veto, NOT app candidate availability",
+        "supportScore": 0.5,
+        "supportedAbsoluteError": {
+          "max": 168.43322294008732,
+          "mean": 32.69741760106508,
+          "median": 22.707398783855794,
+          "min": 0.002384557618938743,
+          "n": 5780,
+          "p95": 101.46805141756067
+        },
+        "supportedCompared": 5780,
+        "supportedSignedError": {
+          "max": 168.43322294008732,
+          "mean": 17.65611312401158,
+          "median": 6.819353649693495,
+          "min": -138.15411583807057,
+          "n": 5780,
+          "p95": 101.0656994036086
+        },
+        "withheldOnGTvalid": 2660
+      }
+    ],
+    "savedPredictionsUnchanged": true,
+    "streams": 60,
+    "supportDefinition": "required-joint source score + frozen per-mode invalid mask + finite metric geometry only; no app raw-assessment correction veto, NOT app candidate availability",
+    "wallSeconds": 10.743929858028423
+  },
+  "geometryProtocolCodeCommit": "4c2ff17",
+  "hostTests": {
+    "DartAnalyze": "no issues",
+    "DartWidgetTests": 3,
+    "criteriaPython": 59,
+    "fullOutputParityCases": 104,
+    "geometryMathTests": 5,
+    "nativeTests": 18,
+    "strictTerminalPytest": 54
+  },
+  "iOSBuild": {
+    "aotSHA256": "51847e4df744108542274a61b361d4e211e589abe90c24d8ca5efe8255e56aa5",
+    "app": "/Users/6_month/bpt-runs/coaching-candidate-build-20261102/dd/Build/Products/Release-iphoneos/Runner.app",
+    "commit": "17582ce",
+    "dependencyGraph": "note: Target dependency graph (3 targets)",
+    "elapsedSeconds": 68.56530213356018,
+    "noPodsDownloadOrBuild": true,
+    "returncode": 0,
+    "runnerSHA256": "54b8f56b62166fefc6c91fd19aac164d79d13dc8a18cbf48a9e723538a2ca879",
+    "sourceUnchanged": true,
+    "target": "integration_test/coaching_candidate_capture_test.dart",
+    "temporaryPodLockSHA256": "520ca3910800a44c8dc531211df6913d5686c46550669530df2ea9b00657460a",
+    "trackedPodLockRestored": true,
+    "unsigned": true
+  },
+  "implementationCommit": "17582ce",
+  "phone": {
+    "installed": false,
+    "launched": false,
+    "status": "paused by latest user request",
+    "syntheticPositiveChannelDeviceWitness": "prepared but UNRUN; host/native fixture tests passed",
+    "writes": 0
+  },
+  "schema": "bpt.core3-implementation-host-evidence.v1",
+  "signedArtifact": {
+    "aotSHA256": "f5afb88b414e20ddb9f4a958eb5170eac571ffaee788321a1953fe7aafdb6ac4",
+    "codesignDeepStrict": true,
+    "commit": "17582ce",
+    "entitlementsExactOriginalTestApp": true,
+    "modelsOriginal673WeightsMIL": {
+      "motionagformer_xs.mlmodelc": {
+        "model.mil": "768b5f53b06c471b667005b71d0e17d6c2a87cc15f1a975dbd135456ca910c49",
+        "weights/weight.bin": "37a5c83431601e421a4d3d1e6fa6af39951062a08a7372cea172b98110d2f38e"
+      },
+      "rtmpose_m_forward.mlmodelc": {
+        "model.mil": "687892d47cf3827252b87799bc083d2189c53bc203b92431936b2c4cabd98836",
+        "weights/weight.bin": "c03d3ca169b36b657262e719f9bac12fa6e4b4dc331745ce045a77890ff1cc74"
+      },
+      "rtmpose_m_halpe26_forward.mlmodelc": {
+        "model.mil": "57d5145bb2116905290326ecef5e2485c864cbd1ed477724569fbc8a0835b3ea",
+        "weights/weight.bin": "eec87e9dccdb278f695669243e24f8a6c656c0ab98bd9de25ff3c5e0d1574b1e"
+      },
+      "rtmpose_s_forward.mlmodelc": {
+        "model.mil": "a1ee32ac3816709af62a0d1d68433dc18eb63596f95d83d3e87a32dd05759abd",
+        "weights/weight.bin": "bf1a64719c5e43b24708559d000d2f6a693d59e546e6fc5e2a7f45a1bacf7591"
+      },
+      "rtmpose_s_halpe26_forward.mlmodelc": {
+        "model.mil": "9d834cb4672f9927c1bd70b0ae029da3db7edec9ac4546a72c9aa9703161e286",
+        "weights/weight.bin": "f6f12b361030da6f4a786eec40174f94f6560837f0021f5393faf1233663e31d"
+      }
+    },
+    "runnerSHA256": "1b0c8c03f1b112a2bd05fc0accee66ae0a3677703aa2c12d17c385d11e8b84d6",
+    "unsignedRunnerSHA256": "54b8f56b62166fefc6c91fd19aac164d79d13dc8a18cbf48a9e723538a2ca879"
+  }
+}

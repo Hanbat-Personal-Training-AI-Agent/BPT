@@ -350,7 +350,11 @@ void main() {
         'result': {
           'stub': false,
           'smplBeta': List.filled(10, 0.0),
-          'boneLengthData': {'segments': {}},
+          'userHeightCm': 170,
+          'boneLengthData': {
+            'unit': 'cm',
+            'segments': {'hip_width': 28}
+          },
           'modelGlbUrl': 'https://photos.example.test/models/job-1.glb?sig=x',
         }
       });
@@ -368,6 +372,45 @@ void main() {
           throwsA(isA<CalibrationUploadException>()));
     });
 
+    test('done rejects unsupported units and malformed numeric measurements',
+        () async {
+      for (final patch in <Map<String, dynamic>>[
+        {'boneLengthData': 'not-an-object'},
+        {
+          'boneLengthData': {
+            'unit': 'm',
+            'segments': {'hip_width': .28}
+          }
+        },
+        {
+          'boneLengthData': {
+            'unit': 'cm',
+            'segments': {'hip_width': '28'}
+          }
+        },
+        {'userHeightCm': '170'},
+        {
+          'smplBeta': [0.1]
+        },
+      ]) {
+        api = jobApi({
+          'status': 'done',
+          'result': {
+            'stub': false,
+            'smplBeta': List.filled(10, 0.0),
+            'userHeightCm': 170,
+            'boneLengthData': {
+              'unit': 'cm',
+              'segments': {'hip_width': 28}
+            },
+            ...patch,
+          }
+        });
+        await expectLater(service().fetchJob('job-1'),
+            throwsA(isA<CalibrationUploadException>()));
+      }
+    });
+
     test('failed keeps the error code; old servers without progressRate work',
         () async {
       api = jobApi({'status': 'failed', 'error': 'timeout'});
@@ -383,9 +426,38 @@ void main() {
       api = jobApi({'error': 'job_not_found'}, 404);
       await expectLater(
           service().fetchJob('job-1'),
-          throwsA(isA<CalibrationUploadException>().having(
-              (e) => e.message, 'message', contains('찾을 수 없어요'))));
+          throwsA(isA<CalibrationUploadException>()
+              .having((e) => e.message, 'message', contains('찾을 수 없어요'))));
       await expectLater(service().fetchJob('../uploads'),
+          throwsA(isA<CalibrationUploadException>()));
+    });
+  });
+
+  group('fetchModel', () {
+    Dio model(List<int> bytes) => Dio()
+      ..httpClientAdapter = _Adapter((options, _) async {
+        storageCalls.add(options);
+        return ResponseBody.fromBytes(bytes, 200);
+      });
+    final glb = [...'glTF'.codeUnits, 2, 0, 0, 0, 12, 0, 0, 0];
+
+    test('downloads the GLB from storage without the app token', () async {
+      storage = model(glb);
+      final bytes = await service()
+          .fetchModel('https://photos.example.test/models/job-1.glb?sig=x');
+      expect(bytes, glb);
+      expect(storageCalls.single.headers.containsKey('Authorization'), isFalse);
+    });
+
+    test('rejects other hosts and non-GLB bodies', () async {
+      storage = model(glb);
+      await expectLater(
+          service().fetchModel('https://evil.example.test/models/job-1.glb'),
+          throwsA(isA<CalibrationUploadException>()));
+      expect(storageCalls, isEmpty);
+      storage = model(utf8.encode('<html>expired</html>'));
+      await expectLater(
+          service().fetchModel('https://photos.example.test/models/job-1.glb'),
           throwsA(isA<CalibrationUploadException>()));
     });
   });

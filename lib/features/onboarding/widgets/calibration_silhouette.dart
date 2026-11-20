@@ -62,7 +62,7 @@ class CalibrationGuide {
     this.bodyHeight = 0.62,
     this.minBodyHeight = 0.40,
     this.maxBodyHeight = 0.85,
-    this.maxCentreOffset = 0.06,
+    this.maxCentreOffset = 0.10,
     this.bufferAspect = 9 / 16,
   });
 
@@ -81,7 +81,7 @@ class CalibrationGuide {
       bodyHeight: read('bodyHeight', 0.62),
       minBodyHeight: read('minBodyHeight', 0.40),
       maxBodyHeight: read('maxBodyHeight', 0.85),
-      maxCentreOffset: read('maxCentreOffset', 0.06),
+      maxCentreOffset: read('maxCentreOffset', 0.10),
       bufferAspect: read('bufferAspect', 9 / 16),
     );
   }

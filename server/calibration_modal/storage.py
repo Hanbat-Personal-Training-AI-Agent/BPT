@@ -61,6 +61,11 @@ class Bucket:
             raise
         return meta["ContentLength"], meta.get("ContentType")
 
+    def latest(self, prefix):
+        """Key of the newest object under `prefix`, or None. One list page (1000 keys) is enough per user."""
+        items = self.client.list_objects_v2(Bucket=self.bucket, Prefix=prefix).get("Contents", [])
+        return max(items, key=lambda o: o["LastModified"])["Key"] if items else None
+
     def get(self, key):
         return self.client.get_object(Bucket=self.bucket, Key=key)["Body"].read()
 

@@ -61,6 +61,8 @@ class ApiClient {
 
   /// 진행 중인 토큰 갱신. 여러 요청이 동시에 만료돼도 갱신은 한 번만 한다.
   Future<bool>? _refreshing;
+  bool Function()? _refreshingCurrent;
+  Object? _refreshingTicket;
 
   /// 토큰을 갱신하면 새 액세스·리프레시 토큰을 넘긴다 (기기에 저장용).
   void Function(String accessToken, String? refreshToken)? onTokensRefreshed;
@@ -77,6 +79,9 @@ class ApiClient {
       if (kDebugMode) _ApiDebugLogInterceptor(),
       InterceptorsWrapper(
         onRequest: (options, handler) {
+          if (!_sessionActive(options)) {
+            return handler.reject(_sessionCancelled(options));
+          }
           if (_authToken != null && _authToken!.isNotEmpty) {
             options.headers[HttpHeaders.authorizationHeader] =
                 'Bearer $_authToken';
@@ -84,9 +89,18 @@ class ApiClient {
           return handler.next(options);
         },
         onError: (DioException error, handler) async {
+          final originalRequest = error.requestOptions;
+          if (!_sessionActive(error.requestOptions)) {
+            return handler.reject(_sessionCancelled(error.requestOptions));
+          }
           // 액세스 토큰 만료(서버는 403, 일부 401) → 한 번만 갱신하고 원래 요청을 다시 보낸다.
           if (_shouldRefresh(error) &&
-              (_sentWithOldToken(error) || await _refreshTokens())) {
+              (_sentWithOldToken(error) ||
+                  await _refreshTokens(
+                      sessionGuard: () => _sessionActive(originalRequest)))) {
+            if (!_sessionActive(error.requestOptions)) {
+              return handler.reject(_sessionCancelled(error.requestOptions));
+            }
             try {
               final options = error.requestOptions..extra[_retriedKey] = true;
               options.headers[HttpHeaders.authorizationHeader] =
@@ -95,6 +109,9 @@ class ApiClient {
             } on DioException catch (e) {
               error = e;
             }
+          }
+          if (!_sessionActive(error.requestOptions)) {
+            return handler.reject(_sessionCancelled(error.requestOptions));
           }
           final customException = error.error is ApiException
               ? error.error as ApiException
@@ -120,6 +137,32 @@ class ApiClient {
 
   /// 다른 계정의 운동 기록에 접근했을 때 백엔드가 주는 403 에러 코드.
   static const sessionAccessDenied = 'SESSION_ACCESS_DENIED';
+
+  /// Local callback only: never put this in headers, query parameters or data.
+  static const sessionGuardKey = 'bpt.sessionGuard';
+  static const sessionChangedCode = 'STALE_SESSION';
+
+  static bool _sessionActive(RequestOptions options) {
+    final guard = options.extra[sessionGuardKey];
+    if (guard == null) return true;
+    if (guard is! bool Function()) return false;
+    return _guardCurrent(guard);
+  }
+
+  static bool _guardCurrent(bool Function()? guard) {
+    try {
+      return guard?.call() ?? true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  static DioException _sessionCancelled(RequestOptions options) => DioException(
+        requestOptions: options,
+        type: DioExceptionType.cancel,
+        error:
+            ApiException('Account session changed', code: sessionChangedCode),
+      );
 
   static Dio _createDio(String? baseUrl) => Dio(
         BaseOptions(
@@ -171,13 +214,26 @@ class ApiClient {
       'Bearer $_authToken';
 
   /// POST /auth/refresh 로 새 토큰을 받는다. 성공하면 true.
-  Future<bool> _refreshTokens() {
-    return _refreshing ??= () async {
+  Future<bool> _refreshTokens({bool Function()? sessionGuard}) {
+    if (_refreshing != null && _guardCurrent(_refreshingCurrent)) {
+      return _refreshing!;
+    }
+    final originalAccess = _authToken;
+    final originalRefresh = _refreshToken;
+    bool sameSession() =>
+        _guardCurrent(sessionGuard) &&
+        _authToken == originalAccess &&
+        _refreshToken == originalRefresh;
+    final ticket = Object();
+    _refreshingTicket = ticket;
+    _refreshingCurrent = sameSession;
+    final pending = () async {
       try {
         final response = await _refreshDio.post(
           '/auth/refresh',
-          data: {'refreshToken': _refreshToken},
+          data: {'refreshToken': originalRefresh},
         );
+        if (!sameSession()) return false;
         final data = response.data;
         final access =
             data is Map ? data['accessToken'] ?? data['token'] : null;
@@ -191,16 +247,33 @@ class ApiClient {
         // 서버가 거절했으면(401·403) 리프레시 토큰도 만료 → 다시 로그인.
         // 네트워크·서버 오류면 세션은 그대로 두고 원래 에러를 돌려준다.
         final status = e.response?.statusCode;
-        if (status == 401 || status == 403) {
+        if (sameSession() && (status == 401 || status == 403)) {
           _authToken = null;
           _refreshToken = null;
           onSessionExpired?.call();
         }
         return false;
       } finally {
-        _refreshing = null;
+        if (identical(_refreshingTicket, ticket)) {
+          _refreshing = null;
+          _refreshingCurrent = null;
+          _refreshingTicket = null;
+        }
       }
     }();
+    _refreshing = pending;
+    return pending;
+  }
+
+  /// Reuse the session's single-flight refresh for a trusted external API.
+  /// Call only after that API rejects the access token, and retry it once.
+  Future<String?> refreshAccessToken(String rejectedToken,
+      {bool Function()? sessionGuard}) async {
+    if (!_guardCurrent(sessionGuard)) return null;
+    if (_authToken == null || _refreshToken == null) return null;
+    if (_authToken != rejectedToken) return _authToken;
+    final refreshed = await _refreshTokens(sessionGuard: sessionGuard);
+    return refreshed && _guardCurrent(sessionGuard) ? _authToken : null;
   }
 
   String? get authToken => _authToken;

@@ -1,0 +1,133 @@
+{
+  "accuracy_claim": false,
+  "comparisons": [
+    {
+      "exercise": "barbell-row",
+      "left_index": 2,
+      "numeric_pair_count": 0,
+      "reason_counts": {
+        "clock_mapping_unverified": 10,
+        "coordinate_frame_source_mismatch": 10,
+        "media_identity_missing": 10,
+        "original_interval_mismatch": 10,
+        "pose_units_source_mismatch": 10,
+        "side_policy_source_mismatch": 10,
+        "unsupported_exercise": 10
+      },
+      "right_index": 3,
+      "semantic_parity_asserted": false,
+      "states": {
+        "withheld": 10
+      }
+    }
+  ],
+  "ground_truth_used": false,
+  "input_files_unchanged": true,
+  "new_inference": false,
+  "schema": "bpt.coaching-shadow-replay-aggregate.v1",
+  "shadow_only": true,
+  "streams": [
+    {
+      "absolute_normality": "not_assessed",
+      "delivery_states": {
+        "missing": 10
+      },
+      "exercise": "squat",
+      "input_contract_sha256": "aa496012a5b0b8648804fd20bf7eafedfb53d78ba9168d7b220e559b790a75d2",
+      "observation_sha256": "c783990a63bb3aa05afd30bd122b3c9b2e513a53a3e7430a86dddc4e83db5039",
+      "observed_subset_positive": 0,
+      "qualified_states": {
+        "withheld": 10
+      },
+      "reference_correctness": "not_established",
+      "rep_count": 10,
+      "retained_original_fault_keys": {},
+      "runtime_states": {
+        "missing": 10
+      },
+      "scalar_available": 7,
+      "source_kind": "actual_native_terminal_capture",
+      "withheld_reason_counts": {
+        "collecting_observed_reference": 3,
+        "reference:view_missing": 7,
+        "view_missing": 10
+      }
+    },
+    {
+      "absolute_normality": "not_assessed",
+      "delivery_states": {
+        "missing": 10
+      },
+      "exercise": "pushup",
+      "input_contract_sha256": "101ac6e00cd180fa3bb32ed5258620adb8277225cae92e07c977d98497841e6c",
+      "observation_sha256": "508cf87e31740b20e17b6b44775b3ab28cdc9fc94fbbcd5af69acfa031dbe3fa",
+      "observed_subset_positive": 0,
+      "qualified_states": {
+        "no_warning": 5,
+        "withheld": 5
+      },
+      "reference_correctness": "not_established",
+      "rep_count": 10,
+      "retained_original_fault_keys": {},
+      "runtime_states": {
+        "missing": 10
+      },
+      "scalar_available": 7,
+      "source_kind": "actual_native_terminal_capture",
+      "withheld_reason_counts": {
+        "collecting_observed_reference": 3,
+        "source_observation_gaps": 2
+      }
+    },
+    {
+      "absolute_normality": "not_assessed",
+      "delivery_states": {
+        "missing": 10
+      },
+      "exercise": "barbell-row",
+      "input_contract_sha256": "ee6bfa5e361e76e8cb7b94d6634c9b879b32e7980ac6210958feec80a74f8528",
+      "observation_sha256": "20f8daf37800599513bdafba20e0e4b312a66cbf593fca68aad031143bf8921a",
+      "observed_subset_positive": 0,
+      "qualified_states": {
+        "withheld": 10
+      },
+      "reference_correctness": "not_established",
+      "rep_count": 10,
+      "retained_original_fault_keys": {},
+      "runtime_states": {
+        "missing": 10
+      },
+      "scalar_available": 0,
+      "source_kind": "actual_native_terminal_capture",
+      "withheld_reason_counts": {
+        "unsupported_exercise": 10
+      }
+    },
+    {
+      "absolute_normality": "not_assessed",
+      "delivery_states": {
+        "missing": 10
+      },
+      "exercise": "barbell-row",
+      "input_contract_sha256": "3f30f55e99cec0a1958639c992a06a9ffe316ebf2eb8c1dd91e9df1ab4512cb8",
+      "observation_sha256": "f651a10ac6d8415908f3969353266be4175364e18d77a9eafe53ff4c2320c9fa",
+      "observed_subset_positive": 0,
+      "qualified_states": {
+        "withheld": 10
+      },
+      "reference_correctness": "not_established",
+      "rep_count": 10,
+      "retained_original_fault_keys": {
+        "symmetry": 10
+      },
+      "runtime_states": {
+        "missing": 10
+      },
+      "scalar_available": 0,
+      "source_kind": "actual_isolated_deep_worker",
+      "withheld_reason_counts": {
+        "unsupported_exercise": 10
+      }
+    }
+  ]
+}

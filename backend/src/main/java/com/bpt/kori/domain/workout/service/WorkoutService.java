@@ -8,6 +8,7 @@ import com.bpt.kori.domain.workout.dto.MonthlyCalendarResponseDto;
 import com.bpt.kori.domain.workout.dto.WorkoutMetadataRequestDto;
 import com.bpt.kori.domain.workout.dto.WorkoutMetadataResponseDto;
 import com.bpt.kori.domain.workout.dto.WorkoutRecordResponseDto;
+import com.bpt.kori.domain.workout.dto.WorkoutEvidenceContract;
 import com.bpt.kori.domain.workout.entity.WorkoutFeedbackLog;
 import com.bpt.kori.domain.workout.entity.WorkoutRecord;
 import com.bpt.kori.domain.workout.entity.WorkoutSetRecord;
@@ -60,22 +61,38 @@ public class WorkoutService {
                     .build();
         }
 
+        boolean nativeEvidence = WorkoutEvidenceContract.validateRequest(dto);
         String summaryJson = null;
         if (dto.getPoseMetricsSummary() != null) {
             try {
                 summaryJson = objectMapper.writeValueAsString(dto.getPoseMetricsSummary());
             } catch (Exception e) {
-                log.warn("Failed to serialize poseMetricsSummary: {}", e.getMessage());
+                throw new CustomException(ErrorCode.INVALID_INPUT_VALUE);
             }
         }
 
-        int sets = dto.getEffectiveSets();
-        int reps = dto.getEffectiveReps();
+        List<?> nativeSets = nativeEvidence
+                ? (List<?>) ((Map<?, ?>) dto.getPoseMetricsSummary().get("workoutEvidence")).get("sets") : List.of();
+        int sets = nativeEvidence ? (dto.getTargetSets() != null ? dto.getTargetSets() : 0) : dto.getEffectiveSets();
+        int reps = nativeEvidence ? (dto.getTargetReps() != null ? dto.getTargetReps() : 0) : dto.getEffectiveReps();
 
+        BigDecimal nativeWeight = nativeSets.stream().map(item -> ((Number) ((Map<?, ?>) item).get("weightKg")).doubleValue())
+                .max(Double::compareTo).map(BigDecimal::valueOf).orElse(BigDecimal.ZERO);
         int calculatedVolume = 0;
         int completedSetsCount = (dto.getTotalSets() != null && dto.getTotalSets() > 0) ? dto.getTotalSets() : sets;
 
-        if (dto.getSetsDetail() != null && !dto.getSetsDetail().isEmpty()) {
+        if (nativeEvidence) {
+            completedSetsCount = nativeSets.size();
+            double exactVolume = 0;
+            for (Object item : nativeSets) {
+                Map<?, ?> set = (Map<?, ?>) item;
+                exactVolume += ((Number) set.get("weightKg")).doubleValue() * ((Number) set.get("reps")).longValue();
+            }
+            // Existing integer wire compatibility: round the final sum once, preserve raw set weights.
+            long volume = Math.round(exactVolume);
+            if (!Double.isFinite(exactVolume) || volume > Integer.MAX_VALUE) throw new CustomException(ErrorCode.INVALID_INPUT_VALUE);
+            calculatedVolume = (int) volume;
+        } else if (dto.getSetsDetail() != null && !dto.getSetsDetail().isEmpty()) {
             completedSetsCount = dto.getSetsDetail().size();
             for (var setDto : dto.getSetsDetail()) {
                 double weight = setDto.getWeightKg() != null ? setDto.getWeightKg() : (dto.getWeightKg() != null ? dto.getWeightKg().doubleValue() : 0.0);
@@ -87,13 +104,18 @@ public class WorkoutService {
             calculatedVolume = (int) (dto.getWeightKg().doubleValue() * totalReps);
         }
 
-        int finalVolume = (dto.getTotalVolume() != null && dto.getTotalVolume() > 0)
-                ? dto.getTotalVolume()
-                : calculatedVolume;
+        int finalVolume = nativeEvidence ? calculatedVolume : (dto.getTotalVolume() != null && dto.getTotalVolume() > 0
+                ? dto.getTotalVolume() : calculatedVolume);
 
         Boolean isGoalAchieved = dto.getIsGoalAchieved() != null
                 ? dto.getIsGoalAchieved()
                 : (completedSetsCount >= sets);
+
+        if (nativeEvidence) {
+            boolean repGoal = reps > 0, setGoal = sets > 0;
+            isGoalAchieved = repGoal || setGoal
+                    ? (!repGoal || dto.getTotalReps() >= reps) && (!setGoal || completedSetsCount >= sets) : null;
+        }
 
         Map<String, Integer> feedbackCounts = (dto.getFeedbackCounts() != null)
                 ? new HashMap<>(dto.getFeedbackCounts())
@@ -105,8 +127,8 @@ public class WorkoutService {
                 .exerciseId(dto.getExerciseId())
                 .exerciseName(dto.getExerciseName())
                 .date(dto.getDate() != null ? dto.getDate() : LocalDateTime.now())
-                .weightKg(dto.getWeightKg() != null ? dto.getWeightKg() : BigDecimal.ZERO)
-                .totalReps(dto.getTotalReps() > 0 ? dto.getTotalReps() : (sets * reps))
+                .weightKg(nativeEvidence ? nativeWeight : (dto.getWeightKg() != null ? dto.getWeightKg() : BigDecimal.ZERO))
+                .totalReps(nativeEvidence ? dto.getTotalReps() : (dto.getTotalReps() > 0 ? dto.getTotalReps() : (sets * reps)))
                 .correctReps(dto.getCorrectReps())
                 .incorrectReps(dto.getIncorrectReps())
                 .durationSeconds(dto.getDurationSeconds())
@@ -120,7 +142,15 @@ public class WorkoutService {
                 .feedbackCounts(feedbackCounts)
                 .build();
 
-        if (dto.getSetsDetail() != null) {
+        if (nativeEvidence) {
+            int number = 1;
+            for (Object item : nativeSets) {
+                Map<?, ?> set = (Map<?, ?>) item;
+                record.addSetRecord(WorkoutSetRecord.builder().setNumber(number++)
+                        .reps(((Number) set.get("reps")).intValue())
+                        .weightKg(((Number) set.get("weightKg")).doubleValue()).build());
+            }
+        } else if (dto.getSetsDetail() != null) {
             for (var setDto : dto.getSetsDetail()) {
                 record.addSetRecord(WorkoutSetRecord.builder()
                         .setNumber(setDto.getSetNumber() != null ? setDto.getSetNumber() : 1)

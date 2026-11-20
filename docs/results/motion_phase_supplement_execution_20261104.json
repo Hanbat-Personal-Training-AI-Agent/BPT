@@ -1,0 +1,24 @@
+{
+  "aggregateSha256": "b0f46c1c3002548802f22577ca67a01eaabc3138c2b5f8abf9f0148cf04b5ec5",
+  "closedMainAggregateSha256": "64f8aee540927c439824cc1192e172fd129a1d57fe5cc929daa98a84863fd723",
+  "closedMainManifestSha256": "13f835733dbe9f02db0d6b8e16160eb5988e6f3493f43185a26fa45a7291b409",
+  "cpuThreads": 1,
+  "elapsedSeconds": 4.426880709012039,
+  "estimatorCalls": 0,
+  "frozenCollectorSha256": "d649a2325b3484135693e7e3216421fce591e77f0059b5fe6a7e002c8573c0b4",
+  "newInference": false,
+  "numpyVersion": "1.26.4",
+  "policies": [
+    "A",
+    "legacy_G",
+    "legacy_H",
+    "accepted_phase_H"
+  ],
+  "privateReceiptSha256": "92ce180ea86dabc329b8d20c89156500908c3da3d275cd53af10e8bb48cce881",
+  "protocolSha256": "7837dc5ce278d033fc8987cc94d6cad38b5a8b4743c51f341afbebf725963d9c",
+  "pythonVersion": "3.11.15 (main, Jun 11 2026, 15:20:16) [GCC 14.3.0]",
+  "snapshotsRechecked": 1054,
+  "sourceSha256": "646d0e0172fa26ca531e00fdd4c59188c12477c50bff855f588e8ff1a7ae199d",
+  "status": "PASS",
+  "streams": 72
+}

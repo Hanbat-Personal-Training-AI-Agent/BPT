@@ -1,0 +1,274 @@
+{
+  "schema": "bpt.core3-technique-candidates.v1",
+  "revision": "20261103-r1",
+  "authority": "engineering_candidate_only_no_expert_approval",
+  "variants": {
+    "pushup": "floor",
+    "squat": "barbell_back_squat",
+    "barbell-row": "strict_bent_over"
+  },
+  "parameters": {
+    "pushup.cameraSagUpper": 0.14,
+    "pushup.cameraPikeLower": -0.08,
+    "pushup.projectedUpperArmUpper": null,
+    "pushup.bottomElbowUpper": null,
+    "pushup.topElbowLower": null,
+    "squat.torsoRiseUpper": 8,
+    "squat.hipShoulderRiseDifferenceUpper": 0,
+    "squat.bottomKneeUpper": null,
+    "squat.topKneeLower": null,
+    "squat.topHipLower": null,
+    "row.cameraTorsoRangeUpper": 39.9,
+    "row.kneeExtensionLower": null,
+    "row.elbowFlexionLower": null,
+    "support.minimumJointScore": 0.5,
+    "support.maximumAngleCorrection": 10,
+    "support.maximumHipRatioCorrection": null,
+    "window.maximumGapSeconds": 0.25,
+    "window.squatAscentSeconds": 0.3,
+    "window.rowRangeSeconds": 2
+  },
+  "parameterSources": {
+    "pushup.cameraSagUpper": "PushUpFormConfig.hipSagDeviation=.140; transferred to explicitly camera-up proxy, not identical when native judgement gravity differs",
+    "pushup.cameraPikeLower": "negative PushUpFormConfig.hipPikeDeviation=.08; same transfer limitation",
+    "squat.torsoRiseUpper": "SquatFormConfig.hipsFirstTorsoRiseDegrees=8; new .3s source-PTS ascent interval is not native8-frame window",
+    "squat.hipShoulderRiseDifferenceUpper": "native hipRiseSpeed>shoulderRiseSpeed algebraic zero; same direct 2D height difference normalized by initial torso length/source elapsed time",
+    "row.cameraTorsoRangeUpper": "BarbellRowFormConfig.torsoSwingRangeDegrees=39.9; camera-up rolling window transfer, NOT native whole-rep rule parity",
+    "support.minimumJointScore": "ExperimentalCoaching.minConfidence=.5; score not calibrated probability",
+    "support.maximumAngleCorrection": "ExperimentalCoaching.maxCorrectionDegrees=10; derived angle differences additionally check both endpoint corrections",
+    "window.maximumGapSeconds": "ExperimentalCoaching.maxGapSeconds=.25; a causal evidence continuity policy",
+    "window.squatAscentSeconds": "historical ai/coaching-team docs/coaching/squat.md .3s engineering proposal; does not equal native8frames",
+    "window.rowRangeSeconds": "declared engineering rolling2s interval; not a complete repetition",
+    "unconfigured": "missing parameters require explicit caller engineering values and provenance; no target learned from first reps, literature or rep-count thresholds"
+  },
+  "rules": [
+    {
+      "id": "pushup.camera_body_line_transfer",
+      "exercise": "pushup",
+      "variant": "floor",
+      "target": "maintain body/pelvis line during active movement; camera proxy, not lumbar/floor contact",
+      "op": "OR",
+      "phases": [
+        "descending",
+        "bottom",
+        "ascending"
+      ],
+      "atoms": [
+        {
+          "metric": "cameraHipLineDeviationRatio",
+          "comparator": "gt",
+          "parameter": "pushup.cameraSagUpper"
+        },
+        {
+          "metric": "cameraHipLineDeviationRatio",
+          "comparator": "lt",
+          "parameter": "pushup.cameraPikeLower"
+        }
+      ]
+    },
+    {
+      "id": "pushup.projected_arm_range",
+      "exercise": "pushup",
+      "variant": "floor",
+      "target": "supplied variant-specific projected upper-arm bound; no anatomical45/60-degree substitution",
+      "op": "OR",
+      "phases": [
+        "descending",
+        "bottom",
+        "ascending"
+      ],
+      "atoms": [
+        {
+          "metric": "leftUpperArmDeg",
+          "comparator": "gt",
+          "parameter": "pushup.projectedUpperArmUpper"
+        },
+        {
+          "metric": "rightUpperArmDeg",
+          "comparator": "gt",
+          "parameter": "pushup.projectedUpperArmUpper"
+        }
+      ]
+    },
+    {
+      "id": "pushup.bottom_target",
+      "exercise": "pushup",
+      "variant": "floor",
+      "target": "supplied elbow minimum target in a completely observed bottom phase; not chest-floor distance",
+      "op": "OR",
+      "phases": [
+        "bottom"
+      ],
+      "atoms": [
+        {
+          "metric": "leftElbowCompletedBottomMinimumDeg",
+          "comparator": "gt",
+          "parameter": "pushup.bottomElbowUpper"
+        },
+        {
+          "metric": "rightElbowCompletedBottomMinimumDeg",
+          "comparator": "gt",
+          "parameter": "pushup.bottomElbowUpper"
+        }
+      ],
+      "temporal": "same_window_summary"
+    },
+    {
+      "id": "pushup.top_extension_target",
+      "exercise": "pushup",
+      "variant": "floor",
+      "target": "both observed elbows meet supplied top angle targets; scoped desired match only",
+      "op": "AND",
+      "meaning": "desired_match",
+      "phases": [
+        "top"
+      ],
+      "atoms": [
+        {
+          "metric": "leftElbowDeg",
+          "comparator": "gte",
+          "parameter": "pushup.topElbowLower"
+        },
+        {
+          "metric": "rightElbowDeg",
+          "comparator": "gte",
+          "parameter": "pushup.topElbowLower"
+        }
+      ]
+    },
+    {
+      "id": "squat.early_ascent_coordination",
+      "exercise": "squat",
+      "variant": "bodyweight",
+      "target": "camera torso rise AND direct image hip rising faster than shoulder in same causal early-ascent interval",
+      "op": "AND",
+      "phases": [
+        "ascending"
+      ],
+      "atoms": [
+        {
+          "metric": "cameraTorsoRiseFromBottomDeg",
+          "comparator": "gt",
+          "parameter": "squat.torsoRiseUpper"
+        },
+        {
+          "metric": "imageHipShoulderRiseRateDifference",
+          "comparator": "gt",
+          "parameter": "squat.hipShoulderRiseDifferenceUpper"
+        }
+      ],
+      "temporal": "same_window_summary",
+      "variants": [
+        "bodyweight",
+        "barbell_back_squat"
+      ]
+    },
+    {
+      "id": "squat.bottom_target",
+      "exercise": "squat",
+      "variant": "bodyweight",
+      "target": "supplied knee minimum target in a completely observed bottom phase; not absolute floor/thigh depth",
+      "op": "OR",
+      "phases": [
+        "bottom"
+      ],
+      "atoms": [
+        {
+          "metric": "leftKneeCompletedBottomMinimumDeg",
+          "comparator": "gt",
+          "parameter": "squat.bottomKneeUpper"
+        },
+        {
+          "metric": "rightKneeCompletedBottomMinimumDeg",
+          "comparator": "gt",
+          "parameter": "squat.bottomKneeUpper"
+        }
+      ],
+      "temporal": "same_window_summary",
+      "variants": [
+        "bodyweight",
+        "barbell_back_squat"
+      ]
+    },
+    {
+      "id": "squat.top_extension_target",
+      "exercise": "squat",
+      "variant": "bodyweight",
+      "target": "selected anatomical side knee AND thorax8-hip-knee interior angle meet supplied targets; not native shoulder-hip-knee alias",
+      "op": "AND",
+      "meaning": "desired_match",
+      "phases": [
+        "top"
+      ],
+      "selectedSideAtoms": true,
+      "atoms": [
+        {
+          "metric": "{side}KneeDeg",
+          "comparator": "gte",
+          "parameter": "squat.topKneeLower"
+        },
+        {
+          "metric": "{side}HipDeg",
+          "comparator": "gte",
+          "parameter": "squat.topHipLower"
+        }
+      ],
+      "variants": [
+        "bodyweight",
+        "barbell_back_squat"
+      ]
+    },
+    {
+      "id": "row.camera_torso_window_transfer",
+      "exercise": "barbell-row",
+      "variant": "strict_bent_over",
+      "target": "camera torso excursion in complete declared causal rolling window; not native whole-rep swing",
+      "op": "OR",
+      "phases": [
+        "pulling",
+        "lowering"
+      ],
+      "atoms": [
+        {
+          "metric": "cameraTorsoCausalRangeDeg",
+          "comparator": "gt",
+          "parameter": "row.cameraTorsoRangeUpper"
+        }
+      ],
+      "temporal": "same_window_summary"
+    },
+    {
+      "id": "row.phase_prefix_leg_arm_cooccurrence",
+      "exercise": "barbell-row",
+      "variant": "strict_bent_over",
+      "target": "both knees extend AND both elbows flex over identical observed pulling-phase prefix; co-occurrence, not instantaneous coincidence, force or intentional cheating",
+      "op": "AND",
+      "phases": [
+        "pulling"
+      ],
+      "atoms": [
+        {
+          "metric": "leftKneeExtensionSincePullStartDeg",
+          "comparator": "gte",
+          "parameter": "row.kneeExtensionLower"
+        },
+        {
+          "metric": "rightKneeExtensionSincePullStartDeg",
+          "comparator": "gte",
+          "parameter": "row.kneeExtensionLower"
+        },
+        {
+          "metric": "leftElbowFlexionSincePullStartDeg",
+          "comparator": "gte",
+          "parameter": "row.elbowFlexionLower"
+        },
+        {
+          "metric": "rightElbowFlexionSincePullStartDeg",
+          "comparator": "gte",
+          "parameter": "row.elbowFlexionLower"
+        }
+      ],
+      "temporal": "same_window_summary"
+    }
+  ]
+}

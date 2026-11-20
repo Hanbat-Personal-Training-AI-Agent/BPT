@@ -20,7 +20,7 @@ class WorkoutState {
   final int countdownValue;
   final String feedbackMessage;
   final List<String> feedbackHistory;
-  final double postureScore;
+  final double? postureScore;
   final bool isPoseDetected;
   final int accumulatedReps;
   final int accumulatedCorrect;
@@ -39,7 +39,7 @@ class WorkoutState {
     this.countdownValue = 3,
     this.feedbackMessage = 'Position yourself in front of the camera',
     this.feedbackHistory = const [],
-    this.postureScore = 0,
+    this.postureScore,
     this.isPoseDetected = false,
     this.accumulatedReps = 0,
     this.accumulatedCorrect = 0,
@@ -96,6 +96,7 @@ class WorkoutState {
   }
 }
 
+/// Legacy demo simulator; not the native workout route and never form evidence.
 class WorkoutNotifier extends StateNotifier<WorkoutState> {
   WorkoutNotifier() : super(const WorkoutState());
 
@@ -156,7 +157,7 @@ class WorkoutNotifier extends StateNotifier<WorkoutState> {
       _feedbackIndex = (_feedbackIndex + 1) % workoutFeedbacks.length;
       state = state.copyWith(
         feedbackMessage: workoutFeedbacks[_feedbackIndex],
-        postureScore: _simulateScore(),
+        postureScore: null,
       );
     });
   }
@@ -201,7 +202,7 @@ class WorkoutNotifier extends StateNotifier<WorkoutState> {
           feedbackHistory: history,
           status: WorkoutStatus.setComplete,
           feedbackMessage: 'Set ${state.currentSet} complete!',
-          postureScore: _simulateScore(),
+          postureScore: null,
         );
       } else {
         // 모든 세트 완료
@@ -215,7 +216,7 @@ class WorkoutNotifier extends StateNotifier<WorkoutState> {
           feedbackHistory: history,
           status: WorkoutStatus.complete,
           feedbackMessage: 'Workout complete! Great job!',
-          postureScore: _simulateScore(),
+          postureScore: null,
         );
       }
     } else {
@@ -224,8 +225,8 @@ class WorkoutNotifier extends StateNotifier<WorkoutState> {
         correctReps: newCorrect,
         incorrectReps: newIncorrect,
         feedbackHistory: history,
-        feedbackMessage: isCorrect ? 'Perfect rep!' : 'Watch your form!',
-        postureScore: _simulateScore(),
+        feedbackMessage: 'Demo rep counted — form not assessed',
+        postureScore: null,
       );
     }
   }
@@ -282,11 +283,6 @@ class WorkoutNotifier extends StateNotifier<WorkoutState> {
   void reset() {
     _stopAllTimers();
     state = const WorkoutState();
-  }
-
-  double _simulateScore() {
-    final base = 82.0 + _rng.nextDouble() * 15;
-    return double.parse(base.toStringAsFixed(1));
   }
 
   void _stopAllTimers() {

@@ -1,0 +1,156 @@
+{
+  "allSettingsReplay": {
+    "aggregateRows": 81,
+    "frozenAggregateSHA256": "6d0a2aa5e3fbe01df2ee40d0293d501bac4f26bb604e7100888c2ecacd7a0f1e",
+    "frozenV3RawAssessmentMatricesEqual": true,
+    "frozenV3ResultsEqual": true,
+    "newAggregateSHA256": "6e8bcb016dfb4fee2d8cffce2f6618f95cf26d4841c27188b7d803d2b696956b",
+    "originalsUnchanged": true,
+    "outputRoot": "/Users/6_month/bpt-runs/live-candidate-host-20261103/all-settings",
+    "pythonNativeParityRequests": 7155,
+    "scope": "Before final presentation-only force-reset cadence change; unchanged math. Final-source base live integration rerun afterward."
+  },
+  "artifactRoot": "/Users/6_month/bpt-runs/live-candidate-host-20261103",
+  "frames": 2398,
+  "frozenV3RuleCountsEqual": true,
+  "fullOutputParityFrames": 2398,
+  "headlessTypecheck": {
+    "cachedFrameworks": true,
+    "commandSHA256": "c69935809218b9876924281c099e75ebb94fdd76d1d87091f08ede2a4e697c72",
+    "exitCode": 0,
+    "limitations": "Existing sendability and AVFoundation deprecation warnings. Typecheck only, no device execution.",
+    "logSHA256": "6164353d5d51a401302092eb0009a6520115ce1ff2108bd15d39aa13e98ddbb7",
+    "sdk": "iPhoneOS27.1",
+    "target": "arm64-apple-ios16.0"
+  },
+  "nativeTests": {
+    "focusedDiscovered": 69,
+    "focusedFailures": 0,
+    "focusedSkipped": 0,
+    "retainedReplayFailures": 0,
+    "retainedReplayFrames": 2398,
+    "seconds": 8.833
+  },
+  "originalSHA256": {
+    "barbellrow": "20f8daf37800599513bdafba20e0e4b312a66cbf593fca68aad031143bf8921a",
+    "pushup": "508cf87e31740b20e17b6b44775b3ab28cdc9fc94fbbcd5af69acfa031dbe3fa",
+    "squat": "c783990a63bb3aa05afd30bd122b3c9b2e513a53a3e7430a86dddc4e83db5039"
+  },
+  "processorMilliseconds": {
+    "max": 4.4658333354163915,
+    "median": 0.9149583347607404,
+    "p95": 2.929333335487172
+  },
+  "proposals": 0,
+  "results": [
+    {
+      "exercise": "barbell-row",
+      "flush": {
+        "not_applicable": 5
+      },
+      "genuine": {
+        "negative_evidence": 198,
+        "not_applicable": 285,
+        "unknown": 99
+      },
+      "rule": "row.camera_torso_window_transfer"
+    },
+    {
+      "exercise": "barbell-row",
+      "flush": {
+        "not_applicable": 5
+      },
+      "genuine": {
+        "negative_evidence": 73,
+        "not_applicable": 413,
+        "unknown": 96
+      },
+      "rule": "row.phase_prefix_leg_arm_cooccurrence"
+    },
+    {
+      "exercise": "pushup",
+      "flush": {
+        "unknown": 5
+      },
+      "genuine": {
+        "unknown": 543
+      },
+      "rule": "pushup.bottom_target"
+    },
+    {
+      "exercise": "pushup",
+      "flush": {
+        "not_applicable": 5
+      },
+      "genuine": {
+        "negative_evidence": 148,
+        "not_applicable": 186,
+        "unknown": 209
+      },
+      "rule": "pushup.camera_body_line_transfer"
+    },
+    {
+      "exercise": "pushup",
+      "flush": {
+        "unknown": 5
+      },
+      "genuine": {
+        "unknown": 543
+      },
+      "rule": "pushup.projected_arm_range"
+    },
+    {
+      "exercise": "pushup",
+      "flush": {
+        "unknown": 5
+      },
+      "genuine": {
+        "unknown": 543
+      },
+      "rule": "pushup.top_extension_target"
+    },
+    {
+      "exercise": "squat",
+      "flush": {
+        "unknown": 5
+      },
+      "genuine": {
+        "unknown": 1258
+      },
+      "rule": "squat.bottom_target"
+    },
+    {
+      "exercise": "squat",
+      "flush": {
+        "not_applicable": 5
+      },
+      "genuine": {
+        "negative_evidence": 47,
+        "not_applicable": 1194,
+        "unknown": 17
+      },
+      "rule": "squat.early_ascent_coordination"
+    },
+    {
+      "exercise": "squat",
+      "flush": {
+        "unknown": 5
+      },
+      "genuine": {
+        "unknown": 1258
+      },
+      "rule": "squat.top_extension_target"
+    }
+  ],
+  "schema": "bpt.live-candidate-host-replay.v1",
+  "sourceSHA256": {
+    "ios/CalibrationEngineKit/Tests/CalibrationEngineKitTests/CoachingCandidateLiveReplayTests.swift": "9327916049d161a78e0c5e6698191cb3f8d3aa52b9c7edd84c28764abdc374e4",
+    "ios/CalibrationEngineKit/Tests/CalibrationEngineKitTests/CoachingCandidateTests.swift": "7a5151b069a0fc5e1ba89c6f2141de7fccb2078c2e1665fbfca27a478d3f91dc",
+    "ios/Runner/NativePose/Camera/CameraPosePreview.swift": "edb3ad6891a34dced73773469255229b2c1db78ca88943ef67734caddeb69922",
+    "ios/Runner/NativePose/Evaluators/CoachingCandidateEngine.swift": "cff473f28f8cfb06a19cb0195828fffecc23aba1b26f91d6084c45252910fe25",
+    "ios/Runner/NativePose/Evaluators/CoachingCandidateProposal.swift": "5616a334b6a1b2bd103de35ccb77dc51a3cb593ce584011a9ca43004aadeb659",
+    "ios/Runner/NativePose/Evaluators/CoachingCandidateRuntime.swift": "369cde7b6933ffa08a16752e0c40edcd3eadf4fb116730d6da3a7649c6b17821"
+  },
+  "syntheticTransitionPacketSHA256": "d81af335d40b12df6cf03cb12eb2677a7ffc070bd36d68c03e054c50235faa0c",
+  "timingScope": "host CPU, typed adapter plus full requests and compact validation; no inference; not device latency"
+}

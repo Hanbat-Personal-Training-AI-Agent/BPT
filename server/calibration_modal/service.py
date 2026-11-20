@@ -34,7 +34,8 @@ JOB_DEADLINE_SECONDS = 30 * 60
 WARMUP_INTERVAL_SECONDS = 5 * 60
 
 
-def create_app(bucket, state, spawn, jwt_secret, call_failure=lambda call_id: None, warm=lambda: None):
+def create_app(bucket, state, spawn, jwt_secret, call_failure=lambda call_id: None, warm=lambda: None,
+               deep_spawn=None):
     """`spawn(job)` queues the fitting worker (fit_body.spawn in production) and may return the
     call (anything with .object_id). `call_failure(call_id)` returns an error code when that call
     ended without the worker recording it (crash, OOM, Modal timeout), else None. `warm()` starts
@@ -151,6 +152,9 @@ def create_app(bucket, state, spawn, jwt_secret, call_failure=lambda call_id: No
             body["error"] = job.get("error", "internal_error")
         return body
 
+    if deep_spawn is not None:
+        import deep_analysis
+        deep_analysis.attach(app, bucket, state, deep_spawn, jwt_secret, call_failure)
     return app
 
 

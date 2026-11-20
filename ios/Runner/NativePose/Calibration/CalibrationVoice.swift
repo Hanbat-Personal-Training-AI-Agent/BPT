@@ -52,12 +52,12 @@ final class CalibrationVoice: NSObject {
         guard now - lastBeepAt >= interval else { return }
         lastBeepAt = now
         tick?.currentTime = 0
-        tick?.play()
+        if !WorkoutDebugFlags.voiceMuted { tick?.play() }
     }
 
     func playCaptureChime() {
         chime?.currentTime = 0
-        chime?.play()
+        if !WorkoutDebugFlags.voiceMuted { chime?.play() }
     }
 
     /// Stops at once (the user backed out).
@@ -117,6 +117,7 @@ final class CalibrationVoice: NSObject {
         wav.append(contentsOf: Array("data".utf8)); append(dataSize.littleEndian)
         samples.withUnsafeBytes { wav.append(contentsOf: $0) }
         let player = try? AVAudioPlayer(data: wav)
+        player?.volume = WorkoutDebugFlags.outputVolume  // 0 only in test-only muted launches
         player?.prepareToPlay()
         return player
     }

@@ -4,6 +4,8 @@ import 'dart:typed_data';
 
 import 'package:bpt/core/network/api_client.dart';
 import 'package:bpt/data/dto/workout_metadata_dto.dart';
+import 'package:bpt/data/repositories/workout_repository.dart';
+import 'package:bpt/features/workout/data/workout_evidence.dart';
 import 'package:bpt/features/auth/providers/auth_provider.dart';
 import 'package:bpt/services/local_storage_service.dart';
 import 'package:bpt/services/sync_service.dart';
@@ -13,6 +15,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'helpers/session_fixture.dart';
 
 class _FakeConnectivity implements Connectivity {
   bool online = false;
@@ -32,6 +35,8 @@ class _FakeServer implements HttpClientAdapter {
   _FakeServer(this.connectivity);
   final _FakeConnectivity connectivity;
   final synced = <(String?, String)>[];
+  List<Map<String, dynamic>> records = [];
+  Completer<void>? getGate;
 
   @override
   Future<ResponseBody> fetch(RequestOptions options,
@@ -41,6 +46,10 @@ class _FakeServer implements HttpClientAdapter {
           requestOptions: options, reason: 'offline');
     }
     Object body = const <Object>[];
+    if (options.path == '/workouts/records' && options.method == 'GET') {
+      await getGate?.future;
+      body = records;
+    }
     if (options.path == '/workouts/records/sync') {
       final id = (options.data as Map)['clientRecordId'] as String;
       synced.add((options.headers['Authorization'] as String?, id));
@@ -73,11 +82,12 @@ void main() {
   late _FakeConnectivity connectivity;
   late _FakeServer server;
   late ApiClient api;
-  final uid = StateProvider<String?>((_) => null);
+  late AuthNotifier auth;
 
   setUp(() async {
     SharedPreferences.setMockInitialValues({});
     final prefs = await SharedPreferences.getInstance();
+    auth = (await sessionFixture(prefs)).auth;
     connectivity = _FakeConnectivity();
     server = _FakeServer(connectivity);
     api = ApiClient(baseUrl: 'http://test');
@@ -86,7 +96,7 @@ void main() {
       sharedPreferencesProvider.overrideWithValue(prefs),
       apiClientProvider.overrideWithValue(api),
       connectivityProvider.overrideWithValue(connectivity),
-      currentUserIdProvider.overrideWith((ref) => ref.watch(uid)),
+      authNotifierProvider.overrideWith((ref) => auth),
     ]);
   });
 
@@ -94,7 +104,11 @@ void main() {
 
   /// 계정을 바꾸고 그 계정의 기록을 다 불러올 때까지 기다린다.
   Future<List<String>> loginAs(String? user) async {
-    container.read(uid.notifier).state = user;
+    if (user == null) {
+      await auth.logout();
+    } else {
+      await auth.login(user, 'password');
+    }
     api.setAuthToken(user == null ? null : 'token-$user');
     container.read(workoutRecordsProvider); // 기록 불러오기 시작
     await container.read(workoutRecordsProvider.notifier).loadRecords();
@@ -133,5 +147,99 @@ void main() {
     final prefs = await SharedPreferences.getInstance();
     await LocalStorageService(prefs).removeLegacyRecords();
     expect(prefs.getKeys(), isEmpty);
+  });
+
+  Future<Map<String, dynamic>> seedEvidence() async {
+    final summary = WorkoutEvidence.nativeSummary(
+        completedReps: 10,
+        recordedWarningEvents: 3,
+        sets: [
+          {'reps': 10, 'weightKg': 5, 'badCount': 3}
+        ]);
+    final dto = WorkoutMetadataRequestDto.fromJson({
+      ..._dto('shared').toJson(),
+      'correctReps': 0,
+      'incorrectReps': 0,
+      'postureScore': null,
+      'poseMetricsSummary': summary
+    });
+    final saved = await container
+        .read(workoutRecordsProvider.notifier)
+        .addMetadataRecord(dto);
+    await pumpEventQueue();
+    await container.read(localStorageServiceProvider).saveRecords(
+        [saved!.copyWith(isSynced: true, serverId: 'old-server')],
+        uid: 'A');
+    return summary;
+  }
+
+  test('same-account server refresh retains local evidence omitted by response',
+      () async {
+    await loginAs('A');
+    final summary = await seedEvidence();
+    connectivity.online = true;
+    server.records = [
+      {..._dto('shared').toJson(), 'poseMetricsSummary': null}
+    ];
+    await loginAs('A');
+    final record = container.read(workoutRecordsProvider).value!.single;
+    expect(record.poseMetricsSummary, summary);
+    expect(record.accuracy, isNull);
+  });
+
+  test('A late response cannot attach A evidence to B with reused record id',
+      () async {
+    await loginAs('A');
+    final summary = await seedEvidence();
+    connectivity.online = true;
+    server.records = [
+      {..._dto('shared').toJson(), 'poseMetricsSummary': null}
+    ];
+    server.getGate = Completer<void>();
+    final oldRepository = container.read(workoutRepositoryProvider);
+    final pending = oldRepository.getWorkoutRecords();
+    await pumpEventQueue();
+    await auth.login('B', 'password');
+    api.setAuthToken('token-B');
+    server.getGate!.complete();
+    expect(await pending, isEmpty);
+    server.getGate = null;
+    await loginAs('B');
+    final b = container.read(workoutRecordsProvider).value!.single;
+    expect(b.id, 'shared');
+    expect(b.poseMetricsSummary, isEmpty);
+    expect(
+        container
+            .read(localStorageServiceProvider)
+            .loadRecords(uid: 'A')
+            .single
+            .poseMetricsSummary,
+        summary);
+    expect(
+        container
+            .read(localStorageServiceProvider)
+            .loadRecords(uid: 'B')
+            .single
+            .poseMetricsSummary,
+        isEmpty);
+  });
+
+  test(
+      'same-owner reused server id cannot attach evidence to a conflicting client id',
+      () async {
+    await loginAs('A');
+    await seedEvidence();
+    connectivity.online = true;
+    server.records = [
+      {
+        ..._dto('different-client').toJson(),
+        'id': 'old-server',
+        'poseMetricsSummary': null
+      }
+    ];
+    await loginAs('A');
+    final record = container.read(workoutRecordsProvider).value!.single;
+    expect(record.id, 'different-client');
+    expect(record.poseMetricsSummary, isEmpty);
   });
 }

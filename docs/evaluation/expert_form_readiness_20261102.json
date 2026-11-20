@@ -1,0 +1,88 @@
+{
+  "purpose": "real_annotation_task_ready_not_expert_accuracy",
+  "clips": 20,
+  "groups": 5,
+  "candidateCommit": "8001f4f6955877fbf82f087f77e840fa2486bb6e",
+  "boundarySource": "dataset_reference_intervals",
+  "splitPlanId": "existing20_explored_development_only",
+  "holdoutOpportunities": 0,
+  "sourceFrameRates": [
+    50
+  ],
+  "overall": {
+    "opportunities": 588,
+    "physicalReps": 103,
+    "adjudicated": 0,
+    "unknownLabels": 588,
+    "predictionStatesAllRows": {
+      "warning": 0,
+      "no_warning": 0,
+      "withheld": 0,
+      "missing": 588
+    },
+    "selectiveConfusion": {
+      "TP": 0,
+      "FP": 0,
+      "FN": 0,
+      "TN": 0
+    },
+    "withheldAdjudicated": {
+      "positive": 0,
+      "negative": 0
+    },
+    "missingAdjudicated": {
+      "positive": 0,
+      "negative": 0
+    },
+    "strictFNIncludingMisses": 0,
+    "strictRecall": {
+      "numerator": 0,
+      "denominator": 0,
+      "value": null
+    },
+    "selectiveRecall": {
+      "numerator": 0,
+      "denominator": 0,
+      "value": null
+    },
+    "selectiveSpecificity": {
+      "numerator": 0,
+      "denominator": 0,
+      "value": null
+    },
+    "selectiveAccuracy": {
+      "numerator": 0,
+      "denominator": 0,
+      "value": null
+    },
+    "precision": {
+      "numerator": 0,
+      "denominator": 0,
+      "value": null
+    },
+    "decisionCoverage": {
+      "numerator": 0,
+      "denominator": 0,
+      "value": null
+    },
+    "correctCoverage": {
+      "numerator": 0,
+      "denominator": 0,
+      "value": null
+    },
+    "unresolvedNegative": 0
+  },
+  "inputSha256": {
+    "manifest": "30c4667c1b916ad7683270d84eea2d64aa5fc60ff8c86de525054a17e039627e",
+    "labels": "f28e688e6e90d95d2fb4f86f4c70baa8a25627ebb17fbe79295886f25610f226",
+    "predictions": "b2dbba1143fcb74320d409d93d0966018d219fe303d31c6bfbc37dcaed9d4da2",
+    "protocol": "7e4b9ccbc08e1d4ac896a4567045a5a2734f8e5728b861426e33d12faf85c882",
+    "boundaryManifest": "bb354a201824681ba1e78ac9c1b1c47cdb4f85ed160b4212db7b8ddb26c5e7f8"
+  },
+  "codeSha256": {
+    "input.schema.json": "b9aca34041df797cbaaf1a84ca1b3126c04755e0e5339a75976febb4077cf2f6",
+    "prepare_fit3d_task.py": "4b5e4faf127d8beaa462156984542534cf4a90e31c8c5cfc976b978690c2d1b9",
+    "independent_form_protocol_v1.md": "7e4b9ccbc08e1d4ac896a4567045a5a2734f8e5728b861426e33d12faf85c882",
+    "independent_form_eval.py": "56750aaf2576b7ab2a2bb88d00a03f46b5e991677a4cd8973047a7597961c59a"
+  }
+}

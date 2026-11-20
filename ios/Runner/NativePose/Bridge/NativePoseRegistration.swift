@@ -8,7 +8,25 @@ enum NativePoseRegistration {
     /// Kept alive for the app's lifetime; see [KoriVoiceChannel].
     private static var koriVoice: KoriVoiceChannel?
 
+    /// Test-only (ai/lift-app device runs): BPT_AUTOSTART_WORKOUT / BPT_AUTOSTART_REPS from the launch environment go to
+    /// shared_preferences (`flutter.` prefix) for lib/core/router/app_router.dart; every other launch removes them.
+    private static func handOverAutostart() {
+        let env = ProcessInfo.processInfo.environment, defaults = UserDefaults.standard
+        if let workout = env["BPT_AUTOSTART_WORKOUT"], !workout.isEmpty {
+            defaults.set(workout, forKey: "flutter.bpt_autostart_workout")
+            defaults.set(env["BPT_AUTOSTART_REPS"] ?? "", forKey: "flutter.bpt_autostart_reps")
+            defaults.set(env["BPT_AUTOSTART_SETS"] ?? "", forKey: "flutter.bpt_autostart_sets")
+        } else {
+            defaults.removeObject(forKey: "flutter.bpt_autostart_workout")
+            defaults.removeObject(forKey: "flutter.bpt_autostart_reps")
+            defaults.removeObject(forKey: "flutter.bpt_autostart_sets")
+        }
+    }
+
     static func register(with registry: FlutterPluginRegistry) {
+        VideoRunLog.shared?.write("app_registered", [:])  // test-only breadcrumb (video-as-camera launches)
+        handOverAutostart()
+        DemoScreenRecorder.install()  // trial branch only; no-op without BPT_SCREEN_RECORD
         if let registrar = registry.registrar(forPlugin: "KoriVoiceChannel") {
             koriVoice = KoriVoiceChannel(messenger: registrar.messenger())
         }
@@ -25,6 +43,10 @@ enum NativePoseRegistration {
                 CalibrationCameraPlatformViewFactory(messenger: registrar.messenger()),
                 withId: bodyScanViewType
             )
+        }
+
+        if let registrar = registry.registrar(forPlugin: "BodyMeshPlatformView") {
+            registrar.register(BodyMeshPlatformViewFactory(messenger: registrar.messenger()), withId: "bpt/body_mesh")
         }
     }
 }

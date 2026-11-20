@@ -1,0 +1,22 @@
+{
+  "exercise": "squat",
+  "joint": "left_wrist",
+  "source_frame_index": 112,
+  "source_time_seconds": 3.74,
+  "partition": "main/late",
+  "tail5": false,
+  "first_session_frame": 51,
+  "frames_after_first_session": 61,
+  "errors_mm": {
+    "raw": 312.16876513159497,
+    "full": 300.65182260030224,
+    "candidate": 349.5368770427127
+  },
+  "candidate_minus_full_error_mm": 48.88505444241048,
+  "original_full_invalid": false,
+  "candidate_invalid": false,
+  "target_shape_source": "session",
+  "target_shape_L1_lag": 0.07318467313814347,
+  "position_difference_full_candidate_mm": 52.27611433263728,
+  "interpretation": "Existing-array GT-distance worsening at one joint/frame, not independent ground-truth causal posture/occlusion label. No stream/subject/camera identity exported."
+}

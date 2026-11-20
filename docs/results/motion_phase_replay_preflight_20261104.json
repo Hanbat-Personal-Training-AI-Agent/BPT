@@ -1,0 +1,25 @@
+{
+  "estimatorCalls": 0,
+  "estimatorSha256": "c58740a36791962c9196f2c0443c9d5ae9ad71b343d6688f55614abaea57c40d",
+  "frames": 42052,
+  "inputFilesRehashed": 832,
+  "lockSha256": "d9c989b6993b881e0a15f5afc2d260e4b7eafae84fc4cf1f19ae344540c75b74",
+  "nativeCommit": "83f1a93c9d4c36405730776486b65dd9c33bf8d3",
+  "newInference": false,
+  "policyOutcomesComputed": false,
+  "priorAggregateSha256": "06e432973dada120c5bb3b09fcbc234d1b39ed7a4405cfc981d2426160825849",
+  "priorManifestSha256": "9a8c32a150c7a42ab0f43310a6b01f9618cfa340e1ac4c8c58ef78717c2c80a3",
+  "priorPredictionFilesRehashed": 648,
+  "rawArraysExported": false,
+  "replayCommit": "4861796",
+  "schema": "bpt.motion-phase-replay-inventory.v1",
+  "scoreReferenceParses": 0,
+  "selection": {
+    "clean": 60,
+    "keypoint_stress": 6,
+    "rgb_stress": 6
+  },
+  "sourceBinding": "PASS",
+  "status": "PASS",
+  "streams": 72
+}

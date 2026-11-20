@@ -112,11 +112,12 @@ final class BarbellRowEvaluator {
         readyPose = ReadyPoseGate(holdFrames: config.readyPoseHoldFrames, tolerance: config.readyPoseTolerance)
     }
 
-    /// `pose3D`: MotionAGFormer H36M17 selected3D when available (form metrics only; nil in the live app).
+    /// `pose3D` / `pose3DState`: MotionAGFormerLive 3D and state of this frame (form judgement; FormWarningTracker).
     /// Side-view gate (formTracker.sideView, nil = not decided yet → side). Not side: the tracker queues
     /// setup_side_view and judges no form warnings; reps are still counted with the side-view rules
     /// (config.countOffSideView; false = the status machine runs but no rep is started or counted).
-    func evaluate(frameIndex: Int, coco17: [PoseKeypoint], pose3D: [SIMD3<Double>]? = nil) -> BarbellRowFrameResult {
+    func evaluate(frameIndex: Int, coco17: [PoseKeypoint], pose3D: [SIMD3<Double>]? = nil,
+                  pose3DState: Pose3DState? = nil) -> BarbellRowFrameResult {
         let sideView = formTracker.sideView != false || config.countOffSideView
         let measurements = computeMeasurements(coco17: coco17, sideView: sideView)
         let rawCandidate = classifyRawStatusCandidate(measurements, sideView: sideView)
@@ -128,7 +129,7 @@ final class BarbellRowEvaluator {
         )
 
         updateBottomBaselineIfNeeded(status: status, measurements: measurements)
-        formTracker.observe(frameIndex: frameIndex, coco17: coco17, pose3D: pose3D, phase: status.rawValue)
+        formTracker.observe(frameIndex: frameIndex, coco17: coco17, pose3D: pose3D, pose3DState: pose3DState, phase: status.rawValue)
         readyPose.update(atStartPose: status == .bottom, value: measurements.rowDepthNorm)
         var done = false
         if sideView {

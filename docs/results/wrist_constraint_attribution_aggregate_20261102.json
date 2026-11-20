@@ -1,0 +1,3104 @@
+{
+  "native_source_commit": "1a35d3f",
+  "coordinate_parity_required_max_absolute_error": 1e-12,
+  "all_coordinate_max_absolute_error": 0.0,
+  "all_coordinate_comparisons_including_flush": 119085,
+  "replay_receipt": {
+    "production_source_sha256": {
+      "ios/Runner/NativePose/PosePipeline/Pose3DConstraints.swift": "4fc033f249228ab6557b7313c773b5521823c64e65e2097046dfcbde1886257e",
+      "ios/Runner/NativePose/PosePipeline/BoneLengthConstraint.swift": "f556f110f3353c7faa71799d23f74658e4517abd34cb755dee1a427739fecc82",
+      "ios/Runner/NativePose/PosePipeline/KneeHingeLimit.swift": "c4f2d38d46a5ffaaad740ca8655bc13a36a87e845e1c31a7b5bfaa3e1c39a8e9"
+    },
+    "median_source_sha256": "d7e82d549f3e81f13bf8d906a882dab2cd86f3d0c325810665515bae74ac4507",
+    "replay_helper_sha256": "ff2cbff5f920411efd317fa1a8dd4e9c012fd8d21ecd69f158acb817e4b294ce",
+    "rows": {
+      "squat": 1242,
+      "pushUp": 527,
+      "barbellRow": 566
+    },
+    "scope": "raw3D postprocessing only; no model, confidence unused by production Pose3DConstraints, native frame order including explicit flush preserved"
+  },
+  "groups": {
+    "squat": {
+      "all_coordinate_max_absolute_error": 0.0,
+      "all_coordinate_comparisons_including_flush": 63342,
+      "genuine_usable_frames": 1237,
+      "bone_source_counts": {
+        "prior": 30,
+        "session": 1207
+      },
+      "source_changes": [
+        {
+          "frame": 51,
+          "source_pts_seconds": 1.7333333333333334,
+          "from": "prior",
+          "to": "session"
+        }
+      ],
+      "angle_limit_firing_frames": {
+        "right_elbow_flexion": 16
+      },
+      "knee_reflection_frames": 0,
+      "knee_clamp_frames": 0,
+      "sides": {
+        "left": {
+          "assessment_ranked_top3": [
+            {
+              "source_interval_seconds": [
+                36.63333333333333,
+                36.666666666666664
+              ],
+              "dt_seconds": 0.03333333333333144,
+              "raw3d_root_relative_displacement_model_units": 0.031161593017795006,
+              "raw3d_root_relative_speed_model_units_per_second": 0.9348477905339033,
+              "RTMPose_wrist_scores_unclipped": [
+                0.927734375,
+                0.91357421875
+              ],
+              "RTMPose_elbow_scores_unclipped": [
+                0.90283203125,
+                0.912109375
+              ],
+              "RTMPose_shoulder_scores_unclipped": [
+                0.7978515625,
+                0.77734375
+              ],
+              "raw_states": [
+                "ok",
+                "ok"
+              ],
+              "assessment_states": [
+                "ok",
+                "ok"
+              ],
+              "wrist_invalid": [
+                false,
+                false
+              ],
+              "elbow_invalid": [
+                false,
+                false
+              ],
+              "shoulder_invalid": [
+                false,
+                false
+              ],
+              "input_crop_unit_px": [
+                694.5500000000001,
+                694.5500000000001
+              ],
+              "raw_to_input_wrist_shift_px": [
+                5.7942807574741915,
+                8.16670044532764
+              ],
+              "raw_to_constrained_wrist_shift_model_units": [
+                0.035930263804099125,
+                0.04034690057096252
+              ],
+              "raw_2d_displacement": 7.0035251805976015,
+              "raw_2d_speed": 210.10575541793997,
+              "input_2d_displacement": 9.721580591833188,
+              "input_2d_speed": 291.6474177550122,
+              "assessment_3d_displacement": 0.03558060914068226,
+              "assessment_3d_speed": 1.0674182742205283,
+              "elbow3d_raw_root_relative_displacement_model_units": 0.03145584469097727,
+              "shoulder3d_raw_root_relative_displacement_model_units": 0.00680011491178792,
+              "raw_forearm_lengths_model_units": [
+                0.1519276487278697,
+                0.15159943514016636
+              ],
+              "raw_wrist_relative_to_elbow_vector_change_model_units": 0.0011803637454720285,
+              "rank_by_assessment3d_root_relative_speed": 1,
+              "rank_basis": "assessment3d_root_relative_speed",
+              "speeds_by_independent_mode": {
+                "full": 1.0674182742205285,
+                "bone_only": 1.0674182742205285,
+                "angle_only": 0.9348477905339033,
+                "fixed_prior_full": 0.8928104522536361
+              },
+              "constraint_reports": [
+                {
+                  "bone_source": "session",
+                  "bone_scale": 1.0702029836901124,
+                  "bone_max_correction": 0.12454510677687987,
+                  "angle_corrections": {},
+                  "knees_reflected": 0,
+                  "knee_clamp_degrees": 0,
+                  "invalid": []
+                },
+                {
+                  "bone_source": "session",
+                  "bone_scale": 1.081497337764051,
+                  "bone_max_correction": 0.17576669213340904,
+                  "angle_corrections": {},
+                  "knees_reflected": 0,
+                  "knee_clamp_degrees": 0,
+                  "invalid": []
+                }
+              ],
+              "segments": {
+                "upper_arm": {
+                  "raw_lengths_model_units": [
+                    0.1712611028803189,
+                    0.16553934160709774
+                  ],
+                  "bone_only_lengths_model_units": [
+                    0.19259083522527443,
+                    0.19463564409931972
+                  ],
+                  "output_over_raw_length": [
+                    1.12454510677688,
+                    1.1757666921334091
+                  ],
+                  "raw_direction_change_degrees": 9.178128678536787
+                },
+                "forearm": {
+                  "raw_lengths_model_units": [
+                    0.1519276487278697,
+                    0.15159943514016636
+                  ],
+                  "bone_only_lengths_model_units": [
+                    0.13436738782725322,
+                    0.13604638652088868
+                  ],
+                  "output_over_raw_length": [
+                    0.8844169507811568,
+                    0.8974069487468896
+                  ],
+                  "raw_direction_change_degrees": 0.42805373999230567
+                }
+              },
+              "bone_interval_speed_with_previous_targets_at_current_frame": 1.0627204347221098,
+              "targets_changed": true,
+              "bone_target_update_same_current_raw_wrist_displacement": 0.0002506965726477811,
+              "correction_vector_change_speed": 0.2506726989167205,
+              "target_shape_normalized_to_sum": [
+                {
+                  "left_elbow-left_wrist": 0.07988636378555256,
+                  "left_hip-left_knee": 0.15429045257480892,
+                  "left_knee-left_ankle": 0.1513208347188603,
+                  "left_shoulder-left_elbow": 0.11450234892077826,
+                  "right_elbow-right_wrist": 0.07988636378555256,
+                  "right_hip-right_knee": 0.15429045257480892,
+                  "right_knee-right_ankle": 0.1513208347188603,
+                  "right_shoulder-right_elbow": 0.11450234892077826
+                },
+                {
+                  "left_elbow-left_wrist": 0.07999750333814498,
+                  "left_hip-left_knee": 0.15420874151438585,
+                  "left_knee-left_ankle": 0.15134480882307239,
+                  "left_shoulder-left_elbow": 0.1144489463243968,
+                  "right_elbow-right_wrist": 0.07999750333814498,
+                  "right_hip-right_knee": 0.15420874151438585,
+                  "right_knee-right_ankle": 0.15134480882307239,
+                  "right_shoulder-right_elbow": 0.1144489463243968
+                }
+              ]
+            },
+            {
+              "source_interval_seconds": [
+                15.133333333333333,
+                15.166666666666666
+              ],
+              "dt_seconds": 0.033333333333333215,
+              "raw3d_root_relative_displacement_model_units": 0.026805662439561603,
+              "raw3d_root_relative_speed_model_units_per_second": 0.804169873186851,
+              "RTMPose_wrist_scores_unclipped": [
+                0.86474609375,
+                0.86865234375
+              ],
+              "RTMPose_elbow_scores_unclipped": [
+                0.88916015625,
+                0.86181640625
+              ],
+              "RTMPose_shoulder_scores_unclipped": [
+                0.8076171875,
+                0.783203125
+              ],
+              "raw_states": [
+                "ok",
+                "ok"
+              ],
+              "assessment_states": [
+                "ok",
+                "ok"
+              ],
+              "wrist_invalid": [
+                false,
+                false
+              ],
+              "elbow_invalid": [
+                false,
+                false
+              ],
+              "shoulder_invalid": [
+                false,
+                false
+              ],
+              "input_crop_unit_px": [
+                694.5500000000001,
+                694.5500000000001
+              ],
+              "raw_to_input_wrist_shift_px": [
+                5.716910169503396,
+                6.081165797047219
+              ],
+              "raw_to_constrained_wrist_shift_model_units": [
+                0.04031584075814623,
+                0.04056393878397322
+              ],
+              "raw_2d_displacement": 7.531264403310754,
+              "raw_2d_speed": 225.9379320993234,
+              "input_2d_displacement": 7.974379663376136,
+              "input_2d_speed": 239.23138990128493,
+              "assessment_3d_displacement": 0.03413360776538037,
+              "assessment_3d_speed": 1.0240082329614149,
+              "elbow3d_raw_root_relative_displacement_model_units": 0.028742540735530016,
+              "shoulder3d_raw_root_relative_displacement_model_units": 0.004179849977989529,
+              "raw_forearm_lengths_model_units": [
+                0.15215143878997983,
+                0.15384304326894885
+              ],
+              "raw_wrist_relative_to_elbow_vector_change_model_units": 0.002254173011794359,
+              "rank_by_assessment3d_root_relative_speed": 2,
+              "rank_basis": "assessment3d_root_relative_speed",
+              "speeds_by_independent_mode": {
+                "full": 1.0240082329614146,
+                "bone_only": 1.0240082329614146,
+                "angle_only": 0.804169873186851,
+                "fixed_prior_full": 0.8223246696044417
+              },
+              "constraint_reports": [
+                {
+                  "bone_source": "session",
+                  "bone_scale": 1.084624381373748,
+                  "bone_max_correction": 0.2108988762932434,
+                  "angle_corrections": {},
+                  "knees_reflected": 0,
+                  "knee_clamp_degrees": 0,
+                  "invalid": []
+                },
+                {
+                  "bone_source": "session",
+                  "bone_scale": 1.0752507412012793,
+                  "bone_max_correction": 0.7121925806424566,
+                  "angle_corrections": {},
+                  "knees_reflected": 0,
+                  "knee_clamp_degrees": 0,
+                  "invalid": []
+                }
+              ],
+              "segments": {
+                "upper_arm": {
+                  "raw_lengths_model_units": [
+                    0.1619054591857764,
+                    0.16318160879981347
+                  ],
+                  "bone_only_lengths_model_units": [
+                    0.1960511385937982,
+                    0.19436714478703318
+                  ],
+                  "output_over_raw_length": [
+                    1.210898876293243,
+                    1.1911093793999619
+                  ],
+                  "raw_direction_change_degrees": 9.55381842213774
+                },
+                "forearm": {
+                  "raw_lengths_model_units": [
+                    0.15215143878997983,
+                    0.15384304326894885
+                  ],
+                  "bone_only_lengths_model_units": [
+                    0.14163037508785317,
+                    0.14055582025705496
+                  ],
+                  "output_over_raw_length": [
+                    0.9308513689663542,
+                    0.9136313041554623
+                  ],
+                  "raw_direction_change_degrees": 0.5579578590475827
+                }
+              },
+              "bone_interval_speed_with_previous_targets_at_current_frame": 1.0265958986383992,
+              "targets_changed": true,
+              "bone_target_update_same_current_raw_wrist_displacement": 0.0001404379010747255,
+              "correction_vector_change_speed": 0.23300368760999343,
+              "target_shape_normalized_to_sum": [
+                {
+                  "left_elbow-left_wrist": 0.0827174935091847,
+                  "left_hip-left_knee": 0.15333573823120028,
+                  "left_knee-left_ankle": 0.14944549143928978,
+                  "left_shoulder-left_elbow": 0.11450127682032525,
+                  "right_elbow-right_wrist": 0.0827174935091847,
+                  "right_hip-right_knee": 0.15333573823120028,
+                  "right_knee-right_ankle": 0.14944549143928978,
+                  "right_shoulder-right_elbow": 0.11450127682032525
+                },
+                {
+                  "left_elbow-left_wrist": 0.08278219487702228,
+                  "left_hip-left_knee": 0.1533132861179298,
+                  "left_knee-left_ankle": 0.1494294383714307,
+                  "left_shoulder-left_elbow": 0.11447508063361725,
+                  "right_elbow-right_wrist": 0.08278219487702228,
+                  "right_hip-right_knee": 0.1533132861179298,
+                  "right_knee-right_ankle": 0.1494294383714307,
+                  "right_shoulder-right_elbow": 0.11447508063361725
+                }
+              ]
+            },
+            {
+              "source_interval_seconds": [
+                36.733333333333334,
+                36.766666666666666
+              ],
+              "dt_seconds": 0.03333333333333144,
+              "raw3d_root_relative_displacement_model_units": 0.030043676081578975,
+              "raw3d_root_relative_speed_model_units_per_second": 0.9013102824474204,
+              "RTMPose_wrist_scores_unclipped": [
+                0.9287109375,
+                0.93798828125
+              ],
+              "RTMPose_elbow_scores_unclipped": [
+                0.98779296875,
+                1.0146484375
+              ],
+              "RTMPose_shoulder_scores_unclipped": [
+                0.82470703125,
+                0.83544921875
+              ],
+              "raw_states": [
+                "ok",
+                "ok"
+              ],
+              "assessment_states": [
+                "ok",
+                "ok"
+              ],
+              "wrist_invalid": [
+                false,
+                false
+              ],
+              "elbow_invalid": [
+                false,
+                false
+              ],
+              "shoulder_invalid": [
+                false,
+                false
+              ],
+              "input_crop_unit_px": [
+                694.5500000000001,
+                694.5500000000001
+              ],
+              "raw_to_input_wrist_shift_px": [
+                8.58019336598734,
+                12.576708951465273
+              ],
+              "raw_to_constrained_wrist_shift_model_units": [
+                0.043169133978104846,
+                0.039601321612908615
+              ],
+              "raw_2d_displacement": 4.343401934821358,
+              "raw_2d_speed": 130.30205804464816,
+              "input_2d_displacement": 8.737554968987466,
+              "input_2d_speed": 262.12664906963886,
+              "assessment_3d_displacement": 0.03369376228843,
+              "assessment_3d_speed": 1.0108128686529574,
+              "elbow3d_raw_root_relative_displacement_model_units": 0.028783164681875344,
+              "shoulder3d_raw_root_relative_displacement_model_units": 0.0067056258511531625,
+              "raw_forearm_lengths_model_units": [
+                0.1524538107204938,
+                0.15101263298863682
+              ],
+              "raw_wrist_relative_to_elbow_vector_change_model_units": 0.0014950498918354358,
+              "rank_by_assessment3d_root_relative_speed": 3,
+              "rank_basis": "assessment3d_root_relative_speed",
+              "speeds_by_independent_mode": {
+                "full": 1.0108128686529574,
+                "bone_only": 1.0108128686529574,
+                "angle_only": 0.9013102824474205,
+                "fixed_prior_full": 0.8412600624874479
+              },
+              "constraint_reports": [
+                {
+                  "bone_source": "session",
+                  "bone_scale": 1.0821415952315652,
+                  "bone_max_correction": 0.19586207892496016,
+                  "angle_corrections": {},
+                  "knees_reflected": 0,
+                  "knee_clamp_degrees": 0,
+                  "invalid": []
+                },
+                {
+                  "bone_source": "session",
+                  "bone_scale": 1.0726305594288785,
+                  "bone_max_correction": 0.16454028411830723,
+                  "angle_corrections": {},
+                  "knees_reflected": 0,
+                  "knee_clamp_degrees": 0,
+                  "invalid": []
+                }
+              ],
+              "segments": {
+                "upper_arm": {
+                  "raw_lengths_model_units": [
+                    0.1631722136386863,
+                    0.16622123958092513
+                  ],
+                  "bone_only_lengths_model_units": [
+                    0.19513146262474715,
+                    0.1935713295680678
+                  ],
+                  "output_over_raw_length": [
+                    1.19586207892496,
+                    1.1645402841183075
+                  ],
+                  "raw_direction_change_degrees": 8.05072141855328
+                },
+                "forearm": {
+                  "raw_lengths_model_units": [
+                    0.1524538107204938,
+                    0.15101263298863682
+                  ],
+                  "bone_only_lengths_model_units": [
+                    0.13647393757407475,
+                    0.13531628196011003
+                  ],
+                  "output_over_raw_length": [
+                    0.895182199310739,
+                    0.8960593513411035
+                  ],
+                  "raw_direction_change_degrees": 0.1501841251560128
+                }
+              },
+              "bone_interval_speed_with_previous_targets_at_current_frame": 1.0100700494918133,
+              "targets_changed": true,
+              "bone_target_update_same_current_raw_wrist_displacement": 7.177116863429754e-05,
+              "correction_vector_change_speed": 0.18544533609180708,
+              "target_shape_normalized_to_sum": [
+                {
+                  "left_elbow-left_wrist": 0.08010002433723805,
+                  "left_hip-left_knee": 0.15401433068340606,
+                  "left_knee-left_ankle": 0.15135802759659003,
+                  "left_shoulder-left_elbow": 0.11452761738276586,
+                  "right_elbow-right_wrist": 0.08010002433723805,
+                  "right_hip-right_knee": 0.15401433068340606,
+                  "right_knee-right_ankle": 0.15135802759659003,
+                  "right_shoulder-right_elbow": 0.11452761738276586
+                },
+                {
+                  "left_elbow-left_wrist": 0.08007802908110169,
+                  "left_hip-left_knee": 0.1539244467583197,
+                  "left_knee-left_ankle": 0.15144508203104434,
+                  "left_shoulder-left_elbow": 0.11455244212953429,
+                  "right_elbow-right_wrist": 0.08007802908110169,
+                  "right_hip-right_knee": 0.1539244467583197,
+                  "right_knee-right_ankle": 0.15144508203104434,
+                  "right_shoulder-right_elbow": 0.11455244212953429
+                }
+              ]
+            }
+          ],
+          "independent_mode_speed_distributions": {
+            "full": {
+              "count": 1233,
+              "min": 0.006292305710347372,
+              "median": 0.14268168513284668,
+              "mean": 0.1673730495586243,
+              "p95": 0.3803943441955653,
+              "max": 1.0674182742205285
+            },
+            "bone_only": {
+              "count": 1233,
+              "min": 0.006292305710347372,
+              "median": 0.14268168513284668,
+              "mean": 0.1673730495586243,
+              "p95": 0.3803943441955653,
+              "max": 1.0674182742205285
+            },
+            "angle_only": {
+              "count": 1233,
+              "min": 0.004801065894333852,
+              "median": 0.14439088216964546,
+              "mean": 0.16161377505112318,
+              "p95": 0.35008424914763414,
+              "max": 0.9348477905339033
+            },
+            "fixed_prior_full": {
+              "count": 1233,
+              "min": 0.002981725676124561,
+              "median": 0.1390631612835158,
+              "mean": 0.15763787888735376,
+              "p95": 0.347014864246611,
+              "max": 0.8928104522536361
+            }
+          },
+          "target_update_same_current_raw_displacement": {
+            "count": 1233,
+            "min": 0.0,
+            "median": 6.367632908902372e-05,
+            "mean": 0.00010163814779873284,
+            "p95": 0.00022806825588565246,
+            "max": 0.022513363830904798
+          }
+        },
+        "right": {
+          "assessment_ranked_top3": [
+            {
+              "source_interval_seconds": [
+                38.233333333333334,
+                38.266666666666666
+              ],
+              "dt_seconds": 0.03333333333333144,
+              "raw3d_root_relative_displacement_model_units": 0.02887667273629441,
+              "raw3d_root_relative_speed_model_units_per_second": 0.8663001820888816,
+              "RTMPose_wrist_scores_unclipped": [
+                0.463134765625,
+                0.40087890625
+              ],
+              "RTMPose_elbow_scores_unclipped": [
+                0.51220703125,
+                0.53076171875
+              ],
+              "RTMPose_shoulder_scores_unclipped": [
+                0.94970703125,
+                0.953125
+              ],
+              "raw_states": [
+                "ok",
+                "ok"
+              ],
+              "assessment_states": [
+                "ok",
+                "ok"
+              ],
+              "wrist_invalid": [
+                false,
+                false
+              ],
+              "elbow_invalid": [
+                false,
+                false
+              ],
+              "shoulder_invalid": [
+                false,
+                false
+              ],
+              "input_crop_unit_px": [
+                694.5500000000001,
+                694.5500000000001
+              ],
+              "raw_to_input_wrist_shift_px": [
+                9.013774254223666,
+                11.061083526448837
+              ],
+              "raw_to_constrained_wrist_shift_model_units": [
+                0.15172995821863342,
+                0.1951392758867119
+              ],
+              "raw_2d_displacement": 1.5598126364519942,
+              "raw_2d_speed": 46.79437909356248,
+              "input_2d_displacement": 3.0633715014232923,
+              "input_2d_speed": 91.901145042704,
+              "assessment_3d_displacement": 0.3242962192551657,
+              "assessment_3d_speed": 9.728886577655523,
+              "elbow3d_raw_root_relative_displacement_model_units": 0.03690619750729768,
+              "shoulder3d_raw_root_relative_displacement_model_units": 0.006319331281575089,
+              "raw_forearm_lengths_model_units": [
+                0.049953537453340836,
+                0.04779742545552578
+              ],
+              "raw_wrist_relative_to_elbow_vector_change_model_units": 0.010063955118867656,
+              "rank_by_assessment3d_root_relative_speed": 1,
+              "rank_basis": "assessment3d_root_relative_speed",
+              "speeds_by_independent_mode": {
+                "full": 9.728886577655524,
+                "bone_only": 9.728886577655524,
+                "angle_only": 0.8663001820888815,
+                "fixed_prior_full": 7.956560941909431
+              },
+              "constraint_reports": [
+                {
+                  "bone_source": "session",
+                  "bone_scale": 0.9765554557518428,
+                  "bone_max_correction": 9.512307861248388,
+                  "angle_corrections": {},
+                  "knees_reflected": 0,
+                  "knee_clamp_degrees": 0,
+                  "invalid": []
+                },
+                {
+                  "bone_source": "session",
+                  "bone_scale": 0.9732486013772484,
+                  "bone_max_correction": 10.605126456845065,
+                  "angle_corrections": {},
+                  "knees_reflected": 0,
+                  "knee_clamp_degrees": 0,
+                  "invalid": []
+                }
+              ],
+              "segments": {
+                "upper_arm": {
+                  "raw_lengths_model_units": [
+                    0.016650072916976677,
+                    0.01502456957538545
+                  ],
+                  "bone_only_lengths_model_units": [
+                    0.17503069241549282,
+                    0.17436202988201513
+                  ],
+                  "output_over_raw_length": [
+                    10.51230786124839,
+                    11.605126456845065
+                  ],
+                  "raw_direction_change_degrees": 150.97828712202076
+                },
+                "forearm": {
+                  "raw_lengths_model_units": [
+                    0.049953537453340836,
+                    0.04779742545552578
+                  ],
+                  "bone_only_lengths_model_units": [
+                    0.12421794768981413,
+                    0.12382283154671599
+                  ],
+                  "output_over_raw_length": [
+                    2.4866696939298856,
+                    2.590575336781053
+                  ],
+                  "raw_direction_change_degrees": 11.546176240487487
+                }
+              },
+              "bone_interval_speed_with_previous_targets_at_current_frame": 9.732122031281492,
+              "targets_changed": true,
+              "bone_target_update_same_current_raw_wrist_displacement": 0.0001125627110331293,
+              "correction_vector_change_speed": 8.878320033953242,
+              "target_shape_normalized_to_sum": [
+                {
+                  "left_elbow-left_wrist": 0.08110811162595348,
+                  "left_hip-left_knee": 0.15453684422485325,
+                  "left_knee-left_ankle": 0.150068749757551,
+                  "left_shoulder-left_elbow": 0.11428629439164228,
+                  "right_elbow-right_wrist": 0.08110811162595348,
+                  "right_hip-right_knee": 0.15453684422485325,
+                  "right_knee-right_ankle": 0.150068749757551,
+                  "right_shoulder-right_elbow": 0.11428629439164228
+                },
+                {
+                  "left_elbow-left_wrist": 0.0811196532934246,
+                  "left_hip-left_knee": 0.15458437742081937,
+                  "left_knee-left_ankle": 0.15006673357141626,
+                  "left_shoulder-left_elbow": 0.11422923571433981,
+                  "right_elbow-right_wrist": 0.0811196532934246,
+                  "right_hip-right_knee": 0.15458437742081937,
+                  "right_knee-right_ankle": 0.15006673357141626,
+                  "right_shoulder-right_elbow": 0.11422923571433981
+                }
+              ]
+            },
+            {
+              "source_interval_seconds": [
+                34.1,
+                34.13333333333333
+              ],
+              "dt_seconds": 0.03333333333333144,
+              "raw3d_root_relative_displacement_model_units": 0.025376719555117177,
+              "raw3d_root_relative_speed_model_units_per_second": 0.7613015866535585,
+              "RTMPose_wrist_scores_unclipped": [
+                0.35888671875,
+                0.38720703125
+              ],
+              "RTMPose_elbow_scores_unclipped": [
+                0.51513671875,
+                0.50244140625
+              ],
+              "RTMPose_shoulder_scores_unclipped": [
+                0.87353515625,
+                0.86865234375
+              ],
+              "raw_states": [
+                "ok",
+                "ok"
+              ],
+              "assessment_states": [
+                "ok",
+                "ok"
+              ],
+              "wrist_invalid": [
+                false,
+                false
+              ],
+              "elbow_invalid": [
+                false,
+                false
+              ],
+              "shoulder_invalid": [
+                false,
+                false
+              ],
+              "input_crop_unit_px": [
+                694.5500000000001,
+                694.5500000000001
+              ],
+              "raw_to_input_wrist_shift_px": [
+                0.0,
+                0.0
+              ],
+              "raw_to_constrained_wrist_shift_model_units": [
+                0.2019385749358586,
+                0.07762626430549743
+              ],
+              "raw_2d_displacement": 14.403972232230503,
+              "raw_2d_speed": 432.1191669669396,
+              "input_2d_displacement": 14.403972232230503,
+              "input_2d_speed": 432.1191669669396,
+              "assessment_3d_displacement": 0.2502190683043999,
+              "assessment_3d_speed": 7.506572049132424,
+              "elbow3d_raw_root_relative_displacement_model_units": 0.04328165133321171,
+              "shoulder3d_raw_root_relative_displacement_model_units": 0.004897001630975219,
+              "raw_forearm_lengths_model_units": [
+                0.02801905918295373,
+                0.045237222163540126
+              ],
+              "raw_wrist_relative_to_elbow_vector_change_model_units": 0.01980738935530917,
+              "rank_by_assessment3d_root_relative_speed": 2,
+              "rank_basis": "assessment3d_root_relative_speed",
+              "speeds_by_independent_mode": {
+                "full": 7.506572049132423,
+                "bone_only": 7.506572049132423,
+                "angle_only": 0.7613015866535586,
+                "fixed_prior_full": 6.220320469955352
+              },
+              "constraint_reports": [
+                {
+                  "bone_source": "session",
+                  "bone_scale": 0.9533205880675171,
+                  "bone_max_correction": 6.197039453200245,
+                  "angle_corrections": {},
+                  "knees_reflected": 0,
+                  "knee_clamp_degrees": 0,
+                  "invalid": []
+                },
+                {
+                  "bone_source": "session",
+                  "bone_scale": 0.9443297869689844,
+                  "bone_max_correction": 4.638037558056781,
+                  "angle_corrections": {},
+                  "knees_reflected": 0,
+                  "knee_clamp_degrees": 0,
+                  "invalid": []
+                }
+              ],
+              "segments": {
+                "upper_arm": {
+                  "raw_lengths_model_units": [
+                    0.023585961932245155,
+                    0.02982192037503595
+                  ],
+                  "bone_only_lengths_model_units": [
+                    0.16974909856804746,
+                    0.16813710712783145
+                  ],
+                  "output_over_raw_length": [
+                    7.197039453200245,
+                    5.638037558056781
+                  ],
+                  "raw_direction_change_degrees": 99.84432966413202
+                },
+                "forearm": {
+                  "raw_lengths_model_units": [
+                    0.02801905918295373,
+                    0.045237222163540126
+                  ],
+                  "bone_only_lengths_model_units": [
+                    0.12111466230366885,
+                    0.11995723614040703
+                  ],
+                  "output_over_raw_length": [
+                    4.3225813369691135,
+                    2.6517374498978197
+                  ],
+                  "raw_direction_change_degrees": 15.807453968926225
+                }
+              },
+              "bone_interval_speed_with_previous_targets_at_current_frame": 7.50638338625806,
+              "targets_changed": true,
+              "bone_target_update_same_current_raw_wrist_displacement": 6.6611454721837505e-06,
+              "correction_vector_change_speed": 6.7610376957438625,
+              "target_shape_normalized_to_sum": [
+                {
+                  "left_elbow-left_wrist": 0.08107900066290102,
+                  "left_hip-left_knee": 0.15424344022762734,
+                  "left_knee-left_ankle": 0.151040720979852,
+                  "left_shoulder-left_elbow": 0.11363683812961968,
+                  "right_elbow-right_wrist": 0.08107900066290102,
+                  "right_hip-right_knee": 0.15424344022762734,
+                  "right_knee-right_ankle": 0.151040720979852,
+                  "right_shoulder-right_elbow": 0.11363683812961968
+                },
+                {
+                  "left_elbow-left_wrist": 0.08108388915997894,
+                  "left_hip-left_knee": 0.15427227202273225,
+                  "left_knee-left_ankle": 0.15099324968504796,
+                  "left_shoulder-left_elbow": 0.11365058913224084,
+                  "right_elbow-right_wrist": 0.08108388915997894,
+                  "right_hip-right_knee": 0.15427227202273225,
+                  "right_knee-right_ankle": 0.15099324968504796,
+                  "right_shoulder-right_elbow": 0.11365058913224084
+                }
+              ]
+            },
+            {
+              "source_interval_seconds": [
+                0.8666666666666667,
+                0.9
+              ],
+              "dt_seconds": 0.033333333333333326,
+              "raw3d_root_relative_displacement_model_units": 0.2390571399824908,
+              "raw3d_root_relative_speed_model_units_per_second": 7.171714199474725,
+              "RTMPose_wrist_scores_unclipped": [
+                0.384521484375,
+                0.387939453125
+              ],
+              "RTMPose_elbow_scores_unclipped": [
+                0.6005859375,
+                0.5986328125
+              ],
+              "RTMPose_shoulder_scores_unclipped": [
+                0.8857421875,
+                0.88720703125
+              ],
+              "raw_states": [
+                "ok",
+                "ok"
+              ],
+              "assessment_states": [
+                "ok",
+                "ok"
+              ],
+              "wrist_invalid": [
+                false,
+                false
+              ],
+              "elbow_invalid": [
+                false,
+                false
+              ],
+              "shoulder_invalid": [
+                false,
+                false
+              ],
+              "input_crop_unit_px": [
+                694.5500000000001,
+                694.5500000000001
+              ],
+              "raw_to_input_wrist_shift_px": [
+                0.0,
+                0.0
+              ],
+              "raw_to_constrained_wrist_shift_model_units": [
+                0.04356004502736756,
+                0.031133436086675417
+              ],
+              "raw_2d_displacement": 1.720458984375,
+              "raw_2d_speed": 51.613769531250014,
+              "input_2d_displacement": 1.720458984375,
+              "input_2d_speed": 51.613769531250014,
+              "assessment_3d_displacement": 0.2488875835721767,
+              "assessment_3d_speed": 7.4666275071653025,
+              "elbow3d_raw_root_relative_displacement_model_units": 0.02195635826933575,
+              "shoulder3d_raw_root_relative_displacement_model_units": 0.006945029083450931,
+              "raw_forearm_lengths_model_units": [
+                0.11298080694094378,
+                0.13944217898715247
+              ],
+              "raw_wrist_relative_to_elbow_vector_change_model_units": 0.22110150259599493,
+              "rank_by_assessment3d_root_relative_speed": 3,
+              "rank_basis": "assessment3d_root_relative_speed",
+              "speeds_by_independent_mode": {
+                "full": 7.4666275071653025,
+                "bone_only": 7.4666275071653025,
+                "angle_only": 7.171714199474726,
+                "fixed_prior_full": 7.4666275071653025
+              },
+              "constraint_reports": [
+                {
+                  "bone_source": "prior",
+                  "bone_scale": 0.2414873001834129,
+                  "bone_max_correction": 0.17558033702399073,
+                  "angle_corrections": {},
+                  "knees_reflected": 0,
+                  "knee_clamp_degrees": 0,
+                  "invalid": []
+                },
+                {
+                  "bone_source": "prior",
+                  "bone_scale": 0.24761667279261462,
+                  "bone_max_correction": 0.16773847778550396,
+                  "angle_corrections": {},
+                  "knees_reflected": 0,
+                  "knee_clamp_degrees": 0,
+                  "invalid": []
+                }
+              ],
+              "segments": {
+                "upper_arm": {
+                  "raw_lengths_model_units": [
+                    0.17457611241333276,
+                    0.18148883058006648
+                  ],
+                  "bone_only_lengths_model_units": [
+                    0.14730725311188186,
+                    0.1510461704034949
+                  ],
+                  "output_over_raw_length": [
+                    0.8437995959213014,
+                    0.832261522214496
+                  ],
+                  "raw_direction_change_degrees": 5.973922776045249
+                },
+                "forearm": {
+                  "raw_lengths_model_units": [
+                    0.11298080694094378,
+                    0.13944217898715247
+                  ],
+                  "bone_only_lengths_model_units": [
+                    0.1328180151008771,
+                    0.13618917003593806
+                  ],
+                  "output_over_raw_length": [
+                    1.1755803370239906,
+                    0.9766712699497178
+                  ],
+                  "raw_direction_change_degrees": 121.95731169779373
+                }
+              },
+              "bone_interval_speed_with_previous_targets_at_current_frame": 7.4666275071653025,
+              "targets_changed": false,
+              "bone_target_update_same_current_raw_wrist_displacement": 0.0,
+              "correction_vector_change_speed": 0.47557194989797297,
+              "target_shape_normalized_to_sum": [
+                {
+                  "left_elbow-left_wrist": 0.08702531645569621,
+                  "left_hip-left_knee": 0.1582278481012658,
+                  "left_knee-left_ankle": 0.1582278481012658,
+                  "left_shoulder-left_elbow": 0.09651898734177214,
+                  "right_elbow-right_wrist": 0.08702531645569621,
+                  "right_hip-right_knee": 0.1582278481012658,
+                  "right_knee-right_ankle": 0.1582278481012658,
+                  "right_shoulder-right_elbow": 0.09651898734177214
+                },
+                {
+                  "left_elbow-left_wrist": 0.08702531645569621,
+                  "left_hip-left_knee": 0.1582278481012658,
+                  "left_knee-left_ankle": 0.1582278481012658,
+                  "left_shoulder-left_elbow": 0.09651898734177214,
+                  "right_elbow-right_wrist": 0.08702531645569621,
+                  "right_hip-right_knee": 0.1582278481012658,
+                  "right_knee-right_ankle": 0.1582278481012658,
+                  "right_shoulder-right_elbow": 0.09651898734177214
+                }
+              ]
+            }
+          ],
+          "independent_mode_speed_distributions": {
+            "full": {
+              "count": 1233,
+              "min": 0.005179412738236381,
+              "median": 0.21412968916721337,
+              "mean": 0.4409344159535092,
+              "p95": 1.454078757610141,
+              "max": 9.728886577655524
+            },
+            "bone_only": {
+              "count": 1233,
+              "min": 0.005179412738236381,
+              "median": 0.21412968916721337,
+              "mean": 0.44137641878154854,
+              "p95": 1.460489495254817,
+              "max": 9.728886577655524
+            },
+            "angle_only": {
+              "count": 1233,
+              "min": 0.005199195873230526,
+              "median": 0.17034837209386813,
+              "mean": 0.34173351364476523,
+              "p95": 1.0955323541737763,
+              "max": 7.171714199474726
+            },
+            "fixed_prior_full": {
+              "count": 1233,
+              "min": 0.0030153879771051217,
+              "median": 0.20922410063236607,
+              "mean": 0.44044821534391715,
+              "p95": 1.4766490034034498,
+              "max": 7.956560941909431
+            }
+          },
+          "target_update_same_current_raw_displacement": {
+            "count": 1233,
+            "min": 0.0,
+            "median": 7.094280497111494e-05,
+            "mean": 0.00011634821956279246,
+            "p95": 0.00026268330682702797,
+            "max": 0.025093142993081147
+          }
+        }
+      }
+    },
+    "pushUp": {
+      "all_coordinate_max_absolute_error": 0.0,
+      "all_coordinate_comparisons_including_flush": 26877,
+      "genuine_usable_frames": 522,
+      "bone_source_counts": {
+        "prior": 30,
+        "session": 492
+      },
+      "source_changes": [
+        {
+          "frame": 51,
+          "source_pts_seconds": 1.7333333333333334,
+          "from": "prior",
+          "to": "session"
+        }
+      ],
+      "angle_limit_firing_frames": {},
+      "knee_reflection_frames": 0,
+      "knee_clamp_frames": 0,
+      "sides": {
+        "left": {
+          "assessment_ranked_top3": [
+            {
+              "source_interval_seconds": [
+                1.7,
+                1.7333333333333334
+              ],
+              "dt_seconds": 0.03333333333333344,
+              "raw3d_root_relative_displacement_model_units": 0.00799511041637454,
+              "raw3d_root_relative_speed_model_units_per_second": 0.23985331249123545,
+              "RTMPose_wrist_scores_unclipped": [
+                0.269287109375,
+                0.267822265625
+              ],
+              "RTMPose_elbow_scores_unclipped": [
+                0.334716796875,
+                0.33544921875
+              ],
+              "RTMPose_shoulder_scores_unclipped": [
+                0.716796875,
+                0.7109375
+              ],
+              "raw_states": [
+                "ok",
+                "ok"
+              ],
+              "assessment_states": [
+                "ok",
+                "ok"
+              ],
+              "wrist_invalid": [
+                false,
+                false
+              ],
+              "elbow_invalid": [
+                false,
+                false
+              ],
+              "shoulder_invalid": [
+                false,
+                false
+              ],
+              "input_crop_unit_px": [
+                526.9416467285157,
+                526.9416467285157
+              ],
+              "raw_to_input_wrist_shift_px": [
+                0.0,
+                0.0
+              ],
+              "raw_to_constrained_wrist_shift_model_units": [
+                0.011248272239219112,
+                0.052833919860337926
+              ],
+              "raw_2d_displacement": 3.7567365776610586,
+              "raw_2d_speed": 112.7020973298314,
+              "input_2d_displacement": 3.7567365776610586,
+              "input_2d_speed": 112.7020973298314,
+              "assessment_3d_displacement": 0.0643428205853852,
+              "assessment_3d_speed": 1.93028461756155,
+              "elbow3d_raw_root_relative_displacement_model_units": 0.0032300733695650864,
+              "shoulder3d_raw_root_relative_displacement_model_units": 0.0014964508447199052,
+              "raw_forearm_lengths_model_units": [
+                0.19005620718341482,
+                0.18793265832663167
+              ],
+              "raw_wrist_relative_to_elbow_vector_change_model_units": 0.005405855397337977,
+              "rank_by_assessment3d_root_relative_speed": 1,
+              "rank_basis": "assessment3d_root_relative_speed",
+              "speeds_by_independent_mode": {
+                "full": 1.9302846175615498,
+                "bone_only": 1.9302846175615498,
+                "angle_only": 0.23985331249123548,
+                "fixed_prior_full": 0.20589313428554837
+              },
+              "constraint_reports": [
+                {
+                  "bone_source": "prior",
+                  "bone_scale": 0.32486065795325103,
+                  "bone_max_correction": 1.0630614110318062,
+                  "angle_corrections": {},
+                  "knees_reflected": 0,
+                  "knee_clamp_degrees": 0,
+                  "invalid": []
+                },
+                {
+                  "bone_source": "session",
+                  "bone_scale": 1.0261010600705114,
+                  "bone_max_correction": 0.313354975809231,
+                  "angle_corrections": {},
+                  "knees_reflected": 0,
+                  "knee_clamp_degrees": 0,
+                  "invalid": []
+                }
+              ],
+              "segments": {
+                "upper_arm": {
+                  "raw_lengths_model_units": [
+                    0.20409006560949486,
+                    0.20396034760411225
+                  ],
+                  "bone_only_lengths_model_units": [
+                    0.19816500135148313,
+                    0.2508504171448206
+                  ],
+                  "output_over_raw_length": [
+                    0.9709683847652403,
+                    1.2298979683625668
+                  ],
+                  "raw_direction_change_degrees": 0.897554163613606
+                },
+                "forearm": {
+                  "raw_lengths_model_units": [
+                    0.19005620718341482,
+                    0.18793265832663167
+                  ],
+                  "bone_only_lengths_model_units": [
+                    0.17867336187428812,
+                    0.22763184473271691
+                  ],
+                  "output_over_raw_length": [
+                    0.9401080055325863,
+                    1.2112415519450965
+                  ],
+                  "raw_direction_change_degrees": 1.5071721933512856
+                }
+              },
+              "bone_interval_speed_with_previous_targets_at_current_frame": 0.20589313428554837,
+              "targets_changed": true,
+              "bone_target_update_same_current_raw_wrist_displacement": 0.06220123142269474,
+              "correction_vector_change_speed": 1.8855002292108303,
+              "target_shape_normalized_to_sum": [
+                {
+                  "left_elbow-left_wrist": 0.08702531645569621,
+                  "left_hip-left_knee": 0.1582278481012658,
+                  "left_knee-left_ankle": 0.1582278481012658,
+                  "left_shoulder-left_elbow": 0.09651898734177214,
+                  "right_elbow-right_wrist": 0.08702531645569621,
+                  "right_hip-right_knee": 0.1582278481012658,
+                  "right_knee-right_ankle": 0.1582278481012658,
+                  "right_shoulder-right_elbow": 0.09651898734177214
+                },
+                {
+                  "left_elbow-left_wrist": 0.11619297804269355,
+                  "left_hip-left_knee": 0.15146701392744452,
+                  "left_knee-left_ankle": 0.10429528280465088,
+                  "left_shoulder-left_elbow": 0.1280447252252111,
+                  "right_elbow-right_wrist": 0.11619297804269355,
+                  "right_hip-right_knee": 0.15146701392744452,
+                  "right_knee-right_ankle": 0.10429528280465088,
+                  "right_shoulder-right_elbow": 0.1280447252252111
+                }
+              ]
+            },
+            {
+              "source_interval_seconds": [
+                16.666666666666668,
+                16.7
+              ],
+              "dt_seconds": 0.03333333333333144,
+              "raw3d_root_relative_displacement_model_units": 0.027663296634249962,
+              "raw3d_root_relative_speed_model_units_per_second": 0.829898899027546,
+              "RTMPose_wrist_scores_unclipped": [
+                0.2305908203125,
+                0.1834716796875
+              ],
+              "RTMPose_elbow_scores_unclipped": [
+                0.364501953125,
+                0.366455078125
+              ],
+              "RTMPose_shoulder_scores_unclipped": [
+                0.71875,
+                0.72265625
+              ],
+              "raw_states": [
+                "ok",
+                "ok"
+              ],
+              "assessment_states": [
+                "ok",
+                "ok"
+              ],
+              "wrist_invalid": [
+                false,
+                false
+              ],
+              "elbow_invalid": [
+                false,
+                false
+              ],
+              "shoulder_invalid": [
+                false,
+                false
+              ],
+              "input_crop_unit_px": [
+                526.9416467285157,
+                526.9416467285157
+              ],
+              "raw_to_input_wrist_shift_px": [
+                0.0,
+                0.0
+              ],
+              "raw_to_constrained_wrist_shift_model_units": [
+                0.06060847628773807,
+                0.06437670308087767
+              ],
+              "raw_2d_displacement": 86.42535592116744,
+              "raw_2d_speed": 2592.7606776351704,
+              "input_2d_displacement": 86.42535592116744,
+              "input_2d_speed": 2592.7606776351704,
+              "assessment_3d_displacement": 0.03270661460885483,
+              "assessment_3d_speed": 0.9811984382657006,
+              "elbow3d_raw_root_relative_displacement_model_units": 0.008432935124485189,
+              "shoulder3d_raw_root_relative_displacement_model_units": 0.0013936546305884326,
+              "raw_forearm_lengths_model_units": [
+                0.18036342298867167,
+                0.18924816341230222
+              ],
+              "raw_wrist_relative_to_elbow_vector_change_model_units": 0.023090536172675057,
+              "rank_by_assessment3d_root_relative_speed": 2,
+              "rank_basis": "assessment3d_root_relative_speed",
+              "speeds_by_independent_mode": {
+                "full": 0.9811984382657006,
+                "bone_only": 0.9811984382657006,
+                "angle_only": 0.829898899027546,
+                "fixed_prior_full": 0.7465531995307351
+              },
+              "constraint_reports": [
+                {
+                  "bone_source": "session",
+                  "bone_scale": 1.0111056620598375,
+                  "bone_max_correction": 0.29755010515940095,
+                  "angle_corrections": {},
+                  "knees_reflected": 0,
+                  "knee_clamp_degrees": 0,
+                  "invalid": []
+                },
+                {
+                  "bone_source": "session",
+                  "bone_scale": 1.0178740415785237,
+                  "bone_max_correction": 0.3501375130340778,
+                  "angle_corrections": {},
+                  "knees_reflected": 0,
+                  "knee_clamp_degrees": 0,
+                  "invalid": []
+                }
+              ],
+              "segments": {
+                "upper_arm": {
+                  "raw_lengths_model_units": [
+                    0.18141729972184895,
+                    0.17545563952007845
+                  ],
+                  "bone_only_lengths_model_units": [
+                    0.2353980363318197,
+                    0.23688924078944237
+                  ],
+                  "output_over_raw_length": [
+                    1.2975501051594012,
+                    1.3501375130340778
+                  ],
+                  "raw_direction_change_degrees": 2.162000503098302
+                },
+                "forearm": {
+                  "raw_lengths_model_units": [
+                    0.18036342298867167,
+                    0.18924816341230222
+                  ],
+                  "bone_only_lengths_model_units": [
+                    0.21816263801922328,
+                    0.21962302696403813
+                  ],
+                  "output_over_raw_length": [
+                    1.2095725086839015,
+                    1.1605028181201433
+                  ],
+                  "raw_direction_change_degrees": 6.613229625173349
+                }
+              },
+              "bone_interval_speed_with_previous_targets_at_current_frame": 0.9816218111051022,
+              "targets_changed": true,
+              "bone_target_update_same_current_raw_wrist_displacement": 7.363056531093628e-05,
+              "correction_vector_change_speed": 0.4072503698959808,
+              "target_shape_normalized_to_sum": [
+                {
+                  "left_elbow-left_wrist": 0.11683360805263389,
+                  "left_hip-left_knee": 0.15268641038350275,
+                  "left_knee-left_ankle": 0.10441622397981666,
+                  "left_shoulder-left_elbow": 0.1260637575840467,
+                  "right_elbow-right_wrist": 0.11683360805263389,
+                  "right_hip-right_knee": 0.15268641038350275,
+                  "right_knee-right_ankle": 0.10441622397981666,
+                  "right_shoulder-right_elbow": 0.1260637575840467
+                },
+                {
+                  "left_elbow-left_wrist": 0.11684876943574592,
+                  "left_hip-left_knee": 0.15274995028680083,
+                  "left_knee-left_ankle": 0.10436615244294385,
+                  "left_shoulder-left_elbow": 0.12603512783450943,
+                  "right_elbow-right_wrist": 0.11684876943574592,
+                  "right_hip-right_knee": 0.15274995028680083,
+                  "right_knee-right_ankle": 0.10436615244294385,
+                  "right_shoulder-right_elbow": 0.12603512783450943
+                }
+              ]
+            },
+            {
+              "source_interval_seconds": [
+                13.1,
+                13.133333333333333
+              ],
+              "dt_seconds": 0.033333333333333215,
+              "raw3d_root_relative_displacement_model_units": 0.006274201801435331,
+              "raw3d_root_relative_speed_model_units_per_second": 0.1882260540430606,
+              "RTMPose_wrist_scores_unclipped": [
+                0.69677734375,
+                0.66357421875
+              ],
+              "RTMPose_elbow_scores_unclipped": [
+                0.469482421875,
+                0.44873046875
+              ],
+              "RTMPose_shoulder_scores_unclipped": [
+                0.72412109375,
+                0.6865234375
+              ],
+              "raw_states": [
+                "ok",
+                "ok"
+              ],
+              "assessment_states": [
+                "ok",
+                "ok"
+              ],
+              "wrist_invalid": [
+                false,
+                false
+              ],
+              "elbow_invalid": [
+                false,
+                false
+              ],
+              "shoulder_invalid": [
+                false,
+                false
+              ],
+              "input_crop_unit_px": [
+                526.9416467285157,
+                526.9416467285157
+              ],
+              "raw_to_input_wrist_shift_px": [
+                17.952758679506253,
+                16.498355546999278
+              ],
+              "raw_to_constrained_wrist_shift_model_units": [
+                0.05168886811471315,
+                0.06829012201859981
+              ],
+              "raw_2d_displacement": 11.879844154674583,
+              "raw_2d_speed": 356.3953246402387,
+              "input_2d_displacement": 5.81023140212152,
+              "input_2d_speed": 174.30694206364623,
+              "assessment_3d_displacement": 0.023965640892445326,
+              "assessment_3d_speed": 0.7189692267733623,
+              "elbow3d_raw_root_relative_displacement_model_units": 0.02481922602174185,
+              "shoulder3d_raw_root_relative_displacement_model_units": 0.0032248431790466558,
+              "raw_forearm_lengths_model_units": [
+                0.16992304242489426,
+                0.16112983585266977
+              ],
+              "raw_wrist_relative_to_elbow_vector_change_model_units": 0.030253065084014468,
+              "rank_by_assessment3d_root_relative_speed": 3,
+              "rank_basis": "assessment3d_root_relative_speed",
+              "speeds_by_independent_mode": {
+                "full": 0.7189692267733623,
+                "bone_only": 0.7189692267733623,
+                "angle_only": 0.18822605404306061,
+                "fixed_prior_full": 0.3245446142421063
+              },
+              "constraint_reports": [
+                {
+                  "bone_source": "session",
+                  "bone_scale": 1.0042848753808606,
+                  "bone_max_correction": 0.27251690811029955,
+                  "angle_corrections": {},
+                  "knees_reflected": 0,
+                  "knee_clamp_degrees": 0,
+                  "invalid": []
+                },
+                {
+                  "bone_source": "session",
+                  "bone_scale": 1.0039458220803406,
+                  "bone_max_correction": 0.3414869449979289,
+                  "angle_corrections": {},
+                  "knees_reflected": 0,
+                  "knee_clamp_degrees": 0,
+                  "invalid": []
+                }
+              ],
+              "segments": {
+                "upper_arm": {
+                  "raw_lengths_model_units": [
+                    0.21021766935025102,
+                    0.2007235048800802
+                  ],
+                  "bone_only_lengths_model_units": [
+                    0.23292395331344726,
+                    0.2329287104420358
+                  ],
+                  "output_over_raw_length": [
+                    1.1080132038062154,
+                    1.160445611893815
+                  ],
+                  "raw_direction_change_degrees": 6.269683655086563
+                },
+                "forearm": {
+                  "raw_lengths_model_units": [
+                    0.16992304242489426,
+                    0.16112983585266977
+                  ],
+                  "bone_only_lengths_model_units": [
+                    0.2162299445632217,
+                    0.21615357124601567
+                  ],
+                  "output_over_raw_length": [
+                    1.2725169081102996,
+                    1.3414869449979285
+                  ],
+                  "raw_direction_change_degrees": 10.036148604930007
+                }
+              },
+              "bone_interval_speed_with_previous_targets_at_current_frame": 0.7186404313227258,
+              "targets_changed": true,
+              "bone_target_update_same_current_raw_wrist_displacement": 5.411852215776102e-05,
+              "correction_vector_change_speed": 0.5697983648389185,
+              "target_shape_normalized_to_sum": [
+                {
+                  "left_elbow-left_wrist": 0.11659749156192789,
+                  "left_hip-left_knee": 0.15285590292668033,
+                  "left_knee-left_ankle": 0.10494721761951284,
+                  "left_shoulder-left_elbow": 0.1255993878918789,
+                  "right_elbow-right_wrist": 0.11659749156192789,
+                  "right_hip-right_knee": 0.15285590292668033,
+                  "right_knee-right_ankle": 0.10494721761951284,
+                  "right_shoulder-right_elbow": 0.1255993878918789
+                },
+                {
+                  "left_elbow-left_wrist": 0.11658074880677292,
+                  "left_hip-left_knee": 0.15283633832908763,
+                  "left_knee-left_ankle": 0.10495462310055283,
+                  "left_shoulder-left_elbow": 0.12562828976358661,
+                  "right_elbow-right_wrist": 0.11658074880677292,
+                  "right_hip-right_knee": 0.15283633832908763,
+                  "right_knee-right_ankle": 0.10495462310055283,
+                  "right_shoulder-right_elbow": 0.12562828976358661
+                }
+              ]
+            }
+          ],
+          "independent_mode_speed_distributions": {
+            "full": {
+              "count": 519,
+              "min": 0.008680407690161818,
+              "median": 0.18516461430352263,
+              "mean": 0.21661357823599017,
+              "p95": 0.44226609056019295,
+              "max": 1.9302846175615498
+            },
+            "bone_only": {
+              "count": 519,
+              "min": 0.008680407690161818,
+              "median": 0.18516461430352263,
+              "mean": 0.21661357823599017,
+              "p95": 0.44226609056019295,
+              "max": 1.9302846175615498
+            },
+            "angle_only": {
+              "count": 519,
+              "min": 0.010081199132787468,
+              "median": 0.1741596767534021,
+              "mean": 0.18303271030266507,
+              "p95": 0.3473981809872802,
+              "max": 0.829898899027546
+            },
+            "fixed_prior_full": {
+              "count": 519,
+              "min": 0.005930455198682614,
+              "median": 0.14765585374968818,
+              "mean": 0.16131480879363888,
+              "p95": 0.31996672949824684,
+              "max": 0.7465531995307351
+            }
+          },
+          "target_update_same_current_raw_displacement": {
+            "count": 519,
+            "min": 0.0,
+            "median": 0.00010354684770308832,
+            "mean": 0.0003097469945975483,
+            "p95": 0.0006860292027586124,
+            "max": 0.06220123142269474
+          }
+        },
+        "right": {
+          "assessment_ranked_top3": [
+            {
+              "source_interval_seconds": [
+                1.7,
+                1.7333333333333334
+              ],
+              "dt_seconds": 0.03333333333333344,
+              "raw3d_root_relative_displacement_model_units": 0.001410922394478373,
+              "raw3d_root_relative_speed_model_units_per_second": 0.04232767183435106,
+              "RTMPose_wrist_scores_unclipped": [
+                0.8203125,
+                0.81689453125
+              ],
+              "RTMPose_elbow_scores_unclipped": [
+                0.78076171875,
+                0.77783203125
+              ],
+              "RTMPose_shoulder_scores_unclipped": [
+                0.6748046875,
+                0.67041015625
+              ],
+              "raw_states": [
+                "ok",
+                "ok"
+              ],
+              "assessment_states": [
+                "ok",
+                "ok"
+              ],
+              "wrist_invalid": [
+                false,
+                false
+              ],
+              "elbow_invalid": [
+                false,
+                false
+              ],
+              "shoulder_invalid": [
+                false,
+                false
+              ],
+              "input_crop_unit_px": [
+                526.9416467285157,
+                526.9416467285157
+              ],
+              "raw_to_input_wrist_shift_px": [
+                3.74883740811482,
+                6.550401563664317
+              ],
+              "raw_to_constrained_wrist_shift_model_units": [
+                0.094929946300214,
+                0.02572103767209488
+              ],
+              "raw_2d_displacement": 2.656413909195517,
+              "raw_2d_speed": 79.69241727586525,
+              "input_2d_displacement": 0.47576746041883305,
+              "input_2d_speed": 14.273023812564947,
+              "assessment_3d_displacement": 0.06866838134001353,
+              "assessment_3d_speed": 2.0600514402003993,
+              "elbow3d_raw_root_relative_displacement_model_units": 0.0015643049781938847,
+              "shoulder3d_raw_root_relative_displacement_model_units": 0.004635006309590371,
+              "raw_forearm_lengths_model_units": [
+                0.24993982932065853,
+                0.24959032944207293
+              ],
+              "raw_wrist_relative_to_elbow_vector_change_model_units": 0.00172741353736388,
+              "rank_by_assessment3d_root_relative_speed": 1,
+              "rank_basis": "assessment3d_root_relative_speed",
+              "speeds_by_independent_mode": {
+                "full": 2.0600514402003998,
+                "bone_only": 2.0600514402003998,
+                "angle_only": 0.04232767183435106,
+                "fixed_prior_full": 0.041874381542295086
+              },
+              "constraint_reports": [
+                {
+                  "bone_source": "prior",
+                  "bone_scale": 0.32486065795325103,
+                  "bone_max_correction": 1.0630614110318062,
+                  "angle_corrections": {},
+                  "knees_reflected": 0,
+                  "knee_clamp_degrees": 0,
+                  "invalid": []
+                },
+                {
+                  "bone_source": "session",
+                  "bone_scale": 1.0261010600705114,
+                  "bone_max_correction": 0.313354975809231,
+                  "angle_corrections": {},
+                  "knees_reflected": 0,
+                  "knee_clamp_degrees": 0,
+                  "invalid": []
+                }
+              ],
+              "segments": {
+                "upper_arm": {
+                  "raw_lengths_model_units": [
+                    0.26677177221740483,
+                    0.2658516323745637
+                  ],
+                  "bone_only_lengths_model_units": [
+                    0.1981650013514831,
+                    0.2508504171448206
+                  ],
+                  "output_over_raw_length": [
+                    0.7428259733192054,
+                    0.9435729805540272
+                  ],
+                  "raw_direction_change_degrees": 0.8143403987224167
+                },
+                "forearm": {
+                  "raw_lengths_model_units": [
+                    0.24993982932065853,
+                    0.24959032944207293
+                  ],
+                  "bone_only_lengths_model_units": [
+                    0.17867336187428803,
+                    0.22763184473271691
+                  ],
+                  "output_over_raw_length": [
+                    0.7148655032690301,
+                    0.9120218930018588
+                  ],
+                  "raw_direction_change_degrees": 0.3880717681507855
+                }
+              },
+              "bone_interval_speed_with_previous_targets_at_current_frame": 0.041874381542295086,
+              "targets_changed": true,
+              "bone_target_update_same_current_raw_wrist_displacement": 0.06992559565193619,
+              "correction_vector_change_speed": 2.093924940358837,
+              "target_shape_normalized_to_sum": [
+                {
+                  "left_elbow-left_wrist": 0.08702531645569621,
+                  "left_hip-left_knee": 0.1582278481012658,
+                  "left_knee-left_ankle": 0.1582278481012658,
+                  "left_shoulder-left_elbow": 0.09651898734177214,
+                  "right_elbow-right_wrist": 0.08702531645569621,
+                  "right_hip-right_knee": 0.1582278481012658,
+                  "right_knee-right_ankle": 0.1582278481012658,
+                  "right_shoulder-right_elbow": 0.09651898734177214
+                },
+                {
+                  "left_elbow-left_wrist": 0.11619297804269355,
+                  "left_hip-left_knee": 0.15146701392744452,
+                  "left_knee-left_ankle": 0.10429528280465088,
+                  "left_shoulder-left_elbow": 0.1280447252252111,
+                  "right_elbow-right_wrist": 0.11619297804269355,
+                  "right_hip-right_knee": 0.15146701392744452,
+                  "right_knee-right_ankle": 0.10429528280465088,
+                  "right_shoulder-right_elbow": 0.1280447252252111
+                }
+              ]
+            },
+            {
+              "source_interval_seconds": [
+                18.133333333333333,
+                18.166666666666668
+              ],
+              "dt_seconds": 0.03333333333333499,
+              "raw3d_root_relative_displacement_model_units": 0.015293455798211569,
+              "raw3d_root_relative_speed_model_units_per_second": 0.45880367394632426,
+              "RTMPose_wrist_scores_unclipped": [
+                0.87451171875,
+                0.8837890625
+              ],
+              "RTMPose_elbow_scores_unclipped": [
+                0.7578125,
+                0.7685546875
+              ],
+              "RTMPose_shoulder_scores_unclipped": [
+                0.78662109375,
+                0.7978515625
+              ],
+              "raw_states": [
+                "ok",
+                "ok"
+              ],
+              "assessment_states": [
+                "ok",
+                "ok"
+              ],
+              "wrist_invalid": [
+                false,
+                false
+              ],
+              "elbow_invalid": [
+                false,
+                false
+              ],
+              "shoulder_invalid": [
+                false,
+                false
+              ],
+              "input_crop_unit_px": [
+                526.9416467285157,
+                526.9416467285157
+              ],
+              "raw_to_input_wrist_shift_px": [
+                14.830030360782784,
+                14.754758537913352
+              ],
+              "raw_to_constrained_wrist_shift_model_units": [
+                0.06070384211717916,
+                0.05771276055146824
+              ],
+              "raw_2d_displacement": 0.0,
+              "raw_2d_speed": 0.0,
+              "input_2d_displacement": 0.1781513652875015,
+              "input_2d_speed": 5.344540958624779,
+              "assessment_3d_displacement": 0.01742312375155464,
+              "assessment_3d_speed": 0.5226937125466132,
+              "elbow3d_raw_root_relative_displacement_model_units": 0.015596878554466636,
+              "shoulder3d_raw_root_relative_displacement_model_units": 0.01546145320030346,
+              "raw_forearm_lengths_model_units": [
+                0.24065325434878096,
+                0.23955309027372698
+              ],
+              "raw_wrist_relative_to_elbow_vector_change_model_units": 0.0020643963043564164,
+              "rank_by_assessment3d_root_relative_speed": 2,
+              "rank_basis": "assessment3d_root_relative_speed",
+              "speeds_by_independent_mode": {
+                "full": 0.5226937125466132,
+                "bone_only": 0.5226937125466132,
+                "angle_only": 0.45880367394632426,
+                "fixed_prior_full": 0.48361278120435475
+              },
+              "constraint_reports": [
+                {
+                  "bone_source": "session",
+                  "bone_scale": 1.0460562369633506,
+                  "bone_max_correction": 0.21165591160743696,
+                  "angle_corrections": {},
+                  "knees_reflected": 0,
+                  "knee_clamp_degrees": 0,
+                  "invalid": []
+                },
+                {
+                  "bone_source": "session",
+                  "bone_scale": 1.0471471813716193,
+                  "bone_max_correction": 0.21264498503343182,
+                  "angle_corrections": {},
+                  "knees_reflected": 0,
+                  "knee_clamp_degrees": 0,
+                  "invalid": []
+                }
+              ],
+              "segments": {
+                "upper_arm": {
+                  "raw_lengths_model_units": [
+                    0.2895288672203763,
+                    0.2882675632856404
+                  ],
+                  "bone_only_lengths_model_units": [
+                    0.24428171795229123,
+                    0.24459428764135877
+                  ],
+                  "output_over_raw_length": [
+                    0.8437214578895686,
+                    0.8484974336116812
+                  ],
+                  "raw_direction_change_degrees": 1.4166903025019315
+                },
+                "forearm": {
+                  "raw_lengths_model_units": [
+                    0.24065325434878096,
+                    0.23955309027372698
+                  ],
+                  "bone_only_lengths_model_units": [
+                    0.22514896823830355,
+                    0.22547076594639937
+                  ],
+                  "output_over_raw_length": [
+                    0.9355741681016002,
+                    0.9412141821621406
+                  ],
+                  "raw_direction_change_degrees": 0.4168447603252876
+                }
+              },
+              "bone_interval_speed_with_previous_targets_at_current_frame": 0.5194780656217463,
+              "targets_changed": true,
+              "bone_target_update_same_current_raw_wrist_displacement": 0.00011666565031914296,
+              "correction_vector_change_speed": 0.09609603747359655,
+              "target_shape_normalized_to_sum": [
+                {
+                  "left_elbow-left_wrist": 0.11636857713382844,
+                  "left_hip-left_knee": 0.15235454619965422,
+                  "left_knee-left_ankle": 0.1050195095537898,
+                  "left_shoulder-left_elbow": 0.1262573671127275,
+                  "right_elbow-right_wrist": 0.11636857713382844,
+                  "right_hip-right_knee": 0.15235454619965422,
+                  "right_knee-right_ankle": 0.1050195095537898,
+                  "right_shoulder-right_elbow": 0.1262573671127275
+                },
+                {
+                  "left_elbow-left_wrist": 0.1164002058088169,
+                  "left_hip-left_knee": 0.15231946625324044,
+                  "left_knee-left_ankle": 0.10500752577837832,
+                  "left_shoulder-left_elbow": 0.12627280215956432,
+                  "right_elbow-right_wrist": 0.1164002058088169,
+                  "right_hip-right_knee": 0.15231946625324044,
+                  "right_knee-right_ankle": 0.10500752577837832,
+                  "right_shoulder-right_elbow": 0.12627280215956432
+                }
+              ]
+            },
+            {
+              "source_interval_seconds": [
+                18.1,
+                18.133333333333333
+              ],
+              "dt_seconds": 0.03333333333333144,
+              "raw3d_root_relative_displacement_model_units": 0.015228133879443108,
+              "raw3d_root_relative_speed_model_units_per_second": 0.45684401638331923,
+              "RTMPose_wrist_scores_unclipped": [
+                0.87841796875,
+                0.87451171875
+              ],
+              "RTMPose_elbow_scores_unclipped": [
+                0.7529296875,
+                0.7578125
+              ],
+              "RTMPose_shoulder_scores_unclipped": [
+                0.80322265625,
+                0.78662109375
+              ],
+              "raw_states": [
+                "ok",
+                "ok"
+              ],
+              "assessment_states": [
+                "ok",
+                "ok"
+              ],
+              "wrist_invalid": [
+                false,
+                false
+              ],
+              "elbow_invalid": [
+                false,
+                false
+              ],
+              "shoulder_invalid": [
+                false,
+                false
+              ],
+              "input_crop_unit_px": [
+                526.9416467285157,
+                526.9416467285157
+              ],
+              "raw_to_input_wrist_shift_px": [
+                14.876955365094924,
+                14.830030360782784
+              ],
+              "raw_to_constrained_wrist_shift_model_units": [
+                0.06342065094604118,
+                0.06070384211717916
+              ],
+              "raw_2d_displacement": 0.0,
+              "raw_2d_speed": 0.0,
+              "input_2d_displacement": 0.06794833857883747,
+              "input_2d_speed": 2.03845015736524,
+              "assessment_3d_displacement": 0.017067220289378352,
+              "assessment_3d_speed": 0.5120166086813797,
+              "elbow3d_raw_root_relative_displacement_model_units": 0.016263335354473978,
+              "shoulder3d_raw_root_relative_displacement_model_units": 0.014311288137333454,
+              "raw_forearm_lengths_model_units": [
+                0.24292255956089953,
+                0.24065325434878096
+              ],
+              "raw_wrist_relative_to_elbow_vector_change_model_units": 0.003150265600723618,
+              "rank_by_assessment3d_root_relative_speed": 3,
+              "rank_basis": "assessment3d_root_relative_speed",
+              "speeds_by_independent_mode": {
+                "full": 0.5120166086813797,
+                "bone_only": 0.5120166086813797,
+                "angle_only": 0.45684401638331923,
+                "fixed_prior_full": 0.47203706451487776
+              },
+              "constraint_reports": [
+                {
+                  "bone_source": "session",
+                  "bone_scale": 1.0430433730368298,
+                  "bone_max_correction": 0.19753234037304238,
+                  "angle_corrections": {},
+                  "knees_reflected": 0,
+                  "knee_clamp_degrees": 0,
+                  "invalid": []
+                },
+                {
+                  "bone_source": "session",
+                  "bone_scale": 1.0460562369633506,
+                  "bone_max_correction": 0.21165591160743696,
+                  "angle_corrections": {},
+                  "knees_reflected": 0,
+                  "knee_clamp_degrees": 0,
+                  "invalid": []
+                }
+              ],
+              "segments": {
+                "upper_arm": {
+                  "raw_lengths_model_units": [
+                    0.2884584313998638,
+                    0.2895288672203763
+                  ],
+                  "bone_only_lengths_model_units": [
+                    0.2434110143672831,
+                    0.24428171795229123
+                  ],
+                  "output_over_raw_length": [
+                    0.8438339388660976,
+                    0.8437214578895686
+                  ],
+                  "raw_direction_change_degrees": 1.4724424881368352
+                },
+                "forearm": {
+                  "raw_lengths_model_units": [
+                    0.24292255956089953,
+                    0.24065325434878096
+                  ],
+                  "bone_only_lengths_model_units": [
+                    0.22448935333322517,
+                    0.22514896823830355
+                  ],
+                  "output_over_raw_length": [
+                    0.9241190021174084,
+                    0.9355741681016002
+                  ],
+                  "raw_direction_change_degrees": 0.5177915452834739
+                }
+              },
+              "bone_interval_speed_with_previous_targets_at_current_frame": 0.5079089560972352,
+              "targets_changed": true,
+              "bone_target_update_same_current_raw_wrist_displacement": 0.0001566121149848302,
+              "correction_vector_change_speed": 0.08903923449812404,
+              "target_shape_normalized_to_sum": [
+                {
+                  "left_elbow-left_wrist": 0.11636347792917576,
+                  "left_hip-left_knee": 0.15244493189139358,
+                  "left_knee-left_ankle": 0.10502011800274301,
+                  "left_shoulder-left_elbow": 0.12617147217668767,
+                  "right_elbow-right_wrist": 0.11636347792917576,
+                  "right_hip-right_knee": 0.15244493189139358,
+                  "right_knee-right_ankle": 0.10502011800274301,
+                  "right_shoulder-right_elbow": 0.12617147217668767
+                },
+                {
+                  "left_elbow-left_wrist": 0.11636857713382844,
+                  "left_hip-left_knee": 0.15235454619965422,
+                  "left_knee-left_ankle": 0.1050195095537898,
+                  "left_shoulder-left_elbow": 0.1262573671127275,
+                  "right_elbow-right_wrist": 0.11636857713382844,
+                  "right_hip-right_knee": 0.15235454619965422,
+                  "right_knee-right_ankle": 0.1050195095537898,
+                  "right_shoulder-right_elbow": 0.1262573671127275
+                }
+              ]
+            }
+          ],
+          "independent_mode_speed_distributions": {
+            "full": {
+              "count": 519,
+              "min": 0.008402977175288193,
+              "median": 0.1302364345371329,
+              "mean": 0.14369247960505319,
+              "p95": 0.25421127163853907,
+              "max": 2.0600514402003998
+            },
+            "bone_only": {
+              "count": 519,
+              "min": 0.008402977175288193,
+              "median": 0.1302364345371329,
+              "mean": 0.14369247960505319,
+              "p95": 0.25421127163853907,
+              "max": 2.0600514402003998
+            },
+            "angle_only": {
+              "count": 519,
+              "min": 0.010478689400261561,
+              "median": 0.13703964245215,
+              "mean": 0.14499304612269834,
+              "p95": 0.27510832800209434,
+              "max": 0.45880367394632426
+            },
+            "fixed_prior_full": {
+              "count": 519,
+              "min": 0.009576884406836865,
+              "median": 0.11790727306478997,
+              "mean": 0.13692429746018123,
+              "p95": 0.28195878099336963,
+              "max": 0.48361278120435475
+            }
+          },
+          "target_update_same_current_raw_displacement": {
+            "count": 519,
+            "min": 0.0,
+            "median": 0.00010469753292296192,
+            "mean": 0.00032636752016739103,
+            "p95": 0.0006969131005957691,
+            "max": 0.06992559565193619
+          }
+        }
+      }
+    },
+    "barbellRow": {
+      "all_coordinate_max_absolute_error": 0.0,
+      "all_coordinate_comparisons_including_flush": 28866,
+      "genuine_usable_frames": 561,
+      "bone_source_counts": {
+        "prior": 30,
+        "session": 531
+      },
+      "source_changes": [
+        {
+          "frame": 51,
+          "source_pts_seconds": 1.7333333333333334,
+          "from": "prior",
+          "to": "session"
+        }
+      ],
+      "angle_limit_firing_frames": {},
+      "knee_reflection_frames": 0,
+      "knee_clamp_frames": 0,
+      "sides": {
+        "left": {
+          "assessment_ranked_top3": [
+            {
+              "source_interval_seconds": [
+                0.9,
+                0.9333333333333333
+              ],
+              "dt_seconds": 0.033333333333333326,
+              "raw3d_root_relative_displacement_model_units": 0.07698568699643782,
+              "raw3d_root_relative_speed_model_units_per_second": 2.309570609893135,
+              "RTMPose_wrist_scores_unclipped": [
+                0.88671875,
+                0.859375
+              ],
+              "RTMPose_elbow_scores_unclipped": [
+                0.91552734375,
+                0.88037109375
+              ],
+              "RTMPose_shoulder_scores_unclipped": [
+                0.8828125,
+                0.84375
+              ],
+              "raw_states": [
+                "ok",
+                "ok"
+              ],
+              "assessment_states": [
+                "ok",
+                "ok"
+              ],
+              "wrist_invalid": [
+                false,
+                false
+              ],
+              "elbow_invalid": [
+                false,
+                false
+              ],
+              "shoulder_invalid": [
+                false,
+                false
+              ],
+              "input_crop_unit_px": [
+                427.9278938770294,
+                427.9278938770294
+              ],
+              "raw_to_input_wrist_shift_px": [
+                0.0,
+                0.0
+              ],
+              "raw_to_constrained_wrist_shift_model_units": [
+                0.07326238738987294,
+                0.07537178070766122
+              ],
+              "raw_2d_displacement": 1.276911575696431,
+              "raw_2d_speed": 38.30734727089294,
+              "input_2d_displacement": 1.276911575696431,
+              "input_2d_speed": 38.30734727089294,
+              "assessment_3d_displacement": 0.06604854593621781,
+              "assessment_3d_speed": 1.981456378086535,
+              "elbow3d_raw_root_relative_displacement_model_units": 0.029334977327270664,
+              "shoulder3d_raw_root_relative_displacement_model_units": 0.008444757585353613,
+              "raw_forearm_lengths_model_units": [
+                0.22407994276915683,
+                0.22426256688733967
+              ],
+              "raw_wrist_relative_to_elbow_vector_change_model_units": 0.04796683770508898,
+              "rank_by_assessment3d_root_relative_speed": 1,
+              "rank_basis": "assessment3d_root_relative_speed",
+              "speeds_by_independent_mode": {
+                "full": 1.9814563780865349,
+                "bone_only": 1.9814563780865349,
+                "angle_only": 2.309570609893135,
+                "fixed_prior_full": 1.9814563780865349
+              },
+              "constraint_reports": [
+                {
+                  "bone_source": "prior",
+                  "bone_scale": 0.3479529644652587,
+                  "bone_max_correction": 0.23891160120467933,
+                  "angle_corrections": {},
+                  "knees_reflected": 0,
+                  "knee_clamp_degrees": 0,
+                  "invalid": []
+                },
+                {
+                  "bone_source": "prior",
+                  "bone_scale": 0.3477113445474649,
+                  "bone_max_correction": 0.21952819721291028,
+                  "angle_corrections": {},
+                  "knees_reflected": 0,
+                  "knee_clamp_degrees": 0,
+                  "invalid": []
+                }
+              ],
+              "segments": {
+                "upper_arm": {
+                  "raw_lengths_model_units": [
+                    0.25534962697000935,
+                    0.2569524696460043
+                  ],
+                  "bone_only_lengths_model_units": [
+                    0.21225130832380779,
+                    0.21210392017395363
+                  ],
+                  "output_over_raw_length": [
+                    0.831218399816721,
+                    0.82545974540024
+                  ],
+                  "raw_direction_change_degrees": 5.027683452626188
+                },
+                "forearm": {
+                  "raw_lengths_model_units": [
+                    0.22407994276915683,
+                    0.22426256688733967
+                  ],
+                  "bone_only_lengths_model_units": [
+                    0.1913741304558923,
+                    0.19124123950110566
+                  ],
+                  "output_over_raw_length": [
+                    0.8540439991679333,
+                    0.8527559554652624
+                  ],
+                  "raw_direction_change_degrees": 12.28323267523223
+                }
+              },
+              "bone_interval_speed_with_previous_targets_at_current_frame": 1.9814563780865349,
+              "targets_changed": false,
+              "bone_target_update_same_current_raw_wrist_displacement": 0.0,
+              "correction_vector_change_speed": 0.3334353732340816,
+              "target_shape_normalized_to_sum": [
+                {
+                  "left_elbow-left_wrist": 0.08702531645569621,
+                  "left_hip-left_knee": 0.1582278481012658,
+                  "left_knee-left_ankle": 0.1582278481012658,
+                  "left_shoulder-left_elbow": 0.09651898734177214,
+                  "right_elbow-right_wrist": 0.08702531645569621,
+                  "right_hip-right_knee": 0.1582278481012658,
+                  "right_knee-right_ankle": 0.1582278481012658,
+                  "right_shoulder-right_elbow": 0.09651898734177214
+                },
+                {
+                  "left_elbow-left_wrist": 0.08702531645569621,
+                  "left_hip-left_knee": 0.1582278481012658,
+                  "left_knee-left_ankle": 0.1582278481012658,
+                  "left_shoulder-left_elbow": 0.09651898734177214,
+                  "right_elbow-right_wrist": 0.08702531645569621,
+                  "right_hip-right_knee": 0.1582278481012658,
+                  "right_knee-right_ankle": 0.1582278481012658,
+                  "right_shoulder-right_elbow": 0.09651898734177214
+                }
+              ]
+            },
+            {
+              "source_interval_seconds": [
+                1.7,
+                1.7333333333333334
+              ],
+              "dt_seconds": 0.03333333333333344,
+              "raw3d_root_relative_displacement_model_units": 0.01580374521340054,
+              "raw3d_root_relative_speed_model_units_per_second": 0.4741123564020148,
+              "RTMPose_wrist_scores_unclipped": [
+                0.89501953125,
+                0.88720703125
+              ],
+              "RTMPose_elbow_scores_unclipped": [
+                0.896484375,
+                0.8916015625
+              ],
+              "RTMPose_shoulder_scores_unclipped": [
+                0.8466796875,
+                0.8447265625
+              ],
+              "raw_states": [
+                "ok",
+                "ok"
+              ],
+              "assessment_states": [
+                "ok",
+                "ok"
+              ],
+              "wrist_invalid": [
+                false,
+                false
+              ],
+              "elbow_invalid": [
+                false,
+                false
+              ],
+              "shoulder_invalid": [
+                false,
+                false
+              ],
+              "input_crop_unit_px": [
+                427.9278938770294,
+                427.9278938770294
+              ],
+              "raw_to_input_wrist_shift_px": [
+                0.0,
+                0.0
+              ],
+              "raw_to_constrained_wrist_shift_model_units": [
+                0.07272637329669626,
+                0.021252805052548243
+              ],
+              "raw_2d_displacement": 5.107646302785724,
+              "raw_2d_speed": 153.22938908357125,
+              "input_2d_displacement": 5.107646302785724,
+              "input_2d_speed": 153.22938908357125,
+              "assessment_3d_displacement": 0.05888776246455009,
+              "assessment_3d_speed": 1.7666328739364974,
+              "elbow3d_raw_root_relative_displacement_model_units": 0.01416650991288816,
+              "shoulder3d_raw_root_relative_displacement_model_units": 0.0010990565860210637,
+              "raw_forearm_lengths_model_units": [
+                0.2208946249621884,
+                0.22001112895639516
+              ],
+              "raw_wrist_relative_to_elbow_vector_change_model_units": 0.00609169769573289,
+              "rank_by_assessment3d_root_relative_speed": 2,
+              "rank_basis": "assessment3d_root_relative_speed",
+              "speeds_by_independent_mode": {
+                "full": 1.7666328739364972,
+                "bone_only": 1.7666328739364972,
+                "angle_only": 0.47411235640201477,
+                "fixed_prior_full": 0.3680432186648709
+              },
+              "constraint_reports": [
+                {
+                  "bone_source": "prior",
+                  "bone_scale": 0.32410972380103253,
+                  "bone_max_correction": 0.22861430308178254,
+                  "angle_corrections": {},
+                  "knees_reflected": 0,
+                  "knee_clamp_degrees": 0,
+                  "invalid": []
+                },
+                {
+                  "bone_source": "session",
+                  "bone_scale": 0.9836027422103583,
+                  "bone_max_correction": 0.13526717816954945,
+                  "angle_corrections": {},
+                  "knees_reflected": 0,
+                  "knee_clamp_degrees": 0,
+                  "invalid": []
+                }
+              ],
+              "segments": {
+                "upper_arm": {
+                  "raw_lengths_model_units": [
+                    0.24806659537493547,
+                    0.24710240410096954
+                  ],
+                  "bone_only_lengths_model_units": [
+                    0.19770693151862984,
+                    0.25430890921393984
+                  ],
+                  "output_over_raw_length": [
+                    0.7969913531477687,
+                    1.0291640428962627
+                  ],
+                  "raw_direction_change_degrees": 3.215170846555541
+                },
+                "forearm": {
+                  "raw_lengths_model_units": [
+                    0.2208946249621884,
+                    0.22001112895639516
+                  ],
+                  "bone_only_lengths_model_units": [
+                    0.1782603480905679,
+                    0.19889739976433085
+                  ],
+                  "output_over_raw_length": [
+                    0.8069926921991949,
+                    0.9040333582568502
+                  ],
+                  "raw_direction_change_degrees": 1.5665465131855953
+                }
+              },
+              "bone_interval_speed_with_previous_targets_at_current_frame": 0.3680432186648709,
+              "targets_changed": true,
+              "bone_target_update_same_current_raw_wrist_displacement": 0.0635478189518312,
+              "correction_vector_change_speed": 1.9734911743583545,
+              "target_shape_normalized_to_sum": [
+                {
+                  "left_elbow-left_wrist": 0.08702531645569621,
+                  "left_hip-left_knee": 0.1582278481012658,
+                  "left_knee-left_ankle": 0.1582278481012658,
+                  "left_shoulder-left_elbow": 0.09651898734177214,
+                  "right_elbow-right_wrist": 0.08702531645569621,
+                  "right_hip-right_knee": 0.1582278481012658,
+                  "right_knee-right_ankle": 0.1582278481012658,
+                  "right_shoulder-right_elbow": 0.09651898734177214
+                },
+                {
+                  "left_elbow-left_wrist": 0.09329058414182359,
+                  "left_hip-left_knee": 0.14479176338309754,
+                  "left_knee-left_ankle": 0.14263692421443186,
+                  "left_shoulder-left_elbow": 0.11928072826064702,
+                  "right_elbow-right_wrist": 0.09329058414182359,
+                  "right_hip-right_knee": 0.14479176338309754,
+                  "right_knee-right_ankle": 0.14263692421443186,
+                  "right_shoulder-right_elbow": 0.11928072826064702
+                }
+              ]
+            },
+            {
+              "source_interval_seconds": [
+                0.9333333333333333,
+                0.9666666666666667
+              ],
+              "dt_seconds": 0.033333333333333326,
+              "raw3d_root_relative_displacement_model_units": 0.033970800791023034,
+              "raw3d_root_relative_speed_model_units_per_second": 1.0191240237306913,
+              "RTMPose_wrist_scores_unclipped": [
+                0.859375,
+                0.8359375
+              ],
+              "RTMPose_elbow_scores_unclipped": [
+                0.88037109375,
+                0.84130859375
+              ],
+              "RTMPose_shoulder_scores_unclipped": [
+                0.84375,
+                0.80810546875
+              ],
+              "raw_states": [
+                "ok",
+                "ok"
+              ],
+              "assessment_states": [
+                "ok",
+                "ok"
+              ],
+              "wrist_invalid": [
+                false,
+                false
+              ],
+              "elbow_invalid": [
+                false,
+                false
+              ],
+              "shoulder_invalid": [
+                false,
+                false
+              ],
+              "input_crop_unit_px": [
+                427.9278938770294,
+                427.9278938770294
+              ],
+              "raw_to_input_wrist_shift_px": [
+                0.0,
+                0.0
+              ],
+              "raw_to_constrained_wrist_shift_model_units": [
+                0.07537178070766122,
+                0.09053915792053428
+              ],
+              "raw_2d_displacement": 1.8058256683010918,
+              "raw_2d_speed": 54.174770049032766,
+              "input_2d_displacement": 1.8058256683010918,
+              "input_2d_speed": 54.174770049032766,
+              "assessment_3d_displacement": 0.03187792089632924,
+              "assessment_3d_speed": 0.9563376268898773,
+              "elbow3d_raw_root_relative_displacement_model_units": 0.014722209180732665,
+              "shoulder3d_raw_root_relative_displacement_model_units": 0.014365143013876936,
+              "raw_forearm_lengths_model_units": [
+                0.22426256688733967,
+                0.22380456617376493
+              ],
+              "raw_wrist_relative_to_elbow_vector_change_model_units": 0.02046353237248656,
+              "rank_by_assessment3d_root_relative_speed": 3,
+              "rank_basis": "assessment3d_root_relative_speed",
+              "speeds_by_independent_mode": {
+                "full": 0.9563376268898773,
+                "bone_only": 0.9563376268898773,
+                "angle_only": 1.0191240237306913,
+                "fixed_prior_full": 0.9563376268898773
+              },
+              "constraint_reports": [
+                {
+                  "bone_source": "prior",
+                  "bone_scale": 0.3477113445474649,
+                  "bone_max_correction": 0.21952819721291028,
+                  "angle_corrections": {},
+                  "knees_reflected": 0,
+                  "knee_clamp_degrees": 0,
+                  "invalid": []
+                },
+                {
+                  "bone_source": "prior",
+                  "bone_scale": 0.336219683125422,
+                  "bone_max_correction": 0.23097731946338615,
+                  "angle_corrections": {},
+                  "knees_reflected": 0,
+                  "knee_clamp_degrees": 0,
+                  "invalid": []
+                }
+              ],
+              "segments": {
+                "upper_arm": {
+                  "raw_lengths_model_units": [
+                    0.2569524696460043,
+                    0.2597218813670115
+                  ],
+                  "bone_only_lengths_model_units": [
+                    0.21210392017395363,
+                    0.2050940067065074
+                  ],
+                  "output_over_raw_length": [
+                    0.82545974540024,
+                    0.7896678001369096
+                  ],
+                  "raw_direction_change_degrees": 0.06795021388103797
+                },
+                "forearm": {
+                  "raw_lengths_model_units": [
+                    0.22426256688733967,
+                    0.22380456617376493
+                  ],
+                  "bone_only_lengths_model_units": [
+                    0.19124123950110566,
+                    0.1849208257189821
+                  ],
+                  "output_over_raw_length": [
+                    0.8527559554652624,
+                    0.8262602898611419
+                  ],
+                  "raw_direction_change_degrees": 5.233986331532664
+                }
+              },
+              "bone_interval_speed_with_previous_targets_at_current_frame": 0.9563376268898773,
+              "targets_changed": false,
+              "bone_target_update_same_current_raw_wrist_displacement": 0.0,
+              "correction_vector_change_speed": 0.4653272546599969,
+              "target_shape_normalized_to_sum": [
+                {
+                  "left_elbow-left_wrist": 0.08702531645569621,
+                  "left_hip-left_knee": 0.1582278481012658,
+                  "left_knee-left_ankle": 0.1582278481012658,
+                  "left_shoulder-left_elbow": 0.09651898734177214,
+                  "right_elbow-right_wrist": 0.08702531645569621,
+                  "right_hip-right_knee": 0.1582278481012658,
+                  "right_knee-right_ankle": 0.1582278481012658,
+                  "right_shoulder-right_elbow": 0.09651898734177214
+                },
+                {
+                  "left_elbow-left_wrist": 0.08702531645569621,
+                  "left_hip-left_knee": 0.1582278481012658,
+                  "left_knee-left_ankle": 0.1582278481012658,
+                  "left_shoulder-left_elbow": 0.09651898734177214,
+                  "right_elbow-right_wrist": 0.08702531645569621,
+                  "right_hip-right_knee": 0.1582278481012658,
+                  "right_knee-right_ankle": 0.1582278481012658,
+                  "right_shoulder-right_elbow": 0.09651898734177214
+                }
+              ]
+            }
+          ],
+          "independent_mode_speed_distributions": {
+            "full": {
+              "count": 558,
+              "min": 0.0034566072808665978,
+              "median": 0.3645455267616201,
+              "mean": 0.35135511276689085,
+              "p95": 0.587733057486818,
+              "max": 1.9814563780865349
+            },
+            "bone_only": {
+              "count": 558,
+              "min": 0.0034566072808665978,
+              "median": 0.3645455267616201,
+              "mean": 0.35135511276689085,
+              "p95": 0.587733057486818,
+              "max": 1.9814563780865349
+            },
+            "angle_only": {
+              "count": 558,
+              "min": 0.004170425527562408,
+              "median": 0.3547771766272527,
+              "mean": 0.34575354414155574,
+              "p95": 0.5716197426208037,
+              "max": 2.309570609893135
+            },
+            "fixed_prior_full": {
+              "count": 558,
+              "min": 0.013511840252482706,
+              "median": 0.3166398139577409,
+              "mean": 0.3084134167992899,
+              "p95": 0.5294821123091538,
+              "max": 1.9814563780865349
+            }
+          },
+          "target_update_same_current_raw_displacement": {
+            "count": 558,
+            "min": 0.0,
+            "median": 4.189061446631783e-05,
+            "mean": 0.0001742686286350267,
+            "p95": 0.00016978817610697737,
+            "max": 0.0635478189518312
+          }
+        },
+        "right": {
+          "assessment_ranked_top3": [
+            {
+              "source_interval_seconds": [
+                1.7,
+                1.7333333333333334
+              ],
+              "dt_seconds": 0.03333333333333344,
+              "raw3d_root_relative_displacement_model_units": 0.009972199450085801,
+              "raw3d_root_relative_speed_model_units_per_second": 0.2991659835025731,
+              "RTMPose_wrist_scores_unclipped": [
+                0.80712890625,
+                0.79638671875
+              ],
+              "RTMPose_elbow_scores_unclipped": [
+                0.65869140625,
+                0.6494140625
+              ],
+              "RTMPose_shoulder_scores_unclipped": [
+                0.81396484375,
+                0.81640625
+              ],
+              "raw_states": [
+                "ok",
+                "ok"
+              ],
+              "assessment_states": [
+                "ok",
+                "ok"
+              ],
+              "wrist_invalid": [
+                false,
+                false
+              ],
+              "elbow_invalid": [
+                false,
+                false
+              ],
+              "shoulder_invalid": [
+                false,
+                false
+              ],
+              "input_crop_unit_px": [
+                427.9278938770294,
+                427.9278938770294
+              ],
+              "raw_to_input_wrist_shift_px": [
+                0.0,
+                0.0
+              ],
+              "raw_to_constrained_wrist_shift_model_units": [
+                0.05920137383764234,
+                0.02385303748100221
+              ],
+              "raw_2d_displacement": 4.037948949835228,
+              "raw_2d_speed": 121.13846849505649,
+              "input_2d_displacement": 4.037948949835228,
+              "input_2d_speed": 121.13846849505649,
+              "assessment_3d_displacement": 0.06185079661616049,
+              "assessment_3d_speed": 1.855523898484809,
+              "elbow3d_raw_root_relative_displacement_model_units": 0.010009067790199664,
+              "shoulder3d_raw_root_relative_displacement_model_units": 0.002528542954892256,
+              "raw_forearm_lengths_model_units": [
+                0.17559124426200362,
+                0.175198758132886
+              ],
+              "raw_wrist_relative_to_elbow_vector_change_model_units": 0.007590292865778508,
+              "rank_by_assessment3d_root_relative_speed": 1,
+              "rank_basis": "assessment3d_root_relative_speed",
+              "speeds_by_independent_mode": {
+                "full": 1.855523898484809,
+                "bone_only": 1.855523898484809,
+                "angle_only": 0.2991659835025731,
+                "fixed_prior_full": 0.2781758642162444
+              },
+              "constraint_reports": [
+                {
+                  "bone_source": "prior",
+                  "bone_scale": 0.32410972380103253,
+                  "bone_max_correction": 0.22861430308178254,
+                  "angle_corrections": {},
+                  "knees_reflected": 0,
+                  "knee_clamp_degrees": 0,
+                  "invalid": []
+                },
+                {
+                  "bone_source": "session",
+                  "bone_scale": 0.9836027422103583,
+                  "bone_max_correction": 0.13526717816954945,
+                  "angle_corrections": {},
+                  "knees_reflected": 0,
+                  "knee_clamp_degrees": 0,
+                  "invalid": []
+                }
+              ],
+              "segments": {
+                "upper_arm": {
+                  "raw_lengths_model_units": [
+                    0.25630100779479553,
+                    0.2549926518400927
+                  ],
+                  "bone_only_lengths_model_units": [
+                    0.19770693151862984,
+                    0.25430890921393984
+                  ],
+                  "output_over_raw_length": [
+                    0.7713856969182175,
+                    0.9973185790993632
+                  ],
+                  "raw_direction_change_degrees": 2.4074412119116677
+                },
+                "forearm": {
+                  "raw_lengths_model_units": [
+                    0.17559124426200362,
+                    0.175198758132886
+                  ],
+                  "bone_only_lengths_model_units": [
+                    0.1782603480905679,
+                    0.19889739976433088
+                  ],
+                  "output_over_raw_length": [
+                    1.0152006658406136,
+                    1.1352671781695494
+                  ],
+                  "raw_direction_change_degrees": 2.4763763072086573
+                }
+              },
+              "bone_interval_speed_with_previous_targets_at_current_frame": 0.2781758642162444,
+              "targets_changed": true,
+              "bone_target_update_same_current_raw_wrist_displacement": 0.056325873289344366,
+              "correction_vector_change_speed": 1.7437112757795905,
+              "target_shape_normalized_to_sum": [
+                {
+                  "left_elbow-left_wrist": 0.08702531645569621,
+                  "left_hip-left_knee": 0.1582278481012658,
+                  "left_knee-left_ankle": 0.1582278481012658,
+                  "left_shoulder-left_elbow": 0.09651898734177214,
+                  "right_elbow-right_wrist": 0.08702531645569621,
+                  "right_hip-right_knee": 0.1582278481012658,
+                  "right_knee-right_ankle": 0.1582278481012658,
+                  "right_shoulder-right_elbow": 0.09651898734177214
+                },
+                {
+                  "left_elbow-left_wrist": 0.09329058414182359,
+                  "left_hip-left_knee": 0.14479176338309754,
+                  "left_knee-left_ankle": 0.14263692421443186,
+                  "left_shoulder-left_elbow": 0.11928072826064702,
+                  "right_elbow-right_wrist": 0.09329058414182359,
+                  "right_hip-right_knee": 0.14479176338309754,
+                  "right_knee-right_ankle": 0.14263692421443186,
+                  "right_shoulder-right_elbow": 0.11928072826064702
+                }
+              ]
+            },
+            {
+              "source_interval_seconds": [
+                3.7333333333333334,
+                3.7666666666666666
+              ],
+              "dt_seconds": 0.033333333333333215,
+              "raw3d_root_relative_displacement_model_units": 0.03454048262560489,
+              "raw3d_root_relative_speed_model_units_per_second": 1.0362144787681504,
+              "RTMPose_wrist_scores_unclipped": [
+                0.414794921875,
+                0.4140625
+              ],
+              "RTMPose_elbow_scores_unclipped": [
+                0.462890625,
+                0.4697265625
+              ],
+              "RTMPose_shoulder_scores_unclipped": [
+                0.80078125,
+                0.81494140625
+              ],
+              "raw_states": [
+                "ok",
+                "ok"
+              ],
+              "assessment_states": [
+                "ok",
+                "ok"
+              ],
+              "wrist_invalid": [
+                false,
+                false
+              ],
+              "elbow_invalid": [
+                false,
+                false
+              ],
+              "shoulder_invalid": [
+                false,
+                false
+              ],
+              "input_crop_unit_px": [
+                427.9278938770294,
+                427.9278938770294
+              ],
+              "raw_to_input_wrist_shift_px": [
+                0.0,
+                0.0
+              ],
+              "raw_to_constrained_wrist_shift_model_units": [
+                0.047313191917671346,
+                0.044275694914951515
+              ],
+              "raw_2d_displacement": 1.276911575696431,
+              "raw_2d_speed": 38.30734727089307,
+              "input_2d_displacement": 1.276911575696431,
+              "input_2d_speed": 38.30734727089307,
+              "assessment_3d_displacement": 0.04178688131204464,
+              "assessment_3d_speed": 1.2536064393613437,
+              "elbow3d_raw_root_relative_displacement_model_units": 0.007814615678419436,
+              "shoulder3d_raw_root_relative_displacement_model_units": 0.0023095274874888366,
+              "raw_forearm_lengths_model_units": [
+                0.1531704820505195,
+                0.15748960470268972
+              ],
+              "raw_wrist_relative_to_elbow_vector_change_model_units": 0.029691239328546292,
+              "rank_by_assessment3d_root_relative_speed": 2,
+              "rank_basis": "assessment3d_root_relative_speed",
+              "speeds_by_independent_mode": {
+                "full": 1.2536064393613435,
+                "bone_only": 1.2536064393613435,
+                "angle_only": 1.0362144787681504,
+                "fixed_prior_full": 1.100429612945735
+              },
+              "constraint_reports": [
+                {
+                  "bone_source": "session",
+                  "bone_scale": 0.9984674528683108,
+                  "bone_max_correction": 0.3075034177640392,
+                  "angle_corrections": {},
+                  "knees_reflected": 0,
+                  "knee_clamp_degrees": 0,
+                  "invalid": []
+                },
+                {
+                  "bone_source": "session",
+                  "bone_scale": 0.9995982564921716,
+                  "bone_max_correction": 0.27327133879360266,
+                  "angle_corrections": {},
+                  "knees_reflected": 0,
+                  "knee_clamp_degrees": 0,
+                  "invalid": []
+                }
+              ],
+              "segments": {
+                "upper_arm": {
+                  "raw_lengths_model_units": [
+                    0.2624148481205586,
+                    0.2629035284955324
+                  ],
+                  "bone_only_lengths_model_units": [
+                    0.252527106700496,
+                    0.252780060178603
+                  ],
+                  "output_over_raw_length": [
+                    0.9623201907556695,
+                    0.9614936004287922
+                  ],
+                  "raw_direction_change_degrees": 1.3621031600010602
+                },
+                "forearm": {
+                  "raw_lengths_model_units": [
+                    0.1531704820505195,
+                    0.15748960470268972
+                  ],
+                  "bone_only_lengths_model_units": [
+                    0.20027092878161967,
+                    0.200526999825869
+                  ],
+                  "output_over_raw_length": [
+                    1.3075034177640392,
+                    1.2732713387936025
+                  ],
+                  "raw_direction_change_degrees": 10.852819227563032
+                }
+              },
+              "bone_interval_speed_with_previous_targets_at_current_frame": 1.2531133594452935,
+              "targets_changed": true,
+              "bone_target_update_same_current_raw_wrist_displacement": 5.155391362236345e-05,
+              "correction_vector_change_speed": 0.28734239928651084,
+              "target_shape_normalized_to_sum": [
+                {
+                  "left_elbow-left_wrist": 0.09342093399732329,
+                  "left_hip-left_knee": 0.14562378735396053,
+                  "left_knee-left_ankle": 0.14315826082329527,
+                  "left_shoulder-left_elbow": 0.11779701782542092,
+                  "right_elbow-right_wrist": 0.09342093399732329,
+                  "right_hip-right_knee": 0.14562378735396053,
+                  "right_knee-right_ankle": 0.14315826082329527,
+                  "right_shoulder-right_elbow": 0.11779701782542092
+                },
+                {
+                  "left_elbow-left_wrist": 0.09345034632328073,
+                  "left_hip-left_knee": 0.1455785031387397,
+                  "left_knee-left_ankle": 0.14316963658812207,
+                  "left_shoulder-left_elbow": 0.11780151394985755,
+                  "right_elbow-right_wrist": 0.09345034632328073,
+                  "right_hip-right_knee": 0.1455785031387397,
+                  "right_knee-right_ankle": 0.14316963658812207,
+                  "right_shoulder-right_elbow": 0.11780151394985755
+                }
+              ]
+            },
+            {
+              "source_interval_seconds": [
+                12.366666666666667,
+                12.4
+              ],
+              "dt_seconds": 0.033333333333333215,
+              "raw3d_root_relative_displacement_model_units": 0.027005026264766332,
+              "raw3d_root_relative_speed_model_units_per_second": 0.8101507879429929,
+              "RTMPose_wrist_scores_unclipped": [
+                0.4052734375,
+                0.40478515625
+              ],
+              "RTMPose_elbow_scores_unclipped": [
+                0.44140625,
+                0.42822265625
+              ],
+              "RTMPose_shoulder_scores_unclipped": [
+                0.7578125,
+                0.73974609375
+              ],
+              "raw_states": [
+                "ok",
+                "ok"
+              ],
+              "assessment_states": [
+                "ok",
+                "ok"
+              ],
+              "wrist_invalid": [
+                false,
+                false
+              ],
+              "elbow_invalid": [
+                false,
+                false
+              ],
+              "shoulder_invalid": [
+                false,
+                false
+              ],
+              "input_crop_unit_px": [
+                427.9278938770294,
+                427.9278938770294
+              ],
+              "raw_to_input_wrist_shift_px": [
+                0.0,
+                0.0
+              ],
+              "raw_to_constrained_wrist_shift_model_units": [
+                0.048981532434277296,
+                0.0546176181118844
+              ],
+              "raw_2d_displacement": 1.276911575696431,
+              "raw_2d_speed": 38.30734727089307,
+              "input_2d_displacement": 1.276911575696431,
+              "input_2d_speed": 38.30734727089307,
+              "assessment_3d_displacement": 0.03822849099764445,
+              "assessment_3d_speed": 1.1468547299293377,
+              "elbow3d_raw_root_relative_displacement_model_units": 0.006020341640385056,
+              "shoulder3d_raw_root_relative_displacement_model_units": 0.00038024706403738743,
+              "raw_forearm_lengths_model_units": [
+                0.15128802105845335,
+                0.14585382489298904
+              ],
+              "raw_wrist_relative_to_elbow_vector_change_model_units": 0.029781904199385808,
+              "rank_by_assessment3d_root_relative_speed": 3,
+              "rank_basis": "assessment3d_root_relative_speed",
+              "speeds_by_independent_mode": {
+                "full": 1.1468547299293377,
+                "bone_only": 1.1468547299293377,
+                "angle_only": 0.8101507879429928,
+                "fixed_prior_full": 1.0313821480205732
+              },
+              "constraint_reports": [
+                {
+                  "bone_source": "session",
+                  "bone_scale": 1.0153288767679074,
+                  "bone_max_correction": 0.3264612258204742,
+                  "angle_corrections": {},
+                  "knees_reflected": 0,
+                  "knee_clamp_degrees": 0,
+                  "invalid": []
+                },
+                {
+                  "bone_source": "session",
+                  "bone_scale": 1.0142310287232825,
+                  "bone_max_correction": 0.3743138672341054,
+                  "angle_corrections": {},
+                  "knees_reflected": 0,
+                  "knee_clamp_degrees": 0,
+                  "invalid": []
+                }
+              ],
+              "segments": {
+                "upper_arm": {
+                  "raw_lengths_model_units": [
+                    0.25854859290970345,
+                    0.25957092404562593
+                  ],
+                  "bone_only_lengths_model_units": [
+                    0.25251569608017366,
+                    0.2522426575903583
+                  ],
+                  "output_over_raw_length": [
+                    0.9766662940933631,
+                    0.9717677683576782
+                  ],
+                  "raw_direction_change_degrees": 1.2738429132463527
+                },
+                "forearm": {
+                  "raw_lengths_model_units": [
+                    0.15128802105845335,
+                    0.14585382489298904
+                  ],
+                  "bone_only_lengths_model_units": [
+                    0.20067769386514975,
+                    0.2004489341395698
+                  ],
+                  "output_over_raw_length": [
+                    1.3264612258204742,
+                    1.3743138672341053
+                  ],
+                  "raw_direction_change_degrees": 11.312713684257739
+                }
+              },
+              "bone_interval_speed_with_previous_targets_at_current_frame": 1.1469353685418733,
+              "targets_changed": true,
+              "bone_target_update_same_current_raw_wrist_displacement": 1.1772285499461471e-05,
+              "correction_vector_change_speed": 0.3591506074952828,
+              "target_shape_normalized_to_sum": [
+                {
+                  "left_elbow-left_wrist": 0.09312007630899793,
+                  "left_hip-left_knee": 0.14719129636038783,
+                  "left_knee-left_ankle": 0.1425142646233843,
+                  "left_shoulder-left_elbow": 0.1171743627072299,
+                  "right_elbow-right_wrist": 0.09312007630899793,
+                  "right_hip-right_knee": 0.14719129636038783,
+                  "right_knee-right_ankle": 0.1425142646233843,
+                  "right_shoulder-right_elbow": 0.1171743627072299
+                },
+                {
+                  "left_elbow-left_wrist": 0.09311163734334846,
+                  "left_hip-left_knee": 0.14720801946604195,
+                  "left_knee-left_ankle": 0.14250971837839493,
+                  "left_shoulder-left_elbow": 0.11717062481221466,
+                  "right_elbow-right_wrist": 0.09311163734334846,
+                  "right_hip-right_knee": 0.14720801946604195,
+                  "right_knee-right_ankle": 0.14250971837839493,
+                  "right_shoulder-right_elbow": 0.11717062481221466
+                }
+              ]
+            }
+          ],
+          "independent_mode_speed_distributions": {
+            "full": {
+              "count": 558,
+              "min": 0.022687940310937425,
+              "median": 0.30873007097191774,
+              "mean": 0.31843665751187783,
+              "p95": 0.5647147909393233,
+              "max": 1.855523898484809
+            },
+            "bone_only": {
+              "count": 558,
+              "min": 0.022687940310937425,
+              "median": 0.30873007097191774,
+              "mean": 0.31843665751187783,
+              "p95": 0.5647147909393233,
+              "max": 1.855523898484809
+            },
+            "angle_only": {
+              "count": 558,
+              "min": 0.02620072269516767,
+              "median": 0.31456375532165,
+              "mean": 0.31570124465760585,
+              "p95": 0.5579939892967195,
+              "max": 1.0362144787681504
+            },
+            "fixed_prior_full": {
+              "count": 558,
+              "min": 0.018600289171602256,
+              "median": 0.2729063461654108,
+              "mean": 0.28122747995153147,
+              "p95": 0.5101698871936365,
+              "max": 1.100429612945735
+            }
+          },
+          "target_update_same_current_raw_displacement": {
+            "count": 558,
+            "min": 0.0,
+            "median": 4.2789105298489546e-05,
+            "mean": 0.000160975948411173,
+            "p95": 0.00016882296040939386,
+            "max": 0.056325873289344366
+          }
+        }
+      }
+    }
+  },
+  "interpretation": "Independent postprocessing ablations on identical already-inferred raw arrays and native frame order. No GT or accuracy claim. Full/prior include angular stages; bone-only removes angular stages; angle-only removes bone stage. Neither speed norms nor nonlinear stage effects are additive. Prior/session target updates and per-frame bone scale are separate causes."
+}

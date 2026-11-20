@@ -31,12 +31,33 @@ void main() {
 
   test('voice reply renders the dart line ({n}, locale) and ignores unknown keys', () {
     expect(koriVoiceReply('pushup_no_lockout', 2, isKo: true), {
-      'text': '올라올 때 팔을 다 안 편 렙이 2번 있었어. 위에서 팔꿈치를 끝까지 펴 줘.',
+      'text': '올라올 때 팔 끝까지 펴!',
       'lang': 'ko-KR',
     });
     expect(koriVoiceReply('tracking_lost', null, isKo: false)!['lang'], 'en-US');
     expect(koriVoiceReply('tracking_lost', null, isKo: false)!['text'],
         koriFeedbackLines['tracking_lost']!.en);
     expect(koriVoiceReply('no_such_key', null, isKo: true), isNull);
+  });
+
+  test('onPoseUpdate pose3d states are parsed and never hidden', () {
+    final warm = NativePose3DStatus.parse({
+      'rep': 0,
+      'pose3d': {'state': 'warming_up', 'filled': 12, 'window': 27, 'usable': false},
+    })!;
+    expect(warm.message(isKo: true), '3D 자세 준비 중 (12/27)');
+    expect(NativePose3DStatus.parse({'pose3d': {'state': 'tracking_lost'}})!.message(isKo: true), contains('판정 멈춤'));
+    expect(NativePose3DStatus.parse({'pose3d': {'state': 'bad_3d'}})!.message(isKo: false), contains('not judged'));
+    expect(NativePose3DStatus.parse({'pose3d': {'state': 'partial_3d', 'usable': true}})!.message(isKo: true), isNull);
+    // 실험용 적응형 제약: 채운 관절은 개발용 상태로만 받고 사용자 문구는 띄우지 않는다(사용자 지시 2026-10-20).
+    final occ = NativePose3DStatus.parse({'pose3d': {'state': 'ok', 'usable': true, 'occluded': [6]}})!;
+    expect(occ.occluded, [6]);
+    expect(occ.message(isKo: true), isNull);
+    expect(NativePose3DStatus.parse({'pose3d': {'state': 'partial_3d', 'usable': true, 'occluded': [6]}})!.message(isKo: true), isNull);
+    expect(NativePose3DStatus.parse({'pose3d': {'state': 'ok', 'usable': true}})!.occluded, isEmpty);
+    final ok = NativePose3DStatus.parse({'pose3d': {'state': 'ok', 'usable': true}})!;
+    expect(ok.usable, isTrue);
+    expect(ok.message(isKo: true), isNull);
+    expect(NativePose3DStatus.parse({'rep': 1}), isNull, reason: 'no 3D path');
   });
 }

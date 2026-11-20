@@ -1,0 +1,850 @@
+{
+  "schema": "bpt.coaching-criteria-proof.v1",
+  "criteriaTestsPassed": 44,
+  "criteriaTestsUnderPythonOptimizationPassed": 44,
+  "independentProductionCounterexamplesPassed": 10,
+  "independentNativeTargetedTestsPreviouslyPassed": 4,
+  "profileFreeOriginalReplaySHA256": "12dbb6cfa87c4980a49fc473892b6ad8ac2009b6d733e426756d243a87f4d636",
+  "profileFreeSourceCommit": "e0600da",
+  "cases": {
+    "squat": {
+      "frames": 1263,
+      "genuineFrames": 1258,
+      "flushFrames": 5,
+      "metrics": {
+        "cameraHipLineDeviationRatio": {
+          "opportunities": 1263,
+          "genuineOpportunities": 1258,
+          "genuineCorrectedFinite": 414,
+          "providedRawFinite": 420,
+          "providedCorrectedFinite": 416,
+          "originalAvailable": 414,
+          "sourceDefinitionMatched": 1263,
+          "criterionStates": {
+            "not_applicable": 1263
+          },
+          "criterionReasons": {
+            "metric_not_applicable_to_exercise": 1263
+          }
+        },
+        "cameraTorsoSignedDeg": {
+          "opportunities": 1263,
+          "genuineOpportunities": 1258,
+          "genuineCorrectedFinite": 1237,
+          "providedRawFinite": 1242,
+          "providedCorrectedFinite": 1242,
+          "originalAvailable": 1242,
+          "sourceDefinitionMatched": 1263,
+          "criterionStates": {
+            "unknown": 1263
+          },
+          "criterionReasons": {
+            "observation_unavailable": 21,
+            "unusable_3d": 21,
+            "missing_joint_support": 21,
+            "missing_raw_geometry": 21,
+            "missing_geometry": 21,
+            "complete_source_identity_required": 1263,
+            "unknown_observation_context": 1263,
+            "support_requiredJointsSupported_required": 1263,
+            "support_trackingObserved_required": 1263,
+            "support_rawCorrectionChecked_required": 1263,
+            "explicit_correction_limit_required": 1263,
+            "profile_required": 1263,
+            "flush_sample_not_observation": 5
+          }
+        },
+        "leftElbowDeg": {
+          "opportunities": 1263,
+          "genuineOpportunities": 1258,
+          "genuineCorrectedFinite": 1237,
+          "providedRawFinite": 1242,
+          "providedCorrectedFinite": 1242,
+          "originalAvailable": 1242,
+          "sourceDefinitionMatched": 1263,
+          "criterionStates": {
+            "not_applicable": 1263
+          },
+          "criterionReasons": {
+            "metric_not_applicable_to_exercise": 1263
+          }
+        },
+        "leftHipDeg": {
+          "opportunities": 1263,
+          "genuineOpportunities": 1258,
+          "genuineCorrectedFinite": 1237,
+          "providedRawFinite": 1242,
+          "providedCorrectedFinite": 1242,
+          "originalAvailable": 1242,
+          "sourceDefinitionMatched": 1263,
+          "criterionStates": {
+            "unknown": 1263
+          },
+          "criterionReasons": {
+            "observation_unavailable": 21,
+            "unusable_3d": 21,
+            "missing_joint_support": 21,
+            "missing_raw_geometry": 21,
+            "missing_geometry": 21,
+            "complete_source_identity_required": 1263,
+            "unknown_observation_context": 1263,
+            "support_requiredJointsSupported_required": 1263,
+            "support_trackingObserved_required": 1263,
+            "support_rawCorrectionChecked_required": 1263,
+            "explicit_correction_limit_required": 1263,
+            "profile_required": 1263,
+            "flush_sample_not_observation": 5
+          }
+        },
+        "leftKneeDeg": {
+          "opportunities": 1263,
+          "genuineOpportunities": 1258,
+          "genuineCorrectedFinite": 1237,
+          "providedRawFinite": 1242,
+          "providedCorrectedFinite": 1242,
+          "originalAvailable": 1242,
+          "sourceDefinitionMatched": 1263,
+          "criterionStates": {
+            "unknown": 1263
+          },
+          "criterionReasons": {
+            "observation_unavailable": 21,
+            "unusable_3d": 21,
+            "missing_joint_support": 21,
+            "missing_raw_geometry": 21,
+            "missing_geometry": 21,
+            "complete_source_identity_required": 1263,
+            "unknown_observation_context": 1263,
+            "support_requiredJointsSupported_required": 1263,
+            "support_trackingObserved_required": 1263,
+            "support_rawCorrectionChecked_required": 1263,
+            "explicit_correction_limit_required": 1263,
+            "profile_required": 1263,
+            "flush_sample_not_observation": 5
+          }
+        },
+        "leftUpperArmDeg": {
+          "opportunities": 1263,
+          "genuineOpportunities": 1258,
+          "genuineCorrectedFinite": 1237,
+          "providedRawFinite": 1242,
+          "providedCorrectedFinite": 1242,
+          "originalAvailable": 1242,
+          "sourceDefinitionMatched": 1263,
+          "criterionStates": {
+            "not_applicable": 1263
+          },
+          "criterionReasons": {
+            "metric_not_applicable_to_exercise": 1263
+          }
+        },
+        "rightElbowDeg": {
+          "opportunities": 1263,
+          "genuineOpportunities": 1258,
+          "genuineCorrectedFinite": 1237,
+          "providedRawFinite": 1242,
+          "providedCorrectedFinite": 1242,
+          "originalAvailable": 179,
+          "sourceDefinitionMatched": 1263,
+          "criterionStates": {
+            "not_applicable": 1263
+          },
+          "criterionReasons": {
+            "metric_not_applicable_to_exercise": 1263
+          }
+        },
+        "rightHipDeg": {
+          "opportunities": 1263,
+          "genuineOpportunities": 1258,
+          "genuineCorrectedFinite": 1237,
+          "providedRawFinite": 1242,
+          "providedCorrectedFinite": 1242,
+          "originalAvailable": 1242,
+          "sourceDefinitionMatched": 1263,
+          "criterionStates": {
+            "unknown": 1263
+          },
+          "criterionReasons": {
+            "observation_unavailable": 21,
+            "unusable_3d": 21,
+            "missing_joint_support": 21,
+            "missing_raw_geometry": 21,
+            "missing_geometry": 21,
+            "complete_source_identity_required": 1263,
+            "unknown_observation_context": 1263,
+            "support_requiredJointsSupported_required": 1263,
+            "support_trackingObserved_required": 1263,
+            "support_rawCorrectionChecked_required": 1263,
+            "explicit_correction_limit_required": 1263,
+            "profile_required": 1263,
+            "flush_sample_not_observation": 5
+          }
+        },
+        "rightKneeDeg": {
+          "opportunities": 1263,
+          "genuineOpportunities": 1258,
+          "genuineCorrectedFinite": 1237,
+          "providedRawFinite": 1242,
+          "providedCorrectedFinite": 1242,
+          "originalAvailable": 1242,
+          "sourceDefinitionMatched": 1263,
+          "criterionStates": {
+            "unknown": 1263
+          },
+          "criterionReasons": {
+            "observation_unavailable": 21,
+            "unusable_3d": 21,
+            "missing_joint_support": 21,
+            "missing_raw_geometry": 21,
+            "missing_geometry": 21,
+            "complete_source_identity_required": 1263,
+            "unknown_observation_context": 1263,
+            "support_requiredJointsSupported_required": 1263,
+            "support_trackingObserved_required": 1263,
+            "support_rawCorrectionChecked_required": 1263,
+            "explicit_correction_limit_required": 1263,
+            "profile_required": 1263,
+            "flush_sample_not_observation": 5
+          }
+        },
+        "rightUpperArmDeg": {
+          "opportunities": 1263,
+          "genuineOpportunities": 1258,
+          "genuineCorrectedFinite": 1237,
+          "providedRawFinite": 1242,
+          "providedCorrectedFinite": 1242,
+          "originalAvailable": 967,
+          "sourceDefinitionMatched": 1263,
+          "criterionStates": {
+            "not_applicable": 1263
+          },
+          "criterionReasons": {
+            "metric_not_applicable_to_exercise": 1263
+          }
+        },
+        "trunkInclineDeg": {
+          "opportunities": 1263,
+          "genuineOpportunities": 1258,
+          "genuineCorrectedFinite": 0,
+          "providedRawFinite": 0,
+          "providedCorrectedFinite": 0,
+          "originalAvailable": 0,
+          "sourceDefinitionMatched": 1263,
+          "criterionStates": {
+            "unknown": 1263
+          },
+          "criterionReasons": {
+            "synchronized_source_gravity_required": 1263,
+            "observation_unavailable": 1263,
+            "synchronized_gravity_required": 1263,
+            "missing_gravity": 1263,
+            "complete_source_identity_required": 1263,
+            "unknown_observation_context": 1263,
+            "support_requiredJointsSupported_required": 1263,
+            "support_trackingObserved_required": 1263,
+            "support_rawCorrectionChecked_required": 1263,
+            "explicit_correction_limit_required": 1263,
+            "profile_required": 1263,
+            "flush_sample_not_observation": 5
+          }
+        }
+      }
+    },
+    "pushup": {
+      "frames": 548,
+      "genuineFrames": 543,
+      "flushFrames": 5,
+      "metrics": {
+        "cameraHipLineDeviationRatio": {
+          "opportunities": 548,
+          "genuineOpportunities": 543,
+          "genuineCorrectedFinite": 522,
+          "providedRawFinite": 527,
+          "providedCorrectedFinite": 527,
+          "originalAvailable": 300,
+          "sourceDefinitionMatched": 548,
+          "criterionStates": {
+            "unknown": 548
+          },
+          "criterionReasons": {
+            "observation_unavailable": 248,
+            "unusable_3d": 21,
+            "missing_joint_support": 21,
+            "missing_raw_geometry": 21,
+            "missing_geometry": 21,
+            "complete_source_identity_required": 548,
+            "unknown_observation_context": 30,
+            "support_requiredJointsSupported_required": 548,
+            "support_trackingObserved_required": 548,
+            "support_rawCorrectionChecked_required": 548,
+            "explicit_correction_limit_required": 548,
+            "profile_required": 548,
+            "low_joint_support": 227,
+            "flush_sample_not_observation": 5
+          }
+        },
+        "cameraTorsoSignedDeg": {
+          "opportunities": 548,
+          "genuineOpportunities": 543,
+          "genuineCorrectedFinite": 522,
+          "providedRawFinite": 527,
+          "providedCorrectedFinite": 527,
+          "originalAvailable": 40,
+          "sourceDefinitionMatched": 548,
+          "criterionStates": {
+            "unknown": 548
+          },
+          "criterionReasons": {
+            "observation_unavailable": 508,
+            "unusable_3d": 21,
+            "missing_joint_support": 21,
+            "missing_raw_geometry": 21,
+            "missing_geometry": 21,
+            "complete_source_identity_required": 548,
+            "unknown_observation_context": 30,
+            "support_requiredJointsSupported_required": 548,
+            "support_trackingObserved_required": 548,
+            "support_rawCorrectionChecked_required": 548,
+            "explicit_correction_limit_required": 548,
+            "profile_required": 548,
+            "low_joint_support": 487,
+            "flush_sample_not_observation": 5
+          }
+        },
+        "leftElbowDeg": {
+          "opportunities": 548,
+          "genuineOpportunities": 543,
+          "genuineCorrectedFinite": 522,
+          "providedRawFinite": 527,
+          "providedCorrectedFinite": 527,
+          "originalAvailable": 343,
+          "sourceDefinitionMatched": 548,
+          "criterionStates": {
+            "unknown": 548
+          },
+          "criterionReasons": {
+            "observation_unavailable": 205,
+            "unusable_3d": 21,
+            "missing_joint_support": 21,
+            "missing_raw_geometry": 21,
+            "missing_geometry": 21,
+            "complete_source_identity_required": 548,
+            "unknown_observation_context": 30,
+            "support_requiredJointsSupported_required": 548,
+            "support_trackingObserved_required": 548,
+            "support_rawCorrectionChecked_required": 548,
+            "explicit_correction_limit_required": 548,
+            "profile_required": 548,
+            "low_joint_support": 184,
+            "flush_sample_not_observation": 5
+          }
+        },
+        "leftHipDeg": {
+          "opportunities": 548,
+          "genuineOpportunities": 543,
+          "genuineCorrectedFinite": 522,
+          "providedRawFinite": 527,
+          "providedCorrectedFinite": 527,
+          "originalAvailable": 14,
+          "sourceDefinitionMatched": 548,
+          "criterionStates": {
+            "unknown": 548
+          },
+          "criterionReasons": {
+            "observation_unavailable": 534,
+            "unusable_3d": 21,
+            "missing_joint_support": 21,
+            "missing_raw_geometry": 21,
+            "missing_geometry": 21,
+            "complete_source_identity_required": 548,
+            "unknown_observation_context": 30,
+            "support_requiredJointsSupported_required": 548,
+            "support_trackingObserved_required": 548,
+            "support_rawCorrectionChecked_required": 548,
+            "explicit_correction_limit_required": 548,
+            "profile_required": 548,
+            "low_joint_support": 513,
+            "flush_sample_not_observation": 5
+          }
+        },
+        "leftKneeDeg": {
+          "opportunities": 548,
+          "genuineOpportunities": 543,
+          "genuineCorrectedFinite": 522,
+          "providedRawFinite": 527,
+          "providedCorrectedFinite": 527,
+          "originalAvailable": 14,
+          "sourceDefinitionMatched": 548,
+          "criterionStates": {
+            "unknown": 548
+          },
+          "criterionReasons": {
+            "observation_unavailable": 534,
+            "unusable_3d": 21,
+            "missing_joint_support": 21,
+            "missing_raw_geometry": 21,
+            "missing_geometry": 21,
+            "complete_source_identity_required": 548,
+            "unknown_observation_context": 30,
+            "support_requiredJointsSupported_required": 548,
+            "support_trackingObserved_required": 548,
+            "support_rawCorrectionChecked_required": 548,
+            "explicit_correction_limit_required": 548,
+            "profile_required": 548,
+            "low_joint_support": 513,
+            "flush_sample_not_observation": 5
+          }
+        },
+        "leftUpperArmDeg": {
+          "opportunities": 548,
+          "genuineOpportunities": 543,
+          "genuineCorrectedFinite": 522,
+          "providedRawFinite": 527,
+          "providedCorrectedFinite": 527,
+          "originalAvailable": 301,
+          "sourceDefinitionMatched": 548,
+          "criterionStates": {
+            "unknown": 548
+          },
+          "criterionReasons": {
+            "observation_unavailable": 247,
+            "unusable_3d": 21,
+            "missing_joint_support": 21,
+            "missing_raw_geometry": 21,
+            "missing_geometry": 21,
+            "complete_source_identity_required": 548,
+            "unknown_observation_context": 30,
+            "support_requiredJointsSupported_required": 548,
+            "support_trackingObserved_required": 548,
+            "support_rawCorrectionChecked_required": 548,
+            "explicit_correction_limit_required": 548,
+            "profile_required": 548,
+            "low_joint_support": 226,
+            "flush_sample_not_observation": 5
+          }
+        },
+        "rightElbowDeg": {
+          "opportunities": 548,
+          "genuineOpportunities": 543,
+          "genuineCorrectedFinite": 522,
+          "providedRawFinite": 527,
+          "providedCorrectedFinite": 527,
+          "originalAvailable": 527,
+          "sourceDefinitionMatched": 548,
+          "criterionStates": {
+            "unknown": 548
+          },
+          "criterionReasons": {
+            "observation_unavailable": 21,
+            "unusable_3d": 21,
+            "missing_joint_support": 21,
+            "missing_raw_geometry": 21,
+            "missing_geometry": 21,
+            "complete_source_identity_required": 548,
+            "unknown_observation_context": 30,
+            "support_requiredJointsSupported_required": 548,
+            "support_trackingObserved_required": 548,
+            "support_rawCorrectionChecked_required": 548,
+            "explicit_correction_limit_required": 548,
+            "profile_required": 548,
+            "flush_sample_not_observation": 5
+          }
+        },
+        "rightHipDeg": {
+          "opportunities": 548,
+          "genuineOpportunities": 543,
+          "genuineCorrectedFinite": 522,
+          "providedRawFinite": 527,
+          "providedCorrectedFinite": 527,
+          "originalAvailable": 521,
+          "sourceDefinitionMatched": 548,
+          "criterionStates": {
+            "unknown": 548
+          },
+          "criterionReasons": {
+            "observation_unavailable": 27,
+            "unusable_3d": 21,
+            "missing_joint_support": 21,
+            "missing_raw_geometry": 21,
+            "missing_geometry": 21,
+            "complete_source_identity_required": 548,
+            "unknown_observation_context": 30,
+            "support_requiredJointsSupported_required": 548,
+            "support_trackingObserved_required": 548,
+            "support_rawCorrectionChecked_required": 548,
+            "explicit_correction_limit_required": 548,
+            "profile_required": 548,
+            "low_joint_support": 6,
+            "flush_sample_not_observation": 5
+          }
+        },
+        "rightKneeDeg": {
+          "opportunities": 548,
+          "genuineOpportunities": 543,
+          "genuineCorrectedFinite": 522,
+          "providedRawFinite": 527,
+          "providedCorrectedFinite": 527,
+          "originalAvailable": 521,
+          "sourceDefinitionMatched": 548,
+          "criterionStates": {
+            "unknown": 548
+          },
+          "criterionReasons": {
+            "observation_unavailable": 27,
+            "unusable_3d": 21,
+            "missing_joint_support": 21,
+            "missing_raw_geometry": 21,
+            "missing_geometry": 21,
+            "complete_source_identity_required": 548,
+            "unknown_observation_context": 30,
+            "support_requiredJointsSupported_required": 548,
+            "support_trackingObserved_required": 548,
+            "support_rawCorrectionChecked_required": 548,
+            "explicit_correction_limit_required": 548,
+            "profile_required": 548,
+            "low_joint_support": 6,
+            "flush_sample_not_observation": 5
+          }
+        },
+        "rightUpperArmDeg": {
+          "opportunities": 548,
+          "genuineOpportunities": 543,
+          "genuineCorrectedFinite": 522,
+          "providedRawFinite": 527,
+          "providedCorrectedFinite": 527,
+          "originalAvailable": 331,
+          "sourceDefinitionMatched": 548,
+          "criterionStates": {
+            "unknown": 548
+          },
+          "criterionReasons": {
+            "observation_unavailable": 217,
+            "unusable_3d": 21,
+            "missing_joint_support": 21,
+            "missing_raw_geometry": 21,
+            "missing_geometry": 21,
+            "complete_source_identity_required": 548,
+            "unknown_observation_context": 30,
+            "support_requiredJointsSupported_required": 548,
+            "support_trackingObserved_required": 548,
+            "support_rawCorrectionChecked_required": 548,
+            "explicit_correction_limit_required": 548,
+            "profile_required": 548,
+            "low_joint_support": 196,
+            "flush_sample_not_observation": 5
+          }
+        },
+        "trunkInclineDeg": {
+          "opportunities": 548,
+          "genuineOpportunities": 543,
+          "genuineCorrectedFinite": 0,
+          "providedRawFinite": 0,
+          "providedCorrectedFinite": 0,
+          "originalAvailable": 0,
+          "sourceDefinitionMatched": 548,
+          "criterionStates": {
+            "unknown": 548
+          },
+          "criterionReasons": {
+            "synchronized_source_gravity_required": 548,
+            "observation_unavailable": 548,
+            "synchronized_gravity_required": 548,
+            "missing_gravity": 548,
+            "complete_source_identity_required": 548,
+            "unknown_observation_context": 30,
+            "support_requiredJointsSupported_required": 548,
+            "support_trackingObserved_required": 548,
+            "support_rawCorrectionChecked_required": 548,
+            "explicit_correction_limit_required": 548,
+            "profile_required": 548,
+            "flush_sample_not_observation": 5
+          }
+        }
+      }
+    },
+    "barbell-row": {
+      "frames": 587,
+      "genuineFrames": 582,
+      "flushFrames": 5,
+      "metrics": {
+        "cameraHipLineDeviationRatio": {
+          "opportunities": 587,
+          "genuineOpportunities": 582,
+          "genuineCorrectedFinite": 561,
+          "providedRawFinite": 566,
+          "providedCorrectedFinite": 566,
+          "originalAvailable": 566,
+          "sourceDefinitionMatched": 587,
+          "criterionStates": {
+            "not_applicable": 587
+          },
+          "criterionReasons": {
+            "metric_not_applicable_to_exercise": 587
+          }
+        },
+        "cameraTorsoSignedDeg": {
+          "opportunities": 587,
+          "genuineOpportunities": 582,
+          "genuineCorrectedFinite": 561,
+          "providedRawFinite": 566,
+          "providedCorrectedFinite": 566,
+          "originalAvailable": 565,
+          "sourceDefinitionMatched": 587,
+          "criterionStates": {
+            "unknown": 587
+          },
+          "criterionReasons": {
+            "observation_unavailable": 22,
+            "unusable_3d": 21,
+            "missing_joint_support": 21,
+            "missing_raw_geometry": 21,
+            "missing_geometry": 21,
+            "complete_source_identity_required": 587,
+            "unknown_observation_context": 29,
+            "support_requiredJointsSupported_required": 587,
+            "support_trackingObserved_required": 587,
+            "support_rawCorrectionChecked_required": 587,
+            "explicit_correction_limit_required": 587,
+            "profile_required": 587,
+            "low_joint_support": 1,
+            "flush_sample_not_observation": 5
+          }
+        },
+        "leftElbowDeg": {
+          "opportunities": 587,
+          "genuineOpportunities": 582,
+          "genuineCorrectedFinite": 561,
+          "providedRawFinite": 566,
+          "providedCorrectedFinite": 566,
+          "originalAvailable": 566,
+          "sourceDefinitionMatched": 587,
+          "criterionStates": {
+            "unknown": 587
+          },
+          "criterionReasons": {
+            "observation_unavailable": 21,
+            "unusable_3d": 21,
+            "missing_joint_support": 21,
+            "missing_raw_geometry": 21,
+            "missing_geometry": 21,
+            "complete_source_identity_required": 587,
+            "unknown_observation_context": 29,
+            "support_requiredJointsSupported_required": 587,
+            "support_trackingObserved_required": 587,
+            "support_rawCorrectionChecked_required": 587,
+            "explicit_correction_limit_required": 587,
+            "profile_required": 587,
+            "flush_sample_not_observation": 5
+          }
+        },
+        "leftHipDeg": {
+          "opportunities": 587,
+          "genuineOpportunities": 582,
+          "genuineCorrectedFinite": 561,
+          "providedRawFinite": 566,
+          "providedCorrectedFinite": 566,
+          "originalAvailable": 566,
+          "sourceDefinitionMatched": 587,
+          "criterionStates": {
+            "unknown": 587
+          },
+          "criterionReasons": {
+            "observation_unavailable": 21,
+            "unusable_3d": 21,
+            "missing_joint_support": 21,
+            "missing_raw_geometry": 21,
+            "missing_geometry": 21,
+            "complete_source_identity_required": 587,
+            "unknown_observation_context": 29,
+            "support_requiredJointsSupported_required": 587,
+            "support_trackingObserved_required": 587,
+            "support_rawCorrectionChecked_required": 587,
+            "explicit_correction_limit_required": 587,
+            "profile_required": 587,
+            "flush_sample_not_observation": 5
+          }
+        },
+        "leftKneeDeg": {
+          "opportunities": 587,
+          "genuineOpportunities": 582,
+          "genuineCorrectedFinite": 561,
+          "providedRawFinite": 566,
+          "providedCorrectedFinite": 566,
+          "originalAvailable": 566,
+          "sourceDefinitionMatched": 587,
+          "criterionStates": {
+            "unknown": 587
+          },
+          "criterionReasons": {
+            "observation_unavailable": 21,
+            "unusable_3d": 21,
+            "missing_joint_support": 21,
+            "missing_raw_geometry": 21,
+            "missing_geometry": 21,
+            "complete_source_identity_required": 587,
+            "unknown_observation_context": 29,
+            "support_requiredJointsSupported_required": 587,
+            "support_trackingObserved_required": 587,
+            "support_rawCorrectionChecked_required": 587,
+            "explicit_correction_limit_required": 587,
+            "profile_required": 587,
+            "flush_sample_not_observation": 5
+          }
+        },
+        "leftUpperArmDeg": {
+          "opportunities": 587,
+          "genuineOpportunities": 582,
+          "genuineCorrectedFinite": 561,
+          "providedRawFinite": 566,
+          "providedCorrectedFinite": 566,
+          "originalAvailable": 566,
+          "sourceDefinitionMatched": 587,
+          "criterionStates": {
+            "not_applicable": 587
+          },
+          "criterionReasons": {
+            "metric_not_applicable_to_exercise": 587
+          }
+        },
+        "rightElbowDeg": {
+          "opportunities": 587,
+          "genuineOpportunities": 582,
+          "genuineCorrectedFinite": 561,
+          "providedRawFinite": 566,
+          "providedCorrectedFinite": 566,
+          "originalAvailable": 443,
+          "sourceDefinitionMatched": 587,
+          "criterionStates": {
+            "unknown": 587
+          },
+          "criterionReasons": {
+            "observation_unavailable": 144,
+            "unusable_3d": 21,
+            "missing_joint_support": 21,
+            "missing_raw_geometry": 21,
+            "missing_geometry": 21,
+            "complete_source_identity_required": 587,
+            "unknown_observation_context": 29,
+            "support_requiredJointsSupported_required": 587,
+            "support_trackingObserved_required": 587,
+            "support_rawCorrectionChecked_required": 587,
+            "explicit_correction_limit_required": 587,
+            "profile_required": 587,
+            "low_joint_support": 123,
+            "flush_sample_not_observation": 5
+          }
+        },
+        "rightHipDeg": {
+          "opportunities": 587,
+          "genuineOpportunities": 582,
+          "genuineCorrectedFinite": 561,
+          "providedRawFinite": 566,
+          "providedCorrectedFinite": 566,
+          "originalAvailable": 555,
+          "sourceDefinitionMatched": 587,
+          "criterionStates": {
+            "unknown": 587
+          },
+          "criterionReasons": {
+            "observation_unavailable": 32,
+            "unusable_3d": 21,
+            "missing_joint_support": 21,
+            "missing_raw_geometry": 21,
+            "missing_geometry": 21,
+            "complete_source_identity_required": 587,
+            "unknown_observation_context": 29,
+            "support_requiredJointsSupported_required": 587,
+            "support_trackingObserved_required": 587,
+            "support_rawCorrectionChecked_required": 587,
+            "explicit_correction_limit_required": 587,
+            "profile_required": 587,
+            "low_joint_support": 11,
+            "flush_sample_not_observation": 5
+          }
+        },
+        "rightKneeDeg": {
+          "opportunities": 587,
+          "genuineOpportunities": 582,
+          "genuineCorrectedFinite": 561,
+          "providedRawFinite": 566,
+          "providedCorrectedFinite": 566,
+          "originalAvailable": 555,
+          "sourceDefinitionMatched": 587,
+          "criterionStates": {
+            "unknown": 587
+          },
+          "criterionReasons": {
+            "observation_unavailable": 32,
+            "unusable_3d": 21,
+            "missing_joint_support": 21,
+            "missing_raw_geometry": 21,
+            "missing_geometry": 21,
+            "complete_source_identity_required": 587,
+            "unknown_observation_context": 29,
+            "support_requiredJointsSupported_required": 587,
+            "support_trackingObserved_required": 587,
+            "support_rawCorrectionChecked_required": 587,
+            "explicit_correction_limit_required": 587,
+            "profile_required": 587,
+            "low_joint_support": 11,
+            "flush_sample_not_observation": 5
+          }
+        },
+        "rightUpperArmDeg": {
+          "opportunities": 587,
+          "genuineOpportunities": 582,
+          "genuineCorrectedFinite": 561,
+          "providedRawFinite": 566,
+          "providedCorrectedFinite": 566,
+          "originalAvailable": 447,
+          "sourceDefinitionMatched": 587,
+          "criterionStates": {
+            "not_applicable": 587
+          },
+          "criterionReasons": {
+            "metric_not_applicable_to_exercise": 587
+          }
+        },
+        "trunkInclineDeg": {
+          "opportunities": 587,
+          "genuineOpportunities": 582,
+          "genuineCorrectedFinite": 0,
+          "providedRawFinite": 0,
+          "providedCorrectedFinite": 0,
+          "originalAvailable": 0,
+          "sourceDefinitionMatched": 587,
+          "criterionStates": {
+            "unknown": 587
+          },
+          "criterionReasons": {
+            "synchronized_source_gravity_required": 587,
+            "observation_unavailable": 587,
+            "synchronized_gravity_required": 587,
+            "missing_gravity": 587,
+            "complete_source_identity_required": 587,
+            "unknown_observation_context": 29,
+            "support_requiredJointsSupported_required": 587,
+            "support_trackingObserved_required": 587,
+            "support_rawCorrectionChecked_required": 587,
+            "explicit_correction_limit_required": 587,
+            "profile_required": 587,
+            "flush_sample_not_observation": 5
+          }
+        }
+      }
+    }
+  },
+  "scope": "scripts-only typed evidence/composition; supplied reference predicate, not accuracy/whole-form/clinical/safety; no product/default/device/model change",
+  "sourceSHA256": {
+    "scripts/coaching_criteria/catalog.py": "3626953f165c9e514983fe721c4701046c1ffae837951d249dae200838c8d25e",
+    "scripts/coaching_criteria/replay_adapter.py": "25b9db130951f9483e296c73499d147770116c7ba82176c7866fd450b3da3e5b",
+    "scripts/coaching_criteria/__init__.py": "f4288d30cd72a4f422d27c99ce1c0adf2e7e694b0558dfe74727d41952ce004a",
+    "scripts/coaching_criteria/example.json": "cea38cd9be83fe9c628255b8c1432295b137c6a81a62a7b16ba744481da1e66b",
+    "scripts/coaching_criteria/README.md": "ec4fc1ef8932f960bb292eb47e6204c4ce13dfeedc520915fd872e544800e725",
+    "scripts/coaching_criteria/engine.py": "b4b3f1998cd11fa705ef856578e699f8f58b6750b2c7d047729f6ad20e881132",
+    "scripts/coaching_criteria/replay_catalog_v1.json": "fdc0e0bbc67cf4051889a697e683bb1daf09f144faba3f8717f952c4cb46f83a",
+    "scripts/coaching_criteria/json_contract.py": "4ffa0f340c7aa708f83461f35d224e6ab6b99f447a486c984efe289d0dc0efcc",
+    "scripts/coaching_criteria/tests/test_engine.py": "50a122001433a953d2ad1d1849bb8659d7d2601560ac548ca00265e3c6ac9ad8",
+    "scripts/coaching_criteria/tests/test_replay_adapter.py": "62e01fc556b6d6c308789d88cb96c6212448b9ca6d59177095efccfdf6ad044a"
+  }
+}

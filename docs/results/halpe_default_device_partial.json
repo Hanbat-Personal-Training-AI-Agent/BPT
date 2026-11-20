@@ -1,0 +1,1070 @@
+{
+  "archive": {
+    "snapshot": "/private/tmp/claude-501/-Users-6-month-github-06-month-hanbat-repositories-BPT/d083b446-4e06-45ed-8204-8c6e9f22bd1c/scratchpad/hd/runs/device/analysis_partial_20261021-103959",
+    "home_run": "20261020-device-halpe-ab-a8b29f1-partial-20261021-103959",
+    "home_sync": "synced to Home ~/bpt-runs/lift-app/20261020-device-halpe-ab-a8b29f1-partial-20261021-103959/, sha256 verified 2026-10-21T10:40:18+0900",
+    "documents": "/Users/6_month/Documents/bpt-handoff/device-halpe-a8b29f1/20261020-device-halpe-ab-a8b29f1-partial-20261021-103959",
+    "status": "partial",
+    "files": 141
+  },
+  "comparison_sha256": "369720e8fe303762d8fb3cc760e7b8a38840af3a46a00d5fbabac92dfd80c149",
+  "comparison": {
+    "created": "20261021-103959",
+    "status": "partial",
+    "complete39": false,
+    "source_build": {
+      "runner_binary": "674a755e8e3c7eff708b7f6bc92e98a2995abccf2047e60452f4fc78e71e2adb",
+      "git": "a8b29f1fdc9ddcb302f03aae36c2eca7fd4fa81a",
+      "build": "Release iphoneos com.bpt.liftdev",
+      "phase": "experimental C1 plus rotation; baseline m COCO17 retained only for A/B",
+      "motionagformer_xs.mlmodelc": {
+        "analytics/coremldata.bin": "a4d9f8019a486accedf21cf856c3b26ef350216b279771e9f3562df22104a0e4",
+        "coremldata.bin": "ffff318336e8a75733d72f9a173f1f0c67d442854c4c851900c3c237e26b3767",
+        "metadata.json": "7068fccb43ab53bb4bcc0c5165af92e94f768d485a944fbad0f4d9d186dc27b5",
+        "model.mil": "768b5f53b06c471b667005b71d0e17d6c2a87cc15f1a975dbd135456ca910c49",
+        "weights/weight.bin": "37a5c83431601e421a4d3d1e6fa6af39951062a08a7372cea172b98110d2f38e"
+      },
+      "rtmpose_m_forward.mlmodelc": {
+        "analytics/coremldata.bin": "060c59d6608a0bab0f84f27d8031a29279f2b828327fc31c146064d835eba760",
+        "coremldata.bin": "2e5da3e0c2362aeb75bb4b2024acbc85d601d7a931215498974b2d2d57970e20",
+        "metadata.json": "34563435712e98f452dea2e0eaa61064eacdcaf2ed8e4463d8adac4c0c270f7d",
+        "model.mil": "687892d47cf3827252b87799bc083d2189c53bc203b92431936b2c4cabd98836",
+        "weights/weight.bin": "c03d3ca169b36b657262e719f9bac12fa6e4b4dc331745ce045a77890ff1cc74"
+      },
+      "rtmpose_m_halpe26_forward.mlmodelc": {
+        "analytics/coremldata.bin": "f952063422fff8768c9ca388ae422622b577e29cb1477bfe507f3d8b4aca5689",
+        "coremldata.bin": "02656bbcd6132d4b466e44b7f341e59d9641190040444a7cefbff59053a9a9c8",
+        "metadata.json": "7bea18fb8c741ed18dc2c98a791b59f43f3b4df61a8eab6c3277a08a843d5ee5",
+        "model.mil": "57d5145bb2116905290326ecef5e2485c864cbd1ed477724569fbc8a0835b3ea",
+        "weights/weight.bin": "eec87e9dccdb278f695669243e24f8a6c656c0ab98bd9de25ff3c5e0d1574b1e"
+      },
+      "rtmpose_s_forward.mlmodelc": {
+        "analytics/coremldata.bin": "54a25e99b4b6e1fa17ffc9520a373a02c785313ec0b94cef513aabb030f2388c",
+        "coremldata.bin": "2a9025daed8139a922c3532ca4b4fb3481fcdc4a55a9d7dd4b72098a494a5d50",
+        "metadata.json": "bf36183010ae9dd746acb8ea1d7a9663491d33922557e81ec79fc03153729f58",
+        "model.mil": "a1ee32ac3816709af62a0d1d68433dc18eb63596f95d83d3e87a32dd05759abd",
+        "weights/weight.bin": "bf1a64719c5e43b24708559d000d2f6a693d59e546e6fc5e2a7f45a1bacf7591"
+      },
+      "rtmpose_s_halpe26_forward.mlmodelc": {
+        "analytics/coremldata.bin": "5c5879b697016a7d78465e1c8b72a93e6ff54897634f1eb23822d8d772326861",
+        "coremldata.bin": "7586bee7ed8d8f2a31cbad48b7f56f3c29f7a2dc3e034419291ccc08c8aa1902",
+        "metadata.json": "a13b84f1c1c92f6956248955044e6b1c535bc659cddf00303a0d1a2fe04ea277",
+        "model.mil": "9d834cb4672f9927c1bd70b0ae029da3db7edec9ac4546a72c9aa9703161e286",
+        "weights/weight.bin": "f6f12b361030da6f4a786eec40174f94f6560837f0021f5393faf1233663e31d"
+      }
+    },
+    "complete_runs": {
+      "mcoco17": 38,
+      "mhalpe26": 37
+    },
+    "paired_clips": [
+      "barbellrow_0000_cam1.mp4",
+      "barbellrow_0000_cam2.mp4",
+      "barbellrow_0000_cam3.mp4",
+      "barbellrow_0001_cam1.mp4",
+      "barbellrow_0001_cam2.mp4",
+      "barbellrow_0001_cam3.mp4",
+      "barbellrow_0002_cam1.mp4",
+      "barbellrow_0002_cam2.mp4",
+      "barbellrow_0002_cam3.mp4",
+      "barbellrow_0003_cam1.mp4",
+      "barbellrow_0003_cam2.mp4",
+      "barbellrow_0003_cam3.mp4",
+      "pushup_0000_cam1.mp4",
+      "pushup_0000_cam2.mp4",
+      "pushup_0000_cam3.mp4",
+      "pushup_0001_cam1.mp4",
+      "pushup_0001_cam2.mp4",
+      "pushup_0001_cam3.mp4",
+      "pushup_0002_cam1.mp4",
+      "pushup_0002_cam2.mp4",
+      "pushup_0002_cam3.mp4",
+      "pushup_0003_cam1.mp4",
+      "pushup_0003_cam2.mp4",
+      "pushup_0003_cam3.mp4",
+      "pushup_0004_cam1.mp4",
+      "pushup_0004_cam2.mp4",
+      "pushup_0004_cam3.mp4",
+      "squat_0000_cam1.mp4",
+      "squat_0000_cam2.mp4",
+      "squat_0000_cam3.mp4",
+      "squat_0001_cam1.mp4",
+      "squat_0001_cam2.mp4",
+      "squat_0001_cam3.mp4",
+      "squat_0002_cam1.mp4",
+      "squat_0002_cam2.mp4",
+      "squat_0002_cam3.mp4",
+      "squat_0003_cam1.mp4"
+    ],
+    "paired_count": 37,
+    "conditions": {
+      "capture_rotation": 0,
+      "gravity": false,
+      "XS": "original H36M XS; no fine-tuned model",
+      "setup_ready": "unmeasured; earlier success used s Halpe26, not m",
+      "low_side_definition": "pushup cam3, 5 clips, 10–24 deg in existing ground-truth metadata",
+      "baseline": "new a8b29f1 COCO17; old de42b9a kept separately in smoke comparison",
+      "rates": "pooled swapped/eligible, never unweighted mean of clip rates",
+      "labels": "Sapiens pseudo labels; warning counts are not false-positive estimates",
+      "selection": "aggregates use only completed paired clips, even in partial snapshots",
+      "recording_segments": "34 paired clips recorded 2026-10-20; remaining 5 paired clips resumed 2026-10-21 after user reauthorized Wi-Fi phone access. Original recording timestamps are retained, separately from transfer dates; this was not one uninterrupted thermal-matched run."
+    },
+    "groups": {
+      "all_paired": {
+        "mcoco17": {
+          "clips": 37,
+          "rep_exact_clips": 31,
+          "rep_absolute_error_sum": 19,
+          "reps_app_sum": 363,
+          "reps_pseudo_gt_sum": 376,
+          "state_counts": {
+            "warming_up": 1308,
+            "ok": 25005,
+            "tracking_lost": 88,
+            "partial_3d": 928
+          },
+          "judged_frames": 27329,
+          "ok_rate": 0.9149621281422664,
+          "e2e_ms_pooled": {
+            "n": 27329,
+            "p50": 190.15,
+            "p95": 203.46,
+            "max": 408.22
+          },
+          "frames_arrived": 27833,
+          "dropped": 333,
+          "native_warnings_3d": {
+            "row_standing_up": 1,
+            "setup_side_view": 5,
+            "pushup_hand_position": 1,
+            "pushup_no_lockout": 8,
+            "squat_no_lockout": 13,
+            "squat_knee_valgus": 10
+          },
+          "native_warnings_2d": {
+            "row_head_up": 5,
+            "row_torso_swing": 1,
+            "row_standing_up": 1,
+            "setup_side_view": 5,
+            "pushup_head_up": 22,
+            "pushup_hand_position": 1,
+            "pushup_hip_pike": 1,
+            "pushup_no_lockout": 8,
+            "squat_no_lockout": 15
+          },
+          "sent_to_flutter": {
+            "praise_good": 88,
+            "setup_side_view": 9,
+            "praise_fixed": 7,
+            "pushup_hand_position": 1,
+            "pushup_no_lockout": 1,
+            "squat_no_lockout": 5,
+            "squat_knee_valgus": 4
+          },
+          "spoken_by_flutter": {
+            "praise_good [native_onFeedback]": 88,
+            "setup_side_view [native_onFeedback]": 9,
+            "praise_fixed [native_onFeedback]": 7,
+            "pushup_hand_position [native_onFeedback]": 1,
+            "squat_knee_valgus [native_onFeedback]": 4
+          },
+          "knee_hyperextension_flag_frames_3d": 50,
+          "lr_swap_2d_pseudo_labels": {
+            "shoulder": {
+              "swapped": 1,
+              "eligible": 26432,
+              "rate": 3.7832929782082326e-05
+            },
+            "elbow": {
+              "swapped": 93,
+              "eligible": 24490,
+              "rate": 0.0037974683544303796
+            },
+            "wrist": {
+              "swapped": 1,
+              "eligible": 24802,
+              "rate": 4.0319329086364006e-05
+            },
+            "hip": {
+              "swapped": 144,
+              "eligible": 25041,
+              "rate": 0.005750569066730562
+            },
+            "knee": {
+              "swapped": 1382,
+              "eligible": 26552,
+              "rate": 0.052048809882494725
+            },
+            "ankle": {
+              "swapped": 4,
+              "eligible": 24374,
+              "rate": 0.00016410929679166325
+            }
+          },
+          "setup_ready": "unmeasured: a8b29f1 has no setup gate",
+          "recording_day_clip_counts": {
+            "2026-10-20": 34,
+            "2026-10-21": 3
+          },
+          "thermal_start_end_clip_counts": {
+            "['nominal', 'nominal']": 25,
+            "['fair', 'fair']": 11,
+            "['nominal', 'fair']": 1
+          },
+          "battery_range": [
+            0.5,
+            0.949999988079071
+          ]
+        },
+        "mhalpe26": {
+          "clips": 37,
+          "rep_exact_clips": 35,
+          "rep_absolute_error_sum": 12,
+          "reps_app_sum": 364,
+          "reps_pseudo_gt_sum": 376,
+          "state_counts": {
+            "warming_up": 1268,
+            "ok": 24842,
+            "tracking_lost": 142,
+            "partial_3d": 1066
+          },
+          "judged_frames": 27318,
+          "ok_rate": 0.9093637894428582,
+          "e2e_ms_pooled": {
+            "n": 27318,
+            "p50": 190.69,
+            "p95": 205.39,
+            "max": 390.77
+          },
+          "frames_arrived": 27833,
+          "dropped": 348,
+          "native_warnings_3d": {
+            "setup_side_view": 5,
+            "pushup_hand_position": 1,
+            "pushup_no_lockout": 7,
+            "squat_no_lockout": 13,
+            "squat_knee_valgus": 16
+          },
+          "native_warnings_2d": {
+            "row_head_up": 9,
+            "setup_side_view": 5,
+            "pushup_hand_position": 1,
+            "pushup_no_lockout": 19,
+            "pushup_head_up": 1,
+            "squat_no_lockout": 9,
+            "squat_knee_valgus": 2
+          },
+          "sent_to_flutter": {
+            "praise_good": 84,
+            "setup_side_view": 10,
+            "tracking_lost": 1,
+            "praise_fixed": 9,
+            "pushup_hand_position": 1,
+            "pushup_no_lockout": 4,
+            "squat_no_lockout": 4,
+            "squat_knee_valgus": 6
+          },
+          "spoken_by_flutter": {
+            "praise_good [native_onFeedback]": 84,
+            "setup_side_view [native_onFeedback]": 10,
+            "praise_fixed [native_onFeedback]": 9,
+            "pushup_hand_position [native_onFeedback]": 1,
+            "squat_knee_valgus [native_onFeedback]": 6
+          },
+          "knee_hyperextension_flag_frames_3d": 282,
+          "lr_swap_2d_pseudo_labels": {
+            "shoulder": {
+              "swapped": 71,
+              "eligible": 26423,
+              "rate": 0.0026870529462967867
+            },
+            "elbow": {
+              "swapped": 64,
+              "eligible": 24483,
+              "rate": 0.002614058734632194
+            },
+            "wrist": {
+              "swapped": 88,
+              "eligible": 24796,
+              "rate": 0.0035489595095983223
+            },
+            "hip": {
+              "swapped": 88,
+              "eligible": 25034,
+              "rate": 0.0035152193017496205
+            },
+            "knee": {
+              "swapped": 145,
+              "eligible": 26559,
+              "rate": 0.005459542904476825
+            },
+            "ankle": {
+              "swapped": 48,
+              "eligible": 24379,
+              "rate": 0.001968907666434226
+            }
+          },
+          "setup_ready": "unmeasured: a8b29f1 has no setup gate",
+          "recording_day_clip_counts": {
+            "2026-10-20": 34,
+            "2026-10-21": 3
+          },
+          "thermal_start_end_clip_counts": {
+            "['nominal', 'nominal']": 25,
+            "['nominal', 'fair']": 1,
+            "['fair', 'fair']": 9,
+            "['fair', 'nominal']": 2
+          },
+          "battery_range": [
+            0.5,
+            0.949999988079071
+          ]
+        }
+      },
+      "barbellrow": {
+        "mcoco17": {
+          "clips": 12,
+          "rep_exact_clips": 9,
+          "rep_absolute_error_sum": 16,
+          "reps_app_sum": 112,
+          "reps_pseudo_gt_sum": 126,
+          "state_counts": {
+            "warming_up": 415,
+            "ok": 7753,
+            "tracking_lost": 88,
+            "partial_3d": 19
+          },
+          "judged_frames": 8275,
+          "ok_rate": 0.9369184290030211,
+          "e2e_ms_pooled": {
+            "n": 8275,
+            "p50": 190.27,
+            "p95": 200.94,
+            "max": 368.48
+          },
+          "frames_arrived": 8404,
+          "dropped": 83,
+          "native_warnings_3d": {
+            "row_standing_up": 1
+          },
+          "native_warnings_2d": {
+            "row_head_up": 5,
+            "row_torso_swing": 1,
+            "row_standing_up": 1
+          },
+          "sent_to_flutter": {
+            "praise_good": 32,
+            "setup_side_view": 4
+          },
+          "spoken_by_flutter": {
+            "praise_good [native_onFeedback]": 32,
+            "setup_side_view [native_onFeedback]": 4
+          },
+          "knee_hyperextension_flag_frames_3d": 15,
+          "lr_swap_2d_pseudo_labels": {
+            "shoulder": {
+              "swapped": 0,
+              "eligible": 8059,
+              "rate": 0.0
+            },
+            "elbow": {
+              "swapped": 1,
+              "eligible": 8065,
+              "rate": 0.00012399256044637322
+            },
+            "wrist": {
+              "swapped": 1,
+              "eligible": 8092,
+              "rate": 0.00012357884330202668
+            },
+            "hip": {
+              "swapped": 0,
+              "eligible": 8040,
+              "rate": 0.0
+            },
+            "knee": {
+              "swapped": 14,
+              "eligible": 8090,
+              "rate": 0.00173053152039555
+            },
+            "ankle": {
+              "swapped": 3,
+              "eligible": 8107,
+              "rate": 0.00037005057357838907
+            }
+          },
+          "setup_ready": "unmeasured: a8b29f1 has no setup gate",
+          "recording_day_clip_counts": {
+            "2026-10-20": 12
+          },
+          "thermal_start_end_clip_counts": {
+            "['nominal', 'nominal']": 12
+          },
+          "battery_range": [
+            0.6499999761581421,
+            0.699999988079071
+          ]
+        },
+        "mhalpe26": {
+          "clips": 12,
+          "rep_exact_clips": 10,
+          "rep_absolute_error_sum": 12,
+          "reps_app_sum": 114,
+          "reps_pseudo_gt_sum": 126,
+          "state_counts": {
+            "warming_up": 420,
+            "ok": 7791,
+            "tracking_lost": 69
+          },
+          "judged_frames": 8280,
+          "ok_rate": 0.9409420289855073,
+          "e2e_ms_pooled": {
+            "n": 8280,
+            "p50": 190.51,
+            "p95": 202.36,
+            "max": 347.28
+          },
+          "frames_arrived": 8404,
+          "dropped": 82,
+          "native_warnings_3d": {},
+          "native_warnings_2d": {
+            "row_head_up": 9
+          },
+          "sent_to_flutter": {
+            "praise_good": 33,
+            "setup_side_view": 5,
+            "tracking_lost": 1
+          },
+          "spoken_by_flutter": {
+            "praise_good [native_onFeedback]": 33,
+            "setup_side_view [native_onFeedback]": 5
+          },
+          "knee_hyperextension_flag_frames_3d": 0,
+          "lr_swap_2d_pseudo_labels": {
+            "shoulder": {
+              "swapped": 0,
+              "eligible": 8066,
+              "rate": 0.0
+            },
+            "elbow": {
+              "swapped": 0,
+              "eligible": 8072,
+              "rate": 0.0
+            },
+            "wrist": {
+              "swapped": 18,
+              "eligible": 8101,
+              "rate": 0.00222194790766572
+            },
+            "hip": {
+              "swapped": 0,
+              "eligible": 8048,
+              "rate": 0.0
+            },
+            "knee": {
+              "swapped": 0,
+              "eligible": 8097,
+              "rate": 0.0
+            },
+            "ankle": {
+              "swapped": 0,
+              "eligible": 8115,
+              "rate": 0.0
+            }
+          },
+          "setup_ready": "unmeasured: a8b29f1 has no setup gate",
+          "recording_day_clip_counts": {
+            "2026-10-20": 12
+          },
+          "thermal_start_end_clip_counts": {
+            "['nominal', 'nominal']": 12
+          },
+          "battery_range": [
+            0.6499999761581421,
+            0.699999988079071
+          ]
+        }
+      },
+      "pushup": {
+        "mcoco17": {
+          "clips": 15,
+          "rep_exact_clips": 12,
+          "rep_absolute_error_sum": 3,
+          "reps_app_sum": 151,
+          "reps_pseudo_gt_sum": 150,
+          "state_counts": {
+            "warming_up": 507,
+            "ok": 6566,
+            "partial_3d": 909
+          },
+          "judged_frames": 7982,
+          "ok_rate": 0.8226008519168129,
+          "e2e_ms_pooled": {
+            "n": 7982,
+            "p50": 191.49,
+            "p95": 228.78,
+            "max": 408.22
+          },
+          "frames_arrived": 8257,
+          "dropped": 200,
+          "native_warnings_3d": {
+            "setup_side_view": 5,
+            "pushup_hand_position": 1,
+            "pushup_no_lockout": 8
+          },
+          "native_warnings_2d": {
+            "setup_side_view": 5,
+            "pushup_head_up": 22,
+            "pushup_hand_position": 1,
+            "pushup_hip_pike": 1,
+            "pushup_no_lockout": 8
+          },
+          "sent_to_flutter": {
+            "setup_side_view": 5,
+            "praise_fixed": 6,
+            "pushup_hand_position": 1,
+            "praise_good": 29,
+            "pushup_no_lockout": 1
+          },
+          "spoken_by_flutter": {
+            "setup_side_view [native_onFeedback]": 5,
+            "praise_fixed [native_onFeedback]": 6,
+            "pushup_hand_position [native_onFeedback]": 1,
+            "praise_good [native_onFeedback]": 29
+          },
+          "knee_hyperextension_flag_frames_3d": 35,
+          "lr_swap_2d_pseudo_labels": {
+            "shoulder": {
+              "swapped": 1,
+              "eligible": 7301,
+              "rate": 0.00013696753869332968
+            },
+            "elbow": {
+              "swapped": 92,
+              "eligible": 7971,
+              "rate": 0.011541839166980303
+            },
+            "wrist": {
+              "swapped": 0,
+              "eligible": 7891,
+              "rate": 0.0
+            },
+            "hip": {
+              "swapped": 144,
+              "eligible": 5930,
+              "rate": 0.024283305227655986
+            },
+            "knee": {
+              "swapped": 1368,
+              "eligible": 7576,
+              "rate": 0.1805702217529039
+            },
+            "ankle": {
+              "swapped": 1,
+              "eligible": 5195,
+              "rate": 0.00019249278152069297
+            }
+          },
+          "setup_ready": "unmeasured: a8b29f1 has no setup gate",
+          "recording_day_clip_counts": {
+            "2026-10-20": 15
+          },
+          "thermal_start_end_clip_counts": {
+            "['nominal', 'nominal']": 10,
+            "['fair', 'fair']": 4,
+            "['nominal', 'fair']": 1
+          },
+          "battery_range": [
+            0.550000011920929,
+            0.6499999761581421
+          ]
+        },
+        "mhalpe26": {
+          "clips": 15,
+          "rep_exact_clips": 15,
+          "rep_absolute_error_sum": 0,
+          "reps_app_sum": 150,
+          "reps_pseudo_gt_sum": 150,
+          "state_counts": {
+            "tracking_lost": 72,
+            "warming_up": 471,
+            "ok": 6383,
+            "partial_3d": 1066
+          },
+          "judged_frames": 7992,
+          "ok_rate": 0.7986736736736737,
+          "e2e_ms_pooled": {
+            "n": 7992,
+            "p50": 191.52,
+            "p95": 232.53,
+            "max": 390.77
+          },
+          "frames_arrived": 8257,
+          "dropped": 190,
+          "native_warnings_3d": {
+            "setup_side_view": 5,
+            "pushup_hand_position": 1,
+            "pushup_no_lockout": 7
+          },
+          "native_warnings_2d": {
+            "setup_side_view": 5,
+            "pushup_hand_position": 1,
+            "pushup_no_lockout": 19,
+            "pushup_head_up": 1
+          },
+          "sent_to_flutter": {
+            "setup_side_view": 5,
+            "praise_fixed": 6,
+            "pushup_hand_position": 1,
+            "praise_good": 28,
+            "pushup_no_lockout": 4
+          },
+          "spoken_by_flutter": {
+            "setup_side_view [native_onFeedback]": 5,
+            "praise_fixed [native_onFeedback]": 6,
+            "pushup_hand_position [native_onFeedback]": 1,
+            "praise_good [native_onFeedback]": 28
+          },
+          "knee_hyperextension_flag_frames_3d": 282,
+          "lr_swap_2d_pseudo_labels": {
+            "shoulder": {
+              "swapped": 59,
+              "eligible": 7311,
+              "rate": 0.008070031459444672
+            },
+            "elbow": {
+              "swapped": 64,
+              "eligible": 7981,
+              "rate": 0.008019045232427014
+            },
+            "wrist": {
+              "swapped": 69,
+              "eligible": 7900,
+              "rate": 0.008734177215189874
+            },
+            "hip": {
+              "swapped": 87,
+              "eligible": 5941,
+              "rate": 0.014643999326712674
+            },
+            "knee": {
+              "swapped": 145,
+              "eligible": 7602,
+              "rate": 0.01907392791370692
+            },
+            "ankle": {
+              "swapped": 45,
+              "eligible": 5218,
+              "rate": 0.008623993867382138
+            }
+          },
+          "setup_ready": "unmeasured: a8b29f1 has no setup gate",
+          "recording_day_clip_counts": {
+            "2026-10-20": 15
+          },
+          "thermal_start_end_clip_counts": {
+            "['nominal', 'nominal']": 10,
+            "['nominal', 'fair']": 1,
+            "['fair', 'fair']": 3,
+            "['fair', 'nominal']": 1
+          },
+          "battery_range": [
+            0.550000011920929,
+            0.6499999761581421
+          ]
+        }
+      },
+      "squat": {
+        "mcoco17": {
+          "clips": 10,
+          "rep_exact_clips": 10,
+          "rep_absolute_error_sum": 0,
+          "reps_app_sum": 100,
+          "reps_pseudo_gt_sum": 100,
+          "state_counts": {
+            "warming_up": 386,
+            "ok": 10686
+          },
+          "judged_frames": 11072,
+          "ok_rate": 0.9651372832369942,
+          "e2e_ms_pooled": {
+            "n": 11072,
+            "p50": 189.38,
+            "p95": 197.03,
+            "max": 301.24
+          },
+          "frames_arrived": 11172,
+          "dropped": 50,
+          "native_warnings_3d": {
+            "squat_no_lockout": 13,
+            "squat_knee_valgus": 10
+          },
+          "native_warnings_2d": {
+            "squat_no_lockout": 15
+          },
+          "sent_to_flutter": {
+            "praise_good": 27,
+            "squat_no_lockout": 5,
+            "squat_knee_valgus": 4,
+            "praise_fixed": 1
+          },
+          "spoken_by_flutter": {
+            "praise_good [native_onFeedback]": 27,
+            "squat_knee_valgus [native_onFeedback]": 4,
+            "praise_fixed [native_onFeedback]": 1
+          },
+          "knee_hyperextension_flag_frames_3d": 0,
+          "lr_swap_2d_pseudo_labels": {
+            "shoulder": {
+              "swapped": 0,
+              "eligible": 11072,
+              "rate": 0.0
+            },
+            "elbow": {
+              "swapped": 0,
+              "eligible": 8454,
+              "rate": 0.0
+            },
+            "wrist": {
+              "swapped": 0,
+              "eligible": 8819,
+              "rate": 0.0
+            },
+            "hip": {
+              "swapped": 0,
+              "eligible": 11071,
+              "rate": 0.0
+            },
+            "knee": {
+              "swapped": 0,
+              "eligible": 10886,
+              "rate": 0.0
+            },
+            "ankle": {
+              "swapped": 0,
+              "eligible": 11072,
+              "rate": 0.0
+            }
+          },
+          "setup_ready": "unmeasured: a8b29f1 has no setup gate",
+          "recording_day_clip_counts": {
+            "2026-10-20": 7,
+            "2026-10-21": 3
+          },
+          "thermal_start_end_clip_counts": {
+            "['fair', 'fair']": 7,
+            "['nominal', 'nominal']": 3
+          },
+          "battery_range": [
+            0.5,
+            0.949999988079071
+          ]
+        },
+        "mhalpe26": {
+          "clips": 10,
+          "rep_exact_clips": 10,
+          "rep_absolute_error_sum": 0,
+          "reps_app_sum": 100,
+          "reps_pseudo_gt_sum": 100,
+          "state_counts": {
+            "warming_up": 377,
+            "ok": 10668,
+            "tracking_lost": 1
+          },
+          "judged_frames": 11046,
+          "ok_rate": 0.9657794676806084,
+          "e2e_ms_pooled": {
+            "n": 11046,
+            "p50": 190.41,
+            "p95": 198.89,
+            "max": 372.31
+          },
+          "frames_arrived": 11172,
+          "dropped": 76,
+          "native_warnings_3d": {
+            "squat_no_lockout": 13,
+            "squat_knee_valgus": 16
+          },
+          "native_warnings_2d": {
+            "squat_no_lockout": 9,
+            "squat_knee_valgus": 2
+          },
+          "sent_to_flutter": {
+            "praise_good": 23,
+            "squat_no_lockout": 4,
+            "squat_knee_valgus": 6,
+            "praise_fixed": 3
+          },
+          "spoken_by_flutter": {
+            "praise_good [native_onFeedback]": 23,
+            "squat_knee_valgus [native_onFeedback]": 6,
+            "praise_fixed [native_onFeedback]": 3
+          },
+          "knee_hyperextension_flag_frames_3d": 0,
+          "lr_swap_2d_pseudo_labels": {
+            "shoulder": {
+              "swapped": 12,
+              "eligible": 11046,
+              "rate": 0.0010863661053775121
+            },
+            "elbow": {
+              "swapped": 0,
+              "eligible": 8430,
+              "rate": 0.0
+            },
+            "wrist": {
+              "swapped": 1,
+              "eligible": 8795,
+              "rate": 0.00011370096645821489
+            },
+            "hip": {
+              "swapped": 1,
+              "eligible": 11045,
+              "rate": 9.053870529651426e-05
+            },
+            "knee": {
+              "swapped": 0,
+              "eligible": 10860,
+              "rate": 0.0
+            },
+            "ankle": {
+              "swapped": 3,
+              "eligible": 11046,
+              "rate": 0.00027159152634437803
+            }
+          },
+          "setup_ready": "unmeasured: a8b29f1 has no setup gate",
+          "recording_day_clip_counts": {
+            "2026-10-20": 7,
+            "2026-10-21": 3
+          },
+          "thermal_start_end_clip_counts": {
+            "['fair', 'fair']": 6,
+            "['fair', 'nominal']": 1,
+            "['nominal', 'nominal']": 3
+          },
+          "battery_range": [
+            0.5,
+            0.949999988079071
+          ]
+        }
+      },
+      "pushup_low_side_cam3": {
+        "mcoco17": {
+          "clips": 5,
+          "rep_exact_clips": 5,
+          "rep_absolute_error_sum": 0,
+          "reps_app_sum": 50,
+          "reps_pseudo_gt_sum": 50,
+          "state_counts": {
+            "warming_up": 166,
+            "ok": 2506,
+            "partial_3d": 35
+          },
+          "judged_frames": 2707,
+          "ok_rate": 0.925748060583672,
+          "e2e_ms_pooled": {
+            "n": 2707,
+            "p50": 189.92,
+            "p95": 198.39,
+            "max": 237.06
+          },
+          "frames_arrived": 2752,
+          "dropped": 20,
+          "native_warnings_3d": {},
+          "native_warnings_2d": {},
+          "sent_to_flutter": {
+            "praise_good": 15
+          },
+          "spoken_by_flutter": {
+            "praise_good [native_onFeedback]": 15
+          },
+          "knee_hyperextension_flag_frames_3d": 35,
+          "lr_swap_2d_pseudo_labels": {
+            "shoulder": {
+              "swapped": 1,
+              "eligible": 2037,
+              "rate": 0.0004909180166912126
+            },
+            "elbow": {
+              "swapped": 92,
+              "eligible": 2707,
+              "rate": 0.03398596231991134
+            },
+            "wrist": {
+              "swapped": 0,
+              "eligible": 2636,
+              "rate": 0.0
+            },
+            "hip": {
+              "swapped": 144,
+              "eligible": 880,
+              "rate": 0.16363636363636364
+            },
+            "knee": {
+              "swapped": 1237,
+              "eligible": 2421,
+              "rate": 0.5109458901280463
+            },
+            "ankle": {
+              "swapped": 0,
+              "eligible": 799,
+              "rate": 0.0
+            }
+          },
+          "setup_ready": "unmeasured: a8b29f1 has no setup gate",
+          "recording_day_clip_counts": {
+            "2026-10-20": 5
+          },
+          "thermal_start_end_clip_counts": {
+            "['nominal', 'nominal']": 3,
+            "['fair', 'fair']": 2
+          },
+          "battery_range": [
+            0.550000011920929,
+            0.6000000238418579
+          ]
+        },
+        "mhalpe26": {
+          "clips": 5,
+          "rep_exact_clips": 5,
+          "rep_absolute_error_sum": 0,
+          "reps_app_sum": 50,
+          "reps_pseudo_gt_sum": 50,
+          "state_counts": {
+            "warming_up": 168,
+            "ok": 2518,
+            "tracking_lost": 26
+          },
+          "judged_frames": 2712,
+          "ok_rate": 0.9284660766961652,
+          "e2e_ms_pooled": {
+            "n": 2712,
+            "p50": 190.27,
+            "p95": 198.0,
+            "max": 268.25
+          },
+          "frames_arrived": 2752,
+          "dropped": 15,
+          "native_warnings_3d": {
+            "pushup_no_lockout": 2
+          },
+          "native_warnings_2d": {
+            "pushup_no_lockout": 2
+          },
+          "sent_to_flutter": {
+            "praise_good": 15,
+            "pushup_no_lockout": 2
+          },
+          "spoken_by_flutter": {
+            "praise_good [native_onFeedback]": 15
+          },
+          "knee_hyperextension_flag_frames_3d": 0,
+          "lr_swap_2d_pseudo_labels": {
+            "shoulder": {
+              "swapped": 28,
+              "eligible": 2042,
+              "rate": 0.013712047012732615
+            },
+            "elbow": {
+              "swapped": 34,
+              "eligible": 2712,
+              "rate": 0.012536873156342183
+            },
+            "wrist": {
+              "swapped": 38,
+              "eligible": 2640,
+              "rate": 0.014393939393939395
+            },
+            "hip": {
+              "swapped": 37,
+              "eligible": 886,
+              "rate": 0.0417607223476298
+            },
+            "knee": {
+              "swapped": 96,
+              "eligible": 2429,
+              "rate": 0.03952243721696171
+            },
+            "ankle": {
+              "swapped": 21,
+              "eligible": 797,
+              "rate": 0.026348808030112924
+            }
+          },
+          "setup_ready": "unmeasured: a8b29f1 has no setup gate",
+          "recording_day_clip_counts": {
+            "2026-10-20": 5
+          },
+          "thermal_start_end_clip_counts": {
+            "['nominal', 'nominal']": 3,
+            "['fair', 'nominal']": 1,
+            "['fair', 'fair']": 1
+          },
+          "battery_range": [
+            0.550000011920929,
+            0.6000000238418579
+          ]
+        }
+      }
+    }
+  },
+  "analysis_provenance": {
+    "gt_json_sha256": "256f80245bcf8372edb268e1e9fdaa127312dd798b7ae0497b2df0cc4bbd2e52",
+    "pseudo_label_sha256": {
+      "barbellrow_0000/view/cam1_pose_2d.npz": "47ad120340bc23a9cd22141f56bbc2a7c4f5d0ccdc1996b305090c206db2c4e8",
+      "barbellrow_0000/view/cam2_pose_2d.npz": "00018964d2dbf0675747875c7833704ac2402849e93698624c6cf2e110debde3",
+      "barbellrow_0000/view/cam3_pose_2d.npz": "39e281f5da17b505c6b4398394eddd395b3ce0194e45e9c268cd4cb1aec2ba0a",
+      "barbellrow_0001/view/cam1_pose_2d.npz": "03dd6a6143b740a944a23a8475d548be3daf1c0c8df689343790bb85364dbbc9",
+      "barbellrow_0001/view/cam2_pose_2d.npz": "e664c214578e130137681de9f81957da82aa7b7625af9a0ac1ce04b9b2800352",
+      "barbellrow_0001/view/cam3_pose_2d.npz": "0157b1ae585d867a00c82e18769b233f38dff73925ef99327abdc765f8f4c640",
+      "barbellrow_0002/view/cam1_pose_2d.npz": "7bd4cf12d5dfabc2dd696db772b121c65756fe9ee66c8f6ea666f40613364c58",
+      "barbellrow_0002/view/cam2_pose_2d.npz": "691e10441617291fb1e7f2477487937eb0fa68b6bd65234b47ec713aad87d032",
+      "barbellrow_0002/view/cam3_pose_2d.npz": "29cae39fd108290f080da3bfcdb4f5dee9b860e8d34c9dc3948e1e781400feb5",
+      "barbellrow_0003/view/cam1_pose_2d.npz": "792bf5e90acccd45ec1f7a8bfd6d19ab3b8f2cb595ea1ebbfb9fc6f292d99a57",
+      "barbellrow_0003/view/cam2_pose_2d.npz": "397efb4efc602d1ea921bb2f20e570c282d058d9c6a4d6d3b2f571a8eb519b0d",
+      "barbellrow_0003/view/cam3_pose_2d.npz": "8380d553db762bc8984d6d5cbcd3bf8537e9a985d66b27508382308f7a29c343",
+      "pushup_0000/view/cam1_pose_2d.npz": "16550ed75ce230870877b212cf7a9d8ffd6b2fdb84dc5cf8887d75e59e6f881f",
+      "pushup_0000/view/cam2_pose_2d.npz": "a9f55109c1a52ef4940ab6117924c80fa3af698e816bde6ede5705ae3a366b76",
+      "pushup_0000/view/cam3_pose_2d.npz": "3344a9529e0491fc283ed615faad260736c7e38cbc2c7446c317b0a949a5c51a",
+      "pushup_0001/view/cam1_pose_2d.npz": "2fa775db883013110ee10e802964b1073588669fc512fb9945836a6396df004a",
+      "pushup_0001/view/cam2_pose_2d.npz": "b6ddd5a633199810f4d03ef62e4dc196d23c955402e3ba3ccdcbe5c1e6241d32",
+      "pushup_0001/view/cam3_pose_2d.npz": "2c511882db0f5a47036fdb24e053e99aa91709d9a5b705952450aa4bde779dbd",
+      "pushup_0002/view/cam1_pose_2d.npz": "9d2e1206c421e57363c99910359f21a63bd3aa32ae7d646deb432fb8ab6b0c77",
+      "pushup_0002/view/cam2_pose_2d.npz": "2656343e974ed2fde9d9e9a55910a136cea4efb6fe0933a5215fff15fabedaf7",
+      "pushup_0002/view/cam3_pose_2d.npz": "0830d676482599474a50a474ebca4c7dfc060d6a51d1ded94048da1ce11b9147",
+      "pushup_0003/view/cam1_pose_2d.npz": "fe639d1628da4fe782be407c95758458465c63db01e59b76d78a343f04c35344",
+      "pushup_0003/view/cam2_pose_2d.npz": "b688e9d6c642d8773de4a822aab7790fc8c1445fd47c85c315e838a2c25b3ea5",
+      "pushup_0003/view/cam3_pose_2d.npz": "469533eb7eed01f856afecde92b2cc8e8452413eb327d4de547eb1c2f001b925",
+      "pushup_0004/view/cam1_pose_2d.npz": "acc2b21e6922bd70cf73bda8361e046012b928e1db4e935727d52b2c6b2c6c50",
+      "pushup_0004/view/cam2_pose_2d.npz": "0396949de50e54fa984b4c2a42c5800aedc0e266b6edb11908766ae62ccc2b70",
+      "pushup_0004/view/cam3_pose_2d.npz": "38bb13a4dcae7faa529fbe19cd9773b393bc60da8309d817a24e72ff9540eccd",
+      "squat_0000/view/cam1_pose_2d.npz": "522210dfea5596360b5cfaafa758bb90252b3ed51f4cdcdeb1867c66332087df",
+      "squat_0000/view/cam2_pose_2d.npz": "a2ae21bfdd141f2abe705fe45e1cb931ebf85e5d998a1144ea454f34025dc79e",
+      "squat_0000/view/cam3_pose_2d.npz": "8a023cbbe1da938d45a70a049ff8ec819e9aff9cd0c13e3246d8dd6484f4bf67",
+      "squat_0001/view/cam1_pose_2d.npz": "0810f2a15f018ba99d2b3bdbd09f41292923e43839f6ff48cdb89a22de98c942",
+      "squat_0001/view/cam2_pose_2d.npz": "5d709b976706de68a53a12a93678fbc54c44e67ce0b2834f32e730460c764141",
+      "squat_0001/view/cam3_pose_2d.npz": "a6df5c4d6500195fde8968c163e386f0adfd0a7b585330e8e3ef96c642ebe0d6",
+      "squat_0002/view/cam1_pose_2d.npz": "6edb2227e7e03845442af77acbae83aa307d108c4f2372cfd3c09874afd49bc2",
+      "squat_0002/view/cam2_pose_2d.npz": "02a7a537329f12cd8d69b3aba2f45e65dc915df2e510538fe667bf292fc0bb1b",
+      "squat_0002/view/cam3_pose_2d.npz": "7b7b91676a7f25ae0f2e7cee68793e8516b5ed189874cc3a037f1d0e830dd9bf",
+      "squat_0003/view/cam1_pose_2d.npz": "d6b7755fbe2347b7cbe1bd7488e25cfc1087efee343ce8e84a27dca46d6cfc44"
+    },
+    "analyzer_sha256": "fbfbb5deb6704bed8a38e246ce141d109bceae327a9012c00cbdda645b20e642",
+    "lr_counts_analyzer_sha256": "1c6c20305863a219d1625b94a10d9a3bd134509fa1cce029095f9859accca68a",
+    "inputs": "Only hashes of existing numeric labels are archived. Original videos/images/label arrays are not copied.",
+    "lr_eligibility": "Sapiens target_present; confidence > 0.5; at least six valid body joints; each L/R pair separation >= 5% valid body extent; appearance-consistent assignment for mirrored views.",
+    "low_side_selection": "Existing gt views cam3 for all five pushup sequences; fixed before result inspection."
+  },
+  "unverified_original_logs": {
+    "mcoco17": [
+      "squat_0003_cam3.mp4"
+    ],
+    "mhalpe26": [
+      "squat_0003_cam2.mp4",
+      "squat_0003_cam3.mp4"
+    ]
+  },
+  "rotation": "unmeasured: blocked by original recording recovery",
+  "setup_ready": "unmeasured: no setup gate in a8; separate m model setup experiment required"
+}

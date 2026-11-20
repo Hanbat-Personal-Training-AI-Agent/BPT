@@ -1,0 +1,3320 @@
+{
+  "schema": "bpt.motion-edge-mismatch-synthetic.v1",
+  "historicalEstimatorSHA256": "c58740a36791962c9196f2c0443c9d5ae9ad71b343d6688f55614abaea57c40d",
+  "noFixImplemented": true,
+  "noDatasetOrInference": true,
+  "results": [
+    {
+      "policy": "legacy",
+      "variant": "G",
+      "case": "valid_return_rejected",
+      "same_frame_initial_edge": 1,
+      "mixed_time_reference_after_gap": 0.0,
+      "current_return_edge": 1.0,
+      "rejected_return_frames": 10,
+      "invalid_return_frames": 10,
+      "first_accepted_return_frame": null,
+      "observed_parent_end_x": 1.0,
+      "rows": [
+        {
+          "frame": 0,
+          "elbow_x": 0.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": 0.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 1,
+          "elbow_x": 0.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": 0.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 2,
+          "elbow_x": 0.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": 0.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 3,
+          "elbow_x": 0.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": 0.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 4,
+          "elbow_x": 0.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": 0.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 5,
+          "elbow_x": 0.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": 0.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 6,
+          "elbow_x": 0.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": 0.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 7,
+          "elbow_x": 0.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": 0.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 8,
+          "elbow_x": 0.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": 0.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 9,
+          "elbow_x": 0.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": 0.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 10,
+          "elbow_x": 0.05,
+          "wrist_x": 1.0,
+          "current_edge_length": 0.9503836962901868,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": 0.05,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 11,
+          "elbow_x": 0.1,
+          "wrist_x": 1.0,
+          "current_edge_length": 0.9014151171137778,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": 0.1,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 12,
+          "elbow_x": 0.15,
+          "wrist_x": 1.0,
+          "current_edge_length": 0.8529372345262017,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": 0.15,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 13,
+          "elbow_x": 0.2,
+          "wrist_x": 1.0,
+          "current_edge_length": 0.8048160260669326,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": 0.2,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 14,
+          "elbow_x": 0.25,
+          "wrist_x": 1.0,
+          "current_edge_length": 0.7569339580671208,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": 0.25,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 15,
+          "elbow_x": 0.3,
+          "wrist_x": 1.0,
+          "current_edge_length": 0.709185254466198,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": 0.3,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 16,
+          "elbow_x": 0.35,
+          "wrist_x": 1.0,
+          "current_edge_length": 0.6614723131361049,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": 0.35,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 17,
+          "elbow_x": 0.4,
+          "wrist_x": 1.0,
+          "current_edge_length": 0.613702864616576,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": 0.4,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 18,
+          "elbow_x": 0.45,
+          "wrist_x": 1.0,
+          "current_edge_length": 0.5657876021966023,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": 0.45,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 19,
+          "elbow_x": 0.5,
+          "wrist_x": 1.0,
+          "current_edge_length": 0.5176380902050415,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": 0.5,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 20,
+          "elbow_x": 0.55,
+          "wrist_x": 1.0,
+          "current_edge_length": 0.4691648013218602,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": 0.55,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 21,
+          "elbow_x": 0.6,
+          "wrist_x": 1.0,
+          "current_edge_length": 0.42027515515265884,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": 0.6,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 22,
+          "elbow_x": 0.65,
+          "wrist_x": 1.0,
+          "current_edge_length": 0.37087143465846645,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": 0.65,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 23,
+          "elbow_x": 0.7,
+          "wrist_x": 1.0,
+          "current_edge_length": 0.3208484457688489,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": 0.7,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 24,
+          "elbow_x": 0.75,
+          "wrist_x": 1.0,
+          "current_edge_length": 0.2700907567377265,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": 0.75,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 25,
+          "elbow_x": 0.8,
+          "wrist_x": 1.0,
+          "current_edge_length": 0.21846930176610485,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": 0.8,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 26,
+          "elbow_x": 0.85,
+          "wrist_x": 1.0,
+          "current_edge_length": 0.16583704664882584,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": 0.85,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 27,
+          "elbow_x": 0.9,
+          "wrist_x": 1.0,
+          "current_edge_length": 0.11202327151643825,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": 0.9,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 28,
+          "elbow_x": 0.95,
+          "wrist_x": 1.0,
+          "current_edge_length": 0.05682578793292754,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": 0.95,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 29,
+          "elbow_x": 1.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 0.0,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": 1.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 30,
+          "elbow_x": 1.0,
+          "wrist_x": 2.0,
+          "current_edge_length": 1.0,
+          "rejected": true,
+          "invalid": true,
+          "last_observed_parent_x": 1.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 31,
+          "elbow_x": 1.0,
+          "wrist_x": 2.0,
+          "current_edge_length": 1.0,
+          "rejected": true,
+          "invalid": true,
+          "last_observed_parent_x": 1.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 32,
+          "elbow_x": 1.0,
+          "wrist_x": 2.0,
+          "current_edge_length": 1.0,
+          "rejected": true,
+          "invalid": true,
+          "last_observed_parent_x": 1.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 33,
+          "elbow_x": 1.0,
+          "wrist_x": 2.0,
+          "current_edge_length": 1.0,
+          "rejected": true,
+          "invalid": true,
+          "last_observed_parent_x": 1.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 34,
+          "elbow_x": 1.0,
+          "wrist_x": 2.0,
+          "current_edge_length": 1.0,
+          "rejected": true,
+          "invalid": true,
+          "last_observed_parent_x": 1.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 35,
+          "elbow_x": 1.0,
+          "wrist_x": 2.0,
+          "current_edge_length": 1.0,
+          "rejected": true,
+          "invalid": true,
+          "last_observed_parent_x": 1.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 36,
+          "elbow_x": 1.0,
+          "wrist_x": 2.0,
+          "current_edge_length": 1.0,
+          "rejected": true,
+          "invalid": true,
+          "last_observed_parent_x": 1.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 37,
+          "elbow_x": 1.0,
+          "wrist_x": 2.0,
+          "current_edge_length": 1.0,
+          "rejected": true,
+          "invalid": true,
+          "last_observed_parent_x": 1.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 38,
+          "elbow_x": 1.0,
+          "wrist_x": 2.0,
+          "current_edge_length": 1.0,
+          "rejected": true,
+          "invalid": true,
+          "last_observed_parent_x": 1.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 39,
+          "elbow_x": 1.0,
+          "wrist_x": 2.0,
+          "current_edge_length": 1.0,
+          "rejected": true,
+          "invalid": true,
+          "last_observed_parent_x": 1.0,
+          "last_observed_child_x": 1.0
+        }
+      ]
+    },
+    {
+      "policy": "legacy",
+      "variant": "G",
+      "case": "length_tripling_accepted",
+      "same_frame_initial_edge": 1,
+      "mixed_time_reference_after_gap": 2.0,
+      "current_return_edge": 3.0,
+      "rejected_return_frames": 2,
+      "invalid_return_frames": 2,
+      "first_accepted_return_frame": 32,
+      "observed_parent_end_x": -1.0,
+      "rows": [
+        {
+          "frame": 0,
+          "elbow_x": 0.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": 0.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 1,
+          "elbow_x": 0.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": 0.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 2,
+          "elbow_x": 0.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": 0.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 3,
+          "elbow_x": 0.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": 0.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 4,
+          "elbow_x": 0.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": 0.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 5,
+          "elbow_x": 0.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": 0.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 6,
+          "elbow_x": 0.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": 0.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 7,
+          "elbow_x": 0.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": 0.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 8,
+          "elbow_x": 0.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": 0.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 9,
+          "elbow_x": 0.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": 0.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 10,
+          "elbow_x": -0.05,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.0503471664998187,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": -0.05,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 11,
+          "elbow_x": -0.1,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.1011581236867145,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": -0.1,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 12,
+          "elbow_x": -0.15,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.152172698010678,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": -0.15,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 13,
+          "elbow_x": -0.2,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.2032160387121547,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": -0.2,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 14,
+          "elbow_x": -0.25,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.254172642372316,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": -0.25,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 15,
+          "elbow_x": -0.3,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.3049688598400677,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": -0.3,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 16,
+          "elbow_x": -0.35,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.355560998644336,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": -0.35,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 17,
+          "elbow_x": -0.4,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.4059271695356736,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": -0.4,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 18,
+          "elbow_x": -0.45,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.4560616782263658,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": -0.45,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 19,
+          "elbow_x": -0.5,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.5059711791502262,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": -0.5,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 20,
+          "elbow_x": -0.55,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.5556720768849008,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": -0.55,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 21,
+          "elbow_x": -0.6,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.6051888381242227,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": -0.6,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 22,
+          "elbow_x": -0.65,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.6545529973517406,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": -0.65,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 23,
+          "elbow_x": -0.7,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.7038027248341534,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": -0.7,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 24,
+          "elbow_x": -0.75,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.7529828912100534,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": -0.75,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 25,
+          "elbow_x": -0.8,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.8021456200357866,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": -0.8,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 26,
+          "elbow_x": -0.85,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.8513513783291395,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": -0.85,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 27,
+          "elbow_x": -0.9,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.9006707272332168,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": -0.9,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 28,
+          "elbow_x": -0.95,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.9501869577489739,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": -0.95,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 29,
+          "elbow_x": -1.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 2.0,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": -1.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 30,
+          "elbow_x": -1.0,
+          "wrist_x": 2.0,
+          "current_edge_length": 3.0,
+          "rejected": true,
+          "invalid": true,
+          "last_observed_parent_x": -1.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 31,
+          "elbow_x": -1.0,
+          "wrist_x": 2.0,
+          "current_edge_length": 3.0,
+          "rejected": true,
+          "invalid": true,
+          "last_observed_parent_x": -1.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 32,
+          "elbow_x": -1.0,
+          "wrist_x": 2.0,
+          "current_edge_length": 3.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": -1.0,
+          "last_observed_child_x": 2.0
+        },
+        {
+          "frame": 33,
+          "elbow_x": -1.0,
+          "wrist_x": 2.0,
+          "current_edge_length": 3.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": -1.0,
+          "last_observed_child_x": 2.0
+        },
+        {
+          "frame": 34,
+          "elbow_x": -1.0,
+          "wrist_x": 2.0,
+          "current_edge_length": 3.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": -1.0,
+          "last_observed_child_x": 2.0
+        },
+        {
+          "frame": 35,
+          "elbow_x": -1.0,
+          "wrist_x": 2.0,
+          "current_edge_length": 3.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": -1.0,
+          "last_observed_child_x": 2.0
+        },
+        {
+          "frame": 36,
+          "elbow_x": -1.0,
+          "wrist_x": 2.0,
+          "current_edge_length": 3.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": -1.0,
+          "last_observed_child_x": 2.0
+        },
+        {
+          "frame": 37,
+          "elbow_x": -1.0,
+          "wrist_x": 2.0,
+          "current_edge_length": 3.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": -1.0,
+          "last_observed_child_x": 2.0
+        },
+        {
+          "frame": 38,
+          "elbow_x": -1.0,
+          "wrist_x": 2.0,
+          "current_edge_length": 3.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": -1.0,
+          "last_observed_child_x": 2.0
+        },
+        {
+          "frame": 39,
+          "elbow_x": -1.0,
+          "wrist_x": 2.0,
+          "current_edge_length": 3.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": -1.0,
+          "last_observed_child_x": 2.0
+        }
+      ]
+    },
+    {
+      "policy": "legacy",
+      "variant": "H",
+      "case": "valid_return_rejected",
+      "same_frame_initial_edge": 1,
+      "mixed_time_reference_after_gap": 0.0,
+      "current_return_edge": 1.0,
+      "rejected_return_frames": 10,
+      "invalid_return_frames": 10,
+      "first_accepted_return_frame": null,
+      "observed_parent_end_x": 1.0,
+      "rows": [
+        {
+          "frame": 0,
+          "elbow_x": 0.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": 0.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 1,
+          "elbow_x": 0.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": 0.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 2,
+          "elbow_x": 0.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": 0.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 3,
+          "elbow_x": 0.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": 0.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 4,
+          "elbow_x": 0.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": 0.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 5,
+          "elbow_x": 0.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": 0.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 6,
+          "elbow_x": 0.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": 0.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 7,
+          "elbow_x": 0.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": 0.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 8,
+          "elbow_x": 0.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": 0.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 9,
+          "elbow_x": 0.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": 0.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 10,
+          "elbow_x": 0.05,
+          "wrist_x": 1.0,
+          "current_edge_length": 0.9503836962901868,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": 0.05,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 11,
+          "elbow_x": 0.1,
+          "wrist_x": 1.0,
+          "current_edge_length": 0.9014151171137778,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": 0.1,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 12,
+          "elbow_x": 0.15,
+          "wrist_x": 1.0,
+          "current_edge_length": 0.8529372345262017,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": 0.15,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 13,
+          "elbow_x": 0.2,
+          "wrist_x": 1.0,
+          "current_edge_length": 0.8048160260669326,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": 0.2,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 14,
+          "elbow_x": 0.25,
+          "wrist_x": 1.0,
+          "current_edge_length": 0.7569339580671208,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": 0.25,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 15,
+          "elbow_x": 0.3,
+          "wrist_x": 1.0,
+          "current_edge_length": 0.709185254466198,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": 0.3,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 16,
+          "elbow_x": 0.35,
+          "wrist_x": 1.0,
+          "current_edge_length": 0.6614723131361049,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": 0.35,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 17,
+          "elbow_x": 0.4,
+          "wrist_x": 1.0,
+          "current_edge_length": 0.613702864616576,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": 0.4,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 18,
+          "elbow_x": 0.45,
+          "wrist_x": 1.0,
+          "current_edge_length": 0.5657876021966023,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": 0.45,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 19,
+          "elbow_x": 0.5,
+          "wrist_x": 1.0,
+          "current_edge_length": 0.5176380902050415,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": 0.5,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 20,
+          "elbow_x": 0.55,
+          "wrist_x": 1.0,
+          "current_edge_length": 0.4691648013218602,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": 0.55,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 21,
+          "elbow_x": 0.6,
+          "wrist_x": 1.0,
+          "current_edge_length": 0.42027515515265884,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": 0.6,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 22,
+          "elbow_x": 0.65,
+          "wrist_x": 1.0,
+          "current_edge_length": 0.37087143465846645,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": 0.65,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 23,
+          "elbow_x": 0.7,
+          "wrist_x": 1.0,
+          "current_edge_length": 0.3208484457688489,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": 0.7,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 24,
+          "elbow_x": 0.75,
+          "wrist_x": 1.0,
+          "current_edge_length": 0.2700907567377265,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": 0.75,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 25,
+          "elbow_x": 0.8,
+          "wrist_x": 1.0,
+          "current_edge_length": 0.21846930176610485,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": 0.8,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 26,
+          "elbow_x": 0.85,
+          "wrist_x": 1.0,
+          "current_edge_length": 0.16583704664882584,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": 0.85,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 27,
+          "elbow_x": 0.9,
+          "wrist_x": 1.0,
+          "current_edge_length": 0.11202327151643825,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": 0.9,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 28,
+          "elbow_x": 0.95,
+          "wrist_x": 1.0,
+          "current_edge_length": 0.05682578793292754,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": 0.95,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 29,
+          "elbow_x": 1.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 0.0,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": 1.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 30,
+          "elbow_x": 1.0,
+          "wrist_x": 2.0,
+          "current_edge_length": 1.0,
+          "rejected": true,
+          "invalid": true,
+          "last_observed_parent_x": 1.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 31,
+          "elbow_x": 1.0,
+          "wrist_x": 2.0,
+          "current_edge_length": 1.0,
+          "rejected": true,
+          "invalid": true,
+          "last_observed_parent_x": 1.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 32,
+          "elbow_x": 1.0,
+          "wrist_x": 2.0,
+          "current_edge_length": 1.0,
+          "rejected": true,
+          "invalid": true,
+          "last_observed_parent_x": 1.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 33,
+          "elbow_x": 1.0,
+          "wrist_x": 2.0,
+          "current_edge_length": 1.0,
+          "rejected": true,
+          "invalid": true,
+          "last_observed_parent_x": 1.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 34,
+          "elbow_x": 1.0,
+          "wrist_x": 2.0,
+          "current_edge_length": 1.0,
+          "rejected": true,
+          "invalid": true,
+          "last_observed_parent_x": 1.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 35,
+          "elbow_x": 1.0,
+          "wrist_x": 2.0,
+          "current_edge_length": 1.0,
+          "rejected": true,
+          "invalid": true,
+          "last_observed_parent_x": 1.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 36,
+          "elbow_x": 1.0,
+          "wrist_x": 2.0,
+          "current_edge_length": 1.0,
+          "rejected": true,
+          "invalid": true,
+          "last_observed_parent_x": 1.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 37,
+          "elbow_x": 1.0,
+          "wrist_x": 2.0,
+          "current_edge_length": 1.0,
+          "rejected": true,
+          "invalid": true,
+          "last_observed_parent_x": 1.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 38,
+          "elbow_x": 1.0,
+          "wrist_x": 2.0,
+          "current_edge_length": 1.0,
+          "rejected": true,
+          "invalid": true,
+          "last_observed_parent_x": 1.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 39,
+          "elbow_x": 1.0,
+          "wrist_x": 2.0,
+          "current_edge_length": 1.0,
+          "rejected": true,
+          "invalid": true,
+          "last_observed_parent_x": 1.0,
+          "last_observed_child_x": 1.0
+        }
+      ]
+    },
+    {
+      "policy": "legacy",
+      "variant": "H",
+      "case": "length_tripling_accepted",
+      "same_frame_initial_edge": 1,
+      "mixed_time_reference_after_gap": 2.0,
+      "current_return_edge": 3.0,
+      "rejected_return_frames": 2,
+      "invalid_return_frames": 2,
+      "first_accepted_return_frame": 32,
+      "observed_parent_end_x": -1.0,
+      "rows": [
+        {
+          "frame": 0,
+          "elbow_x": 0.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": 0.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 1,
+          "elbow_x": 0.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": 0.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 2,
+          "elbow_x": 0.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": 0.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 3,
+          "elbow_x": 0.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": 0.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 4,
+          "elbow_x": 0.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": 0.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 5,
+          "elbow_x": 0.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": 0.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 6,
+          "elbow_x": 0.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": 0.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 7,
+          "elbow_x": 0.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": 0.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 8,
+          "elbow_x": 0.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": 0.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 9,
+          "elbow_x": 0.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": 0.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 10,
+          "elbow_x": -0.05,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.0503471664998187,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": -0.05,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 11,
+          "elbow_x": -0.1,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.1011581236867145,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": -0.1,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 12,
+          "elbow_x": -0.15,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.152172698010678,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": -0.15,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 13,
+          "elbow_x": -0.2,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.2032160387121547,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": -0.2,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 14,
+          "elbow_x": -0.25,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.254172642372316,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": -0.25,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 15,
+          "elbow_x": -0.3,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.3049688598400677,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": -0.3,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 16,
+          "elbow_x": -0.35,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.355560998644336,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": -0.35,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 17,
+          "elbow_x": -0.4,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.4059271695356736,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": -0.4,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 18,
+          "elbow_x": -0.45,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.4560616782263658,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": -0.45,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 19,
+          "elbow_x": -0.5,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.5059711791502262,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": -0.5,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 20,
+          "elbow_x": -0.55,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.5556720768849008,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": -0.55,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 21,
+          "elbow_x": -0.6,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.6051888381242227,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": -0.6,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 22,
+          "elbow_x": -0.65,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.6545529973517406,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": -0.65,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 23,
+          "elbow_x": -0.7,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.7038027248341534,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": -0.7,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 24,
+          "elbow_x": -0.75,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.7529828912100534,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": -0.75,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 25,
+          "elbow_x": -0.8,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.8021456200357866,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": -0.8,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 26,
+          "elbow_x": -0.85,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.8513513783291395,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": -0.85,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 27,
+          "elbow_x": -0.9,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.9006707272332168,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": -0.9,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 28,
+          "elbow_x": -0.95,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.9501869577489739,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": -0.95,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 29,
+          "elbow_x": -1.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 2.0,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": -1.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 30,
+          "elbow_x": -1.0,
+          "wrist_x": 2.0,
+          "current_edge_length": 3.0,
+          "rejected": true,
+          "invalid": true,
+          "last_observed_parent_x": -1.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 31,
+          "elbow_x": -1.0,
+          "wrist_x": 2.0,
+          "current_edge_length": 3.0,
+          "rejected": true,
+          "invalid": true,
+          "last_observed_parent_x": -1.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 32,
+          "elbow_x": -1.0,
+          "wrist_x": 2.0,
+          "current_edge_length": 3.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": -1.0,
+          "last_observed_child_x": 2.0
+        },
+        {
+          "frame": 33,
+          "elbow_x": -1.0,
+          "wrist_x": 2.0,
+          "current_edge_length": 3.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": -1.0,
+          "last_observed_child_x": 2.0
+        },
+        {
+          "frame": 34,
+          "elbow_x": -1.0,
+          "wrist_x": 2.0,
+          "current_edge_length": 3.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": -1.0,
+          "last_observed_child_x": 2.0
+        },
+        {
+          "frame": 35,
+          "elbow_x": -1.0,
+          "wrist_x": 2.0,
+          "current_edge_length": 3.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": -1.0,
+          "last_observed_child_x": 2.0
+        },
+        {
+          "frame": 36,
+          "elbow_x": -1.0,
+          "wrist_x": 2.0,
+          "current_edge_length": 3.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": -1.0,
+          "last_observed_child_x": 2.0
+        },
+        {
+          "frame": 37,
+          "elbow_x": -1.0,
+          "wrist_x": 2.0,
+          "current_edge_length": 3.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": -1.0,
+          "last_observed_child_x": 2.0
+        },
+        {
+          "frame": 38,
+          "elbow_x": -1.0,
+          "wrist_x": 2.0,
+          "current_edge_length": 3.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": -1.0,
+          "last_observed_child_x": 2.0
+        },
+        {
+          "frame": 39,
+          "elbow_x": -1.0,
+          "wrist_x": 2.0,
+          "current_edge_length": 3.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": -1.0,
+          "last_observed_child_x": 2.0
+        }
+      ]
+    },
+    {
+      "policy": "paired",
+      "variant": "G",
+      "case": "valid_return_rejected",
+      "same_frame_initial_edge": 1,
+      "mixed_time_reference_after_gap": 0.0,
+      "current_return_edge": 1.0,
+      "rejected_return_frames": 10,
+      "invalid_return_frames": 10,
+      "first_accepted_return_frame": null,
+      "observed_parent_end_x": 1.0,
+      "rows": [
+        {
+          "frame": 0,
+          "elbow_x": 0.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": 0.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 1,
+          "elbow_x": 0.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": 0.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 2,
+          "elbow_x": 0.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": 0.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 3,
+          "elbow_x": 0.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": 0.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 4,
+          "elbow_x": 0.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": 0.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 5,
+          "elbow_x": 0.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": 0.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 6,
+          "elbow_x": 0.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": 0.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 7,
+          "elbow_x": 0.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": 0.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 8,
+          "elbow_x": 0.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": 0.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 9,
+          "elbow_x": 0.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": 0.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 10,
+          "elbow_x": 0.05,
+          "wrist_x": 1.0,
+          "current_edge_length": 0.9503836962901868,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": 0.05,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 11,
+          "elbow_x": 0.1,
+          "wrist_x": 1.0,
+          "current_edge_length": 0.9014151171137778,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": 0.1,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 12,
+          "elbow_x": 0.15,
+          "wrist_x": 1.0,
+          "current_edge_length": 0.8529372345262017,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": 0.15,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 13,
+          "elbow_x": 0.2,
+          "wrist_x": 1.0,
+          "current_edge_length": 0.8048160260669326,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": 0.2,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 14,
+          "elbow_x": 0.25,
+          "wrist_x": 1.0,
+          "current_edge_length": 0.7569339580671208,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": 0.25,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 15,
+          "elbow_x": 0.3,
+          "wrist_x": 1.0,
+          "current_edge_length": 0.709185254466198,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": 0.3,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 16,
+          "elbow_x": 0.35,
+          "wrist_x": 1.0,
+          "current_edge_length": 0.6614723131361049,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": 0.35,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 17,
+          "elbow_x": 0.4,
+          "wrist_x": 1.0,
+          "current_edge_length": 0.613702864616576,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": 0.4,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 18,
+          "elbow_x": 0.45,
+          "wrist_x": 1.0,
+          "current_edge_length": 0.5657876021966023,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": 0.45,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 19,
+          "elbow_x": 0.5,
+          "wrist_x": 1.0,
+          "current_edge_length": 0.5176380902050415,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": 0.5,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 20,
+          "elbow_x": 0.55,
+          "wrist_x": 1.0,
+          "current_edge_length": 0.4691648013218602,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": 0.55,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 21,
+          "elbow_x": 0.6,
+          "wrist_x": 1.0,
+          "current_edge_length": 0.42027515515265884,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": 0.6,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 22,
+          "elbow_x": 0.65,
+          "wrist_x": 1.0,
+          "current_edge_length": 0.37087143465846645,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": 0.65,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 23,
+          "elbow_x": 0.7,
+          "wrist_x": 1.0,
+          "current_edge_length": 0.3208484457688489,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": 0.7,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 24,
+          "elbow_x": 0.75,
+          "wrist_x": 1.0,
+          "current_edge_length": 0.2700907567377265,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": 0.75,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 25,
+          "elbow_x": 0.8,
+          "wrist_x": 1.0,
+          "current_edge_length": 0.21846930176610485,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": 0.8,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 26,
+          "elbow_x": 0.85,
+          "wrist_x": 1.0,
+          "current_edge_length": 0.16583704664882584,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": 0.85,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 27,
+          "elbow_x": 0.9,
+          "wrist_x": 1.0,
+          "current_edge_length": 0.11202327151643825,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": 0.9,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 28,
+          "elbow_x": 0.95,
+          "wrist_x": 1.0,
+          "current_edge_length": 0.05682578793292754,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": 0.95,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 29,
+          "elbow_x": 1.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 0.0,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": 1.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 30,
+          "elbow_x": 1.0,
+          "wrist_x": 2.0,
+          "current_edge_length": 1.0,
+          "rejected": true,
+          "invalid": true,
+          "last_observed_parent_x": 1.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 31,
+          "elbow_x": 1.0,
+          "wrist_x": 2.0,
+          "current_edge_length": 1.0,
+          "rejected": true,
+          "invalid": true,
+          "last_observed_parent_x": 1.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 32,
+          "elbow_x": 1.0,
+          "wrist_x": 2.0,
+          "current_edge_length": 1.0,
+          "rejected": true,
+          "invalid": true,
+          "last_observed_parent_x": 1.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 33,
+          "elbow_x": 1.0,
+          "wrist_x": 2.0,
+          "current_edge_length": 1.0,
+          "rejected": true,
+          "invalid": true,
+          "last_observed_parent_x": 1.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 34,
+          "elbow_x": 1.0,
+          "wrist_x": 2.0,
+          "current_edge_length": 1.0,
+          "rejected": true,
+          "invalid": true,
+          "last_observed_parent_x": 1.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 35,
+          "elbow_x": 1.0,
+          "wrist_x": 2.0,
+          "current_edge_length": 1.0,
+          "rejected": true,
+          "invalid": true,
+          "last_observed_parent_x": 1.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 36,
+          "elbow_x": 1.0,
+          "wrist_x": 2.0,
+          "current_edge_length": 1.0,
+          "rejected": true,
+          "invalid": true,
+          "last_observed_parent_x": 1.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 37,
+          "elbow_x": 1.0,
+          "wrist_x": 2.0,
+          "current_edge_length": 1.0,
+          "rejected": true,
+          "invalid": true,
+          "last_observed_parent_x": 1.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 38,
+          "elbow_x": 1.0,
+          "wrist_x": 2.0,
+          "current_edge_length": 1.0,
+          "rejected": true,
+          "invalid": true,
+          "last_observed_parent_x": 1.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 39,
+          "elbow_x": 1.0,
+          "wrist_x": 2.0,
+          "current_edge_length": 1.0,
+          "rejected": true,
+          "invalid": true,
+          "last_observed_parent_x": 1.0,
+          "last_observed_child_x": 1.0
+        }
+      ]
+    },
+    {
+      "policy": "paired",
+      "variant": "G",
+      "case": "length_tripling_accepted",
+      "same_frame_initial_edge": 1,
+      "mixed_time_reference_after_gap": 2.0,
+      "current_return_edge": 3.0,
+      "rejected_return_frames": 2,
+      "invalid_return_frames": 2,
+      "first_accepted_return_frame": 32,
+      "observed_parent_end_x": -1.0,
+      "rows": [
+        {
+          "frame": 0,
+          "elbow_x": 0.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": 0.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 1,
+          "elbow_x": 0.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": 0.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 2,
+          "elbow_x": 0.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": 0.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 3,
+          "elbow_x": 0.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": 0.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 4,
+          "elbow_x": 0.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": 0.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 5,
+          "elbow_x": 0.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": 0.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 6,
+          "elbow_x": 0.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": 0.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 7,
+          "elbow_x": 0.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": 0.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 8,
+          "elbow_x": 0.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": 0.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 9,
+          "elbow_x": 0.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": 0.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 10,
+          "elbow_x": -0.05,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.0503471664998187,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": -0.05,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 11,
+          "elbow_x": -0.1,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.1011581236867145,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": -0.1,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 12,
+          "elbow_x": -0.15,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.152172698010678,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": -0.15,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 13,
+          "elbow_x": -0.2,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.2032160387121547,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": -0.2,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 14,
+          "elbow_x": -0.25,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.254172642372316,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": -0.25,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 15,
+          "elbow_x": -0.3,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.3049688598400677,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": -0.3,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 16,
+          "elbow_x": -0.35,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.355560998644336,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": -0.35,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 17,
+          "elbow_x": -0.4,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.4059271695356736,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": -0.4,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 18,
+          "elbow_x": -0.45,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.4560616782263658,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": -0.45,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 19,
+          "elbow_x": -0.5,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.5059711791502262,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": -0.5,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 20,
+          "elbow_x": -0.55,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.5556720768849008,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": -0.55,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 21,
+          "elbow_x": -0.6,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.6051888381242227,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": -0.6,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 22,
+          "elbow_x": -0.65,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.6545529973517406,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": -0.65,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 23,
+          "elbow_x": -0.7,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.7038027248341534,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": -0.7,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 24,
+          "elbow_x": -0.75,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.7529828912100534,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": -0.75,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 25,
+          "elbow_x": -0.8,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.8021456200357866,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": -0.8,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 26,
+          "elbow_x": -0.85,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.8513513783291395,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": -0.85,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 27,
+          "elbow_x": -0.9,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.9006707272332168,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": -0.9,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 28,
+          "elbow_x": -0.95,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.9501869577489739,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": -0.95,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 29,
+          "elbow_x": -1.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 2.0,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": -1.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 30,
+          "elbow_x": -1.0,
+          "wrist_x": 2.0,
+          "current_edge_length": 3.0,
+          "rejected": true,
+          "invalid": true,
+          "last_observed_parent_x": -1.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 31,
+          "elbow_x": -1.0,
+          "wrist_x": 2.0,
+          "current_edge_length": 3.0,
+          "rejected": true,
+          "invalid": true,
+          "last_observed_parent_x": -1.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 32,
+          "elbow_x": -1.0,
+          "wrist_x": 2.0,
+          "current_edge_length": 3.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": -1.0,
+          "last_observed_child_x": 2.0
+        },
+        {
+          "frame": 33,
+          "elbow_x": -1.0,
+          "wrist_x": 2.0,
+          "current_edge_length": 3.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": -1.0,
+          "last_observed_child_x": 2.0
+        },
+        {
+          "frame": 34,
+          "elbow_x": -1.0,
+          "wrist_x": 2.0,
+          "current_edge_length": 3.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": -1.0,
+          "last_observed_child_x": 2.0
+        },
+        {
+          "frame": 35,
+          "elbow_x": -1.0,
+          "wrist_x": 2.0,
+          "current_edge_length": 3.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": -1.0,
+          "last_observed_child_x": 2.0
+        },
+        {
+          "frame": 36,
+          "elbow_x": -1.0,
+          "wrist_x": 2.0,
+          "current_edge_length": 3.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": -1.0,
+          "last_observed_child_x": 2.0
+        },
+        {
+          "frame": 37,
+          "elbow_x": -1.0,
+          "wrist_x": 2.0,
+          "current_edge_length": 3.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": -1.0,
+          "last_observed_child_x": 2.0
+        },
+        {
+          "frame": 38,
+          "elbow_x": -1.0,
+          "wrist_x": 2.0,
+          "current_edge_length": 3.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": -1.0,
+          "last_observed_child_x": 2.0
+        },
+        {
+          "frame": 39,
+          "elbow_x": -1.0,
+          "wrist_x": 2.0,
+          "current_edge_length": 3.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": -1.0,
+          "last_observed_child_x": 2.0
+        }
+      ]
+    },
+    {
+      "policy": "paired",
+      "variant": "H",
+      "case": "valid_return_rejected",
+      "same_frame_initial_edge": 1,
+      "mixed_time_reference_after_gap": 0.0,
+      "current_return_edge": 1.0,
+      "rejected_return_frames": 10,
+      "invalid_return_frames": 10,
+      "first_accepted_return_frame": null,
+      "observed_parent_end_x": 1.0,
+      "rows": [
+        {
+          "frame": 0,
+          "elbow_x": 0.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": 0.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 1,
+          "elbow_x": 0.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": 0.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 2,
+          "elbow_x": 0.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": 0.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 3,
+          "elbow_x": 0.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": 0.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 4,
+          "elbow_x": 0.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": 0.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 5,
+          "elbow_x": 0.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": 0.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 6,
+          "elbow_x": 0.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": 0.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 7,
+          "elbow_x": 0.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": 0.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 8,
+          "elbow_x": 0.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": 0.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 9,
+          "elbow_x": 0.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": 0.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 10,
+          "elbow_x": 0.05,
+          "wrist_x": 1.0,
+          "current_edge_length": 0.9503836962901868,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": 0.05,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 11,
+          "elbow_x": 0.1,
+          "wrist_x": 1.0,
+          "current_edge_length": 0.9014151171137778,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": 0.1,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 12,
+          "elbow_x": 0.15,
+          "wrist_x": 1.0,
+          "current_edge_length": 0.8529372345262017,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": 0.15,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 13,
+          "elbow_x": 0.2,
+          "wrist_x": 1.0,
+          "current_edge_length": 0.8048160260669326,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": 0.2,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 14,
+          "elbow_x": 0.25,
+          "wrist_x": 1.0,
+          "current_edge_length": 0.7569339580671208,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": 0.25,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 15,
+          "elbow_x": 0.3,
+          "wrist_x": 1.0,
+          "current_edge_length": 0.709185254466198,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": 0.3,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 16,
+          "elbow_x": 0.35,
+          "wrist_x": 1.0,
+          "current_edge_length": 0.6614723131361049,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": 0.35,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 17,
+          "elbow_x": 0.4,
+          "wrist_x": 1.0,
+          "current_edge_length": 0.613702864616576,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": 0.4,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 18,
+          "elbow_x": 0.45,
+          "wrist_x": 1.0,
+          "current_edge_length": 0.5657876021966023,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": 0.45,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 19,
+          "elbow_x": 0.5,
+          "wrist_x": 1.0,
+          "current_edge_length": 0.5176380902050415,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": 0.5,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 20,
+          "elbow_x": 0.55,
+          "wrist_x": 1.0,
+          "current_edge_length": 0.4691648013218602,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": 0.55,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 21,
+          "elbow_x": 0.6,
+          "wrist_x": 1.0,
+          "current_edge_length": 0.42027515515265884,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": 0.6,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 22,
+          "elbow_x": 0.65,
+          "wrist_x": 1.0,
+          "current_edge_length": 0.37087143465846645,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": 0.65,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 23,
+          "elbow_x": 0.7,
+          "wrist_x": 1.0,
+          "current_edge_length": 0.3208484457688489,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": 0.7,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 24,
+          "elbow_x": 0.75,
+          "wrist_x": 1.0,
+          "current_edge_length": 0.2700907567377265,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": 0.75,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 25,
+          "elbow_x": 0.8,
+          "wrist_x": 1.0,
+          "current_edge_length": 0.21846930176610485,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": 0.8,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 26,
+          "elbow_x": 0.85,
+          "wrist_x": 1.0,
+          "current_edge_length": 0.16583704664882584,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": 0.85,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 27,
+          "elbow_x": 0.9,
+          "wrist_x": 1.0,
+          "current_edge_length": 0.11202327151643825,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": 0.9,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 28,
+          "elbow_x": 0.95,
+          "wrist_x": 1.0,
+          "current_edge_length": 0.05682578793292754,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": 0.95,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 29,
+          "elbow_x": 1.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 0.0,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": 1.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 30,
+          "elbow_x": 1.0,
+          "wrist_x": 2.0,
+          "current_edge_length": 1.0,
+          "rejected": true,
+          "invalid": true,
+          "last_observed_parent_x": 1.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 31,
+          "elbow_x": 1.0,
+          "wrist_x": 2.0,
+          "current_edge_length": 1.0,
+          "rejected": true,
+          "invalid": true,
+          "last_observed_parent_x": 1.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 32,
+          "elbow_x": 1.0,
+          "wrist_x": 2.0,
+          "current_edge_length": 1.0,
+          "rejected": true,
+          "invalid": true,
+          "last_observed_parent_x": 1.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 33,
+          "elbow_x": 1.0,
+          "wrist_x": 2.0,
+          "current_edge_length": 1.0,
+          "rejected": true,
+          "invalid": true,
+          "last_observed_parent_x": 1.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 34,
+          "elbow_x": 1.0,
+          "wrist_x": 2.0,
+          "current_edge_length": 1.0,
+          "rejected": true,
+          "invalid": true,
+          "last_observed_parent_x": 1.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 35,
+          "elbow_x": 1.0,
+          "wrist_x": 2.0,
+          "current_edge_length": 1.0,
+          "rejected": true,
+          "invalid": true,
+          "last_observed_parent_x": 1.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 36,
+          "elbow_x": 1.0,
+          "wrist_x": 2.0,
+          "current_edge_length": 1.0,
+          "rejected": true,
+          "invalid": true,
+          "last_observed_parent_x": 1.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 37,
+          "elbow_x": 1.0,
+          "wrist_x": 2.0,
+          "current_edge_length": 1.0,
+          "rejected": true,
+          "invalid": true,
+          "last_observed_parent_x": 1.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 38,
+          "elbow_x": 1.0,
+          "wrist_x": 2.0,
+          "current_edge_length": 1.0,
+          "rejected": true,
+          "invalid": true,
+          "last_observed_parent_x": 1.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 39,
+          "elbow_x": 1.0,
+          "wrist_x": 2.0,
+          "current_edge_length": 1.0,
+          "rejected": true,
+          "invalid": true,
+          "last_observed_parent_x": 1.0,
+          "last_observed_child_x": 1.0
+        }
+      ]
+    },
+    {
+      "policy": "paired",
+      "variant": "H",
+      "case": "length_tripling_accepted",
+      "same_frame_initial_edge": 1,
+      "mixed_time_reference_after_gap": 2.0,
+      "current_return_edge": 3.0,
+      "rejected_return_frames": 2,
+      "invalid_return_frames": 2,
+      "first_accepted_return_frame": 32,
+      "observed_parent_end_x": -1.0,
+      "rows": [
+        {
+          "frame": 0,
+          "elbow_x": 0.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": 0.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 1,
+          "elbow_x": 0.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": 0.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 2,
+          "elbow_x": 0.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": 0.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 3,
+          "elbow_x": 0.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": 0.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 4,
+          "elbow_x": 0.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": 0.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 5,
+          "elbow_x": 0.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": 0.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 6,
+          "elbow_x": 0.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": 0.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 7,
+          "elbow_x": 0.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": 0.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 8,
+          "elbow_x": 0.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": 0.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 9,
+          "elbow_x": 0.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": 0.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 10,
+          "elbow_x": -0.05,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.0503471664998187,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": -0.05,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 11,
+          "elbow_x": -0.1,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.1011581236867145,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": -0.1,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 12,
+          "elbow_x": -0.15,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.152172698010678,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": -0.15,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 13,
+          "elbow_x": -0.2,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.2032160387121547,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": -0.2,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 14,
+          "elbow_x": -0.25,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.254172642372316,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": -0.25,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 15,
+          "elbow_x": -0.3,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.3049688598400677,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": -0.3,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 16,
+          "elbow_x": -0.35,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.355560998644336,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": -0.35,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 17,
+          "elbow_x": -0.4,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.4059271695356736,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": -0.4,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 18,
+          "elbow_x": -0.45,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.4560616782263658,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": -0.45,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 19,
+          "elbow_x": -0.5,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.5059711791502262,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": -0.5,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 20,
+          "elbow_x": -0.55,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.5556720768849008,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": -0.55,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 21,
+          "elbow_x": -0.6,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.6051888381242227,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": -0.6,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 22,
+          "elbow_x": -0.65,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.6545529973517406,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": -0.65,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 23,
+          "elbow_x": -0.7,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.7038027248341534,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": -0.7,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 24,
+          "elbow_x": -0.75,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.7529828912100534,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": -0.75,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 25,
+          "elbow_x": -0.8,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.8021456200357866,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": -0.8,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 26,
+          "elbow_x": -0.85,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.8513513783291395,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": -0.85,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 27,
+          "elbow_x": -0.9,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.9006707272332168,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": -0.9,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 28,
+          "elbow_x": -0.95,
+          "wrist_x": 1.0,
+          "current_edge_length": 1.9501869577489739,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": -0.95,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 29,
+          "elbow_x": -1.0,
+          "wrist_x": 1.0,
+          "current_edge_length": 2.0,
+          "rejected": false,
+          "invalid": true,
+          "last_observed_parent_x": -1.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 30,
+          "elbow_x": -1.0,
+          "wrist_x": 2.0,
+          "current_edge_length": 3.0,
+          "rejected": true,
+          "invalid": true,
+          "last_observed_parent_x": -1.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 31,
+          "elbow_x": -1.0,
+          "wrist_x": 2.0,
+          "current_edge_length": 3.0,
+          "rejected": true,
+          "invalid": true,
+          "last_observed_parent_x": -1.0,
+          "last_observed_child_x": 1.0
+        },
+        {
+          "frame": 32,
+          "elbow_x": -1.0,
+          "wrist_x": 2.0,
+          "current_edge_length": 3.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": -1.0,
+          "last_observed_child_x": 2.0
+        },
+        {
+          "frame": 33,
+          "elbow_x": -1.0,
+          "wrist_x": 2.0,
+          "current_edge_length": 3.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": -1.0,
+          "last_observed_child_x": 2.0
+        },
+        {
+          "frame": 34,
+          "elbow_x": -1.0,
+          "wrist_x": 2.0,
+          "current_edge_length": 3.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": -1.0,
+          "last_observed_child_x": 2.0
+        },
+        {
+          "frame": 35,
+          "elbow_x": -1.0,
+          "wrist_x": 2.0,
+          "current_edge_length": 3.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": -1.0,
+          "last_observed_child_x": 2.0
+        },
+        {
+          "frame": 36,
+          "elbow_x": -1.0,
+          "wrist_x": 2.0,
+          "current_edge_length": 3.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": -1.0,
+          "last_observed_child_x": 2.0
+        },
+        {
+          "frame": 37,
+          "elbow_x": -1.0,
+          "wrist_x": 2.0,
+          "current_edge_length": 3.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": -1.0,
+          "last_observed_child_x": 2.0
+        },
+        {
+          "frame": 38,
+          "elbow_x": -1.0,
+          "wrist_x": 2.0,
+          "current_edge_length": 3.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": -1.0,
+          "last_observed_child_x": 2.0
+        },
+        {
+          "frame": 39,
+          "elbow_x": -1.0,
+          "wrist_x": 2.0,
+          "current_edge_length": 3.0,
+          "rejected": false,
+          "invalid": false,
+          "last_observed_parent_x": -1.0,
+          "last_observed_child_x": 2.0
+        }
+      ]
+    }
+  ]
+}

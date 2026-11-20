@@ -1,0 +1,69 @@
+{
+  "schema": "bpt.core3-candidate-experiment.v1",
+  "id": "core3-source-replay-engineering-20261103-v1",
+  "source": "offline engineering protocol fixed before candidate outcome replay; no expert review/phone configuration implied",
+  "availableAtPts": 0,
+  "variants": {
+    "pushup": "floor",
+    "squat": "barbell_back_squat",
+    "barbell-row": "strict_bent_over"
+  },
+  "parameters": {
+    "support.maximumHipRatioCorrection": 0.05,
+    "row.kneeExtensionLower": 10,
+    "row.elbowFlexionLower": 10
+  },
+  "parameterProvenance": {
+    "support.maximumHipRatioCorrection": "declared engineering raw/assessment proxy agreement tolerance; not literature or existing approved bound",
+    "row.kneeExtensionLower": "declared engineering phase-change magnitude for executable candidate; not force/normal boundary",
+    "row.elbowFlexionLower": "declared engineering phase-change magnitude for executable candidate; not normal technique boundary"
+  },
+  "sensitivity": [
+    {
+      "id": "score03",
+      "parameters": {
+        "support.minimumJointScore": 0.3
+      }
+    },
+    {
+      "id": "score07",
+      "parameters": {
+        "support.minimumJointScore": 0.7
+      }
+    },
+    {
+      "id": "ascent02",
+      "parameters": {
+        "window.squatAscentSeconds": 0.2
+      }
+    },
+    {
+      "id": "ascent05",
+      "parameters": {
+        "window.squatAscentSeconds": 0.5
+      }
+    },
+    {
+      "id": "rowWindow1",
+      "parameters": {
+        "window.rowRangeSeconds": 1
+      }
+    },
+    {
+      "id": "rowWindow3",
+      "parameters": {
+        "window.rowRangeSeconds": 3
+      }
+    }
+  ],
+  "selectionPolicy": "report all declared settings on same reused development captures; no best-setting adoption or accuracy inference",
+  "unconfiguredTargets": [
+    "pushup.projectedUpperArmUpper",
+    "pushup.bottomElbowUpper",
+    "pushup.topElbowLower",
+    "squat.bottomKneeUpper",
+    "squat.topKneeLower",
+    "squat.topHipLower"
+  ],
+  "variantEvidence": "root visual apparatus review of original5s source frame: squat bar across back/shoulders; not a form-accuracy label"
+}

@@ -1,0 +1,246 @@
+{
+  "capture_count": 3,
+  "combined_input_hash_manifest_sha256": "a40d01dbf95c4c2098ab249c9954bda943feb8f92b1d40fcab50fb8f0ea42aab",
+  "groups": {
+    "squat": {
+      "captures": 1,
+      "original_reps": 10,
+      "source_frames": 1263,
+      "candidate_reports": 10,
+      "exact_report_parity": true,
+      "incomplete_captures": 0,
+      "assessment_counts": {
+        "withheld": 10
+      },
+      "coverage_counts": {
+        "incomplete_terminal_observation": 10
+      },
+      "closure_counts": {
+        "timeout": 5,
+        "watchdog_timeout": 4,
+        "set_end": 1
+      },
+      "reason_counts": {
+        "timeout": 5,
+        "timeout_without_new_source": 4,
+        "terminal_top_not_continuously_observed_stable": 1
+      },
+      "native_state_counts": {
+        "warming_up": 21,
+        "ok": 1242
+      },
+      "required2D_false_frames": 0,
+      "side_view_unavailable_frames": 312,
+      "original_mixed_side_intervals": 0,
+      "reference_counts": {
+        "0": 10
+      },
+      "stable_seconds": {
+        "count": 10,
+        "mean": 0.02666666666666693,
+        "min": 0,
+        "max": 0.16666666666666785
+      },
+      "source_spacing_seconds": {
+        "count": 1262,
+        "mean": 0.03343898573692552,
+        "min": 0.03333333333333144,
+        "max": 0.0666666666666682
+      },
+      "metrics": {
+        "knee": {
+          "original_native_interval_max": {
+            "count": 10,
+            "mean": 122.4740500510048,
+            "min": 113.07213306201142,
+            "max": 125.71909402294172
+          },
+          "all_followup_assessment_max": {
+            "count": 10,
+            "mean": 176.2429353842976,
+            "min": 173.46231738787674,
+            "max": 178.50885891812484
+          },
+          "raw_followup_max": {
+            "count": 10,
+            "mean": 176.2429353842976,
+            "min": 173.46231738787674,
+            "max": 178.50885891812484
+          },
+          "all_top_assessment_max": {
+            "count": 10,
+            "mean": 176.2429353842976,
+            "min": 173.46231738787674,
+            "max": 178.50885891812484
+          },
+          "last_plateau_assessment_max": {
+            "count": 10,
+            "mean": 169.6976027851394,
+            "min": 136.6464593463666,
+            "max": 178.50885891812484
+          },
+          "qualified_plateau_max": {
+            "count": 0
+          },
+          "relative_deficit": {
+            "count": 0
+          }
+        },
+        "hip": {
+          "original_native_interval_max": {
+            "count": 10,
+            "mean": 119.20797923383682,
+            "min": 114.36359180911626,
+            "max": 135.74418658001395
+          },
+          "all_followup_assessment_max": {
+            "count": 10,
+            "mean": 176.0012294857455,
+            "min": 170.870919102615,
+            "max": 179.20101322484155
+          },
+          "raw_followup_max": {
+            "count": 10,
+            "mean": 176.0012294857455,
+            "min": 170.870919102615,
+            "max": 179.20101322484155
+          },
+          "all_top_assessment_max": {
+            "count": 10,
+            "mean": 176.0012294857455,
+            "min": 170.870919102615,
+            "max": 179.20101322484155
+          },
+          "last_plateau_assessment_max": {
+            "count": 10,
+            "mean": 167.68373685010306,
+            "min": 143.49110057155798,
+            "max": 178.26824046864203
+          },
+          "qualified_plateau_max": {
+            "count": 0
+          },
+          "relative_deficit": {
+            "count": 0
+          }
+        }
+      }
+    },
+    "pushUp": {
+      "captures": 1,
+      "original_reps": 10,
+      "source_frames": 548,
+      "candidate_reports": 10,
+      "exact_report_parity": true,
+      "incomplete_captures": 0,
+      "assessment_counts": {
+        "withheld": 10
+      },
+      "coverage_counts": {
+        "incomplete_terminal_observation": 10
+      },
+      "closure_counts": {
+        "next_rep_started": 9,
+        "set_end": 1
+      },
+      "reason_counts": {
+        "terminal_top_not_continuously_observed_stable": 10
+      },
+      "native_state_counts": {
+        "warming_up": 21,
+        "ok": 527
+      },
+      "required2D_false_frames": 1,
+      "side_view_unavailable_frames": 5,
+      "original_mixed_side_intervals": 0,
+      "reference_counts": {
+        "0": 10
+      },
+      "stable_seconds": {
+        "count": 10,
+        "mean": 0.006666666666666643,
+        "min": 0,
+        "max": 0.06666666666666643
+      },
+      "source_spacing_seconds": {
+        "count": 547,
+        "mean": 0.03351614868982328,
+        "min": 0.03333333333333144,
+        "max": 0.06666666666666732
+      },
+      "metrics": {
+        "elbow": {
+          "original_native_interval_max": {
+            "count": 10,
+            "mean": 151.0363920071907,
+            "min": 148.69413235764034,
+            "max": 155.41848954595295
+          },
+          "all_followup_assessment_max": {
+            "count": 10,
+            "mean": 164.2911642373665,
+            "min": 160.51858398571827,
+            "max": 174.85984139996538
+          },
+          "raw_followup_max": {
+            "count": 10,
+            "mean": 164.2911642373665,
+            "min": 160.51858398571827,
+            "max": 174.85984139996538
+          },
+          "all_top_assessment_max": {
+            "count": 10,
+            "mean": 164.2911642373665,
+            "min": 160.51858398571827,
+            "max": 174.85984139996538
+          },
+          "last_plateau_assessment_max": {
+            "count": 10,
+            "mean": 147.03471563654804,
+            "min": 142.38772605086263,
+            "max": 174.85984139996538
+          },
+          "qualified_plateau_max": {
+            "count": 0
+          },
+          "relative_deficit": {
+            "count": 0
+          }
+        }
+      }
+    },
+    "barbellRow": {
+      "captures": 1,
+      "original_reps": 10,
+      "source_frames": 587,
+      "candidate_reports": 0,
+      "exact_report_parity": true,
+      "incomplete_captures": 0,
+      "assessment_counts": {},
+      "coverage_counts": {},
+      "closure_counts": {},
+      "reason_counts": {},
+      "native_state_counts": {
+        "warming_up": 21,
+        "ok": 566
+      },
+      "required2D_false_frames": 0,
+      "side_view_unavailable_frames": 0,
+      "original_mixed_side_intervals": 0,
+      "reference_counts": {},
+      "stable_seconds": {
+        "count": 0
+      },
+      "source_spacing_seconds": {
+        "count": 586,
+        "mean": 0.033503981797497154,
+        "min": 0.03333333333333144,
+        "max": 0.0666666666666682
+      },
+      "metrics": {}
+    }
+  },
+  "interpretation": "Exact captured-input candidate parity and observed coverage only. Original interval maxima, all-followup maxima and last-plateau maxima have different semantics; none is GT. No accuracy/normalization/adoption claim; mixed-side original intervals remain explicit.",
+  "native_source_commit": "1a35d3f",
+  "date": "2026-11-02"
+}
