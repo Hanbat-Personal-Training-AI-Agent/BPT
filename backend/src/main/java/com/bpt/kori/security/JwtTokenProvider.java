@@ -1,8 +1,5 @@
 package com.bpt.kori.security;
 
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
@@ -19,8 +16,10 @@ import java.util.Date;
 @Component
 public class JwtTokenProvider {
 
-    private static final ObjectMapper CLAIMS_JSON = new ObjectMapper()
-            .enable(JsonParser.Feature.STRICT_DUPLICATE_DETECTION);
+    static final String TOKEN_TYPE_CLAIM = "token_type";
+    static final String ACCESS_TOKEN_TYPE = "access";
+    static final String REFRESH_TOKEN_TYPE = "refresh";
+
     private final SecretKey secretKey;
     private final long accessTokenExpirationMs;
     private final long refreshTokenExpirationMs;
@@ -42,7 +41,7 @@ public class JwtTokenProvider {
 
         return Jwts.builder()
                 .subject(String.valueOf(userId))
-                .claim("token_use", "access")
+                .claim(TOKEN_TYPE_CLAIM, ACCESS_TOKEN_TYPE)
                 .claim("username", username)
                 .claim("email", email)
                 .issuedAt(now)
@@ -57,7 +56,7 @@ public class JwtTokenProvider {
 
         return Jwts.builder()
                 .subject(String.valueOf(userId))
-                .claim("token_use", "refresh")
+                .claim(TOKEN_TYPE_CLAIM, REFRESH_TOKEN_TYPE)
                 .issuedAt(now)
                 .expiration(expiryDate)
                 .signWith(secretKey)
@@ -94,44 +93,34 @@ public class JwtTokenProvider {
         return claims.get("email", String.class);
     }
 
-    /** Kept for callers migrating from generic validation; bearer means access only. */
-    public boolean validateToken(String token) {
-        return validateAccessToken(token);
-    }
-
+    /** API 요청 인증용. 리프레시 토큰은 서명이 유효해도 거부한다. */
     public boolean validateAccessToken(String token) {
-        return validateForUse(token, "access");
+        return hasTokenType(token, ACCESS_TOKEN_TYPE);
     }
 
+    /** /auth/refresh 전용. 액세스 토큰은 서명이 유효해도 거부한다. */
     public boolean validateRefreshToken(String token) {
-        return validateForUse(token, "refresh");
+        return hasTokenType(token, REFRESH_TOKEN_TYPE);
     }
 
-    private boolean validateForUse(String token, String expectedUse) {
+    private boolean hasTokenType(String token, String expectedType) {
         try {
-            Claims claims = Jwts.parser().verifyWith(secretKey).build()
-                    .parseSignedClaims(token).getPayload();
-            String subject = claims.getSubject();
-            if (claims.getExpiration() == null || subject == null || !subject.matches("[0-9]{1,19}")) return false;
-            Long.parseLong(subject);
-            // Inspect the verified raw payload: JJWT normalizes null custom claims
-            // away, which must not turn an explicitly invalid type into legacy.
-            JsonNode raw = CLAIMS_JSON.readTree(java.util.Base64.getUrlDecoder()
-                    .decode(token.split("\\.", -1)[1]));
-            boolean accessIdentity = raw.path("username").isTextual()
-                    && raw.path("email").isTextual();
-            boolean refreshIdentity = !raw.has("username") && !raw.has("email");
-            if (raw.has("token_use")) {
-                if (!raw.get("token_use").isTextual()
-                        || !expectedUse.equals(raw.get("token_use").textValue())) return false;
-            }
-            // Existing Spring tokens have no type claim. Their signed payloads
-            // distinguish access (username + email) from refresh (neither).
-            // Never fall back when an explicit, unknown type is present.
-            return expectedUse.equals("access") ? accessIdentity : refreshIdentity;
-        } catch (JwtException | IllegalArgumentException | java.io.IOException e) {
+            Claims claims = Jwts.parser().verifyWith(secretKey).build().parseSignedClaims(token).getPayload();
+            return expectedType.equals(resolveTokenType(claims));
+        } catch (JwtException | IllegalArgumentException e) {
+            log.warn("Invalid JWT token: {}", e.getMessage());
             return false;
         }
+    }
+
+    // token_type 클레임이 생기기 전에 발급된 토큰: 액세스 토큰에만 username이 있었다.
+    // 이미 로그인한 앱 사용자가 강제 로그아웃되지 않도록 남겨둔 판별이며, 리프레시 만료(14일)가 지나면 지워도 된다.
+    private String resolveTokenType(Claims claims) {
+        String type = claims.get(TOKEN_TYPE_CLAIM, String.class);
+        if (type != null) {
+            return type;
+        }
+        return claims.get("username") != null ? ACCESS_TOKEN_TYPE : REFRESH_TOKEN_TYPE;
     }
 
     public long getAccessTokenExpirationSeconds() {

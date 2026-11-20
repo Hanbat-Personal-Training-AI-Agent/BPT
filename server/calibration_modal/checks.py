@@ -64,7 +64,8 @@ def user_id_from_token(authorization, secret_b64):
     # Spring access tokens carry both identity claims; refresh tokens carry neither.
     # Legacy access remains accepted during rollout, but an explicit type cannot
     # fall back to legacy classification. Never accept a refresh token as bearer.
-    if (("token_use" in claims and claims["token_use"] != "access")
+    # Spring(PR #70) issues token_type; token_use is the earlier review spelling.
+    if (any(k in claims and claims[k] != "access" for k in ("token_type", "token_use"))
             or not isinstance(claims.get("username"), str)
             or not isinstance(claims.get("email"), str)):
         raise Rejected(401, "unauthorized")

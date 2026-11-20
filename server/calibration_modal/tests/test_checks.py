@@ -214,3 +214,10 @@ def test_signed_raw_claim_ambiguity_is_rejected(extra):
     signature = hmac.new(base64.b64decode(SECRET), signing_input, hashlib.sha512).digest()
     encoded = (signing_input + b'.' + encode(signature)).decode()
     rejected('unauthorized', checks.user_id_from_token, 'Bearer '+encoded, SECRET)
+
+
+def test_spring_token_type_claim_is_enforced():
+    assert checks.user_id_from_token(f"Bearer {token(token_type='access')}", SECRET) == '42'
+    for value in ['refresh', 'future', None]:
+        with pytest.raises(checks.Rejected):
+            checks.user_id_from_token(f"Bearer {token(token_type=value)}", SECRET)

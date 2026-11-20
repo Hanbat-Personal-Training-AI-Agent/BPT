@@ -13,6 +13,7 @@ import com.bpt.kori.domain.user.repository.UserCalibrationRepository;
 import com.bpt.kori.domain.user.repository.UserRepository;
 import com.bpt.kori.domain.user.service.UserService;
 import com.bpt.kori.domain.workout.entity.WorkoutRecord;
+import com.bpt.kori.domain.workout.entity.WorkoutSetRecord;
 import com.bpt.kori.domain.workout.repository.WorkoutRecordRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -224,8 +225,16 @@ class UserServiceTest {
     }
 
     private WorkoutRecord dashboardRecord(String name, LocalDate day, Integer reps, int seconds, int sets) {
-        return WorkoutRecord.builder().exerciseName(name).date(day.atTime(12, 0))
+        WorkoutRecord record = WorkoutRecord.builder().exerciseName(name).date(day.atTime(12, 0))
                 .totalReps(reps).durationSeconds(seconds).targetSets(sets).build();
+        // 완료 세트는 계획 세트가 아니라 실제 세트 기록으로 센다(WorkoutEvidenceContract).
+        if (reps != null && reps > 0) {
+            for (int n = 1; n <= sets; n++) {
+                int setReps = reps / sets + (n == sets ? reps % sets : 0);
+                record.addSetRecord(WorkoutSetRecord.builder().setNumber(n).reps(setReps).build());
+            }
+        }
+        return record;
     }
 
     @Test

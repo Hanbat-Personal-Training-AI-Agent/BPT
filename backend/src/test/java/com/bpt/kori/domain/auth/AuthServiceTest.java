@@ -23,6 +23,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
@@ -195,6 +197,36 @@ class AuthServiceTest {
         assertThat(response).isNotNull();
         assertThat(response.getAccessToken()).isEqualTo("new.access.token");
         assertThat(response.getRefreshToken()).isEqualTo("new.refresh.token");
+    }
+
+    @Test
+    @DisplayName("액세스 토큰으로는 리프레시할 수 없다")
+    void refresh_withAccessToken_rejected() {
+        given(tokenProvider.validateRefreshToken("an.access.token")).willReturn(false);
+
+        com.bpt.kori.domain.auth.dto.RefreshTokenRequest req = new com.bpt.kori.domain.auth.dto.RefreshTokenRequest();
+        req.setRefreshToken("an.access.token");
+
+        assertThatThrownBy(() -> authService.refresh(req))
+                .isInstanceOf(CustomException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.TOKEN_EXPIRED);
+    }
+
+    @Test
+    @DisplayName("이메일 인증 직후라도 인증 토큰 없이 아이디 찾기·비밀번호 재설정은 거부된다")
+    void findUsernameAndResetPassword_withoutVerificationToken_rejected() {
+        com.bpt.kori.domain.auth.dto.FindUsernameRequest findReq = new com.bpt.kori.domain.auth.dto.FindUsernameRequest();
+        assertThatThrownBy(() -> authService.findUsername(findReq))
+                .isInstanceOf(CustomException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.INVALID_VERIFICATION_TOKEN);
+
+        com.bpt.kori.domain.auth.dto.ResetPasswordRequest resetReq = new com.bpt.kori.domain.auth.dto.ResetPasswordRequest();
+        resetReq.setEmail("jihoon@bpt.app");
+        resetReq.setNewPassword("newPassword123!");
+        assertThatThrownBy(() -> authService.resetPassword(resetReq))
+                .isInstanceOf(CustomException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.INVALID_VERIFICATION_TOKEN);
+        then(userRepository).should(never()).save(any());
     }
 
     @Test
